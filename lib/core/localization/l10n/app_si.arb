@@ -1,0 +1,53 @@
+{
+  "@@locale": "si",
+
+  "appTitle": "ප්‍රඥා ව්‍යාපෘතිය",
+
+  "treeNavigatorTitle": "ත්‍රිපිටක සංචාලකය",
+
+  "readerTitle": "පාඨකය",
+
+  "columnModePaliOnly": "පාලි පමණයි",
+
+  "columnModeSinhalaOnly": "සිංහල පමණයි",
+
+  "columnModeBoth": "දෙකම",
+
+  "paliLanguageLabel": "පාලි",
+
+  "sinhalaLanguageLabel": "සිංහල",
+
+  "loading": "පූරණය වෙමින්...",
+
+  "errorLoadingContent": "අන්තර්ගතය පූරණය කිරීමේ දෝෂයකි",
+
+  "errorLoadingTree": "සංචාලන ව්‍යූහය පූරණය කිරීමේ දෝෂයකි",
+
+  "retry": "යළි උත්සාහ කරන්න",
+
+  "selectNodeToRead": "කියවීම ආරම්භ කිරීමට සංචාලකයෙන් සූත්‍රයක් තෝරන්න",
+
+  "searchPlaceholder": "ත්‍රිපිටකයේ සොයන්න...",
+
+  "noResultsFound": "ප්‍රතිඵල හමු නොවීය",
+
+  "expandAll": "සියල්ල විශාල කරන්න",
+
+  "collapseAll": "සියල්ල හකුළන්න",
+
+  "settings": "සැකසීම්",
+
+  "navigationLanguage": "සංචාලන භාෂාව",
+
+  "fontSize": "අක්ෂර ප්‍රමාණය",
+
+  "fontSizeSmall": "කුඩා",
+
+  "fontSizeMedium": "මධ්‍යම",
+
+  "fontSizeLarge": "විශාල",
+
+  "fontSizeExtraLarge": "අතිශය විශාල",
+
+  "close": "වසන්න"
+}

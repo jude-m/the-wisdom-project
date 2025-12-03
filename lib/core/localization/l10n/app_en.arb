@@ -1,0 +1,128 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "The Wisdom Project",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+
+  "treeNavigatorTitle": "Tipitaka Navigator",
+  "@treeNavigatorTitle": {
+    "description": "Title for the tree navigation screen"
+  },
+
+  "readerTitle": "Reader",
+  "@readerTitle": {
+    "description": "Title for the reading screen"
+  },
+
+  "columnModePaliOnly": "Pali Only",
+  "@columnModePaliOnly": {
+    "description": "Label for Pali-only column display mode"
+  },
+
+  "columnModeSinhalaOnly": "Sinhala Only",
+  "@columnModeSinhalaOnly": {
+    "description": "Label for Sinhala-only column display mode"
+  },
+
+  "columnModeBoth": "Both",
+  "@columnModeBoth": {
+    "description": "Label for dual-column display mode showing both Pali and Sinhala"
+  },
+
+  "paliLanguageLabel": "Pali",
+  "@paliLanguageLabel": {
+    "description": "Label for Pali language"
+  },
+
+  "sinhalaLanguageLabel": "Sinhala",
+  "@sinhalaLanguageLabel": {
+    "description": "Label for Sinhala language"
+  },
+
+  "loading": "Loading...",
+  "@loading": {
+    "description": "Loading indicator text"
+  },
+
+  "errorLoadingContent": "Error loading content",
+  "@errorLoadingContent": {
+    "description": "Error message when content fails to load"
+  },
+
+  "errorLoadingTree": "Error loading navigation tree",
+  "@errorLoadingTree": {
+    "description": "Error message when navigation tree fails to load"
+  },
+
+  "retry": "Retry",
+  "@retry": {
+    "description": "Button label to retry a failed operation"
+  },
+
+  "selectNodeToRead": "Select a sutta from the navigator to begin reading",
+  "@selectNodeToRead": {
+    "description": "Placeholder message shown when no content is selected"
+  },
+
+  "searchPlaceholder": "Search Tipitaka...",
+  "@searchPlaceholder": {
+    "description": "Placeholder text for search input"
+  },
+
+  "noResultsFound": "No results found",
+  "@noResultsFound": {
+    "description": "Message shown when search returns no results"
+  },
+
+  "expandAll": "Expand All",
+  "@expandAll": {
+    "description": "Button label to expand all tree nodes"
+  },
+
+  "collapseAll": "Collapse All",
+  "@collapseAll": {
+    "description": "Button label to collapse all tree nodes"
+  },
+
+  "settings": "Settings",
+  "@settings": {
+    "description": "Label for settings menu"
+  },
+
+  "navigationLanguage": "Navigation Language",
+  "@navigationLanguage": {
+    "description": "Label for navigation language setting"
+  },
+
+  "fontSize": "Font Size",
+  "@fontSize": {
+    "description": "Label for font size setting"
+  },
+
+  "fontSizeSmall": "Small",
+  "@fontSizeSmall": {
+    "description": "Label for small font size option"
+  },
+
+  "fontSizeMedium": "Medium",
+  "@fontSizeMedium": {
+    "description": "Label for medium font size option"
+  },
+
+  "fontSizeLarge": "Large",
+  "@fontSizeLarge": {
+    "description": "Label for large font size option"
+  },
+
+  "fontSizeExtraLarge": "Extra Large",
+  "@fontSizeExtraLarge": {
+    "description": "Label for extra large font size option"
+  },
+
+  "close": "Close",
+  "@close": {
+    "description": "Button label to close a dialog or screen"
+  }
+}
