@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/tree_navigator_widget.dart';
 import '../widgets/dual_pane_reader_widget.dart';
+import '../widgets/tab_bar_widget.dart';
 
 class ContentScreen extends ConsumerWidget {
   const ContentScreen({super.key});
@@ -31,9 +32,19 @@ class ContentScreen extends ConsumerWidget {
             ),
           ),
 
-          // Dual Pane Reader (right side)
-          const Expanded(
-            child: DualPaneReaderWidget(),
+          // Reader area with tabs (right side)
+          Expanded(
+            child: Column(
+              children: [
+                // Tab bar
+                const TabBarWidget(),
+
+                // Dual Pane Reader
+                const Expanded(
+                  child: DualPaneReaderWidget(),
+                ),
+              ],
+            ),
           ),
         ],
       ),

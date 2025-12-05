@@ -4,12 +4,135 @@ import '../../domain/entities/column_display_mode.dart';
 import '../../domain/entities/content_entry.dart';
 import '../../domain/entities/entry_type.dart';
 import '../providers/text_content_provider.dart';
+import '../providers/tab_provider.dart';
 
-class DualPaneReaderWidget extends ConsumerWidget {
+class DualPaneReaderWidget extends ConsumerStatefulWidget {
   const DualPaneReaderWidget({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DualPaneReaderWidget> createState() => _DualPaneReaderWidgetState();
+}
+
+class _DualPaneReaderWidgetState extends ConsumerState<DualPaneReaderWidget> {
+  // Single scroll controller for all modes (both panes use the same controller in dual mode)
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Add scroll listener for automatic page loading
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    // Check if we're near the bottom (within 200 pixels)
+    if (_scrollController.hasClients) {
+      final maxScroll = _scrollController.position.maxScrollExtent;
+      final currentScroll = _scrollController.position.pixels;
+      final delta = maxScroll - currentScroll;
+
+      // Load more pages when user scrolls near the bottom
+      if (delta < 200) {
+        final contentAsync = ref.read(currentTextContentProvider);
+        contentAsync.whenData((content) {
+          if (content != null) {
+            final currentEnd = ref.read(pageEndProvider);
+            if (currentEnd < content.pageCount) {
+              // Load one more page
+              ref.read(loadMorePagesProvider)(1);
+            }
+          }
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _saveScrollPosition();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _saveScrollPosition([int? index]) {
+    final int activeTabIndex = index ?? ref.read(activeTabIndexProvider);
+    if (activeTabIndex >= 0 && _scrollController.hasClients) {
+      ref.read(saveTabScrollPositionProvider)(activeTabIndex, _scrollController.offset);
+
+      // Also save pagination state to the tab
+      final pageStart = ref.read(pageStartProvider);
+      final pageEnd = ref.read(pageEndProvider);
+
+      // Update the tab's pagination state
+      final tabs = ref.read(tabsProvider);
+      if (activeTabIndex < tabs.length) {
+        final updatedTab = tabs[activeTabIndex].copyWith(
+          pageStart: pageStart,
+          pageEnd: pageEnd,
+        );
+        ref.read(tabsProvider.notifier).updateTab(activeTabIndex, updatedTab);
+      }
+    }
+  }
+
+  void _restoreScrollPosition() {
+    final activeTabIndex = ref.read(activeTabIndexProvider);
+    if (activeTabIndex >= 0) {
+      // First restore pagination state from the tab
+      final tabs = ref.read(tabsProvider);
+      if (activeTabIndex < tabs.length) {
+        final tab = tabs[activeTabIndex];
+        ref.read(pageStartProvider.notifier).state = tab.pageStart;
+        ref.read(pageEndProvider.notifier).state = tab.pageEnd;
+      }
+
+      // Then restore scroll position after a frame (to let pagination update)
+      if (_scrollController.hasClients) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            final scrollOffset = ref.read(getTabScrollPositionProvider)(activeTabIndex);
+            final maxExtent = _scrollController.position.maxScrollExtent;
+            final targetOffset = scrollOffset.clamp(0.0, maxExtent);
+            _scrollController.jumpTo(targetOffset);
+          }
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Listen to active tab changes
+    ref.listen<int>(activeTabIndexProvider, (previous, next) {
+      if (previous != null && previous >= 0 && previous != next) {
+        // Save scroll position for the previous tab
+        _saveScrollPosition(previous);
+
+        // Reset scroll to 0
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(0);
+        }
+
+        // Then restore the actual saved position for the new tab after content renders
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _restoreScrollPosition();
+        });
+      }
+    });
+
+    // Listen to content loading state and restore scroll position after content is loaded
+    ref.listen(currentTextContentProvider, (previous, next) {
+      // When content finishes loading (transitions to AsyncData with actual content)
+      next.whenData((content) {
+        if (content != null && previous?.value == null) {
+          // Content just loaded, restore scroll position after widget tree is built
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _restoreScrollPosition();
+          });
+        }
+      });
+    });
+
     final contentAsync = ref.watch(currentTextContentProvider);
     final columnMode = ref.watch(columnDisplayModeProvider);
     final currentPageIndex = ref.watch(currentPageIndexProvider);
@@ -41,20 +164,19 @@ class DualPaneReaderWidget extends ConsumerWidget {
               ),
 
               // Column mode selector
-              Flexible(
-                child: SegmentedButton<ColumnDisplayMode>(
+              SegmentedButton<ColumnDisplayMode>(
                 segments: const [
                   ButtonSegment(
                     value: ColumnDisplayMode.paliOnly,
-                    label: Text('Pali', style: TextStyle(fontSize: 12)),
+                    label: Text('P', style: TextStyle(fontSize: 11)),
                   ),
                   ButtonSegment(
                     value: ColumnDisplayMode.both,
-                    label: Text('Both', style: TextStyle(fontSize: 12)),
+                    label: Text('P+S', style: TextStyle(fontSize: 11)),
                   ),
                   ButtonSegment(
                     value: ColumnDisplayMode.sinhalaOnly,
-                    label: Text('සිං', style: TextStyle(fontSize: 12)),
+                    label: Text('S', style: TextStyle(fontSize: 11)),
                   ),
                 ],
                 selected: {columnMode},
@@ -62,7 +184,6 @@ class DualPaneReaderWidget extends ConsumerWidget {
                   ref.read(columnDisplayModeProvider.notifier).state =
                       newSelection.first;
                 },
-                ),
               ),
               const SizedBox(width: 8),
 
@@ -128,15 +249,30 @@ class DualPaneReaderWidget extends ConsumerWidget {
                 );
               }
 
-              final page = content.getPageByIndex(currentPageIndex);
-              if (page == null) {
+              // Get pagination state
+              final pageStart = ref.watch(pageStartProvider);
+              final pageEnd = ref.watch(pageEndProvider);
+
+              // Show only the loaded page slice
+              final pagesToShow = content.contentPages
+                  .sublist(
+                    pageStart.clamp(0, content.pageCount),
+                    pageEnd.clamp(0, content.pageCount),
+                  );
+
+              if (pagesToShow.isEmpty) {
                 return const Center(
-                  child: Text('Page not found'),
+                  child: Text('No content to display'),
                 );
               }
 
               // Build the layout based on column mode
-              return _buildContentLayout(context, ref, page, columnMode);
+              return _buildContentLayout(
+                context,
+                ref,
+                pagesToShow,
+                columnMode,
+              );
             },
             loading: () => const Center(
               child: CircularProgressIndicator(),
@@ -172,81 +308,106 @@ class DualPaneReaderWidget extends ConsumerWidget {
   Widget _buildContentLayout(
     BuildContext context,
     WidgetRef ref,
-    dynamic page,
+    List<dynamic> pages,
     ColumnDisplayMode columnMode,
   ) {
     switch (columnMode) {
       case ColumnDisplayMode.paliOnly:
-        return SingleChildScrollView(
+        return ListView.builder(
+          controller: _scrollController,
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildPageNumber(context, page.pageNumber),
-              const SizedBox(height: 16),
-              ..._buildEntries(context, page.paliContentSection.contentEntries),
-            ],
-          ),
+          itemCount: pages.length,
+          itemBuilder: (context, index) {
+            final page = pages[index];
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildPageNumber(context, page.pageNumber),
+                const SizedBox(height: 16),
+                ..._buildEntries(context, page.paliContentSection.contentEntries),
+                const SizedBox(height: 32), // Space between pages
+              ],
+            );
+          },
         );
 
       case ColumnDisplayMode.sinhalaOnly:
-        return SingleChildScrollView(
+        return ListView.builder(
+          controller: _scrollController,
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildPageNumber(context, page.pageNumber),
-              const SizedBox(height: 16),
-              ..._buildEntries(context, page.sinhalaContentSection.contentEntries),
-            ],
-          ),
+          itemCount: pages.length,
+          itemBuilder: (context, index) {
+            final page = pages[index];
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildPageNumber(context, page.pageNumber),
+                const SizedBox(height: 16),
+                ..._buildEntries(context, page.sinhalaContentSection.contentEntries),
+                const SizedBox(height: 32), // Space between pages
+              ],
+            );
+          },
         );
 
       case ColumnDisplayMode.both:
-        return Row(
-          children: [
-            // Pali pane (left)
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border(
-                    right: BorderSide(
-                      color: Theme.of(context).dividerColor,
-                      width: 1,
+        // Single scroll view wraps both panes so they scroll together
+        return SingleChildScrollView(
+          controller: _scrollController,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Pali pane (left)
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      right: BorderSide(
+                        color: Theme.of(context).dividerColor,
+                        width: 1,
+                      ),
                     ),
                   ),
-                ),
-                child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       _buildLanguageLabel(context, 'Pali'),
-                      _buildPageNumber(context, page.pageNumber),
-                      const SizedBox(height: 16),
-                      ..._buildEntries(context, page.paliContentSection.contentEntries),
+                      // Show all pages
+                      for (final page in pages) ...[
+                        _buildPageNumber(context, page.pageNumber),
+                        const SizedBox(height: 16),
+                        ..._buildEntries(context, page.paliContentSection.contentEntries),
+                        const SizedBox(height: 32), // Space between pages
+                      ],
                     ],
                   ),
                 ),
               ),
-            ),
 
-            // Sinhala pane (right)
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildLanguageLabel(context, 'සිංහල'),
-                    _buildPageNumber(context, page.pageNumber),
-                    const SizedBox(height: 16),
-                    ..._buildEntries(context, page.sinhalaContentSection.contentEntries),
-                  ],
+              // Sinhala pane (right)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildLanguageLabel(context, 'සිංහල'),
+                      // Show all pages
+                      for (final page in pages) ...[
+                        _buildPageNumber(context, page.pageNumber),
+                        const SizedBox(height: 16),
+                        ..._buildEntries(context, page.sinhalaContentSection.contentEntries),
+                        const SizedBox(height: 32), // Space between pages
+                      ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
     }
   }

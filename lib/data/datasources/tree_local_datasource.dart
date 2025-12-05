@@ -52,14 +52,27 @@ class TreeLocalDataSourceImpl implements TreeLocalDataSource {
     // Build parent-child relationships
     final Map<String, List<TipitakaTreeNode>> childrenMap = {};
 
+    // Add root nodes to the map under 'root' key for consistent handling
     for (var node in flatList) {
-      if (node.parentNodeKey != null) {
-        childrenMap.putIfAbsent(node.parentNodeKey!, () => []);
-        childrenMap[node.parentNodeKey!]!.add(node);
-      }
+      final parentKey = node.parentNodeKey ?? 'root';
+      childrenMap.putIfAbsent(parentKey, () => []);
+      childrenMap[parentKey]!.add(node);
     }
 
-    // Recursively build nodes with children
+    // Sort all children lists ONCE by extracting the last number from the node key
+    // e.g., "sp-1-2-13" -> 13
+    // This matches the behavior in the Vue.js app (tree.js:7-12)
+    childrenMap.forEach((parentKey, children) {
+      children.sort((a, b) {
+        final aIndex = _extractChildIndex(a.nodeKey);
+        final bIndex = _extractChildIndex(b.nodeKey);
+
+        if (aIndex == null || bIndex == null) return 0;
+        return aIndex.compareTo(bIndex);
+      });
+    });
+
+    // Recursively build nodes with children (children are already sorted)
     TipitakaTreeNode buildNodeWithChildren(TipitakaTreeNode node) {
       final children = childrenMap[node.nodeKey] ?? [];
       final childrenWithTheirChildren = children
@@ -80,12 +93,22 @@ class TreeLocalDataSourceImpl implements TreeLocalDataSource {
       );
     }
 
-    // Get all root nodes and build them with their children
-    final rootNodes = flatList
-        .where((node) => node.parentNodeKey == null)
+    // Get all root nodes and build them with their children (already sorted in childrenMap)
+    final rootNodes = (childrenMap['root'] ?? [])
         .map((node) => buildNodeWithChildren(node))
         .toList();
 
     return rootNodes;
+  }
+
+  /// Extract the last number from a node key for sorting
+  /// e.g., "sp-1-2-13" -> 13
+  /// Matches the childInd function in Vue.js app (tree.js:7)
+  int? _extractChildIndex(String nodeKey) {
+    final parts = nodeKey.split('-');
+    if (parts.isEmpty) return null;
+
+    final lastPart = parts.last;
+    return int.tryParse(lastPart);
   }
 }
