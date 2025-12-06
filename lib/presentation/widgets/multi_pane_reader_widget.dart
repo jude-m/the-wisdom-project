@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/column_display_mode.dart';
 import '../../domain/entities/entry.dart';
 import '../../domain/entities/entry_type.dart';
+import '../../core/theme/theme_notifier.dart';
 import '../providers/document_provider.dart';
 import '../providers/tab_provider.dart';
 
@@ -162,6 +163,29 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                   ),
                 ),
               ),
+
+              // Theme selector
+              SegmentedButton<AppThemeMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: AppThemeMode.light,
+                    icon: Icon(Icons.light_mode, size: 16),
+                  ),
+                  ButtonSegment(
+                    value: AppThemeMode.dark,
+                    icon: Icon(Icons.dark_mode, size: 16),
+                  ),
+                  ButtonSegment(
+                    value: AppThemeMode.warm,
+                    icon: Icon(Icons.wb_twilight, size: 16),
+                  ),
+                ],
+                selected: {ref.watch(themeNotifierProvider)},
+                onSelectionChanged: (Set<AppThemeMode> newSelection) {
+                  ref.read(themeNotifierProvider.notifier).setTheme(newSelection.first);
+                },
+              ),
+              const SizedBox(width: 8),
 
               // Column mode selector
               SegmentedButton<ColumnDisplayMode>(
@@ -361,24 +385,24 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Language labels header row
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 12.0),
-                        child: _buildLanguageLabel(context, 'Pali'),
-                      ),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 12.0),
-                        child: _buildLanguageLabel(context, 'සිංහල'),
-                      ),
-                    ),
-                  ],
-                ),
+                // Row(
+                //   crossAxisAlignment: CrossAxisAlignment.start,
+                //   children: [
+                //     Expanded(
+                //       child: Padding(
+                //         padding: const EdgeInsets.only(right: 12.0),
+                //         child: _buildLanguageLabel(context, 'Pali'),
+                //       ),
+                //     ),
+                //     const SizedBox(width: 24),
+                //     Expanded(
+                //       child: Padding(
+                //         padding: const EdgeInsets.only(left: 12.0),
+                //         child: _buildLanguageLabel(context, 'සිංහල'),
+                //       ),
+                //     ),
+                //   ],
+                // ),
                 const SizedBox(height: 16),
 
                 // Content rows - each page with paired entries
@@ -448,26 +472,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
           ),
         );
     }
-  }
-
-  Widget _buildLanguageLabel(BuildContext context, String label) {
-    return Container(
-      height: 28, // Fixed height to ensure both labels have same height
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      alignment: Alignment.center, // Center text vertically
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Theme.of(context).colorScheme.onSecondaryContainer,
-        ),
-      ),
-    );
   }
 
   Widget _buildPageNumber(BuildContext context, int pageNumber) {

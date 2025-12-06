@@ -41,4 +41,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Claude Code local settings
 .claude/settings.local.json
+.claude/build/
+
+# Pod lock files (generated)
+ios/Podfile.lock
+macos/Podfile.lock
+
+# Test helpers (generated)
+test/helpers/

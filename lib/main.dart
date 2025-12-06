@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'presentation/screens/reader_screen.dart';
-import 'core/theme/text_entry_theme.dart';
+import 'core/theme/theme_notifier.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   runApp(
     const ProviderScope(
       child: MyApp(),
@@ -13,11 +15,28 @@ void main() {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Load saved theme preference on startup
+    Future.microtask(
+      () => ref.read(themeNotifierProvider.notifier).loadSavedTheme(),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Watch current theme
+    final themeData = ref.watch(currentThemeDataProvider);
+
     return MaterialApp(
       title: 'The Wisdom Project',
       debugShowCheckedModeBanner: false,
@@ -34,36 +53,8 @@ class MyApp extends StatelessWidget {
         Locale('si'), // Sinhala
       ],
 
-      // Theme
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF8B4513), // Brown color for Buddhist theme
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-        extensions: [
-          TextEntryTheme.light(ColorScheme.fromSeed(
-            seedColor: const Color(0xFF8B4513),
-            brightness: Brightness.light,
-          )),
-        ],
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF8B4513),
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-        extensions: [
-          TextEntryTheme.dark(ColorScheme.fromSeed(
-            seedColor: const Color(0xFF8B4513),
-            brightness: Brightness.dark,
-          )),
-        ],
-      ),
-      themeMode: ThemeMode.system,
+      // Theme - Single theme based on user preference
+      theme: themeData,
 
       // Home screen
       home: const ReaderScreen(),

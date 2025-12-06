@@ -46,6 +46,9 @@ dependencies:
   # Internationalization
   intl: any
 
+  # Persistence
+  shared_preferences: ^2.2.2
+
   # Icons
   cupertino_icons: ^1.0.8
 
@@ -60,6 +63,7 @@ dev_dependencies:
 
   # Linting
   flutter_lints: ^4.0.0
+  mockito: ^5.4.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
