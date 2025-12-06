@@ -1,0 +1,2859 @@
+
+ ▐▛███▜▌   Claude Code v2.0.58
+▝▜█████▛▘  Sonnet 4.5 · Claude Pro
+  ▘▘ ▝▝    ~/Desktop/Dev/the-wisdom-project
+══════════════════ Conversation compacted · ctrl+o for history ═════════════════
+
+> /compact 
+  ⎿  Compacted (ctrl+o to see full summary)
+  ⎿  Read lib/presentation/providers/tab_provider.dart (166 lines)
+  ⎿  Read lib/presentation/widgets/dual_pane_reader_widget.dart (503 lines)
+  ⎿  Read lib/presentation/providers/text_content_provider.dart (122 lines)
+  ⎿  Read lib/presentation/widgets/tree_navigator_widget.dart (258 lines)
+  ⎿  Read lib/domain/entities/reader_tab.dart (70 lines)
+
+> claude, I just noticed the order of the suttas in the tree navigator is 
+different from what I see in the existing app. look at image 1 - existing 
+app screen shot 
+[Image #1]
+
+also check image 2 - this project. notice the order of the suttas in the 
+navigator is different
+
+[Image #2]
+
+First identify the differece, then check the behaviour of the existing app, 
+whether there is something in the code to set the order after reading the 
+suttas from the json file. and then propose a fix 
+
+⏺ Looking at the two images, I can identify the key difference:
+
+  In Image 1 (existing app): Under සීලක්ඛන්ධවග්ගෙය, the suttas are listed in the
+  traditional canonical order with තෙවිජ්ජසූත්‍රය appearing at position 13 (at the
+   bottom of the list).
+
+  In Image 2 (current project): Under දීඝනිකාය, I can see කෙවිජ්ජසූත්‍රය (likely the
+  same as තෙවිජ්ජ) is highlighted and appears much earlier in the list (around
+  position 5), which is incorrect.
+
+  The Problem: The suttas are not being displayed in their correct canonical
+   order. They should follow the traditional Tipitaka sequence, not
+  alphabetical or insertion order.
+
+  Let me check the existing Vue.js app to see how it handles ordering:
+
+
+
+
+
+⏺ Fetch(https://raw.githubusercontent.com/pathnirvana/tipitaka.lk/5a95b47327d251
+       9ec820d53a916507bbc1d85b4f/src/stores/tree.ts)
+  ⎿  Interrupted · What should Claude do instead?
+
+⏺ Search(pattern: "**/navigation_tree*.dart")
+  ⎿  Found 3 files (ctrl+o to expand)
+
+⏺ Search(pattern: "**/tipitaka_tree*.dart")
+  ⎿  Found 2 files (ctrl+o to expand)
+
+> you dont have to go to github, check in local folder. Dev>Tipitaka.lk 
+
+⏺ Search(pattern: "**/tree.ts", path: "~/Desktop/Dev/tipitaka.lk")
+  ⎿  Found 0 files 
+
+⏺ Search(pattern: "**/tree*.ts", path: "~/Desktop/Dev/tipitaka.lk")
+  ⎿  Found 0 files 
+
+⏺ Search(pattern: "**/stores/**/*", path: "~/Desktop/Dev/tipitaka.lk")
+  ⎿  Found 0 files 
+
+⏺ Bash(ls -la /Users/judemahipalamudali/Desktop/Dev/tipitaka.lk)
+  ⎿  total 1912                                                       
+     drwxr-xr-x@  27 judemahipalamudali  staff     864 Dec  2 16:20 .
+     drwxr-xr-x@   8 judemahipalamudali  staff     256 Dec  2 16:50 ..
+     … +39 lines (ctrl+o to expand)
+
+⏺ Bash(ls -la /Users/judemahipalamudali/Desktop/Dev/tipitaka.lk/src)
+  ⎿  total 120                                                      
+     drwxr-xr-x@ 15 judemahipalamudali  staff    480 Oct  1 03:20 .
+     drwxr-xr-x@ 27 judemahipalamudali  staff    864 Dec  2 16:20 ..
+     … +16 lines (ctrl+o to expand)
+
+⏺ Bash(ls -la /Users/judemahipalamudali/Desktop/Dev/tipitaka.lk/src/store)
+  ⎿  total 96                                                       
+     drwxr-xr-x@  7 judemahipalamudali  staff    224 Oct 16 17:20 .
+     drwxr-xr-x@ 15 judemahipalamudali  staff    480 Oct  1 03:20 ..
+     … +5 lines (ctrl+o to expand)
+
+⏺ Read(~/Desktop/Dev/tipitaka.lk/src/store/tree.js)
+  ⎿  Read 118 lines
+
+⏺ Perfect! I found the issue. Let me check the current implementation in the
+   Flutter project:
+
+⏺ Read(lib/data/repositories/navigation_tree_repository_impl.dart)
+  ⎿  Read 148 lines
+
+⏺ Search(pattern: "**/tree_local_datasource*.dart")
+  ⎿  Found 1 file (ctrl+o to expand)
+
+⏺ Read(lib/data/datasources/tree_local_datasource.dart)
+  ⎿  Read 92 lines
+
+⏺ Analysis
+
+  I've identified the difference and the root cause:
+
+  The Difference in Images:
+  - Image 1 (existing app): Suttas appear in canonical order (e.g., තෙවිජ්ජසූත්‍රය
+   at position 13)
+  - Image 2 (current project): Suttas appear in the wrong order (කෙවිජ්ජසූත්‍රය
+  appearing much earlier)
+
+  Root Cause:
+
+  Looking at the Vue.js app code in /Users/judemahipalamudali/Desktop/Dev/ti
+  pitaka.lk/src/store/tree.js:5-12,20:
+
+  // since the json tree is an object the sort order is not maintained
+  // need to sort the children in the correct order for the treeview
+  const childInd = key => parseInt(key.split('-').splice(-1)[0])
+  const childrenSort = (a, b) => {
+    let ac, bc
+    if (isNaN(ac = childInd(a.key)) || isNaN(bc = childInd(b.key))) return 0
+    return ac - bc
+  }
+
+  // Line 20:
+  treeItem.children = children.map(cKey => genTree(cKey, index, addChildren,
+   letterOpt)).sort(childrenSort)
+
+  The existing app explicitly sorts children by extracting the last number
+  from the node key (e.g., "sp-1-2-13" → 13) to maintain canonical order.
+
+  However, in the Flutter app
+  (lib/data/datasources/tree_local_datasource.dart:64-67), there's no 
+  sorting:
+
+  final children = childrenMap[node.nodeKey] ?? [];
+  final childrenWithTheirChildren = children
+      .map((child) => buildNodeWithChildren(child))
+      .toList();  // No sort!
+
+  Proposed Fix
+
+  Add the same sorting logic to the Flutter implementation:
+
+
+
+⏺ Update(lib/data/datasources/tree_local_datasource.dart)
+  ⎿ Tool use rejected with user message: good to see the you have identified the
+     root cause, but why there are changes in multiplaces of the same code.
+
+⏺ You're right - let me clarify. We need to sort children in two places:
+
+  1. Inside buildNodeWithChildren: To sort the children of each node as we
+  recursively build the tree
+  2. For root nodes: The root nodes themselves also need to be sorted
+  because they're built separately from the flatList, not from the
+  childrenMap
+
+  However, I can simplify this. We only need to add sorting logic in ONE
+  place - inside buildNodeWithChildren. The root nodes will automatically
+  get sorted when we apply sorting to the root level as well.
+
+  Let me provide a cleaner fix:
+
+⏺ Update(lib/data/datasources/tree_local_datasource.dart)
+  ⎿  Updated lib/data/datasources/tree_local_datasource.dart with 11       
+     additions
+       66              .map((child) => buildNodeWithChildren(child))
+       67              .toList();
+       68    
+       69 +        // Sort children by the last number in their key to 
+          + maintain canonical order
+       70 +        // e.g., "sp-1-2-13" -> 13
+       71 +        // This matches the behavior in the Vue.js app 
+          + (tree.js:7-12)
+       72 +        childrenWithTheirChildren.sort((a, b) {
+       73 +          final aIndex = _extractChildIndex(a.nodeKey);
+       74 +          final bIndex = _extractChildIndex(b.nodeKey);
+       75 +  
+       76 +          if (aIndex == null || bIndex == null) return 0;
+       77 +          return aIndex.compareTo(bIndex);
+       78 +        });
+       79 +  
+       80          return TipitakaTreeNode(
+       81            nodeKey: node.nodeKey,
+       82            paliName: node.paliName,
+
+⏺ Update(lib/data/datasources/tree_local_datasource.dart)
+  ⎿ Tool use rejected with user message: we are again changing two places. The 
+    code should have only one place to sort as its just pure data. The UI will 
+    simply take whats offered from the db. so if the code is not written in that
+     way, perhaps we need to fix the whole design from the group up. Think 
+    critically
+
+⏺ You're absolutely right - we should sort the data ONCE, not in multiple
+  places. Let me fix the design.
+
+  The issue is that we're building childrenMap and then sorting during tree
+  construction. Instead, we should sort the children lists in the map ONCE
+  after building it, then use the pre-sorted data. Here's the cleaner
+  approach:
+
+⏺ Update(lib/data/datasources/tree_local_datasource.dart)
+  ⎿  Updated lib/data/datasources/tree_local_datasource.dart with 30       
+     additions and 18 removals
+       52        // Build parent-child relationships
+       53        final Map<String, List<TipitakaTreeNode>> childrenMap = 
+            {};
+       54    
+       55 +      // Add root nodes to the map under 'root' key for 
+          + consistent handling
+       56        for (var node in flatList) {
+       57 -        if (node.parentNodeKey != null) {
+       58 -          childrenMap.putIfAbsent(node.parentNodeKey!
+          -  , () => []);
+       59 -          childrenMap[node.parentNodeKey!]!.add(node);
+       60 -        }
+       57 +        final parentKey = node.parentNodeKey ?? 'root';
+       58 +        childrenMap.putIfAbsent(parentKey, () => []);
+       59 +        childrenMap[parentKey]!.add(node);
+       60        }
+       61    
+       62 -      // Recursively build nodes with children
+       63 -      TipitakaTreeNode buildNodeWithChildren(TipitakaTreeNode 
+          - node) {
+       64 -        final children = childrenMap[node.nodeKey] ?? [];
+       65 -        final childrenWithTheirChildren = children
+       66 -            .map((child) => buildNodeWithChildren(child))
+       67 -            .toList();
+       68 -  
+       69 -        // Sort children by the last number in their key to 
+          - maintain canonical order
+       70 -        // e.g., "sp-1-2-13" -> 13
+       71 -        // This matches the behavior in the Vue.js app 
+          - (tree.js:7-12)
+       72 -        childrenWithTheirChildren.sort((a, b) {
+       62 +      // Sort all children lists ONCE by extracting the last 
+          + number from the node key
+       63 +      // e.g., "sp-1-2-13" -> 13
+       64 +      // This matches the behavior in the Vue.js app 
+          + (tree.js:7-12)
+       65 +      childrenMap.forEach((parentKey, children) {
+       66 +        children.sort((a, b) {
+       67            final aIndex = _extractChildIndex(a.nodeKey);
+       68            final bIndex = _extractChildIndex(b.nodeKey);
+       69    
+       70            if (aIndex == null || bIndex == null) return 0;
+       71            return aIndex.compareTo(bIndex);
+       72          });
+       73 +      });
+       74    
+       75 +      // Recursively build nodes with children (children are 
+          + already sorted)
+       76 +      TipitakaTreeNode buildNodeWithChildren(TipitakaTreeNode 
+          + node) {
+       77 +        final children = childrenMap[node.nodeKey] ?? [];
+       78 +        final childrenWithTheirChildren = children
+       79 +            .map((child) => buildNodeWithChildren(child))
+       80 +            .toList();
+       81 +  
+       82          return TipitakaTreeNode(
+       83            nodeKey: node.nodeKey,
+       84            paliName: node.paliName,
+     ...
+        91          );
+        92        }
+        93    
+        94 -      // Get all root nodes and build them with their 
+           -  children
+        95 -      final rootNodes = flatList
+        96 -          .where((node) => node.parentNodeKey == null)
+        94 +      // Get all root nodes and build them with their 
+           +  children (already sorted in childrenMap)
+        95 +      final rootNodes = (childrenMap['root'] ?? [])
+        96            .map((node) => buildNodeWithChildren(node))
+        97            .toList();
+        98    
+        99        return rootNodes;
+       100      }
+       101 +  
+       102 +    /// Extract the last number from a node key for sorting
+       103 +    /// e.g., "sp-1-2-13" -> 13
+       104 +    /// Matches the childInd function in Vue.js app 
+           + (tree.js:7)
+       105 +    int? _extractChildIndex(String nodeKey) {
+       106 +      final parts = nodeKey.split('-');
+       107 +      if (parts.isEmpty) return null;
+       108 +  
+       109 +      final lastPart = parts.last;
+       110 +      return int.tryParse(lastPart);
+       111 +    }
+       112    }
+
+⏺ Perfect! Now the design is clean:
+
+  What I changed:
+  1. Single sorting point (lines 65-73): All children lists in the map are
+  sorted ONCE after building the map, before any tree construction
+  2. Consistent handling: Root nodes are added to childrenMap under the key
+  'root' instead of being treated differently
+  3. No sorting during tree building: The buildNodeWithChildren function now
+   just uses the pre-sorted data from the map
+  4. Root nodes use same logic: Retrieved from childrenMap['root'] just like
+   any other parent's children
+
+  The sorting extracts the last number from each node key (e.g., "sp-1-2-13"
+   → 13) and sorts numerically to maintain canonical order, matching the
+  Vue.js app's behavior.
+
+  Now you can test it - the suttas should appear in the correct canonical
+  order!
+
+> Potential Improvement? do you agree?
+Minor: Null Comparison Logic
+dart
+if (aIndex == null || bIndex == null) return 0;
+Returning 0 when either index is null means those nodes won't move relative 
+to each other, which might not preserve their original order. If you want 
+null-indexed nodes to come first or last, you could be more explicit: 
+
+⏺ I partially agree - let me explain my reasoning:
+
+  Current Behavior Analysis
+
+  The current logic:
+  if (aIndex == null || bIndex == null) return 0;
+
+  This returns 0 (meaning "equal"), so the stable sort will preserve the
+  original insertion order for any nodes with null indices.
+
+  Why I Think Current Behavior is Correct
+
+  1. Matches Vue.js implementation: The original app does the same thing:
+  if (isNaN(ac = childInd(a.key)) || isNaN(bc = childInd(b.key))) return 0
+  2. In practice, null indices shouldn't exist: All Tipitaka nodes have
+  properly formatted keys like "sp-1-2-13". If a null index occurs, it
+  indicates:
+    - Data corruption or malformed keys
+    - A bug in the JSON data
+  3. Stable sort preserves original order: If malformed keys exist, keeping
+  their original order is reasonable - we're not making assumptions about
+  where they "should" be
+
+  When Explicit Handling Would Be Better
+
+  Your suggestion would be valuable if:
+  1. We expect null indices: If null indices are a normal part of the data
+  model (they're not in this case)
+  2. We want deterministic placement: If we want all malformed nodes grouped
+   at the start/end for debugging
+
+  My Recommendation
+
+  I'd keep the current implementation because:
+  - ✅ It matches the proven Vue.js behavior
+  - ✅ It doesn't hide potential data issues (malformed nodes won't be
+  artificially moved)
+  - ✅ It's simpler and doesn't introduce unnecessary logic
+
+  However, if you want to be more defensive and make malformed keys obvious
+  during development, we could add:
+  if (aIndex == null || bIndex == null) {
+    // Put malformed nodes at the end so they're visible during testing
+    if (aIndex == null && bIndex == null) return 0;
+    return aIndex == null ? 1 : -1;
+  }
+
+  But I think this is over-engineering for a problem that shouldn't exist in
+   well-formed data.
+
+  Do you want to keep it as-is, or add defensive null handling?
+
+> lets keep as-is.
+
+
+We got another issue and that is.. the original pali text and the tranlation
+ (sinhala in this case) should be aligned in the UI as much as possible. so 
+whenever you read the text, the sinhala text is just right next to it, not 
+above or below. usually the sinhala text is long. so we will have to adjust 
+from the pali side (or even both).
+Anyway we need to correct this. look at image 1, which is the behaviour of 
+the existing app. [Image #1]
+
+look at the flutter app, how the 2nd paragraph of the sinhala side is off.. 
+[Image #2]
+
+1. Look at the images and understand the problem
+2. check out the code of the existing app, how it has handle it
+3. Suggest a solution on how to solve it
+
+Think critically 
+
+⏺ Looking at the images, I can see the alignment issue clearly:
+
+  Image #1 (existing app): The numbered sections (1, 2) on both Pali and
+  Sinhala sides appear at roughly the same vertical positions.
+
+  Image #2 (Flutter app): The second paragraph (starting with "2.") on the
+  Sinhala side is noticeably lower than the corresponding "2." on the Pali
+  side - they're misaligned.
+
+  Let me investigate how the existing app handles this:
+
+⏺ Bash(find /Users/judemahipalamudali/Desktop/Dev/tipitaka.lk/src -name "*.vue"
+      -o -name "*.js" | head -20)
+  ⎿ /Users/judemahipalamudali/Desktop/Dev/tipitaka.lk/src/constants.js     
+    /Users/judemahipalamudali/Desktop/Dev/tipitaka.lk/src/App.vue
+    /Users/judemahipalamudali/Desktop/Dev/tipitaka.lk/src/plugins/vuetify.j
+    … +34 lines (ctrl+o to expand)
+
+
+⏺ Read(~/Desktop/Dev/tipitaka.lk/src/components/TextTab.vue)
+  ⎿  Read 194 lines
+
+⏺ Perfect! Found the key difference. Let me check the TextEntry component to
+   understand the complete structure:
+
+⏺ Read(~/Desktop/Dev/tipitaka.lk/src/components/TextEntry.vue)
+  ⎿  Read 181 lines
+
+⏺ Excellent! Now I understand the solution. Let me check the current Flutter
+   implementation:
+
+⏺ Read(lib/presentation/widgets/dual_pane_reader_widget.dart)
+  ⎿  Read 60 lines
+
+⏺ Perfect! Now I can clearly explain the problem and solution:
+
+  Problem Analysis
+
+  Current Flutter Implementation (lines 357-410):
+  - Uses TWO SEPARATE Column widgets (one for Pali, one for Sinhala)
+  - Each column independently lays out ALL its entries
+  - If entry #1 in Sinhala is taller than entry #1 in Pali, then entry #2 in
+   Sinhala starts lower, causing misalignment
+
+  Pali Column:         Sinhala Column:
+  Entry 1 (2 lines) |  Entry 1 (5 lines)  ← Sinhala is taller
+  Entry 2 starts    |                      ← Misaligned!
+  here              |  Entry 2 starts here
+
+  Vue.js Implementation (TextTab.vue lines 17-30):
+  - Uses an HTML <table> with table-layout: fixed
+  - Each row contains BOTH the Pali AND Sinhala entries
+  - Table rows naturally align - both cells in the same row start at the
+  same vertical position
+  - The row height expands to fit the tallest cell
+
+  <table>
+    <tr>  ← Row 1
+      <td>Pali Entry 1</td>
+      <td>Sinhala Entry 1 (taller)</td>  ← Both start at same Y position
+    </tr>
+    <tr>  ← Row 2 starts here (aligned!)
+      <td>Pali Entry 2</td>
+      <td>Sinhala Entry 2</td>
+    </tr>
+  </table>
+
+  Proposed Solution
+
+  Change Flutter implementation from two separate columns to a single column
+   of paired entries. Each pair should be rendered as a Row containing both
+  Pali and Sinhala entries.
+
+  New structure:
+  Column(  // Single column of rows
+    children: [
+      Row(  // Entry pair 1
+        crossAxisAlignment: CrossAxisAlignment.start,  // Align at top
+        children: [
+          Expanded(child: PaliEntry1),
+          Expanded(child: SinhalaEntry1),
+        ],
+      ),
+      Row(  // Entry pair 2 - automatically aligned!
+        children: [
+          Expanded(child: PaliEntry2),
+          Expanded(child: SinhalaEntry2),
+        ],
+      ),
+      ...
+    ],
+  )
+
+  This ensures:
+  1. ✅ Each paired entry starts at the same Y position
+  2. ✅ Row height adjusts to the taller entry
+  3. ✅ Perfect vertical alignment maintained throughout
+
+  Do you want me to implement this fix?
+
+> looks good! 
+  ⎿ ⧉ Selected 1 lines from lib/presentation/widgets/tree_navigator_widget.dart
+    in Visual Studio Code
+
+
+⏺ I'll implement the fix now:
+
+⏺ Update(lib/presentation/widgets/dual_pane_reader_widget.dart)
+  ⎿ Tool use rejected with user message: This looks ok. here is another nuance. 
+    going forward Im thinking of adding more editions/translations, and planning
+     to go for 3 tabs on the reading pane (if its a desktop of course) so users,
+     can have BJT pali on one tab, BJT sinhala on the 2nd and perhaps the Sutta 
+    central version on the 3rd. Here is a json file of a sutta hosted on 
+    suttacentral https://github.com/suttacentral/bilara-data/blob/published/tran
+    slation/en/sujato/sutta/mn/mn100_translation-en-sujato.json
+    You could have a quick look. 
+
+    my question is, are we on the right track building dual pane (with the 
+    possibility of a triple pane) on the future?. Ultra think.
+
+
+
+⏺ Fetch(https://raw.githubusercontent.com/suttacentral/bilara-data/published/tra
+       nslation/en/sujato/sutta/mn/mn100_translation-en-sujato.json)
+  ⎿  Received 29.5KB (200 OK)
+
+⏺ Let me think deeply about this architectural question...
+
+  Analysis
+
+  SuttaCentral Structure:
+  - Segment-based with IDs like "mn100:2.1" (discourse 100, section 2, verse
+   1)
+  - Each segment = one sentence/clause
+  - Fundamentally different from BJT's page-based structure (page → entries)
+
+  Current Dual Pane Issues:
+
+  1. Not scalable: Hardcoded to exactly 2 columns (Pali left, Sinhala right)
+  2. Tight coupling: Assumes both editions have identical entry counts and
+  can be zipped together
+  3. Major refactoring needed for 3rd column
+
+  Critical Challenge: Segment Alignment
+
+  BJT and SuttaCentral use different segmentation schemes:
+  - BJT: Page 4, Entry 2 (physical book structure)
+  - SuttaCentral: mn100:2.1 (logical discourse structure)
+
+  How do you align them? You can't just zip entries together because:
+  - One BJT entry might correspond to multiple SC segments
+  - SC has finer granularity
+  - Different editions might break paragraphs differently
+
+  My Recommendation: Pause and Redesign 🛑
+
+  The current dual-pane approach is not the right track for 3+ editions.
+  Here's what we should do:
+
+  1. Edition-First Architecture
+
+  Make editions a first-class, data-driven concept:
+
+  class ContentEdition {
+    String id;              // 'bjt-pali', 'bjt-sinhala', 'sc-en-sujato'
+    String displayName;     // 'BJT Pali', 'BJT Sinhala', 'English (Sujato)'
+    EditionType type;       // page-based vs segment-based
+    Language language;
+    // Edition-specific data structure
+  }
+
+  class ReaderSettings {
+    List<String> visibleEditionIds;  // ['bjt-pali', 'bjt-sinhala', 
+  'sc-en-sujato']
+    int maxColumnsOnDesktop;          // 3
+    bool autoHideOnMobile;            // true
+  }
+
+  2. Flexible Table Layout
+
+  Use Flutter's Table widget (or similar) that naturally supports N columns:
+
+  Table(
+    columnWidths: {
+      for (int i = 0; i < visibleEditions.length; i++)
+        i: FlexColumnWidth(1.0),
+    },
+    children: [
+      // Header row
+      TableRow(
+        children: visibleEditions.map((e) =>
+          _buildColumnHeader(e)
+        ).toList(),
+      ),
+      // Content rows (aligned segments)
+      for (final alignedRow in alignedContent)
+        TableRow(
+          children: visibleEditions.map((e) =>
+            _buildSegmentCell(alignedRow[e.id])
+          ).toList(),
+        ),
+    ],
+  )
+
+  3. Segment Alignment System (The Hard Part)
+
+  You'll need a mapping/alignment layer:
+
+  class SegmentAlignment {
+    String suttaId;
+    Map<String, List<SegmentReference>> alignmentMap;
+
+    // Example:
+    // "row-0": {
+    //   "bjt-pali": [PageRef(4, entryIndex: 0)],
+    //   "bjt-sinhala": [PageRef(4, entryIndex: 0)],
+    //   "sc-en-sujato": [SegmentRef("mn100:2.1"), SegmentRef("mn100:2.2")]
+    // }
+  }
+
+  This could be:
+  - Manual curation for major editions (stored in DB)
+  - Heuristic alignment based on position (fallback)
+  - Hybrid approach
+
+  4. Responsive Design
+
+  - Desktop (>1024px): Show selected columns side-by-side (up to 3-4)
+  - Tablet (768-1024px): Show 2 columns max, with dropdown to switch
+  - Mobile (<768px): Show 1 column with swipe/tabs to switch
+
+  5. User Controls
+
+  - Edition selector: Checkboxes to show/hide editions
+  - Column order: Drag to reorder
+  - Per-tab settings: Different editions in different tabs
+
+  Why This Matters Now
+
+  If you continue with the dual-pane approach:
+  - ✅ Faster initial development
+  - ❌ Major refactoring needed for 3rd edition
+  - ❌ Alignment problems surface later
+  - ❌ Tech debt compounds
+
+  If you redesign now:
+  - ❌ Slower initial development
+  - ✅ Clean, scalable architecture
+  - ✅ Alignment solved systematically
+  - ✅ Easy to add 4th, 5th editions later
+
+  My Answer
+
+  No, we're not on the right track. The dual-pane approach is too rigid for
+  your vision. We should redesign for N-column flexibility now, using a
+  table-based layout where columns are data-driven.
+
+  Do you want to:
+  1. Continue with dual pane and accept tech debt?
+  2. Pause and redesign for multi-edition support?
+  3. Implement dual pane but in a way that's easier to extend (middle
+  ground)?
+
+  What are your thoughts?
+
+> I hear you but perhaps you should read the readme file of suttacentral, 
+here you go. it has a lot of information about the data structure. 
+
+# bilara-data
+
+This repository contains the published and unpublished translations, root 
+texts, and other data from the Bilara translation app.
+
+- The `published` branch is the main branch and contains finished 
+translations and other texts. **Use `published` branch for any form of 
+publishing**. In software terms it can be considered to be “stable”. 
+- The `unpublished` branch contains translations which are still in 
+progress. **Do not use material from `unpublished` except for internal 
+SuttaCentral uses.** In software terms it can be considered to be the 
+“develop” branch. There should be no data integrity issues but there are no 
+guarantees about the content. 
+
+###### Table of Contents
+
+- [Warning](#warning)
+- [How it works](#how-it-works)
+- [Publication](#publication)
+- [Inline markup](#inline-markup)
+- [Bilara i/o](#bilara-io)
+  - [Use bilara i/o](#use-bilara-io)
+- [Some notes on SC-specific data](#some-notes-on-sc-specific-data)
+  - [Variant readings](#variant-readings)
+  - [References](#references)
+
+
+## Warning
+
+Pull Requests such as from a fork should not be made against published 
+branch. Instead pull requests should be made against the unpublished branch.
+
+For manual publication workflow within this repository, please refer to 
+https://github.com/suttacentral/bilara-data/wiki/Manual-publication-workflow
+
+## How it works
+
+Bilara consumes `json` objects where:
+
+- the key is a unique segment identifier
+- the value is a string corresponding to the identifier.
+
+### cognate files
+
+The value may be root text, translation, comments, variant readings, markup 
+and so on. Each different kind of data is contained in files in separate 
+directories, with one file per text.  The different files pertaining to the 
+same text are referred to as “**cognate**”.
+
+The text `mn1`, for example, may have cognate files in:
+
+    - /root
+    - /html
+    - /translation/en
+    - /translation/de
+    - /variant
+    
+And so on. There is no theoretical limit to the number of cognates.
+
+### example
+
+Let us look at a simple example. Here is a text with in the /root/ directory
+ with the segment ID `mn1:1.1`.
+
+```
+"mn1:1.1": "Evaṁ me sutaṁ—",
+```
+The translation/en directory contains the same ID with a translated string:
+
+```
+"mn1:1.1": "So have I heard.",
+```
+
+There might be a comment on this in /comment/:
+
+```
+"mn1:1.1": "Traditionally attributed to the Buddha’s closest disciple, 
+Ānanda.",
+```
+And some markup in /html/:
+
+```
+"mn1:1.1": "<p><span class='evam'>{}</span>",
+```
+
+Note that `{}` is used as placeholder for text in the /html files. By 
+convention, use single quotes in `html` to avoid confusion with JSON.
+
+Bilara texts are kept in files where one file is approximately one text. 
+However the files are just for convenience, and may be changed by an 
+application. For example, a very long text might be split into multiple HTML
+ files for display on the web. However, the segment IDs should remain 
+immutable.
+
+## Publication
+
+Publication details are recorded canonically in `_publication.json`. 
+Publications are scoped by collection such as `mn`, `dhp`, etc. Each 
+“publication” thus corresponds roughly with a “book”. This doesn’t mean all 
+texts in the work must be finished, it is just for convenience.
+
+A record in `_publication.json` is required for every translation project. 
+To get started, it requires at minimum:
+
+- `publication_number`: a simple incremented ID.
+ - `root_lang`
+ - `translation_lang`
+ - `author_uid` — must be unique in SC, usually may be github handle.
+- `author_name` — full name under which work will be published.
+- `author_github_handle` — prefer something like real name.
+- `text_uid` — select one text such as mn, dn, etc. to start.
+- `"is_published": "false"`
+- `license` must be set to CC0. Note that all translations supported by 
+SuttaCentral must use CC0 licence.
+
+If the translation is by a team, there should be a team name that is 
+independent of the author names. Use eg. `pt-team` by default. It can be 
+changed later. Collaborator details must be added as per author details 
+above.
+
+Other details can be added later.
+
+Once a project is ready to be published, all relevant fields should be 
+filled in, and set `"is_published": "true"`.
+
+The text will be switched to the `published` branch, signfying that it is 
+ready to be consumed by apps.
+
+## Inline markup
+
+Text inside segment strings should avoid using markup. A subset of markdown 
+may be used, with slightly specialized meanings:
+
+- `*asterisks*` mean emphasis (= `<em>`), usually rendered as italics.
+- `_underscores_` are not synonyms for asterisk, but are used when quoting a
+ word from the root text in the translation. (= `<i lang='pli' 
+translate='no'>`)
+- `**double asterisk**` may be used to signify strong emphasis i.e. bold, 
+but I wouldn’t encourage it! (= `<strong>`)
+- `#123` indicates a number used for counting sections. These are inherited 
+from the Mahasangiti edition. Typically they serve to clarify the structure 
+of complex sections. (= `<span class='counter'>123</span>`)
+
+## Bilara i/o
+
+This is a utility for importing and exporting data from Bilara. It allows 
+you to pull together the data for the same text from different directories; 
+i.e. it collates the cognate files. It is a very flexible tool, but we 
+envisage two main use-cases:
+
+1. Internal SC work, especially changing segments in bilara-data
+2. Consumption of `bilara-data` in external apps
+
+The basic usage is to export a text or range of texts in `tsv`. The data can
+ then be viewed or manipulated in the spreadsheet, and the result imported 
+back into `bilara-data`. 
+
+A typical use case would be if we discover that a text has an extra unwanted
+ segment break, we can combine two segments into one, delete the old 
+segment, and re-import it. Changing this in the raw json files is tricky, as
+ you have to keep track of all the different files of that particular text, 
+and re-increment the segment numbering.
+
+### Use bilara i/o
+
+Make sure you’re in the latest `unpublished` branch.
+
+```
+cd bilara-data
+git checkout unpublished
+git pull
+```
+
+Go to the .scripts folder. 
+
+```
+cd bilara-data/.scripts/bilara-io
+```
+
+Change the python version to 3.7.2. (Other versions may work if you have a 
+different version installed; some users say to use 3.9 or higher.) Run 
+something like:
+
+```
+pip3 install -r requirements.txt
+```
+
+Ready to go, let’s export dn1 as a `tsv` file!
+
+```
+./sheet_export.py dn1 dn1.tsv
+```
+
+Open it in your spreadsheet application (calc, excel, google sheets, etc.). 
+Edit it, save, and run:
+
+```
+ ./sheet_import.py dn1.tsv
+ ```
+
+*Et voila*, your changes appear in the relevant bilara-data files.
+
+You can easily do something like this, too:
+
+```
+./sheet_export.py dn dn.tsv --include root,translation+en
+```
+
+“Export the whole of DN as a `tsv` file, including only the root text and 
+English translation”.
+
+## Some notes on SC-specific data
+
+### Variant readings
+
+The structure of the variant readings entries is as follows.
+
+Here is a typical simple entry.
+
+```
+"an10.96:1.3": "Tapodāya → tapode (bj, mr)",
+```
+
+Which means: 
+
+> "On this segment, the root text (lemma) 'Tapodāya' has a variant 'tapode' 
+indicated by an arrow, which is found in the bj and mr editions."
+
+The details for each edition is found in `uid_expansion`.
+
+More generally:
+
+```
+"segment": "lemma → variant (edition)"
+```
+
+Editions are separated by commas, as above. Where the same lemma has 
+multiple variants in different editions, semi-colon is used.
+
+```
+"an10.98:1.10": "abhikkantapaṭikkante → abhikkante paṭikkante (bj); 
+abhikkantapaṭikkanto (mr)"
+```
+
+> "The lemma 'abhikkantapaṭikkante' has a variant 'abhikkante paṭikkante' in
+ the bj edition, and another variant 'abhikkantapaṭikkanto' in the mr 
+edition."
+
+
+When multiple lemmas have variants on the same segment, pipe `|` is used as 
+separator.
+
+```
+an10.99:6.2": "vaṅkakaṁ → vaṅkaṁ (si, pts-vp-pli1ed) | ciṅgulakaṁ → 
+piṅgulikaṁ (sya-all); ciṅkulakaṁ (mr)"
+```
+
+> "The lemma 'vaṅkakaṁ' has a variant 'vaṅkaṁ' in the si and pts-vp-pli1ed 
+editions. In addition, the lemma 'ciṅgulakaṁ' has the variant 'piṅgulikaṁ' 
+in the sya-all edition, and another variant 'ciṅkulakaṁ' in the mr edition."
+
+The use of empty brackets indicates a place in the mahasangiti edition where
+ a passage was not found, but was present in other editions.
+
+```
+an2.49:1.6": "() → (visamattā bhikkhave parisāya adhammakammāni pavattanti …
+ vinayakammāni na dippanti.) (bj, sya-all, pts-vp-pli1ed)",
+```
+
+> "In the place marked by (), the passage 'visamattā bhikkhave parisāya 
+adhammakammāni pavattanti … vinayakammāni na dippanti.' is found in the bj, 
+sya-all, and pts-vp-pli1ed editions."
+
+Occasionally the variants offer a short explanation in Pali as to an unusual
+ textual situation.
+
+```
+an11.6:1.1": "etthantare pāṭho si, sya-all, km, pts-vp-pli1ed potthakesu na
+```
+
+> "The indicated passage is not found in the si, sya-all, km, and 
+pts-vp-pli1ed editions."
+
+### References
+
+The reference files contain detailed references to over a dozen editions of 
+the Pali canon. These were originally collated by the Dhamma Society for 
+their Mahsaṅgīti edition, and have been supplemented by SuttaCentral.
+
+The full forms of the abbreviations may be found in 
+`sc-data/misc/root_edition.json`.
+
+## GitHub Actions
+
+There are three GitHub Actions workflows that are run in this repository.
+
+1. `run-tests-on-pr.yml`
+2. `push-changes-to-sc-data.yml`
+3. `check-migration.yml`
+
+All three found here: `bilara-data/.github/workflows`.  
+
+`run-tests-on-pr.yml` is run whenever a pull request is made for the 
+`published` branch of `bilara-data`.  This workflow 
+is responsible for running tests that insure the integrity of `bilara-data`.
+  The tests are run everytime a pull request 
+is opened, updated via a push, or re-opened.  If the tests fail, ability to 
+merge the pull request will be blocked. 
+Below is an overview of the steps performed in the workflow:
+
+* clones the `suttacentral/bilara-data-integrity` repo
+* clones the `suttacentral/bilara-data` repo into the 
+`bilara-data-integrity` repo
+* gets a list of JSON files that have been changed since the last successful
+ run (if there are any) by calling `git diff` on the `bilara-data` repo
+* gets a list of JSON files that have been deleted since the last successful
+ run (if there are any) by calling `git diff` on the `bilara-data` repo
+* passes those files to `sutta-processor`, which has been modified to run on
+ a per-file basis, rather than on the whole
+   of `bilara-data`
+* if there are no errors, the ability to merge the pull request is enabled
+
+The commit SHAs used in the calls to `git diff` are 
+`github.event.pull_request.base.sha` and 
+`github.event.pull_request.head.sha`.  `github.event.pull_request.base.sha` 
+is the commit SHA of the target branch (`published`).
+`github.event.pull_request.head.sha` is the commit SHA of the source branch 
+(the branch that will be merged into `published`).
+
+`push-changes-to-sc-data.yml` is responsible for pushing the changes to 
+`sc-data` after `run-tests-on-pr.yml` has 
+completed successfully.  It performs a similar series of steps to 
+`run-tests-on-pr.yml`, but doesn't run the tests and 
+runs the Nilakkhana transform script on the changed files before pushing 
+them to `sc-data`.  It also uses different 
+commit SHAs.  It uses `github.event.before`, which is the SHA of the most 
+recent commit before the push and `github.sha`,
+which is the commit SHA of the pull request's merge commit.
+
+All the steps after the calls to `git diff` in both workflows have 
+conditional statements checking the existence of 
+changed or deleted files.  If none are found, then the steps are skipped.
+
+`check-migration.yml` compares the `bilara-data` files and the Yuttadhammo 
+source texts.  It ensures that the work done
+on the `bilara-data` texts haven't introduced unwanted changes or deletions.
+    It uses the `on.schedule` event to 
+trigger the workflow.  This workflow run independently of the `bilara-data` 
+-> `sc-data` workflows.  So failure of this 
+workflow does not affect the ability to create or merge pull requests.
+
+1. Learn how they map pali and translation (English in there case) and vs 
+how we have mapped pali and sinhala 
+
+⏺ After reading the README carefully, I now understand the critical 
+  difference in data architecture:
+
+  SuttaCentral's Approach: ID-Based Alignment
+
+  Structure:
+
+  - Separate files per language/type (cognate files)
+  - /root/pli/ms/sutta/mn/mn100_root-pli-ms.json → Pali root text
+  - /translation/en/sujato/sutta/mn/mn100_translation-en-sujato.json →
+  English translation
+  - /translation/de/sabbamitta/sutta/mn/mn100_translation-de-sabbamitta.json
+   → German translation
+  - /html/pli/ms/sutta/mn/mn100_html.json → HTML markup
+
+  Alignment:
+
+  // Pali root file
+  "mn100:2.1": "Evaṁ me sutaṁ—"
+
+  // English translation file
+  "mn100:2.1": "So have I heard."
+
+  // German translation file
+  "mn100:2.1": "So habe ich gehört."
+
+  Key insight: The segment ID "mn100:2.1" is the immutable key that links
+  all cognate files. You can add unlimited translations by just creating new
+   cognate files with the same IDs.
+
+  BJT's Current Approach: Position-Based Alignment
+
+  Structure:
+
+  - Single file contains both Pali and Sinhala
+  - Alignment is by array index: page.paliContentSection.contentEntries[0]
+  ↔ page.sinhalaContentSection.contentEntries[0]
+  - No explicit segment IDs
+
+  Problem:
+
+  Adding a 3rd edition (e.g., SuttaCentral English) requires:
+  1. Either restructuring BJT data to add a 3rd array
+  2. Or building a separate loading mechanism for SC data
+  3. Manual alignment mapping between BJT positions and SC segment IDs
+
+  Critical Question: Data Format Strategy
+
+  You have two paths forward:
+
+  Path A: Keep Dual-Pane for BJT, Build Hybrid System 🔀
+
+  Approach:
+  - Dual-pane works for BJT (Pali + Sinhala) since they're position-aligned
+  - Add a separate loader for SC data that uses segment IDs
+  - Build alignment layer to map BJT positions ↔ SC segment IDs
+
+  Pros:
+  - ✅ No restructuring of existing BJT data
+  - ✅ Can show BJT + SC editions together
+
+  Cons:
+  - ❌ Complex: Two different data loading/alignment systems
+  - ❌ Manual mapping needed (BJT position → SC segment ID)
+  - ❌ Still limited to N-column hardcoding in UI
+
+  When this makes sense:
+  - If BJT data won't get segment IDs
+  - If you want BJT + SC editions displayed together
+  - If you're willing to maintain mapping layer
+
+  Path B: Adopt SC-Style Segment IDs for Everything 🎯
+
+  Approach:
+  - Restructure BJT data to use segment IDs ("dn1:1.1", "dn1:1.2", etc.)
+  - Separate BJT Pali and Sinhala into cognate files
+  - All editions (BJT Pali, BJT Sinhala, SC English) use same ID system
+  - Build flexible N-column reader
+
+  Pros:
+  - ✅ Clean, unified architecture
+  - ✅ Trivial to add new editions (just drop in cognate files)
+  - ✅ Automatic alignment by ID matching
+  - ✅ Future-proof for unlimited editions
+
+  Cons:
+  - ❌ Major data restructuring work
+  - ❌ Need to generate segment IDs for BJT content
+  - ❌ Breaking change to existing data structure
+
+  When this makes sense:
+  - If you want a truly scalable multi-edition system
+  - If you're early enough in the project to restructure
+  - If you plan to support many editions long-term
+
+  My Updated Recommendation
+
+  Given that you want to support BJT Pali + BJT Sinhala + SC English (and 
+  potentially more):
+
+  Go with Path A initially, but design the UI for N-column flexibility:
+
+  1. Data Layer:
+    - Keep BJT's position-based alignment for now
+    - Add SC loader that works with segment IDs
+    - Create simple mapping: BJT entry index → estimated SC segment ID
+  (heuristic-based)
+  2. UI Layer (the critical part):
+    - Build data-driven column system (not hardcoded dual-pane)
+    - Use Table or custom layout that takes List<Edition> as input
+    - Each edition provides: id, displayName, segments
+  3. Alignment Strategy:
+    - For BJT editions: zip by position (current approach)
+    - For SC editions: match by segment ID
+    - For BJT ↔ SC: heuristic alignment (e.g., both show segments in order,
+   user can manually scroll to align)
+
+  The key insight: You don't need perfect alignment across ALL editions.
+  Users can:
+  - View BJT Pali + Sinhala perfectly aligned (position-based)
+  - View SC English in 3rd column, roughly aligned but scrollable
+  independently
+  - Power users can help create manual alignment mappings later
+
+  Answer to Your Question
+
+  Are we on the right track building dual pane (with the possibility of a 
+  triple pane) on the future?
+
+  Modified yes: Build a flexible N-column system, not a hardcoded dual-pane.
+   The SC README confirms that ID-based alignment is the gold standard, but
+  you can support both approaches:
+  - Position-based for BJT
+  - ID-based for SC
+  - Hybrid alignment layer
+
+  Don't hardcode 2 or 3 columns. Build it so adding a 4th, 5th edition is
+  just configuration, not code changes.
+
+  Do you want me to design the flexible multi-column reader architecture 
+  that supports both alignment methods?
+
+> Path B is a no go. I dont want to touch the jsons of BJT, infact later on 
+we need to build a feeding mechaism for those, since there can be 
+corrections. So keep in mind that BJT json files are sacred. 
+
+⏺ Perfect - BJT JSON files are sacred. This makes the decision crystal
+  clear.
+
+  Strategy: Path A with Data-Driven Architecture
+
+  Let me lay out the complete picture:
+
+  1. Data Layer - Two Loaders, One Interface
+
+  // Abstract interface - all editions expose segments
+  abstract class ContentEdition {
+    String get id;              // 'bjt-pali', 'bjt-sinhala', 'sc-en-sujato'
+    String get displayName;      // 'පාළි', 'සිංහල', 'English'
+    Language get language;
+    List<Segment> get segments;  // Unified segment list
+  }
+
+  // Unified segment model
+  class Segment {
+    final String text;
+    final SegmentType type;      // heading, paragraph, gatha, etc.
+    final int position;          // Sequential position in edition (0, 1, 
+  2...)
+    final String? segmentId;     // For SC: "mn100:2.1", For BJT: null
+
+    // We can add generated IDs later if needed without touching BJT JSON
+  }
+
+  // BJT Loader - wraps existing page-based structure
+  class BJTEdition extends ContentEdition {
+    final TextContent _content;  // Your existing domain model
+    final ContentLanguage _lang; // pali or sinhala
+
+    @override
+    List<Segment> get segments {
+      // Flatten pages → entries into sequential list
+      final result = <Segment>[];
+      var position = 0;
+
+      for (final page in _content.contentPages) {
+        final section = _lang == ContentLanguage.pali
+            ? page.paliContentSection
+            : page.sinhalaContentSection;
+
+        for (final entry in section.contentEntries) {
+          result.add(Segment(
+            text: entry.plainText,
+            type: _mapEntryType(entry.entryType),
+            position: position++,
+            segmentId: null,  // BJT doesn't have IDs, that's fine
+          ));
+        }
+      }
+      return result;
+    }
+  }
+
+  // SC Loader - loads from segment-based JSON
+  class SCEdition extends ContentEdition {
+    final Map<String, String> _segmentData;  // From SC JSON
+
+    @override
+    List<Segment> get segments {
+      var position = 0;
+      return _segmentData.entries.map((e) => Segment(
+        text: e.value,
+        type: _inferType(e.value),  // Heuristic based on text
+        position: position++,
+        segmentId: e.key,           // "mn100:2.1" etc.
+      )).toList();
+    }
+  }
+
+  2. Alignment Strategy - Position-Based Rows
+
+  Key insight: We don't need perfect semantic alignment. We just need to
+  display segments at similar vertical positions.
+
+  class AlignedRow {
+    final int rowNumber;
+    final Map<String, Segment?> segmentsByEdition;  // editionId → segment
+
+    // Example:
+    // Row 5: {
+    //   'bjt-pali': Segment(position: 5, text: "..."),
+    //   'bjt-sinhala': Segment(position: 5, text: "..."),
+    //   'sc-en-sujato': Segment(position: 5, text: "..."),
+    // }
+  }
+
+  List<AlignedRow> buildAlignedRows(List<ContentEdition> editions) {
+    // Find max length across all editions
+    final maxLength = editions.map((e) => e.segments.length).reduce(max);
+
+    // Create rows by position
+    return List.generate(maxLength, (rowIndex) {
+      final segmentsByEdition = <String, Segment?>{};
+
+      for (final edition in editions) {
+        // Get segment at this position, or null if edition is shorter
+        segmentsByEdition[edition.id] = rowIndex < edition.segments.length
+            ? edition.segments[rowIndex]
+            : null;
+      }
+
+      return AlignedRow(
+        rowNumber: rowIndex,
+        segmentsByEdition: segmentsByEdition,
+      );
+    });
+  }
+
+  What this means:
+  - BJT Pali entry 0 sits next to BJT Sinhala entry 0 ✅ (perfect alignment
+  - same source)
+  - BJT Pali entry 0 sits next to SC English segment 0 ⚠️ (approximate
+  alignment - may drift)
+  - This is acceptable because all texts follow roughly the same narrative
+  flow
+
+  3. UI Layer - N-Column Table
+
+  Widget _buildMultiColumnLayout(
+    BuildContext context,
+    List<ContentEdition> editions,
+    List<AlignedRow> rows,
+  ) {
+    return SingleChildScrollView(
+      controller: _scrollController,
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            // Header row with edition labels
+            Row(
+              children: [
+                for (var i = 0; i < editions.length; i++) ...[
+                  Expanded(
+                    child: _buildColumnHeader(editions[i]),
+                  ),
+                  if (i < editions.length - 1)
+                    _buildColumnDivider(),
+                ],
+              ],
+            ),
+
+            // Content rows
+            for (final row in rows)
+              _buildAlignedRow(context, editions, row),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlignedRow(
+    BuildContext context,
+    List<ContentEdition> editions,
+    AlignedRow row,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,  // Top-align cells
+        children: [
+          for (var i = 0; i < editions.length; i++) ...[
+            Expanded(
+              child: _buildSegmentCell(
+                context,
+                row.segmentsByEdition[editions[i].id],
+              ),
+            ),
+            if (i < editions.length - 1)
+              _buildColumnDivider(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSegmentCell(BuildContext context, Segment? segment) {
+    if (segment == null) {
+      return const SizedBox.shrink();  // Empty cell if edition is shorter
+    }
+
+    // Render segment based on type (heading, paragraph, etc.)
+    return _buildEntry(context, segment);
+  }
+
+  4. User Configuration
+
+  class ReaderSettings {
+    final List<String> visibleEditionIds;  // ['bjt-pali', 'bjt-sinhala', 
+  'sc-en-sujato']
+    final int maxColumnsDesktop;           // 3
+    final int maxColumnsTablet;            // 2
+    final int maxColumnsMobile;            // 1
+  }
+
+  Users can:
+  - Toggle which editions to show
+  - Reorder columns (drag and drop)
+  - Set max columns per device size
+
+  Limitations (Being Honest)
+
+  1. Alignment Drift: BJT and SC segments won't be perfectly semantically
+  aligned
+    - BJT might split paragraphs differently than SC
+    - Row 10 in BJT might correspond to row 11 in SC
+    - This is acceptable - user can manually scroll if needed
+  2. No Cross-Edition Search: Searching "Nibbāna" won't highlight
+  corresponding segments across editions
+    - Would require semantic mapping
+    - Could be added later with manual curation
+  3. Mixed Granularity: SC has finer segmentation than BJT
+    - One BJT entry might = 3 SC segments
+    - Leads to empty cells in the table
+    - This is acceptable - just shows the structural difference
+
+  Immediate Action Plan
+
+  For the current dual-pane alignment fix:
+
+  1. ✅ Implement the row-based layout for BJT Pali + Sinhala (fixes the
+  immediate bug)
+  2. ✅ Make column count data-driven (accepts List<ContentEdition>)
+  3. ✅ Use CrossAxisAlignment.start so rows align at top
+  4. 🔮 Later: Add SC loader and edition selector UI
+
+  This approach:
+  - ✅ Never touches BJT JSON files
+  - ✅ Scales to N columns
+  - ✅ Supports both alignment strategies
+  - ✅ Fixes the immediate bug
+  - ⚠️ Accepts approximate (not perfect) cross-edition alignment
+
+  Should I proceed with implementing the flexible multi-column layout that 
+  fixes the immediate alignment issue and sets us up for SC editions later?
+
+> is having a fixed column number lets say - 4, alot more simpler than 
+supporting N number of columns? asking because supporting N number of 
+columns is not actually practical. but if its simple to do N number than a 
+static number Im fine with it 
+
+⏺ Great question! Let me show you the actual code difference:
+
+  Fixed 4 Columns:
+
+  // Need conditionals for every possible combination
+  Widget build() {
+    if (showPaliOnly) {
+      return _buildSingleColumn(pali);
+    } else if (showPali && showSinhala && !showEnglish && !showGerman) {
+      return Row(
+        children: [
+          Expanded(child: _buildColumn(pali)),
+          _divider(),
+          Expanded(child: _buildColumn(sinhala)),
+        ],
+      );
+    } else if (showPali && showSinhala && showEnglish && !showGerman) {
+      return Row(
+        children: [
+          Expanded(child: _buildColumn(pali)),
+          _divider(),
+          Expanded(child: _buildColumn(sinhala)),
+          _divider(),
+          Expanded(child: _buildColumn(english)),
+        ],
+      );
+    } else if (showAll) {
+      return Row(
+        children: [
+          Expanded(child: _buildColumn(pali)),
+          _divider(),
+          Expanded(child: _buildColumn(sinhala)),
+          _divider(),
+          Expanded(child: _buildColumn(english)),
+          _divider(),
+          Expanded(child: _buildColumn(german)),
+        ],
+      );
+    }
+    // ... and so on for every combination
+  }
+
+  Lines of code: 50+ for all combinations
+
+  N Columns (Dynamic):
+
+  Widget build() {
+    final visibleEditions = allEditions.where((e) => e.isVisible).toList();
+
+    return Row(
+      children: [
+        for (var i = 0; i < visibleEditions.length; i++) ...[
+          Expanded(child: _buildColumn(visibleEditions[i])),
+          if (i < visibleEditions.length - 1) _divider(),
+        ],
+      ],
+    );
+  }
+
+  Lines of code: ~10
+
+  Answer: N-column is SIMPLER!
+
+  Here's why:
+  1. ✅ Less code: One loop vs dozens of conditionals
+  2. ✅ No combinatorial explosion: Don't need to handle every possible
+  column combination
+  3. ✅ Easier to maintain: Change the list, not the code
+  4. ✅ Free flexibility: Works for 1, 2, 3, 4 columns automatically
+
+  The only "complexity" is using a for loop, which is trivial in
+  Dart/Flutter.
+
+  Practical Limits
+
+  You're right that N doesn't mean infinite. We can set practical limits:
+
+  class ReaderSettings {
+    static const int maxColumnsDesktop = 4;   // Hard limit
+    static const int maxColumnsTablet = 2;
+    static const int maxColumnsMobile = 1;
+
+    final List<String> visibleEditionIds;  // User's chosen columns
+  }
+
+  But the UI code stays the same - just loop over whatever's in the list (up
+   to the max).
+
+  My Recommendation
+
+  Use N-column approach because it's:
+  - Actually simpler to implement
+  - More maintainable
+  - Doesn't cost anything in performance
+  - Gives you flexibility for free
+
+  You can still enforce maxColumns = 4 in the settings UI - users just can't
+   enable more than 4 checkboxes.
+
+  Should I proceed with the N-column implementation? It's literally less 
+  code than hardcoding 2 or 4 columns.
+
+> OK. just one more expert opinion to take it to account. Read 
+multi_edition_architecture.md carefully, so we know we on the correct path. 
+Report back what are the similaries and differences of your plan and 
+suggested way in the document. 
+
+⏺ Search(pattern: "**/*multi_edition*.md")
+  ⎿  Found 1 file (ctrl+o to expand)
+
+⏺ Read(docs/multi_edition_architecture.md)
+  ⎿  Read 372 lines
+
+⏺ Comparison Report: My Proposal vs. Document's Architecture
+
+  ✅ SIMILARITIES (We're Aligned)
+
+  | Aspect                       | Both Approaches
+                   |
+  |------------------------------|------------------------------------------
+  -----------------|
+  | N-Column UI                  | ✅ Both use dynamic Row with loop over
+  panes/editions      |
+  | Data Source Abstraction      | ✅ Both create loader interfaces for BJT
+  vs SC             |
+  | Preserve BJT JSON            | ✅ Both avoid modifying original BJT data
+   files            |
+  | Flexible Configuration       | ✅ Both allow users to show/hide columns
+                    |
+  | Recognize Format Differences | ✅ Both acknowledge BJT (page-based) vs
+  SC (segment-based) |
+
+  ⚠️ KEY DIFFERENCES
+
+  1. Segment ID Strategy (MAJOR)
+
+  Document's Approach:
+  // Add segmentId to BJT data (nullable for backward compat)
+  class ContentEntry {
+    String? segmentId;  // 'dn1:1.1' - GENERATED for BJT
+    required String rawTextContent;
+  }
+
+  // Generate IDs during loading
+  "dn1:1.1", "dn1:1.2", "dn1:1.3" // Even though BJT JSON doesn't have them
+
+  My Approach:
+  // Keep BJT entries as-is, use position
+  class Segment {
+    final int position;      // 0, 1, 2, 3...
+    final String? segmentId; // null for BJT, "mn100:2.1" for SC
+  }
+
+  // Align by position, not ID
+
+  Document says: "Segment IDs are the universal alignment key"
+  I said: "Position-based alignment is acceptable for approximate alignment"
+
+  2. Entity Hierarchy (MEDIUM)
+
+  Document's Approach:
+  Edition (BJT, SC, PTS)
+    └─> TextLayer (BJT Pali, BJT Sinhala, SC English)
+         └─> TextSegment (individual segments with IDs)
+              └─> ReaderPane (UI concept - one column)
+                   └─> ReaderTab (contains multiple panes)
+
+  My Approach:
+  ContentEdition (interface)
+    └─> BJTEdition or SCEdition
+         └─> Segment (flattened list)
+              └─> AlignedRow (UI concept - one row across columns)
+
+  Impact: Document has richer domain model, mine is simpler but less
+  structured.
+
+  3. Scrolling Model (MEDIUM)
+
+  Document's Approach:
+  class ReaderPane {
+    String paneId;
+    double scrollOffset;  // Each pane scrolls independently!
+  }
+
+  My Approach:
+  // Single ScrollController for all panes
+  // All columns scroll together (like HTML table)
+
+  Implication: Document allows independent scrolling per column (more
+  flexible), I use synchronized scrolling (simpler, like the current
+  dual-pane).
+
+  4. Phase Strategy (MINOR)
+
+  Document: 3 phases (Foundation → Data Layer → UI)
+  Me: 2 steps (Fix dual-pane alignment → Add SC later)
+
+  5. Alignment Accuracy (PHILOSOPHICAL)
+
+  Document: Aims for semantic alignment via segment IDs
+  Me: Accepts approximate alignment via position
+
+  ---
+  🎯 CRITICAL QUESTION: Should BJT Get Segment IDs?
+
+  This is the core disagreement. Let me present both cases:
+
+  Case FOR Adding Segment IDs (Document's View):
+
+  Pros:
+  - ✅ True universal alignment: Can perfectly align BJT Pali with SC
+  English
+  - ✅ Future-proof: When comparing 3+ editions, alignment is accurate
+  - ✅ Search/reference: Can link to specific segments across editions
+  - ✅ Clean architecture: One alignment strategy for all
+
+  Cons:
+  - ❌ Extra work: Need to generate IDs for all BJT content
+  - ❌ Mapping complexity: Need to map BJT positions → segment IDs
+  - ❌ Maintenance: When BJT JSON gets corrections, segment IDs must be
+  regenerated
+
+  Case AGAINST Adding Segment IDs (My View):
+
+  Pros:
+  - ✅ Zero BJT modification: Just read what's there
+  - ✅ Simpler implementation: Flatten to positions, done
+  - ✅ Less maintenance: BJT corrections don't affect our code
+
+  Cons:
+  - ❌ Approximate alignment: BJT row 5 ≠ SC segment 5 semantically
+  - ❌ Drift: As text progresses, alignment gets worse
+  - ❌ No cross-edition search: Can't highlight corresponding segments
+
+  ---
+  💡 MY RECOMMENDATION
+
+  The document's approach is more correct architecturally, especially the
+  segment ID strategy. Here's why:
+
+  1. The document is right about segment IDs being the universal key.
+  Without them, you can't truly align texts.
+  2. But we can compromise: Use a hybrid approach:
+    - Don't modify BJT JSON files ✅
+    - Generate segment IDs at runtime during loading ✅
+    - Use simple sequential IDs like dn1:bjt-1, dn1:bjt-2, dn1:bjt-3
+    - Store this mapping in a separate alignment file (not in BJT JSON)
+
+  Example:
+  // alignment/dn1_bjt_to_sc.json (NEW FILE - not touching BJT JSON!)
+  {
+    "dn1:bjt-0": ["dn1:0.1"],           // BJT entry 0 = SC segment 0.1
+    "dn1:bjt-1": ["dn1:1.1", "dn1:1.2"], // BJT entry 1 = SC segments 1.1 
+  and 1.2
+    "dn1:bjt-2": ["dn1:1.3"]
+  }
+
+  This gives you:
+  - ✅ Semantic alignment (when mapping exists)
+  - ✅ Position-based fallback (when mapping doesn't exist yet)
+  - ✅ No modification to BJT JSON
+  - ✅ Incremental curation (build mappings over time)
+
+  ---
+  📋 REVISED ACTION PLAN (Combining Best of Both)
+
+  Immediate (Fix Current Bug):
+
+  1. ✅ Implement N-column row-based layout (my approach)
+  2. ✅ Fix BJT Pali/Sinhala alignment (current priority)
+
+  Phase 1 (Foundation - from document):
+
+  1. ✅ Add Edition entity
+  2. ✅ Add segmentId to ContentEntry (nullable, generated at runtime)
+  3. ✅ Create TextLayer entity
+  4. ✅ Add editionId to TextContent
+
+  Phase 2 (Data Layer):
+
+  1. ✅ Create SC datasource
+  2. ✅ Generate runtime segment IDs for BJT
+  3. ⚠️ Create alignment mapping files (optional, can be done manually over
+  time)
+
+  Phase 3 (UI):
+
+  1. ✅ Use N-column layout (both agree on this)
+  2. 🤔 Decision needed: Independent scroll per pane (document) vs
+  synchronized scroll (me)?
+
+  ---
+  ⚡ FINAL VERDICT
+
+  The document's architecture is superior, but we can implement it
+  incrementally without touching BJT JSON files. I recommend:
+
+  1. Now: Fix the immediate alignment bug with N-column layout
+  2. Soon: Adopt the document's entity structure (Edition, TextLayer,
+  segment IDs)
+  3. Later: Add SC support with proper segment-based alignment
+
+  Should I:
+  - A) Proceed with my simpler approach for now (get it working fast)
+  - B) Implement the document's full architecture from the start (takes
+  longer, more correct)
+  - C) Hybrid: Fix bug now with simple approach, then refactor to document's
+   architecture?
+
+> Lets go with C. explain every step of the way. I still have doubts 
+generating  segment IDs for BJT. Never forget the golden rule of not 
+touching the BJT json files which has the content 
+
+⏺ Perfect choice! Let me explain the Hybrid Approach (Option C) step by
+  step, with special focus on how we generate segment IDs without ever 
+  touching BJT JSON files.
+
+  ---
+  🎯 THE GOLDEN RULE: BJT JSON Files Are Read-Only
+
+  What this means:
+  - ❌ Never modify files in assets/data/
+  - ❌ Never write segment IDs back to disk
+  - ✅ Generate segment IDs in memory only when loading
+  - ✅ BJT JSON files remain exactly as they are
+
+  Think of it like this: When you load an image file, you might compute its
+  thumbnail in memory, but you don't modify the original file. Same concept
+  here.
+
+  ---
+  📋 STEP-BY-STEP PLAN
+
+  STEP 1: Fix Immediate Alignment Bug (Today) ⚡
+
+  Goal: Fix the Pali/Sinhala misalignment issue you showed in the
+  screenshots.
+
+  What we'll do:
+  - Change DualPaneReaderWidget from two separate Columns to Row-based
+  layout
+  - Each row contains both Pali and Sinhala entries side-by-side
+  - No entity changes, just UI refactoring
+
+  Code change:
+  // BEFORE (current - broken alignment):
+  Row(
+    children: [
+      Expanded(
+        child: Column(  // All Pali entries in one column
+          children: [...paliEntries],
+        ),
+      ),
+      Expanded(
+        child: Column(  // All Sinhala entries in another column
+          children: [...sinhalaEntries],
+        ),
+      ),
+    ],
+  )
+
+  // AFTER (fixed alignment):
+  Column(  // Rows of paired entries
+    children: [
+      for (var i = 0; i < entries.length; i++)
+        Row(  // Each row contains one Pali + one Sinhala entry
+          crossAxisAlignment: CrossAxisAlignment.start,  // Top-align
+          children: [
+            Expanded(child: buildEntry(paliEntries[i])),
+            Expanded(child: buildEntry(sinhalaEntries[i])),
+          ],
+        ),
+    ],
+  )
+
+  Why this works: Flutter's Row widget naturally keeps both cells at the
+  same vertical position, just like an HTML table row.
+
+  Testing: You should see Pali paragraph 2 aligned with Sinhala paragraph 2
+  (fixing the screenshot issue).
+
+  Time: 1-2 hours
+
+  ---
+  STEP 2: Add Foundation Entities (Next) 🏗️
+
+  Goal: Add new entities from the document WITHOUT breaking existing code.
+
+  Key insight: We'll add new optional fields and generate data at runtime.
+
+  2.1 Add Segment ID to ContentEntry
+
+  // File: lib/domain/entities/content_entry.dart
+  @freezed
+  class ContentEntry with _$ContentEntry {
+    const factory ContentEntry({
+      required EntryType entryType,
+      required String rawTextContent,
+
+      // NEW FIELD - nullable so existing code still works
+      String? segmentId,  // Will be generated at runtime for BJT
+    }) = _ContentEntry;
+  }
+
+  Important: This doesn't touch BJT JSON! The field is nullable and will be
+  populated during loading.
+
+  2.2 Update BJT Loader to Generate Segment IDs
+
+  // File: lib/data/datasources/text_content_local_datasource.dart
+  Future<TextContent> loadTextContent(String contentFileId) async {
+    // 1. Load JSON from assets (unchanged)
+    final jsonString = await
+  rootBundle.loadString('assets/data/$contentFileId.json');
+    final jsonData = json.decode(jsonString);
+
+    // 2. Parse pages and entries (unchanged)
+    final pages = _parsePages(jsonData);
+
+    // 3. NEW: Generate segment IDs for entries
+    final pagesWithSegmentIds = _generateSegmentIds(pages, contentFileId);
+
+    return TextContent(
+      contentFileId: contentFileId,
+      contentPages: pagesWithSegmentIds,
+    );
+  }
+
+  // NEW METHOD: Generates segment IDs in memory
+  List<ContentPage> _generateSegmentIds(List<ContentPage> pages, String
+  contentFileId) {
+    int globalSegmentIndex = 0;
+
+    return pages.map((page) {
+      // Generate IDs for Pali entries
+      final paliEntries = page.paliContentSection.contentEntries.map((entry)
+   {
+        final segmentId = '$contentFileId:bjt-${globalSegmentIndex++}';
+        return entry.copyWith(segmentId: segmentId);
+      }).toList();
+
+      // Reset counter for Sinhala (same IDs as Pali since they're aligned)
+      globalSegmentIndex -= paliEntries.length;
+
+      // Generate same IDs for Sinhala entries
+      final sinhalaEntries =
+  page.sinhalaContentSection.contentEntries.map((entry) {
+        final segmentId = '$contentFileId:bjt-${globalSegmentIndex++}';
+        return entry.copyWith(segmentId: segmentId);
+      }).toList();
+
+      // Return updated page with segment IDs
+      return page.copyWith(
+        paliContentSection: page.paliContentSection.copyWith(
+          contentEntries: paliEntries,
+        ),
+        sinhalaContentSection: page.sinhalaContentSection.copyWith(
+          contentEntries: sinhalaEntries,
+        ),
+      );
+    }).toList();
+  }
+
+  What happens:
+  1. Load BJT JSON from disk (file unchanged) ✅
+  2. Parse into objects (same as before) ✅
+  3. NEW: Loop through entries and add segmentId like "dn1:bjt-0",
+  "dn1:bjt-1", etc.
+  4. These IDs exist only in memory ✅
+  5. BJT JSON file remains untouched ✅
+
+  Result:
+  - Old code still works (segment IDs are optional)
+  - New code can use segment IDs for alignment
+  - No files modified
+
+  2.3 Add Edition Entity
+
+  // File: lib/domain/entities/edition.dart [NEW FILE]
+  @freezed
+  class Edition with _$Edition {
+    const factory Edition({
+      required String editionId,       // 'bjt', 'suttacentral'
+      required String displayName,     // 'Buddha Jayanti Tripitaka'
+      required String abbreviation,    // 'BJT'
+      required EditionType type,       // local or remote
+    }) = _Edition;
+  }
+
+  enum EditionType { local, remote }
+
+  Why: This lets us distinguish BJT vs SuttaCentral vs future editions.
+
+  2.4 Add Edition Reference to TextContent
+
+  // File: lib/domain/entities/text_content.dart
+  @freezed
+  class TextContent with _$TextContent {
+    const factory TextContent({
+      required String contentFileId,
+      @Default([]) List<ContentPage> contentPages,
+
+      // NEW FIELDS - nullable for backward compatibility
+      String? editionId,      // 'bjt' - added at runtime
+      String? languageCode,   // 'pi' (Pali) or 'si' (Sinhala) - added at 
+  runtime
+    }) = _TextContent;
+  }
+
+  Update the loader:
+  // In text_content_local_datasource.dart
+  Future<TextContent> loadTextContent(String contentFileId) async {
+    // ... existing loading code ...
+
+    return TextContent(
+      contentFileId: contentFileId,
+      contentPages: pagesWithSegmentIds,
+      editionId: 'bjt',           // NEW: Mark this as BJT edition
+      languageCode: null,         // Will be set when we create separate 
+  layers
+    );
+  }
+
+  Run code generation:
+  dart run build_runner build --delete-conflicting-outputs
+
+  Testing: Existing code should still work exactly as before. The new fields
+   are just sitting there unused for now.
+
+  Time: 2-3 hours
+
+  ---
+  STEP 3: Create TextLayer Concept (Later) 📦
+
+  Goal: Separate Pali and Sinhala into distinct layers (without duplicating
+  files).
+
+  Current problem: TextContent has both paliContentSection and
+  sinhalaContentSection baked in. This doesn't scale to N languages.
+
+  Solution: Create a TextLayer that represents one language view of the
+  content.
+
+  // File: lib/domain/entities/text_layer.dart [NEW FILE]
+  @freezed
+  class TextLayer with _$TextLayer {
+    const factory TextLayer({
+      required String layerId,        // 'bjt-pali', 'bjt-sinhala'
+      required String editionId,      // 'bjt'
+      required String languageCode,   // 'pi' or 'si'
+      required List<ContentEntry> segments,  // Flattened list of entries
+    }) = _TextLayer;
+  }
+
+  Create a factory to split TextContent into layers:
+
+  // File: lib/domain/entities/text_layer.dart
+  extension TextContentToLayers on TextContent {
+    List<TextLayer> toTextLayers() {
+      // Flatten Pali entries from all pages
+      final paliSegments = <ContentEntry>[];
+      final sinhalaSegments = <ContentEntry>[];
+
+      for (final page in contentPages) {
+        paliSegments.addAll(page.paliContentSection.contentEntries);
+        sinhalaSegments.addAll(page.sinhalaContentSection.contentEntries);
+      }
+
+      return [
+        TextLayer(
+          layerId: '$contentFileId-pali',
+          editionId: editionId ?? 'bjt',
+          languageCode: 'pi',
+          segments: paliSegments,
+        ),
+        TextLayer(
+          layerId: '$contentFileId-sinhala',
+          editionId: editionId ?? 'bjt',
+          languageCode: 'si',
+          segments: sinhalaSegments,
+        ),
+      ];
+    }
+  }
+
+  Usage:
+  final textContent = await loadTextContent('dn1');
+  final layers = textContent.toTextLayers();
+  // layers[0] = BJT Pali with all segments
+  // layers[1] = BJT Sinhala with all segments
+
+  Why this matters: When you add SuttaCentral English, you just create
+  another layer. The UI doesn't care where layers come from.
+
+  Time: 1-2 hours
+
+  ---
+  STEP 4: Refactor UI to Use Layers (Later) 🖥️
+
+  Goal: Make the UI work with List<TextLayer> instead of hardcoded
+  Pali/Sinhala.
+
+  // File: lib/presentation/widgets/multi_pane_reader_widget.dart
+  Widget build(BuildContext context) {
+    // Get list of layers to display (configurable by user)
+    final layers = ref.watch(activeLayersProvider);  // e.g., [BJT Pali, BJT
+   Sinhala]
+
+    // Build alignment rows
+    final alignedRows = _buildAlignedRows(layers);
+
+    return Column(
+      children: [
+        // Header row
+        _buildHeaderRow(layers),
+
+        // Content rows
+        for (final row in alignedRows)
+          _buildAlignedRow(layers, row),
+      ],
+    );
+  }
+
+  List<AlignedRow> _buildAlignedRows(List<TextLayer> layers) {
+    // Find max length
+    final maxLength = layers.map((l) => l.segments.length).reduce(max);
+
+    // Align by segment ID (if available) or position
+    return List.generate(maxLength, (index) {
+      return AlignedRow(
+        segments: {
+          for (final layer in layers)
+            layer.layerId: index < layer.segments.length
+                ? layer.segments[index]
+                : null,
+        },
+      );
+    });
+  }
+
+  Widget _buildAlignedRow(List<TextLayer> layers, AlignedRow row) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < layers.length; i++) ...[
+          Expanded(
+            child: _buildSegmentCell(row.segments[layers[i].layerId]),
+          ),
+          if (i < layers.length - 1) _buildDivider(),
+        ],
+      ],
+    );
+  }
+
+  Testing:
+  - Display [BJT Pali, BJT Sinhala] → same as current dual-pane
+  - Change to [BJT Pali] → single column
+  - Change to [BJT Sinhala] → single column
+  - Later: [BJT Pali, BJT Sinhala, SC English] → three columns
+
+  Time: 3-4 hours
+
+  ---
+  🔍 ADDRESSING YOUR DOUBTS: Segment ID Generation
+
+  Q: "Won't generating segment IDs modify the BJT JSON?"
+
+  A: No! Here's the flow:
+
+  1. BJT JSON on disk:
+     {
+       "dn1": {
+         "pages": [{
+           "pali": [{
+             "type": "heading",
+             "text": "Brahmajālasuttaṁ"
+           }]
+         }]
+       }
+     }
+     ☝️ This file NEVER changes
+
+  2. Load into memory:
+     final json = await loadJson('dn1.json');
+
+  3. Parse to objects (in RAM):
+     ContentEntry(
+       entryType: EntryType.heading,
+       rawTextContent: "Brahmajālasuttaṁ",
+       segmentId: null,  // Initially null
+     )
+
+  4. Generate IDs (in RAM only):
+     entry.copyWith(segmentId: 'dn1:bjt-0')
+     ☝️ This creates a NEW object in memory
+
+  5. Use the object:
+     Display in UI, compare with SC, etc.
+
+  6. App closes:
+     Memory is freed. Segment IDs disappear.
+     BJT JSON file still unchanged on disk ✅
+
+  Q: "What if BJT gets corrections?"
+
+  A: Perfect! The beauty of runtime generation:
+
+  1. User updates BJT JSON file (via your feeding mechanism)
+  2. App reloads content
+  3. Segment IDs are regenerated fresh
+  4. Everything stays in sync automatically
+
+  No maintenance needed!
+
+  Q: "Why not just use position index directly?"
+
+  A: Good question! We could, but segment IDs give us:
+
+  1. Future alignment flexibility: Can map dn1:bjt-5 → dn1:1.3 (BJT entry 5
+  = SC segment 1.3)
+  2. Consistency: Same ID format for all editions
+  3. Debugging: Easier to see "dn1:bjt-5" than "entry at position 5 in page
+  2"
+
+  But you're right that for BJT-only, position would work. Segment IDs are
+  for when we add SuttaCentral.
+
+  ---
+  📊 COMPLETE TIMELINE
+
+  | Step | What                                   | Time    | When
+           |
+  |------|----------------------------------------|---------|---------------
+  ---------|
+  | 1    | Fix alignment bug with N-column layout | 1-2 hrs | Do now
+           |
+  | 2a   | Add segmentId to ContentEntry          | 30 min  | Next
+           |
+  | 2b   | Generate segment IDs in loader         | 1 hr    | Next
+           |
+  | 2c   | Add Edition entity                     | 30 min  | Next
+           |
+  | 2d   | Add editionId to TextContent           | 30 min  | Next
+           |
+  | 3    | Create TextLayer concept               | 2 hrs   | Later (when
+  adding SC) |
+  | 4    | Refactor UI to use layers              | 3-4 hrs | Later (when
+  adding SC) |
+
+  Total for immediate needs (Steps 1-2): ~4 hours
+  Total for full multi-edition support: ~10 hours
+
+  ---
+  ✅ VERIFICATION CHECKLIST
+
+  After each step, verify:
+
+  Step 1:
+  - Pali paragraph 2 aligns with Sinhala paragraph 2
+  - All existing functionality works
+  - No console errors
+
+  Step 2:
+  - dart run build_runner build succeeds
+  - App compiles and runs
+  - Can print entry.segmentId and see "dn1:bjt-0", etc.
+  - BJT JSON files unchanged (check with git status)
+
+  Step 3:
+  - Can convert TextContent to List<TextLayer>
+  - Each layer has correct segments
+  - Segment IDs preserved
+
+  Step 4:
+  - Can display 1, 2, or N columns
+  - Alignment works across all columns
+  - User can toggle columns on/off
+
+  ---
+  🎯 FINAL CONFIRMATION
+
+  Golden Rule Status: ✅ PRESERVED
+  - BJT JSON files: Read-only, never modified
+  - Segment IDs: Generated in memory only
+  - Corrections: Automatically handled on reload
+
+  Architecture: ✅ ALIGNED WITH DOCUMENT
+  - Using Edition, TextLayer, segment IDs
+  - Following phased approach
+  - Backward compatible
+
+  Immediate Value: ✅ BUG FIX FIRST
+  - Step 1 fixes your alignment issue
+  - Steps 2-4 prepare for multi-edition
+
+  Ready to start with Step 1? I'll implement the N-column layout fix for the
+   Pali/Sinhala alignment issue.
+
+
+
+
+═══════════════════════════════════════════════════════════════════════════
+📅 PHASE 1 IMPLEMENTATION UPDATE (2024-12-06)
+═══════════════════════════════════════════════════════════════════════════
+
+✅ STATUS: Phase 1 Foundation - COMPLETE
+
+═══════════════════════════════════════════════════════════════════════════
+ENTITIES CREATED
+═══════════════════════════════════════════════════════════════════════════
+
+1. ContentEdition (content_edition.dart)
+   - Fields: editionId, displayName, abbreviation, type (local/remote), availableLanguages
+   - Example: ContentEdition(editionId: 'bjt', displayName: 'Buddha Jayanti Tripitaka')
+
+2. TextLayer (text_layer.dart) ⭐ KEY INNOVATION
+   - Fields: layerId, editionId, languageCode, **scriptCode**, translator, segments
+   - scriptCode enables showing same Pali text in different scripts:
+     * 'sinh' = Sinhala script (සද්ධම්මං)
+     * 'latn' = Roman script (Saddhammaṁ)
+     * 'thai' = Thai script (สัทธัมมัง)
+     * 'deva' = Devanagari script
+   - Extension method: TextContent.toTextLayers() converts page-based to segments
+   - Smart display names: "BJT Pali (Roman)" vs "BJT සිංහල"
+
+3. ReaderPane (reader_pane.dart)
+   - Fields: paneId, layerId, isVisible
+   - NOTE: Synchronized scrolling (all panes scroll together)
+   - NO scrollOffset field (user decision)
+
+4. ReaderTab (extended)
+   - Added: textId (universal text ID like 'dn1', 'mn100')
+   - Added: panes (List<ReaderPane> for N-column display)
+   - Backward compatible (nullable fields)
+
+5. TextContent (extended)
+   - Added: editionId (populated as 'bjt' by datasource)
+   - Added: languageCode (nullable, set when creating layers)
+
+6. ContentEntry (previously extended)
+   - Has: segmentId field (format: "dn-1:bjt:0")
+   - CRITICAL: Generated at runtime in memory, NEVER modifies BJT JSON files
+
+═══════════════════════════════════════════════════════════════════════════
+DATA LAYER UPDATES
+═══════════════════════════════════════════════════════════════════════════
+
+BJT Datasource (text_content_local_datasource.dart):
+  - Populates editionId: 'bjt'
+  - Generates segment IDs at runtime using closure pattern
+  - Format: "{fileId}:bjt:{index}" (e.g., "dn-1:bjt:0")
+
+═══════════════════════════════════════════════════════════════════════════
+PRESENTATION LAYER
+═══════════════════════════════════════════════════════════════════════════
+
+Providers (text_content_provider.dart):
+  - currentTextLayersProvider: Converts TextContent to List<TextLayer>
+  - availableLayersProvider: Returns layer metadata
+
+Debug Widget (text_layer_debug_widget.dart):
+  - Displays available layers, metadata, first 3 segments
+  - Shows foundation is working
+  - Temporarily added to ContentScreen for testing
+  - REMOVE BEFORE PHASE 2
+
+═══════════════════════════════════════════════════════════════════════════
+KEY DECISIONS
+═══════════════════════════════════════════════════════════════════════════
+
+✅ Script Support: scriptCode is REQUIRED field in TextLayer
+   - Enables Pali in multiple scripts (Sinhala/Roman/Thai/Devanagari)
+   - Users can toggle between scripts
+
+✅ Synchronized Scrolling: NO per-pane scrollOffset
+   - All panes scroll together (like HTML table)
+   - Simpler implementation
+
+✅ Runtime Generation: Segment IDs generated in memory ONLY
+   - BJT JSON files NEVER modified (sacred data principle)
+   - Auto-regenerates if BJT gets corrections
+
+✅ Backward Compatible: All new fields nullable or defaulted
+   - Existing code continues working
+   - Gradual migration path
+
+═══════════════════════════════════════════════════════════════════════════
+WHAT THIS ENABLES
+═══════════════════════════════════════════════════════════════════════════
+
+Can now show:
+  - BJT Pali (සිංහල) + BJT සිංහල (current dual-pane)
+  - BJT Pali (Roman) + BJT සිංහල + SC English (3 panes)
+  - BJT Pali (සිංහල) + BJT Pali (Roman) + BJT Pali (Thai) (same text, 3 scripts!)
+  - Any N-column combination
+
+═══════════════════════════════════════════════════════════════════════════
+HOW TO TEST
+═══════════════════════════════════════════════════════════════════════════
+
+1. Run: flutter run
+2. Navigate to any sutta in tree
+3. Observe TextLayerDebugWidget showing:
+   - Available Layers: 2
+   - Layer 1: BJT Pali (layerId: dn-1-pi-sinh, segmentCount: 123)
+   - Layer 2: BJT සිංහල (layerId: dn-1-si-sinh, segmentCount: 123)
+   - First 3 segments with segment IDs
+   - Success indicator
+
+═══════════════════════════════════════════════════════════════════════════
+FILES MODIFIED/CREATED
+═══════════════════════════════════════════════════════════════════════════
+
+NEW FILES:
+  - lib/domain/entities/content_edition.dart
+  - lib/domain/entities/text_layer.dart
+  - lib/domain/entities/reader_pane.dart
+  - lib/presentation/widgets/text_layer_debug_widget.dart
+
+MODIFIED FILES:
+  - lib/domain/entities/text_content.dart (added editionId, languageCode)
+  - lib/domain/entities/reader_tab.dart (added textId, panes)
+  - lib/data/datasources/text_content_local_datasource.dart (populates editionId)
+  - lib/presentation/providers/text_content_provider.dart (added layer providers)
+  - lib/presentation/screens/content_screen.dart (added debug widget)
+
+CODE GENERATION:
+  - All Freezed entities generated successfully
+  - No compilation errors
+
+═══════════════════════════════════════════════════════════════════════════
+PHASE 2 NEXT STEPS (When Ready for SuttaCentral)
+═══════════════════════════════════════════════════════════════════════════
+
+1. Create EditionRegistry (hardcoded BJT + SC definitions)
+2. Create SuttaCentralDataSource (load segment-based JSON)
+3. Create alignment mapping system (BJT segment ID → SC segment ID)
+4. Create PaneProvider (Riverpod state management for active panes)
+5. Refactor MultiPaneReaderWidget to consume List<TextLayer>
+6. REMOVE TextLayerDebugWidget from ContentScreen
+
+═══════════════════════════════════════════════════════════════════════════
+GOLDEN RULE STATUS: ✅ PRESERVED
+═══════════════════════════════════════════════════════════════════════════
+
+BJT JSON files remain untouched. All metadata generated at runtime in memory.
+
+
+═══════════════════════════════════════════════════════════════════════════
+📅 BJT-SPECIFIC REFACTORING (2024-12-06)
+═══════════════════════════════════════════════════════════════════════════
+
+✅ STATUS: Completed - All BJT-specific entities renamed and organized
+
+RATIONALE:
+User correctly identified that many entities appeared generic but were actually
+BJT-specific. This refactoring makes the architecture crystal clear: what's
+BJT-specific vs what's universal.
+
+═══════════════════════════════════════════════════════════════════════════
+FILES RENAMED AND MOVED
+═══════════════════════════════════════════════════════════════════════════
+
+Created: lib/domain/entities/bjt/ folder
+
+Entities (moved to bjt/ folder):
+  text_content.dart           → bjt/bjt_text_content.dart
+  content_page.dart           → bjt/bjt_content_page.dart  
+  content_section.dart        → bjt/bjt_content_section.dart
+  content_language.dart       → DELETED (replaced with ISO 639-1 codes)
+
+Data Layer:
+  text_content_local_datasource.dart → bjt_text_content_local_datasource.dart
+
+Repositories:
+  text_content_repository.dart      → bjt_text_content_repository.dart
+  text_content_repository_impl.dart → bjt_text_content_repository_impl.dart
+
+Usecases:
+  load_text_content_usecase.dart → load_bjt_text_content_usecase.dart
+
+═══════════════════════════════════════════════════════════════════════════
+CLASS RENAMES
+═══════════════════════════════════════════════════════════════════════════
+
+TextContent                    → BJTTextContent
+ContentPage                    → BJTContentPage
+ContentSection                 → BJTContentSection
+ContentLanguage enum           → REMOVED (use 'pi', 'si' ISO codes)
+
+TextContentLocalDataSource     → BJTTextContentDataSource
+TextContentLocalDataSourceImpl → BJTTextContentLocalDataSourceImpl
+TextContentRepository          → BJTTextContentRepository
+TextContentRepositoryImpl      → BJTTextContentRepositoryImpl
+LoadTextContentUseCase         → LoadBJTTextContentUseCase
+
+Providers renamed:
+  textContentLocalDataSourceProvider → bjtTextContentDataSourceProvider
+  textContentRepositoryProvider      → bjtTextContentRepositoryProvider
+  loadTextContentUseCaseProvider     → loadBJTTextContentUseCaseProvider
+  textContentProvider                → bjtTextContentProvider
+  currentTextContentProvider         → currentBJTTextContentProvider
+
+Extension renamed:
+  TextContentToLayers on TextContent → BJTTextContentToLayers on BJTTextContent
+
+═══════════════════════════════════════════════════════════════════════════
+KEY CHANGES
+═══════════════════════════════════════════════════════════════════════════
+
+1. BJTContentSection now uses ISO 639-1 language codes:
+   - Field: String languageCode (was: ContentLanguage enum)
+   - Values: 'pi' for Pali, 'si' for Sinhala
+   - Removed ContentLanguage enum entirely
+
+2. BJTContentPage.getContentSection() now takes String languageCode:
+   - Before: getContentSection(ContentLanguage.pali)
+   - After: getContentSection('pi')
+
+3. BJTTextContent.editionId is now required with default 'bjt':
+   - Before: String? editionId
+   - After: @Default('bjt') String editionId
+
+4. Datasource callback signature changed:
+   - Before: int Function(ContentLanguage) generateSegmentIndex
+   - After: int Function(String) generateSegmentIndex
+   - Passed as: generateSegmentIndex('pi') or generateSegmentIndex('si')
+
+═══════════════════════════════════════════════════════════════════════════
+WHAT STAYED UNIVERSAL (NOT RENAMED)
+═══════════════════════════════════════════════════════════════════════════
+
+✅ ContentEntry - Used by all editions
+✅ EntryType - Generic entry types (heading, paragraph, gatha, etc.)
+✅ TextLayer - Universal presentation layer
+✅ ReaderPane - UI concept
+✅ ReaderTab - UI concept
+✅ ContentEdition - Defines all editions
+✅ TipitakaTreeNode - Navigation tree
+✅ Failure - Error handling
+
+═══════════════════════════════════════════════════════════════════════════
+BENEFITS OF THIS REFACTORING
+═══════════════════════════════════════════════════════════════════════════
+
+1. ✅ **Crystal Clear Architecture**
+   - File/class name immediately tells you: BJT-specific vs universal
+   - No confusion when adding SuttaCentral datasource later
+
+2. ✅ **Organized File Structure**
+   - All BJT entities in bjt/ folder
+   - Universal entities at root level
+   - Easy to navigate and understand
+
+3. ✅ **ISO Standard Compliance**
+   - Using ISO 639-1 language codes ('pi', 'si', 'en')
+   - No custom enums for languages
+   - Easier to add new languages
+
+4. ✅ **Future-Proof**
+   - Clear separation means adding SuttaCentral is straightforward
+   - SuttaCentral will have its own datasource, NO shared infrastructure
+   - Both converge at TextLayer for display
+
+═══════════════════════════════════════════════════════════════════════════
+FUTURE: ADDING SUTTACENTRAL
+═══════════════════════════════════════════════════════════════════════════
+
+Will create (NO overlap with BJT):
+  - lib/data/datasources/suttacentral_datasource.dart
+  - Returns TextLayer directly (no intermediate entity needed)
+  - Loads from GitHub or local cache
+  - No SCTextContent class needed (already segment-based in source)
+
+BJT Path:  BJT JSON → BJTTextContent → TextLayer
+SC Path:   SC JSON → TextLayer (direct, no intermediate)
+
+Both paths converge at TextLayer for display!
+
+═══════════════════════════════════════════════════════════════════════════
+CODE GENERATION STATUS
+═══════════════════════════════════════════════════════════════════════════
+
+✅ All Freezed entities generated successfully
+✅ 6 new outputs created for bjt/ entities
+✅ No compilation errors
+✅ Ready for testing
+
+═══════════════════════════════════════════════════════════════════════════
+UPDATE: "CONTENT" PREFIX REMOVAL REFACTORING (2024-12-06)
+═══════════════════════════════════════════════════════════════════════════
+
+This update documents the comprehensive removal of the redundant "Content" 
+prefix from all entity names, making the architecture cleaner and more concise.
+
+═══════════════════════════════════════════════════════════════════════════
+RATIONALE
+═══════════════════════════════════════════════════════════════════════════
+
+The word "Content" was redundant in entity names because:
+1. It's implied - we're building a content reader app
+2. Made names unnecessarily long: BJTTextContent, ContentEntry, ContentEdition
+3. Added no semantic value - BJTDocument is clearer than BJTTextContent
+4. Created visual clutter in code
+
+User insight: "Why do we have 'content' for everything? Isn't bjt_page, 
+bjt_section, bjt_edition cleaner?"
+
+═══════════════════════════════════════════════════════════════════════════
+ENTITY RENAMES
+═══════════════════════════════════════════════════════════════════════════
+
+BJT-Specific Entities (lib/domain/entities/bjt/):
+  BJTTextContent     → BJTDocument
+  BJTContentPage     → BJTPage
+  BJTContentSection  → BJTSection
+
+Universal Entities (lib/domain/entities/):
+  ContentEntry       → Entry
+  ContentEdition     → Edition
+
+Files renamed accordingly:
+  bjt_text_content.dart        → bjt_document.dart
+  bjt_content_page.dart        → bjt_page.dart
+  bjt_content_section.dart     → bjt_section.dart
+  content_entry.dart           → entry.dart
+  content_edition.dart         → edition.dart
+
+═══════════════════════════════════════════════════════════════════════════
+FIELD NAME SIMPLIFICATIONS
+═══════════════════════════════════════════════════════════════════════════
+
+BJTDocument (was BJTTextContent):
+  contentFileId      → fileId
+  contentPages       → pages
+
+BJTPage (was BJTContentPage):
+  paliContentSection    → paliSection
+  sinhalaContentSection → sinhalaSection
+  getContentSection()   → getSection()
+
+BJTSection (was BJTContentSection):
+  contentEntries     → entries
+  hasContent         → hasEntries
+
+Entry (was ContentEntry):
+  rawTextContent     → rawText
+
+═══════════════════════════════════════════════════════════════════════════
+DATA LAYER RENAMES
+═══════════════════════════════════════════════════════════════════════════
+
+Datasource:
+  bjt_text_content_local_datasource.dart → bjt_document_local_datasource.dart
+  BJTTextContentDataSource               → BJTDocumentDataSource
+  BJTTextContentLocalDataSourceImpl      → BJTDocumentLocalDataSourceImpl
+  loadTextContent()                      → loadDocument()
+  _parseTextContent()                    → _parseDocument()
+  _parseContentPage()                    → _parsePage()
+  _parseContentSection()                 → _parseSection()
+  _parseContentEntry()                   → _parseEntry()
+
+Repository Interface:
+  bjt_text_content_repository.dart       → bjt_document_repository.dart
+  BJTTextContentRepository               → BJTDocumentRepository
+  loadTextContent()                      → loadDocument()
+  hasTextContent()                       → hasDocument()
+  preloadTextContent()                   → preloadDocuments()
+
+Repository Implementation:
+  bjt_text_content_repository_impl.dart  → bjt_document_repository_impl.dart
+  BJTTextContentRepositoryImpl           → BJTDocumentRepositoryImpl
+  _contentCache                          → _cache
+
+Use Case:
+  load_bjt_text_content_usecase.dart     → load_bjt_document_usecase.dart
+  LoadBJTTextContentUseCase              → LoadBJTDocumentUseCase
+
+═══════════════════════════════════════════════════════════════════════════
+PROVIDER RENAMES
+═══════════════════════════════════════════════════════════════════════════
+
+text_content_provider.dart (file name unchanged, but all providers renamed):
+
+  bjtTextContentDataSourceProvider       → bjtDocumentDataSourceProvider
+  bjtTextContentRepositoryProvider       → bjtDocumentRepositoryProvider
+  loadBJTTextContentUseCaseProvider      → loadBJTDocumentUseCaseProvider
+  bjtTextContentProvider                 → bjtDocumentProvider
+  currentBJTTextContentProvider          → currentBJTDocumentProvider
+
+Parameter changes:
+  .family<BJTTextContent, String>        → .family<BJTDocument, String>
+
+═══════════════════════════════════════════════════════════════════════════
+WIDGET UPDATES
+═══════════════════════════════════════════════════════════════════════════
+
+multi_pane_reader_widget.dart:
+  import 'content_entry.dart'            → import 'entry.dart'
+  currentBJTTextContentProvider          → currentBJTDocumentProvider
+  content.contentPages                   → content.pages
+  page.paliContentSection.contentEntries → page.paliSection.entries
+  page.sinhalaContentSection.contentEntries → page.sinhalaSection.entries
+  Widget _buildEntry(ContentEntry entry) → Widget _buildEntry(Entry entry)
+  List<ContentEntry> entries             → List<Entry> entries
+  entry.rawTextContent                   → entry.rawText
+
+text_layer.dart:
+  import 'content_entry.dart'            → import 'entry.dart'
+  import 'bjt/bjt_text_content.dart'     → import 'bjt/bjt_document.dart'
+  List<ContentEntry> segments            → List<Entry> segments
+  BJTTextContentToLayers on BJTTextContent → BJTDocumentToLayers on BJTDocument
+  contentPages                           → pages
+  paliContentSection.contentEntries      → paliSection.entries
+  sinhalaContentSection.contentEntries   → sinhalaSection.entries
+
+content_screen.dart:
+  Removed TextLayerDebugWidget import and usage
+
+═══════════════════════════════════════════════════════════════════════════
+BEFORE & AFTER CODE EXAMPLES
+═══════════════════════════════════════════════════════════════════════════
+
+ENTITY DEFINITION - BEFORE:
+```dart
+@freezed
+class BJTTextContent with _$BJTTextContent {
+  const factory BJTTextContent({
+    required String contentFileId,
+    @Default([]) List<BJTContentPage> contentPages,
+    @Default('bjt') String editionId,
+  }) = _BJTTextContent;
+
+  int get pageCount => contentPages.length;
+}
+```
+
+ENTITY DEFINITION - AFTER:
+```dart
+@freezed
+class BJTDocument with _$BJTDocument {
+  const factory BJTDocument({
+    required String fileId,
+    @Default([]) List<BJTPage> pages,
+    @Default('bjt') String editionId,
+  }) = _BJTDocument;
+
+  int get pageCount => pages.length;
+}
+```
+
+DATASOURCE - BEFORE:
+```dart
+abstract class BJTTextContentDataSource {
+  Future<BJTTextContent> loadTextContent(String contentFileId);
+}
+
+class BJTTextContentLocalDataSourceImpl implements BJTTextContentDataSource {
+  Future<BJTTextContent> loadTextContent(String contentFileId) async {
+    // ...
+    return _parseTextContent(contentFileId, jsonData);
+  }
+
+  BJTTextContent _parseTextContent(String contentFileId, Map<String, dynamic> json) {
+    final pages = pagesJson.map((pageJson) {
+      return _parseContentPage(pageJson, contentFileId, generateSegmentIndex);
+    }).toList();
+    return BJTTextContent(contentFileId: contentFileId, contentPages: pages);
+  }
+
+  BJTContentPage _parseContentPage(/* ... */) { /* ... */ }
+  BJTContentSection _parseContentSection(/* ... */) { /* ... */ }
+  ContentEntry _parseContentEntry(/* ... */) { /* ... */ }
+}
+```
+
+DATASOURCE - AFTER:
+```dart
+abstract class BJTDocumentDataSource {
+  Future<BJTDocument> loadDocument(String fileId);
+}
+
+class BJTDocumentLocalDataSourceImpl implements BJTDocumentDataSource {
+  Future<BJTDocument> loadDocument(String fileId) async {
+    // ...
+    return _parseDocument(fileId, jsonData);
+  }
+
+  BJTDocument _parseDocument(String fileId, Map<String, dynamic> json) {
+    final pages = pagesJson.map((pageJson) {
+      return _parsePage(pageJson, fileId, generateSegmentIndex);
+    }).toList();
+    return BJTDocument(fileId: fileId, pages: pages);
+  }
+
+  BJTPage _parsePage(/* ... */) { /* ... */ }
+  BJTSection _parseSection(/* ... */) { /* ... */ }
+  Entry _parseEntry(/* ... */) { /* ... */ }
+}
+```
+
+PROVIDER - BEFORE:
+```dart
+final currentBJTTextContentProvider = Provider<AsyncValue<BJTTextContent?>>((ref) {
+  final fileId = ref.watch(currentContentFileIdProvider);
+  if (fileId == null || fileId.trim().isEmpty) {
+    return const AsyncValue.data(null);
+  }
+  return ref.watch(bjtTextContentProvider(fileId));
+});
+```
+
+PROVIDER - AFTER:
+```dart
+final currentBJTDocumentProvider = Provider<AsyncValue<BJTDocument?>>((ref) {
+  final fileId = ref.watch(currentContentFileIdProvider);
+  if (fileId == null || fileId.trim().isEmpty) {
+    return const AsyncValue.data(null);
+  }
+  return ref.watch(bjtDocumentProvider(fileId));
+});
+```
+
+WIDGET - BEFORE:
+```dart
+final contentAsync = ref.watch(currentBJTTextContentProvider);
+
+// ...
+
+final pagesToShow = content.contentPages.sublist(pageStart, pageEnd);
+
+for (final page in pagesToShow) {
+  ..._buildEntries(context, page.paliContentSection.contentEntries),
+}
+
+Widget _buildEntry(BuildContext context, ContentEntry entry) {
+  return Text(
+    _parseFormattedText(entry.rawTextContent),
+    style: textStyle,
+  );
+}
+```
+
+WIDGET - AFTER:
+```dart
+final contentAsync = ref.watch(currentBJTDocumentProvider);
+
+// ...
+
+final pagesToShow = content.pages.sublist(pageStart, pageEnd);
+
+for (final page in pagesToShow) {
+  ..._buildEntries(context, page.paliSection.entries),
+}
+
+Widget _buildEntry(BuildContext context, Entry entry) {
+  return Text(
+    _parseFormattedText(entry.rawText),
+    style: textStyle,
+  );
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════
+BENEFITS OF THIS REFACTORING
+═══════════════════════════════════════════════════════════════════════════
+
+1. ✅ **Improved Readability**
+   - BJTDocument is clearer than BJTTextContent
+   - Entry is cleaner than ContentEntry
+   - Less visual noise in code
+
+2. ✅ **Consistent Naming**
+   - BJTDocument, BJTPage, BJTSection form a clear hierarchy
+   - Edition and Entry are universal, concise names
+
+3. ✅ **Reduced Redundancy**
+   - Every instance of "Content" prefix was unnecessary
+   - Context makes it clear these are content-related entities
+
+4. ✅ **Better API**
+   - page.paliSection.entries (clear, concise)
+   - vs page.paliContentSection.contentEntries (redundant)
+   
+5. ✅ **Future-Proof**
+   - Clear distinction: BJTDocument (edition-specific) vs Entry (universal)
+   - When adding SuttaCentral, we might have SCDocument (if needed)
+   - Universal Entry works for all editions
+
+═══════════════════════════════════════════════════════════════════════════
+FILES DELETED
+═══════════════════════════════════════════════════════════════════════════
+
+Old entity files (including generated .freezed.dart files):
+  ✅ bjt_text_content.dart & .freezed.dart
+  ✅ bjt_content_page.dart & .freezed.dart
+  ✅ bjt_content_section.dart & .freezed.dart
+  ✅ content_entry.dart & .freezed.dart
+  ✅ content_edition.dart & .freezed.dart
+
+Old data layer files:
+  ✅ bjt_text_content_local_datasource.dart
+  ✅ bjt_text_content_repository.dart
+  ✅ bjt_text_content_repository_impl.dart
+  ✅ load_bjt_text_content_usecase.dart
+
+Debug widget removed:
+  ✅ text_layer_debug_widget.dart (no longer needed)
+
+═══════════════════════════════════════════════════════════════════════════
+BUILD STATUS
+═══════════════════════════════════════════════════════════════════════════
+
+✅ Code generation completed successfully
+   - dart run build_runner build --delete-conflicting-outputs
+   - 6 outputs generated for new entities
+
+✅ Flutter analyze passed
+   - 0 errors
+   - Only 5 minor style warnings (const constructors)
+
+✅ All references updated across codebase
+   - Domain layer: 5 entity files
+   - Data layer: 4 files (datasource, repository, usecase)
+   - Presentation layer: 2 files (providers, widget)
+
+═══════════════════════════════════════════════════════════════════════════
+CURRENT ARCHITECTURE SUMMARY
+═══════════════════════════════════════════════════════════════════════════
+
+BJT-SPECIFIC ENTITIES (lib/domain/entities/bjt/):
+  ✅ BJTDocument     - Complete document with pages (was BJTTextContent)
+  ✅ BJTPage         - Single page with parallel sections (was BJTContentPage)
+  ✅ BJTSection      - Language-specific section (was BJTContentSection)
+
+UNIVERSAL ENTITIES (lib/domain/entities/):
+  ✅ Entry           - Text segment/entry (was ContentEntry)
+  ✅ Edition         - Edition metadata (was ContentEdition)
+  ✅ TextLayer       - Universal presentation layer (unchanged)
+  ✅ ReaderPane      - UI concept (unchanged)
+  ✅ ReaderTab       - UI concept (unchanged)
+
+DATA FLOW:
+  BJT JSON → BJTDocument (pages) → TextLayer (segments) → UI
+
+FUTURE FLOW (SuttaCentral):
+  SC JSON → TextLayer (segments) → UI
+  (No intermediate entity needed - SC data is already segment-based)
+
+═══════════════════════════════════════════════════════════════════════════
+END OF UPDATE
+═══════════════════════════════════════════════════════════════════════════

@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'reader_pane.dart';
 
 part 'reader_tab.freezed.dart';
 
@@ -35,6 +36,17 @@ class ReaderTab with _$ReaderTab {
 
     /// Sinhala name of the node for reference
     String? sinhalaName,
+
+    /// Universal text identifier (e.g., 'dn1', 'mn100', 'sn1-1')
+    /// This is edition-agnostic and used for cross-edition alignment
+    /// Nullable for backward compatibility - derived from contentFileId if needed
+    String? textId,
+
+    /// List of panes to display in this tab
+    /// Each pane shows one TextLayer (edition + language + script combination)
+    /// Empty list means using legacy dual-pane mode (Pali + Sinhala)
+    /// Nullable for backward compatibility
+    @Default([]) List<ReaderPane> panes,
   }) = _ReaderTab;
 
   /// Creates a tab from a tree node

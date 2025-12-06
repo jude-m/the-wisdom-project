@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/tree_navigator_widget.dart';
-import '../widgets/dual_pane_reader_widget.dart';
+import '../widgets/multi_pane_reader_widget.dart';
 import '../widgets/tab_bar_widget.dart';
 
-class ContentScreen extends ConsumerWidget {
-  const ContentScreen({super.key});
+class ReaderScreen extends ConsumerWidget {
+  const ReaderScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,15 +33,15 @@ class ContentScreen extends ConsumerWidget {
           ),
 
           // Reader area with tabs (right side)
-          Expanded(
+          const Expanded(
             child: Column(
               children: [
                 // Tab bar
-                const TabBarWidget(),
+                TabBarWidget(),
 
-                // Dual Pane Reader
-                const Expanded(
-                  child: DualPaneReaderWidget(),
+                // Multi-Pane Reader
+                Expanded(
+                  child: MultiPaneReaderWidget(),
                 ),
               ],
             ),

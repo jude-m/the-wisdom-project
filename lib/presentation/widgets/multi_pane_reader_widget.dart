@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/column_display_mode.dart';
-import '../../domain/entities/content_entry.dart';
+import '../../domain/entities/entry.dart';
 import '../../domain/entities/entry_type.dart';
-import '../providers/text_content_provider.dart';
+import '../providers/document_provider.dart';
 import '../providers/tab_provider.dart';
 
-class DualPaneReaderWidget extends ConsumerStatefulWidget {
-  const DualPaneReaderWidget({super.key});
+class MultiPaneReaderWidget extends ConsumerStatefulWidget {
+  const MultiPaneReaderWidget({super.key});
 
   @override
-  ConsumerState<DualPaneReaderWidget> createState() => _DualPaneReaderWidgetState();
+  ConsumerState<MultiPaneReaderWidget> createState() => _MultiPaneReaderWidgetState();
 }
 
-class _DualPaneReaderWidgetState extends ConsumerState<DualPaneReaderWidget> {
-  // Single scroll controller for all modes (both panes use the same controller in dual mode)
+class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
+  // Single scroll controller for all modes
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -33,7 +33,7 @@ class _DualPaneReaderWidgetState extends ConsumerState<DualPaneReaderWidget> {
 
       // Load more pages when user scrolls near the bottom
       if (delta < 200) {
-        final contentAsync = ref.read(currentTextContentProvider);
+        final contentAsync = ref.read(currentBJTDocumentProvider);
         contentAsync.whenData((content) {
           if (content != null) {
             final currentEnd = ref.read(pageEndProvider);
@@ -121,7 +121,7 @@ class _DualPaneReaderWidgetState extends ConsumerState<DualPaneReaderWidget> {
     });
 
     // Listen to content loading state and restore scroll position after content is loaded
-    ref.listen(currentTextContentProvider, (previous, next) {
+    ref.listen(currentBJTDocumentProvider, (previous, next) {
       // When content finishes loading (transitions to AsyncData with actual content)
       next.whenData((content) {
         if (content != null && previous?.value == null) {
@@ -133,7 +133,7 @@ class _DualPaneReaderWidgetState extends ConsumerState<DualPaneReaderWidget> {
       });
     });
 
-    final contentAsync = ref.watch(currentTextContentProvider);
+    final contentAsync = ref.watch(currentBJTDocumentProvider);
     final columnMode = ref.watch(columnDisplayModeProvider);
     final currentPageIndex = ref.watch(currentPageIndexProvider);
 
@@ -254,7 +254,7 @@ class _DualPaneReaderWidgetState extends ConsumerState<DualPaneReaderWidget> {
               final pageEnd = ref.watch(pageEndProvider);
 
               // Show only the loaded page slice
-              final pagesToShow = content.contentPages
+              final pagesToShow = content.pages
                   .sublist(
                     pageStart.clamp(0, content.pageCount),
                     pageEnd.clamp(0, content.pageCount),
@@ -324,7 +324,7 @@ class _DualPaneReaderWidgetState extends ConsumerState<DualPaneReaderWidget> {
               children: [
                 _buildPageNumber(context, page.pageNumber),
                 const SizedBox(height: 16),
-                ..._buildEntries(context, page.paliContentSection.contentEntries),
+                ..._buildEntries(context, page.paliSection.entries),
                 const SizedBox(height: 32), // Space between pages
               ],
             );
@@ -343,7 +343,7 @@ class _DualPaneReaderWidgetState extends ConsumerState<DualPaneReaderWidget> {
               children: [
                 _buildPageNumber(context, page.pageNumber),
                 const SizedBox(height: 16),
-                ..._buildEntries(context, page.sinhalaContentSection.contentEntries),
+                ..._buildEntries(context, page.sinhalaSection.entries),
                 const SizedBox(height: 32), // Space between pages
               ],
             );
@@ -351,62 +351,100 @@ class _DualPaneReaderWidgetState extends ConsumerState<DualPaneReaderWidget> {
         );
 
       case ColumnDisplayMode.both:
-        // Single scroll view wraps both panes so they scroll together
+        // Row-based layout for proper vertical alignment
+        // Each row contains both Pali and Sinhala entries side-by-side
         return SingleChildScrollView(
           controller: _scrollController,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Pali pane (left)
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      right: BorderSide(
-                        color: Theme.of(context).dividerColor,
-                        width: 1,
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Language labels header row
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 12.0),
+                        child: _buildLanguageLabel(context, 'Pali'),
                       ),
                     ),
-                  ),
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildLanguageLabel(context, 'Pali'),
-                      // Show all pages
-                      for (final page in pages) ...[
-                        _buildPageNumber(context, page.pageNumber),
-                        const SizedBox(height: 16),
-                        ..._buildEntries(context, page.paliContentSection.contentEntries),
-                        const SizedBox(height: 32), // Space between pages
-                      ],
-                    ],
-                  ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 12.0),
+                        child: _buildLanguageLabel(context, 'සිංහල'),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
+                const SizedBox(height: 16),
 
-              // Sinhala pane (right)
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
+                // Content rows - each page with paired entries
+                for (final page in pages) ...[
+                  // Page number row
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildLanguageLabel(context, 'සිංහල'),
-                      // Show all pages
-                      for (final page in pages) ...[
-                        _buildPageNumber(context, page.pageNumber),
-                        const SizedBox(height: 16),
-                        ..._buildEntries(context, page.sinhalaContentSection.contentEntries),
-                        const SizedBox(height: 32), // Space between pages
-                      ],
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 12.0),
+                          child: _buildPageNumber(context, page.pageNumber),
+                        ),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 12.0),
+                          child: _buildPageNumber(context, page.pageNumber),
+                        ),
+                      ),
                     ],
                   ),
-                ),
-              ),
-            ],
+                  const SizedBox(height: 16),
+
+                  // Paired entry rows
+                  ...List.generate(
+                    page.paliSection.entries.length,
+                    (entryIndex) {
+                      final paliEntry = page.paliSection.entries[entryIndex];
+                      final sinhalaEntry = entryIndex < page.sinhalaSection.entries.length
+                          ? page.sinhalaSection.entries[entryIndex]
+                          : null;
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start, // Top-align for proper vertical sync
+                          children: [
+                            // Pali entry (left)
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 12.0),
+                                child: _buildEntry(context, paliEntry),
+                              ),
+                            ),
+                            const SizedBox(width: 24),
+                            // Sinhala entry (right)
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 12.0),
+                                child: sinhalaEntry != null
+                                    ? _buildEntry(context, sinhalaEntry)
+                                    : _buildEmptyCell(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 32), // Space between pages
+                ],
+              ],
+            ),
           ),
         );
     }
@@ -414,11 +452,13 @@ class _DualPaneReaderWidgetState extends ConsumerState<DualPaneReaderWidget> {
 
   Widget _buildLanguageLabel(BuildContext context, String label) {
     return Container(
+      height: 28, // Fixed height to ensure both labels have same height
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.secondaryContainer,
         borderRadius: BorderRadius.circular(4),
       ),
+      alignment: Alignment.center, // Center text vertically
       child: Text(
         label,
         style: TextStyle(
@@ -431,16 +471,20 @@ class _DualPaneReaderWidgetState extends ConsumerState<DualPaneReaderWidget> {
   }
 
   Widget _buildPageNumber(BuildContext context, int pageNumber) {
-    return Text(
-      'BJT Page $pageNumber',
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-        fontWeight: FontWeight.w500,
+    return SizedBox(
+      height: 20, // Fixed height to ensure alignment
+      child: Text(
+        '$pageNumber',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+          fontWeight: FontWeight.w500,
+          height: 1.0, // Set line height to prevent extra spacing
+        ),
       ),
     );
   }
 
-  List<Widget> _buildEntries(BuildContext context, List<ContentEntry> entries) {
+  List<Widget> _buildEntries(BuildContext context, List<Entry> entries) {
     return entries.map((entry) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 12.0),
@@ -449,7 +493,19 @@ class _DualPaneReaderWidgetState extends ConsumerState<DualPaneReaderWidget> {
     }).toList();
   }
 
-  Widget _buildEntry(BuildContext context, ContentEntry entry) {
+  Widget _buildEmptyCell(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8.0),
+      child: Text(
+        '—',
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEntry(BuildContext context, Entry entry) {
     TextStyle? textStyle;
 
     switch (entry.entryType) {
@@ -484,19 +540,11 @@ class _DualPaneReaderWidgetState extends ConsumerState<DualPaneReaderWidget> {
     }
 
     return Text(
-      _parseFormattedText(entry.rawTextContent),
+      entry.plainText,
       style: textStyle,
       textAlign: entry.entryType == EntryType.centered
           ? TextAlign.center
           : TextAlign.left,
     );
-  }
-
-  // Simple text parsing (removes formatting markers for now)
-  String _parseFormattedText(String text) {
-    return text
-        .replaceAll('**', '')
-        .replaceAll('__', '')
-        .replaceAll(RegExp(r'\{[^}]*\}'), '');
   }
 }

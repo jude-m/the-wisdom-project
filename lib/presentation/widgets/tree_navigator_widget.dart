@@ -4,7 +4,7 @@ import '../../domain/entities/tipitaka_tree_node.dart';
 import '../../domain/entities/navigation_language.dart';
 import '../../domain/entities/reader_tab.dart';
 import '../providers/navigation_tree_provider.dart';
-import '../providers/text_content_provider.dart';
+import '../providers/document_provider.dart';
 import '../providers/tab_provider.dart';
 
 class TreeNavigatorWidget extends ConsumerWidget {

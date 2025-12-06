@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/reader_tab.dart';
-import 'text_content_provider.dart';
+import 'document_provider.dart';
 
 /// State notifier for managing the list of reader tabs
 class TabsNotifier extends StateNotifier<List<ReaderTab>> {

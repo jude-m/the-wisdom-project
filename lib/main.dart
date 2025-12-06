@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'presentation/screens/content_screen.dart';
+import 'presentation/screens/reader_screen.dart';
+import 'core/theme/text_entry_theme.dart';
 
 void main() {
   runApp(
@@ -41,6 +42,12 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
         fontFamily: 'Roboto',
+        extensions: [
+          TextEntryTheme.light(ColorScheme.fromSeed(
+            seedColor: const Color(0xFF8B4513),
+            brightness: Brightness.light,
+          )),
+        ],
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -49,11 +56,17 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
         fontFamily: 'Roboto',
+        extensions: [
+          TextEntryTheme.dark(ColorScheme.fromSeed(
+            seedColor: const Color(0xFF8B4513),
+            brightness: Brightness.dark,
+          )),
+        ],
       ),
       themeMode: ThemeMode.system,
 
       // Home screen
-      home: const ContentScreen(),
+      home: const ReaderScreen(),
     );
   }
 }

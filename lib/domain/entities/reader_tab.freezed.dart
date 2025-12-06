@@ -43,6 +43,17 @@ mixin _$ReaderTab {
   /// Sinhala name of the node for reference
   String? get sinhalaName => throw _privateConstructorUsedError;
 
+  /// Universal text identifier (e.g., 'dn1', 'mn100', 'sn1-1')
+  /// This is edition-agnostic and used for cross-edition alignment
+  /// Nullable for backward compatibility - derived from contentFileId if needed
+  String? get textId => throw _privateConstructorUsedError;
+
+  /// List of panes to display in this tab
+  /// Each pane shows one TextLayer (edition + language + script combination)
+  /// Empty list means using legacy dual-pane mode (Pali + Sinhala)
+  /// Nullable for backward compatibility
+  List<ReaderPane> get panes => throw _privateConstructorUsedError;
+
   /// Create a copy of ReaderTab
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -64,7 +75,9 @@ abstract class $ReaderTabCopyWith<$Res> {
       int pageEnd,
       String? nodeKey,
       String? paliName,
-      String? sinhalaName});
+      String? sinhalaName,
+      String? textId,
+      List<ReaderPane> panes});
 }
 
 /// @nodoc
@@ -91,6 +104,8 @@ class _$ReaderTabCopyWithImpl<$Res, $Val extends ReaderTab>
     Object? nodeKey = freezed,
     Object? paliName = freezed,
     Object? sinhalaName = freezed,
+    Object? textId = freezed,
+    Object? panes = null,
   }) {
     return _then(_value.copyWith(
       label: null == label
@@ -129,6 +144,14 @@ class _$ReaderTabCopyWithImpl<$Res, $Val extends ReaderTab>
           ? _value.sinhalaName
           : sinhalaName // ignore: cast_nullable_to_non_nullable
               as String?,
+      textId: freezed == textId
+          ? _value.textId
+          : textId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      panes: null == panes
+          ? _value.panes
+          : panes // ignore: cast_nullable_to_non_nullable
+              as List<ReaderPane>,
     ) as $Val);
   }
 }
@@ -150,7 +173,9 @@ abstract class _$$ReaderTabImplCopyWith<$Res>
       int pageEnd,
       String? nodeKey,
       String? paliName,
-      String? sinhalaName});
+      String? sinhalaName,
+      String? textId,
+      List<ReaderPane> panes});
 }
 
 /// @nodoc
@@ -175,6 +200,8 @@ class __$$ReaderTabImplCopyWithImpl<$Res>
     Object? nodeKey = freezed,
     Object? paliName = freezed,
     Object? sinhalaName = freezed,
+    Object? textId = freezed,
+    Object? panes = null,
   }) {
     return _then(_$ReaderTabImpl(
       label: null == label
@@ -213,6 +240,14 @@ class __$$ReaderTabImplCopyWithImpl<$Res>
           ? _value.sinhalaName
           : sinhalaName // ignore: cast_nullable_to_non_nullable
               as String?,
+      textId: freezed == textId
+          ? _value.textId
+          : textId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      panes: null == panes
+          ? _value._panes
+          : panes // ignore: cast_nullable_to_non_nullable
+              as List<ReaderPane>,
     ));
   }
 }
@@ -229,8 +264,11 @@ class _$ReaderTabImpl extends _ReaderTab {
       this.pageEnd = 1,
       this.nodeKey,
       this.paliName,
-      this.sinhalaName})
-      : super._();
+      this.sinhalaName,
+      this.textId,
+      final List<ReaderPane> panes = const []})
+      : _panes = panes,
+        super._();
 
   /// Short label for tab display (truncated if needed)
   @override
@@ -271,9 +309,33 @@ class _$ReaderTabImpl extends _ReaderTab {
   @override
   final String? sinhalaName;
 
+  /// Universal text identifier (e.g., 'dn1', 'mn100', 'sn1-1')
+  /// This is edition-agnostic and used for cross-edition alignment
+  /// Nullable for backward compatibility - derived from contentFileId if needed
+  @override
+  final String? textId;
+
+  /// List of panes to display in this tab
+  /// Each pane shows one TextLayer (edition + language + script combination)
+  /// Empty list means using legacy dual-pane mode (Pali + Sinhala)
+  /// Nullable for backward compatibility
+  final List<ReaderPane> _panes;
+
+  /// List of panes to display in this tab
+  /// Each pane shows one TextLayer (edition + language + script combination)
+  /// Empty list means using legacy dual-pane mode (Pali + Sinhala)
+  /// Nullable for backward compatibility
+  @override
+  @JsonKey()
+  List<ReaderPane> get panes {
+    if (_panes is EqualUnmodifiableListView) return _panes;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_panes);
+  }
+
   @override
   String toString() {
-    return 'ReaderTab(label: $label, fullName: $fullName, contentFileId: $contentFileId, pageIndex: $pageIndex, pageStart: $pageStart, pageEnd: $pageEnd, nodeKey: $nodeKey, paliName: $paliName, sinhalaName: $sinhalaName)';
+    return 'ReaderTab(label: $label, fullName: $fullName, contentFileId: $contentFileId, pageIndex: $pageIndex, pageStart: $pageStart, pageEnd: $pageEnd, nodeKey: $nodeKey, paliName: $paliName, sinhalaName: $sinhalaName, textId: $textId, panes: $panes)';
   }
 
   @override
@@ -295,12 +357,25 @@ class _$ReaderTabImpl extends _ReaderTab {
             (identical(other.paliName, paliName) ||
                 other.paliName == paliName) &&
             (identical(other.sinhalaName, sinhalaName) ||
-                other.sinhalaName == sinhalaName));
+                other.sinhalaName == sinhalaName) &&
+            (identical(other.textId, textId) || other.textId == textId) &&
+            const DeepCollectionEquality().equals(other._panes, _panes));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, label, fullName, contentFileId,
-      pageIndex, pageStart, pageEnd, nodeKey, paliName, sinhalaName);
+  int get hashCode => Object.hash(
+      runtimeType,
+      label,
+      fullName,
+      contentFileId,
+      pageIndex,
+      pageStart,
+      pageEnd,
+      nodeKey,
+      paliName,
+      sinhalaName,
+      textId,
+      const DeepCollectionEquality().hash(_panes));
 
   /// Create a copy of ReaderTab
   /// with the given fields replaced by the non-null parameter values.
@@ -321,7 +396,9 @@ abstract class _ReaderTab extends ReaderTab {
       final int pageEnd,
       final String? nodeKey,
       final String? paliName,
-      final String? sinhalaName}) = _$ReaderTabImpl;
+      final String? sinhalaName,
+      final String? textId,
+      final List<ReaderPane> panes}) = _$ReaderTabImpl;
   const _ReaderTab._() : super._();
 
   /// Short label for tab display (truncated if needed)
@@ -359,6 +436,19 @@ abstract class _ReaderTab extends ReaderTab {
   /// Sinhala name of the node for reference
   @override
   String? get sinhalaName;
+
+  /// Universal text identifier (e.g., 'dn1', 'mn100', 'sn1-1')
+  /// This is edition-agnostic and used for cross-edition alignment
+  /// Nullable for backward compatibility - derived from contentFileId if needed
+  @override
+  String? get textId;
+
+  /// List of panes to display in this tab
+  /// Each pane shows one TextLayer (edition + language + script combination)
+  /// Empty list means using legacy dual-pane mode (Pali + Sinhala)
+  /// Nullable for backward compatibility
+  @override
+  List<ReaderPane> get panes;
 
   /// Create a copy of ReaderTab
   /// with the given fields replaced by the non-null parameter values.
