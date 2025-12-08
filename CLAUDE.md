@@ -166,5 +166,5 @@ This project heavily uses code generation. After modifying any entity with `@fre
 - Run Flutter Analyzer
 - Run all the tests
 - Check whether the code is formatted with 2-space indentation
-- Check whether the necessary tests are added
+- Check whether the necessary tests are added (integration, unit, widget)
 - Do not commit if any of the above fails

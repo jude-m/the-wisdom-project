@@ -91,8 +91,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // ASSERT - Should show root nodes (default is Sinhala)
-      expect(find.text('සූත්‍ර පිටකය'), findsOneWidget); // Sutta Pitaka in Sinhala
-      expect(find.text('විනය පිටකය'), findsOneWidget); // Vinaya Pitaka in Sinhala
+      expect(
+          find.text('සූත්‍ර පිටකය'), findsOneWidget); // Sutta Pitaka in Sinhala
+      expect(
+          find.text('විනය පිටකය'), findsOneWidget); // Vinaya Pitaka in Sinhala
     });
 
     testWidgets('should show "No content available" when tree is empty',

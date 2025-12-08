@@ -37,7 +37,8 @@ void main() {
 
       // 2. Extract the value and check it
       result.fold(
-        (failure) => fail('Expected success but got failure: ${failure.userMessage}'),
+        (failure) =>
+            fail('Expected success but got failure: ${failure.userMessage}'),
         (tree) {
           expect(tree.length, equals(2)); // sampleTree has 2 root nodes
           expect(tree[0].nodeKey, equals('sp')); // Sutta Pitaka

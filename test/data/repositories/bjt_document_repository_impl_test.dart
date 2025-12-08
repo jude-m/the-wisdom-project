@@ -205,8 +205,7 @@ void main() {
 
     test('should return 0 when all fail', () async {
       // ARRANGE
-      when(mockDataSource.loadDocument(any))
-          .thenThrow(Exception('Not found'));
+      when(mockDataSource.loadDocument(any)).thenThrow(Exception('Not found'));
 
       // ACT
       final result = await repository.preloadDocuments(['fail-1', 'fail-2']);

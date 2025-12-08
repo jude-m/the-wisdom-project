@@ -11,7 +11,8 @@ class MultiPaneReaderWidget extends ConsumerStatefulWidget {
   const MultiPaneReaderWidget({super.key});
 
   @override
-  ConsumerState<MultiPaneReaderWidget> createState() => _MultiPaneReaderWidgetState();
+  ConsumerState<MultiPaneReaderWidget> createState() =>
+      _MultiPaneReaderWidgetState();
 }
 
 class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
@@ -61,7 +62,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
   void _saveScrollPosition([int? index]) {
     final int activeTabIndex = index ?? ref.read(activeTabIndexProvider);
     if (activeTabIndex >= 0 && _scrollController.hasClients) {
-      ref.read(saveTabScrollPositionProvider)(activeTabIndex, _scrollController.offset);
+      ref.read(saveTabScrollPositionProvider)(
+          activeTabIndex, _scrollController.offset);
 
       // Also save pagination state to the tab
       final pageStart = ref.read(pageStartProvider);
@@ -94,7 +96,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       if (_scrollController.hasClients) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollController.hasClients) {
-            final scrollOffset = ref.read(getTabScrollPositionProvider)(activeTabIndex);
+            final scrollOffset =
+                ref.read(getTabScrollPositionProvider)(activeTabIndex);
             final maxExtent = _scrollController.position.maxScrollExtent;
             final targetOffset = scrollOffset.clamp(0.0, maxExtent);
             _scrollController.jumpTo(targetOffset);
@@ -108,19 +111,27 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
   Widget build(BuildContext context) {
     // Listen to active tab changes
     ref.listen<int>(activeTabIndexProvider, (previous, next) {
-      if (previous != null && previous >= 0 && previous != next) {
-        // Save scroll position for the previous tab
-        _saveScrollPosition(previous);
+      if (previous != null && previous != next) {
+        // Save scroll position for the previous tab, but ONLY if:
+        // - previous was a valid tab (>= 0)
+        // - next is also a valid tab (>= 0) - meaning we're switching, not closing
+        // This prevents saving the closed tab's scroll position to the wrong index
+        if (previous >= 0 && next >= 0) {
+          _saveScrollPosition(previous);
+        }
 
-        // Reset scroll to 0
+        // Reset scroll to 0 (always reset when tab changes)
         if (_scrollController.hasClients) {
           _scrollController.jumpTo(0);
         }
 
         // Then restore the actual saved position for the new tab after content renders
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _restoreScrollPosition();
-        });
+        // (only if transitioning to a valid tab, not to -1)
+        if (next >= 0) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _restoreScrollPosition();
+          });
+        }
       }
     });
 
@@ -185,7 +196,9 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                 ],
                 selected: {ref.watch(themeNotifierProvider)},
                 onSelectionChanged: (Set<AppThemeMode> newSelection) {
-                  ref.read(themeNotifierProvider.notifier).setTheme(newSelection.first);
+                  ref
+                      .read(themeNotifierProvider.notifier)
+                      .setTheme(newSelection.first);
                 },
               ),
               const SizedBox(width: 8),
@@ -274,9 +287,13 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                       const SizedBox(height: 16),
                       Text(
                         'Select a sutta from the tree to begin reading',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withOpacity(0.6),
+                                ),
                       ),
                     ],
                   ),
@@ -288,11 +305,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
               final pageEnd = ref.watch(pageEndProvider);
 
               // Show only the loaded page slice
-              final pagesToShow = content.pages
-                  .sublist(
-                    pageStart.clamp(0, content.pageCount),
-                    pageEnd.clamp(0, content.pageCount),
-                  );
+              final pagesToShow = content.pages.sublist(
+                pageStart.clamp(0, content.pageCount),
+                pageEnd.clamp(0, content.pageCount),
+              );
 
               if (pagesToShow.isEmpty) {
                 return const Center(
@@ -317,7 +333,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const Icon(Icons.error_outline,
+                        size: 48, color: Colors.red),
                     const SizedBox(height: 16),
                     Text(
                       'Error loading content',
@@ -443,14 +460,16 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                     page.paliSection.entries.length,
                     (entryIndex) {
                       final paliEntry = page.paliSection.entries[entryIndex];
-                      final sinhalaEntry = entryIndex < page.sinhalaSection.entries.length
-                          ? page.sinhalaSection.entries[entryIndex]
-                          : null;
+                      final sinhalaEntry =
+                          entryIndex < page.sinhalaSection.entries.length
+                              ? page.sinhalaSection.entries[entryIndex]
+                              : null;
 
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
                         child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start, // Top-align for proper vertical sync
+                          crossAxisAlignment: CrossAxisAlignment
+                              .start, // Top-align for proper vertical sync
                           children: [
                             // Pali entry (left)
                             Expanded(
@@ -490,10 +509,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       child: Text(
         '$pageNumber',
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-          fontWeight: FontWeight.w500,
-          height: 1.0, // Set line height to prevent extra spacing
-        ),
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              fontWeight: FontWeight.w500,
+              height: 1.0, // Set line height to prevent extra spacing
+            ),
       ),
     );
   }
@@ -513,8 +532,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       child: Text(
         '—',
         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
-        ),
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+            ),
       ),
     );
   }
@@ -525,13 +544,13 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     switch (entry.entryType) {
       case EntryType.heading:
         textStyle = Theme.of(context).textTheme.titleLarge?.copyWith(
-          fontWeight: FontWeight.bold,
-        );
+              fontWeight: FontWeight.bold,
+            );
         break;
       case EntryType.centered:
         textStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w600,
-        );
+              fontWeight: FontWeight.w600,
+            );
         return Center(
           child: Text(
             entry.plainText,
@@ -541,15 +560,15 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         );
       case EntryType.gatha:
         textStyle = Theme.of(context).textTheme.bodyLarge?.copyWith(
-          fontStyle: FontStyle.italic,
-          height: 1.6,
-        );
+              fontStyle: FontStyle.italic,
+              height: 1.6,
+            );
         break;
       case EntryType.unindented:
       case EntryType.paragraph:
         textStyle = Theme.of(context).textTheme.bodyLarge?.copyWith(
-          height: 1.8,
-        );
+              height: 1.8,
+            );
         break;
     }
 

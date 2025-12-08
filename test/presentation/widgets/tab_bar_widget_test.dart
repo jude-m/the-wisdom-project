@@ -69,7 +69,8 @@ void main() {
     testWidgets('should show document icon for tabs with content',
         (tester) async {
       // ARRANGE
-      final tabWithContent = createTab(label: 'With Content', contentFileId: 'dn-1');
+      final tabWithContent =
+          createTab(label: 'With Content', contentFileId: 'dn-1');
 
       // ACT
       await tester.pumpApp(
@@ -92,7 +93,8 @@ void main() {
     testWidgets('should show folder icon for tabs without content',
         (tester) async {
       // ARRANGE
-      final tabWithoutContent = createTab(label: 'Folder Tab', contentFileId: null);
+      final tabWithoutContent =
+          createTab(label: 'Folder Tab', contentFileId: null);
 
       // ACT
       await tester.pumpApp(
@@ -227,8 +229,7 @@ void main() {
       expect(rightChevronFinder, findsNothing);
     });
 
-    testWidgets('should show right chevron when tabs overflow',
-        (tester) async {
+    testWidgets('should show right chevron when tabs overflow', (tester) async {
       // ARRANGE - Many tabs that will overflow
       final tabs = List.generate(
         10,

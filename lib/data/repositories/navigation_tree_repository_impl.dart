@@ -44,7 +44,8 @@ class NavigationTreeRepositoryImpl implements NavigationTreeRepository {
       if (_nodeIndex == null) {
         final result = await loadNavigationTree();
         if (result.isLeft()) {
-          return Left(result.fold((failure) => failure, (_) => throw Exception()));
+          return Left(
+              result.fold((failure) => failure, (_) => throw Exception()));
         }
       }
 
@@ -71,7 +72,8 @@ class NavigationTreeRepositoryImpl implements NavigationTreeRepository {
       if (_cachedTree == null) {
         final result = await loadNavigationTree();
         if (result.isLeft()) {
-          return Left(result.fold((failure) => failure, (_) => throw Exception()));
+          return Left(
+              result.fold((failure) => failure, (_) => throw Exception()));
         }
       }
 
@@ -95,7 +97,8 @@ class NavigationTreeRepositoryImpl implements NavigationTreeRepository {
       if (_nodeIndex == null) {
         final result = await loadNavigationTree();
         if (result.isLeft()) {
-          return Left(result.fold((failure) => failure, (_) => throw Exception()));
+          return Left(
+              result.fold((failure) => failure, (_) => throw Exception()));
         }
       }
 
@@ -105,11 +108,13 @@ class NavigationTreeRepositoryImpl implements NavigationTreeRepository {
       _nodeIndex!.forEach((key, node) {
         bool matches = false;
 
-        if (searchInPali && node.paliName.toLowerCase().contains(lowercaseQuery)) {
+        if (searchInPali &&
+            node.paliName.toLowerCase().contains(lowercaseQuery)) {
           matches = true;
         }
 
-        if (searchInSinhala && node.sinhalaName.toLowerCase().contains(lowercaseQuery)) {
+        if (searchInSinhala &&
+            node.sinhalaName.toLowerCase().contains(lowercaseQuery)) {
           matches = true;
         }
 
@@ -128,7 +133,8 @@ class NavigationTreeRepositoryImpl implements NavigationTreeRepository {
   }
 
   /// Build a flat index of all nodes for quick lookup
-  Map<String, TipitakaTreeNode> _buildNodeIndex(List<TipitakaTreeNode> rootNodes) {
+  Map<String, TipitakaTreeNode> _buildNodeIndex(
+      List<TipitakaTreeNode> rootNodes) {
     final index = <String, TipitakaTreeNode>{};
 
     void indexNode(TipitakaTreeNode node) {

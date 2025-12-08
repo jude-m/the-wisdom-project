@@ -75,9 +75,8 @@ class TreeLocalDataSourceImpl implements TreeLocalDataSource {
     // Recursively build nodes with children (children are already sorted)
     TipitakaTreeNode buildNodeWithChildren(TipitakaTreeNode node) {
       final children = childrenMap[node.nodeKey] ?? [];
-      final childrenWithTheirChildren = children
-          .map((child) => buildNodeWithChildren(child))
-          .toList();
+      final childrenWithTheirChildren =
+          children.map((child) => buildNodeWithChildren(child)).toList();
 
       return TipitakaTreeNode(
         nodeKey: node.nodeKey,

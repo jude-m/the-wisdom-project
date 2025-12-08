@@ -63,7 +63,8 @@ class TextLayer with _$TextLayer {
 
     // Add script indicator if the script is non-native for this language
     final needsScriptIndicator = _isNonNativeScript(languageCode, scriptCode);
-    final nameWithScript = needsScriptIndicator ? '$baseName ($scriptName)' : baseName;
+    final nameWithScript =
+        needsScriptIndicator ? '$baseName ($scriptName)' : baseName;
 
     // Add translator if present
     if (translator != null) {

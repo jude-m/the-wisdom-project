@@ -12,19 +12,22 @@ final treeLocalDataSourceProvider = Provider<TreeLocalDataSource>((ref) {
 });
 
 // Repository provider
-final navigationTreeRepositoryProvider = Provider<NavigationTreeRepository>((ref) {
+final navigationTreeRepositoryProvider =
+    Provider<NavigationTreeRepository>((ref) {
   final dataSource = ref.watch(treeLocalDataSourceProvider);
   return NavigationTreeRepositoryImpl(dataSource);
 });
 
 // Use case provider
-final loadNavigationTreeUseCaseProvider = Provider<LoadNavigationTreeUseCase>((ref) {
+final loadNavigationTreeUseCaseProvider =
+    Provider<LoadNavigationTreeUseCase>((ref) {
   final repository = ref.watch(navigationTreeRepositoryProvider);
   return LoadNavigationTreeUseCase(repository);
 });
 
 // Navigation tree state provider
-final navigationTreeProvider = FutureProvider<List<TipitakaTreeNode>>((ref) async {
+final navigationTreeProvider =
+    FutureProvider<List<TipitakaTreeNode>>((ref) async {
   final useCase = ref.watch(loadNavigationTreeUseCaseProvider);
   final result = await useCase.execute();
 
@@ -46,7 +49,8 @@ final navigationLanguageProvider = StateProvider<NavigationLanguage>((ref) {
 });
 
 // Helper provider to get a node by key
-final nodeByKeyProvider = Provider.family<TipitakaTreeNode?, String>((ref, nodeKey) {
+final nodeByKeyProvider =
+    Provider.family<TipitakaTreeNode?, String>((ref, nodeKey) {
   final treeAsync = ref.watch(navigationTreeProvider);
 
   return treeAsync.when(
@@ -105,7 +109,8 @@ final expandPathToNodeProvider = Provider<void Function(String)>((ref) {
       final newSet = Set<String>.from(expandedNodes);
 
       // Find path to node
-      List<String>? findPath(List<TipitakaTreeNode> nodes, String targetKey, List<String> currentPath) {
+      List<String>? findPath(List<TipitakaTreeNode> nodes, String targetKey,
+          List<String> currentPath) {
         for (var node in nodes) {
           final path = [...currentPath, node.nodeKey];
 

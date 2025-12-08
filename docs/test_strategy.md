@@ -80,7 +80,8 @@ Created test helpers in `test/helpers/`:
 | Presentation | `tab_bar_widget_test.dart` | 13 |
 | Presentation | `multi_pane_reader_widget_test.dart` | 7 |
 | Infrastructure | `widget_test.dart` | 2 |
-| **Total** | | **65** |
+| Integration | `scroll_restoration_test.dart` | 4 |
+| **Total** | | **69** |
 
 ### Bugs Discovered & Fixed
 
@@ -92,6 +93,7 @@ Testing revealed real bugs in production code:
 | `TabBarWidget` | Tabs not scrollable on desktop/web (mouse drag didn't work) | Added `ScrollConfiguration` with all pointer device types |
 | `MultiPaneReaderWidget` | Header Row overflow by 90 pixels | Made page navigation compact (smaller icons, shorter text) |
 | `TabBarWidget` | No visual indicator for hidden tabs | Added animated chevron scroll buttons |
+| `MultiPaneReaderWidget` + `closeTabProvider` | Closing active tab caused next tab to inherit closed tab's scroll position | Skip saving scroll when transitioning to -1 (tab closing); use -1 intermediate state to force listener to fire |
 
 ### Key Patterns Used
 

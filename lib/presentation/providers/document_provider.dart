@@ -26,7 +26,8 @@ final loadBJTDocumentUseCaseProvider = Provider<LoadBJTDocumentUseCase>((ref) {
 });
 
 // BJT document provider (loads document by file ID)
-final bjtDocumentProvider = FutureProvider.family<BJTDocument, String>((ref, fileId) async {
+final bjtDocumentProvider =
+    FutureProvider.family<BJTDocument, String>((ref, fileId) async {
   final useCase = ref.watch(loadBJTDocumentUseCaseProvider);
   final result = await useCase.execute(fileId);
 
@@ -81,7 +82,8 @@ final loadMorePagesProvider = Provider<void Function(int)>((ref) {
     contentAsync.whenData((document) {
       if (document != null) {
         final currentEnd = ref.read(pageEndProvider);
-        final newEnd = (currentEnd + additionalPages).clamp(0, document.pageCount);
+        final newEnd =
+            (currentEnd + additionalPages).clamp(0, document.pageCount);
         ref.read(pageEndProvider.notifier).state = newEnd;
 
         // Also update the current tab's pageEnd
@@ -150,12 +152,14 @@ final currentTextLayersProvider = Provider<List<TextLayer>>((ref) {
 final availableLayersProvider = Provider<List<Map<String, String>>>((ref) {
   final layers = ref.watch(currentTextLayersProvider);
 
-  return layers.map((layer) => {
-    'layerId': layer.layerId,
-    'displayName': layer.displayName,
-    'editionId': layer.editionId,
-    'languageCode': layer.languageCode,
-    'scriptCode': layer.scriptCode,
-    'segmentCount': layer.segmentCount.toString(),
-  }).toList();
+  return layers
+      .map((layer) => {
+            'layerId': layer.layerId,
+            'displayName': layer.displayName,
+            'editionId': layer.editionId,
+            'languageCode': layer.languageCode,
+            'scriptCode': layer.scriptCode,
+            'segmentCount': layer.segmentCount.toString(),
+          })
+      .toList();
 });

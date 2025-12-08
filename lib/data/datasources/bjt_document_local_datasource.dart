@@ -44,7 +44,8 @@ class BJTDocumentLocalDataSourceImpl implements BJTDocumentDataSource {
       return _parsePage(
         pageJson as Map<String, dynamic>,
         fileId,
-        (_) => segmentIndex++, // Closure that increments shared counter (param unused)
+        (_) =>
+            segmentIndex++, // Closure that increments shared counter (param unused)
       );
     }).toList();
 
@@ -62,8 +63,10 @@ class BJTDocumentLocalDataSourceImpl implements BJTDocumentDataSource {
     int Function(String) generateSegmentIndex,
   ) {
     final int pageNumber = pageJson['pageNum'] as int;
-    final Map<String, dynamic> paliJson = pageJson['pali'] as Map<String, dynamic>;
-    final Map<String, dynamic> sinhJson = pageJson['sinh'] as Map<String, dynamic>;
+    final Map<String, dynamic> paliJson =
+        pageJson['pali'] as Map<String, dynamic>;
+    final Map<String, dynamic> sinhJson =
+        pageJson['sinh'] as Map<String, dynamic>;
 
     return BJTPage(
       pageNumber: pageNumber,
@@ -90,11 +93,13 @@ class BJTDocumentLocalDataSourceImpl implements BJTDocumentDataSource {
     int Function(String) generateSegmentIndex,
   ) {
     final List<dynamic> entriesJson = sectionJson['entries'] as List<dynamic>;
-    final List<dynamic>? footnotesJson = sectionJson['footnotes'] as List<dynamic>?;
+    final List<dynamic>? footnotesJson =
+        sectionJson['footnotes'] as List<dynamic>?;
 
     final entries = entriesJson.map((entryJson) {
       // Generate segment ID for this entry
-      final segmentId = _generateSegmentId(fileId, generateSegmentIndex(languageCode));
+      final segmentId =
+          _generateSegmentId(fileId, generateSegmentIndex(languageCode));
       return _parseEntry(
         entryJson as Map<String, dynamic>,
         segmentId,
@@ -102,9 +107,11 @@ class BJTDocumentLocalDataSourceImpl implements BJTDocumentDataSource {
     }).toList();
 
     final footnotes = footnotesJson?.map((footnoteJson) {
-      final Map<String, dynamic> footnote = footnoteJson as Map<String, dynamic>;
-      return footnote['text'] as String;
-    }).toList() ?? [];
+          final Map<String, dynamic> footnote =
+              footnoteJson as Map<String, dynamic>;
+          return footnote['text'] as String;
+        }).toList() ??
+        [];
 
     return BJTSection(
       languageCode: languageCode,

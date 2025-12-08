@@ -22,7 +22,8 @@ class AppTheme {
       colorScheme: ColorScheme.light(
         primary: LightThemeColors.primary,
         onPrimary: LightThemeColors.onPrimary,
-        primaryContainer: LightThemeColors.accent.withOpacity(0.2), // Selection highlight
+        primaryContainer:
+            LightThemeColors.accent.withOpacity(0.2), // Selection highlight
         onPrimaryContainer: LightThemeColors.primary,
         secondary: LightThemeColors.accent,
         onSecondary: LightThemeColors.onPrimary,
@@ -60,7 +61,8 @@ class AppTheme {
       colorScheme: ColorScheme.dark(
         primary: DarkThemeColors.primary,
         onPrimary: DarkThemeColors.onPrimary,
-        primaryContainer: DarkThemeColors.accent.withOpacity(0.2), // Selection highlight
+        primaryContainer:
+            DarkThemeColors.accent.withOpacity(0.2), // Selection highlight
         onPrimaryContainer: DarkThemeColors.primary,
         secondary: DarkThemeColors.accent,
         onSecondary: DarkThemeColors.onPrimary,
@@ -98,7 +100,8 @@ class AppTheme {
       colorScheme: ColorScheme.dark(
         primary: WarmThemeColors.primary,
         onPrimary: WarmThemeColors.onPrimary,
-        primaryContainer: WarmThemeColors.accent.withOpacity(0.25), // Selection highlight
+        primaryContainer:
+            WarmThemeColors.accent.withOpacity(0.25), // Selection highlight
         onPrimaryContainer: WarmThemeColors.primary,
         secondary: WarmThemeColors.accent,
         onSecondary: WarmThemeColors.onPrimary,

@@ -177,7 +177,8 @@ class _ScrollChevron extends StatelessWidget {
                   height: double.infinity,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
                     border: Border(
                       left: icon == Icons.chevron_right
                           ? BorderSide(
@@ -196,7 +197,10 @@ class _ScrollChevron extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: 20,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.7),
                   ),
                 ),
               )
@@ -290,7 +294,8 @@ class _TabItem extends StatelessWidget {
                 child: Icon(
                   Icons.close,
                   size: 14,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
             ),

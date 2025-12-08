@@ -42,7 +42,8 @@ void main() {
       verify(mockDataSource.loadNavigationTree()).called(1);
     });
 
-    test('should return CACHED tree on second call (no datasource hit)', () async {
+    test('should return CACHED tree on second call (no datasource hit)',
+        () async {
       // ARRANGE
       when(mockDataSource.loadNavigationTree())
           .thenAnswer((_) async => TestData.sampleTree);

@@ -56,7 +56,8 @@ class TabsNotifier extends StateNotifier<List<ReaderTab>> {
 }
 
 /// Provider for the list of reader tabs
-final tabsProvider = StateNotifierProvider<TabsNotifier, List<ReaderTab>>((ref) {
+final tabsProvider =
+    StateNotifierProvider<TabsNotifier, List<ReaderTab>>((ref) {
   return TabsNotifier();
 });
 
@@ -67,7 +68,8 @@ final activeTabIndexProvider = StateProvider<int>((ref) => -1);
 final tabScrollPositionsProvider = StateProvider<Map<int, double>>((ref) => {});
 
 /// Provider to save scroll position for a tab
-final saveTabScrollPositionProvider = Provider<void Function(int, double)>((ref) {
+final saveTabScrollPositionProvider =
+    Provider<void Function(int, double)>((ref) {
   return (int tabIndex, double scrollOffset) {
     final positions = ref.read(tabScrollPositionsProvider);
     ref.read(tabScrollPositionsProvider.notifier).state = {
@@ -97,7 +99,8 @@ final switchTabProvider = Provider<void Function(int)>((ref) {
       final tab = tabs[newTabIndex];
       if (tab.hasContent) {
         // Set the content file ID and page index
-        ref.read(currentContentFileIdProvider.notifier).state = tab.contentFileId;
+        ref.read(currentContentFileIdProvider.notifier).state =
+            tab.contentFileId;
         ref.read(currentPageIndexProvider.notifier).state = tab.pageIndex;
 
         // Restore pagination state from the tab (don't reset it)
@@ -113,6 +116,7 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
   return (int tabIndex) {
     final tabs = ref.read(tabsProvider);
     final currentTabIndex = ref.read(activeTabIndexProvider);
+    final isClosingActiveTab = tabIndex == currentTabIndex;
 
     // Remove the tab
     ref.read(tabsProvider.notifier).removeTab(tabIndex);
@@ -134,9 +138,15 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
     ref.read(tabScrollPositionsProvider.notifier).state = newPositions;
 
     // Update active tab index
-    if (tabIndex == currentTabIndex) {
+    if (isClosingActiveTab) {
       // If we closed the active tab, switch to the previous tab or -1 if no tabs left
-      final newActiveIndex = tabIndex > 0 ? tabIndex - 1 : (tabs.length > 1 ? 0 : -1);
+      final newActiveIndex =
+          tabIndex > 0 ? tabIndex - 1 : (tabs.length > 1 ? 0 : -1);
+
+      // Set to -1 first to force the activeTabIndexProvider listener to fire
+      // This ensures the widget properly resets scroll position when the new
+      // active tab ends up at the same index as the closed tab
+      ref.read(activeTabIndexProvider.notifier).state = -1;
       ref.read(activeTabIndexProvider.notifier).state = newActiveIndex;
 
       // Load content for the new active tab

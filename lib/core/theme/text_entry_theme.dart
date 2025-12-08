@@ -179,9 +179,11 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
       paragraphStyle: paragraphStyle ?? this.paragraphStyle,
       gathaStyle: gathaStyle ?? this.gathaStyle,
       unindentedStyle: unindentedStyle ?? this.unindentedStyle,
-      paragraphFirstLineIndent: paragraphFirstLineIndent ?? this.paragraphFirstLineIndent,
+      paragraphFirstLineIndent:
+          paragraphFirstLineIndent ?? this.paragraphFirstLineIndent,
       gathaLeftPadding: gathaLeftPadding ?? this.gathaLeftPadding,
-      gathaLevel2LeftPadding: gathaLevel2LeftPadding ?? this.gathaLevel2LeftPadding,
+      gathaLevel2LeftPadding:
+          gathaLevel2LeftPadding ?? this.gathaLevel2LeftPadding,
     );
   }
 
@@ -197,7 +199,8 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
       centeredStyles: centeredStyles,
       paragraphStyle: TextStyle.lerp(paragraphStyle, other.paragraphStyle, t)!,
       gathaStyle: TextStyle.lerp(gathaStyle, other.gathaStyle, t)!,
-      unindentedStyle: TextStyle.lerp(unindentedStyle, other.unindentedStyle, t)!,
+      unindentedStyle:
+          TextStyle.lerp(unindentedStyle, other.unindentedStyle, t)!,
       paragraphFirstLineIndent: paragraphFirstLineIndent,
       gathaLeftPadding: gathaLeftPadding,
       gathaLevel2LeftPadding: gathaLevel2LeftPadding,

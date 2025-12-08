@@ -91,7 +91,8 @@ class TreeNavigatorWidget extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const Icon(Icons.error_outline,
+                        size: 48, color: Colors.red),
                     const SizedBox(height: 16),
                     Text(
                       'Error loading navigation tree',
@@ -189,11 +190,14 @@ class TreeNodeWidget extends ConsumerWidget {
                       nodeKey: node.nodeKey,
                       paliName: node.paliName,
                       sinhalaName: node.sinhalaName,
-                      contentFileId: node.isReadableContent ? node.contentFileId : null,
-                      pageIndex: node.isReadableContent ? node.entryPageIndex : 0,
+                      contentFileId:
+                          node.isReadableContent ? node.contentFileId : null,
+                      pageIndex:
+                          node.isReadableContent ? node.entryPageIndex : 0,
                     );
 
-                    final newIndex = ref.read(tabsProvider.notifier).addTab(newTab);
+                    final newIndex =
+                        ref.read(tabsProvider.notifier).addTab(newTab);
                     ref.read(activeTabIndexProvider.notifier).state = newIndex;
 
                     // If it has readable content, set it (without resetting pagination)
@@ -201,10 +205,14 @@ class TreeNodeWidget extends ConsumerWidget {
                       final fileId = node.contentFileId?.trim();
                       if (fileId != null && fileId.isNotEmpty) {
                         // Use the tab's pagination state instead of resetting
-                        ref.read(currentContentFileIdProvider.notifier).state = fileId;
-                        ref.read(currentPageIndexProvider.notifier).state = node.entryPageIndex;
-                        ref.read(pageStartProvider.notifier).state = newTab.pageStart;
-                        ref.read(pageEndProvider.notifier).state = newTab.pageEnd;
+                        ref.read(currentContentFileIdProvider.notifier).state =
+                            fileId;
+                        ref.read(currentPageIndexProvider.notifier).state =
+                            node.entryPageIndex;
+                        ref.read(pageStartProvider.notifier).state =
+                            newTab.pageStart;
+                        ref.read(pageEndProvider.notifier).state =
+                            newTab.pageEnd;
                       }
                     }
                   },
@@ -218,7 +226,10 @@ class TreeNodeWidget extends ConsumerWidget {
                         size: 18,
                         color: isSelected
                             ? Theme.of(context).colorScheme.onPrimaryContainer
-                            : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                            : Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.6),
                       ),
                       const SizedBox(width: 8),
 
@@ -228,9 +239,13 @@ class TreeNodeWidget extends ConsumerWidget {
                           displayName,
                           style: TextStyle(
                             fontSize: 14,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
                             color: isSelected
-                                ? Theme.of(context).colorScheme.onPrimaryContainer
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer
                                 : null,
                           ),
                         ),
