@@ -161,3 +161,10 @@ This project heavily uses code generation. After modifying any entity with `@fre
 
 - Dart SDK: >=3.5.2 <4.0.0
 - Flutter: Latest stable version recommended
+
+## Before every commit
+- Run Flutter Analyzer
+- Run all the tests
+- Check whether the code is formatted with 2-space indentation
+- Check whether the necessary tests are added
+- Do not commit if any of the above fails

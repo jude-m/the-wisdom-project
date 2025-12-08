@@ -50,7 +50,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
 
   @override
   void dispose() {
-    _saveScrollPosition();
+    // Note: We cannot use ref.read() in dispose() as the widget is already unmounted.
+    // Scroll position is saved when switching tabs (in the ref.listen callback)
+    // and when navigating away, so we don't need to save here.
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
   }
@@ -211,37 +214,44 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
               ),
               const SizedBox(width: 8),
 
-              // Page navigation
-              Flexible(
-                child: contentAsync.maybeWhen(
-                  data: (content) {
-                    if (content != null && content.pageCount > 1) {
-                      return Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.chevron_left),
-                            onPressed: currentPageIndex > 0
-                                ? () => ref.read(previousPageProvider)()
-                                : null,
+              // Page navigation - only show when there are multiple pages
+              contentAsync.maybeWhen(
+                data: (content) {
+                  if (content != null && content.pageCount > 1) {
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          iconSize: 20,
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(),
+                          onPressed: currentPageIndex > 0
+                              ? () => ref.read(previousPageProvider)()
+                              : null,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            '${currentPageIndex + 1}/${content.pageCount}',
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
-                          Text(
-                            'Page ${currentPageIndex + 1} / ${content.pageCount}',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.chevron_right),
-                            onPressed: currentPageIndex < content.pageCount - 1
-                                ? () => ref.read(nextPageProvider)()
-                                : null,
-                          ),
-                        ],
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                  orElse: () => const SizedBox.shrink(),
-                ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          iconSize: 20,
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(),
+                          onPressed: currentPageIndex < content.pageCount - 1
+                              ? () => ref.read(nextPageProvider)()
+                              : null,
+                        ),
+                      ],
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+                orElse: () => const SizedBox.shrink(),
               ),
             ],
           ),

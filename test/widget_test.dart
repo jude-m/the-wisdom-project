@@ -1,30 +1,28 @@
-// This is a basic Flutter widget test.
+// Basic smoke test placeholder for The Wisdom Project
 //
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// This file ensures the test infrastructure works. Detailed tests are
+// organized by layer in subdirectories:
+// - test/domain/     - Use case tests
+// - test/data/       - Repository and datasource tests
+// - test/presentation/ - Widget tests
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:the_wisdom_project/main.dart';
+import 'helpers/test_data.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('Test infrastructure', () {
+    test('TestData fixtures are accessible', () {
+      // Verify test data is properly configured
+      expect(TestData.rootNode.nodeKey, equals('sp'));
+      expect(TestData.leafNodeWithContent.contentFileId, equals('dn-1'));
+      expect(TestData.sampleDocument.fileId, equals('dn-1'));
+      expect(TestData.sampleDocument.pageCount, equals(2));
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('Failure types are properly defined', () {
+      expect(TestData.dataLoadFailure.userMessage, contains('Failed to load'));
+      expect(TestData.notFoundFailure.userMessage, contains('Not found'));
+    });
   });
 }
