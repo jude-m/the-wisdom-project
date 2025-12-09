@@ -20,6 +20,36 @@ dart run build_runner build --delete-conflicting-outputs
 dart run build_runner watch --delete-conflicting-outputs
 ```
 
+### Generating the FTS Search Database
+
+The full-text search database needs to be generated before running the app:
+
+```bash
+# Navigate to tools directory
+cd tools
+
+# Install Node.js dependencies (first time only)
+npm install
+
+# Generate the FTS database (this will take a few minutes)
+npm run generate-fts
+# OR
+node bjt-fts-populate.js
+
+# The database will be automatically copied to assets/databases/bjt-fts.db
+```
+
+**When to regenerate:**
+- After cloning the repository (first time setup)
+- After updating text files in `assets/text/`
+- When the database structure changes
+
+**Database details:**
+- Size: ~114 MB (optimized contentless FTS4)
+- Entries: ~457,000 searchable text entries
+- Suggestions: 100,000 words for auto-complete
+- Languages: Pali and Sinhala
+
 ### Running the Application
 ```bash
 # Run on default device
@@ -142,6 +172,12 @@ The codebase follows Clean Architecture principles with clear separation of conc
 - `ColumnDisplayMode` enum: paliOnly, sinhalaOnly, both
 - Parallel text viewing supported via ContentPage structure
 
+**Asset Validation**:
+- `main.dart` includes a quick startup check for the FTS database
+- If database is missing, shows error screen with instructions
+- Zero performance impact - only runs if database is actually missing
+- Prevents confusing runtime errors when search is used
+
 ## Code Generation
 
 This project heavily uses code generation. After modifying any entity with `@freezed` or `@JsonSerializable` annotations:
@@ -161,6 +197,111 @@ This project heavily uses code generation. After modifying any entity with `@fre
 
 - Dart SDK: >=3.5.2 <4.0.0
 - Flutter: Latest stable version recommended
+- Node.js: Required for FTS database generation
+
+## Building for Release
+
+**CRITICAL**: The FTS database is required for the app to function but is not committed to git (it's gitignored due to its 114 MB size). Before building a release, you MUST generate the database.
+
+### Pre-Release Validation
+
+**Automated (Recommended):**
+```bash
+# This script runs all validations, tests, and checks
+./tools/validate-release.sh
+```
+
+The validation script will:
+- ✅ Verify FTS database exists and is valid
+- ✅ Run code generation
+- ✅ Run Flutter analyzer
+- ✅ Check code formatting
+- ✅ Run all unit & widget tests
+- ✅ Run all integration tests
+
+**Manual Steps (if validation script not available):**
+```bash
+# 1. Generate FTS database
+cd tools && npm run generate-fts && cd ..
+
+# 2. Run code generation
+dart run build_runner build --delete-conflicting-outputs
+
+# 3. Run analyzer
+flutter analyze
+
+# 4. Run all tests
+flutter test
+flutter test integration_test/
+
+# 5. Check formatting
+dart format lib/ test/ --set-exit-if-changed
+
+# 6. Build
+flutter build apk          # Android
+flutter build appbundle    # Android App Bundle
+flutter build ios          # iOS
+flutter build web          # Web
+```
+
+### CI/CD Setup
+
+If you use CI/CD (GitHub Actions, GitLab CI, etc.), add these steps BEFORE the Flutter build:
+
+```yaml
+# Example for GitHub Actions
+- name: Setup Node.js
+  uses: actions/setup-node@v3
+  with:
+    node-version: '18'
+
+- name: Generate FTS Database
+  run: |
+    cd tools
+    npm install
+    npm run generate-fts
+    cd ..
+
+- name: Run Release Validation
+  run: ./tools/validate-release.sh
+
+- name: Build Flutter App
+  run: flutter build apk --release
+```
+
+The validation script will run all pre-release checks. If any step fails, the CI build will fail, preventing broken releases.
+
+### Release Workflow
+
+1. **Generate database** (if not already present):
+   ```bash
+   cd tools && npm run generate-fts && cd ..
+   ```
+
+2. **Run validation script**:
+   ```bash
+   ./tools/validate-release.sh
+   ```
+   This runs all checks: database validation, code generation, analyzer, formatting, and all tests.
+
+3. **Test locally** - Run the app and verify:
+   - Navigation works
+   - Text content loads
+   - Search functionality works (once implemented)
+   - No runtime errors
+
+4. **Build** for your target platform:
+   ```bash
+   flutter build apk          # Android
+   flutter build appbundle    # Android App Bundle
+   flutter build ios          # iOS
+   ```
+
+5. **Verify** the app bundle includes `assets/databases/bjt-fts.db`
+
+The database will be bundled into the final app package during the Flutter build process.
+
+**IMPORTANT**: The validation script will fail if any test fails or the analyzer reports issues. Do not bypass these checks before releasing.
 
 ## Before every commit
 - Run Flutter Analyzer
