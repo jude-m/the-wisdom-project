@@ -52,3 +52,16 @@ macos/Podfile.lock
 
 # Test helpers (generated)
 test/helpers/
+
+# Node.js (tools folder)
+node_modules/
+package-lock.json
+
+# SQLite temporary files
+*.db-shm
+*.db-wal
+
+# Generated databases (large files - regenerate with scripts)
+tools/*.db
+tools/*.csv
+assets/databases/*.db

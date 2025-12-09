@@ -1,0 +1,15 @@
+{
+  "name": "the-wisdom-project-tools",
+  "version": "1.0.0",
+  "description": "Build tools for The Wisdom Project - BJT FTS database generation",
+  "main": "bjt-fts-populate.js",
+  "scripts": {
+    "generate-fts": "node bjt-fts-populate.js"
+  },
+  "keywords": ["tipitaka", "buddhism", "fts", "search"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^12.5.0"
+  }
+}

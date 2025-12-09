@@ -86,6 +86,8 @@ flutter:
     - assets/data/footnote-abbreviations.json
     # Text content files (285 JSON files)
     - assets/text/
+    # Full-text search database (BJT edition)
+    - assets/databases/bjt-fts.db
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
