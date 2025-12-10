@@ -1,24 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wisdom Project - Theme Preview</title>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;600;700&family=Inter:wght@400;500;600&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --preview-transition: 0.3s ease;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        :root { --preview-transition: 0.3s ease; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -26,7 +15,6 @@
             padding: 2rem;
             color: #e0e0e0;
         }
-
         h1 {
             text-align: center;
             margin-bottom: 0.5rem;
@@ -34,314 +22,254 @@
             background: linear-gradient(90deg, #D47E30, #D6B588);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
-
-        .subtitle {
-            text-align: center;
-            color: #888;
-            margin-bottom: 2rem;
-            font-size: 0.9rem;
-        }
-
+        .subtitle { text-align: center; color: #888; margin-bottom: 2rem; font-size: 0.9rem; }
         .themes-container {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
             gap: 1.5rem;
-            max-width: 1900px;
+            max-width: 2200px;
             margin: 0 auto;
         }
-
         .theme-card {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255,255,255,0.05);
             border-radius: 16px;
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
         }
-
         .theme-header {
             padding: 1rem 1.25rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-
-        .theme-name {
-            font-weight: 600;
-            font-size: 1rem;
-        }
-
+        .theme-name { font-weight: 600; font-size: 1.1rem; }
         .theme-badge {
             font-size: 0.65rem;
             padding: 0.2rem 0.5rem;
             border-radius: 20px;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255,255,255,0.1);
         }
-
         .theme-badge.signature {
             background: linear-gradient(90deg, #D47E30, #D6B588);
             color: #1a1a1a;
             font-weight: 600;
         }
-
-        .theme-badge.light {
-            background: #E8DFD0;
-            color: #422701;
-        }
-
+        
         /* Preview Section */
-        .preview-section {
-            padding: 1.25rem;
-            transition: all var(--preview-transition);
-        }
-
+        .preview-section { padding: 1rem; }
         .preview-content {
             border-radius: 10px;
-            padding: 1.25rem;
+            padding: 1rem;
             font-family: 'Noto Serif', serif;
             transition: all var(--preview-transition);
         }
-
-        .preview-heading {
-            margin-bottom: 0.4rem;
-            font-weight: 700;
-            transition: all var(--preview-transition);
-        }
-
-        .preview-subheading {
-            font-size: 1rem;
-            margin-bottom: 0.4rem;
-            font-weight: 600;
-            transition: all var(--preview-transition);
-        }
-
-        .preview-muted-text {
-            font-size: 0.8rem;
-            margin-bottom: 0.6rem;
-            transition: all var(--preview-transition);
-        }
-
-        .preview-divider {
-            height: 1px;
-            margin: 0.6rem 0;
-            transition: all var(--preview-transition);
-        }
-
-        .preview-paragraph {
-            line-height: 1.7;
-            text-indent: 1.4em;
-            margin-bottom: 0.6rem;
-            transition: all var(--preview-transition);
-        }
-
-        .preview-highlight {
-            padding: 0.1em 0.3em;
-            border-radius: 3px;
-            transition: all var(--preview-transition);
-        }
-
+        .preview-heading { margin-bottom: 0.3rem; font-weight: 700; }
+        .preview-subheading { font-size: 1rem; margin-bottom: 0.3rem; font-weight: 600; }
+        .preview-muted-text { font-size: 0.75rem; margin-bottom: 0.5rem; }
+        .preview-divider { height: 1px; margin: 0.5rem 0; }
+        .preview-paragraph { line-height: 1.6; margin-bottom: 0.5rem; font-size: 0.9rem; }
         .preview-gatha {
             font-style: italic;
-            line-height: 1.5;
+            line-height: 1.4;
             border-left: 3px solid;
-            padding: 0.6rem 0 0.6rem 1.25rem;
-            margin: 0.6rem 0;
-            transition: all var(--preview-transition);
-        }
-
-        .preview-surface-card {
-            padding: 0.6rem;
-            border-radius: 6px;
-            margin: 0.6rem 0;
-            transition: all var(--preview-transition);
+            padding: 0.5rem 0 0.5rem 1rem;
+            margin: 0.5rem 0;
             font-size: 0.9rem;
         }
-
-        .preview-link {
-            text-decoration: none;
-            font-weight: 500;
-            transition: all var(--preview-transition);
+        .preview-surface-card {
+            padding: 0.5rem;
+            border-radius: 6px;
+            margin: 0.5rem 0;
+            font-size: 0.85rem;
         }
-
+        .preview-link { text-decoration: none; font-weight: 500; }
         .preview-button {
             display: inline-block;
-            padding: 0.4rem 0.8rem;
+            padding: 0.35rem 0.7rem;
             border-radius: 6px;
-            font-size: 0.8rem;
-            margin-top: 0.6rem;
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
             font-weight: 500;
-            transition: all var(--preview-transition);
             border: none;
             cursor: pointer;
         }
-
         .preview-button-secondary {
             display: inline-block;
-            padding: 0.4rem 0.8rem;
+            padding: 0.35rem 0.7rem;
             border-radius: 6px;
-            font-size: 0.8rem;
-            margin-top: 0.6rem;
-            margin-left: 0.4rem;
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            margin-left: 0.3rem;
             font-weight: 500;
-            transition: all var(--preview-transition);
             border: 2px solid;
             background: transparent;
             cursor: pointer;
         }
-
         .preview-error {
-            font-size: 0.75rem;
-            margin-top: 0.5rem;
-            padding: 0.3rem 0.5rem;
+            font-size: 0.7rem;
+            margin-top: 0.4rem;
+            padding: 0.25rem 0.4rem;
             border-radius: 4px;
             display: inline-block;
         }
-
-        /* Color Controls Section */
-        .controls-section {
-            padding: 1.25rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        
+        /* Surface Container Hierarchy Preview */
+        .surface-hierarchy {
+            display: flex;
+            gap: 4px;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px dashed rgba(128,128,128,0.3);
         }
-
-        .controls-title {
+        .surface-level {
+            flex: 1;
+            padding: 0.5rem 0.3rem;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.65rem;
+            font-family: 'Inter', sans-serif;
+            transition: all var(--preview-transition);
+        }
+        .surface-level-label {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .surface-level-hex {
+            opacity: 0.7;
+            font-family: monospace;
+            font-size: 0.6rem;
+        }
+        
+        /* Tabs Preview */
+        .tabs-preview {
+            display: flex;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px dashed rgba(128,128,128,0.3);
+        }
+        .tab-item {
+            padding: 0.4rem 0.8rem;
             font-size: 0.75rem;
+            font-family: 'Inter', sans-serif;
+            border-radius: 6px 6px 0 0;
+            cursor: pointer;
+            transition: all var(--preview-transition);
+        }
+        .tab-item.active { font-weight: 600; }
+        
+        /* Controls Section */
+        .controls-section {
+            padding: 1rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .controls-title {
+            font-size: 0.7rem;
             text-transform: uppercase;
             letter-spacing: 0.1em;
             color: #888;
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
         }
-
         .color-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.4rem;
         }
-
         .color-control {
             display: flex;
             align-items: center;
-            gap: 0.4rem;
+            gap: 0.3rem;
         }
-
         .color-control label {
-            font-size: 0.68rem;
+            font-size: 0.6rem;
             color: #aaa;
-            width: 75px;
+            width: 55px;
             flex-shrink: 0;
         }
-
         .color-control input[type="color"] {
-            width: 30px;
-            height: 30px;
-            min-width: 30px;
+            width: 24px;
+            height: 24px;
+            min-width: 24px;
             border: none;
-            border-radius: 5px;
+            border-radius: 4px;
             cursor: pointer;
             background: transparent;
-            flex-shrink: 0;
         }
-
-        .color-control input[type="color"]::-webkit-color-swatch-wrapper {
-            padding: 2px;
-        }
-
+        .color-control input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
         .color-control input[type="color"]::-webkit-color-swatch {
             border-radius: 3px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255,255,255,0.2);
         }
-
         .hex-input {
-            font-family: 'Courier New', monospace;
-            font-size: 0.8rem;
+            font-family: monospace;
+            font-size: 0.7rem;
             color: #eee;
-            background: rgba(0, 0, 0, 0.4);
-            padding: 0.35rem 0.5rem;
-            border-radius: 5px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            width: 85px;
+            background: rgba(0,0,0,0.4);
+            padding: 0.3rem 0.4rem;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.15);
+            width: 70px;
             text-transform: uppercase;
-            letter-spacing: 0.02em;
         }
-
         .hex-input:focus {
             outline: none;
             border-color: #D47E30;
-            background: rgba(0, 0, 0, 0.6);
         }
-
+        
         /* Export Section */
         .export-section {
-            padding: 0.75rem 1.25rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.6rem 1rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
             display: flex;
             gap: 0.4rem;
         }
-
         .export-btn {
             flex: 1;
-            padding: 0.5rem;
+            padding: 0.4rem;
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 500;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255,255,255,0.1);
             color: #fff;
-            transition: all 0.2s;
         }
-
-        .export-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
+        .export-btn:hover { background: rgba(255,255,255,0.2); }
         .export-btn.primary {
             background: linear-gradient(90deg, #D47E30, #D6B588);
             color: #1a1a1a;
         }
-
-        /* Export Modal */
+        
+        /* Modal */
         .modal-overlay {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
             z-index: 100;
             justify-content: center;
             align-items: center;
             padding: 2rem;
         }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
+        .modal-overlay.active { display: flex; }
         .modal-content {
             background: #1a1a2e;
             border-radius: 16px;
             padding: 2rem;
-            max-width: 650px;
+            max-width: 700px;
             width: 100%;
             max-height: 80vh;
             overflow-y: auto;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255,255,255,0.1);
         }
-
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1rem;
         }
-
-        .modal-title {
-            font-weight: 600;
-        }
-
+        .modal-title { font-weight: 600; }
         .modal-close {
             background: none;
             border: none;
@@ -349,18 +277,16 @@
             font-size: 1.5rem;
             cursor: pointer;
         }
-
         .code-block {
             background: #0d0d14;
             border-radius: 8px;
             padding: 1rem;
-            font-family: 'Courier New', monospace;
-            font-size: 0.75rem;
+            font-family: monospace;
+            font-size: 0.7rem;
             overflow-x: auto;
             white-space: pre;
             color: #e0e0e0;
         }
-
         .copy-btn {
             margin-top: 1rem;
             width: 100%;
@@ -372,190 +298,18 @@
             font-weight: 600;
             cursor: pointer;
         }
-
-        /* Typography Controls */
-        .typography-section {
-            max-width: 1900px;
-            margin: 2rem auto 0;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
-            padding: 1.25rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .typography-header {
-            margin-bottom: 0.75rem;
-        }
-
-        .typography-controls {
-            display: flex;
-            gap: 2rem;
-            flex-wrap: wrap;
-        }
-
-        .slider-control {
-            flex: 1;
-            min-width: 180px;
-        }
-
-        .slider-control label {
-            display: block;
-            font-size: 0.75rem;
-            color: #aaa;
-            margin-bottom: 0.4rem;
-        }
-
-        .slider-control input[type="range"] {
-            width: 100%;
-            height: 5px;
-            border-radius: 3px;
-            background: rgba(255, 255, 255, 0.1);
-            appearance: none;
-        }
-
-        .slider-control input[type="range"]::-webkit-slider-thumb {
-            appearance: none;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #D47E30;
-            cursor: pointer;
-        }
-
-        .slider-value {
-            font-size: 0.85rem;
-            color: #D47E30;
-            margin-top: 0.2rem;
-        }
-
-        /* Color mapping info */
-        .color-mapping {
-            margin-top: 0.6rem;
-            padding-top: 0.6rem;
-            border-top: 1px dashed rgba(255, 255, 255, 0.1);
-            font-size: 0.6rem;
-            color: #666;
-            line-height: 1.4;
-        }
     </style>
 </head>
-
 <body>
     <h1>🪷 The Wisdom Project</h1>
-    <p class="subtitle">Theme Color Preview & Editor — Click hex values to edit manually</p>
-
-    <!-- Typography Controls -->
-    <div class="typography-section">
-        <div class="typography-header">
-            <strong>Typography Scale</strong>
-        </div>
-        <div class="typography-controls">
-            <div class="slider-control">
-                <label>Base Font Size</label>
-                <input type="range" id="baseFontSize" min="12" max="24" value="16">
-                <div class="slider-value"><span id="baseFontValue">16</span>px</div>
-            </div>
-            <div class="slider-control">
-                <label>Line Height</label>
-                <input type="range" id="lineHeight" min="1.4" max="2.2" step="0.1" value="1.8">
-                <div class="slider-value"><span id="lineHeightValue">1.8</span></div>
-            </div>
-            <div class="slider-control">
-                <label>Heading Scale</label>
-                <input type="range" id="headingScale" min="1.2" max="2.5" step="0.1" value="1.8">
-                <div class="slider-value"><span id="headingScaleValue">1.8</span>x</div>
-            </div>
-        </div>
-    </div>
-
+    <p class="subtitle">Theme Editor with Surface Container Hierarchy — Click hex values to edit</p>
+    
     <div class="themes-container">
-        <!-- Zen Light Theme -->
-        <div class="theme-card" id="zenLight">
-            <div class="theme-header">
-                <span class="theme-name">✨ Zen Light</span>
-                <span class="theme-badge">Minimalist</span>
-            </div>
-            <div class="preview-section">
-                <div class="preview-content" id="zenLightPreview">
-                    <h2 class="preview-heading">Dhammapada</h2>
-                    <h3 class="preview-subheading">Yamakavagga</h3>
-                    <p class="preview-muted-text">Chapter 1 • 20 verses</p>
-                    <div class="preview-divider"></div>
-                    <p class="preview-paragraph">
-                        Manopubbaṅgamā dhammā, <span class="preview-highlight">manoseṭṭhā</span> manomayā.
-                    </p>
-                    <div class="preview-gatha">
-                        Mind is the forerunner of all actions.<br>
-                        All deeds are led by mind, created by mind.
-                    </div>
-                    <div class="preview-surface-card">
-                        📖 <a href="#" class="preview-link">Satipaṭṭhāna Sutta →</a>
-                    </div>
-                    <button class="preview-button">Continue</button>
-                    <button class="preview-button-secondary">Bookmark</button>
-                    <div class="preview-error">⚠ Connection error</div>
-                </div>
-            </div>
-            <div class="controls-section">
-                <div class="controls-title">Color Palette (10 colors)</div>
-                <div class="color-grid" id="zenLight-grid"></div>
-                <div class="color-mapping">
-                    background→bg | surface→card | surfaceVariant→gatha bg | primary→headings | onPrimary→btn text |
-                    text→body | muted→meta | accent→links | divider→lines | error→errors
-                </div>
-            </div>
-            <div class="export-section">
-                <button class="export-btn" onclick="resetTheme('zenLight')">Reset</button>
-                <button class="export-btn primary" onclick="exportTheme('zenLight')">Export Dart</button>
-            </div>
-        </div>
-
-        <!-- Soft Dark Theme -->
-        <div class="theme-card" id="softDark">
-            <div class="theme-header">
-                <span class="theme-name">🌙 Dark</span>
-                <span class="theme-badge">Modern</span>
-            </div>
-            <div class="preview-section">
-                <div class="preview-content" id="softDarkPreview">
-                    <h2 class="preview-heading">Dhammapada</h2>
-                    <h3 class="preview-subheading">Yamakavagga</h3>
-                    <p class="preview-muted-text">Chapter 1 • 20 verses</p>
-                    <div class="preview-divider"></div>
-                    <p class="preview-paragraph">
-                        Manopubbaṅgamā dhammā, <span class="preview-highlight">manoseṭṭhā</span> manomayā.
-                    </p>
-                    <div class="preview-gatha">
-                        Mind is the forerunner of all actions.<br>
-                        All deeds are led by mind, created by mind.
-                    </div>
-                    <div class="preview-surface-card">
-                        📖 <a href="#" class="preview-link">Satipaṭṭhāna Sutta →</a>
-                    </div>
-                    <button class="preview-button">Continue</button>
-                    <button class="preview-button-secondary">Bookmark</button>
-                    <div class="preview-error">⚠ Connection error</div>
-                </div>
-            </div>
-            <div class="controls-section">
-                <div class="controls-title">Color Palette (10 colors)</div>
-                <div class="color-grid" id="softDark-grid"></div>
-                <div class="color-mapping">
-                    background→bg | surface→card | surfaceVariant→gatha bg | primary→headings | onPrimary→btn text |
-                    text→body | muted→meta | accent→links | divider→lines | error→errors
-                </div>
-            </div>
-            <div class="export-section">
-                <button class="export-btn" onclick="resetTheme('softDark')">Reset</button>
-                <button class="export-btn primary" onclick="exportTheme('softDark')">Export Dart</button>
-            </div>
-        </div>
-
-        <!-- Theravada Light Theme -->
+        <!-- Light Theme -->
         <div class="theme-card" id="theravadaLight">
             <div class="theme-header">
                 <span class="theme-name">☀️ Light</span>
-                <span class="theme-badge light">Light</span>
+                <span class="theme-badge">Default</span>
             </div>
             <div class="preview-section">
                 <div class="preview-content" id="theravadaLightPreview">
@@ -575,24 +329,87 @@
                     </div>
                     <button class="preview-button">Continue</button>
                     <button class="preview-button-secondary">Bookmark</button>
-                    <div class="preview-error">⚠ Connection error</div>
+                    <div class="preview-error">⚠ Error</div>
+                    
+                    <!-- Surface Hierarchy Demo -->
+                    <div class="surface-hierarchy">
+                        <div class="surface-level" data-level="lowest"><div class="surface-level-label">Lowest</div><div class="surface-level-hex"></div></div>
+                        <div class="surface-level" data-level="low"><div class="surface-level-label">Low</div><div class="surface-level-hex"></div></div>
+                        <div class="surface-level" data-level="container"><div class="surface-level-label">Container</div><div class="surface-level-hex"></div></div>
+                        <div class="surface-level" data-level="high"><div class="surface-level-label">High</div><div class="surface-level-hex"></div></div>
+                        <div class="surface-level" data-level="highest"><div class="surface-level-label">Highest</div><div class="surface-level-hex"></div></div>
+                    </div>
+                    
+                    <!-- Tabs Demo -->
+                    <div class="tabs-preview">
+                        <div class="tab-item active" data-tab="active">Active Tab</div>
+                        <div class="tab-item" data-tab="inactive">Inactive</div>
+                        <div class="tab-item" data-tab="inactive2">Inactive</div>
+                    </div>
                 </div>
             </div>
             <div class="controls-section">
-                <div class="controls-title">Color Palette (10 colors)</div>
+                <div class="controls-title">Color Palette (14 colors)</div>
                 <div class="color-grid" id="theravadaLight-grid"></div>
-                <div class="color-mapping">
-                    background→bg | surface→card | surfaceVariant→gatha bg | primary→headings | onPrimary→btn text |
-                    text→body | muted→meta | accent→links | divider→lines | error→errors
-                </div>
             </div>
             <div class="export-section">
                 <button class="export-btn" onclick="resetTheme('theravadaLight')">Reset</button>
                 <button class="export-btn primary" onclick="exportTheme('theravadaLight')">Export Dart</button>
             </div>
         </div>
-
-        <!-- Theravada Dark Theme -->
+        
+        <!-- Dark Theme -->
+        <div class="theme-card" id="softDark">
+            <div class="theme-header">
+                <span class="theme-name">🌙 Dark</span>
+                <span class="theme-badge">Accessibility</span>
+            </div>
+            <div class="preview-section">
+                <div class="preview-content" id="softDarkPreview">
+                    <h2 class="preview-heading">Dhammapada</h2>
+                    <h3 class="preview-subheading">Yamakavagga</h3>
+                    <p class="preview-muted-text">Chapter 1 • 20 verses</p>
+                    <div class="preview-divider"></div>
+                    <p class="preview-paragraph">
+                        Manopubbaṅgamā dhammā, <span class="preview-highlight">manoseṭṭhā</span> manomayā.
+                    </p>
+                    <div class="preview-gatha">
+                        Mind is the forerunner of all actions.<br>
+                        All deeds are led by mind, created by mind.
+                    </div>
+                    <div class="preview-surface-card">
+                        📖 <a href="#" class="preview-link">Satipaṭṭhāna Sutta →</a>
+                    </div>
+                    <button class="preview-button">Continue</button>
+                    <button class="preview-button-secondary">Bookmark</button>
+                    <div class="preview-error">⚠ Error</div>
+                    
+                    <div class="surface-hierarchy">
+                        <div class="surface-level" data-level="lowest"><div class="surface-level-label">Lowest</div><div class="surface-level-hex"></div></div>
+                        <div class="surface-level" data-level="low"><div class="surface-level-label">Low</div><div class="surface-level-hex"></div></div>
+                        <div class="surface-level" data-level="container"><div class="surface-level-label">Container</div><div class="surface-level-hex"></div></div>
+                        <div class="surface-level" data-level="high"><div class="surface-level-label">High</div><div class="surface-level-hex"></div></div>
+                        <div class="surface-level" data-level="highest"><div class="surface-level-label">Highest</div><div class="surface-level-hex"></div></div>
+                    </div>
+                    
+                    <div class="tabs-preview">
+                        <div class="tab-item active" data-tab="active">Active Tab</div>
+                        <div class="tab-item" data-tab="inactive">Inactive</div>
+                        <div class="tab-item" data-tab="inactive2">Inactive</div>
+                    </div>
+                </div>
+            </div>
+            <div class="controls-section">
+                <div class="controls-title">Color Palette (14 colors)</div>
+                <div class="color-grid" id="softDark-grid"></div>
+            </div>
+            <div class="export-section">
+                <button class="export-btn" onclick="resetTheme('softDark')">Reset</button>
+                <button class="export-btn primary" onclick="exportTheme('softDark')">Export Dart</button>
+            </div>
+        </div>
+        
+        <!-- Warm Theme -->
         <div class="theme-card" id="theravadaDark">
             <div class="theme-header">
                 <span class="theme-name">🔥 Warm</span>
@@ -616,16 +433,26 @@
                     </div>
                     <button class="preview-button">Continue</button>
                     <button class="preview-button-secondary">Bookmark</button>
-                    <div class="preview-error">⚠ Connection error</div>
+                    <div class="preview-error">⚠ Error</div>
+                    
+                    <div class="surface-hierarchy">
+                        <div class="surface-level" data-level="lowest"><div class="surface-level-label">Lowest</div><div class="surface-level-hex"></div></div>
+                        <div class="surface-level" data-level="low"><div class="surface-level-label">Low</div><div class="surface-level-hex"></div></div>
+                        <div class="surface-level" data-level="container"><div class="surface-level-label">Container</div><div class="surface-level-hex"></div></div>
+                        <div class="surface-level" data-level="high"><div class="surface-level-label">High</div><div class="surface-level-hex"></div></div>
+                        <div class="surface-level" data-level="highest"><div class="surface-level-label">Highest</div><div class="surface-level-hex"></div></div>
+                    </div>
+                    
+                    <div class="tabs-preview">
+                        <div class="tab-item active" data-tab="active">Active Tab</div>
+                        <div class="tab-item" data-tab="inactive">Inactive</div>
+                        <div class="tab-item" data-tab="inactive2">Inactive</div>
+                    </div>
                 </div>
             </div>
             <div class="controls-section">
-                <div class="controls-title">Color Palette (10 colors)</div>
+                <div class="controls-title">Color Palette (14 colors)</div>
                 <div class="color-grid" id="theravadaDark-grid"></div>
-                <div class="color-mapping">
-                    background→bg | surface→card | surfaceVariant→gatha bg | primary→headings | onPrimary→btn text |
-                    text→body | muted→meta | accent→links | divider→lines | error→errors
-                </div>
             </div>
             <div class="export-section">
                 <button class="export-btn" onclick="resetTheme('theravadaDark')">Reset</button>
@@ -633,8 +460,7 @@
             </div>
         </div>
     </div>
-    </div>
-
+    
     <!-- Export Modal -->
     <div class="modal-overlay" id="exportModal">
         <div class="modal-content">
@@ -646,72 +472,72 @@
             <button class="copy-btn" onclick="copyCode()">📋 Copy to Clipboard</button>
         </div>
     </div>
-
+    
     <script>
-        const colorLabels = ['Background', 'Surface', 'SurfaceVar', 'Primary', 'OnPrimary', 'Text', 'Muted', 'Accent', 'Divider', 'Error'];
-        const colorKeys = ['background', 'surface', 'surfaceVariant', 'primary', 'onPrimary', 'text', 'muted', 'accent', 'divider', 'error'];
-
-        // Default theme colors - 10 colors each
+        // Extended color system with Surface Container hierarchy
+        const colorLabels = [
+            'Background', 'SurfLowest', 'SurfLow', 'Surface', 'SurfHigh', 'SurfHighest',
+            'Primary', 'OnPrimary', 'Text', 'Muted', 'Accent', 'Divider', 'Error', 'OnError'
+        ];
+        const colorKeys = [
+            'background', 'surfaceLowest', 'surfaceLow', 'surface', 'surfaceHigh', 'surfaceHighest',
+            'primary', 'onPrimary', 'text', 'muted', 'accent', 'divider', 'error', 'onError'
+        ];
+        
+        // Default theme colors - 14 colors each with full surface hierarchy
         const defaultColors = {
-            zenLight: {
-                background: '#FFFFFF',
-                surface: '#F7F7F7',
-                surfaceVariant: '#F0F5F0',
-                primary: '#1A1A1A',
-                onPrimary: '#FFFFFF',
-                text: '#292929',
-                muted: '#6B6B6B',
-                accent: '#1A8917',
-                divider: '#E5E5E5',
-                error: '#D32F2F'
-            },
-            softDark: {
-                background: '#121212',       // Pure dark (Medium dark mode)
-                surface: '#1E1E1E',          // Slightly lighter surface
-                surfaceVariant: '#2A2A2A',   // Dark gray for sections
-                primary: '#FFFFFF',          // Pure white for headings (high contrast)
-                onPrimary: '#121212',        // Dark text on light buttons
-                text: '#E0E0E0',             // Bright light gray for body (high contrast)
-                muted: '#9E9E9E',            // Visible muted text
-                accent: '#FF8C00',           // Bright orange (high contrast, accessible)
-                divider: '#424242',          // Visible divider
-                error: '#FF6B6B'             // Bright red for errors
-            },
             theravadaLight: {
                 background: '#FDF8F3',
+                surfaceLowest: '#FDF8F3',
+                surfaceLow: '#F5EEE5',
                 surface: '#EDE6DD',
-                surfaceVariant: '#E8DFD0',
-                primary: '#2A2318',          // Dark brown for headings
+                surfaceHigh: '#E8DFD0',
+                surfaceHighest: '#E0D7C8',
+                primary: '#2A2318',
                 onPrimary: '#FFFFFF',
                 text: '#422701',
                 muted: '#705E46',
-                accent: '#D47E30',           // Cinnamon orange accent
+                accent: '#D47E30',
                 divider: '#D6C9B8',
-                error: '#C04000'
+                error: '#C04000',
+                onError: '#FFFFFF'
+            },
+            softDark: {
+                background: '#121212',
+                surfaceLowest: '#121212',
+                surfaceLow: '#1A1A1A',
+                surface: '#1E1E1E',
+                surfaceHigh: '#2A2A2A',
+                surfaceHighest: '#333333',
+                primary: '#FFFFFF',
+                onPrimary: '#121212',
+                text: '#E0E0E0',
+                muted: '#9E9E9E',
+                accent: '#FF8C00',
+                divider: '#424242',
+                error: '#FF6B6B',
+                onError: '#000000'
             },
             theravadaDark: {
                 background: '#2A2318',
+                surfaceLowest: '#2A2318',
+                surfaceLow: '#332B1F',
                 surface: '#3D3428',
-                surfaceVariant: '#4A3E2E',
+                surfaceHigh: '#4A3E2E',
+                surfaceHighest: '#554838',
                 primary: '#D47E30',
                 onPrimary: '#1A1408',
                 text: '#E8DFD0',
                 muted: '#8A7D6A',
                 accent: '#D6B588',
                 divider: '#524535',
-                error: '#FF8A65'
+                error: '#FF8A65',
+                onError: '#1A1408'
             }
         };
-
-        // Current theme colors
+        
         const currentColors = JSON.parse(JSON.stringify(defaultColors));
-
-        // Typography settings
-        let baseFontSize = 16;
-        let lineHeight = 1.8;
-        let headingScale = 1.8;
-
-        // Build color control HTML
+        
         function buildColorGrid(theme) {
             const grid = document.getElementById(`${theme}-grid`);
             grid.innerHTML = colorKeys.map((key, i) => `
@@ -721,19 +547,18 @@
                     <input type="text" class="hex-input" id="${theme}-${key}-hex" value="${currentColors[theme][key]}" maxlength="7">
                 </div>
             `).join('');
-
-            // Add event listeners
+            
             colorKeys.forEach(key => {
                 const colorInput = document.getElementById(`${theme}-${key}`);
                 const hexInput = document.getElementById(`${theme}-${key}-hex`);
-
+                
                 colorInput.addEventListener('input', (e) => {
                     const value = e.target.value.toUpperCase();
                     currentColors[theme][key] = value;
                     hexInput.value = value;
                     updatePreview(theme);
                 });
-
+                
                 hexInput.addEventListener('input', (e) => {
                     let value = e.target.value.toUpperCase();
                     if (!value.startsWith('#')) value = '#' + value;
@@ -743,7 +568,7 @@
                         updatePreview(theme);
                     }
                 });
-
+                
                 hexInput.addEventListener('blur', (e) => {
                     let value = e.target.value.toUpperCase();
                     if (!value.startsWith('#')) value = '#' + value;
@@ -755,129 +580,123 @@
                 });
             });
         }
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            Object.keys(defaultColors).forEach(theme => buildColorGrid(theme));
-
-            document.getElementById('baseFontSize').addEventListener('input', (e) => {
-                baseFontSize = parseFloat(e.target.value);
-                document.getElementById('baseFontValue').textContent = baseFontSize;
-                updateAllPreviews();
-            });
-
-            document.getElementById('lineHeight').addEventListener('input', (e) => {
-                lineHeight = parseFloat(e.target.value);
-                document.getElementById('lineHeightValue').textContent = lineHeight;
-                updateAllPreviews();
-            });
-
-            document.getElementById('headingScale').addEventListener('input', (e) => {
-                headingScale = parseFloat(e.target.value);
-                document.getElementById('headingScaleValue').textContent = headingScale;
-                updateAllPreviews();
-            });
-
-            updateAllPreviews();
-        });
-
+        
         function updatePreview(theme) {
             const preview = document.getElementById(`${theme}Preview`);
             const c = currentColors[theme];
-
+            
             // Background
             preview.style.backgroundColor = c.background;
-
-            // Primary (headings)
+            
+            // Headings
             preview.querySelector('.preview-heading').style.color = c.primary;
             preview.querySelector('.preview-subheading').style.color = c.primary;
-
-            // Muted text
+            
+            // Text
             preview.querySelector('.preview-muted-text').style.color = c.muted;
-
+            preview.querySelector('.preview-paragraph').style.color = c.text;
+            
             // Divider
             preview.querySelector('.preview-divider').style.backgroundColor = c.divider;
-
-            // Body text
-            preview.querySelector('.preview-paragraph').style.color = c.text;
-
-            // Highlight (accent on surfaceVariant)
+            
+            // Highlight
             const highlight = preview.querySelector('.preview-highlight');
-            highlight.style.backgroundColor = c.surfaceVariant;
+            highlight.style.backgroundColor = c.surfaceHigh;
             highlight.style.color = c.text;
-
-            // Gatha (surfaceVariant bg, accent border)
+            highlight.style.padding = '0.1em 0.3em';
+            highlight.style.borderRadius = '3px';
+            
+            // Gatha
             const gatha = preview.querySelector('.preview-gatha');
             gatha.style.color = c.text;
             gatha.style.borderColor = c.accent;
-            gatha.style.backgroundColor = c.surfaceVariant;
-
+            gatha.style.backgroundColor = c.surfaceHigh;
+            
             // Surface card
             const surfaceCard = preview.querySelector('.preview-surface-card');
             surfaceCard.style.backgroundColor = c.surface;
             surfaceCard.style.color = c.text;
-
+            
             // Link
             preview.querySelector('.preview-link').style.color = c.accent;
-
-            // Primary button
+            
+            // Buttons
             const button = preview.querySelector('.preview-button');
             button.style.backgroundColor = c.accent;
             button.style.color = c.onPrimary;
-
-            // Secondary button
+            
             const buttonSecondary = preview.querySelector('.preview-button-secondary');
             buttonSecondary.style.borderColor = c.muted;
             buttonSecondary.style.color = c.muted;
-
+            
             // Error
             const errorEl = preview.querySelector('.preview-error');
             errorEl.style.backgroundColor = hexToRgba(c.error, 0.15);
             errorEl.style.color = c.error;
-
-            // Typography
-            preview.querySelector('.preview-heading').style.fontSize = `${baseFontSize * headingScale}px`;
-            preview.querySelector('.preview-subheading').style.fontSize = `${baseFontSize * 1.15}px`;
-            preview.querySelector('.preview-muted-text').style.fontSize = `${baseFontSize * 0.8}px`;
-            preview.querySelector('.preview-paragraph').style.fontSize = `${baseFontSize}px`;
-            preview.querySelector('.preview-paragraph').style.lineHeight = lineHeight;
-            preview.querySelector('.preview-gatha').style.fontSize = `${baseFontSize}px`;
-            preview.querySelector('.preview-gatha').style.lineHeight = lineHeight * 0.85;
+            
+            // Surface hierarchy demo
+            const levels = preview.querySelectorAll('.surface-level');
+            const levelColors = [c.surfaceLowest, c.surfaceLow, c.surface, c.surfaceHigh, c.surfaceHighest];
+            levels.forEach((level, i) => {
+                level.style.backgroundColor = levelColors[i];
+                level.style.color = c.text;
+                level.querySelector('.surface-level-hex').textContent = levelColors[i];
+            });
+            
+            // Tabs demo
+            const tabs = preview.querySelectorAll('.tab-item');
+            tabs.forEach(tab => {
+                if (tab.classList.contains('active')) {
+                    tab.style.backgroundColor = c.surface;
+                    tab.style.color = c.primary;
+                } else {
+                    tab.style.backgroundColor = c.surfaceLowest;
+                    tab.style.color = c.muted;
+                }
+            });
         }
-
+        
         function updateAllPreviews() {
             Object.keys(currentColors).forEach(theme => updatePreview(theme));
         }
-
+        
         function resetTheme(theme) {
             currentColors[theme] = JSON.parse(JSON.stringify(defaultColors[theme]));
             colorKeys.forEach(key => {
-                document.getElementById(`${theme}-${key}`).value = defaultColors[theme][key];
-                document.getElementById(`${theme}-${key}-hex`).value = defaultColors[theme][key];
+                const colorInput = document.getElementById(`${theme}-${key}`);
+                const hexInput = document.getElementById(`${theme}-${key}-hex`);
+                if (colorInput && hexInput) {
+                    colorInput.value = defaultColors[theme][key];
+                    hexInput.value = defaultColors[theme][key];
+                }
             });
             updatePreview(theme);
         }
-
+        
         function exportTheme(theme) {
             const c = currentColors[theme];
             const displayNames = {
-                zenLight: 'Zen Light',
-                softDark: 'Dark',
                 theravadaLight: 'Light',
+                softDark: 'Dark',
                 theravadaDark: 'Warm'
             };
-            const className = theme.charAt(0).toUpperCase() + theme.slice(1);
+            const classNames = {
+                theravadaLight: 'LightThemeColors',
+                softDark: 'DarkThemeColors',
+                theravadaDark: 'WarmThemeColors'
+            };
             const isDark = theme === 'softDark' || theme === 'theravadaDark';
-
+            
             const dartCode = `/// ${displayNames[theme]} Theme Colors
 /// Generated from Theme Preview Tool
-/// 
-/// Flutter 3.22+ compatible (no deprecated surfaceVariant in ColorScheme)
-class ${className}Colors {
-  // Backgrounds
+class ${classNames[theme]} {
+  // Background & Surface Container Hierarchy
   static const background = Color(0xFF${c.background.slice(1)});
+  static const surfaceContainerLowest = Color(0xFF${c.surfaceLowest.slice(1)});
+  static const surfaceContainerLow = Color(0xFF${c.surfaceLow.slice(1)});
   static const surface = Color(0xFF${c.surface.slice(1)});
-  static const surfaceContainer = Color(0xFF${c.surfaceVariant.slice(1)});  // For gatha/verse backgrounds
+  static const surfaceContainerHigh = Color(0xFF${c.surfaceHigh.slice(1)});
+  static const surfaceContainerHighest = Color(0xFF${c.surfaceHighest.slice(1)});
   
   // Text
   static const primary = Color(0xFF${c.primary.slice(1)});
@@ -891,41 +710,36 @@ class ${className}Colors {
   // Utility
   static const divider = Color(0xFF${c.divider.slice(1)});
   static const error = Color(0xFF${c.error.slice(1)});
+  static const onError = Color(0xFF${c.onError.slice(1)});
 }
 
 /// ColorScheme for ${displayNames[theme]} (Flutter 3.22+)
 static ColorScheme get ${theme}Scheme => ColorScheme(
   brightness: Brightness.${isDark ? 'dark' : 'light'},
-  // Primary
   primary: Color(0xFF${c.primary.slice(1)}),
   onPrimary: Color(0xFF${c.onPrimary.slice(1)}),
-  // Secondary (accent)
   secondary: Color(0xFF${c.accent.slice(1)}),
   onSecondary: Color(0xFF${c.onPrimary.slice(1)}),
-  // Surface hierarchy (Flutter 3.22+)
   surface: Color(0xFF${c.surface.slice(1)}),
   onSurface: Color(0xFF${c.text.slice(1)}),
-  surfaceContainerLowest: Color(0xFF${c.background.slice(1)}),
-  surfaceContainerLow: Color(0xFF${c.background.slice(1)}),
+  surfaceContainerLowest: Color(0xFF${c.surfaceLowest.slice(1)}),
+  surfaceContainerLow: Color(0xFF${c.surfaceLow.slice(1)}),
   surfaceContainer: Color(0xFF${c.surface.slice(1)}),
-  surfaceContainerHigh: Color(0xFF${c.surfaceVariant.slice(1)}),
-  surfaceContainerHighest: Color(0xFF${c.surfaceVariant.slice(1)}),
-  // Outline
+  surfaceContainerHigh: Color(0xFF${c.surfaceHigh.slice(1)}),
+  surfaceContainerHighest: Color(0xFF${c.surfaceHighest.slice(1)}),
   outline: Color(0xFF${c.divider.slice(1)}),
-  outlineVariant: Color(0xFF${c.divider.slice(1)}),
-  // Error
   error: Color(0xFF${c.error.slice(1)}),
-  onError: Colors.white,
+  onError: Color(0xFF${c.onError.slice(1)}),
 );`;
-
+            
             document.getElementById('codeOutput').textContent = dartCode;
             document.getElementById('exportModal').classList.add('active');
         }
-
+        
         function closeModal() {
             document.getElementById('exportModal').classList.remove('active');
         }
-
+        
         function copyCode() {
             navigator.clipboard.writeText(document.getElementById('codeOutput').textContent).then(() => {
                 const btn = document.querySelector('.copy-btn');
@@ -933,18 +747,23 @@ static ColorScheme get ${theme}Scheme => ColorScheme(
                 setTimeout(() => btn.textContent = '📋 Copy to Clipboard', 2000);
             });
         }
-
+        
         function hexToRgba(hex, alpha) {
             const r = parseInt(hex.slice(1, 3), 16);
             const g = parseInt(hex.slice(3, 5), 16);
             const b = parseInt(hex.slice(5, 7), 16);
             return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         }
-
+        
         document.getElementById('exportModal').addEventListener('click', (e) => {
             if (e.target.id === 'exportModal') closeModal();
         });
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            Object.keys(defaultColors).forEach(theme => buildColorGrid(theme));
+            updateAllPreviews();
+        });
     </script>
 </body>
-
 </html>

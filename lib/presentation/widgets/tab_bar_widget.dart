@@ -88,7 +88,7 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
     return Container(
       height: 48,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
         border: Border(
           bottom: BorderSide(
             color: Theme.of(context).dividerColor,
@@ -235,8 +235,8 @@ class _TabItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isActive
-              ? Theme.of(context).colorScheme.surface
-              : Theme.of(context).colorScheme.surfaceContainerHighest,
+              ? Theme.of(context).colorScheme.surfaceContainerHighest
+              : Theme.of(context).colorScheme.surfaceContainerLowest,
           border: Border(
             right: BorderSide(
               color: Theme.of(context).dividerColor,

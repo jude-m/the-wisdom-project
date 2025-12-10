@@ -18,23 +18,30 @@ class AppTheme {
       cardColor: LightThemeColors.surface,
       dividerColor: LightThemeColors.divider,
 
-      // Color scheme
+      // Color scheme with full Surface Container hierarchy
       colorScheme: ColorScheme.light(
         primary: LightThemeColors.primary,
         onPrimary: LightThemeColors.onPrimary,
-        primaryContainer:
-            LightThemeColors.accent.withOpacity(0.2), // Selection highlight
+        primaryContainer: LightThemeColors.accent.withOpacity(0.2),
         onPrimaryContainer: LightThemeColors.primary,
         secondary: LightThemeColors.accent,
         onSecondary: LightThemeColors.onPrimary,
         surface: LightThemeColors.surface,
         onSurface: LightThemeColors.onBackground,
-        surfaceContainerHighest: LightThemeColors.surfaceContainer,
+        // Surface Container hierarchy (Flutter 3.22+)
+        surfaceContainerLowest: LightThemeColors.surfaceContainerLowest,
+        surfaceContainerLow: LightThemeColors.surfaceContainerLow,
+        surfaceContainer: LightThemeColors.surface,
+        surfaceContainerHigh: LightThemeColors.surfaceContainerHigh,
+        surfaceContainerHighest: LightThemeColors.surfaceContainerHighest,
+        // Utility
         error: LightThemeColors.error,
+        onError: LightThemeColors.onError,
         outline: LightThemeColors.divider,
+        outlineVariant: LightThemeColors.divider.withOpacity(0.5),
       ),
 
-      // Text entry typography (color-independent)
+      // Text entry typography
       extensions: [
         TextEntryTheme.standard(
           headingColor: LightThemeColors.primary,
@@ -57,23 +64,30 @@ class AppTheme {
       cardColor: DarkThemeColors.surface,
       dividerColor: DarkThemeColors.divider,
 
-      // Color scheme
+      // Color scheme with full Surface Container hierarchy
       colorScheme: ColorScheme.dark(
         primary: DarkThemeColors.primary,
         onPrimary: DarkThemeColors.onPrimary,
-        primaryContainer:
-            DarkThemeColors.accent.withOpacity(0.2), // Selection highlight
+        primaryContainer: DarkThemeColors.accent.withOpacity(0.2),
         onPrimaryContainer: DarkThemeColors.primary,
         secondary: DarkThemeColors.accent,
         onSecondary: DarkThemeColors.onPrimary,
         surface: DarkThemeColors.surface,
         onSurface: DarkThemeColors.onBackground,
-        surfaceContainerHighest: DarkThemeColors.surfaceContainer,
+        // Surface Container hierarchy (Flutter 3.22+)
+        surfaceContainerLowest: DarkThemeColors.surfaceContainerLowest,
+        surfaceContainerLow: DarkThemeColors.surfaceContainerLow,
+        surfaceContainer: DarkThemeColors.surface,
+        surfaceContainerHigh: DarkThemeColors.surfaceContainerHigh,
+        surfaceContainerHighest: DarkThemeColors.surfaceContainerHighest,
+        // Utility
         error: DarkThemeColors.error,
+        onError: DarkThemeColors.onError,
         outline: DarkThemeColors.divider,
+        outlineVariant: DarkThemeColors.divider.withOpacity(0.5),
       ),
 
-      // Text entry typography (color-independent)
+      // Text entry typography
       extensions: [
         TextEntryTheme.standard(
           headingColor: DarkThemeColors.primary,
@@ -96,23 +110,30 @@ class AppTheme {
       cardColor: WarmThemeColors.surface,
       dividerColor: WarmThemeColors.divider,
 
-      // Color scheme
+      // Color scheme with full Surface Container hierarchy
       colorScheme: ColorScheme.dark(
         primary: WarmThemeColors.primary,
         onPrimary: WarmThemeColors.onPrimary,
-        primaryContainer:
-            WarmThemeColors.accent.withOpacity(0.25), // Selection highlight
+        primaryContainer: WarmThemeColors.accent.withOpacity(0.25),
         onPrimaryContainer: WarmThemeColors.primary,
         secondary: WarmThemeColors.accent,
         onSecondary: WarmThemeColors.onPrimary,
         surface: WarmThemeColors.surface,
         onSurface: WarmThemeColors.onBackground,
-        surfaceContainerHighest: WarmThemeColors.surfaceContainer,
+        // Surface Container hierarchy (Flutter 3.22+)
+        surfaceContainerLowest: WarmThemeColors.surfaceContainerLowest,
+        surfaceContainerLow: WarmThemeColors.surfaceContainerLow,
+        surfaceContainer: WarmThemeColors.surface,
+        surfaceContainerHigh: WarmThemeColors.surfaceContainerHigh,
+        surfaceContainerHighest: WarmThemeColors.surfaceContainerHighest,
+        // Utility
         error: WarmThemeColors.error,
+        onError: WarmThemeColors.onError,
         outline: WarmThemeColors.divider,
+        outlineVariant: WarmThemeColors.divider.withOpacity(0.5),
       ),
 
-      // Text entry typography (color-independent)
+      // Text entry typography
       extensions: [
         TextEntryTheme.standard(
           headingColor: WarmThemeColors.primary,

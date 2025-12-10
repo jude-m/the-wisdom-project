@@ -142,26 +142,6 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
     );
   }
 
-  /// Legacy factory for backward compatibility
-  /// Deprecated: Use TextEntryTheme.standard() with explicit colors
-  @Deprecated('Use TextEntryTheme.standard() with explicit colors instead')
-  factory TextEntryTheme.light(ColorScheme colorScheme) {
-    return TextEntryTheme.standard(
-      headingColor: colorScheme.primary,
-      bodyColor: colorScheme.onSurface,
-    );
-  }
-
-  /// Legacy factory for backward compatibility
-  /// Deprecated: Use TextEntryTheme.standard() with explicit colors
-  @Deprecated('Use TextEntryTheme.standard() with explicit colors instead')
-  factory TextEntryTheme.dark(ColorScheme colorScheme) {
-    return TextEntryTheme.standard(
-      headingColor: colorScheme.primary,
-      bodyColor: colorScheme.onSurface,
-    );
-  }
-
   @override
   ThemeExtension<TextEntryTheme> copyWith({
     Map<int, TextStyle>? headingStyles,
@@ -212,5 +192,8 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
 extension TextEntryThemeExtension on BuildContext {
   TextEntryTheme get textEntryTheme =>
       Theme.of(this).extension<TextEntryTheme>() ??
-      TextEntryTheme.light(Theme.of(this).colorScheme);
+      TextEntryTheme.standard(
+        headingColor: Theme.of(this).colorScheme.primary,
+        bodyColor: Theme.of(this).colorScheme.onSurface,
+      );
 }
