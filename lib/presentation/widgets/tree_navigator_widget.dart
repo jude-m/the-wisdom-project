@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/tipitaka_tree_node.dart';
-import '../../domain/entities/navigation_language.dart';
 import '../../domain/entities/reader_tab.dart';
 import '../providers/navigation_tree_provider.dart';
 import '../providers/document_provider.dart';
@@ -13,55 +12,9 @@ class TreeNavigatorWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final treeAsync = ref.watch(navigationTreeProvider);
-    final navigationLanguage = ref.watch(navigationLanguageProvider);
 
     return Column(
       children: [
-        // Header with language toggle
-        Container(
-          padding: const EdgeInsets.all(8.0),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            border: Border(
-              bottom: BorderSide(
-                color: Theme.of(context).dividerColor,
-                width: 1,
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Navigation',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              // Language toggle
-              SegmentedButton<NavigationLanguage>(
-                segments: const [
-                  ButtonSegment(
-                    value: NavigationLanguage.pali,
-                    label: Text('Pali'),
-                  ),
-                  ButtonSegment(
-                    value: NavigationLanguage.sinhala,
-                    label: Text('සිංහල'),
-                  ),
-                ],
-                selected: {navigationLanguage},
-                onSelectionChanged: (Set<NavigationLanguage> newSelection) {
-                  ref.read(navigationLanguageProvider.notifier).state =
-                      newSelection.first;
-                },
-              ),
-            ],
-          ),
-        ),
-
         // Tree content
         Expanded(
           child: treeAsync.when(
