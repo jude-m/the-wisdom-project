@@ -81,7 +81,22 @@ Created test helpers in `test/helpers/`:
 | Presentation | `multi_pane_reader_widget_test.dart` | 7 |
 | Infrastructure | `widget_test.dart` | 2 |
 | Integration | `scroll_restoration_test.dart` | 4 |
-| **Total** | | **69** |
+| **Subtotal** | | **69** |
+
+### Search Feature Tests (Phase 5)
+
+Added comprehensive tests for the search functionality:
+
+| Layer | File | Tests |
+|---|---|---|
+| Data | `text_search_repository_impl_test.dart` | 21 |
+| Data | `recent_searches_repository_impl_test.dart` | 14 |
+| Presentation | `search_state_notifier_test.dart` | 21 |
+| Presentation/Widget | `search_bar_widget_test.dart` | 5 |
+| Presentation/Widget | `search_overlay_content_test.dart` | 5 |
+| **Subtotal** | | **66** |
+
+**Total Tests: 135**
 
 ### Bugs Discovered & Fixed
 
@@ -101,3 +116,5 @@ Testing revealed real bugs in production code:
 - **Provider Overrides**: Injecting mock dependencies via Riverpod
 - **Mockito**: `when()` for stubbing, `verify()` for interaction testing
 - **Either type**: Testing both `Left` (failure) and `Right` (success) paths
+- **Fake Async**: Testing debounce behavior in SearchStateNotifier
+
