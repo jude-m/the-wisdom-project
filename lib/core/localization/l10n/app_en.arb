@@ -124,5 +124,10 @@
   "close": "Close",
   "@close": {
     "description": "Button label to close a dialog or screen"
+  },
+
+  "searchHint": "Search",
+  "@searchHint": {
+    "description": "Hint text shown in search input field"
   }
 }

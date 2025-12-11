@@ -5,9 +5,9 @@ import '../widgets/multi_pane_reader_widget.dart';
 import '../widgets/tab_bar_widget.dart';
 import '../widgets/search_results_widget.dart';
 import '../widgets/settings_menu_button.dart';
+import '../widgets/search_bar.dart' as app;
 import '../providers/search_provider.dart';
 import '../providers/navigator_visibility_provider.dart';
-import 'search_screen.dart';
 
 class ReaderScreen extends ConsumerWidget {
   const ReaderScreen({super.key});
@@ -29,17 +29,8 @@ class ReaderScreen extends ConsumerWidget {
           },
         ),
         actions: [
-          // Search icon button (both mobile and desktop)
-          IconButton(
-            icon: const Icon(Icons.search),
-            tooltip: 'Search',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SearchScreen()),
-              );
-            },
-          ),
+          // Search bar (fixed width with overlay dropdown)
+          const app.SearchBar(),
 
           // Settings menu
           const SettingsMenuButton(),

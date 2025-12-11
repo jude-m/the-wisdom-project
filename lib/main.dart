@@ -3,11 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'presentation/screens/reader_screen.dart';
+import 'presentation/providers/search_provider.dart';
 import 'core/theme/theme_notifier.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize SharedPreferences for search history
+  final sharedPrefs = await SharedPreferences.getInstance();
 
   // Quick validation: Check if FTS database exists in assets
   // This is a fast check that doesn't load the entire database
@@ -20,8 +25,12 @@ void main() async {
   }
 
   runApp(
-    const ProviderScope(
-      child: MyApp(),
+    ProviderScope(
+      overrides: [
+        // Provide SharedPreferences for recent searches
+        sharedPreferencesProvider.overrideWithValue(sharedPrefs),
+      ],
+      child: const MyApp(),
     ),
   );
 }
