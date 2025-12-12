@@ -33,7 +33,15 @@ class SearchOverlayContent extends ConsumerWidget {
     final hasRecentSearches = searchState.recentSearches.isNotEmpty;
     final hasPreviewResults = searchState.previewResults?.isNotEmpty ?? false;
     final isLoading = searchState.isPreviewLoading;
-    final hasContent = hasRecentSearches || hasPreviewResults || isLoading;
+    final isQueryValid = searchState.queryText.length >= 2;
+    // Show overlay if:
+    // 1. We have content (recent searches or preview results)
+    // 2. We are loading
+    // 3. We have a valid query that yielded no results (to show "No results found")
+    final hasContent = hasRecentSearches ||
+        hasPreviewResults ||
+        isLoading ||
+        (isQueryValid && !isLoading);
 
     if (!hasContent) {
       return const SizedBox.shrink();
@@ -56,7 +64,7 @@ class SearchOverlayContent extends ConsumerWidget {
                 children: [
                   if (isLoading)
                     _buildLoading()
-                  else if (hasPreviewResults)
+                  else if (hasPreviewResults || (isQueryValid && !isLoading))
                     _buildPreviewResults(context, ref, searchState)
                   else if (hasRecentSearches && searchState.queryText.isEmpty)
                     _buildRecentSearches(
@@ -136,43 +144,116 @@ class SearchOverlayContent extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ...previewResults.categoriesWithResults.map((category) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _sectionHeader(theme, category.displayName.toUpperCase()),
-                ...previewResults
-                    .getResultsForCategory(category)
-                    .map((result) => ListTile(
-                          dense: true,
-                          minVerticalPadding: 8,
-                          leading: Icon(_categoryIcon(category),
-                              size: 20,
-                              color: theme.colorScheme.onSurfaceVariant),
-                          title: Text(
-                            result.title,
-                            style: theme.textTheme.bodyMedium
-                                ?.copyWith(fontWeight: FontWeight.w500),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text(
-                            result.subtitle,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          onTap: () {
-                            ref
-                                .read(searchStateProvider.notifier)
-                                .clearSearch();
-                            onDismiss();
-                            onResultTap?.call(result);
-                          },
-                        )),
-              ],
-            )),
+        ...previewResults.categoriesWithResults
+            .where((category) => category != SearchCategory.definition)
+            .map((category) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionHeader(theme, category.displayName.toUpperCase()),
+                    ...previewResults
+                        .getResultsForCategory(category)
+                        .map((result) => ListTile(
+                              dense: true,
+                              minVerticalPadding: 8,
+                              leading: Icon(_categoryIcon(category),
+                                  size: 20,
+                                  color: theme.colorScheme.onSurfaceVariant),
+                              title: Text(
+                                result.title,
+                                style: theme.textTheme.bodyMedium
+                                    ?.copyWith(fontWeight: FontWeight.w500),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    result.subtitle,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (result.matchedText.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: _buildHighlightedText(
+                                        result.matchedText,
+                                        searchState.queryText,
+                                        theme,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              onTap: () {
+                                ref
+                                    .read(searchStateProvider.notifier)
+                                    .clearSearch();
+                                onDismiss();
+                                onResultTap?.call(result);
+                              },
+                            )),
+                  ],
+                )),
       ],
+    );
+  }
+
+  Widget _buildHighlightedText(String text, String query, ThemeData theme) {
+    if (query.isEmpty) {
+      return Text(
+        text,
+        style: theme.textTheme.bodySmall,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    final spans = <TextSpan>[];
+    final lowerText = text.toLowerCase();
+    final lowerQuery = query.toLowerCase();
+
+    int start = 0;
+    while (true) {
+      final index = lowerText.indexOf(lowerQuery, start);
+      if (index == -1) {
+        // Add remaining text
+        if (start < text.length) {
+          spans.add(TextSpan(text: text.substring(start)));
+        }
+        break;
+      }
+
+      // Add text before match
+      if (index > start) {
+        spans.add(TextSpan(text: text.substring(start, index)));
+      }
+
+      // Add highlighted match
+      spans.add(TextSpan(
+        text: text.substring(index, index + query.length),
+        style: TextStyle(
+          backgroundColor: Colors.yellow.shade100,
+          fontWeight: FontWeight.bold,
+          color: theme.colorScheme.onSurface,
+        ),
+      ));
+
+      start = index + query.length;
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        children: spans,
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
     );
   }
 

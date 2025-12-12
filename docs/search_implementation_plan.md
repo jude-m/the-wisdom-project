@@ -16,7 +16,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              PRESENTATION                                    │
 │  ┌─────────────────┐   ┌──────────────────┐   ┌────────────────────────┐    │
-│  │ SearchBarWidget │──▶│ SearchState      │──▶│ SearchOverlayWidget    │    │
+│  │ SearchBar       │──▶│ SearchState      │──▶│ SearchOverlayContent   │    │
 │  │ (+ overlay)     │   │ Notifier         │   │ SearchResultsScreen    │    │
 │  └─────────────────┘   └────────┬─────────┘   └────────────────────────┘    │
 │                                 │                                            │
@@ -63,7 +63,7 @@
 | **Repository Interfaces** | `TextSearchRepository` (with `searchCategorizedPreview`, `searchByCategory`), `RecentSearchesRepository` |
 | **Data Layer** | `TextSearchRepositoryImpl` (FTS + nav tree enrichment), `RecentSearchesRepositoryImpl` (SharedPreferences) |
 | **State Management** | `SearchState` (Freezed), `SearchStateNotifier` (mode-based flow), `SearchMode` enum |
-| **UI Widgets** | `SearchBarWidget` (focus/blur overlay), `SearchOverlayWidget` (recent/preview), `SearchResultsScreen` (category tabs) |
+| **UI Widgets** | `SearchBar` (focus/blur overlay), `SearchOverlayContent` (recent/preview), `SearchResultsScreen` (category tabs) |
 | **Tests** | 10 unit tests passing |
 
 ### ⏳ Pending
@@ -149,8 +149,8 @@ presentation/
 │   ├── search_state.dart           # SearchState + SearchStateNotifier
 │   └── search_provider.dart        # Riverpod providers
 ├── widgets/
-│   ├── search_bar_widget.dart      # Input + overlay integration
-│   ├── search_overlay_widget.dart  # Recent/preview dropdown
+│   ├── search_bar.dart             # SearchBar widget: Input + overlay integration
+│   ├── search_overlay.dart         # SearchOverlayContent: Recent/preview dropdown
 │   └── search_results_widget.dart  # Results list (legacy)
 └── screens/
     └── search_results_screen.dart  # Full results with tabs

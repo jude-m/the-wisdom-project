@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:dartz/dartz.dart';
+import 'package:flutter/services.dart';
 import '../../domain/entities/failure.dart';
 import '../../domain/entities/search/categorized_search_result.dart';
 import '../../domain/entities/search/search_category.dart';
@@ -165,35 +167,68 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
 
           // 1. Search for title matches (sutta/commentary names)
           final titleResults = <SearchResult>[];
-          final queryLower = query.queryText.toLowerCase();
+          // Normalize query by removing zero-width characters (ZWJ, ZWNJ, etc.)
+          final queryLower = query.queryText
+              .toLowerCase()
+              .replaceAll('\u200D', '') // Zero-Width Joiner
+              .replaceAll('\u200C', '') // Zero-Width Non-Joiner
+              .replaceAll('\u200B', ''); // Zero-Width Space
+
           for (final node in nodeMap.values) {
+            //TODO: Make sure this can work with multiple editions
             final paliName = (node.paliName ?? '').toString().toLowerCase();
             final sinhalaName =
                 (node.sinhalaName ?? '').toString().toLowerCase();
 
-            if (paliName.contains(queryLower) ||
-                sinhalaName.contains(queryLower)) {
+            // Check which name matched
+            final paliMatched = paliName.contains(queryLower);
+            final sinhalaMatched = sinhalaName.contains(queryLower);
+
+            if (paliMatched || sinhalaMatched) {
               if (node.contentFileId != null) {
+                // Use the name that matched; prefer sinhala if both match
+                final matchedName = sinhalaMatched
+                    ? (node.sinhalaName ?? node.paliName ?? '')
+                    : (node.paliName ?? node.sinhalaName ?? '');
+                final matchedLanguage = sinhalaMatched ? 'sinhala' : 'pali';
+
                 titleResults.add(
                   SearchResult(
                     id: 'title_${node.nodeKey}',
                     editionId: 'bjt', // Default for now
                     category: SearchCategory.title,
-                    title: node.paliName ?? node.sinhalaName ?? '',
+                    title: matchedName,
                     subtitle: _buildNavigationPath(node, nodeMap),
-                    matchedText: node.paliName ?? '',
+                    matchedText: matchedName,
                     contentFileId: node.contentFileId,
                     pageIndex: node.entryPageIndex ?? 0,
                     entryIndex: node.entryIndexInPage ?? 0,
                     nodeKey: node.nodeKey,
-                    language: 'pali',
+                    language: matchedLanguage,
                   ),
                 );
               }
-              if (titleResults.length >= maxPerCategory) break;
             }
           }
-          resultsByCategory[SearchCategory.title] = titleResults;
+
+          // Sort to prioritize leaf nodes (nodes with no children) - they appear first
+          titleResults.sort((a, b) {
+            final nodeA = nodeMap[a.nodeKey];
+            final nodeB = nodeMap[b.nodeKey];
+            final isLeafA = nodeA?.childNodes == null ||
+                (nodeA?.childNodes as List?)?.isEmpty == true;
+            final isLeafB = nodeB?.childNodes == null ||
+                (nodeB?.childNodes as List?)?.isEmpty == true;
+
+            // Leaf nodes come first
+            if (isLeafA && !isLeafB) return -1;
+            if (!isLeafA && isLeafB) return 1;
+            return 0;
+          });
+
+          //TODO: this should change later to get the top most searched results
+          resultsByCategory[SearchCategory.title] =
+              titleResults.take(maxPerCategory).toList();
 
           // 2. Search for content matches (FTS)
           final ftsMatches = await _ftsDataSource.searchContent(
@@ -215,6 +250,10 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
               final pageIndex = int.parse(eindParts[0]);
               final entryIndex = int.parse(eindParts[1]);
 
+              // Load actual text content from JSON file
+              final matchedText =
+                  await _loadTextForMatch(match.filename, match.eind);
+
               contentResults.add(
                 SearchResult(
                   id: '${match.editionId}_${match.filename}_${match.eind}',
@@ -224,7 +263,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                       ? node.paliName
                       : node.sinhalaName,
                   subtitle: _buildNavigationPath(node, nodeMap),
-                  matchedText: '', // Would need to fetch actual content
+                  matchedText: matchedText ?? '', // Actual text from JSON
                   contentFileId: match.filename,
                   pageIndex: pageIndex,
                   entryIndex: entryIndex,
@@ -319,6 +358,21 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                   }
                 }
               }
+
+              // Sort to prioritize leaf nodes - individual suttas appear first
+              results.sort((a, b) {
+                final nodeA = nodeMap[a.nodeKey];
+                final nodeB = nodeMap[b.nodeKey];
+                final isLeafA = nodeA?.childNodes == null ||
+                    (nodeA?.childNodes as List?)?.isEmpty == true;
+                final isLeafB = nodeB?.childNodes == null ||
+                    (nodeB?.childNodes as List?)?.isEmpty == true;
+
+                if (isLeafA && !isLeafB) return -1;
+                if (!isLeafA && isLeafB) return 1;
+                return 0;
+              });
+
               return Right(results.take(query.limit).toList());
 
             case SearchCategory.content:
@@ -396,6 +450,46 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     }
 
     return parts.join(' > ');
+  }
+
+  /// Load actual text content from JSON file for a given entry
+  Future<String?> _loadTextForMatch(String filename, String eind) async {
+    try {
+      final eindParts = eind.split('-');
+      final pageIndex = int.parse(eindParts[0]);
+      final entryIndex = int.parse(eindParts[1]);
+
+      // Load JSON file
+      final jsonString =
+          await rootBundle.loadString('assets/text/$filename.json');
+      final jsonData = json.decode(jsonString) as Map<String, dynamic>;
+
+      // Navigate to the specific entry
+      final pages = jsonData['pages'] as List<dynamic>?;
+      if (pages == null || pageIndex >= pages.length) {
+        return null;
+      }
+
+      final page = pages[pageIndex] as Map<String, dynamic>;
+
+      // Try Sinhala first, then Pali
+      for (final lang in ['sinh', 'pali']) {
+        final langData = page[lang] as Map<String, dynamic>?;
+        if (langData != null) {
+          final entries = langData['entries'] as List<dynamic>?;
+          if (entries != null && entryIndex < entries.length) {
+            final entry = entries[entryIndex] as Map<String, dynamic>;
+            final text = entry['text'] as String?;
+            if (text != null && text.isNotEmpty) {
+              return text;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // debugPrint('Error loading text for $filename:$eind: $e');
+    }
+    return null;
   }
 
   @override

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/reader_tab.dart';
+import '../../domain/entities/search/search_result.dart';
 import 'document_provider.dart';
 
 /// State notifier for managing the list of reader tabs
@@ -171,5 +172,35 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
       // If we closed a tab before the active one, adjust the active index
       ref.read(activeTabIndexProvider.notifier).state = currentTabIndex - 1;
     }
+  };
+});
+
+/// Provider to open a new tab from a search result
+/// Centralizes the tab creation and navigation logic used across search widgets
+final openTabFromSearchResultProvider =
+    Provider<void Function(SearchResult)>((ref) {
+  return (SearchResult result) {
+    // Create a new tab for the search result
+    final newTab = ReaderTab.fromNode(
+      nodeKey: result.nodeKey,
+      paliName:
+          result.title, // For search results, title may differ by language
+      sinhalaName: result.title,
+      contentFileId: result.contentFileId,
+      pageIndex: result.pageIndex,
+    );
+
+    // Add tab and make it active
+    final newIndex = ref.read(tabsProvider.notifier).addTab(newTab);
+    ref.read(activeTabIndexProvider.notifier).state = newIndex;
+
+    // Set the content file and page index
+    ref.read(currentContentFileIdProvider.notifier).state =
+        result.contentFileId;
+    ref.read(currentPageIndexProvider.notifier).state = result.pageIndex;
+
+    // Set pagination state from the new tab (consistent with tree navigation)
+    ref.read(pageStartProvider.notifier).state = newTab.pageStart;
+    ref.read(pageEndProvider.notifier).state = newTab.pageEnd;
   };
 });

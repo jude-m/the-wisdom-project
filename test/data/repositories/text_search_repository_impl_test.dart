@@ -725,6 +725,201 @@ void main() {
           },
         );
       });
+
+      test('should normalize query by removing zero-width characters',
+          () async {
+        // ARRANGE - Query with Zero-Width Joiner (common in Sinhala input)
+        const queryWithZWJ =
+            SearchQuery(queryText: 'සති\u200Dය'); // Contains ZWJ
+
+        final treeWithSatiMatch = [
+          const TipitakaTreeNode(
+            nodeKey: 'sati-1',
+            paliName: 'Satipaṭṭhānasutta',
+            sinhalaName: 'සතිය', // No ZWJ - should still match
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'sati-1',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithSatiMatch));
+
+        when(mockFTSDataSource.searchContent(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          nikayaFilter: anyNamed('nikayaFilter'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchCategorizedPreview(queryWithZWJ);
+
+        // ASSERT
+        expect(result.isRight(), true);
+
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByCategory[SearchCategory.title]!;
+            expect(titleResults.length, equals(1));
+            expect(titleResults[0].title, equals('සතිය'));
+          },
+        );
+      });
+
+      test('should return sinhala name when only sinhala matches query',
+          () async {
+        // ARRANGE
+        const query = SearchQuery(queryText: 'සතිපට්ඨාන');
+
+        final treeWithSinhalaMatch = [
+          const TipitakaTreeNode(
+            nodeKey: 'sati-1',
+            paliName: 'Satipaṭṭhānasutta', // Pali - does NOT contain query
+            sinhalaName: 'සතිපට්ඨානසූත්‍රය', // Sinhala - DOES contain query
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'sati-1',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithSinhalaMatch));
+
+        when(mockFTSDataSource.searchContent(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          nikayaFilter: anyNamed('nikayaFilter'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchCategorizedPreview(query);
+
+        // ASSERT
+        expect(result.isRight(), true);
+
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByCategory[SearchCategory.title]!;
+            expect(titleResults.length, equals(1));
+            // Should show Sinhala name since that matched
+            expect(titleResults[0].title, equals('සතිපට්ඨානසූත්‍රය'));
+            expect(titleResults[0].language, equals('sinhala'));
+          },
+        );
+      });
+
+      test('should return pali name when only pali matches query', () async {
+        // ARRANGE
+        const query = SearchQuery(queryText: 'brahma');
+
+        final treeWithPaliMatch = [
+          const TipitakaTreeNode(
+            nodeKey: 'brahma-1',
+            paliName: 'Brahmajālasutta', // Pali - DOES contain query
+            sinhalaName:
+                'බ්‍රහ්මජාලසූත්‍රය', // Sinhala - does NOT contain query
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'brahma-1',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithPaliMatch));
+
+        when(mockFTSDataSource.searchContent(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          nikayaFilter: anyNamed('nikayaFilter'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchCategorizedPreview(query);
+
+        // ASSERT
+        expect(result.isRight(), true);
+
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByCategory[SearchCategory.title]!;
+            expect(titleResults.length, equals(1));
+            // Should show Pali name since that matched
+            expect(titleResults[0].title, equals('Brahmajālasutta'));
+            expect(titleResults[0].language, equals('pali'));
+          },
+        );
+      });
+
+      test('should prefer sinhala name when both pali and sinhala match',
+          () async {
+        // ARRANGE - Query appears in both names using ASCII
+        const query = SearchQuery(queryText: 'test');
+
+        final treeWithBothMatch = [
+          const TipitakaTreeNode(
+            nodeKey: 'both-1',
+            paliName: 'TestSutta', // Contains 'test'
+            sinhalaName: 'Testය', // Also contains 'test'
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'both-1',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithBothMatch));
+
+        when(mockFTSDataSource.searchContent(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          nikayaFilter: anyNamed('nikayaFilter'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchCategorizedPreview(query);
+
+        // ASSERT
+        expect(result.isRight(), true);
+
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByCategory[SearchCategory.title]!;
+            expect(titleResults.length, equals(1));
+            // Should prefer Sinhala when both match
+            expect(titleResults[0].title, equals('Testය'));
+            expect(titleResults[0].language, equals('sinhala'));
+          },
+        );
+      });
     });
 
     group('searchByCategory', () {

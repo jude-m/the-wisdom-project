@@ -3,17 +3,34 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/tree_navigator_widget.dart';
 import '../widgets/multi_pane_reader_widget.dart';
 import '../widgets/tab_bar_widget.dart';
-import '../widgets/search_results_widget.dart';
 import '../widgets/settings_menu_button.dart';
 import '../widgets/search_bar.dart' as app;
-import '../providers/search_provider.dart';
 import '../providers/navigator_visibility_provider.dart';
+import '../providers/tab_provider.dart';
+import '../../domain/entities/search/search_result.dart';
 
-class ReaderScreen extends ConsumerWidget {
+class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReaderScreen> createState() => _ReaderScreenState();
+}
+
+class _ReaderScreenState extends ConsumerState<ReaderScreen> {
+  void _handleSearchResultTap(SearchResult result) {
+    // Use centralized provider for consistent tab creation and navigation
+    ref.read(openTabFromSearchResultProvider)(result);
+
+    // Close navigator on mobile so user can see the content
+    final isDesktop = MediaQuery.of(context).size.width >= 1024;
+    if (!isDesktop) {
+      ref.read(navigatorVisibleProvider.notifier).state = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final isDesktop = MediaQuery.of(context).size.width >= 1024;
     final navigatorVisible = ref.watch(navigatorVisibleProvider);
 
@@ -30,7 +47,7 @@ class ReaderScreen extends ConsumerWidget {
         ),
         actions: [
           // Search bar (fixed width with overlay dropdown)
-          const app.SearchBar(),
+          app.SearchBar(onResultTap: _handleSearchResultTap),
 
           // Settings menu
           const SettingsMenuButton(),
@@ -75,9 +92,6 @@ class ReaderScreen extends ConsumerWidget {
             ],
           ),
 
-          // Desktop: Search results overlay
-          if (isDesktop) const _SearchResultsOverlay(),
-
           // Mobile: Full-screen navigator overlay
           if (!isDesktop && navigatorVisible)
             Positioned.fill(
@@ -87,46 +101,6 @@ class ReaderScreen extends ConsumerWidget {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-/// Desktop search results overlay
-class _SearchResultsOverlay extends ConsumerWidget {
-  const _SearchResultsOverlay();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hasQuery = ref.watch(
-      searchStateProvider.select((s) => s.queryText.trim().isNotEmpty),
-    );
-
-    if (!hasQuery) return const SizedBox.shrink();
-
-    return Positioned(
-      top: 0,
-      right: 0,
-      bottom: 0,
-      width: 450,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          border: Border(
-            left: BorderSide(
-              color: Theme.of(context).dividerColor,
-              width: 1,
-            ),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(-2, 0),
-            ),
-          ],
-        ),
-        child: const SearchResultsWidget(),
       ),
     );
   }
