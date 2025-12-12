@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/column_display_mode.dart';
 import '../../domain/entities/entry.dart';
 import '../../domain/entities/entry_type.dart';
-import '../../core/theme/theme_notifier.dart';
 import '../providers/document_provider.dart';
 import '../providers/tab_provider.dart';
 
@@ -150,7 +149,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
 
     final contentAsync = ref.watch(currentBJTDocumentProvider);
     final columnMode = ref.watch(columnDisplayModeProvider);
-    final currentPageIndex = ref.watch(currentPageIndexProvider);
 
     return Column(
       children: [

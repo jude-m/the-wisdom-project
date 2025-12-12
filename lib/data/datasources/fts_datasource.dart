@@ -1,4 +1,6 @@
+import 'dart:developer' as developer;
 import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -95,6 +97,42 @@ class FTSDataSourceImpl implements FTSDataSource {
   /// Map of edition ID to database instance
   final Map<String, Database> _databases = {};
 
+  /// Log debug messages only in debug mode.
+  /// Uses dart:developer.log which is stripped in release builds.
+  void _log(String message) {
+    developer.log(message, name: 'FTSDataSource');
+  }
+
+  /// Sanitize FTS query to prevent injection and syntax errors.
+  ///
+  /// FTS4 MATCH has special characters that can cause crashes or unexpected
+  /// behavior if not handled:
+  /// - Double quotes (") - phrase delimiters
+  /// - Asterisk (*) - prefix matching
+  /// - Hyphen (-) - NOT operator
+  /// - OR, AND, NOT - boolean operators
+  /// - Parentheses - grouping
+  /// - Colon (:) - column specifier
+  ///
+  /// This method escapes quotes and wraps the query for safe phrase matching.
+  String _sanitizeFtsQuery(String query) {
+    // Remove leading/trailing whitespace
+    var sanitized = query.trim();
+
+    // Return empty string for empty queries
+    if (sanitized.isEmpty) {
+      return '""';
+    }
+
+    // Escape double quotes by doubling them (FTS4 escape syntax)
+    sanitized = sanitized.replaceAll('"', '""');
+
+    // Wrap in double quotes for phrase matching
+    // This treats the entire query as a literal phrase, neutralizing
+    // special operators like OR, AND, NOT, -, *
+    return '"$sanitized"';
+  }
+
   /// Track which editions are initialized
   final Set<String> _initializedEditions = {};
 
@@ -121,35 +159,35 @@ class FTSDataSourceImpl implements FTSDataSource {
       final documentsDirectory = await getApplicationDocumentsDirectory();
       final dbPath = join(documentsDirectory.path, dbName);
 
-      print('FTS: Initializing edition $editionId');
-      print('FTS: Asset path: $assetPath');
-      print('FTS: DB path: $dbPath');
+      _log('Initializing edition $editionId');
+      _log('Asset path: $assetPath');
+      _log('DB path: $dbPath');
 
       // Check if database already exists
       final exists = await File(dbPath).exists();
-      print('FTS: Database exists: $exists');
+      _log('Database exists: $exists');
 
       if (!exists) {
         // Copy from assets
-        print('FTS: Copying database from assets...');
+        _log('Copying database from assets...');
         final ByteData data = await rootBundle.load(assetPath);
         final List<int> bytes = data.buffer.asUint8List();
-        print('FTS: Loaded ${bytes.length} bytes from assets');
+        _log('Loaded ${bytes.length} bytes from assets');
 
         // Write to file
         await File(dbPath).writeAsBytes(bytes, flush: true);
-        print('FTS: Database copied successfully');
+        _log('Database copied successfully');
       }
 
       // Open the database
       // Note: Don't use readOnly mode - FTS4 queries may need temp file access
-      print('FTS: Opening database...');
+      _log('Opening database...');
       final db = await openDatabase(dbPath);
-      print('FTS: Database opened successfully');
+      _log('Database opened successfully');
 
       _databases[editionId] = db;
     } catch (e) {
-      print('FTS: Error initializing $editionId: $e');
+      _log('Error initializing $editionId: $e');
       throw Exception('Failed to initialize FTS database for edition $editionId: $e');
     }
   }
@@ -213,7 +251,7 @@ class FTSDataSourceImpl implements FTSDataSource {
         WHERE $ftsTable MATCH ?
       ''');
 
-      final args = <Object>[query];
+      final args = <Object>[_sanitizeFtsQuery(query)];
 
       // Add language filter
       if (language != null) {

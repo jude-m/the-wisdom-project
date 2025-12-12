@@ -21,6 +21,29 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     this._treeRepository,
   );
 
+  /// Build a flat map of nodeKey -> node from tree hierarchy.
+  /// This allows O(1) lookup of nodes by their key.
+  Map<String, dynamic> _buildNodeMap(List<dynamic> tree) {
+    final nodeMap = <String, dynamic>{};
+
+    void traverse(dynamic node) {
+      if (node.nodeKey != null) {
+        nodeMap[node.nodeKey] = node;
+      }
+      if (node.childNodes != null) {
+        for (final child in node.childNodes) {
+          traverse(child);
+        }
+      }
+    }
+
+    for (final root in tree) {
+      traverse(root);
+    }
+
+    return nodeMap;
+  }
+
   @override
   Future<Either<Failure, List<SearchResult>>> search(SearchQuery query) async {
     try {
@@ -57,21 +80,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
         (failure) => Left(failure),
         (tree) {
           // Build a map of nodeKey -> node for fast lookup
-          final nodeMap = <String, dynamic>{};
-          void buildMap(dynamic node) {
-            if (node.nodeKey != null) {
-              nodeMap[node.nodeKey] = node;
-            }
-            if (node.childNodes != null) {
-              for (final child in node.childNodes) {
-                buildMap(child);
-              }
-            }
-          }
-
-          for (final root in tree) {
-            buildMap(root);
-          }
+          final nodeMap = _buildNodeMap(tree);
 
           // Convert FTS matches to SearchResults
           final results = <SearchResult>[];
@@ -149,21 +158,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           final resultsByCategory = <SearchCategory, List<SearchResult>>{};
 
           // Build nodeKey -> node map
-          final nodeMap = <String, dynamic>{};
-          void buildMap(dynamic node) {
-            if (node.nodeKey != null) {
-              nodeMap[node.nodeKey] = node;
-            }
-            if (node.childNodes != null) {
-              for (final child in node.childNodes) {
-                buildMap(child);
-              }
-            }
-          }
-
-          for (final root in tree) {
-            buildMap(root);
-          }
+          final nodeMap = _buildNodeMap(tree);
 
           // 1. Search for title matches (sutta/commentary names)
           final titleResults = <SearchResult>[];
@@ -311,21 +306,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       return await treeResult.fold(
         (failure) async => Left(failure),
         (tree) async {
-          final nodeMap = <String, dynamic>{};
-          void buildMap(dynamic node) {
-            if (node.nodeKey != null) {
-              nodeMap[node.nodeKey] = node;
-            }
-            if (node.childNodes != null) {
-              for (final child in node.childNodes) {
-                buildMap(child);
-              }
-            }
-          }
-
-          for (final root in tree) {
-            buildMap(root);
-          }
+          final nodeMap = _buildNodeMap(tree);
 
           switch (category) {
             case SearchCategory.title:

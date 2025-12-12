@@ -76,9 +76,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 ),
 
               // Reader area with tabs (right side)
-              Expanded(
+              const Expanded(
                 child: Column(
-                  children: const [
+                  children: [
                     // Tab bar
                     TabBarWidget(),
 

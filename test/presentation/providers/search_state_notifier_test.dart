@@ -135,7 +135,7 @@ void main() {
       test('should debounce preview search (300ms)', () {
         fakeAsync((async) {
           // ARRANGE
-          final categorizedResult = CategorizedSearchResult(
+          const categorizedResult = CategorizedSearchResult(
             resultsByCategory: {
               SearchCategory.title: [],
               SearchCategory.content: [],
@@ -144,7 +144,7 @@ void main() {
             totalCount: 0,
           );
           when(mockSearchRepository.searchCategorizedPreview(any))
-              .thenAnswer((_) async => Right(categorizedResult));
+              .thenAnswer((_) async => const Right(categorizedResult));
 
           // ACT
           notifier.updateQuery('test');

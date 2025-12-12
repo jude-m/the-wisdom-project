@@ -109,7 +109,7 @@ class _SearchBarState extends ConsumerState<SearchBar> {
               focusNode: _focusNode,
               style: theme.textTheme.bodyMedium,
               decoration: InputDecoration(
-                hintText: l10n?.searchHint ?? 'Search',
+                hintText: l10n.searchHint,
                 hintStyle: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

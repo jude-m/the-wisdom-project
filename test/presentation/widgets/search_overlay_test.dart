@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart'; // Just in case, though manual mocks might suffice
 import 'package:the_wisdom_project/domain/entities/search/categorized_search_result.dart';
 import 'package:the_wisdom_project/domain/entities/search/recent_search.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_category.dart';
@@ -144,7 +143,7 @@ void main() {
   });
 
   testWidgets('SearchOverlayContent shows preview results', (tester) async {
-    final previewResults = CategorizedSearchResult(
+    const previewResults = CategorizedSearchResult(
       resultsByCategory: {
         SearchCategory.title: [
           SearchResult(
@@ -166,7 +165,7 @@ void main() {
     );
 
     final notifier = FakeSearchStateNotifier(
-      SearchState(previewResults: previewResults),
+      const SearchState(previewResults: previewResults),
     );
 
     await tester.pumpWidget(
@@ -187,7 +186,7 @@ void main() {
   });
 
   testWidgets('SearchOverlayContent highlights matched text', (tester) async {
-    final previewResults = CategorizedSearchResult(
+    const previewResults = CategorizedSearchResult(
       resultsByCategory: {
         SearchCategory.content: [
           SearchResult(
@@ -209,7 +208,7 @@ void main() {
     );
 
     final notifier = FakeSearchStateNotifier(
-      SearchState(
+      const SearchState(
         previewResults: previewResults,
         queryText: 'test',
       ),
@@ -240,13 +239,13 @@ void main() {
       'SearchOverlayContent returns Shrink (hidden) when no results found',
       (tester) async {
     // This confirms the "No Results" bug/behavior
-    final previewResults = CategorizedSearchResult(
+    const previewResults = CategorizedSearchResult(
       resultsByCategory: {},
       totalCount: 0,
     );
 
     final notifier = FakeSearchStateNotifier(
-      SearchState(
+      const SearchState(
         previewResults: previewResults,
         queryText: 'unknown',
       ),

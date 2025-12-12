@@ -135,7 +135,7 @@ void main() {
         (tester) async {
       // ARRANGE
       SearchResult? tappedResult;
-      final result = SearchResult(
+      const result = SearchResult(
         id: 'test_id',
         editionId: 'bjt',
         category: SearchCategory.title,
@@ -149,7 +149,7 @@ void main() {
         language: 'pali',
       );
 
-      final previewResults = CategorizedSearchResult(
+      const previewResults = CategorizedSearchResult(
         resultsByCategory: {
           SearchCategory.title: [result],
           SearchCategory.content: [],
@@ -161,7 +161,7 @@ void main() {
       when(mockRecentSearchesRepository.getRecentSearches())
           .thenAnswer((_) async => []);
       when(mockSearchRepository.searchCategorizedPreview(any))
-          .thenAnswer((_) async => Right(previewResults));
+          .thenAnswer((_) async => const Right(previewResults));
 
       await tester.pumpApp(
         app_search.SearchBar(
