@@ -245,9 +245,9 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
               final pageIndex = int.parse(eindParts[0]);
               final entryIndex = int.parse(eindParts[1]);
 
-              // Load actual text content from JSON file
+              // Load actual text content from JSON file using the matched language
               final matchedText =
-                  await _loadTextForMatch(match.filename, match.eind);
+                  await _loadTextForMatch(match.filename, match.eind, match.language);
 
               contentResults.add(
                 SearchResult(
@@ -434,7 +434,12 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   }
 
   /// Load actual text content from JSON file for a given entry
-  Future<String?> _loadTextForMatch(String filename, String eind) async {
+  /// [language] should be 'pali' or 'sinh' - the language where the match was found
+  Future<String?> _loadTextForMatch(
+    String filename,
+    String eind,
+    String language,
+  ) async {
     try {
       final eindParts = eind.split('-');
       final pageIndex = int.parse(eindParts[0]);
@@ -453,8 +458,9 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
 
       final page = pages[pageIndex] as Map<String, dynamic>;
 
-      // Try Sinhala first, then Pali
-      for (final lang in ['sinh', 'pali']) {
+      // Use the language from the FTS match first, then fallback to other
+      final langOrder = language == 'pali' ? ['pali', 'sinh'] : ['sinh', 'pali'];
+      for (final lang in langOrder) {
         final langData = page[lang] as Map<String, dynamic>?;
         if (langData != null) {
           final entries = langData['entries'] as List<dynamic>?;

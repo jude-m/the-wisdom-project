@@ -6,6 +6,8 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../core/utils/text_utils.dart';
+
 /// Data model for FTS search results from the database
 /// Includes edition information for multi-edition search support
 class FTSMatch {
@@ -114,12 +116,11 @@ class FTSDataSourceImpl implements FTSDataSource {
   /// - Parentheses - grouping
   /// - Colon (:) - column specifier
   ///
-  /// This method escapes quotes and wraps the query for safe phrase matching.
+  /// This method normalizes Unicode, escapes quotes, and wraps for safe prefix matching.
   String _sanitizeFtsQuery(String query) {
-    // Remove leading/trailing whitespace
-    var sanitized = query.trim();
+    // Normalize: trim and remove zero-width characters
+    var sanitized = normalizeQueryText(query.trim());
 
-    // Return empty string for empty queries
     if (sanitized.isEmpty) {
       return '""';
     }
@@ -127,10 +128,11 @@ class FTSDataSourceImpl implements FTSDataSource {
     // Escape double quotes by doubling them (FTS4 escape syntax)
     sanitized = sanitized.replaceAll('"', '""');
 
-    // Wrap in double quotes for phrase matching
+    // Wrap in double quotes for safe phrase matching, then add * for prefix matching
     // This treats the entire query as a literal phrase, neutralizing
-    // special operators like OR, AND, NOT, -, *
-    return '"$sanitized"';
+    // special operators like OR, AND, NOT, -, while still allowing
+    // prefix matching (e.g., "සති"* matches සතිපට්ඨාන, සතිසම්පජඤ්ඤ, etc.)
+    return '"$sanitized"*';
   }
 
   /// Track which editions are initialized

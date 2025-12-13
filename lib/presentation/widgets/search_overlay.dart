@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/text_utils.dart';
 import '../providers/search_provider.dart';
 import '../providers/search_state.dart';
 import '../../domain/entities/search/recent_search.dart';
@@ -25,6 +26,28 @@ class SearchOverlayContent extends ConsumerWidget {
     this.width = 350,
   });
 
+  /// Calculate max height based on screen size.
+  /// - Mobile (width < 600): full screen height minus safe areas
+  /// - Larger screens: 66% of screen height
+  double _calculateMaxHeight(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final screenHeight = mediaQuery.size.height;
+    final screenWidth = mediaQuery.size.width;
+    final topPadding = mediaQuery.padding.top;
+    final bottomPadding = mediaQuery.padding.bottom;
+
+    // Mobile breakpoint
+    const mobileBreakpoint = 600.0;
+
+    if (screenWidth < mobileBreakpoint) {
+      // Mobile: use available height (minus safe areas and some margin)
+      return screenHeight - topPadding - bottomPadding - 100;
+    } else {
+      // Larger screens: 66% of screen height
+      return screenHeight * 0.66;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final searchState = ref.watch(searchStateProvider);
@@ -47,6 +70,8 @@ class SearchOverlayContent extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
+    final maxHeight = _calculateMaxHeight(context);
+
     return SizedBox(
       width: width,
       child: Material(
@@ -54,7 +79,7 @@ class SearchOverlayContent extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
         color: theme.colorScheme.surfaceContainer,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 400),
+          constraints: BoxConstraints(maxHeight: maxHeight),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: SingleChildScrollView(
@@ -177,7 +202,9 @@ class SearchOverlayContent extends ConsumerWidget {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  if (result.matchedText.isNotEmpty)
+                                  // Only show matched text snippet for CONTENT results
+                                  if (category == SearchCategory.content &&
+                                      result.matchedText.isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 4),
                                       child: _buildHighlightedText(
@@ -202,56 +229,116 @@ class SearchOverlayContent extends ConsumerWidget {
     );
   }
 
-  Widget _buildHighlightedText(String text, String query, ThemeData theme) {
-    if (query.isEmpty) {
-      return Text(
-        text,
-        style: theme.textTheme.bodySmall,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      );
-    }
-
-    final spans = <TextSpan>[];
+  /// Creates a snippet of text centered around the first match of the query.
+  /// Returns the snippet with "..." indicators if text was truncated.
+  String _createSnippet({
+    required String text,
+    required String query,
+    int contextBefore = 50,
+    int contextAfter = 100,
+  }) {
     final lowerText = text.toLowerCase();
     final lowerQuery = query.toLowerCase();
+    final matchIndex = lowerText.indexOf(lowerQuery);
 
+    if (matchIndex == -1) {
+      // No match, return beginning of text
+      final end = (contextBefore + contextAfter).clamp(0, text.length);
+      return text.length > end ? '${text.substring(0, end)}...' : text;
+    }
+
+    final snippetStart = (matchIndex - contextBefore).clamp(0, text.length);
+    final snippetEnd =
+        (matchIndex + query.length + contextAfter).clamp(0, text.length);
+
+    var snippet = text.substring(snippetStart, snippetEnd);
+
+    // Add ellipsis indicators
+    if (snippetStart > 0) {
+      snippet = '...$snippet';
+    }
+    if (snippetEnd < text.length) {
+      snippet = '$snippet...';
+    }
+
+    return snippet;
+  }
+
+  /// Builds highlighted text spans for all matches of the query in the snippet.
+  List<TextSpan> _buildHighlightedSpans({
+    required String snippet,
+    required String query,
+    required TextStyle highlightStyle,
+  }) {
+    final spans = <TextSpan>[];
+    final lowerSnippet = snippet.toLowerCase();
+    final lowerQuery = query.toLowerCase();
     int start = 0;
+
     while (true) {
-      final index = lowerText.indexOf(lowerQuery, start);
+      final index = lowerSnippet.indexOf(lowerQuery, start);
       if (index == -1) {
-        // Add remaining text
-        if (start < text.length) {
-          spans.add(TextSpan(text: text.substring(start)));
+        if (start < snippet.length) {
+          spans.add(TextSpan(text: snippet.substring(start)));
         }
         break;
       }
 
-      // Add text before match
       if (index > start) {
-        spans.add(TextSpan(text: text.substring(start, index)));
+        spans.add(TextSpan(text: snippet.substring(start, index)));
       }
 
-      // Add highlighted match
       spans.add(TextSpan(
-        text: text.substring(index, index + query.length),
-        style: TextStyle(
-          backgroundColor: Colors.yellow.shade100,
-          fontWeight: FontWeight.bold,
-          color: theme.colorScheme.onSurface,
-        ),
+        text: snippet.substring(index, index + query.length),
+        style: highlightStyle,
       ));
 
       start = index + query.length;
     }
 
+    return spans;
+  }
+
+  Widget _buildHighlightedText(String text, String query, ThemeData theme) {
+    final baseStyle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+
+    if (query.isEmpty) {
+      return Text(
+        text,
+        style: baseStyle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    final normalizedQuery = normalizeQueryText(query);
+
+    if (normalizedQuery.isEmpty) {
+      return Text(
+        text,
+        style: baseStyle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    final snippet = _createSnippet(text: text, query: normalizedQuery);
+    final highlightStyle = TextStyle(
+      backgroundColor: theme.colorScheme.primaryContainer,
+      fontWeight: FontWeight.bold,
+      color: theme.colorScheme.onPrimaryContainer,
+    );
+
+    final spans = _buildHighlightedSpans(
+      snippet: snippet,
+      query: normalizedQuery,
+      highlightStyle: highlightStyle,
+    );
+
     return RichText(
-      text: TextSpan(
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-        children: spans,
-      ),
+      text: TextSpan(style: baseStyle, children: spans),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
     );
