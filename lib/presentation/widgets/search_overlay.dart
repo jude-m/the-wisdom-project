@@ -140,6 +140,9 @@ class SearchOverlayContent extends ConsumerWidget {
                 tooltip: 'Remove',
               ),
               onTap: () {
+                // Dismiss overlay before switching to fullResults mode
+                // This prevents the overlay from reappearing when mode changes back to idle
+                onDismiss();
                 ref
                     .read(searchStateProvider.notifier)
                     .selectRecentSearch(search.queryText);

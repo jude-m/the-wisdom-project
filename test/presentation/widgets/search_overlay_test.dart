@@ -142,6 +142,48 @@ void main() {
     expect(notifier.removeRecentCalled, true);
   });
 
+  testWidgets(
+      'SearchOverlayContent calls onDismiss and selectRecentSearch when recent search item tapped',
+      (tester) async {
+    final recentSearches = [
+      RecentSearch(queryText: 'metta', timestamp: DateTime.now()),
+    ];
+    final notifier = FakeSearchStateNotifier(
+      SearchState(recentSearches: recentSearches),
+    );
+
+    bool dismissCalled = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          searchStateProvider.overrideWith((ref) => notifier),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SearchOverlayContent(
+              onDismiss: () {
+                dismissCalled = true;
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Tap on the ListTile (not the close icon)
+    await tester.tap(find.text('metta'));
+    await tester.pumpAndSettle();
+
+    // Verify both dismiss and selectRecentSearch were called
+    expect(dismissCalled, true,
+        reason: 'onDismiss should be called before selectRecentSearch');
+    expect(notifier.selectRecentCalled, true,
+        reason: 'selectRecentSearch should be called');
+    expect(notifier.lastSelectedQuery, 'metta',
+        reason: 'The query text should be passed to selectRecentSearch');
+  });
+
   testWidgets('SearchOverlayContent shows preview results', (tester) async {
     const previewResults = CategorizedSearchResult(
       resultsByCategory: {
