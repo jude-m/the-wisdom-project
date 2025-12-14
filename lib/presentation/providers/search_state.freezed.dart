@@ -54,6 +54,10 @@ mixin _$SearchState {
   /// Whether the filter panel is visible
   bool get filtersVisible => throw _privateConstructorUsedError;
 
+  /// Whether the current query was submitted (user pressed Enter)
+  /// Used to determine if we should reopen the full results panel on focus
+  bool get wasQuerySubmitted => throw _privateConstructorUsedError;
+
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -79,7 +83,8 @@ abstract class $SearchStateCopyWith<$Res> {
       bool searchInPali,
       bool searchInSinhala,
       List<String> nikayaFilters,
-      bool filtersVisible});
+      bool filtersVisible,
+      bool wasQuerySubmitted});
 
   $CategorizedSearchResultCopyWith<$Res>? get previewResults;
 }
@@ -111,6 +116,7 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
     Object? searchInSinhala = null,
     Object? nikayaFilters = null,
     Object? filtersVisible = null,
+    Object? wasQuerySubmitted = null,
   }) {
     return _then(_value.copyWith(
       queryText: null == queryText
@@ -161,6 +167,10 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
           ? _value.filtersVisible
           : filtersVisible // ignore: cast_nullable_to_non_nullable
               as bool,
+      wasQuerySubmitted: null == wasQuerySubmitted
+          ? _value.wasQuerySubmitted
+          : wasQuerySubmitted // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 
@@ -200,7 +210,8 @@ abstract class _$$SearchStateImplCopyWith<$Res>
       bool searchInPali,
       bool searchInSinhala,
       List<String> nikayaFilters,
-      bool filtersVisible});
+      bool filtersVisible,
+      bool wasQuerySubmitted});
 
   @override
   $CategorizedSearchResultCopyWith<$Res>? get previewResults;
@@ -231,6 +242,7 @@ class __$$SearchStateImplCopyWithImpl<$Res>
     Object? searchInSinhala = null,
     Object? nikayaFilters = null,
     Object? filtersVisible = null,
+    Object? wasQuerySubmitted = null,
   }) {
     return _then(_$SearchStateImpl(
       queryText: null == queryText
@@ -281,6 +293,10 @@ class __$$SearchStateImplCopyWithImpl<$Res>
           ? _value.filtersVisible
           : filtersVisible // ignore: cast_nullable_to_non_nullable
               as bool,
+      wasQuerySubmitted: null == wasQuerySubmitted
+          ? _value.wasQuerySubmitted
+          : wasQuerySubmitted // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -300,7 +316,8 @@ class _$SearchStateImpl implements _SearchState {
       this.searchInPali = true,
       this.searchInSinhala = true,
       final List<String> nikayaFilters = const [],
-      this.filtersVisible = false})
+      this.filtersVisible = false,
+      this.wasQuerySubmitted = false})
       : _recentSearches = recentSearches,
         _selectedEditions = selectedEditions,
         _nikayaFilters = nikayaFilters;
@@ -385,9 +402,15 @@ class _$SearchStateImpl implements _SearchState {
   @JsonKey()
   final bool filtersVisible;
 
+  /// Whether the current query was submitted (user pressed Enter)
+  /// Used to determine if we should reopen the full results panel on focus
+  @override
+  @JsonKey()
+  final bool wasQuerySubmitted;
+
   @override
   String toString() {
-    return 'SearchState(queryText: $queryText, mode: $mode, recentSearches: $recentSearches, previewResults: $previewResults, isPreviewLoading: $isPreviewLoading, selectedCategory: $selectedCategory, fullResults: $fullResults, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, filtersVisible: $filtersVisible)';
+    return 'SearchState(queryText: $queryText, mode: $mode, recentSearches: $recentSearches, previewResults: $previewResults, isPreviewLoading: $isPreviewLoading, selectedCategory: $selectedCategory, fullResults: $fullResults, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, filtersVisible: $filtersVisible, wasQuerySubmitted: $wasQuerySubmitted)';
   }
 
   @override
@@ -417,7 +440,9 @@ class _$SearchStateImpl implements _SearchState {
             const DeepCollectionEquality()
                 .equals(other._nikayaFilters, _nikayaFilters) &&
             (identical(other.filtersVisible, filtersVisible) ||
-                other.filtersVisible == filtersVisible));
+                other.filtersVisible == filtersVisible) &&
+            (identical(other.wasQuerySubmitted, wasQuerySubmitted) ||
+                other.wasQuerySubmitted == wasQuerySubmitted));
   }
 
   @override
@@ -434,7 +459,8 @@ class _$SearchStateImpl implements _SearchState {
       searchInPali,
       searchInSinhala,
       const DeepCollectionEquality().hash(_nikayaFilters),
-      filtersVisible);
+      filtersVisible,
+      wasQuerySubmitted);
 
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
@@ -458,7 +484,8 @@ abstract class _SearchState implements SearchState {
       final bool searchInPali,
       final bool searchInSinhala,
       final List<String> nikayaFilters,
-      final bool filtersVisible}) = _$SearchStateImpl;
+      final bool filtersVisible,
+      final bool wasQuerySubmitted}) = _$SearchStateImpl;
 
   /// Current search query text
   @override
@@ -507,6 +534,11 @@ abstract class _SearchState implements SearchState {
   /// Whether the filter panel is visible
   @override
   bool get filtersVisible;
+
+  /// Whether the current query was submitted (user pressed Enter)
+  /// Used to determine if we should reopen the full results panel on focus
+  @override
+  bool get wasQuerySubmitted;
 
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.

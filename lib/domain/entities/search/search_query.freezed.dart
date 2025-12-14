@@ -35,9 +35,6 @@ mixin _$SearchQuery {
   /// Filter by label/tag
   List<String> get labelFilters => throw _privateConstructorUsedError;
 
-  /// Type of search to perform
-  SearchType get searchType => throw _privateConstructorUsedError;
-
   /// Maximum number of results to return
   int get limit => throw _privateConstructorUsedError;
 
@@ -64,7 +61,6 @@ abstract class $SearchQueryCopyWith<$Res> {
       bool searchInSinhala,
       List<String> nikayaFilters,
       List<String> labelFilters,
-      SearchType searchType,
       int limit,
       int offset});
 }
@@ -90,7 +86,6 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
     Object? searchInSinhala = null,
     Object? nikayaFilters = null,
     Object? labelFilters = null,
-    Object? searchType = null,
     Object? limit = null,
     Object? offset = null,
   }) {
@@ -119,10 +114,6 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
           ? _value.labelFilters
           : labelFilters // ignore: cast_nullable_to_non_nullable
               as List<String>,
-      searchType: null == searchType
-          ? _value.searchType
-          : searchType // ignore: cast_nullable_to_non_nullable
-              as SearchType,
       limit: null == limit
           ? _value.limit
           : limit // ignore: cast_nullable_to_non_nullable
@@ -150,7 +141,6 @@ abstract class _$$SearchQueryImplCopyWith<$Res>
       bool searchInSinhala,
       List<String> nikayaFilters,
       List<String> labelFilters,
-      SearchType searchType,
       int limit,
       int offset});
 }
@@ -174,7 +164,6 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
     Object? searchInSinhala = null,
     Object? nikayaFilters = null,
     Object? labelFilters = null,
-    Object? searchType = null,
     Object? limit = null,
     Object? offset = null,
   }) {
@@ -203,10 +192,6 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
           ? _value._labelFilters
           : labelFilters // ignore: cast_nullable_to_non_nullable
               as List<String>,
-      searchType: null == searchType
-          ? _value.searchType
-          : searchType // ignore: cast_nullable_to_non_nullable
-              as SearchType,
       limit: null == limit
           ? _value.limit
           : limit // ignore: cast_nullable_to_non_nullable
@@ -229,7 +214,6 @@ class _$SearchQueryImpl implements _SearchQuery {
       this.searchInSinhala = true,
       final List<String> nikayaFilters = const [],
       final List<String> labelFilters = const [],
-      this.searchType = SearchType.all,
       this.limit = 50,
       this.offset = 0})
       : _editionIds = editionIds,
@@ -288,11 +272,6 @@ class _$SearchQueryImpl implements _SearchQuery {
     return EqualUnmodifiableListView(_labelFilters);
   }
 
-  /// Type of search to perform
-  @override
-  @JsonKey()
-  final SearchType searchType;
-
   /// Maximum number of results to return
   @override
   @JsonKey()
@@ -305,7 +284,7 @@ class _$SearchQueryImpl implements _SearchQuery {
 
   @override
   String toString() {
-    return 'SearchQuery(queryText: $queryText, editionIds: $editionIds, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, labelFilters: $labelFilters, searchType: $searchType, limit: $limit, offset: $offset)';
+    return 'SearchQuery(queryText: $queryText, editionIds: $editionIds, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, labelFilters: $labelFilters, limit: $limit, offset: $offset)';
   }
 
   @override
@@ -325,8 +304,6 @@ class _$SearchQueryImpl implements _SearchQuery {
                 .equals(other._nikayaFilters, _nikayaFilters) &&
             const DeepCollectionEquality()
                 .equals(other._labelFilters, _labelFilters) &&
-            (identical(other.searchType, searchType) ||
-                other.searchType == searchType) &&
             (identical(other.limit, limit) || other.limit == limit) &&
             (identical(other.offset, offset) || other.offset == offset));
   }
@@ -340,7 +317,6 @@ class _$SearchQueryImpl implements _SearchQuery {
       searchInSinhala,
       const DeepCollectionEquality().hash(_nikayaFilters),
       const DeepCollectionEquality().hash(_labelFilters),
-      searchType,
       limit,
       offset);
 
@@ -361,7 +337,6 @@ abstract class _SearchQuery implements SearchQuery {
       final bool searchInSinhala,
       final List<String> nikayaFilters,
       final List<String> labelFilters,
-      final SearchType searchType,
       final int limit,
       final int offset}) = _$SearchQueryImpl;
 
@@ -389,10 +364,6 @@ abstract class _SearchQuery implements SearchQuery {
   /// Filter by label/tag
   @override
   List<String> get labelFilters;
-
-  /// Type of search to perform
-  @override
-  SearchType get searchType;
 
   /// Maximum number of results to return
   @override

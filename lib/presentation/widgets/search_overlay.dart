@@ -216,9 +216,6 @@ class SearchOverlayContent extends ConsumerWidget {
                                 ],
                               ),
                               onTap: () {
-                                ref
-                                    .read(searchStateProvider.notifier)
-                                    .clearSearch();
                                 onDismiss();
                                 onResultTap?.call(result);
                               },

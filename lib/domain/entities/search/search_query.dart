@@ -2,18 +2,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'search_query.freezed.dart';
 
-/// Type of search to perform
-enum SearchType {
-  /// Search both names and content
-  all,
-
-  /// Search only in sutta/document names
-  nameOnly,
-
-  /// Search only in content/text
-  contentOnly,
-}
-
 /// Represents a search query with filters
 @freezed
 class SearchQuery with _$SearchQuery {
@@ -36,9 +24,6 @@ class SearchQuery with _$SearchQuery {
 
     /// Filter by label/tag
     @Default([]) List<String> labelFilters,
-
-    /// Type of search to perform
-    @Default(SearchType.all) SearchType searchType,
 
     /// Maximum number of results to return
     @Default(50) int limit,

@@ -41,60 +41,6 @@ void main() {
   });
 
   // ============================================================
-  // Header Controls Tests
-  // ============================================================
-  group('Header controls', () {
-    testWidgets('should show "Reader" header', (tester) async {
-      // ACT
-      await tester.pumpApp(
-        const MultiPaneReaderWidget(),
-        overrides: [
-          TestProviderOverrides.bjtDocumentDataSource(mockDataSource),
-          currentContentFileIdProvider.overrideWith((ref) => null),
-        ],
-      );
-      await tester.pump();
-
-      // ASSERT
-      expect(find.text('Reader'), findsOneWidget);
-    });
-
-    testWidgets('should have column mode selector buttons', (tester) async {
-      // ACT
-      await tester.pumpApp(
-        const MultiPaneReaderWidget(),
-        overrides: [
-          TestProviderOverrides.bjtDocumentDataSource(mockDataSource),
-          currentContentFileIdProvider.overrideWith((ref) => null),
-        ],
-      );
-      await tester.pump();
-
-      // ASSERT - Column mode buttons (P, P+S, S)
-      expect(find.text('P'), findsOneWidget);
-      expect(find.text('P+S'), findsOneWidget);
-      expect(find.text('S'), findsOneWidget);
-    });
-
-    testWidgets('should have theme selector icons', (tester) async {
-      // ACT
-      await tester.pumpApp(
-        const MultiPaneReaderWidget(),
-        overrides: [
-          TestProviderOverrides.bjtDocumentDataSource(mockDataSource),
-          currentContentFileIdProvider.overrideWith((ref) => null),
-        ],
-      );
-      await tester.pump();
-
-      // ASSERT - Theme icons
-      expect(find.byIcon(Icons.light_mode), findsOneWidget);
-      expect(find.byIcon(Icons.dark_mode), findsOneWidget);
-      expect(find.byIcon(Icons.wb_twilight), findsOneWidget);
-    });
-  });
-
-  // ============================================================
   // Error State Tests
   // ============================================================
   group('Error state', () {

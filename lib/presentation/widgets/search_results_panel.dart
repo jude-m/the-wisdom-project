@@ -4,14 +4,18 @@ import '../../domain/entities/search/search_category.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../providers/search_provider.dart';
 
-/// Full search results screen with category tabs
-/// Shown after user presses Enter to submit search
-class SearchResultsScreen extends ConsumerWidget {
+/// Slide-out panel for displaying full search results
+/// Used as a side panel on desktop and full-screen overlay on mobile
+class SearchResultsPanel extends ConsumerWidget {
+  /// Callback when the panel should be closed
+  final VoidCallback onClose;
+
   /// Callback when a search result is tapped
   final void Function(SearchResult result)? onResultTap;
 
-  const SearchResultsScreen({
+  const SearchResultsPanel({
     super.key,
+    required this.onClose,
     this.onResultTap,
   });
 
@@ -20,24 +24,17 @@ class SearchResultsScreen extends ConsumerWidget {
     final searchState = ref.watch(searchStateProvider);
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            ref.read(searchStateProvider.notifier).exitFullResults();
-            Navigator.of(context).pop();
-          },
-        ),
-        title: Text(
-          'Results for "${searchState.queryText}"',
-          style: theme.textTheme.titleMedium,
-        ),
-        elevation: 0,
-      ),
-      body: Column(
+    return Material(
+      color: theme.colorScheme.surface,
+      elevation: 8,
+      child: Column(
         children: [
-          // Category tabs (Serial Position Effect - Title first)
+          // Custom header with close button
+          _PanelHeader(
+            queryText: searchState.queryText,
+            onClose: onClose,
+          ),
+          // Category tabs
           _CategoryTabBar(
             selectedCategory: searchState.selectedCategory,
             onCategorySelected: (category) {
@@ -130,6 +127,52 @@ class SearchResultsScreen extends ConsumerWidget {
   }
 }
 
+/// Custom header for the search results panel
+class _PanelHeader extends StatelessWidget {
+  final String queryText;
+  final VoidCallback onClose;
+
+  const _PanelHeader({
+    required this.queryText,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant,
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: onClose,
+            tooltip: 'Close',
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Results for "$queryText"',
+              style: theme.textTheme.titleMedium,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Category tab bar for switching between Title, Content, and Definition
 class _CategoryTabBar extends StatelessWidget {
   final SearchCategory selectedCategory;
@@ -206,7 +249,6 @@ class _SearchResultTile extends StatelessWidget {
     final theme = Theme.of(context);
 
     return ListTile(
-      // Fitts's Law: generous tap targets
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       leading: Container(
         width: 40,

@@ -369,7 +369,7 @@ void main() {
     });
 
     group('exitFullResults', () {
-      test('should reset to idle and clear query', () async {
+      test('should reset to idle but preserve query for refocus', () async {
         // ARRANGE
         when(mockRecentSearchesRepository.addRecentSearch(any))
             .thenAnswer((_) async {});
@@ -379,13 +379,130 @@ void main() {
         notifier.updateQuery('test');
         await notifier.submitQuery();
         expect(notifier.state.mode, equals(SearchMode.fullResults));
+        expect(notifier.state.wasQuerySubmitted, isTrue);
 
         // ACT
         notifier.exitFullResults();
 
         // ASSERT
         expect(notifier.state.mode, equals(SearchMode.idle));
-        expect(notifier.state.queryText, isEmpty);
+        // Query text is preserved so panel can reopen on focus
+        expect(notifier.state.queryText, equals('test'));
+        expect(notifier.state.wasQuerySubmitted, isTrue);
+      });
+    });
+
+    group('wasQuerySubmitted', () {
+      test('submitQuery should set wasQuerySubmitted to true', () async {
+        // ARRANGE
+        when(mockRecentSearchesRepository.addRecentSearch(any))
+            .thenAnswer((_) async {});
+        when(mockSearchRepository.searchByCategory(any, any))
+            .thenAnswer((_) async => const Right([]));
+
+        notifier.updateQuery('test query');
+        expect(notifier.state.wasQuerySubmitted, isFalse);
+
+        // ACT
+        await notifier.submitQuery();
+
+        // ASSERT
+        expect(notifier.state.wasQuerySubmitted, isTrue);
+      });
+
+      test('updateQuery should reset wasQuerySubmitted when query changes',
+          () async {
+        // ARRANGE
+        when(mockRecentSearchesRepository.addRecentSearch(any))
+            .thenAnswer((_) async {});
+        when(mockSearchRepository.searchByCategory(any, any))
+            .thenAnswer((_) async => const Right([]));
+
+        notifier.updateQuery('original');
+        await notifier.submitQuery();
+        expect(notifier.state.wasQuerySubmitted, isTrue);
+
+        // ACT - type a different query
+        notifier.updateQuery('different');
+
+        // ASSERT - wasQuerySubmitted should be reset
+        expect(notifier.state.wasQuerySubmitted, isFalse);
+      });
+
+      test('updateQuery should preserve wasQuerySubmitted for same query',
+          () async {
+        // ARRANGE
+        when(mockRecentSearchesRepository.addRecentSearch(any))
+            .thenAnswer((_) async {});
+        when(mockSearchRepository.searchByCategory(any, any))
+            .thenAnswer((_) async => const Right([]));
+
+        notifier.updateQuery('test');
+        await notifier.submitQuery();
+        expect(notifier.state.wasQuerySubmitted, isTrue);
+
+        // ACT - update with same query
+        notifier.updateQuery('test');
+
+        // ASSERT - wasQuerySubmitted preserved
+        expect(notifier.state.wasQuerySubmitted, isTrue);
+      });
+
+      test('clearSearch should reset wasQuerySubmitted', () async {
+        // ARRANGE
+        when(mockRecentSearchesRepository.addRecentSearch(any))
+            .thenAnswer((_) async {});
+        when(mockSearchRepository.searchByCategory(any, any))
+            .thenAnswer((_) async => const Right([]));
+
+        notifier.updateQuery('test');
+        await notifier.submitQuery();
+        expect(notifier.state.wasQuerySubmitted, isTrue);
+
+        // ACT
+        notifier.clearSearch();
+
+        // ASSERT
+        expect(notifier.state.wasQuerySubmitted, isFalse);
+      });
+
+      test('onFocus should reopen fullResults when wasQuerySubmitted is true',
+          () async {
+        // ARRANGE
+        when(mockRecentSearchesRepository.getRecentSearches())
+            .thenAnswer((_) async => []);
+        when(mockRecentSearchesRepository.addRecentSearch(any))
+            .thenAnswer((_) async {});
+        when(mockSearchRepository.searchByCategory(any, any))
+            .thenAnswer((_) async => const Right([]));
+
+        notifier.updateQuery('test');
+        await notifier.submitQuery();
+        notifier.exitFullResults();
+        expect(notifier.state.mode, equals(SearchMode.idle));
+        expect(notifier.state.wasQuerySubmitted, isTrue);
+
+        // ACT
+        final mode = await notifier.onFocus();
+
+        // ASSERT - should go directly to fullResults
+        expect(mode, equals(SearchMode.fullResults));
+        expect(notifier.state.mode, equals(SearchMode.fullResults));
+      });
+
+      test(
+          'onFocus should return recentSearches when wasQuerySubmitted is false',
+          () async {
+        // ARRANGE
+        when(mockRecentSearchesRepository.getRecentSearches())
+            .thenAnswer((_) async => []);
+
+        // ACT
+        final mode = await notifier.onFocus();
+
+        // ASSERT
+        expect(mode, equals(SearchMode.recentSearches));
+        expect(notifier.state.mode, equals(SearchMode.recentSearches));
       });
     });
   });

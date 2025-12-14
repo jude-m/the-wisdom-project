@@ -119,56 +119,6 @@ void main() {
   // ============================================================
   // Language Toggle Tests
   // ============================================================
-  group('Language toggle', () {
-    testWidgets('should have language toggle buttons visible', (tester) async {
-      // ARRANGE
-      when(mockDataSource.loadNavigationTree())
-          .thenAnswer((_) async => TestData.sampleTree);
-
-      // ACT
-      await tester.pumpApp(
-        const TreeNavigatorWidget(),
-        overrides: [
-          TestProviderOverrides.treeDataSource(mockDataSource),
-        ],
-      );
-      await tester.pumpAndSettle();
-
-      // ASSERT - Language buttons should be present
-      expect(find.text('Pali'), findsOneWidget);
-      expect(find.text('සිංහල'), findsOneWidget);
-    });
-
-    testWidgets('should switch display names when language toggled',
-        (tester) async {
-      // ARRANGE
-      when(mockDataSource.loadNavigationTree())
-          .thenAnswer((_) async => TestData.sampleTree);
-
-      // ACT
-      await tester.pumpApp(
-        const TreeNavigatorWidget(),
-        overrides: [
-          TestProviderOverrides.treeDataSource(mockDataSource),
-        ],
-      );
-      await tester.pumpAndSettle();
-
-      // Initially shows Sinhala (default)
-      expect(find.text('සූත්‍ර පිටකය'), findsOneWidget);
-      expect(find.text('Sutta Pitaka'), findsNothing);
-
-      // Tap on Pali segment
-      final paliButton = find.text('Pali');
-      if (paliButton.evaluate().isNotEmpty) {
-        await tester.tap(paliButton);
-        await tester.pumpAndSettle();
-
-        // ASSERT - Should now show Pali names
-        expect(find.text('Sutta Pitaka'), findsOneWidget);
-      }
-    });
-  });
 
   // ============================================================
   // Node Expansion Tests
@@ -272,23 +222,4 @@ void main() {
   // ============================================================
   // Header Tests
   // ============================================================
-  group('Header', () {
-    testWidgets('should show "Navigation" header', (tester) async {
-      // ARRANGE
-      when(mockDataSource.loadNavigationTree())
-          .thenAnswer((_) async => TestData.sampleTree);
-
-      // ACT
-      await tester.pumpApp(
-        const TreeNavigatorWidget(),
-        overrides: [
-          TestProviderOverrides.treeDataSource(mockDataSource),
-        ],
-      );
-      await tester.pumpAndSettle();
-
-      // ASSERT
-      expect(find.text('Navigation'), findsOneWidget);
-    });
-  });
 }

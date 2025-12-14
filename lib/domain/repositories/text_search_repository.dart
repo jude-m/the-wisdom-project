@@ -7,10 +7,8 @@ import '../entities/search/search_result.dart';
 
 /// Repository interface for text search functionality
 abstract class TextSearchRepository {
-  /// Perform a search based on the given query
-  Future<Either<Failure, List<SearchResult>>> search(SearchQuery query);
-
   /// Get categorized preview results (max [maxPerCategory] per category)
+
   /// Used for the search dropdown preview that shows limited results per category
   Future<Either<Failure, CategorizedSearchResult>> searchCategorizedPreview(
     SearchQuery query, {

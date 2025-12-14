@@ -118,12 +118,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Enter text
+      // Enter text directly (this shows clear button)
       await tester.enterText(find.byType(TextField), 'dhamma');
       await tester.pump();
 
-      // ACT - Press clear button
-      await tester.tap(find.byIcon(Icons.clear));
+      // ACT - Press clear button with warnIfMissed: false since overlay may be present
+      await tester.tap(find.byIcon(Icons.clear), warnIfMissed: false);
       await tester.pump();
 
       // ASSERT

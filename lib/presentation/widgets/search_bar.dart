@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../providers/search_provider.dart';
-import '../screens/search_results_screen.dart';
+import '../providers/search_mode.dart';
 import '../../domain/entities/search/search_result.dart';
 import 'search_overlay.dart';
 
@@ -31,6 +31,14 @@ class _SearchBarState extends ConsumerState<SearchBar> {
   void initState() {
     super.initState();
     _focusNode.addListener(_onFocusChange);
+
+    // Sync controller with initial state if needed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final queryText = ref.read(searchStateProvider).queryText;
+      if (queryText.isNotEmpty && _controller.text != queryText) {
+        _controller.text = queryText;
+      }
+    });
   }
 
   @override
@@ -41,10 +49,16 @@ class _SearchBarState extends ConsumerState<SearchBar> {
     super.dispose();
   }
 
-  void _onFocusChange() {
+  void _onFocusChange() async {
     if (_focusNode.hasFocus) {
-      ref.read(searchStateProvider.notifier).onFocus();
-      _overlayController.show();
+      // Call onFocus and get the resulting mode
+      final mode = await ref.read(searchStateProvider.notifier).onFocus();
+
+      // Only show overlay if NOT going to fullResults mode
+      // (fullResults mode will show the side panel instead via ReaderScreen)
+      if (mode != SearchMode.fullResults) {
+        _overlayController.show();
+      }
     }
   }
 
@@ -66,34 +80,54 @@ class _SearchBarState extends ConsumerState<SearchBar> {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
 
+    // Watch search mode to decide if overlay should render
+    final searchMode = ref.watch(searchStateProvider.select((s) => s.mode));
+
+    // Listen to queryText changes and sync controller
+    ref.listen(searchStateProvider.select((s) => s.queryText), (prev, next) {
+      if (_controller.text != next) {
+        _controller.text = next;
+        // Move cursor to end
+        _controller.selection = TextSelection.collapsed(offset: next.length);
+      }
+    });
+
     return OverlayPortal(
       controller: _overlayController,
-      overlayChildBuilder: (context) => Stack(
-        children: [
-          // Full-screen barrier for outside taps
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: _closeAndClear,
-              behavior: HitTestBehavior.opaque,
-              child: const ColoredBox(color: Colors.transparent),
+      overlayChildBuilder: (context) {
+        // Don't render overlay when in fullResults mode (panel is shown instead)
+        // This ensures overlay and panel are decoupled
+        if (searchMode == SearchMode.fullResults) {
+          return const SizedBox.shrink();
+        }
+
+        return Stack(
+          children: [
+            // Full-screen barrier for outside taps
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _closeAndClear,
+                behavior: HitTestBehavior.opaque,
+                child: const ColoredBox(color: Colors.transparent),
+              ),
             ),
-          ),
-          // Dropdown content
-          CompositedTransformFollower(
-            link: _layerLink,
-            targetAnchor: Alignment.bottomRight,
-            followerAnchor: Alignment.topRight,
-            offset: const Offset(0, 8),
-            child: SearchOverlayContent(
-              onDismiss: _closeAndClear,
-              onResultTap: (result) {
-                _hideOverlay();
-                widget.onResultTap?.call(result);
-              },
+            // Dropdown content
+            CompositedTransformFollower(
+              link: _layerLink,
+              targetAnchor: Alignment.bottomRight,
+              followerAnchor: Alignment.topRight,
+              offset: const Offset(0, 8),
+              child: SearchOverlayContent(
+                onDismiss: _hideOverlay,
+                onResultTap: (result) {
+                  _hideOverlay();
+                  widget.onResultTap?.call(result);
+                },
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
       child: CompositedTransformTarget(
         link: _layerLink,
         child: SizedBox(
@@ -141,13 +175,8 @@ class _SearchBarState extends ConsumerState<SearchBar> {
               onSubmitted: (value) {
                 if (value.trim().length >= 2) {
                   ref.read(searchStateProvider.notifier).submitQuery();
-                  _hideOverlay(); // Don't clear state - SearchResultsScreen needs it
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          SearchResultsScreen(onResultTap: widget.onResultTap),
-                    ),
-                  );
+                  _hideOverlay();
+                  // Panel opens automatically via ReaderScreen watching searchStateProvider
                 }
               },
             ),

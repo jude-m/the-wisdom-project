@@ -51,6 +51,10 @@ class SearchState with _$SearchState {
 
     /// Whether the filter panel is visible
     @Default(false) bool filtersVisible,
+
+    /// Whether the current query was submitted (user pressed Enter)
+    /// Used to determine if we should reopen the full results panel on focus
+    @Default(false) bool wasQuerySubmitted,
   }) = _SearchState;
 }
 
@@ -73,13 +77,29 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   ) : super(const SearchState());
 
   /// Called when search bar receives focus
-  Future<void> onFocus() async {
-    // Load recent searches when focused
+  /// Returns the mode after focus handling (for UI to decide what to show)
+  Future<SearchMode> onFocus() async {
+    // Load recent searches
     final recentSearches = await _recentSearchesRepository.getRecentSearches();
+
+    // If user had previously submitted this query, reopen full results panel
+    if (state.wasQuerySubmitted && state.queryText.trim().length >= 2) {
+      state = state.copyWith(
+        mode: SearchMode.fullResults,
+        recentSearches: recentSearches,
+        fullResults: const AsyncValue.loading(),
+      );
+      // Load results (don't await - let UI show loading state)
+      _loadFullResultsForCategory();
+      return SearchMode.fullResults;
+    }
+
+    // Otherwise show recent searches
     state = state.copyWith(
       mode: SearchMode.recentSearches,
       recentSearches: recentSearches,
     );
+    return SearchMode.recentSearches;
   }
 
   /// Called when search bar loses focus (unless in fullResults mode)
@@ -96,7 +116,14 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
   /// Update search query text (debounced preview search)
   void updateQuery(String query) {
-    state = state.copyWith(queryText: query);
+    // Check if query changed - if so, reset submitted state
+    final queryChanged = query != state.queryText;
+
+    state = state.copyWith(
+      queryText: query,
+      // Reset wasQuerySubmitted if user is typing a different query
+      wasQuerySubmitted: queryChanged ? false : state.wasQuerySubmitted,
+    );
     _debounceTimer?.cancel();
 
     // If query is too short, show recent searches
@@ -150,13 +177,28 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     // Save to recent searches
     await _recentSearchesRepository.addRecentSearch(state.queryText);
 
-    // Switch to full results mode
+    // Determine which category to show based on preview results
+    // If we have preview results, pick a category that has results
+    var categoryToSelect = state.selectedCategory;
+    final preview = state.previewResults;
+    if (preview != null && preview.isNotEmpty) {
+      final categoriesWithResults = preview.categoriesWithResults;
+      // If current category has no results, switch to first one that does
+      if (!categoriesWithResults.contains(categoryToSelect) &&
+          categoriesWithResults.isNotEmpty) {
+        categoryToSelect = categoriesWithResults.first;
+      }
+    }
+
+    // Switch to full results mode and mark as submitted
     state = state.copyWith(
       mode: SearchMode.fullResults,
+      wasQuerySubmitted: true,
+      selectedCategory: categoryToSelect,
       fullResults: const AsyncValue.loading(),
     );
 
-    // Load full results for currently selected category
+    // Load full results for the selected category
     await _loadFullResultsForCategory();
   }
 
@@ -295,10 +337,10 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   }
 
   /// Exit full results and return to idle
+  /// Note: Does NOT clear queryText or wasQuerySubmitted so panel can reopen on focus
   void exitFullResults() {
     state = state.copyWith(
       mode: SearchMode.idle,
-      queryText: '',
       fullResults: const AsyncValue.data([]),
     );
   }
