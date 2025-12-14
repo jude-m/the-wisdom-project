@@ -148,7 +148,8 @@ void main() {
       ];
 
       test('should return categorized results with title matches', () async {
-        // ARRANGE
+        // ARRANGE - 'brahma' transliterates to Sinhala variants including 'බ්‍රහ්ම'
+        // which matches 'බ්‍රහ්මජාලසූත්‍රය' in the tree
         const query = SearchQuery(queryText: 'brahma');
 
         when(mockTreeRepository.loadNavigationTree())
@@ -187,8 +188,10 @@ void main() {
             final titleResults =
                 categorized.resultsByCategory[SearchCategory.title]!;
             expect(titleResults.length, equals(1));
-            expect(titleResults[0].title, equals('Brahmajālasutta'));
+            // 'brahma' transliterates to Sinhala and matches Sinhala name
+            expect(titleResults[0].title, equals('බ්‍රහ්මජාලසූත්‍රය'));
             expect(titleResults[0].category, equals(SearchCategory.title));
+            expect(titleResults[0].language, equals('sinhala'));
           },
         );
       });
@@ -514,20 +517,21 @@ void main() {
       });
 
       test('should return pali name when only pali matches query', () async {
-        // ARRANGE
-        const query = SearchQuery(queryText: 'brahma');
+        // ARRANGE - Use a query where transliteration won't match Sinhala
+        // 'Intro' transliterates to ඉන්ට්‍රො but Sinhala name is හැඳින්වීම
+        const query = SearchQuery(queryText: 'Intro');
 
         final treeWithPaliMatch = [
           const TipitakaTreeNode(
-            nodeKey: 'brahma-1',
-            paliName: 'Brahmajālasutta', // Pali - DOES contain query
+            nodeKey: 'intro-1',
+            paliName: 'Introduction to Pali', // DOES contain 'Intro'
             sinhalaName:
-                'බ්‍රහ්මජාලසූත්‍රය', // Sinhala - does NOT contain query
-            hierarchyLevel: 2,
+                'හැඳින්වීම', // Does NOT contain 'Intro' transliterations
+            hierarchyLevel: 1,
             entryPageIndex: 0,
             entryIndexInPage: 0,
             parentNodeKey: null,
-            contentFileId: 'brahma-1',
+            contentFileId: 'intro-1',
           ),
         ];
 
@@ -555,8 +559,8 @@ void main() {
             final titleResults =
                 categorized.resultsByCategory[SearchCategory.title]!;
             expect(titleResults.length, equals(1));
-            // Should show Pali name since that matched
-            expect(titleResults[0].title, equals('Brahmajālasutta'));
+            // Should show Pali name since only Pali matched
+            expect(titleResults[0].title, equals('Introduction to Pali'));
             expect(titleResults[0].language, equals('pali'));
           },
         );
@@ -564,14 +568,14 @@ void main() {
 
       test('should prefer sinhala name when both pali and sinhala match',
           () async {
-        // ARRANGE - Query appears in both names using ASCII
-        const query = SearchQuery(queryText: 'test');
+        // ARRANGE - Use Sinhala query that matches both names directly
+        const query = SearchQuery(queryText: 'සූත්‍ර');
 
         final treeWithBothMatch = [
           const TipitakaTreeNode(
             nodeKey: 'both-1',
-            paliName: 'TestSutta', // Contains 'test'
-            sinhalaName: 'Testය', // Also contains 'test'
+            paliName: 'Suttaසූත්‍ර', // Contains the query
+            sinhalaName: 'සූත්‍රය', // Also contains the query
             hierarchyLevel: 2,
             entryPageIndex: 0,
             entryIndexInPage: 0,
@@ -605,7 +609,7 @@ void main() {
                 categorized.resultsByCategory[SearchCategory.title]!;
             expect(titleResults.length, equals(1));
             // Should prefer Sinhala when both match
-            expect(titleResults[0].title, equals('Testය'));
+            expect(titleResults[0].title, equals('සූත්‍රය'));
             expect(titleResults[0].language, equals('sinhala'));
           },
         );
@@ -638,8 +642,8 @@ void main() {
       ];
 
       test('should search by title category in node names', () async {
-        // ARRANGE
-        const query = SearchQuery(queryText: 'brahma');
+        // ARRANGE - Use Sinhala query to avoid transliteration complexity
+        const query = SearchQuery(queryText: 'බ්‍රහ්ම');
 
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(sampleTree));
@@ -655,15 +659,16 @@ void main() {
           (failure) => fail('Expected success but got failure'),
           (results) {
             expect(results.length, equals(1));
-            expect(results[0].title, equals('Brahmajālasutta'));
+            // Now matches Sinhala name since query is in Sinhala
+            expect(results[0].title, equals('බ්‍රහ්මජාලසූත්‍රය'));
             expect(results[0].category, equals(SearchCategory.title));
           },
         );
       });
 
       test('should search by content category using FTS', () async {
-        // ARRANGE
-        const query = SearchQuery(queryText: 'dhamma');
+        // ARRANGE - Use Sinhala query to avoid transliteration
+        const query = SearchQuery(queryText: 'ධම්ම');
 
         final ftsMatches = [
           FTSMatch(
@@ -704,9 +709,9 @@ void main() {
             expect(results[0].contentFileId, equals('dn-1'));
           },
         );
-
+        // Verify FTS was called with the Sinhala query (no transliteration)
         verify(mockFTSDataSource.searchContent(
-          'dhamma',
+          'ධම්ම',
           editionIds: {'bjt'},
           language: null,
           nikayaFilter: null,
@@ -717,8 +722,8 @@ void main() {
 
       test('should return empty for definition category (placeholder)',
           () async {
-        // ARRANGE
-        const query = SearchQuery(queryText: 'test');
+        // ARRANGE - Use non-romanized query
+        const query = SearchQuery(queryText: '123');
 
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(sampleTree));
@@ -765,8 +770,8 @@ void main() {
 
       test('should return failure when FTS throws for content category',
           () async {
-        // ARRANGE
-        const query = SearchQuery(queryText: 'test');
+        // ARRANGE - Use Sinhala query to avoid transliteration
+        const query = SearchQuery(queryText: 'ධම්ම');
 
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(sampleTree));

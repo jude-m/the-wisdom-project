@@ -10,6 +10,7 @@ import '../../domain/entities/search/search_result.dart';
 import '../../domain/entities/tipitaka_tree_node.dart';
 import '../../domain/repositories/navigation_tree_repository.dart';
 import '../../core/utils/text_utils.dart';
+import '../../core/utils/singlish_transliterator.dart';
 import '../../domain/repositories/text_search_repository.dart';
 import '../datasources/fts_datasource.dart';
 
@@ -169,6 +170,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   /// Search for title matches in navigation tree names
   /// Returns results sorted with leaf nodes (individual suttas) first
   /// Prefers Sinhala name if both languages match
+  /// Supports Singlish (romanized Sinhala) transliteration search
   List<SearchResult> _searchTitles({
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
@@ -176,14 +178,31 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     int? limit,
   }) {
     final results = <SearchResult>[];
-    final queryNormalized = normalizeText(queryText, toLowerCase: true);
+
+    // Get both query forms: original and transliterated
+    // Both Pali and Sinhala names are stored in Sinhala script,
+    // so we need to try both query forms against both names
+    final transliterator = SinglishTransliterator.instance;
+    final originalQuery = normalizeText(queryText, toLowerCase: true);
+    final convertedQuery = transliterator.isSinglishQuery(queryText)
+        ? normalizeText(transliterator.convert(queryText), toLowerCase: true)
+        : null; // null if no conversion needed
 
     for (final node in nodeMap.values) {
       final paliName = normalizeText(node.paliName, toLowerCase: true);
       final sinhalaName = normalizeText(node.sinhalaName, toLowerCase: true);
 
-      final paliMatched = paliName.contains(queryNormalized);
-      final sinhalaMatched = sinhalaName.contains(queryNormalized);
+      // Try original query against both names (for direct matches)
+      // AND try converted query against both names (for transliterated matches)
+      final paliMatchedOriginal = paliName.contains(originalQuery);
+      final sinhalaMatchedOriginal = sinhalaName.contains(originalQuery);
+      final paliMatchedConverted =
+          convertedQuery != null && paliName.contains(convertedQuery);
+      final sinhalaMatchedConverted =
+          convertedQuery != null && sinhalaName.contains(convertedQuery);
+
+      final paliMatched = paliMatchedOriginal || paliMatchedConverted;
+      final sinhalaMatched = sinhalaMatchedOriginal || sinhalaMatchedConverted;
 
       if ((paliMatched || sinhalaMatched) && node.contentFileId != null) {
         // Prefer Sinhala if it matched, otherwise use Pali
@@ -228,6 +247,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
 
   /// Search for content matches using FTS database
   /// Optionally loads matched text from JSON files for preview display
+  /// Converts Singlish queries to Sinhala before searching
   Future<List<SearchResult>> _searchContent({
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
@@ -236,8 +256,15 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     int offset = 0,
     bool loadMatchedText = false,
   }) async {
+    // Convert Singlish to Sinhala (single deterministic result)
+    final transliterator = SinglishTransliterator.instance;
+    final effectiveQuery = transliterator.isSinglishQuery(queryText)
+        ? transliterator.convert(queryText)
+        : queryText;
+
+    // Single FTS call with the converted query
     final ftsMatches = await _ftsDataSource.searchContent(
-      queryText,
+      effectiveQuery,
       editionIds: editionIds,
       limit: limit ?? 50,
       offset: offset,
@@ -328,7 +355,8 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     while (current != null && current.parentNodeKey != null) {
       final parent = nodeMap[current.parentNodeKey];
       if (parent != null) {
-        parts.insert(0, parent.paliName.isNotEmpty ? parent.paliName : parent.sinhalaName);
+        parts.insert(0,
+            parent.paliName.isNotEmpty ? parent.paliName : parent.sinhalaName);
         current = parent;
       } else {
         break;

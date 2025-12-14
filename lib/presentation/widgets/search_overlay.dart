@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/text_utils.dart';
+import '../../core/utils/singlish_transliterator.dart';
 import '../providers/search_provider.dart';
 import '../providers/search_state.dart';
 import '../../domain/entities/search/recent_search.dart';
@@ -324,7 +325,21 @@ class SearchOverlayContent extends ConsumerWidget {
       );
     }
 
-    final snippet = _createSnippet(text: text, query: normalizedQuery);
+    // Get the effective query to use for highlighting (may be converted to Sinhala)
+    final effectiveQuery = _getEffectiveHighlightQuery(text, normalizedQuery);
+
+    if (effectiveQuery.isEmpty) {
+      // No match found, just show the beginning of text
+      final end = 150.clamp(0, text.length);
+      return Text(
+        text.length > end ? '${text.substring(0, end)}...' : text,
+        style: baseStyle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    final snippet = _createSnippet(text: text, query: effectiveQuery);
     final highlightStyle = TextStyle(
       backgroundColor: theme.colorScheme.primaryContainer,
       fontWeight: FontWeight.bold,
@@ -333,7 +348,7 @@ class SearchOverlayContent extends ConsumerWidget {
 
     final spans = _buildHighlightedSpans(
       snippet: snippet,
-      query: normalizedQuery,
+      query: effectiveQuery,
       highlightStyle: highlightStyle,
     );
 
@@ -342,6 +357,32 @@ class SearchOverlayContent extends ConsumerWidget {
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
     );
+  }
+
+  /// Gets the effective query for highlighting.
+  /// Tries original query first, then converted Sinhala if needed.
+  String _getEffectiveHighlightQuery(String text, String query) {
+    // Use same normalization as the search repository
+    final normalizedText = normalizeText(text, toLowerCase: true);
+    final normalizedQuery = normalizeText(query, toLowerCase: true);
+
+    // First, try the original query directly
+    if (normalizedText.contains(normalizedQuery)) {
+      return query;
+    }
+
+    // If the query is Singlish, try the converted Sinhala text
+    final transliterator = SinglishTransliterator.instance;
+    if (transliterator.isSinglishQuery(query)) {
+      final converted = transliterator.convert(query);
+      final normalizedConverted = normalizeText(converted, toLowerCase: true);
+      if (normalizedText.contains(normalizedConverted)) {
+        return converted;
+      }
+    }
+
+    // No match found
+    return '';
   }
 
   Widget _sectionHeader(ThemeData theme, String title) {
