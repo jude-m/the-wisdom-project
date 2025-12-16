@@ -138,7 +138,8 @@ class TreeNodeWidget extends ConsumerWidget {
                     // Select the node
                     ref.read(selectNodeProvider)(node.nodeKey);
 
-                    // Create a new tab for this node
+                    // Create a new tab for this node with entryStart for proper positioning
+                    // This ensures the sutta title appears at the top of the page
                     final newTab = ReaderTab.fromNode(
                       nodeKey: node.nodeKey,
                       paliName: node.paliName,
@@ -147,25 +148,23 @@ class TreeNodeWidget extends ConsumerWidget {
                           node.isReadableContent ? node.contentFileId : null,
                       pageIndex:
                           node.isReadableContent ? node.entryPageIndex : 0,
+                      entryStart:
+                          node.isReadableContent ? node.entryIndexInPage : 0,
                     );
 
                     final newIndex =
                         ref.read(tabsProvider.notifier).addTab(newTab);
                     ref.read(activeTabIndexProvider.notifier).state = newIndex;
 
-                    // If it has readable content, set it (without resetting pagination)
+                    // If it has readable content, set content file and page index
+                    // Pagination state is derived from the tab automatically
                     if (node.isReadableContent) {
                       final fileId = node.contentFileId?.trim();
                       if (fileId != null && fileId.isNotEmpty) {
-                        // Use the tab's pagination state instead of resetting
                         ref.read(currentContentFileIdProvider.notifier).state =
                             fileId;
                         ref.read(currentPageIndexProvider.notifier).state =
                             node.entryPageIndex;
-                        ref.read(pageStartProvider.notifier).state =
-                            newTab.pageStart;
-                        ref.read(pageEndProvider.notifier).state =
-                            newTab.pageEnd;
                       }
                     }
                   },

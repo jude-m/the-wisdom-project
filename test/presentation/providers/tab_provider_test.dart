@@ -150,7 +150,9 @@ void main() {
       expect(container.read(currentPageIndexProvider), equals(7));
     });
 
-    test('should set pageStartProvider and pageEndProvider for pagination', () {
+    test(
+        'should set pagination state via derived providers (activePageStartProvider/activePageEndProvider)',
+        () {
       // ARRANGE
       final result = _createTestSearchResult(
         nodeKey: 'dn-1',
@@ -164,8 +166,9 @@ void main() {
       // ASSERT
       // pageStart should be set to pageIndex (5)
       // pageEnd should be pageIndex + 1 (6) based on ReaderTab.fromNode logic
-      expect(container.read(pageStartProvider), equals(5));
-      expect(container.read(pageEndProvider), equals(6));
+      // These are now derived from the active tab, not global StateProviders
+      expect(container.read(activePageStartProvider), equals(5));
+      expect(container.read(activePageEndProvider), equals(6));
     });
 
     test('should add multiple tabs from multiple search results', () {
@@ -269,7 +272,7 @@ void main() {
       expect(container.read(currentPageIndexProvider), equals(5));
     });
 
-    test('should restore pagination state from tab', () {
+    test('should derive pagination state from tab via active*Provider', () {
       // ARRANGE - Update the tab's page state
       final tabs = container.read(tabsProvider);
       final updatedTab = tabs[1].copyWith(pageStart: 3, pageEnd: 8);
@@ -279,8 +282,9 @@ void main() {
       container.read(switchTabProvider)(1);
 
       // ASSERT
-      expect(container.read(pageStartProvider), equals(3));
-      expect(container.read(pageEndProvider), equals(8));
+      // Pagination is now derived from the active tab, not restored to global providers
+      expect(container.read(activePageStartProvider), equals(3));
+      expect(container.read(activePageEndProvider), equals(8));
     });
   });
 }

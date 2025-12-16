@@ -34,6 +34,10 @@ mixin _$ReaderTab {
   /// End of loaded page range (for pagination, exclusive)
   int get pageEnd => throw _privateConstructorUsedError;
 
+  /// Entry index to start from on the first visible page
+  /// This allows opening a sutta mid-page without showing earlier entries
+  int get entryStart => throw _privateConstructorUsedError;
+
   /// Reference to the tree node key for navigation sync
   String? get nodeKey => throw _privateConstructorUsedError;
 
@@ -73,6 +77,7 @@ abstract class $ReaderTabCopyWith<$Res> {
       int pageIndex,
       int pageStart,
       int pageEnd,
+      int entryStart,
       String? nodeKey,
       String? paliName,
       String? sinhalaName,
@@ -101,6 +106,7 @@ class _$ReaderTabCopyWithImpl<$Res, $Val extends ReaderTab>
     Object? pageIndex = null,
     Object? pageStart = null,
     Object? pageEnd = null,
+    Object? entryStart = null,
     Object? nodeKey = freezed,
     Object? paliName = freezed,
     Object? sinhalaName = freezed,
@@ -131,6 +137,10 @@ class _$ReaderTabCopyWithImpl<$Res, $Val extends ReaderTab>
       pageEnd: null == pageEnd
           ? _value.pageEnd
           : pageEnd // ignore: cast_nullable_to_non_nullable
+              as int,
+      entryStart: null == entryStart
+          ? _value.entryStart
+          : entryStart // ignore: cast_nullable_to_non_nullable
               as int,
       nodeKey: freezed == nodeKey
           ? _value.nodeKey
@@ -171,6 +181,7 @@ abstract class _$$ReaderTabImplCopyWith<$Res>
       int pageIndex,
       int pageStart,
       int pageEnd,
+      int entryStart,
       String? nodeKey,
       String? paliName,
       String? sinhalaName,
@@ -197,6 +208,7 @@ class __$$ReaderTabImplCopyWithImpl<$Res>
     Object? pageIndex = null,
     Object? pageStart = null,
     Object? pageEnd = null,
+    Object? entryStart = null,
     Object? nodeKey = freezed,
     Object? paliName = freezed,
     Object? sinhalaName = freezed,
@@ -227,6 +239,10 @@ class __$$ReaderTabImplCopyWithImpl<$Res>
       pageEnd: null == pageEnd
           ? _value.pageEnd
           : pageEnd // ignore: cast_nullable_to_non_nullable
+              as int,
+      entryStart: null == entryStart
+          ? _value.entryStart
+          : entryStart // ignore: cast_nullable_to_non_nullable
               as int,
       nodeKey: freezed == nodeKey
           ? _value.nodeKey
@@ -262,6 +278,7 @@ class _$ReaderTabImpl extends _ReaderTab {
       this.pageIndex = 0,
       this.pageStart = 0,
       this.pageEnd = 1,
+      this.entryStart = 0,
       this.nodeKey,
       this.paliName,
       this.sinhalaName,
@@ -296,6 +313,12 @@ class _$ReaderTabImpl extends _ReaderTab {
   @override
   @JsonKey()
   final int pageEnd;
+
+  /// Entry index to start from on the first visible page
+  /// This allows opening a sutta mid-page without showing earlier entries
+  @override
+  @JsonKey()
+  final int entryStart;
 
   /// Reference to the tree node key for navigation sync
   @override
@@ -335,7 +358,7 @@ class _$ReaderTabImpl extends _ReaderTab {
 
   @override
   String toString() {
-    return 'ReaderTab(label: $label, fullName: $fullName, contentFileId: $contentFileId, pageIndex: $pageIndex, pageStart: $pageStart, pageEnd: $pageEnd, nodeKey: $nodeKey, paliName: $paliName, sinhalaName: $sinhalaName, textId: $textId, panes: $panes)';
+    return 'ReaderTab(label: $label, fullName: $fullName, contentFileId: $contentFileId, pageIndex: $pageIndex, pageStart: $pageStart, pageEnd: $pageEnd, entryStart: $entryStart, nodeKey: $nodeKey, paliName: $paliName, sinhalaName: $sinhalaName, textId: $textId, panes: $panes)';
   }
 
   @override
@@ -353,6 +376,8 @@ class _$ReaderTabImpl extends _ReaderTab {
             (identical(other.pageStart, pageStart) ||
                 other.pageStart == pageStart) &&
             (identical(other.pageEnd, pageEnd) || other.pageEnd == pageEnd) &&
+            (identical(other.entryStart, entryStart) ||
+                other.entryStart == entryStart) &&
             (identical(other.nodeKey, nodeKey) || other.nodeKey == nodeKey) &&
             (identical(other.paliName, paliName) ||
                 other.paliName == paliName) &&
@@ -371,6 +396,7 @@ class _$ReaderTabImpl extends _ReaderTab {
       pageIndex,
       pageStart,
       pageEnd,
+      entryStart,
       nodeKey,
       paliName,
       sinhalaName,
@@ -394,6 +420,7 @@ abstract class _ReaderTab extends ReaderTab {
       final int pageIndex,
       final int pageStart,
       final int pageEnd,
+      final int entryStart,
       final String? nodeKey,
       final String? paliName,
       final String? sinhalaName,
@@ -424,6 +451,11 @@ abstract class _ReaderTab extends ReaderTab {
   /// End of loaded page range (for pagination, exclusive)
   @override
   int get pageEnd;
+
+  /// Entry index to start from on the first visible page
+  /// This allows opening a sutta mid-page without showing earlier entries
+  @override
+  int get entryStart;
 
   /// Reference to the tree node key for navigation sync
   @override

@@ -28,6 +28,10 @@ class ReaderTab with _$ReaderTab {
     /// End of loaded page range (for pagination, exclusive)
     @Default(1) int pageEnd,
 
+    /// Entry index to start from on the first visible page
+    /// This allows opening a sutta mid-page without showing earlier entries
+    @Default(0) int entryStart,
+
     /// Reference to the tree node key for navigation sync
     String? nodeKey,
 
@@ -56,6 +60,7 @@ class ReaderTab with _$ReaderTab {
     required String sinhalaName,
     String? contentFileId,
     int pageIndex = 0,
+    int entryStart = 0,
   }) {
     // Create a short label (max 20 characters)
     final displayName = paliName;
@@ -70,6 +75,7 @@ class ReaderTab with _$ReaderTab {
       pageIndex: pageIndex,
       pageStart: pageIndex, // Initialize pagination to entry page
       pageEnd: pageIndex + 1, // Load only the entry page initially
+      entryStart: entryStart, // Entry to start from on first page
       nodeKey: nodeKey,
       paliName: paliName,
       sinhalaName: sinhalaName,

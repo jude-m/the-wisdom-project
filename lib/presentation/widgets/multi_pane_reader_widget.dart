@@ -4,7 +4,14 @@ import '../../domain/entities/column_display_mode.dart';
 import '../../domain/entities/entry.dart';
 import '../../domain/entities/entry_type.dart';
 import '../providers/document_provider.dart';
-import '../providers/tab_provider.dart';
+import '../providers/tab_provider.dart'
+    show
+        activeTabIndexProvider,
+        saveTabScrollPositionProvider,
+        getTabScrollPositionProvider,
+        activePageStartProvider,
+        activePageEndProvider,
+        activeEntryStartProvider;
 
 class MultiPaneReaderWidget extends ConsumerStatefulWidget {
   const MultiPaneReaderWidget({super.key});
@@ -32,20 +39,37 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       final currentScroll = _scrollController.position.pixels;
       final delta = maxScroll - currentScroll;
 
-      // Load more pages when user scrolls near the bottom
       if (delta < 200) {
-        final contentAsync = ref.read(currentBJTDocumentProvider);
-        contentAsync.whenData((content) {
-          if (content != null) {
-            final currentEnd = ref.read(pageEndProvider);
-            if (currentEnd < content.pageCount) {
-              // Load one more page
-              ref.read(loadMorePagesProvider)(1);
-            }
-          }
-        });
+        _loadMorePagesIfNeeded();
       }
     }
+  }
+
+  /// Loads more pages if available. When content fits on screen (not scrollable),
+  /// continues loading pages until scrollable or all pages are loaded.
+  /// This fixes the bug where opening a sutta from search shows only one page
+  /// that fits on screen, leaving the user unable to scroll to load more.
+  void _loadMorePagesIfNeeded({bool scheduleNextCheck = false}) {
+    final contentAsync = ref.read(currentBJTDocumentProvider);
+    contentAsync.whenData((content) {
+      if (content != null) {
+        final currentEnd = ref.read(activePageEndProvider);
+        if (currentEnd < content.pageCount) {
+          // Load one more page
+          ref.read(loadMorePagesProvider)(1);
+
+          // If content isn't scrollable yet, keep loading until it is
+          if (scheduleNextCheck && _scrollController.hasClients) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (_scrollController.hasClients &&
+                  _scrollController.position.maxScrollExtent <= 0) {
+                _loadMorePagesIfNeeded(scheduleNextCheck: true);
+              }
+            });
+          }
+        }
+      }
+    });
   }
 
   @override
@@ -63,35 +87,18 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     if (activeTabIndex >= 0 && _scrollController.hasClients) {
       ref.read(saveTabScrollPositionProvider)(
           activeTabIndex, _scrollController.offset);
-
-      // Also save pagination state to the tab
-      final pageStart = ref.read(pageStartProvider);
-      final pageEnd = ref.read(pageEndProvider);
-
-      // Update the tab's pagination state
-      final tabs = ref.read(tabsProvider);
-      if (activeTabIndex < tabs.length) {
-        final updatedTab = tabs[activeTabIndex].copyWith(
-          pageStart: pageStart,
-          pageEnd: pageEnd,
-        );
-        ref.read(tabsProvider.notifier).updateTab(activeTabIndex, updatedTab);
-      }
+      // Note: Pagination state (pageStart, pageEnd, entryStart) is already
+      // stored in the tab entity and updated via updateActiveTabPaginationProvider
+      // when loading more pages, so no need to sync it here.
     }
   }
 
   void _restoreScrollPosition() {
     final activeTabIndex = ref.read(activeTabIndexProvider);
     if (activeTabIndex >= 0) {
-      // First restore pagination state from the tab
-      final tabs = ref.read(tabsProvider);
-      if (activeTabIndex < tabs.length) {
-        final tab = tabs[activeTabIndex];
-        ref.read(pageStartProvider.notifier).state = tab.pageStart;
-        ref.read(pageEndProvider.notifier).state = tab.pageEnd;
-      }
-
-      // Then restore scroll position after a frame (to let pagination update)
+      // Pagination state is derived from the active tab automatically via
+      // activePageStartProvider, activePageEndProvider, activeEntryStartProvider.
+      // Just restore the scroll position after a frame (to let content rebuild).
       if (_scrollController.hasClients) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollController.hasClients) {
@@ -129,6 +136,11 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         if (next >= 0) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _restoreScrollPosition();
+            // Auto-load more pages if content doesn't fill the screen
+            // This is needed because when switching to a tab with the same content
+            // file (but fresh pagination), the currentBJTDocumentProvider listener
+            // won't fire since the content is already cached
+            _loadMorePagesIfNeeded(scheduleNextCheck: true);
           });
         }
       }
@@ -142,6 +154,9 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
           // Content just loaded, restore scroll position after widget tree is built
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _restoreScrollPosition();
+            // Auto-load more pages if content doesn't fill the screen
+            // This ensures users can always scroll to load more content
+            _loadMorePagesIfNeeded(scheduleNextCheck: true);
           });
         }
       });
@@ -182,9 +197,9 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                 );
               }
 
-              // Get pagination state
-              final pageStart = ref.watch(pageStartProvider);
-              final pageEnd = ref.watch(pageEndProvider);
+              // Get pagination state from derived providers (read from active tab)
+              final pageStart = ref.watch(activePageStartProvider);
+              final pageEnd = ref.watch(activePageEndProvider);
 
               // Show only the loaded page slice
               final pagesToShow = content.pages.sublist(
@@ -198,12 +213,16 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                 );
               }
 
+              // Get entry start (which entry to start from on the first page)
+              final entryStart = ref.watch(activeEntryStartProvider);
+
               // Build the layout based on column mode
               return _buildContentLayout(
                 context,
                 ref,
                 pagesToShow,
                 columnMode,
+                entryStart,
               );
             },
             loading: () => const Center(
@@ -243,6 +262,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     WidgetRef ref,
     List<dynamic> pages,
     ColumnDisplayMode columnMode,
+    int entryStart,
   ) {
     switch (columnMode) {
       case ColumnDisplayMode.paliOnly:
@@ -252,12 +272,16 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
           itemCount: pages.length,
           itemBuilder: (context, index) {
             final page = pages[index];
+            // On first page, skip entries before entryStart
+            final entries = index == 0
+                ? page.paliSection.entries.skip(entryStart).toList()
+                : page.paliSection.entries;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildPageNumber(context, page.pageNumber),
                 const SizedBox(height: 16),
-                ..._buildEntries(context, page.paliSection.entries),
+                ..._buildEntries(context, entries),
                 const SizedBox(height: 32), // Space between pages
               ],
             );
@@ -271,12 +295,16 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
           itemCount: pages.length,
           itemBuilder: (context, index) {
             final page = pages[index];
+            // On first page, skip entries before entryStart
+            final entries = index == 0
+                ? page.sinhalaSection.entries.skip(entryStart).toList()
+                : page.sinhalaSection.entries;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildPageNumber(context, page.pageNumber),
                 const SizedBox(height: 16),
-                ..._buildEntries(context, page.sinhalaSection.entries),
+                ..._buildEntries(context, entries),
                 const SizedBox(height: 32), // Space between pages
               ],
             );
@@ -293,96 +321,95 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Language labels header row
-                // Row(
-                //   crossAxisAlignment: CrossAxisAlignment.start,
-                //   children: [
-                //     Expanded(
-                //       child: Padding(
-                //         padding: const EdgeInsets.only(right: 12.0),
-                //         child: _buildLanguageLabel(context, 'Pali'),
-                //       ),
-                //     ),
-                //     const SizedBox(width: 24),
-                //     Expanded(
-                //       child: Padding(
-                //         padding: const EdgeInsets.only(left: 12.0),
-                //         child: _buildLanguageLabel(context, 'සිංහල'),
-                //       ),
-                //     ),
-                //   ],
-                // ),
                 const SizedBox(height: 16),
-
                 // Content rows - each page with paired entries
-                for (final page in pages) ...[
-                  // Page number row
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 12.0),
-                          child: _buildPageNumber(context, page.pageNumber),
-                        ),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 12.0),
-                          child: _buildPageNumber(context, page.pageNumber),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Paired entry rows
-                  ...List.generate(
-                    page.paliSection.entries.length,
-                    (entryIndex) {
-                      final paliEntry = page.paliSection.entries[entryIndex];
-                      final sinhalaEntry =
-                          entryIndex < page.sinhalaSection.entries.length
-                              ? page.sinhalaSection.entries[entryIndex]
-                              : null;
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment
-                              .start, // Top-align for proper vertical sync
-                          children: [
-                            // Pali entry (left)
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(right: 12.0),
-                                child: _buildEntry(context, paliEntry),
-                              ),
-                            ),
-                            const SizedBox(width: 24),
-                            // Sinhala entry (right)
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 12.0),
-                                child: sinhalaEntry != null
-                                    ? _buildEntry(context, sinhalaEntry)
-                                    : _buildEmptyCell(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 32), // Space between pages
-                ],
+                ..._buildBothModePages(context, pages, entryStart),
               ],
             ),
           ),
         );
     }
+  }
+
+  /// Builds the page content for "both" column mode (side-by-side Pali/Sinhala)
+  /// On the first page, skips entries before [entryStart]
+  List<Widget> _buildBothModePages(
+    BuildContext context,
+    List<dynamic> pages,
+    int entryStart,
+  ) {
+    final widgets = <Widget>[];
+
+    for (var pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      final page = pages[pageIndex];
+      // On first page, skip entries before entryStart
+      final startEntry = pageIndex == 0 ? entryStart : 0;
+
+      // Page number row
+      widgets.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: _buildPageNumber(context, page.pageNumber),
+              ),
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 12.0),
+                child: _buildPageNumber(context, page.pageNumber),
+              ),
+            ),
+          ],
+        ),
+      );
+      widgets.add(const SizedBox(height: 16));
+
+      // Paired entry rows - skip entries before startEntry on first page
+      final entryCount = page.paliSection.entries.length - startEntry;
+      for (var i = 0; i < entryCount; i++) {
+        final entryIndex = i + startEntry;
+        final paliEntry = page.paliSection.entries[entryIndex];
+        final sinhalaEntry = entryIndex < page.sinhalaSection.entries.length
+            ? page.sinhalaSection.entries[entryIndex]
+            : null;
+
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Pali entry (left)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12.0),
+                    child: _buildEntry(context, paliEntry),
+                  ),
+                ),
+                const SizedBox(width: 24),
+                // Sinhala entry (right)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 12.0),
+                    child: sinhalaEntry != null
+                        ? _buildEntry(context, sinhalaEntry)
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      widgets.add(const SizedBox(height: 32)); // Space between pages
+    }
+
+    return widgets;
   }
 
   Widget _buildPageNumber(BuildContext context, int pageNumber) {
@@ -406,18 +433,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         child: _buildEntry(context, entry),
       );
     }).toList();
-  }
-
-  Widget _buildEmptyCell(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(8.0),
-      child: Text(
-        '—',
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
-            ),
-      ),
-    );
   }
 
   Widget _buildEntry(BuildContext context, Entry entry) {

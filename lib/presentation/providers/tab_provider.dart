@@ -88,7 +88,70 @@ final getTabScrollPositionProvider = Provider<double Function(int)>((ref) {
   };
 });
 
+// ============================================================================
+// DERIVED PAGINATION PROVIDERS
+// These read from the active tab's state, providing reactive updates without
+// duplicating state. When the active tab or its properties change, widgets
+// watching these providers will automatically rebuild.
+// ============================================================================
+
+/// Derived provider for active tab's pageStart
+/// Returns 0 if no tab is selected
+final activePageStartProvider = Provider<int>((ref) {
+  final activeIndex = ref.watch(activeTabIndexProvider);
+  final tabs = ref.watch(tabsProvider);
+  if (activeIndex >= 0 && activeIndex < tabs.length) {
+    return tabs[activeIndex].pageStart;
+  }
+  return 0;
+});
+
+/// Derived provider for active tab's pageEnd
+/// Returns 1 if no tab is selected (default single page)
+final activePageEndProvider = Provider<int>((ref) {
+  final activeIndex = ref.watch(activeTabIndexProvider);
+  final tabs = ref.watch(tabsProvider);
+  if (activeIndex >= 0 && activeIndex < tabs.length) {
+    return tabs[activeIndex].pageEnd;
+  }
+  return 1;
+});
+
+/// Derived provider for active tab's entryStart
+/// Returns 0 if no tab is selected
+final activeEntryStartProvider = Provider<int>((ref) {
+  final activeIndex = ref.watch(activeTabIndexProvider);
+  final tabs = ref.watch(tabsProvider);
+  if (activeIndex >= 0 && activeIndex < tabs.length) {
+    return tabs[activeIndex].entryStart;
+  }
+  return 0;
+});
+
+/// Provider to update pagination state for the active tab
+/// Used when loading more pages during scrolling
+final updateActiveTabPaginationProvider =
+    Provider<void Function({int? pageStart, int? pageEnd, int? entryStart})>(
+        (ref) {
+  return ({int? pageStart, int? pageEnd, int? entryStart}) {
+    final activeIndex = ref.read(activeTabIndexProvider);
+    final tabs = ref.read(tabsProvider);
+    if (activeIndex >= 0 && activeIndex < tabs.length) {
+      final currentTab = tabs[activeIndex];
+      final updatedTab = currentTab.copyWith(
+        pageStart: pageStart ?? currentTab.pageStart,
+        pageEnd: pageEnd ?? currentTab.pageEnd,
+        entryStart: entryStart ?? currentTab.entryStart,
+      );
+      ref.read(tabsProvider.notifier).updateTab(activeIndex, updatedTab);
+    }
+  };
+});
+
 /// Provider to handle tab switching (saves scroll position and loads new tab)
+/// Note: Pagination state is handled by derived providers (activePageStartProvider,
+/// activePageEndProvider, activeEntryStartProvider) which automatically read from
+/// the active tab's state.
 final switchTabProvider = Provider<void Function(int)>((ref) {
   return (int newTabIndex) {
     // Update active tab index
@@ -100,13 +163,10 @@ final switchTabProvider = Provider<void Function(int)>((ref) {
       final tab = tabs[newTabIndex];
       if (tab.hasContent) {
         // Set the content file ID and page index
+        // Pagination state is derived from the tab automatically
         ref.read(currentContentFileIdProvider.notifier).state =
             tab.contentFileId;
         ref.read(currentPageIndexProvider.notifier).state = tab.pageIndex;
-
-        // Restore pagination state from the tab (don't reset it)
-        ref.read(pageStartProvider.notifier).state = tab.pageStart;
-        ref.read(pageEndProvider.notifier).state = tab.pageEnd;
       }
     }
   };
@@ -177,10 +237,14 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
 
 /// Provider to open a new tab from a search result
 /// Centralizes the tab creation and navigation logic used across search widgets
+/// Pagination state (pageStart, pageEnd, entryStart) is stored in the tab entity
+/// and exposed via derived providers, eliminating the need for global state sync.
 final openTabFromSearchResultProvider =
     Provider<void Function(SearchResult)>((ref) {
   return (SearchResult result) {
-    // Create a new tab for the search result
+    // Create a new tab for the search result with entryStart for proper positioning
+    // This ensures the sutta title appears at the top, not content from a previous
+    // sutta that happens to share the same page
     final newTab = ReaderTab.fromNode(
       nodeKey: result.nodeKey,
       paliName:
@@ -188,6 +252,7 @@ final openTabFromSearchResultProvider =
       sinhalaName: result.title,
       contentFileId: result.contentFileId,
       pageIndex: result.pageIndex,
+      entryStart: result.entryIndex,
     );
 
     // Add tab and make it active
@@ -195,12 +260,10 @@ final openTabFromSearchResultProvider =
     ref.read(activeTabIndexProvider.notifier).state = newIndex;
 
     // Set the content file and page index
+    // Pagination state is derived from the tab automatically via
+    // activePageStartProvider, activePageEndProvider, activeEntryStartProvider
     ref.read(currentContentFileIdProvider.notifier).state =
         result.contentFileId;
     ref.read(currentPageIndexProvider.notifier).state = result.pageIndex;
-
-    // Set pagination state from the new tab (consistent with tree navigation)
-    ref.read(pageStartProvider.notifier).state = newTab.pageStart;
-    ref.read(pageEndProvider.notifier).state = newTab.pageEnd;
   };
 });

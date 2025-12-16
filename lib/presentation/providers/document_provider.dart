@@ -60,39 +60,42 @@ final columnDisplayModeProvider = StateProvider<ColumnDisplayMode>((ref) {
 // Current page index provider (entry page)
 final currentPageIndexProvider = StateProvider<int>((ref) => 0);
 
-// Pagination providers for lazy loading
-final pageStartProvider = StateProvider<int>((ref) => 0);
-final pageEndProvider = StateProvider<int>((ref) => 1); // Load 1 page initially
+// ============================================================================
+// PAGINATION STATE
+// Pagination state (pageStart, pageEnd, entryStart) is stored in ReaderTab
+// and exposed via derived providers in tab_provider.dart:
+// - activePageStartProvider
+// - activePageEndProvider
+// - activeEntryStartProvider
+// This eliminates state duplication and ensures consistency.
+// ============================================================================
 
 // Provider to load content for a specific node
+// Note: Pagination state is derived from the active tab automatically
 final loadContentForNodeProvider = Provider<void Function(String?, int)>((ref) {
   return (String? contentFileId, int pageIndex) {
     ref.read(currentContentFileIdProvider.notifier).state = contentFileId;
     ref.read(currentPageIndexProvider.notifier).state = pageIndex;
-    // Reset pagination to show only the entry page
-    ref.read(pageStartProvider.notifier).state = pageIndex;
-    ref.read(pageEndProvider.notifier).state = pageIndex + 1;
+    // Pagination state is handled by derived providers reading from active tab
   };
 });
 
 // Provider to load more pages
+// Updates only the active tab's pageEnd; widgets react via activePageEndProvider
 final loadMorePagesProvider = Provider<void Function(int)>((ref) {
   return (int additionalPages) {
+    final activeTabIndex = ref.read(activeTabIndexProvider);
+    final tabs = ref.read(tabsProvider);
+    if (activeTabIndex < 0 || activeTabIndex >= tabs.length) return;
+
+    final currentTab = tabs[activeTabIndex];
     final contentAsync = ref.read(currentBJTDocumentProvider);
     contentAsync.whenData((document) {
       if (document != null) {
-        final currentEnd = ref.read(pageEndProvider);
         final newEnd =
-            (currentEnd + additionalPages).clamp(0, document.pageCount);
-        ref.read(pageEndProvider.notifier).state = newEnd;
-
-        // Also update the current tab's pageEnd
-        final activeTabIndex = ref.read(activeTabIndexProvider);
-        final tabs = ref.read(tabsProvider);
-        if (activeTabIndex >= 0 && activeTabIndex < tabs.length) {
-          final updatedTab = tabs[activeTabIndex].copyWith(pageEnd: newEnd);
-          ref.read(tabsProvider.notifier).updateTab(activeTabIndex, updatedTab);
-        }
+            (currentTab.pageEnd + additionalPages).clamp(0, document.pageCount);
+        final updatedTab = currentTab.copyWith(pageEnd: newEnd);
+        ref.read(tabsProvider.notifier).updateTab(activeTabIndex, updatedTab);
       }
     });
   };
