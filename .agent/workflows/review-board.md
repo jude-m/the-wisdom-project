@@ -14,9 +14,9 @@
 | 🟢 **flutter-code-reviewer-light** | Quick review (<10 files) | Green | Sonnet | Low |
 | 🔵 **test-quality-reviewer** | Validates test effectiveness | Blue | Sonnet | Medium |
 | 🟣 **doc-accuracy-reviewer** | Ensures docs match code | Purple | Sonnet | Medium |
-| 🩵 **a11y-ui-auditor** | Accessibility + UI design | Teal | Sonnet | Medium |
+| 🩵 **a11y-ui-auditor** | Accessibility + UI design | Cyan | Sonnet | Medium |
 | 🔴 **security-auditor** | Database, auth, injection prevention | Red | Sonnet | Medium |
-| 🟤 **qa-test-generator** | Generates tests for new code | Brown | Sonnet | Medium |
+| 🟤 **qa-test-generator** | Generates tests for new code | Yellow | Sonnet | Medium |
 
 ---
 
