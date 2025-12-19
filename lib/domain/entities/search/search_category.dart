@@ -1,6 +1,9 @@
 /// Represents the category of a search result
 /// Used for grouping and filtering search results
 enum SearchCategory {
+  /// All categories combined - shows grouped results from each category
+  all,
+
   /// Matches in sutta/document/commentary titles/names
   title,
 
@@ -16,18 +19,22 @@ extension SearchCategoryExtension on SearchCategory {
   /// Get display name for UI
   String get displayName {
     switch (this) {
+      case SearchCategory.all:
+        return 'Top Results';
       case SearchCategory.title:
-        return 'Title';
+        return 'Titles';
       case SearchCategory.content:
         return 'Content';
       case SearchCategory.definition:
-        return 'Definition';
+        return 'Definitions';
     }
   }
 
   /// Get icon name for UI (Material icon names)
   String get iconName {
     switch (this) {
+      case SearchCategory.all:
+        return 'search';
       case SearchCategory.title:
         return 'title';
       case SearchCategory.content:

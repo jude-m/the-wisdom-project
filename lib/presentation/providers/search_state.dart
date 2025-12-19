@@ -8,34 +8,39 @@ import '../../domain/entities/search/search_query.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../../domain/repositories/recent_searches_repository.dart';
 import '../../domain/repositories/text_search_repository.dart';
-import 'search_mode.dart';
 
 part 'search_state.freezed.dart';
 
-/// State for the search feature with mode-based UI flow
+/// State for the search feature with simplified UX flow
+///
+/// Flow:
+/// 1. Focus search bar (empty) → Show recent searches overlay
+/// 2. Type any character → Overlay hides, results panel opens with "All" tab
+/// 3. Click result → Panel closes, but query text stays in search bar
+/// 4. Focus search bar again → Panel reopens with previous results
+/// 5. Clear search bar completely → Panel closes
 @freezed
 class SearchState with _$SearchState {
+  const SearchState._();
+
   const factory SearchState({
     /// Current search query text
     @Default('') String queryText,
 
-    /// Current search mode (idle, recentSearches, previewResults, fullResults)
-    @Default(SearchMode.idle) SearchMode mode,
-
     /// Recent search history
     @Default([]) List<RecentSearch> recentSearches,
 
-    /// Categorized preview results (for dropdown, max 3 per category)
-    CategorizedSearchResult? previewResults,
+    /// Currently selected category in results view
+    @Default(SearchCategory.all) SearchCategory selectedCategory,
 
-    /// Whether preview is loading
-    @Default(false) bool isPreviewLoading,
-
-    /// Currently selected category in full results view
-    @Default(SearchCategory.title) SearchCategory selectedCategory,
+    /// Categorized results for "All" tab (grouped by category)
+    CategorizedSearchResult? categorizedResults,
 
     /// Full results for the selected category (async state)
     @Default(AsyncValue.data([])) AsyncValue<List<SearchResult>> fullResults,
+
+    /// Whether results are currently loading
+    @Default(false) bool isLoading,
 
     /// Selected editions to search (empty = default to BJT)
     @Default({}) Set<String> selectedEditions,
@@ -52,20 +57,21 @@ class SearchState with _$SearchState {
     /// Whether the filter panel is visible
     @Default(false) bool filtersVisible,
 
-    /// Whether the current query was submitted (user pressed Enter)
-    /// Used to determine if we should reopen the full results panel on focus
-    @Default(false) bool wasQuerySubmitted,
+    /// Whether the panel was dismissed (user clicked result or close button)
+    /// Panel reopens when user focuses the search bar again
+    @Default(false) bool isPanelDismissed,
   }) = _SearchState;
+
+  /// Computed property: Results panel is visible when query is not empty
+  /// and panel hasn't been dismissed
+  bool get isResultsPanelVisible =>
+      queryText.trim().isNotEmpty && !isPanelDismissed;
 }
 
-/// Manages search state with mode-based UX flow
+/// Manages search state with simplified UX flow
 ///
-/// Flow:
-/// 1. idle → Focus search bar → recentSearches (load recent)
-/// 2. recentSearches → Start typing → previewResults (debounced categorized search)
-/// 3. previewResults → Press Enter → fullResults (full category search)
-/// 4. Any mode → Click result → Navigate directly
-/// 5. Any mode → Blur/Escape → idle
+/// The panel visibility is computed from queryText.length >= 2,
+/// eliminating the need for explicit mode tracking.
 class SearchStateNotifier extends StateNotifier<SearchState> {
   final TextSearchRepository _searchRepository;
   final RecentSearchesRepository _recentSearchesRepository;
@@ -77,146 +83,84 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   ) : super(const SearchState());
 
   /// Called when search bar receives focus
-  /// Returns the mode after focus handling (for UI to decide what to show)
-  Future<SearchMode> onFocus() async {
-    // Load recent searches
+  /// Loads recent searches and reopens panel if there's a query
+  Future<void> onFocus() async {
     final recentSearches = await _recentSearchesRepository.getRecentSearches();
-
-    // If user had previously submitted this query, reopen full results panel
-    if (state.wasQuerySubmitted && state.queryText.trim().length >= 2) {
-      state = state.copyWith(
-        mode: SearchMode.fullResults,
-        recentSearches: recentSearches,
-        fullResults: const AsyncValue.loading(),
-      );
-      // Load results (don't await - let UI show loading state)
-      _loadFullResultsForCategory();
-      return SearchMode.fullResults;
-    }
-
-    // Otherwise show recent searches
     state = state.copyWith(
-      mode: SearchMode.recentSearches,
       recentSearches: recentSearches,
+      isPanelDismissed: false, // Reopen panel if there's query text
     );
-    return SearchMode.recentSearches;
   }
 
-  /// Called when search bar loses focus (unless in fullResults mode)
+  /// Called when search bar loses focus
+  /// Does nothing special - panel visibility is computed from queryText
   void onBlur() {
-    if (state.mode != SearchMode.fullResults) {
-      _debounceTimer?.cancel();
-      state = state.copyWith(
-        mode: SearchMode.idle,
-        previewResults: null,
-        isPreviewLoading: false,
-      );
-    }
+    _debounceTimer?.cancel();
   }
 
-  /// Update search query text (debounced preview search)
+  /// Update search query text (debounced search)
   void updateQuery(String query) {
-    // Check if query changed - if so, reset submitted state
-    final queryChanged = query != state.queryText;
-
-    state = state.copyWith(
-      queryText: query,
-      // Reset wasQuerySubmitted if user is typing a different query
-      wasQuerySubmitted: queryChanged ? false : state.wasQuerySubmitted,
-    );
+    state = state.copyWith(queryText: query);
     _debounceTimer?.cancel();
 
-    // If query is too short, show recent searches
-    if (query.trim().length < 2) {
+    // If query is empty, clear results (panel will auto-hide via computed getter)
+    if (query.trim().isEmpty) {
       state = state.copyWith(
-        mode: SearchMode.recentSearches,
-        previewResults: null,
-        isPreviewLoading: false,
+        categorizedResults: null,
+        fullResults: const AsyncValue.data([]),
+        isLoading: false,
       );
       return;
     }
 
-    // Set loading state for preview
-    state = state.copyWith(
-      mode: SearchMode.previewResults,
-      isPreviewLoading: true,
-    );
+    // Set loading state
+    state = state.copyWith(isLoading: true);
 
-    // Debounce preview search (300ms)
+    // Debounce search (300ms)
     _debounceTimer = Timer(
       const Duration(milliseconds: 300),
-      _performPreviewSearch,
+      _performSearch,
     );
   }
 
-  /// Execute categorized preview search
-  Future<void> _performPreviewSearch() async {
+  /// Execute search based on selected category
+  Future<void> _performSearch() async {
+    if (state.selectedCategory == SearchCategory.all) {
+      await _loadCategorizedResults();
+    } else {
+      await _loadFullResultsForCategory();
+    }
+  }
+
+  /// Load categorized results for "All" tab
+  Future<void> _loadCategorizedResults() async {
     final query = _buildSearchQuery();
     final result = await _searchRepository.searchCategorizedPreview(query);
 
     result.fold(
       (failure) {
         state = state.copyWith(
-          isPreviewLoading: false,
-          previewResults: null,
+          isLoading: false,
+          categorizedResults: null,
         );
       },
       (categorizedResult) {
         state = state.copyWith(
-          isPreviewLoading: false,
-          previewResults: categorizedResult,
+          isLoading: false,
+          categorizedResults: categorizedResult,
         );
       },
     );
-  }
-
-  /// Called when user presses Enter to submit search
-  Future<void> submitQuery() async {
-    if (state.queryText.trim().length < 2) return;
-
-    // Save to recent searches
-    await _recentSearchesRepository.addRecentSearch(state.queryText);
-
-    // Determine which category to show based on preview results
-    // If we have preview results, pick a category that has results
-    var categoryToSelect = state.selectedCategory;
-    final preview = state.previewResults;
-    if (preview != null && preview.isNotEmpty) {
-      final categoriesWithResults = preview.categoriesWithResults;
-      // If current category has no results, switch to first one that does
-      if (!categoriesWithResults.contains(categoryToSelect) &&
-          categoriesWithResults.isNotEmpty) {
-        categoryToSelect = categoriesWithResults.first;
-      }
-    }
-
-    // Switch to full results mode and mark as submitted
-    state = state.copyWith(
-      mode: SearchMode.fullResults,
-      wasQuerySubmitted: true,
-      selectedCategory: categoryToSelect,
-      fullResults: const AsyncValue.loading(),
-    );
-
-    // Load full results for the selected category
-    await _loadFullResultsForCategory();
-  }
-
-  /// Select a category tab in full results view
-  Future<void> selectCategory(SearchCategory category) async {
-    if (state.selectedCategory == category) return;
-
-    state = state.copyWith(
-      selectedCategory: category,
-      fullResults: const AsyncValue.loading(),
-    );
-
-    await _loadFullResultsForCategory();
   }
 
   /// Load full results for the selected category
   Future<void> _loadFullResultsForCategory() async {
     final query = _buildSearchQuery();
+    state = state.copyWith(
+      fullResults: const AsyncValue.loading(),
+      isLoading: true,
+    );
+
     final result = await _searchRepository.searchByCategory(
       query,
       state.selectedCategory,
@@ -226,18 +170,52 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
       (failure) {
         state = state.copyWith(
           fullResults: AsyncValue.error(failure, StackTrace.current),
+          isLoading: false,
         );
       },
       (results) {
-        state = state.copyWith(fullResults: AsyncValue.data(results));
+        state = state.copyWith(
+          fullResults: AsyncValue.data(results),
+          isLoading: false,
+        );
       },
     );
   }
 
+  /// Called when user presses Enter to submit search
+  Future<void> submitQuery() async {
+    if (state.queryText.trim().isEmpty) return;
+
+    // Save to recent searches
+    await _recentSearchesRepository.addRecentSearch(state.queryText);
+
+    // Reload recent searches for next time
+    final recentSearches = await _recentSearchesRepository.getRecentSearches();
+    state = state.copyWith(recentSearches: recentSearches);
+  }
+
+  /// Select a category tab in results view
+  Future<void> selectCategory(SearchCategory category) async {
+    if (state.selectedCategory == category) return;
+
+    state = state.copyWith(
+      selectedCategory: category,
+      isLoading: true,
+    );
+
+    // Trigger search for new category
+    await _performSearch();
+  }
+
   /// Handle clicking on a recent search
   Future<void> selectRecentSearch(String queryText) async {
-    state = state.copyWith(queryText: queryText);
-    await submitQuery();
+    state = state.copyWith(queryText: queryText, isLoading: true);
+
+    // Debounce not needed for direct selection
+    await _performSearch();
+
+    // Save to recent (bumps it to top)
+    await _recentSearchesRepository.addRecentSearch(queryText);
   }
 
   /// Remove a recent search from history
@@ -321,28 +299,22 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
   /// Refresh search if query is active
   void _refreshSearchIfNeeded() {
-    if (state.queryText.trim().length < 2) return;
-
-    if (state.mode == SearchMode.fullResults) {
-      _loadFullResultsForCategory();
-    } else if (state.mode == SearchMode.previewResults) {
-      _performPreviewSearch();
-    }
+    if (state.queryText.trim().isEmpty) return;
+    _performSearch();
   }
 
-  /// Clear search and reset to idle state
+  /// Clear search and reset state
   void clearSearch() {
     _debounceTimer?.cancel();
     state = const SearchState();
   }
 
-  /// Exit full results and return to idle
-  /// Note: Does NOT clear queryText or wasQuerySubmitted so panel can reopen on focus
-  void exitFullResults() {
-    state = state.copyWith(
-      mode: SearchMode.idle,
-      fullResults: const AsyncValue.data([]),
-    );
+  /// Dismiss the results panel but keep the query text
+  /// Used when user clicks a result, clicks outside, or presses Escape
+  /// Panel will reopen when user focuses the search bar again
+  void dismissResultsPanel() {
+    _debounceTimer?.cancel();
+    state = state.copyWith(isPanelDismissed: true);
   }
 
   @override

@@ -100,14 +100,18 @@ class _LanguageToggles extends ConsumerWidget {
           label: const Text('Pali'),
           selected: searchInPali,
           onSelected: (selected) {
-            ref.read(searchStateProvider.notifier).setLanguageFilter(pali: selected);
+            ref
+                .read(searchStateProvider.notifier)
+                .setLanguageFilter(pali: selected);
           },
         ),
         FilterChip(
           label: const Text('Sinhala'),
           selected: searchInSinhala,
           onSelected: (selected) {
-            ref.read(searchStateProvider.notifier).setLanguageFilter(sinhala: selected);
+            ref
+                .read(searchStateProvider.notifier)
+                .setLanguageFilter(sinhala: selected);
           },
         ),
       ],
@@ -141,9 +145,13 @@ class _NikayaFilterChips extends ConsumerWidget {
           selected: isSelected,
           onSelected: (selected) {
             if (selected) {
-              ref.read(searchStateProvider.notifier).addNikayaFilter(nikaya['id']!);
+              ref
+                  .read(searchStateProvider.notifier)
+                  .addNikayaFilter(nikaya['id']!);
             } else {
-              ref.read(searchStateProvider.notifier).removeNikayaFilter(nikaya['id']!);
+              ref
+                  .read(searchStateProvider.notifier)
+                  .removeNikayaFilter(nikaya['id']!);
             }
           },
         );

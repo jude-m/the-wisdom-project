@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import '../providers/search_provider.dart';
-import '../providers/search_mode.dart';
-import '../../domain/entities/search/search_result.dart';
-import 'search_overlay.dart';
+import 'recent_search_overlay.dart';
 
-/// Simple search bar for AppBar with dropdown overlay
+/// Simple search bar for AppBar with dropdown overlay for recent searches
+/// Results panel is shown separately when query has 2+ characters
 class SearchBar extends ConsumerStatefulWidget {
-  final void Function(SearchResult result)? onResultTap;
   final double width;
 
   const SearchBar({
     super.key,
-    this.onResultTap,
     this.width = 280,
   });
 
@@ -51,18 +48,19 @@ class _SearchBarState extends ConsumerState<SearchBar> {
 
   void _onFocusChange() async {
     if (_focusNode.hasFocus) {
-      // Call onFocus and get the resulting mode
-      final mode = await ref.read(searchStateProvider.notifier).onFocus();
+      // Load recent searches
+      await ref.read(searchStateProvider.notifier).onFocus();
 
-      // Only show overlay if NOT going to fullResults mode
-      // (fullResults mode will show the side panel instead via ReaderScreen)
-      if (mode != SearchMode.fullResults) {
+      // Only show overlay if query is empty
+      // When query has any text, the results panel is shown instead
+      final queryText = ref.read(searchStateProvider).queryText;
+      if (queryText.trim().isEmpty) {
         _overlayController.show();
       }
     }
   }
 
-  /// Hide the overlay without clearing search state (for navigation)
+  /// Hide the overlay
   void _hideOverlay() {
     _overlayController.hide();
     _focusNode.unfocus();
@@ -80,8 +78,9 @@ class _SearchBarState extends ConsumerState<SearchBar> {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
 
-    // Watch search mode to decide if overlay should render
-    final searchMode = ref.watch(searchStateProvider.select((s) => s.mode));
+    // Watch if results panel is visible (query is not empty)
+    final isResultsPanelVisible =
+        ref.watch(searchStateProvider.select((s) => s.isResultsPanelVisible));
 
     // Listen to queryText changes and sync controller
     ref.listen(searchStateProvider.select((s) => s.queryText), (prev, next) {
@@ -90,14 +89,22 @@ class _SearchBarState extends ConsumerState<SearchBar> {
         // Move cursor to end
         _controller.selection = TextSelection.collapsed(offset: next.length);
       }
+
+      // Hide overlay when query has any text (panel takes over)
+      if (next.trim().isNotEmpty && _overlayController.isShowing) {
+        _overlayController.hide();
+      }
+      // Show overlay when query becomes empty and focused
+      else if (next.trim().isEmpty && _focusNode.hasFocus) {
+        _overlayController.show();
+      }
     });
 
     return OverlayPortal(
       controller: _overlayController,
       overlayChildBuilder: (context) {
-        // Don't render overlay when in fullResults mode (panel is shown instead)
-        // This ensures overlay and panel are decoupled
-        if (searchMode == SearchMode.fullResults) {
+        // Don't render overlay when results panel is visible
+        if (isResultsPanelVisible) {
           return const SizedBox.shrink();
         }
 
@@ -117,12 +124,8 @@ class _SearchBarState extends ConsumerState<SearchBar> {
               targetAnchor: Alignment.bottomRight,
               followerAnchor: Alignment.topRight,
               offset: const Offset(0, 8),
-              child: SearchOverlayContent(
+              child: RecentSearchOverlay(
                 onDismiss: _hideOverlay,
-                onResultTap: (result) {
-                  _hideOverlay();
-                  widget.onResultTap?.call(result);
-                },
               ),
             ),
           ],
@@ -157,9 +160,11 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                 isDense: true,
                 suffixIcon: _controller.text.isNotEmpty
                     ? IconButton(
-                        icon: Icon(Icons.clear,
-                            size: 18,
-                            color: theme.colorScheme.onSurfaceVariant),
+                        icon: Icon(
+                          Icons.clear,
+                          size: 18,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                         onPressed: () {
                           _controller.clear();
                           ref.read(searchStateProvider.notifier).clearSearch();
@@ -173,10 +178,10 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                 setState(() {});
               },
               onSubmitted: (value) {
-                if (value.trim().length >= 2) {
+                if (value.trim().isNotEmpty) {
                   ref.read(searchStateProvider.notifier).submitQuery();
                   _hideOverlay();
-                  // Panel opens automatically via ReaderScreen watching searchStateProvider
+                  // Panel is shown automatically via isResultsPanelVisible
                 }
               },
             ),

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../domain/entities/search/categorized_search_result.dart';
 import '../../domain/entities/search/search_category.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../providers/search_provider.dart';
+import '../../core/utils/singlish_transliterator.dart';
+import '../../core/utils/text_utils.dart';
 
 /// Slide-out panel for displaying full search results
 /// Used as a side panel on desktop and full-screen overlay on mobile
@@ -41,88 +44,201 @@ class SearchResultsPanel extends ConsumerWidget {
               ref.read(searchStateProvider.notifier).selectCategory(category);
             },
           ),
-          // Results list
+          // Results list - different view for "All" tab vs specific category
           Expanded(
-            child: searchState.fullResults.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(),
-              ),
-              error: (error, stack) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 48,
-                        color: theme.colorScheme.error,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Failed to load results',
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: () {
-                          ref.read(searchStateProvider.notifier).selectCategory(
-                                searchState.selectedCategory,
-                              );
-                        },
-                        child: const Text('Retry'),
-                      ),
-                    ],
+            child: searchState.selectedCategory == SearchCategory.all
+                ? _buildAllTabContent(
+                    context,
+                    theme,
+                    searchState.isLoading,
+                    searchState.categorizedResults,
+                    searchState.queryText,
+                  )
+                : _buildCategoryTabContent(
+                    context,
+                    ref,
+                    theme,
+                    searchState.fullResults,
+                    searchState.selectedCategory,
+                    searchState.queryText,
                   ),
-                ),
-              ),
-              data: (results) {
-                if (results.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.search_off,
-                            size: 48,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No ${searchState.selectedCategory.displayName.toLowerCase()} results found',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: results.length,
-                  separatorBuilder: (context, index) => Divider(
-                    height: 1,
-                    indent: 72,
-                    color: theme.colorScheme.outlineVariant,
-                  ),
-                  itemBuilder: (context, index) {
-                    return _SearchResultTile(
-                      result: results[index],
-                      onTap: () => onResultTap?.call(results[index]),
-                    );
-                  },
-                );
-              },
-            ),
           ),
         ],
       ),
+    );
+  }
+
+  /// Builds the content for the "All" tab showing categorized results
+  Widget _buildAllTabContent(
+    BuildContext context,
+    ThemeData theme,
+    bool isLoading,
+    CategorizedSearchResult? categorizedResults,
+    String queryText,
+  ) {
+    // Loading state
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // No results
+    if (categorizedResults == null || categorizedResults.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.search_off,
+                size: 48,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No results found',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Build categorized results with _SearchResultTile
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ...categorizedResults.categoriesWithResults
+              .where((category) =>
+                  category != SearchCategory.definition &&
+                  category != SearchCategory.all)
+              .map((category) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Section header
+                      _sectionHeader(theme, category.displayName.toUpperCase()),
+                      // Results using _SearchResultTile
+                      ...categorizedResults
+                          .getResultsForCategory(category)
+                          .map((result) => _SearchResultTile(
+                                result: result,
+                                queryText: queryText,
+                                onTap: () => onResultTap?.call(result),
+                              )),
+                    ],
+                  )),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  /// Section header widget
+  Widget _sectionHeader(ThemeData theme, String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Text(
+        title,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  /// Builds the content for specific category tabs (Title, Content, Definition)
+  Widget _buildCategoryTabContent(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
+    AsyncValue<List<SearchResult>> fullResults,
+    SearchCategory selectedCategory,
+    String queryText,
+  ) {
+    return fullResults.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(),
+      ),
+      error: (error, stack) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 48,
+                color: theme.colorScheme.error,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Failed to load results',
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () {
+                  ref
+                      .read(searchStateProvider.notifier)
+                      .selectCategory(selectedCategory);
+                },
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      data: (results) {
+        if (results.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.search_off,
+                    size: 48,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No ${selectedCategory.displayName.toLowerCase()} found',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: results.length,
+          separatorBuilder: (context, index) => Divider(
+            height: 1,
+            indent: 72,
+            color: theme.colorScheme.outlineVariant,
+          ),
+          itemBuilder: (context, index) {
+            return _SearchResultTile(
+              result: results[index],
+              queryText: queryText,
+              onTap: () => onResultTap?.call(results[index]),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -144,7 +260,7 @@ class _PanelHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
+        color: theme.colorScheme.surfaceContainerHighest,
         border: Border(
           bottom: BorderSide(
             color: theme.colorScheme.outlineVariant,
@@ -173,7 +289,7 @@ class _PanelHeader extends StatelessWidget {
   }
 }
 
-/// Category tab bar for switching between Title, Content, and Definition
+/// Category tab bar for switching between All, Title, Content, and Definition
 class _CategoryTabBar extends StatelessWidget {
   final SearchCategory selectedCategory;
   final void Function(SearchCategory) onCategorySelected;
@@ -234,13 +350,15 @@ class _CategoryTabBar extends StatelessWidget {
   }
 }
 
-/// Individual search result tile
+/// Individual search result tile with highlighting support
 class _SearchResultTile extends StatelessWidget {
   final SearchResult result;
+  final String queryText;
   final VoidCallback? onTap;
 
   const _SearchResultTile({
     required this.result,
+    required this.queryText,
     this.onTap,
   });
 
@@ -267,11 +385,10 @@ class _SearchResultTile extends StatelessWidget {
           ),
         ),
       ),
+      // Title is never highlighted - just plain text
       title: Text(
         result.title,
-        style: theme.textTheme.bodyLarge?.copyWith(
-          fontWeight: FontWeight.w500,
-        ),
+        style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
@@ -287,21 +404,177 @@ class _SearchResultTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          if (result.matchedText.isNotEmpty) ...[
+          // Only show and highlight matchedText for CONTENT results
+          if (result.category == SearchCategory.content &&
+              result.matchedText.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text(
-              '"${result.matchedText}"',
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontStyle: FontStyle.italic,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            _buildHighlightedText(
+              result.matchedText,
+              queryText,
+              theme,
             ),
           ],
         ],
       ),
       onTap: onTap,
     );
+  }
+
+  /// Builds highlighted text for content matches
+  /// Uses effective query (original or Sinhala conversion) for proper highlighting
+  Widget _buildHighlightedText(String text, String query, ThemeData theme) {
+    final baseStyle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+
+    if (query.isEmpty) {
+      return Text(
+        text,
+        style: baseStyle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    final normalizedQuery = normalizeQueryText(query);
+    if (normalizedQuery.isEmpty) {
+      return Text(
+        text,
+        style: baseStyle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    // Get the effective query to use for highlighting (may be converted to Sinhala)
+    final effectiveQuery = _getEffectiveHighlightQuery(text, normalizedQuery);
+
+    if (effectiveQuery.isEmpty) {
+      // No match found, just show the beginning of text
+      final end = 150.clamp(0, text.length);
+      return Text(
+        text.length > end ? '${text.substring(0, end)}...' : text,
+        style: baseStyle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    // Create snippet centered around the match
+    final snippet = _createSnippet(text: text, query: effectiveQuery);
+
+    // Build highlighted spans
+    final highlightStyle = TextStyle(
+      backgroundColor: theme.colorScheme.primaryContainer,
+      fontWeight: FontWeight.bold,
+      color: theme.colorScheme.onPrimaryContainer,
+    );
+
+    final spans = _buildHighlightedSpans(
+      text: snippet,
+      query: effectiveQuery,
+      highlightStyle: highlightStyle,
+    );
+
+    return RichText(
+      text: TextSpan(style: baseStyle, children: spans),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  /// Gets the effective query for highlighting.
+  /// Tries original query first, then converted Sinhala if needed.
+  String _getEffectiveHighlightQuery(String text, String query) {
+    // Use same normalization as the search repository
+    final normalizedText = normalizeText(text, toLowerCase: true);
+    final normalizedQuery = normalizeText(query, toLowerCase: true);
+
+    // First, try the original query directly
+    if (normalizedText.contains(normalizedQuery)) {
+      return query;
+    }
+
+    // If the query is Singlish, try the converted Sinhala text
+    final transliterator = SinglishTransliterator.instance;
+    if (transliterator.isSinglishQuery(query)) {
+      final converted = transliterator.convert(query);
+      final normalizedConverted = normalizeText(converted, toLowerCase: true);
+      if (normalizedText.contains(normalizedConverted)) {
+        return converted;
+      }
+    }
+
+    // No match found
+    return '';
+  }
+
+  /// Creates a snippet of text centered around the first match of the query
+  String _createSnippet({
+    required String text,
+    required String query,
+    int contextBefore = 50,
+    int contextAfter = 100,
+  }) {
+    final lowerText = text.toLowerCase();
+    final lowerQuery = query.toLowerCase();
+    final matchIndex = lowerText.indexOf(lowerQuery);
+
+    if (matchIndex == -1) {
+      // No match, return beginning of text
+      final end = (contextBefore + contextAfter).clamp(0, text.length);
+      return text.length > end ? '${text.substring(0, end)}...' : text;
+    }
+
+    final snippetStart = (matchIndex - contextBefore).clamp(0, text.length);
+    final snippetEnd =
+        (matchIndex + query.length + contextAfter).clamp(0, text.length);
+
+    var snippet = text.substring(snippetStart, snippetEnd);
+
+    // Add ellipsis indicators
+    if (snippetStart > 0) {
+      snippet = '...$snippet';
+    }
+    if (snippetEnd < text.length) {
+      snippet = '$snippet...';
+    }
+
+    return snippet;
+  }
+
+  /// Builds highlighted text spans for all matches of the query
+  List<TextSpan> _buildHighlightedSpans({
+    required String text,
+    required String query,
+    required TextStyle highlightStyle,
+  }) {
+    final spans = <TextSpan>[];
+    final lowerText = text.toLowerCase();
+    final lowerQuery = query.toLowerCase();
+    int start = 0;
+
+    while (true) {
+      final index = lowerText.indexOf(lowerQuery, start);
+      if (index == -1) {
+        if (start < text.length) {
+          spans.add(TextSpan(text: text.substring(start)));
+        }
+        break;
+      }
+
+      if (index > start) {
+        spans.add(TextSpan(text: text.substring(start, index)));
+      }
+
+      spans.add(TextSpan(
+        text: text.substring(index, index + query.length),
+        style: highlightStyle,
+      ));
+
+      start = index + query.length;
+    }
+
+    return spans;
   }
 }

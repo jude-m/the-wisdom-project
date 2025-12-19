@@ -5,7 +5,6 @@ import 'package:mockito/mockito.dart';
 import 'package:the_wisdom_project/domain/entities/search/categorized_search_result.dart';
 import 'package:the_wisdom_project/domain/entities/search/recent_search.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_category.dart';
-import 'package:the_wisdom_project/presentation/providers/search_mode.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 
 import '../../helpers/mocks.mocks.dart';
@@ -30,8 +29,7 @@ void main() {
 
   group('SearchStateNotifier -', () {
     group('onFocus', () {
-      test('should load recent searches and set mode to recentSearches',
-          () async {
+      test('should load recent searches', () async {
         // ARRANGE
         final recentSearches = [
           RecentSearch(queryText: 'dhamma', timestamp: DateTime.now()),
@@ -44,7 +42,6 @@ void main() {
         await notifier.onFocus();
 
         // ASSERT
-        expect(notifier.state.mode, equals(SearchMode.recentSearches));
         expect(notifier.state.recentSearches.length, equals(2));
         expect(notifier.state.recentSearches[0].queryText, equals('dhamma'));
         verify(mockRecentSearchesRepository.getRecentSearches()).called(1);
@@ -59,48 +56,31 @@ void main() {
         await notifier.onFocus();
 
         // ASSERT
-        expect(notifier.state.mode, equals(SearchMode.recentSearches));
         expect(notifier.state.recentSearches, isEmpty);
       });
     });
 
-    group('onBlur', () {
-      test('should reset to idle when not in fullResults mode', () async {
-        // ARRANGE
-        when(mockRecentSearchesRepository.getRecentSearches())
-            .thenAnswer((_) async => []);
-        await notifier.onFocus();
-        expect(notifier.state.mode, equals(SearchMode.recentSearches));
-
-        // ACT
-        notifier.onBlur();
-
-        // ASSERT
-        expect(notifier.state.mode, equals(SearchMode.idle));
-        expect(notifier.state.previewResults, isNull);
+    group('isResultsPanelVisible', () {
+      test('should be false for empty query', () {
+        expect(notifier.state.isResultsPanelVisible, isFalse);
       });
 
-      test('should stay in fullResults mode when in fullResults', () async {
-        // ARRANGE - Manually set state to fullResults
-        when(mockRecentSearchesRepository.getRecentSearches())
-            .thenAnswer((_) async => []);
-        when(mockRecentSearchesRepository.addRecentSearch(any))
-            .thenAnswer((_) async {});
-        when(mockSearchRepository.searchByCategory(any, any)).thenAnswer(
-          (_) async => const Right([]),
-        );
+      test('should be true for any non-empty query', () {
+        notifier.updateQuery('d');
+        expect(notifier.state.isResultsPanelVisible, isTrue);
+      });
 
-        await notifier.onFocus();
-        notifier.updateQuery('test query');
-        await notifier.submitQuery();
+      test('should be false for whitespace-only query', () {
+        notifier.updateQuery('   ');
+        expect(notifier.state.isResultsPanelVisible, isFalse);
+      });
 
-        expect(notifier.state.mode, equals(SearchMode.fullResults));
+      test('should be false when panel is dismissed', () {
+        notifier.updateQuery('test');
+        expect(notifier.state.isResultsPanelVisible, isTrue);
 
-        // ACT
-        notifier.onBlur();
-
-        // ASSERT - Should remain in fullResults
-        expect(notifier.state.mode, equals(SearchMode.fullResults));
+        notifier.dismissResultsPanel();
+        expect(notifier.state.isResultsPanelVisible, isFalse);
       });
     });
 
@@ -113,26 +93,27 @@ void main() {
         expect(notifier.state.queryText, equals('dhamma'));
       });
 
-      test('should show recentSearches for short queries (< 2 chars)', () {
+      test('should clear results for empty queries', () {
+        // ARRANGE - first set up some results
+        notifier.updateQuery('dhamma');
+
+        // ACT - clear to empty
+        notifier.updateQuery('');
+
+        // ASSERT
+        expect(notifier.state.categorizedResults, isNull);
+        expect(notifier.state.isLoading, isFalse);
+      });
+
+      test('should set loading for any non-empty query', () {
         // ACT
         notifier.updateQuery('d');
 
-        // ASSERT
-        expect(notifier.state.mode, equals(SearchMode.recentSearches));
-        expect(notifier.state.previewResults, isNull);
-        expect(notifier.state.isPreviewLoading, isFalse);
+        // ASSERT - even single char triggers loading
+        expect(notifier.state.isLoading, isTrue);
       });
 
-      test('should set previewLoading for valid queries', () {
-        // ACT
-        notifier.updateQuery('dhamma');
-
-        // ASSERT
-        expect(notifier.state.mode, equals(SearchMode.previewResults));
-        expect(notifier.state.isPreviewLoading, isTrue);
-      });
-
-      test('should debounce preview search (300ms)', () {
+      test('should debounce search (300ms)', () {
         fakeAsync((async) {
           // ARRANGE
           const categorizedResult = CategorizedSearchResult(
@@ -164,13 +145,12 @@ void main() {
     });
 
     group('submitQuery', () {
-      test('should save to recent searches and switch to fullResults mode',
-          () async {
+      test('should save to recent searches', () async {
         // ARRANGE
         when(mockRecentSearchesRepository.addRecentSearch(any))
             .thenAnswer((_) async {});
-        when(mockSearchRepository.searchByCategory(any, any))
-            .thenAnswer((_) async => const Right([]));
+        when(mockRecentSearchesRepository.getRecentSearches())
+            .thenAnswer((_) async => []);
 
         notifier.updateQuery('test query');
 
@@ -178,42 +158,92 @@ void main() {
         await notifier.submitQuery();
 
         // ASSERT
-        expect(notifier.state.mode, equals(SearchMode.fullResults));
         verify(mockRecentSearchesRepository.addRecentSearch('test query'))
-            .called(1);
-        verify(mockSearchRepository.searchByCategory(any, SearchCategory.title))
             .called(1);
       });
 
-      test('should not submit for queries < 2 chars', () async {
+      test('should not submit for empty queries', () async {
         // ARRANGE
+        notifier.updateQuery('');
+
+        // ACT
+        await notifier.submitQuery();
+
+        // ASSERT - empty queries should not be saved to recent searches
+        verifyNever(mockRecentSearchesRepository.addRecentSearch(any));
+      });
+
+      test('should submit for single character queries', () async {
+        // ARRANGE
+        when(mockRecentSearchesRepository.addRecentSearch(any))
+            .thenAnswer((_) async {});
+        when(mockRecentSearchesRepository.getRecentSearches())
+            .thenAnswer((_) async => []);
+
         notifier.updateQuery('d');
 
         // ACT
         await notifier.submitQuery();
 
-        // ASSERT
-        expect(notifier.state.mode, isNot(equals(SearchMode.fullResults)));
-        verifyNever(mockRecentSearchesRepository.addRecentSearch(any));
+        // ASSERT - single char queries ARE now valid
+        verify(mockRecentSearchesRepository.addRecentSearch('d')).called(1);
       });
     });
 
     group('selectCategory', () {
-      test('should update selected category and load results', () async {
+      test('should update selected category', () async {
         // ARRANGE
-        when(mockRecentSearchesRepository.addRecentSearch(any))
-            .thenAnswer((_) async {});
         when(mockSearchRepository.searchByCategory(any, any))
             .thenAnswer((_) async => const Right([]));
 
         notifier.updateQuery('test');
-        await notifier.submitQuery();
 
         // ACT
         await notifier.selectCategory(SearchCategory.content);
 
         // ASSERT
         expect(notifier.state.selectedCategory, equals(SearchCategory.content));
+      });
+
+      test('should load categorized results for "all" category', () async {
+        // ARRANGE
+        const categorizedResult = CategorizedSearchResult(
+          resultsByCategory: {
+            SearchCategory.title: [],
+            SearchCategory.content: [],
+            SearchCategory.definition: [],
+          },
+          totalCount: 0,
+        );
+        when(mockSearchRepository.searchCategorizedPreview(any))
+            .thenAnswer((_) async => const Right(categorizedResult));
+        when(mockSearchRepository.searchByCategory(any, any))
+            .thenAnswer((_) async => const Right([]));
+
+        notifier.updateQuery('test');
+
+        // First switch to a different category
+        await notifier.selectCategory(SearchCategory.title);
+        clearInteractions(mockSearchRepository);
+
+        // ACT - Switch back to "all" category
+        await notifier.selectCategory(SearchCategory.all);
+
+        // ASSERT
+        verify(mockSearchRepository.searchCategorizedPreview(any)).called(1);
+      });
+
+      test('should load full results for specific category', () async {
+        // ARRANGE
+        when(mockSearchRepository.searchByCategory(any, any))
+            .thenAnswer((_) async => const Right([]));
+
+        notifier.updateQuery('test');
+
+        // ACT
+        await notifier.selectCategory(SearchCategory.content);
+
+        // ASSERT
         verify(mockSearchRepository.searchByCategory(
                 any, SearchCategory.content))
             .called(1);
@@ -221,19 +251,25 @@ void main() {
 
       test('should not reload if same category selected', () async {
         // ARRANGE
-        when(mockRecentSearchesRepository.addRecentSearch(any))
-            .thenAnswer((_) async {});
-        when(mockSearchRepository.searchByCategory(any, any))
-            .thenAnswer((_) async => const Right([]));
+        const categorizedResult = CategorizedSearchResult(
+          resultsByCategory: {
+            SearchCategory.title: [],
+            SearchCategory.content: [],
+            SearchCategory.definition: [],
+          },
+          totalCount: 0,
+        );
+        when(mockSearchRepository.searchCategorizedPreview(any))
+            .thenAnswer((_) async => const Right(categorizedResult));
 
         notifier.updateQuery('test');
-        await notifier.submitQuery();
         clearInteractions(mockSearchRepository);
 
-        // ACT - Select same category (default is title)
-        await notifier.selectCategory(SearchCategory.title);
+        // ACT - Select same category (default is all)
+        await notifier.selectCategory(SearchCategory.all);
 
         // ASSERT
+        verifyNever(mockSearchRepository.searchCategorizedPreview(any));
         verifyNever(mockSearchRepository.searchByCategory(any, any));
       });
     });
@@ -363,146 +399,52 @@ void main() {
 
         // ASSERT
         expect(notifier.state.queryText, isEmpty);
-        expect(notifier.state.mode, equals(SearchMode.idle));
-        expect(notifier.state.previewResults, isNull);
+        expect(notifier.state.categorizedResults, isNull);
+        expect(notifier.state.isResultsPanelVisible, isFalse);
       });
     });
 
-    group('exitFullResults', () {
-      test('should reset to idle but preserve query for refocus', () async {
+    group('dismissResultsPanel', () {
+      test('should hide panel but keep query text', () async {
         // ARRANGE
-        when(mockRecentSearchesRepository.addRecentSearch(any))
-            .thenAnswer((_) async {});
-        when(mockSearchRepository.searchByCategory(any, any))
-            .thenAnswer((_) async => const Right([]));
-
         notifier.updateQuery('test');
-        await notifier.submitQuery();
-        expect(notifier.state.mode, equals(SearchMode.fullResults));
-        expect(notifier.state.wasQuerySubmitted, isTrue);
+        expect(notifier.state.isResultsPanelVisible, isTrue);
 
         // ACT
-        notifier.exitFullResults();
+        notifier.dismissResultsPanel();
 
-        // ASSERT
-        expect(notifier.state.mode, equals(SearchMode.idle));
-        // Query text is preserved so panel can reopen on focus
+        // ASSERT - query text is kept, but panel is hidden
         expect(notifier.state.queryText, equals('test'));
-        expect(notifier.state.wasQuerySubmitted, isTrue);
+        expect(notifier.state.isPanelDismissed, isTrue);
+        expect(notifier.state.isResultsPanelVisible, isFalse);
       });
     });
 
-    group('wasQuerySubmitted', () {
-      test('submitQuery should set wasQuerySubmitted to true', () async {
+    group('selectRecentSearch', () {
+      test('should set query and trigger search', () async {
         // ARRANGE
+        const categorizedResult = CategorizedSearchResult(
+          resultsByCategory: {
+            SearchCategory.title: [],
+            SearchCategory.content: [],
+            SearchCategory.definition: [],
+          },
+          totalCount: 0,
+        );
+        when(mockSearchRepository.searchCategorizedPreview(any))
+            .thenAnswer((_) async => const Right(categorizedResult));
         when(mockRecentSearchesRepository.addRecentSearch(any))
             .thenAnswer((_) async {});
-        when(mockSearchRepository.searchByCategory(any, any))
-            .thenAnswer((_) async => const Right([]));
-
-        notifier.updateQuery('test query');
-        expect(notifier.state.wasQuerySubmitted, isFalse);
 
         // ACT
-        await notifier.submitQuery();
+        await notifier.selectRecentSearch('dhamma');
 
         // ASSERT
-        expect(notifier.state.wasQuerySubmitted, isTrue);
-      });
-
-      test('updateQuery should reset wasQuerySubmitted when query changes',
-          () async {
-        // ARRANGE
-        when(mockRecentSearchesRepository.addRecentSearch(any))
-            .thenAnswer((_) async {});
-        when(mockSearchRepository.searchByCategory(any, any))
-            .thenAnswer((_) async => const Right([]));
-
-        notifier.updateQuery('original');
-        await notifier.submitQuery();
-        expect(notifier.state.wasQuerySubmitted, isTrue);
-
-        // ACT - type a different query
-        notifier.updateQuery('different');
-
-        // ASSERT - wasQuerySubmitted should be reset
-        expect(notifier.state.wasQuerySubmitted, isFalse);
-      });
-
-      test('updateQuery should preserve wasQuerySubmitted for same query',
-          () async {
-        // ARRANGE
-        when(mockRecentSearchesRepository.addRecentSearch(any))
-            .thenAnswer((_) async {});
-        when(mockSearchRepository.searchByCategory(any, any))
-            .thenAnswer((_) async => const Right([]));
-
-        notifier.updateQuery('test');
-        await notifier.submitQuery();
-        expect(notifier.state.wasQuerySubmitted, isTrue);
-
-        // ACT - update with same query
-        notifier.updateQuery('test');
-
-        // ASSERT - wasQuerySubmitted preserved
-        expect(notifier.state.wasQuerySubmitted, isTrue);
-      });
-
-      test('clearSearch should reset wasQuerySubmitted', () async {
-        // ARRANGE
-        when(mockRecentSearchesRepository.addRecentSearch(any))
-            .thenAnswer((_) async {});
-        when(mockSearchRepository.searchByCategory(any, any))
-            .thenAnswer((_) async => const Right([]));
-
-        notifier.updateQuery('test');
-        await notifier.submitQuery();
-        expect(notifier.state.wasQuerySubmitted, isTrue);
-
-        // ACT
-        notifier.clearSearch();
-
-        // ASSERT
-        expect(notifier.state.wasQuerySubmitted, isFalse);
-      });
-
-      test('onFocus should reopen fullResults when wasQuerySubmitted is true',
-          () async {
-        // ARRANGE
-        when(mockRecentSearchesRepository.getRecentSearches())
-            .thenAnswer((_) async => []);
-        when(mockRecentSearchesRepository.addRecentSearch(any))
-            .thenAnswer((_) async {});
-        when(mockSearchRepository.searchByCategory(any, any))
-            .thenAnswer((_) async => const Right([]));
-
-        notifier.updateQuery('test');
-        await notifier.submitQuery();
-        notifier.exitFullResults();
-        expect(notifier.state.mode, equals(SearchMode.idle));
-        expect(notifier.state.wasQuerySubmitted, isTrue);
-
-        // ACT
-        final mode = await notifier.onFocus();
-
-        // ASSERT - should go directly to fullResults
-        expect(mode, equals(SearchMode.fullResults));
-        expect(notifier.state.mode, equals(SearchMode.fullResults));
-      });
-
-      test(
-          'onFocus should return recentSearches when wasQuerySubmitted is false',
-          () async {
-        // ARRANGE
-        when(mockRecentSearchesRepository.getRecentSearches())
-            .thenAnswer((_) async => []);
-
-        // ACT
-        final mode = await notifier.onFocus();
-
-        // ASSERT
-        expect(mode, equals(SearchMode.recentSearches));
-        expect(notifier.state.mode, equals(SearchMode.recentSearches));
+        expect(notifier.state.queryText, equals('dhamma'));
+        expect(notifier.state.isResultsPanelVisible, isTrue);
+        verify(mockSearchRepository.searchCategorizedPreview(any)).called(1);
+        verify(mockRecentSearchesRepository.addRecentSearch('dhamma'))
+            .called(1);
       });
     });
   });

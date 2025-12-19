@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:the_wisdom_project/domain/entities/search/categorized_search_result.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_category.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
@@ -51,12 +52,44 @@ void main() {
       expect(find.text('Results for "metta"'), findsOneWidget);
     });
 
-    testWidgets('should show loading indicator when fullResults is loading',
+    testWidgets('should show loading indicator when isLoading is true',
         (tester) async {
-      // ARRANGE
+      // ARRANGE - "All" tab uses isLoading, not fullResults.loading()
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           queryText: 'test',
+          isLoading: true,
+          selectedCategory: SearchCategory.all,
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            searchStateProvider.overrideWith((ref) => notifier),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: SearchResultsPanel(
+                onClose: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // ASSERT
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+
+    testWidgets(
+        'should show loading indicator when fullResults is loading for specific category',
+        (tester) async {
+      // ARRANGE - Specific category tabs use fullResults
+      final notifier = FakeSearchStateNotifier(
+        const SearchState(
+          queryText: 'test',
+          selectedCategory: SearchCategory.title,
           fullResults: AsyncValue.loading(),
         ),
       );
@@ -81,10 +114,11 @@ void main() {
     });
 
     testWidgets('should show error state with retry button', (tester) async {
-      // ARRANGE
+      // ARRANGE - Use a specific category since "All" tab doesn't use fullResults
       final notifier = FakeSearchStateNotifier(
         SearchState(
           queryText: 'test',
+          selectedCategory: SearchCategory.title,
           fullResults: AsyncValue.error(
             Exception('Test error'),
             StackTrace.current,
@@ -113,7 +147,42 @@ void main() {
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
     });
 
-    testWidgets('should show empty state when no results', (tester) async {
+    testWidgets('should show empty state when no results for "All" tab',
+        (tester) async {
+      // ARRANGE - "All" tab uses categorizedResults
+      final notifier = FakeSearchStateNotifier(
+        const SearchState(
+          queryText: 'test',
+          selectedCategory: SearchCategory.all,
+          categorizedResults: CategorizedSearchResult(
+            resultsByCategory: {},
+            totalCount: 0,
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            searchStateProvider.overrideWith((ref) => notifier),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: SearchResultsPanel(
+                onClose: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // ASSERT
+      expect(find.text('No results found'), findsOneWidget);
+      expect(find.byIcon(Icons.search_off), findsOneWidget);
+    });
+
+    testWidgets('should show empty state when no results for specific category',
+        (tester) async {
       // ARRANGE
       final notifier = FakeSearchStateNotifier(
         const SearchState(
@@ -138,12 +207,12 @@ void main() {
         ),
       );
 
-      // ASSERT
-      expect(find.text('No title results found'), findsOneWidget);
+      // ASSERT - uses displayName.toLowerCase(): 'No titles found'
+      expect(find.text('No titles found'), findsOneWidget);
       expect(find.byIcon(Icons.search_off), findsOneWidget);
     });
 
-    testWidgets('should render category tab bar with 3 tabs', (tester) async {
+    testWidgets('should render category tab bar with 4 tabs', (tester) async {
       // ARRANGE
       final notifier = FakeSearchStateNotifier(
         const SearchState(queryText: 'test'),
@@ -164,10 +233,11 @@ void main() {
         ),
       );
 
-      // ASSERT
-      expect(find.text('Title'), findsOneWidget);
+      // ASSERT - Now 4 tabs: Top Results, Titles, Content, Definitions
+      expect(find.text('Top Results'), findsOneWidget);
+      expect(find.text('Titles'), findsOneWidget);
       expect(find.text('Content'), findsOneWidget);
-      expect(find.text('Definition'), findsOneWidget);
+      expect(find.text('Definitions'), findsOneWidget);
     });
 
     testWidgets('should call selectCategory when tab is tapped',
@@ -176,7 +246,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           queryText: 'test',
-          selectedCategory: SearchCategory.title,
+          selectedCategory: SearchCategory.all,
         ),
       );
 
@@ -274,9 +344,10 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
-      // ACT - Tap on result
-      await tester.tap(find.text('Metta Sutta'));
+      // ACT - Tap on the ListTile (result tile)
+      await tester.tap(find.byType(ListTile));
       await tester.pump();
 
       // ASSERT
@@ -322,12 +393,81 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
-      // ASSERT
-      expect(find.text('Brahmajālasutta'), findsOneWidget);
-      expect(find.text('Dīgha Nikāya'), findsOneWidget);
-      expect(find.text('"This is matched text"'), findsOneWidget);
+      // ASSERT - verify the result tile is rendered
+      expect(find.byType(ListTile), findsOneWidget);
+      expect(find.text('Dīgha Nikāya'),
+          findsOneWidget); // Subtitle is regular Text
       expect(find.text('BJT'), findsOneWidget); // Edition badge
+    });
+
+    testWidgets('should render "All" tab with categorized results',
+        (tester) async {
+      // ARRANGE
+      const titleResult = SearchResult(
+        id: 'title_1',
+        editionId: 'bjt',
+        category: SearchCategory.title,
+        title: 'Metta Sutta',
+        subtitle: 'Sutta Nipata',
+        matchedText: '',
+        contentFileId: 'sn-1',
+        pageIndex: 0,
+        entryIndex: 0,
+        nodeKey: 'sn-1',
+        language: 'pali',
+      );
+
+      const contentResult = SearchResult(
+        id: 'content_1',
+        editionId: 'bjt',
+        category: SearchCategory.content,
+        title: 'Brahmajālasutta',
+        subtitle: 'Dīgha Nikāya',
+        matchedText: 'Metta karuna text',
+        contentFileId: 'dn-1',
+        pageIndex: 0,
+        entryIndex: 5,
+        nodeKey: 'dn-1',
+        language: 'pali',
+      );
+
+      final notifier = FakeSearchStateNotifier(
+        const SearchState(
+          queryText: 'metta',
+          selectedCategory: SearchCategory.all,
+          categorizedResults: CategorizedSearchResult(
+            resultsByCategory: {
+              SearchCategory.title: [titleResult],
+              SearchCategory.content: [contentResult],
+            },
+            totalCount: 2,
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            searchStateProvider.overrideWith((ref) => notifier),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: SearchResultsPanel(
+                onClose: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // ASSERT - Both results should be visible with section headers
+      expect(find.text('TITLES'), findsOneWidget);
+      expect(find.text('CONTENT'), findsOneWidget);
+      // Two ListTiles for the two results
+      expect(find.byType(ListTile), findsNWidgets(2));
     });
   });
 }

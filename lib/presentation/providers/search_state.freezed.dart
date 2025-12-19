@@ -19,25 +19,22 @@ mixin _$SearchState {
   /// Current search query text
   String get queryText => throw _privateConstructorUsedError;
 
-  /// Current search mode (idle, recentSearches, previewResults, fullResults)
-  SearchMode get mode => throw _privateConstructorUsedError;
-
   /// Recent search history
   List<RecentSearch> get recentSearches => throw _privateConstructorUsedError;
 
-  /// Categorized preview results (for dropdown, max 3 per category)
-  CategorizedSearchResult? get previewResults =>
-      throw _privateConstructorUsedError;
-
-  /// Whether preview is loading
-  bool get isPreviewLoading => throw _privateConstructorUsedError;
-
-  /// Currently selected category in full results view
+  /// Currently selected category in results view
   SearchCategory get selectedCategory => throw _privateConstructorUsedError;
+
+  /// Categorized results for "All" tab (grouped by category)
+  CategorizedSearchResult? get categorizedResults =>
+      throw _privateConstructorUsedError;
 
   /// Full results for the selected category (async state)
   AsyncValue<List<SearchResult>> get fullResults =>
       throw _privateConstructorUsedError;
+
+  /// Whether results are currently loading
+  bool get isLoading => throw _privateConstructorUsedError;
 
   /// Selected editions to search (empty = default to BJT)
   Set<String> get selectedEditions => throw _privateConstructorUsedError;
@@ -54,9 +51,9 @@ mixin _$SearchState {
   /// Whether the filter panel is visible
   bool get filtersVisible => throw _privateConstructorUsedError;
 
-  /// Whether the current query was submitted (user pressed Enter)
-  /// Used to determine if we should reopen the full results panel on focus
-  bool get wasQuerySubmitted => throw _privateConstructorUsedError;
+  /// Whether the panel was dismissed (user clicked result or close button)
+  /// Panel reopens when user focuses the search bar again
+  bool get isPanelDismissed => throw _privateConstructorUsedError;
 
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
@@ -73,20 +70,19 @@ abstract class $SearchStateCopyWith<$Res> {
   @useResult
   $Res call(
       {String queryText,
-      SearchMode mode,
       List<RecentSearch> recentSearches,
-      CategorizedSearchResult? previewResults,
-      bool isPreviewLoading,
       SearchCategory selectedCategory,
+      CategorizedSearchResult? categorizedResults,
       AsyncValue<List<SearchResult>> fullResults,
+      bool isLoading,
       Set<String> selectedEditions,
       bool searchInPali,
       bool searchInSinhala,
       List<String> nikayaFilters,
       bool filtersVisible,
-      bool wasQuerySubmitted});
+      bool isPanelDismissed});
 
-  $CategorizedSearchResultCopyWith<$Res>? get previewResults;
+  $CategorizedSearchResultCopyWith<$Res>? get categorizedResults;
 }
 
 /// @nodoc
@@ -105,48 +101,43 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
   @override
   $Res call({
     Object? queryText = null,
-    Object? mode = null,
     Object? recentSearches = null,
-    Object? previewResults = freezed,
-    Object? isPreviewLoading = null,
     Object? selectedCategory = null,
+    Object? categorizedResults = freezed,
     Object? fullResults = null,
+    Object? isLoading = null,
     Object? selectedEditions = null,
     Object? searchInPali = null,
     Object? searchInSinhala = null,
     Object? nikayaFilters = null,
     Object? filtersVisible = null,
-    Object? wasQuerySubmitted = null,
+    Object? isPanelDismissed = null,
   }) {
     return _then(_value.copyWith(
       queryText: null == queryText
           ? _value.queryText
           : queryText // ignore: cast_nullable_to_non_nullable
               as String,
-      mode: null == mode
-          ? _value.mode
-          : mode // ignore: cast_nullable_to_non_nullable
-              as SearchMode,
       recentSearches: null == recentSearches
           ? _value.recentSearches
           : recentSearches // ignore: cast_nullable_to_non_nullable
               as List<RecentSearch>,
-      previewResults: freezed == previewResults
-          ? _value.previewResults
-          : previewResults // ignore: cast_nullable_to_non_nullable
-              as CategorizedSearchResult?,
-      isPreviewLoading: null == isPreviewLoading
-          ? _value.isPreviewLoading
-          : isPreviewLoading // ignore: cast_nullable_to_non_nullable
-              as bool,
       selectedCategory: null == selectedCategory
           ? _value.selectedCategory
           : selectedCategory // ignore: cast_nullable_to_non_nullable
               as SearchCategory,
+      categorizedResults: freezed == categorizedResults
+          ? _value.categorizedResults
+          : categorizedResults // ignore: cast_nullable_to_non_nullable
+              as CategorizedSearchResult?,
       fullResults: null == fullResults
           ? _value.fullResults
           : fullResults // ignore: cast_nullable_to_non_nullable
               as AsyncValue<List<SearchResult>>,
+      isLoading: null == isLoading
+          ? _value.isLoading
+          : isLoading // ignore: cast_nullable_to_non_nullable
+              as bool,
       selectedEditions: null == selectedEditions
           ? _value.selectedEditions
           : selectedEditions // ignore: cast_nullable_to_non_nullable
@@ -167,9 +158,9 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
           ? _value.filtersVisible
           : filtersVisible // ignore: cast_nullable_to_non_nullable
               as bool,
-      wasQuerySubmitted: null == wasQuerySubmitted
-          ? _value.wasQuerySubmitted
-          : wasQuerySubmitted // ignore: cast_nullable_to_non_nullable
+      isPanelDismissed: null == isPanelDismissed
+          ? _value.isPanelDismissed
+          : isPanelDismissed // ignore: cast_nullable_to_non_nullable
               as bool,
     ) as $Val);
   }
@@ -178,14 +169,14 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
   /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
-  $CategorizedSearchResultCopyWith<$Res>? get previewResults {
-    if (_value.previewResults == null) {
+  $CategorizedSearchResultCopyWith<$Res>? get categorizedResults {
+    if (_value.categorizedResults == null) {
       return null;
     }
 
-    return $CategorizedSearchResultCopyWith<$Res>(_value.previewResults!,
+    return $CategorizedSearchResultCopyWith<$Res>(_value.categorizedResults!,
         (value) {
-      return _then(_value.copyWith(previewResults: value) as $Val);
+      return _then(_value.copyWith(categorizedResults: value) as $Val);
     });
   }
 }
@@ -200,21 +191,20 @@ abstract class _$$SearchStateImplCopyWith<$Res>
   @useResult
   $Res call(
       {String queryText,
-      SearchMode mode,
       List<RecentSearch> recentSearches,
-      CategorizedSearchResult? previewResults,
-      bool isPreviewLoading,
       SearchCategory selectedCategory,
+      CategorizedSearchResult? categorizedResults,
       AsyncValue<List<SearchResult>> fullResults,
+      bool isLoading,
       Set<String> selectedEditions,
       bool searchInPali,
       bool searchInSinhala,
       List<String> nikayaFilters,
       bool filtersVisible,
-      bool wasQuerySubmitted});
+      bool isPanelDismissed});
 
   @override
-  $CategorizedSearchResultCopyWith<$Res>? get previewResults;
+  $CategorizedSearchResultCopyWith<$Res>? get categorizedResults;
 }
 
 /// @nodoc
@@ -231,48 +221,43 @@ class __$$SearchStateImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? queryText = null,
-    Object? mode = null,
     Object? recentSearches = null,
-    Object? previewResults = freezed,
-    Object? isPreviewLoading = null,
     Object? selectedCategory = null,
+    Object? categorizedResults = freezed,
     Object? fullResults = null,
+    Object? isLoading = null,
     Object? selectedEditions = null,
     Object? searchInPali = null,
     Object? searchInSinhala = null,
     Object? nikayaFilters = null,
     Object? filtersVisible = null,
-    Object? wasQuerySubmitted = null,
+    Object? isPanelDismissed = null,
   }) {
     return _then(_$SearchStateImpl(
       queryText: null == queryText
           ? _value.queryText
           : queryText // ignore: cast_nullable_to_non_nullable
               as String,
-      mode: null == mode
-          ? _value.mode
-          : mode // ignore: cast_nullable_to_non_nullable
-              as SearchMode,
       recentSearches: null == recentSearches
           ? _value._recentSearches
           : recentSearches // ignore: cast_nullable_to_non_nullable
               as List<RecentSearch>,
-      previewResults: freezed == previewResults
-          ? _value.previewResults
-          : previewResults // ignore: cast_nullable_to_non_nullable
-              as CategorizedSearchResult?,
-      isPreviewLoading: null == isPreviewLoading
-          ? _value.isPreviewLoading
-          : isPreviewLoading // ignore: cast_nullable_to_non_nullable
-              as bool,
       selectedCategory: null == selectedCategory
           ? _value.selectedCategory
           : selectedCategory // ignore: cast_nullable_to_non_nullable
               as SearchCategory,
+      categorizedResults: freezed == categorizedResults
+          ? _value.categorizedResults
+          : categorizedResults // ignore: cast_nullable_to_non_nullable
+              as CategorizedSearchResult?,
       fullResults: null == fullResults
           ? _value.fullResults
           : fullResults // ignore: cast_nullable_to_non_nullable
               as AsyncValue<List<SearchResult>>,
+      isLoading: null == isLoading
+          ? _value.isLoading
+          : isLoading // ignore: cast_nullable_to_non_nullable
+              as bool,
       selectedEditions: null == selectedEditions
           ? _value._selectedEditions
           : selectedEditions // ignore: cast_nullable_to_non_nullable
@@ -293,9 +278,9 @@ class __$$SearchStateImplCopyWithImpl<$Res>
           ? _value.filtersVisible
           : filtersVisible // ignore: cast_nullable_to_non_nullable
               as bool,
-      wasQuerySubmitted: null == wasQuerySubmitted
-          ? _value.wasQuerySubmitted
-          : wasQuerySubmitted // ignore: cast_nullable_to_non_nullable
+      isPanelDismissed: null == isPanelDismissed
+          ? _value.isPanelDismissed
+          : isPanelDismissed // ignore: cast_nullable_to_non_nullable
               as bool,
     ));
   }
@@ -303,34 +288,29 @@ class __$$SearchStateImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$SearchStateImpl implements _SearchState {
+class _$SearchStateImpl extends _SearchState {
   const _$SearchStateImpl(
       {this.queryText = '',
-      this.mode = SearchMode.idle,
       final List<RecentSearch> recentSearches = const [],
-      this.previewResults,
-      this.isPreviewLoading = false,
-      this.selectedCategory = SearchCategory.title,
+      this.selectedCategory = SearchCategory.all,
+      this.categorizedResults,
       this.fullResults = const AsyncValue.data([]),
+      this.isLoading = false,
       final Set<String> selectedEditions = const {},
       this.searchInPali = true,
       this.searchInSinhala = true,
       final List<String> nikayaFilters = const [],
       this.filtersVisible = false,
-      this.wasQuerySubmitted = false})
+      this.isPanelDismissed = false})
       : _recentSearches = recentSearches,
         _selectedEditions = selectedEditions,
-        _nikayaFilters = nikayaFilters;
+        _nikayaFilters = nikayaFilters,
+        super._();
 
   /// Current search query text
   @override
   @JsonKey()
   final String queryText;
-
-  /// Current search mode (idle, recentSearches, previewResults, fullResults)
-  @override
-  @JsonKey()
-  final SearchMode mode;
 
   /// Recent search history
   final List<RecentSearch> _recentSearches;
@@ -344,24 +324,24 @@ class _$SearchStateImpl implements _SearchState {
     return EqualUnmodifiableListView(_recentSearches);
   }
 
-  /// Categorized preview results (for dropdown, max 3 per category)
-  @override
-  final CategorizedSearchResult? previewResults;
-
-  /// Whether preview is loading
-  @override
-  @JsonKey()
-  final bool isPreviewLoading;
-
-  /// Currently selected category in full results view
+  /// Currently selected category in results view
   @override
   @JsonKey()
   final SearchCategory selectedCategory;
+
+  /// Categorized results for "All" tab (grouped by category)
+  @override
+  final CategorizedSearchResult? categorizedResults;
 
   /// Full results for the selected category (async state)
   @override
   @JsonKey()
   final AsyncValue<List<SearchResult>> fullResults;
+
+  /// Whether results are currently loading
+  @override
+  @JsonKey()
+  final bool isLoading;
 
   /// Selected editions to search (empty = default to BJT)
   final Set<String> _selectedEditions;
@@ -402,15 +382,15 @@ class _$SearchStateImpl implements _SearchState {
   @JsonKey()
   final bool filtersVisible;
 
-  /// Whether the current query was submitted (user pressed Enter)
-  /// Used to determine if we should reopen the full results panel on focus
+  /// Whether the panel was dismissed (user clicked result or close button)
+  /// Panel reopens when user focuses the search bar again
   @override
   @JsonKey()
-  final bool wasQuerySubmitted;
+  final bool isPanelDismissed;
 
   @override
   String toString() {
-    return 'SearchState(queryText: $queryText, mode: $mode, recentSearches: $recentSearches, previewResults: $previewResults, isPreviewLoading: $isPreviewLoading, selectedCategory: $selectedCategory, fullResults: $fullResults, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, filtersVisible: $filtersVisible, wasQuerySubmitted: $wasQuerySubmitted)';
+    return 'SearchState(queryText: $queryText, recentSearches: $recentSearches, selectedCategory: $selectedCategory, categorizedResults: $categorizedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, filtersVisible: $filtersVisible, isPanelDismissed: $isPanelDismissed)';
   }
 
   @override
@@ -420,17 +400,16 @@ class _$SearchStateImpl implements _SearchState {
             other is _$SearchStateImpl &&
             (identical(other.queryText, queryText) ||
                 other.queryText == queryText) &&
-            (identical(other.mode, mode) || other.mode == mode) &&
             const DeepCollectionEquality()
                 .equals(other._recentSearches, _recentSearches) &&
-            (identical(other.previewResults, previewResults) ||
-                other.previewResults == previewResults) &&
-            (identical(other.isPreviewLoading, isPreviewLoading) ||
-                other.isPreviewLoading == isPreviewLoading) &&
             (identical(other.selectedCategory, selectedCategory) ||
                 other.selectedCategory == selectedCategory) &&
+            (identical(other.categorizedResults, categorizedResults) ||
+                other.categorizedResults == categorizedResults) &&
             (identical(other.fullResults, fullResults) ||
                 other.fullResults == fullResults) &&
+            (identical(other.isLoading, isLoading) ||
+                other.isLoading == isLoading) &&
             const DeepCollectionEquality()
                 .equals(other._selectedEditions, _selectedEditions) &&
             (identical(other.searchInPali, searchInPali) ||
@@ -441,26 +420,25 @@ class _$SearchStateImpl implements _SearchState {
                 .equals(other._nikayaFilters, _nikayaFilters) &&
             (identical(other.filtersVisible, filtersVisible) ||
                 other.filtersVisible == filtersVisible) &&
-            (identical(other.wasQuerySubmitted, wasQuerySubmitted) ||
-                other.wasQuerySubmitted == wasQuerySubmitted));
+            (identical(other.isPanelDismissed, isPanelDismissed) ||
+                other.isPanelDismissed == isPanelDismissed));
   }
 
   @override
   int get hashCode => Object.hash(
       runtimeType,
       queryText,
-      mode,
       const DeepCollectionEquality().hash(_recentSearches),
-      previewResults,
-      isPreviewLoading,
       selectedCategory,
+      categorizedResults,
       fullResults,
+      isLoading,
       const DeepCollectionEquality().hash(_selectedEditions),
       searchInPali,
       searchInSinhala,
       const DeepCollectionEquality().hash(_nikayaFilters),
       filtersVisible,
-      wasQuerySubmitted);
+      isPanelDismissed);
 
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
@@ -471,49 +449,45 @@ class _$SearchStateImpl implements _SearchState {
       __$$SearchStateImplCopyWithImpl<_$SearchStateImpl>(this, _$identity);
 }
 
-abstract class _SearchState implements SearchState {
+abstract class _SearchState extends SearchState {
   const factory _SearchState(
       {final String queryText,
-      final SearchMode mode,
       final List<RecentSearch> recentSearches,
-      final CategorizedSearchResult? previewResults,
-      final bool isPreviewLoading,
       final SearchCategory selectedCategory,
+      final CategorizedSearchResult? categorizedResults,
       final AsyncValue<List<SearchResult>> fullResults,
+      final bool isLoading,
       final Set<String> selectedEditions,
       final bool searchInPali,
       final bool searchInSinhala,
       final List<String> nikayaFilters,
       final bool filtersVisible,
-      final bool wasQuerySubmitted}) = _$SearchStateImpl;
+      final bool isPanelDismissed}) = _$SearchStateImpl;
+  const _SearchState._() : super._();
 
   /// Current search query text
   @override
   String get queryText;
 
-  /// Current search mode (idle, recentSearches, previewResults, fullResults)
-  @override
-  SearchMode get mode;
-
   /// Recent search history
   @override
   List<RecentSearch> get recentSearches;
 
-  /// Categorized preview results (for dropdown, max 3 per category)
-  @override
-  CategorizedSearchResult? get previewResults;
-
-  /// Whether preview is loading
-  @override
-  bool get isPreviewLoading;
-
-  /// Currently selected category in full results view
+  /// Currently selected category in results view
   @override
   SearchCategory get selectedCategory;
+
+  /// Categorized results for "All" tab (grouped by category)
+  @override
+  CategorizedSearchResult? get categorizedResults;
 
   /// Full results for the selected category (async state)
   @override
   AsyncValue<List<SearchResult>> get fullResults;
+
+  /// Whether results are currently loading
+  @override
+  bool get isLoading;
 
   /// Selected editions to search (empty = default to BJT)
   @override
@@ -535,10 +509,10 @@ abstract class _SearchState implements SearchState {
   @override
   bool get filtersVisible;
 
-  /// Whether the current query was submitted (user pressed Enter)
-  /// Used to determine if we should reopen the full results panel on focus
+  /// Whether the panel was dismissed (user clicked result or close button)
+  /// Panel reopens when user focuses the search bar again
   @override
-  bool get wasQuerySubmitted;
+  bool get isPanelDismissed;
 
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.

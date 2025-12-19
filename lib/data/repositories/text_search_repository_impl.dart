@@ -103,6 +103,13 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           final nodeMap = _buildNodeMap(tree);
 
           switch (category) {
+            case SearchCategory.all:
+              // "All" category should use searchCategorizedPreview instead
+              // This case should not be reached via normal flow
+              throw StateError(
+                'Use searchCategorizedPreview for SearchCategory.all',
+              );
+
             case SearchCategory.title:
               return Right(_searchTitles(
                 nodeMap: nodeMap,

@@ -190,7 +190,8 @@ class FTSDataSourceImpl implements FTSDataSource {
       _databases[editionId] = db;
     } catch (e) {
       _log('Error initializing $editionId: $e');
-      throw Exception('Failed to initialize FTS database for edition $editionId: $e');
+      throw Exception(
+          'Failed to initialize FTS database for edition $editionId: $e');
     }
   }
 
@@ -273,6 +274,7 @@ class FTSDataSourceImpl implements FTSDataSource {
       buffer.write(' LIMIT ? OFFSET ?');
       args.addAll([limit, offset]);
 
+      _log('Executing query: ${buffer.toString()}');
       // Execute query
       final List<Map<String, dynamic>> results = await db.rawQuery(
         buffer.toString(),

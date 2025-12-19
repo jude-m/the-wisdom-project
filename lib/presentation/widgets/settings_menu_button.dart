@@ -116,7 +116,7 @@ class _ThemeSelector extends ConsumerWidget {
   }
 }
 
-/// Language selection buttons  
+/// Language selection buttons
 class _LanguageSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -135,7 +135,8 @@ class _LanguageSelector extends ConsumerWidget {
       ],
       selected: {currentLanguage},
       onSelectionChanged: (Set<NavigationLanguage> newSelection) {
-        ref.read(navigationLanguageProvider.notifier).state = newSelection.first;
+        ref.read(navigationLanguageProvider.notifier).state =
+            newSelection.first;
       },
       style: const ButtonStyle(
         visualDensity: VisualDensity.compact,
