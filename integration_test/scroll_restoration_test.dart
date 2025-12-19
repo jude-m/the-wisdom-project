@@ -61,10 +61,10 @@ void main() {
         );
 
         // Add both tabs and activate Tab A
+        // Content file ID is now derived automatically from the active tab
         container.read(tabsProvider.notifier).addTab(tabA);
         container.read(tabsProvider.notifier).addTab(tabB);
         container.read(activeTabIndexProvider.notifier).state = 0;
-        container.read(currentContentFileIdProvider.notifier).state = 'dn-1';
 
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
@@ -184,9 +184,9 @@ void main() {
         );
 
         // STEP 1: Open Tab A
+        // Content file ID is now derived automatically from the active tab
         container.read(tabsProvider.notifier).addTab(tabA);
         container.read(activeTabIndexProvider.notifier).state = 0;
-        container.read(currentContentFileIdProvider.notifier).state = 'dn-1';
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
         // STEP 2: Open Tab B (tap to switch)
@@ -274,9 +274,9 @@ void main() {
           sinhalaName: 'New Tab',
         );
 
+        // Content file ID is now derived automatically from the active tab
         container.read(tabsProvider.notifier).addTab(tab);
         container.read(activeTabIndexProvider.notifier).state = 0;
-        container.read(currentContentFileIdProvider.notifier).state = 'dn-1';
 
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
@@ -325,9 +325,9 @@ void main() {
           sinhalaName: 'Tab to Close',
         );
 
+        // Content file ID is now derived automatically from the active tab
         container.read(tabsProvider.notifier).addTab(tab);
         container.read(activeTabIndexProvider.notifier).state = 0;
-        container.read(currentContentFileIdProvider.notifier).state = 'dn-1';
 
         await tester.pumpAndSettle(const Duration(seconds: 2));
 

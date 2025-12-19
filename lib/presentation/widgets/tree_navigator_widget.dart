@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/tipitaka_tree_node.dart';
 import '../../domain/entities/reader_tab.dart';
 import '../providers/navigation_tree_provider.dart';
-import '../providers/document_provider.dart';
 import '../providers/tab_provider.dart';
 
 class TreeNavigatorWidget extends ConsumerWidget {
@@ -152,21 +151,14 @@ class TreeNodeWidget extends ConsumerWidget {
                           node.isReadableContent ? node.entryIndexInPage : 0,
                     );
 
+                    // Add tab and make it active
+                    // Content and pagination state are derived automatically from the tab via:
+                    // - activeContentFileIdProvider
+                    // - activePageIndexProvider
+                    // - activePageStartProvider, activePageEndProvider, activeEntryStartProvider
                     final newIndex =
                         ref.read(tabsProvider.notifier).addTab(newTab);
                     ref.read(activeTabIndexProvider.notifier).state = newIndex;
-
-                    // If it has readable content, set content file and page index
-                    // Pagination state is derived from the tab automatically
-                    if (node.isReadableContent) {
-                      final fileId = node.contentFileId?.trim();
-                      if (fileId != null && fileId.isNotEmpty) {
-                        ref.read(currentContentFileIdProvider.notifier).state =
-                            fileId;
-                        ref.read(currentPageIndexProvider.notifier).state =
-                            node.entryPageIndex;
-                      }
-                    }
                   },
                   child: Row(
                     children: [

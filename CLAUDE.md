@@ -23,8 +23,6 @@ The Wisdom Project - a Tipitaka and commentary browsing app with parallel Pali/S
 - ARB files: `lib/core/localization/l10n/app_en.arb`, `app_si.arb`
 - Access: `AppLocalizations.of(context)`
 
-## Before Commits
-- `flutter analyze` must pass
-- `flutter test` must pass  
-- `flutter test integration_test/` must pass
-- `dart format lib/ test/` for 2-space indentation
+
+## DO 
+- Before running `flutter test` make sure to update the relevant tests

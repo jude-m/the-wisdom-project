@@ -37,12 +37,17 @@ final bjtDocumentProvider =
   );
 });
 
-// Current content file ID provider
-final currentContentFileIdProvider = StateProvider<String?>((ref) => null);
+// ============================================================================
+// CONTENT STATE
+// Content file ID and page index are derived from the active tab in tab_provider.dart:
+// - activeContentFileIdProvider
+// - activePageIndexProvider
+// This eliminates state duplication and ensures consistency.
+// ============================================================================
 
-// Current BJT document provider (uses currentContentFileIdProvider)
+// Current BJT document provider (uses activeContentFileIdProvider from tab state)
 final currentBJTDocumentProvider = Provider<AsyncValue<BJTDocument?>>((ref) {
-  final fileId = ref.watch(currentContentFileIdProvider);
+  final fileId = ref.watch(activeContentFileIdProvider);
 
   if (fileId == null || fileId.trim().isEmpty) {
     return const AsyncValue.data(null);
@@ -55,29 +60,6 @@ final currentBJTDocumentProvider = Provider<AsyncValue<BJTDocument?>>((ref) {
 // Column display mode provider
 final columnDisplayModeProvider = StateProvider<ColumnDisplayMode>((ref) {
   return ColumnDisplayMode.both;
-});
-
-// Current page index provider (entry page)
-final currentPageIndexProvider = StateProvider<int>((ref) => 0);
-
-// ============================================================================
-// PAGINATION STATE
-// Pagination state (pageStart, pageEnd, entryStart) is stored in ReaderTab
-// and exposed via derived providers in tab_provider.dart:
-// - activePageStartProvider
-// - activePageEndProvider
-// - activeEntryStartProvider
-// This eliminates state duplication and ensures consistency.
-// ============================================================================
-
-// Provider to load content for a specific node
-// Note: Pagination state is derived from the active tab automatically
-final loadContentForNodeProvider = Provider<void Function(String?, int)>((ref) {
-  return (String? contentFileId, int pageIndex) {
-    ref.read(currentContentFileIdProvider.notifier).state = contentFileId;
-    ref.read(currentPageIndexProvider.notifier).state = pageIndex;
-    // Pagination state is handled by derived providers reading from active tab
-  };
 });
 
 // Provider to load more pages
@@ -101,33 +83,8 @@ final loadMorePagesProvider = Provider<void Function(int)>((ref) {
   };
 });
 
-// Provider to navigate to next page
-final nextPageProvider = Provider<void Function()>((ref) {
-  return () {
-    final contentAsync = ref.read(currentBJTDocumentProvider);
-    contentAsync.whenData((document) {
-      if (document != null) {
-        final currentPage = ref.read(currentPageIndexProvider);
-        if (currentPage < document.pageCount - 1) {
-          ref.read(currentPageIndexProvider.notifier).state = currentPage + 1;
-        }
-      }
-    });
-  };
-});
-
-// Provider to navigate to previous page
-final previousPageProvider = Provider<void Function()>((ref) {
-  return () {
-    final currentPage = ref.read(currentPageIndexProvider);
-    if (currentPage > 0) {
-      ref.read(currentPageIndexProvider.notifier).state = currentPage - 1;
-    }
-  };
-});
-
 // ============================================================================
-// NEW: TextLayer Providers (Multi-Edition Foundation)
+// TextLayer Providers (Multi-Edition Foundation)
 // ============================================================================
 
 /// Converts current BJTDocument to TextLayers

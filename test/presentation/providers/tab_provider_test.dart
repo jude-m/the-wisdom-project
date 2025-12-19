@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_category.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
-import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
 import 'package:the_wisdom_project/domain/entities/reader_tab.dart';
 
 void main() {
@@ -121,7 +120,7 @@ void main() {
       expect(container.read(activeTabIndexProvider), equals(0));
     });
 
-    test('should set currentContentFileIdProvider', () {
+    test('should derive activeContentFileIdProvider from tab', () {
       // ARRANGE
       final result = _createTestSearchResult(
         nodeKey: 'mn-1',
@@ -131,11 +130,11 @@ void main() {
       // ACT
       container.read(openTabFromSearchResultProvider)(result);
 
-      // ASSERT
-      expect(container.read(currentContentFileIdProvider), equals('mn-1'));
+      // ASSERT - contentFileId is now derived from the active tab
+      expect(container.read(activeContentFileIdProvider), equals('mn-1'));
     });
 
-    test('should set currentPageIndexProvider', () {
+    test('should derive activePageIndexProvider from tab', () {
       // ARRANGE
       final result = _createTestSearchResult(
         nodeKey: 'dn-1',
@@ -146,8 +145,8 @@ void main() {
       // ACT
       container.read(openTabFromSearchResultProvider)(result);
 
-      // ASSERT
-      expect(container.read(currentPageIndexProvider), equals(7));
+      // ASSERT - pageIndex is now derived from the active tab
+      expect(container.read(activePageIndexProvider), equals(7));
     });
 
     test(
@@ -191,7 +190,7 @@ void main() {
       expect(tabs.length, equals(2));
       expect(container.read(activeTabIndexProvider),
           equals(1)); // Second tab active
-      expect(container.read(currentContentFileIdProvider), equals('mn-1'));
+      expect(container.read(activeContentFileIdProvider), equals('mn-1'));
     });
 
     test('should handle search result with title category', () {
@@ -263,13 +262,13 @@ void main() {
       expect(container.read(activeTabIndexProvider), equals(1));
     });
 
-    test('should load content for the switched tab', () {
+    test('should derive content state for the switched tab', () {
       // ACT
       container.read(switchTabProvider)(1);
 
-      // ASSERT
-      expect(container.read(currentContentFileIdProvider), equals('mn-1'));
-      expect(container.read(currentPageIndexProvider), equals(5));
+      // ASSERT - content state is now derived from the active tab
+      expect(container.read(activeContentFileIdProvider), equals('mn-1'));
+      expect(container.read(activePageIndexProvider), equals(5));
     });
 
     test('should derive pagination state from tab via active*Provider', () {

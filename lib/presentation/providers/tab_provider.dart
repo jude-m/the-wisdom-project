@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/reader_tab.dart';
 import '../../domain/entities/search/search_result.dart';
-import 'document_provider.dart';
 
 /// State notifier for managing the list of reader tabs
 class TabsNotifier extends StateNotifier<List<ReaderTab>> {
@@ -89,11 +88,33 @@ final getTabScrollPositionProvider = Provider<double Function(int)>((ref) {
 });
 
 // ============================================================================
-// DERIVED PAGINATION PROVIDERS
+// DERIVED PROVIDERS
 // These read from the active tab's state, providing reactive updates without
 // duplicating state. When the active tab or its properties change, widgets
 // watching these providers will automatically rebuild.
 // ============================================================================
+
+/// Derived provider for active tab's content file ID
+/// Returns null if no tab is selected or tab has no content
+final activeContentFileIdProvider = Provider<String?>((ref) {
+  final activeIndex = ref.watch(activeTabIndexProvider);
+  final tabs = ref.watch(tabsProvider);
+  if (activeIndex >= 0 && activeIndex < tabs.length) {
+    return tabs[activeIndex].contentFileId;
+  }
+  return null;
+});
+
+/// Derived provider for active tab's page index
+/// Returns 0 if no tab is selected
+final activePageIndexProvider = Provider<int>((ref) {
+  final activeIndex = ref.watch(activeTabIndexProvider);
+  final tabs = ref.watch(tabsProvider);
+  if (activeIndex >= 0 && activeIndex < tabs.length) {
+    return tabs[activeIndex].pageIndex;
+  }
+  return 0;
+});
 
 /// Derived provider for active tab's pageStart
 /// Returns 0 if no tab is selected
@@ -148,31 +169,29 @@ final updateActiveTabPaginationProvider =
   };
 });
 
-/// Provider to handle tab switching (saves scroll position and loads new tab)
-/// Note: Pagination state is handled by derived providers (activePageStartProvider,
-/// activePageEndProvider, activeEntryStartProvider) which automatically read from
-/// the active tab's state.
+/// Provider to update the page index of the active tab
+/// Used for next/previous page navigation
+final updateActiveTabPageIndexProvider = Provider<void Function(int)>((ref) {
+  return (int pageIndex) {
+    final activeIndex = ref.read(activeTabIndexProvider);
+    ref.read(tabsProvider.notifier).updateTabPage(activeIndex, pageIndex);
+  };
+});
+
+/// Provider to handle tab switching
+/// Content and pagination state are derived automatically from the active tab via:
+/// - activeContentFileIdProvider
+/// - activePageIndexProvider
+/// - activePageStartProvider, activePageEndProvider, activeEntryStartProvider
 final switchTabProvider = Provider<void Function(int)>((ref) {
   return (int newTabIndex) {
-    // Update active tab index
+    // Just update the active tab index - all content state is derived automatically
     ref.read(activeTabIndexProvider.notifier).state = newTabIndex;
-
-    // Load content for the new tab
-    final tabs = ref.read(tabsProvider);
-    if (newTabIndex >= 0 && newTabIndex < tabs.length) {
-      final tab = tabs[newTabIndex];
-      if (tab.hasContent) {
-        // Set the content file ID and page index
-        // Pagination state is derived from the tab automatically
-        ref.read(currentContentFileIdProvider.notifier).state =
-            tab.contentFileId;
-        ref.read(currentPageIndexProvider.notifier).state = tab.pageIndex;
-      }
-    }
   };
 });
 
 /// Provider to close a tab
+/// Content state is derived automatically from the active tab
 final closeTabProvider = Provider<void Function(int)>((ref) {
   return (int tabIndex) {
     final tabs = ref.read(tabsProvider);
@@ -210,22 +229,12 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
       ref.read(activeTabIndexProvider.notifier).state = -1;
       ref.read(activeTabIndexProvider.notifier).state = newActiveIndex;
 
-      // Load content for the new active tab
-      if (newActiveIndex >= 0) {
-        final newTabs = ref.read(tabsProvider);
-        if (newActiveIndex < newTabs.length) {
-          final newActiveTab = newTabs[newActiveIndex];
-          if (newActiveTab.hasContent) {
-            ref.read(loadContentForNodeProvider)(
-              newActiveTab.contentFileId,
-              newActiveTab.pageIndex,
-            );
-          }
-        }
-      } else {
-        // No tabs left - clear the content to show "Select a sutta..." message
-        ref.read(loadContentForNodeProvider)(null, 0);
-        // Also clear all scroll positions since no tabs exist
+      // Content is derived automatically from the new active tab
+      // No explicit loading needed - activeContentFileIdProvider and
+      // activePageIndexProvider will update based on the new active tab
+
+      if (newActiveIndex < 0) {
+        // No tabs left - clear all scroll positions
         ref.read(tabScrollPositionsProvider.notifier).state = {};
       }
     } else if (tabIndex < currentTabIndex) {
@@ -237,8 +246,7 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
 
 /// Provider to open a new tab from a search result
 /// Centralizes the tab creation and navigation logic used across search widgets
-/// Pagination state (pageStart, pageEnd, entryStart) is stored in the tab entity
-/// and exposed via derived providers, eliminating the need for global state sync.
+/// All state (contentFileId, pageIndex, pagination) is derived from the tab entity
 final openTabFromSearchResultProvider =
     Provider<void Function(SearchResult)>((ref) {
   return (SearchResult result) {
@@ -256,14 +264,11 @@ final openTabFromSearchResultProvider =
     );
 
     // Add tab and make it active
+    // Content and pagination state are derived automatically from the tab via:
+    // - activeContentFileIdProvider
+    // - activePageIndexProvider
+    // - activePageStartProvider, activePageEndProvider, activeEntryStartProvider
     final newIndex = ref.read(tabsProvider.notifier).addTab(newTab);
     ref.read(activeTabIndexProvider.notifier).state = newIndex;
-
-    // Set the content file and page index
-    // Pagination state is derived from the tab automatically via
-    // activePageStartProvider, activePageEndProvider, activeEntryStartProvider
-    ref.read(currentContentFileIdProvider.notifier).state =
-        result.contentFileId;
-    ref.read(currentPageIndexProvider.notifier).state = result.pageIndex;
   };
 });
