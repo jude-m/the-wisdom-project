@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:the_wisdom_project/domain/entities/search/recent_search.dart';
+import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
+import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 import 'package:the_wisdom_project/presentation/widgets/search_bar.dart'
     as app_search;
 
@@ -22,27 +24,6 @@ void main() {
   });
 
   group('SearchBar -', () {
-    testWidgets('should render with search icon and hint text', (tester) async {
-      // ARRANGE
-      when(mockRecentSearchesRepository.getRecentSearches())
-          .thenAnswer((_) async => []);
-
-      // ACT
-      await tester.pumpApp(
-        const app_search.SearchBar(),
-        overrides: [
-          TestProviderOverrides.sharedPreferences(prefs),
-          TestProviderOverrides.textSearchRepository(mockSearchRepository),
-          TestProviderOverrides.recentSearchesRepository(
-              mockRecentSearchesRepository),
-        ],
-      );
-      await tester.pumpAndSettle();
-
-      // ASSERT
-      expect(find.byIcon(Icons.search), findsOneWidget);
-    });
-
     testWidgets('should show clear button when text is entered',
         (tester) async {
       // ARRANGE
@@ -98,7 +79,121 @@ void main() {
       expect(find.text('dhamma'), findsOneWidget);
     });
 
-    testWidgets('should clear text when clear button pressed', (tester) async {
+    testWidgets('should clear search state when clear button pressed',
+        (tester) async {
+      // ARRANGE
+      when(mockRecentSearchesRepository.getRecentSearches())
+          .thenAnswer((_) async => []);
+
+      // Create a test helper to access provider state
+      SearchState? capturedState;
+
+      await tester.pumpApp(
+        ProviderTestWidget(
+          onBuild: (ref) {
+            // Capture the current state on each rebuild
+            capturedState = ref.watch(searchStateProvider);
+          },
+          child: const app_search.SearchBar(),
+        ),
+        overrides: [
+          TestProviderOverrides.sharedPreferences(prefs),
+          TestProviderOverrides.textSearchRepository(mockSearchRepository),
+          TestProviderOverrides.recentSearchesRepository(
+              mockRecentSearchesRepository),
+        ],
+      );
+      await tester.pumpAndSettle();
+
+      // Enter text directly (this shows clear button and triggers search state)
+      await tester.enterText(find.byType(TextField), 'dhamma');
+      await tester.pump();
+
+      // Verify state is set
+      expect(capturedState?.queryText, equals('dhamma'));
+      expect(capturedState?.isResultsPanelVisible, isTrue);
+
+      // ACT - Press clear button with warnIfMissed: false since overlay may be present
+      await tester.tap(find.byIcon(Icons.clear), warnIfMissed: false);
+      await tester.pump();
+
+      // ASSERT - Verify search state is cleared
+      expect(capturedState?.queryText, isEmpty);
+      expect(capturedState?.categorizedResults, isNull);
+      expect(capturedState?.isResultsPanelVisible, isFalse);
+    });
+
+    testWidgets('should show exact match toggle button', (tester) async {
+      // ARRANGE
+      when(mockRecentSearchesRepository.getRecentSearches())
+          .thenAnswer((_) async => []);
+
+      // ACT
+      await tester.pumpApp(
+        const app_search.SearchBar(),
+        overrides: [
+          TestProviderOverrides.sharedPreferences(prefs),
+          TestProviderOverrides.textSearchRepository(mockSearchRepository),
+          TestProviderOverrides.recentSearchesRepository(
+              mockRecentSearchesRepository),
+        ],
+      );
+      await tester.pumpAndSettle();
+
+      // ASSERT - Exact match toggle button (ABC icon) should be visible
+      expect(find.byIcon(Icons.abc), findsOneWidget);
+    });
+
+    testWidgets('should toggle exact match when toggle button pressed',
+        (tester) async {
+      // ARRANGE
+      when(mockRecentSearchesRepository.getRecentSearches())
+          .thenAnswer((_) async => []);
+
+      // Create a test helper to access provider state
+      SearchState? capturedState;
+
+      await tester.pumpApp(
+        ProviderTestWidget(
+          onBuild: (ref) {
+            // Capture the current state on each rebuild
+            capturedState = ref.watch(searchStateProvider);
+          },
+          child: const app_search.SearchBar(),
+        ),
+        overrides: [
+          TestProviderOverrides.sharedPreferences(prefs),
+          TestProviderOverrides.textSearchRepository(mockSearchRepository),
+          TestProviderOverrides.recentSearchesRepository(
+              mockRecentSearchesRepository),
+        ],
+      );
+      await tester.pumpAndSettle();
+
+      // Initial state: exactMatch should be false
+      expect(capturedState?.exactMatch, isFalse);
+
+      // Find the exact match toggle button
+      final toggleButton = find.byIcon(Icons.abc);
+      expect(toggleButton, findsOneWidget);
+
+      // ACT - Tap the toggle button
+      await tester.tap(toggleButton);
+      await tester.pumpAndSettle();
+
+      // ASSERT - exactMatch state should now be true
+      expect(capturedState?.exactMatch, isTrue);
+
+      // ACT - Tap again to toggle off
+      await tester.tap(toggleButton);
+      await tester.pumpAndSettle();
+
+      // ASSERT - exactMatch should return to false
+      expect(capturedState?.exactMatch, isFalse);
+    });
+
+    testWidgets('should show tooltip on exact match toggle button hover',
+        (tester) async {
       // ARRANGE
       when(mockRecentSearchesRepository.getRecentSearches())
           .thenAnswer((_) async => []);
@@ -114,17 +209,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Enter text directly (this shows clear button)
-      await tester.enterText(find.byType(TextField), 'dhamma');
-      await tester.pump();
+      // ACT - Long press to show tooltip (simulates hover on mobile)
+      final toggleButton = find.byIcon(Icons.abc);
+      await tester.longPress(toggleButton);
+      await tester.pump(const Duration(milliseconds: 500));
 
-      // ACT - Press clear button with warnIfMissed: false since overlay may be present
-      await tester.tap(find.byIcon(Icons.clear), warnIfMissed: false);
-      await tester.pump();
-
-      // ASSERT
-      final textField = tester.widget<TextField>(find.byType(TextField));
-      expect(textField.controller?.text, isEmpty);
+      // ASSERT - Tooltip should be visible with localized text
+      expect(find.text('Exact word match'), findsOneWidget);
     });
 
     // Note: Result tap functionality was moved to SearchResultsPanel

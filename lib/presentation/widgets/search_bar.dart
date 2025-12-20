@@ -82,6 +82,10 @@ class _SearchBarState extends ConsumerState<SearchBar> {
     final isResultsPanelVisible =
         ref.watch(searchStateProvider.select((s) => s.isResultsPanelVisible));
 
+    // Watch exact match state for toggle button
+    final exactMatch =
+        ref.watch(searchStateProvider.select((s) => s.exactMatch));
+
     // Listen to queryText changes and sync controller
     ref.listen(searchStateProvider.select((s) => s.queryText), (prev, next) {
       if (_controller.text != next) {
@@ -158,8 +162,37 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
                 isDense: true,
-                suffixIcon: _controller.text.isNotEmpty
-                    ? IconButton(
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Exact match toggle button with clear visual state
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: exactMatch
+                            ? theme.colorScheme.primaryContainer
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.abc,
+                          size: 20,
+                          color: exactMatch
+                              ? theme.colorScheme.onPrimaryContainer
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                        tooltip: l10n.exactMatchToggle,
+                        onPressed: () {
+                          ref
+                              .read(searchStateProvider.notifier)
+                              .toggleExactMatch();
+                        },
+                      ),
+                    ),
+                    // Clear button (only shown when text is present)
+                    if (_controller.text.isNotEmpty)
+                      IconButton(
                         icon: Icon(
                           Icons.clear,
                           size: 18,
@@ -170,8 +203,9 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                           ref.read(searchStateProvider.notifier).clearSearch();
                           _focusNode.requestFocus();
                         },
-                      )
-                    : null,
+                      ),
+                  ],
+                ),
               ),
               onChanged: (value) {
                 ref.read(searchStateProvider.notifier).updateQuery(value);

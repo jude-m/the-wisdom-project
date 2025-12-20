@@ -253,6 +253,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search'**
   String get searchHint;
+
+  /// Tooltip for toggle button that switches between prefix matching and exact word matching in search
+  ///
+  /// In en, this message translates to:
+  /// **'Exact word match'**
+  String get exactMatchToggle;
 }
 
 class _AppLocalizationsDelegate

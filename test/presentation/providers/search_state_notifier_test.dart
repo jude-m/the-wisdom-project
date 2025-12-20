@@ -1,10 +1,13 @@
 import 'package:dartz/dartz.dart';
 import 'package:fake_async/fake_async.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:the_wisdom_project/domain/entities/failure.dart';
 import 'package:the_wisdom_project/domain/entities/search/categorized_search_result.dart';
 import 'package:the_wisdom_project/domain/entities/search/recent_search.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_category.dart';
+import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 
 import '../../helpers/mocks.mocks.dart';
@@ -282,6 +285,89 @@ void main() {
       });
     });
 
+    group('toggleExactMatch', () {
+      test('should toggle exactMatch flag on and off', () {
+        // ARRANGE - Initial state has exactMatch=false
+        expect(notifier.state.exactMatch, isFalse);
+
+        // ACT - Toggle to true
+        notifier.toggleExactMatch();
+
+        // ASSERT
+        expect(notifier.state.exactMatch, isTrue);
+
+        // ACT - Toggle back to false
+        notifier.toggleExactMatch();
+
+        // ASSERT
+        expect(notifier.state.exactMatch, isFalse);
+      });
+
+      test('should refresh search when toggling with active query', () async {
+        // ARRANGE
+        const categorizedResult = CategorizedSearchResult(
+          resultsByCategory: {
+            SearchCategory.title: [],
+            SearchCategory.content: [],
+            SearchCategory.definition: [],
+          },
+          totalCount: 0,
+        );
+        when(mockSearchRepository.searchCategorizedPreview(any))
+            .thenAnswer((_) async => const Right(categorizedResult));
+
+        notifier.updateQuery('dhamma');
+        await Future.delayed(const Duration(milliseconds: 350)); // Wait for debounce
+        clearInteractions(mockSearchRepository);
+
+        // ACT - Toggle exact match
+        notifier.toggleExactMatch();
+
+        // ASSERT - Should trigger new search
+        verify(mockSearchRepository.searchCategorizedPreview(any)).called(1);
+      });
+
+      test('should not refresh search when toggling with empty query', () {
+        // ARRANGE - Empty query
+        expect(notifier.state.queryText, isEmpty);
+
+        // ACT - Toggle exact match
+        notifier.toggleExactMatch();
+
+        // ASSERT - No search triggered
+        verifyNever(mockSearchRepository.searchCategorizedPreview(any));
+      });
+
+      test('should include exactMatch in built SearchQuery', () async {
+        // ARRANGE
+        const categorizedResult = CategorizedSearchResult(
+          resultsByCategory: {
+            SearchCategory.title: [],
+            SearchCategory.content: [],
+            SearchCategory.definition: [],
+          },
+          totalCount: 0,
+        );
+        when(mockSearchRepository.searchCategorizedPreview(any))
+            .thenAnswer((_) async => const Right(categorizedResult));
+
+        notifier.updateQuery('dhamma');
+        notifier.toggleExactMatch(); // Set exactMatch to true
+
+        await Future.delayed(const Duration(milliseconds: 350)); // Wait for debounce
+
+        // ASSERT - Verify the SearchQuery passed has exactMatch=true
+        final captured = verify(
+          mockSearchRepository.searchCategorizedPreview(captureAny),
+        ).captured;
+
+        expect(captured.length, greaterThan(0));
+        final query = captured.last;
+        expect(query.exactMatch, isTrue);
+        expect(query.queryText, equals('dhamma'));
+      });
+    });
+
     group('Filter methods', () {
       test('toggleEdition should add/remove edition', () {
         // ACT - Add edition
@@ -457,6 +543,157 @@ void main() {
         verify(mockSearchRepository.searchCategorizedPreview(any)).called(1);
         verify(mockRecentSearchesRepository.addRecentSearch('dhamma'))
             .called(1);
+      });
+    });
+
+    group('Error handling', () {
+      test('should clear results when categorized search fails', () async {
+        // ARRANGE
+        const failure = Failure.dataLoadFailure(
+          message: 'Database connection failed',
+        );
+        when(mockSearchRepository.searchCategorizedPreview(any))
+            .thenAnswer((_) async => const Left(failure));
+
+        // ACT
+        notifier.updateQuery('test');
+        await Future.delayed(const Duration(milliseconds: 350)); // Wait for debounce
+
+        // ASSERT
+        expect(notifier.state.isLoading, isFalse);
+        expect(notifier.state.categorizedResults, isNull);
+        expect(notifier.state.queryText, equals('test')); // Query text preserved
+      });
+
+      test('should set error state when category search fails', () async {
+        // ARRANGE
+        const failure = Failure.dataLoadFailure(
+          message: 'Failed to load content results',
+        );
+        when(mockSearchRepository.searchByCategory(any, any))
+            .thenAnswer((_) async => const Left(failure));
+
+        notifier.updateQuery('test');
+
+        // ACT
+        await notifier.selectCategory(SearchCategory.content);
+
+        // ASSERT
+        expect(notifier.state.isLoading, isFalse);
+
+        // Check that fullResults is in error state
+        final results = notifier.state.fullResults;
+        expect(results, isA<AsyncError<List<SearchResult>>>());
+
+        // Access error from AsyncError
+        if (results is AsyncError<List<SearchResult>>) {
+          expect(results.error, isA<Failure>());
+          final error = results.error as Failure;
+          expect(error.userMessage, contains('Failed to load data'));
+        }
+      });
+
+      test('should handle search failure gracefully without crashing',
+          () async {
+        // ARRANGE
+        const failure = Failure.unexpectedFailure(
+          message: 'Unexpected error occurred',
+        );
+        when(mockSearchRepository.searchCategorizedPreview(any))
+            .thenAnswer((_) async => const Left(failure));
+
+        // ACT - Should not throw
+        notifier.updateQuery('test');
+        await Future.delayed(const Duration(milliseconds: 350));
+
+        // ASSERT - App should continue functioning
+        expect(notifier.state.isLoading, isFalse);
+        expect(notifier.state.queryText, equals('test'));
+
+        // User can try another search
+        const successResult = CategorizedSearchResult(
+          resultsByCategory: {
+            SearchCategory.title: [],
+            SearchCategory.content: [],
+            SearchCategory.definition: [],
+          },
+          totalCount: 0,
+        );
+        when(mockSearchRepository.searchCategorizedPreview(any))
+            .thenAnswer((_) async => const Right(successResult));
+
+        notifier.updateQuery('dhamma');
+        await Future.delayed(const Duration(milliseconds: 350));
+
+        expect(notifier.state.categorizedResults, isNotNull);
+      });
+
+      test('should cancel debounced search when query changes rapidly',
+          () async {
+        // ARRANGE
+        var callCount = 0;
+        when(mockSearchRepository.searchCategorizedPreview(any))
+            .thenAnswer((_) async {
+          callCount++;
+          return const Right(CategorizedSearchResult(
+            resultsByCategory: {
+              SearchCategory.title: [],
+              SearchCategory.content: [],
+              SearchCategory.definition: [],
+            },
+            totalCount: 0,
+          ));
+        });
+
+        // ACT - Rapidly change query three times
+        notifier.updateQuery('a');
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        notifier.updateQuery('ab');
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        notifier.updateQuery('abc');
+        await Future.delayed(const Duration(milliseconds: 350)); // Wait for final debounce
+
+        // ASSERT - Should only search once (for 'abc'), not three times
+        expect(callCount, equals(1));
+        expect(notifier.state.queryText, equals('abc'));
+      });
+
+      test('should handle concurrent filter changes without race conditions',
+          () async {
+        // ARRANGE
+        const categorizedResult = CategorizedSearchResult(
+          resultsByCategory: {
+            SearchCategory.title: [],
+            SearchCategory.content: [],
+            SearchCategory.definition: [],
+          },
+          totalCount: 0,
+        );
+        when(mockSearchRepository.searchCategorizedPreview(any))
+            .thenAnswer((_) async => const Right(categorizedResult));
+
+        notifier.updateQuery('dhamma');
+        await Future.delayed(const Duration(milliseconds: 350));
+        clearInteractions(mockSearchRepository);
+
+        // ACT - Rapidly toggle filters
+        notifier.toggleExactMatch();
+        notifier.setLanguageFilter(pali: false);
+        notifier.addNikayaFilter('dn');
+
+        // Wait for all searches to complete
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        // ASSERT - All filter changes should be reflected in final state
+        expect(notifier.state.exactMatch, isTrue);
+        expect(notifier.state.searchInPali, isFalse);
+        expect(notifier.state.nikayaFilters, contains('dn'));
+
+        // Should have triggered searches (one per filter change)
+        verify(mockSearchRepository.searchCategorizedPreview(any))
+            .called(greaterThan(0));
       });
     });
   });

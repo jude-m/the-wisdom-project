@@ -19,6 +19,10 @@ mixin _$SearchQuery {
   /// The search query text
   String get queryText => throw _privateConstructorUsedError;
 
+  /// Whether to require exact word match (no prefix matching)
+  /// Default false = prefix matching enabled (e.g., "සතිප" matches "සතිපට්ඨානය")
+  bool get exactMatch => throw _privateConstructorUsedError;
+
   /// Editions to search within (e.g., {'bjt', 'sc'})
   /// If empty, searches all available editions
   Set<String> get editionIds => throw _privateConstructorUsedError;
@@ -56,6 +60,7 @@ abstract class $SearchQueryCopyWith<$Res> {
   @useResult
   $Res call(
       {String queryText,
+      bool exactMatch,
       Set<String> editionIds,
       bool searchInPali,
       bool searchInSinhala,
@@ -81,6 +86,7 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
   @override
   $Res call({
     Object? queryText = null,
+    Object? exactMatch = null,
     Object? editionIds = null,
     Object? searchInPali = null,
     Object? searchInSinhala = null,
@@ -94,6 +100,10 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
           ? _value.queryText
           : queryText // ignore: cast_nullable_to_non_nullable
               as String,
+      exactMatch: null == exactMatch
+          ? _value.exactMatch
+          : exactMatch // ignore: cast_nullable_to_non_nullable
+              as bool,
       editionIds: null == editionIds
           ? _value.editionIds
           : editionIds // ignore: cast_nullable_to_non_nullable
@@ -136,6 +146,7 @@ abstract class _$$SearchQueryImplCopyWith<$Res>
   @useResult
   $Res call(
       {String queryText,
+      bool exactMatch,
       Set<String> editionIds,
       bool searchInPali,
       bool searchInSinhala,
@@ -159,6 +170,7 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? queryText = null,
+    Object? exactMatch = null,
     Object? editionIds = null,
     Object? searchInPali = null,
     Object? searchInSinhala = null,
@@ -172,6 +184,10 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
           ? _value.queryText
           : queryText // ignore: cast_nullable_to_non_nullable
               as String,
+      exactMatch: null == exactMatch
+          ? _value.exactMatch
+          : exactMatch // ignore: cast_nullable_to_non_nullable
+              as bool,
       editionIds: null == editionIds
           ? _value._editionIds
           : editionIds // ignore: cast_nullable_to_non_nullable
@@ -209,6 +225,7 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
 class _$SearchQueryImpl implements _SearchQuery {
   const _$SearchQueryImpl(
       {required this.queryText,
+      this.exactMatch = false,
       final Set<String> editionIds = const {},
       this.searchInPali = true,
       this.searchInSinhala = true,
@@ -223,6 +240,12 @@ class _$SearchQueryImpl implements _SearchQuery {
   /// The search query text
   @override
   final String queryText;
+
+  /// Whether to require exact word match (no prefix matching)
+  /// Default false = prefix matching enabled (e.g., "සතිප" matches "සතිපට්ඨානය")
+  @override
+  @JsonKey()
+  final bool exactMatch;
 
   /// Editions to search within (e.g., {'bjt', 'sc'})
   /// If empty, searches all available editions
@@ -284,7 +307,7 @@ class _$SearchQueryImpl implements _SearchQuery {
 
   @override
   String toString() {
-    return 'SearchQuery(queryText: $queryText, editionIds: $editionIds, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, labelFilters: $labelFilters, limit: $limit, offset: $offset)';
+    return 'SearchQuery(queryText: $queryText, exactMatch: $exactMatch, editionIds: $editionIds, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, labelFilters: $labelFilters, limit: $limit, offset: $offset)';
   }
 
   @override
@@ -294,6 +317,8 @@ class _$SearchQueryImpl implements _SearchQuery {
             other is _$SearchQueryImpl &&
             (identical(other.queryText, queryText) ||
                 other.queryText == queryText) &&
+            (identical(other.exactMatch, exactMatch) ||
+                other.exactMatch == exactMatch) &&
             const DeepCollectionEquality()
                 .equals(other._editionIds, _editionIds) &&
             (identical(other.searchInPali, searchInPali) ||
@@ -312,6 +337,7 @@ class _$SearchQueryImpl implements _SearchQuery {
   int get hashCode => Object.hash(
       runtimeType,
       queryText,
+      exactMatch,
       const DeepCollectionEquality().hash(_editionIds),
       searchInPali,
       searchInSinhala,
@@ -332,6 +358,7 @@ class _$SearchQueryImpl implements _SearchQuery {
 abstract class _SearchQuery implements SearchQuery {
   const factory _SearchQuery(
       {required final String queryText,
+      final bool exactMatch,
       final Set<String> editionIds,
       final bool searchInPali,
       final bool searchInSinhala,
@@ -343,6 +370,11 @@ abstract class _SearchQuery implements SearchQuery {
   /// The search query text
   @override
   String get queryText;
+
+  /// Whether to require exact word match (no prefix matching)
+  /// Default false = prefix matching enabled (e.g., "සතිප" matches "සතිපට්ඨානය")
+  @override
+  bool get exactMatch;
 
   /// Editions to search within (e.g., {'bjt', 'sc'})
   /// If empty, searches all available editions

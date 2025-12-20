@@ -129,5 +129,10 @@
   "searchHint": "Search",
   "@searchHint": {
     "description": "Hint text shown in search input field"
+  },
+
+  "exactMatchToggle": "Exact word match",
+  "@exactMatchToggle": {
+    "description": "Tooltip for toggle button that switches between prefix matching and exact word matching in search"
   }
 }

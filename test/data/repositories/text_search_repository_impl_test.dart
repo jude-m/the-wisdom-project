@@ -160,6 +160,7 @@ void main() {
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
           nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: anyNamed('exactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
         )).thenAnswer((_) async => []);
@@ -263,6 +264,7 @@ void main() {
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
           nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: anyNamed('exactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
         )).thenAnswer((_) async => []);
@@ -309,6 +311,7 @@ void main() {
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
           nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: anyNamed('exactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
         )).thenAnswer((_) async => ftsMatches);
@@ -329,6 +332,71 @@ void main() {
             expect(contentResults[0].contentFileId, equals('dn-1'));
           },
         );
+      });
+
+      test('should pass exactMatch=true to FTS when query has exactMatch enabled',
+          () async {
+        // ARRANGE
+        const query = SearchQuery(queryText: 'dhamma', exactMatch: true);
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(sampleTree));
+
+        when(mockFTSDataSource.searchContent(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: anyNamed('exactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        await repository.searchCategorizedPreview(query);
+
+        // ASSERT - Verify exactMatch was passed to FTS datasource
+        verify(mockFTSDataSource.searchContent(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: true, // Should pass exactMatch from query
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).called(1);
+      });
+
+      test('should pass exactMatch=false to FTS by default', () async {
+        // ARRANGE
+        const query = SearchQuery(queryText: 'dhamma'); // exactMatch defaults to false
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(sampleTree));
+
+        when(mockFTSDataSource.searchContent(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: anyNamed('exactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        await repository.searchCategorizedPreview(query);
+
+        // ASSERT - Verify exactMatch defaults to false
+        verify(mockFTSDataSource.searchContent(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: false, // Default value
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).called(1);
       });
 
       test('should return failure when tree loading fails', () async {
@@ -367,6 +435,7 @@ void main() {
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
           nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: anyNamed('exactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
         )).thenThrow(Exception('Database error'));
@@ -399,6 +468,7 @@ void main() {
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
           nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: anyNamed('exactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
         )).thenAnswer((_) async => []);
@@ -446,6 +516,7 @@ void main() {
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
           nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: anyNamed('exactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
         )).thenAnswer((_) async => []);
@@ -493,6 +564,7 @@ void main() {
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
           nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: anyNamed('exactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
         )).thenAnswer((_) async => []);
@@ -543,6 +615,7 @@ void main() {
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
           nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: anyNamed('exactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
         )).thenAnswer((_) async => []);
@@ -592,6 +665,7 @@ void main() {
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
           nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: anyNamed('exactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
         )).thenAnswer((_) async => []);
@@ -690,6 +764,7 @@ void main() {
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
           nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: anyNamed('exactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
         )).thenAnswer((_) async => ftsMatches);
@@ -715,6 +790,7 @@ void main() {
           editionIds: {'bjt'},
           language: null,
           nikayaFilter: null,
+          exactMatch: false,
           limit: 50,
           offset: 0,
         )).called(1);
@@ -781,6 +857,7 @@ void main() {
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
           nikayaFilter: anyNamed('nikayaFilter'),
+          exactMatch: anyNamed('exactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
         )).thenThrow(Exception('Database error'));

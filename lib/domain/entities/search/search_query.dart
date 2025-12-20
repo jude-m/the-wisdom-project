@@ -9,6 +9,10 @@ class SearchQuery with _$SearchQuery {
     /// The search query text
     required String queryText,
 
+    /// Whether to require exact word match (no prefix matching)
+    /// Default false = prefix matching enabled (e.g., "සති" matches "සතිපට්ඨානය")
+    @Default(false) bool exactMatch,
+
     /// Editions to search within (e.g., {'bjt', 'sc'})
     /// If empty, searches all available editions
     @Default({}) Set<String> editionIds,

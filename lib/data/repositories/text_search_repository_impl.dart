@@ -51,6 +51,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             nodeMap: nodeMap,
             queryText: query.queryText,
             editionId: 'bjt', // TODO: Support multiple editions
+            exactMatch: query.exactMatch,
             limit: maxPerCategory,
           );
 
@@ -59,6 +60,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             nodeMap: nodeMap,
             queryText: query.queryText,
             editionIds: editionsToSearch,
+            exactMatch: query.exactMatch,
             limit: maxPerCategory,
             offset: 0,
             loadMatchedText: true, // Preview needs text for display
@@ -115,6 +117,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 nodeMap: nodeMap,
                 queryText: query.queryText,
                 editionId: 'bjt',
+                exactMatch: query.exactMatch,
                 limit: query.limit,
               ));
 
@@ -123,6 +126,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 nodeMap: nodeMap,
                 queryText: query.queryText,
                 editionIds: editionsToSearch,
+                exactMatch: query.exactMatch,
                 limit: query.limit,
                 offset: query.offset,
                 loadMatchedText: false, // Full results don't need text yet
@@ -178,10 +182,14 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   /// Returns results sorted with leaf nodes (individual suttas) first
   /// Prefers Sinhala name if both languages match
   /// Supports Singlish (romanized Sinhala) transliteration search
+  ///
+  /// When [exactMatch] is false (default), uses prefix matching (startsWith).
+  /// When [exactMatch] is true, requires exact string match.
   List<SearchResult> _searchTitles({
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
     required String editionId,
+    bool exactMatch = false,
     int? limit,
   }) {
     final results = <SearchResult>[];
@@ -195,18 +203,29 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
         ? normalizeText(transliterator.convert(queryText), toLowerCase: true)
         : null; // null if no conversion needed
 
+    // Helper function to check if a name matches the query
+    // exactMatch=false: prefix matching (startsWith)
+    // exactMatch=true: exact string match
+    bool matchesQuery(String name, String query) {
+      if (exactMatch) {
+        return name == query;
+      } else {
+        return name.startsWith(query);
+      }
+    }
+
     for (final node in nodeMap.values) {
       final paliName = normalizeText(node.paliName, toLowerCase: true);
       final sinhalaName = normalizeText(node.sinhalaName, toLowerCase: true);
 
       // Try original query against both names (for direct matches)
       // AND try converted query against both names (for transliterated matches)
-      final paliMatchedOriginal = paliName.contains(originalQuery);
-      final sinhalaMatchedOriginal = sinhalaName.contains(originalQuery);
+      final paliMatchedOriginal = matchesQuery(paliName, originalQuery);
+      final sinhalaMatchedOriginal = matchesQuery(sinhalaName, originalQuery);
       final paliMatchedConverted =
-          convertedQuery != null && paliName.contains(convertedQuery);
+          convertedQuery != null && matchesQuery(paliName, convertedQuery);
       final sinhalaMatchedConverted =
-          convertedQuery != null && sinhalaName.contains(convertedQuery);
+          convertedQuery != null && matchesQuery(sinhalaName, convertedQuery);
 
       final paliMatched = paliMatchedOriginal || paliMatchedConverted;
       final sinhalaMatched = sinhalaMatchedOriginal || sinhalaMatchedConverted;
@@ -259,6 +278,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
     required Set<String> editionIds,
+    bool exactMatch = false,
     int? limit,
     int offset = 0,
     bool loadMatchedText = false,
@@ -273,6 +293,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     final ftsMatches = await _ftsDataSource.searchContent(
       effectiveQuery,
       editionIds: editionIds,
+      exactMatch: exactMatch,
       limit: limit ?? 50,
       offset: offset,
     );

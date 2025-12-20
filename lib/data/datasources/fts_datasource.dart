@@ -6,8 +6,6 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
-import '../../core/utils/text_utils.dart';
-
 /// Data model for FTS search results from the database
 /// Includes edition information for multi-edition search support
 class FTSMatch {
@@ -77,6 +75,7 @@ abstract class FTSDataSource {
     required Set<String> editionIds,
     String? language,
     List<String>? nikayaFilter,
+    bool exactMatch = false,
     int limit = 50,
     int offset = 0,
   });
@@ -105,34 +104,57 @@ class FTSDataSourceImpl implements FTSDataSource {
     developer.log(message, name: 'FTSDataSource');
   }
 
-  /// Sanitize FTS query to prevent injection and syntax errors.
+  /// Sanitize FTS query for safe execution.
   ///
-  /// FTS4 MATCH has special characters that can cause crashes or unexpected
-  /// behavior if not handled:
-  /// - Double quotes (") - phrase delimiters
-  /// - Asterisk (*) - prefix matching
-  /// - Hyphen (-) - NOT operator
-  /// - OR, AND, NOT - boolean operators
-  /// - Parentheses - grouping
-  /// - Colon (:) - column specifier
+  /// This method follows tipitaka.lk's approach:
+  /// - For simple queries: pass directly to FTS with optional * for prefix matching
+  /// - NO double quotes wrapping (quotes change FTS from token to phrase matching)
   ///
-  /// This method normalizes Unicode, escapes quotes, and wraps for safe prefix matching.
-  String _sanitizeFtsQuery(String query) {
-    // Normalize: trim and remove zero-width characters
-    var sanitized = normalizeQueryText(query.trim());
+  /// FTS4 token matching (without quotes):
+  /// - `අනාථ*` matches any word TOKEN starting with "අනාථ" anywhere in text
+  ///
+  /// FTS4 phrase matching (with quotes):
+  /// - `"අනාථ"*` matches the exact PHRASE "අනාථ" - much more restrictive
+  ///
+  /// When [exactMatch] is false (default), appends * for prefix/token matching.
+  /// When [exactMatch] is true, no asterisk for exact token match.
+  String _sanitizeFtsQuery(String query, {bool exactMatch = false}) {
+    // Normalize: trim and remove zero-width characters, periods, commas
+    var sanitized = query.trim();
+
+    // Remove ALL zero-width Unicode characters that can break FTS matching:
+    // - U+200D: Zero-Width Joiner (ZWJ)
+    // - U+200C: Zero-Width Non-Joiner (ZWNJ)
+    // - U+200B: Zero-Width Space (ZWSP) - THIS WAS MISSING!
+    // - U+FEFF: Byte Order Mark (BOM)
+    // Also remove period and comma (same as tipitaka.lk)
+    sanitized = sanitized.replaceAll(RegExp(r'[\u200d\u200c\u200b\ufeff\.,]'), '');
+
+    // Collapse multiple spaces to single space
+    sanitized = sanitized.replaceAll(RegExp(r'\s+'), ' ');
 
     if (sanitized.isEmpty) {
       return '""';
     }
 
-    // Escape double quotes by doubling them (FTS4 escape syntax)
-    sanitized = sanitized.replaceAll('"', '""');
+    // Handle multi-word queries
+    final words = sanitized.split(' ');
 
-    // Wrap in double quotes for safe phrase matching, then add * for prefix matching
-    // This treats the entire query as a literal phrase, neutralizing
-    // special operators like OR, AND, NOT, -, while still allowing
-    // prefix matching (e.g., "සති"* matches සතිපට්ඨාන, සතිසම්පජඤ්ඤ, etc.)
-    return '"$sanitized"*';
+    if (words.length == 1) {
+      // Single word: simple token matching (no quotes)
+      // exactMatch=false: අනාථ* (prefix token matching)
+      // exactMatch=true: අනාථ (exact token matching)
+      return exactMatch ? sanitized : '$sanitized*';
+    } else {
+      // Multi-word: use NEAR/10 for proximity matching (same as tipitaka.lk default)
+      if (exactMatch) {
+        // Exact match for each word with NEAR proximity
+        return words.join(' NEAR/10 ');
+      } else {
+        // Prefix match for each word with NEAR proximity
+        return words.map((w) => '$w*').join(' NEAR/10 ');
+      }
+    }
   }
 
   /// Track which editions are initialized
@@ -201,6 +223,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     required Set<String> editionIds,
     String? language,
     List<String>? nikayaFilter,
+    bool exactMatch = false,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -214,6 +237,7 @@ class FTSDataSourceImpl implements FTSDataSource {
         query,
         language: language,
         nikayaFilter: nikayaFilter,
+        exactMatch: exactMatch,
         limit: limit,
         offset: offset,
       );
@@ -231,6 +255,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     String query, {
     String? language,
     List<String>? nikayaFilter,
+    bool exactMatch = false,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -244,7 +269,11 @@ class FTSDataSourceImpl implements FTSDataSource {
       final ftsTable = '${editionId}_fts';
       final metaTable = '${editionId}_meta';
 
-      // Build the SQL query
+      // Sanitize query for FTS MATCH
+      // Testing parameterized query approach for FTS MATCH
+      final ftsQuery = _sanitizeFtsQuery(query, exactMatch: exactMatch);
+
+      // Build the SQL query using parameterized query for MATCH clause
       // Note: For contentless FTS4, use table name in MATCH, not column name
       final buffer = StringBuffer();
       buffer.write('''
@@ -254,7 +283,8 @@ class FTSDataSourceImpl implements FTSDataSource {
         WHERE $ftsTable MATCH ?
       ''');
 
-      final args = <Object>[_sanitizeFtsQuery(query)];
+      // Start args with the FTS query
+      final args = <Object>[ftsQuery];
 
       // Add language filter
       if (language != null) {
@@ -274,12 +304,14 @@ class FTSDataSourceImpl implements FTSDataSource {
       buffer.write(' LIMIT ? OFFSET ?');
       args.addAll([limit, offset]);
 
-      _log('Executing query: ${buffer.toString()}');
+      _log('FTS query: "$ftsQuery" (exactMatch: $exactMatch)');
+      _log('SQL: ${buffer.toString().trim()}');
       // Execute query
       final List<Map<String, dynamic>> results = await db.rawQuery(
         buffer.toString(),
         args,
       );
+      _log('Results: ${results.length} matches');
 
       // Tag results with edition ID
       return results.map((row) => FTSMatch.fromMap(row, editionId)).toList();

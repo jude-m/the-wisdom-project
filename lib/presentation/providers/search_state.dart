@@ -60,6 +60,11 @@ class SearchState with _$SearchState {
     /// Whether the panel was dismissed (user clicked result or close button)
     /// Panel reopens when user focuses the search bar again
     @Default(false) bool isPanelDismissed,
+
+    /// Whether exact match is enabled (default: false = prefix matching)
+    /// When false: "සති" matches "සතිපට්ඨානය", "සතිපට්ඨාන", etc.
+    /// When true: "සති" matches only "සති" exactly
+    @Default(false) bool exactMatch,
   }) = _SearchState;
 
   /// Computed property: Results panel is visible when query is not empty
@@ -239,11 +244,19 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   SearchQuery _buildSearchQuery() {
     return SearchQuery(
       queryText: state.queryText,
+      exactMatch: state.exactMatch,
       editionIds: state.selectedEditions,
       searchInPali: state.searchInPali,
       searchInSinhala: state.searchInSinhala,
       nikayaFilters: state.nikayaFilters,
     );
+  }
+
+  /// Toggle exact match mode
+  /// When enabled, searches for exact word matches only (no prefix matching)
+  void toggleExactMatch() {
+    state = state.copyWith(exactMatch: !state.exactMatch);
+    _refreshSearchIfNeeded();
   }
 
   /// Toggle an edition in the search

@@ -55,6 +55,11 @@ mixin _$SearchState {
   /// Panel reopens when user focuses the search bar again
   bool get isPanelDismissed => throw _privateConstructorUsedError;
 
+  /// Whether exact match is enabled (default: false = prefix matching)
+  /// When false: "සතිප" matches "සතිපට්ඨානය", "සතිපට්ඨාන", etc.
+  /// When true: "සතිප" matches only "සතිප" exactly
+  bool get exactMatch => throw _privateConstructorUsedError;
+
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -80,7 +85,8 @@ abstract class $SearchStateCopyWith<$Res> {
       bool searchInSinhala,
       List<String> nikayaFilters,
       bool filtersVisible,
-      bool isPanelDismissed});
+      bool isPanelDismissed,
+      bool exactMatch});
 
   $CategorizedSearchResultCopyWith<$Res>? get categorizedResults;
 }
@@ -112,6 +118,7 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
     Object? nikayaFilters = null,
     Object? filtersVisible = null,
     Object? isPanelDismissed = null,
+    Object? exactMatch = null,
   }) {
     return _then(_value.copyWith(
       queryText: null == queryText
@@ -162,6 +169,10 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
           ? _value.isPanelDismissed
           : isPanelDismissed // ignore: cast_nullable_to_non_nullable
               as bool,
+      exactMatch: null == exactMatch
+          ? _value.exactMatch
+          : exactMatch // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 
@@ -201,7 +212,8 @@ abstract class _$$SearchStateImplCopyWith<$Res>
       bool searchInSinhala,
       List<String> nikayaFilters,
       bool filtersVisible,
-      bool isPanelDismissed});
+      bool isPanelDismissed,
+      bool exactMatch});
 
   @override
   $CategorizedSearchResultCopyWith<$Res>? get categorizedResults;
@@ -232,6 +244,7 @@ class __$$SearchStateImplCopyWithImpl<$Res>
     Object? nikayaFilters = null,
     Object? filtersVisible = null,
     Object? isPanelDismissed = null,
+    Object? exactMatch = null,
   }) {
     return _then(_$SearchStateImpl(
       queryText: null == queryText
@@ -282,6 +295,10 @@ class __$$SearchStateImplCopyWithImpl<$Res>
           ? _value.isPanelDismissed
           : isPanelDismissed // ignore: cast_nullable_to_non_nullable
               as bool,
+      exactMatch: null == exactMatch
+          ? _value.exactMatch
+          : exactMatch // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -301,7 +318,8 @@ class _$SearchStateImpl extends _SearchState {
       this.searchInSinhala = true,
       final List<String> nikayaFilters = const [],
       this.filtersVisible = false,
-      this.isPanelDismissed = false})
+      this.isPanelDismissed = false,
+      this.exactMatch = false})
       : _recentSearches = recentSearches,
         _selectedEditions = selectedEditions,
         _nikayaFilters = nikayaFilters,
@@ -388,9 +406,16 @@ class _$SearchStateImpl extends _SearchState {
   @JsonKey()
   final bool isPanelDismissed;
 
+  /// Whether exact match is enabled (default: false = prefix matching)
+  /// When false: "සතිප" matches "සතිපට්ඨානය", "සතිපට්ඨාන", etc.
+  /// When true: "සතිප" matches only "සතිප" exactly
+  @override
+  @JsonKey()
+  final bool exactMatch;
+
   @override
   String toString() {
-    return 'SearchState(queryText: $queryText, recentSearches: $recentSearches, selectedCategory: $selectedCategory, categorizedResults: $categorizedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, filtersVisible: $filtersVisible, isPanelDismissed: $isPanelDismissed)';
+    return 'SearchState(queryText: $queryText, recentSearches: $recentSearches, selectedCategory: $selectedCategory, categorizedResults: $categorizedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, filtersVisible: $filtersVisible, isPanelDismissed: $isPanelDismissed, exactMatch: $exactMatch)';
   }
 
   @override
@@ -421,7 +446,9 @@ class _$SearchStateImpl extends _SearchState {
             (identical(other.filtersVisible, filtersVisible) ||
                 other.filtersVisible == filtersVisible) &&
             (identical(other.isPanelDismissed, isPanelDismissed) ||
-                other.isPanelDismissed == isPanelDismissed));
+                other.isPanelDismissed == isPanelDismissed) &&
+            (identical(other.exactMatch, exactMatch) ||
+                other.exactMatch == exactMatch));
   }
 
   @override
@@ -438,7 +465,8 @@ class _$SearchStateImpl extends _SearchState {
       searchInSinhala,
       const DeepCollectionEquality().hash(_nikayaFilters),
       filtersVisible,
-      isPanelDismissed);
+      isPanelDismissed,
+      exactMatch);
 
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
@@ -462,7 +490,8 @@ abstract class _SearchState extends SearchState {
       final bool searchInSinhala,
       final List<String> nikayaFilters,
       final bool filtersVisible,
-      final bool isPanelDismissed}) = _$SearchStateImpl;
+      final bool isPanelDismissed,
+      final bool exactMatch}) = _$SearchStateImpl;
   const _SearchState._() : super._();
 
   /// Current search query text
@@ -513,6 +542,12 @@ abstract class _SearchState extends SearchState {
   /// Panel reopens when user focuses the search bar again
   @override
   bool get isPanelDismissed;
+
+  /// Whether exact match is enabled (default: false = prefix matching)
+  /// When false: "සතිප" matches "සතිපට්ඨානය", "සතිපට්ඨාන", etc.
+  /// When true: "සතිප" matches only "සතිප" exactly
+  @override
+  bool get exactMatch;
 
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
