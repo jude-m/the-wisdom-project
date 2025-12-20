@@ -24,5 +24,8 @@ The Wisdom Project - a Tipitaka and commentary browsing app with parallel Pali/S
 - Access: `AppLocalizations.of(context)`
 
 
-## DO 
-- Before running `flutter test` make sure to update the relevant tests and ask for user confirmation
+## DONT
+- Create/Update tests unless the user specifically ask you to. Notify the user that tests were not generated. Except for basic changes, a seperate test generator agent will write the tests.
+
+## DO
+- Before running `flutter test` ask for user confirmation
