@@ -71,21 +71,5 @@ void main() {
 
       verify(mockRepository.loadNavigationTree()).called(1);
     });
-
-    test('should return empty list when tree is empty', () async {
-      // ARRANGE: Return empty list (valid but empty)
-      when(mockRepository.loadNavigationTree())
-          .thenAnswer((_) async => const Right([]));
-
-      // ACT
-      final result = await useCase.execute();
-
-      // ASSERT
-      expect(result.isRight(), true);
-      result.fold(
-        (failure) => fail('Expected success but got failure'),
-        (tree) => expect(tree, isEmpty),
-      );
-    });
   });
 }

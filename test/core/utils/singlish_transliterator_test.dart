@@ -19,190 +19,109 @@ void main() {
         expect(transliterator.convert('ධර්ම'), 'ධර්ම');
       });
 
-      group('basic consonant + vowel combinations', () {
-        test('simple consonant-vowel patterns', () {
-          // ka -> ක
-          expect(transliterator.convert('ka'), 'ක');
-
-          // ki -> කි
-          expect(transliterator.convert('ki'), 'කි');
-
-          // ku -> කු
-          expect(transliterator.convert('ku'), 'කු');
-
-          // ko -> කො
-          expect(transliterator.convert('ko'), 'කො');
-
-          // ke -> කෙ
-          expect(transliterator.convert('ke'), 'කෙ');
-        });
-
-        test('long vowels', () {
-          // kaa -> කා
-          expect(transliterator.convert('kaa'), 'කා');
-
-          // kii -> කී
-          expect(transliterator.convert('kii'), 'කී');
-
-          // kuu -> කූ
-          expect(transliterator.convert('kuu'), 'කූ');
-        });
+      test('basic consonant + vowel combinations', () {
+        final cases = {
+          'ka': 'ක',
+          'ki': 'කි',
+          'ku': 'කු',
+          'ko': 'කො',
+          'ke': 'කෙ',
+          'kaa': 'කා',
+          'kii': 'කී',
+          'kuu': 'කූ',
+        };
+        for (final entry in cases.entries) {
+          expect(transliterator.convert(entry.key), entry.value,
+              reason: '${entry.key} should convert to ${entry.value}');
+        }
       });
 
-      group('case-sensitive consonant disambiguation', () {
-        test('lowercase t = retroflex ට', () {
-          expect(transliterator.convert('ta'), 'ට');
-        });
-
-        test('lowercase th = dental ත', () {
-          expect(transliterator.convert('tha'), 'ත');
-        });
-
-        test('uppercase T = retroflex aspirated ඨ', () {
-          expect(transliterator.convert('Ta'), 'ඨ');
-        });
-
-        test('uppercase Th = dental aspirated ථ', () {
-          expect(transliterator.convert('Tha'), 'ථ');
-        });
-
-        test('lowercase d = retroflex ඩ', () {
-          expect(transliterator.convert('da'), 'ඩ');
-        });
-
-        test('lowercase dh = dental ද', () {
-          expect(transliterator.convert('dha'), 'ද');
-        });
-
-        test('uppercase D = retroflex aspirated ඪ', () {
-          expect(transliterator.convert('Da'), 'ඪ');
-        });
-
-        test('uppercase Dh = dental aspirated ධ', () {
-          expect(transliterator.convert('Dha'), 'ධ');
-        });
+      test('case-sensitive consonant disambiguation', () {
+        final cases = {
+          'ta': 'ට', // lowercase t = retroflex
+          'tha': 'ත', // lowercase th = dental
+          'Ta': 'ඨ', // uppercase T = retroflex aspirated
+          'Tha': 'ථ', // uppercase Th = dental aspirated
+          'da': 'ඩ', // lowercase d = retroflex
+          'dha': 'ද', // lowercase dh = dental
+          'Da': 'ඪ', // uppercase D = retroflex aspirated
+          'Dha': 'ධ', // uppercase Dh = dental aspirated
+        };
+        for (final entry in cases.entries) {
+          expect(transliterator.convert(entry.key), entry.value,
+              reason: '${entry.key} should convert to ${entry.value}');
+        }
       });
 
       group('critical search words', () {
         test('sathi (mindfulness) with th -> ත', () {
-          // sathi -> ස + ත + ි = සති
           expect(transliterator.convert('sathi'), 'සති');
         });
 
         test('saThi (different) with Th -> ථ', () {
-          // saThi -> ස + ථ + ි = සථි
           expect(transliterator.convert('saThi'), 'සථි');
         });
 
         test('dharma with dh -> ද', () {
-          // dharma -> ධ + ර් + ම = ධර්ම  (Note: dh = ද in this lib, Dh = ධ)
-          // Actually "dharma" -> d-h-a-r-m-a
-          // dh = ද (dental)
-          // So dharma -> ද + ... wait, let me check the mapping
-          // Looking at the library: dh = ද, Dh = ධ
-          // So "dharma" uses dh = ද
-          // dharma = dh-a-r-m-a = ද + ongoing...
-          // Actually the algorithm works character by character
-          // d = ඩ, h = හ but dh = ද (special combo)
-          // So dha = ද (the 'a' is inherent)
-          // dharma = dha + rma = ද + ර්ම = දර්ම
           expect(transliterator.convert('dharma'), 'දර්ම');
         });
 
         test('Dharma with Dh -> ධ (aspirated)', () {
-          // Dha = ධ (aspirated dental)
-          // Dharma = Dh-a-r-m-a = ධර්ම
           expect(transliterator.convert('Dharma'), 'ධර්ම');
         });
 
-        test('buddha with dh -> ද', () {
-          // bu-dh-dha = බු + ද් + ධ (but this is complex)
-          // Actually: b-u-d-d-h-a
-          // b-u = බු
-          // Then dd is tricky - d = ඩ but we need ද්ධ
-          // This library may not handle conjuncts perfectly
-          // Let's just test the output
+        test('buddha contains බු', () {
           final result = transliterator.convert('buddha');
           expect(result.contains('බු'), true);
         });
 
-        test('nibbana / nibbAna', () {
-          // nibbana = n-i-b-b-a-n-a
-          // n-i = නි, b-b = බ්බ, a = inherent, n-a = න
-          // = නිබ්බන
+        test('nibbana starts with නි', () {
           final result = transliterator.convert('nibbana');
           expect(result.startsWith('නි'), true);
         });
       });
 
-      group('standalone vowels', () {
-        test('standalone a = අ', () {
-          expect(transliterator.convert('a'), 'අ');
-        });
-
-        test('standalone i = ඉ', () {
-          expect(transliterator.convert('i'), 'ඉ');
-        });
-
-        test('standalone u = උ', () {
-          expect(transliterator.convert('u'), 'උ');
-        });
-
-        test('standalone e = එ', () {
-          expect(transliterator.convert('e'), 'එ');
-        });
-
-        test('standalone o = ඔ', () {
-          expect(transliterator.convert('o'), 'ඔ');
-        });
+      test('standalone vowels', () {
+        final cases = {
+          'a': 'අ',
+          'i': 'ඉ',
+          'u': 'උ',
+          'e': 'එ',
+          'o': 'ඔ',
+        };
+        for (final entry in cases.entries) {
+          expect(transliterator.convert(entry.key), entry.value,
+              reason: '${entry.key} should convert to ${entry.value}');
+        }
       });
 
-      group('hal (consonant without vowel)', () {
-        test('trailing consonant gets hal', () {
-          // 'sat' = s-a-t = ස + ට් (hal)
-          final result = transliterator.convert('sat');
-          expect(result, 'සට්');
-        });
+      test('trailing consonant gets hal', () {
+        expect(transliterator.convert('sat'), 'සට්');
       });
 
-      group('other consonants', () {
-        test('sh = ශ', () {
-          expect(transliterator.convert('sha'), 'ශ');
-        });
-
-        test('Sh = ෂ (retroflex sibilant)', () {
-          expect(transliterator.convert('Sha'), 'ෂ');
-        });
-
-        test('ch = ච', () {
-          expect(transliterator.convert('cha'), 'ච');
-        });
-
-        test('Ch = ඡ (aspirated)', () {
-          expect(transliterator.convert('Cha'), 'ඡ');
-        });
+      test('other consonants (sh, Sh, ch, Ch)', () {
+        final cases = {
+          'sha': 'ශ',
+          'Sha': 'ෂ',
+          'cha': 'ච',
+          'Cha': 'ඡ',
+        };
+        for (final entry in cases.entries) {
+          expect(transliterator.convert(entry.key), entry.value,
+              reason: '${entry.key} should convert to ${entry.value}');
+        }
       });
 
-      group('rakaransha patterns', () {
-        test('consonant + ra = rakaransha', () {
-          expect(transliterator.convert('kra'), 'ක්‍ර');
-          expect(transliterator.convert('pra'), 'ප්‍ර');
-        });
-
-        test('consonant + ra + vowel', () {
-          expect(transliterator.convert('kri'), 'ක්‍රි');
-          expect(transliterator.convert('kree'), 'ක්‍රී');
-        });
+      test('rakaransha patterns', () {
+        expect(transliterator.convert('kra'), 'ක්‍ර');
+        expect(transliterator.convert('pra'), 'ප්‍ර');
+        expect(transliterator.convert('kri'), 'ක්‍රි');
+        expect(transliterator.convert('kree'), 'ක්‍රී');
       });
 
-      group('special modifiers (ru/ruu)', () {
-        test('consonant + ru', () {
-          expect(transliterator.convert('kru'), 'කෘ');
-        });
-
-        test('consonant + ruu', () {
-          expect(transliterator.convert('kruu'), 'කෲ');
-        });
+      test('special modifiers (ru/ruu)', () {
+        expect(transliterator.convert('kru'), 'කෘ');
+        expect(transliterator.convert('kruu'), 'කෲ');
       });
 
       group('multi-word and mixed input', () {
@@ -224,18 +143,16 @@ void main() {
 
       group('special Pali characters', () {
         test('anusvara (~n → ං)', () {
-          // sangha~n → සංඝ (with anusvara)
           final result = transliterator.convert('sa~nga');
           expect(result, contains('ං'));
         });
 
         test('visarga (~h → ඃ)', () {
-          // du~hkha → දුඃඛ (with visarga)
           final result = transliterator.convert('du~hkha');
           expect(result, contains('ඃ'));
         });
 
-        test('multiple special chars in word', () {
+        test('standalone special chars', () {
           expect(transliterator.convert('~n'), 'ං');
           expect(transliterator.convert('~h'), 'ඃ');
         });
@@ -259,7 +176,7 @@ void main() {
       });
     });
 
-    group('getPossibleMatches() - legacy API', () {
+    group('getPossibleMatches()', () {
       test('returns single-element list with converted result', () {
         final matches = transliterator.getPossibleMatches('sathi');
         expect(matches.length, 1);

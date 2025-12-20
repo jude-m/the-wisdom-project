@@ -25,4 +25,4 @@ The Wisdom Project - a Tipitaka and commentary browsing app with parallel Pali/S
 
 
 ## DO 
-- Before running `flutter test` make sure to update the relevant tests
+- Before running `flutter test` make sure to update the relevant tests and ask for user confirmation
