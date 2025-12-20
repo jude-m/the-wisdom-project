@@ -182,16 +182,20 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     );
   }
 
-  /// Called when user presses Enter to submit search
-  Future<void> submitQuery() async {
+  /// Called when user selects a search result
+  /// Saves to recent searches and dismisses the panel
+  Future<void> saveRecentSearchAndDismiss() async {
     if (state.queryText.trim().isEmpty) return;
 
-    // Save to recent searches
+    // Save to recent searches (user found what they wanted)
     await _recentSearchesRepository.addRecentSearch(state.queryText);
 
-    // Reload recent searches for next time
+    // Update recent searches list for next time
     final recentSearches = await _recentSearchesRepository.getRecentSearches();
-    state = state.copyWith(recentSearches: recentSearches);
+    state = state.copyWith(
+      recentSearches: recentSearches,
+      isPanelDismissed: true, // Dismiss the panel
+    );
   }
 
   /// Select a category tab in results view

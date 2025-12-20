@@ -34,8 +34,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     // Use centralized provider for consistent tab creation and navigation
     ref.read(openTabFromSearchResultProvider)(result);
 
-    // Dismiss panel but keep query text (panel reopens on focus)
-    ref.read(searchStateProvider.notifier).dismissResultsPanel();
+    // Save to recent searches and dismiss panel
+    ref.read(searchStateProvider.notifier).saveRecentSearchAndDismiss();
 
     // Close navigator on mobile so user can see the content
     if (ResponsiveUtils.isMobile(context)) {

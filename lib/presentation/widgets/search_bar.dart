@@ -178,11 +178,10 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                 setState(() {});
               },
               onSubmitted: (value) {
-                if (value.trim().isNotEmpty) {
-                  ref.read(searchStateProvider.notifier).submitQuery();
-                  _hideOverlay();
-                  // Panel is shown automatically via isResultsPanelVisible
-                }
+                // Dismiss keyboard on mobile when user presses Enter
+                // Note: Search happens automatically via debounced updateQuery
+                // Recent searches are saved when user clicks a result
+                _focusNode.unfocus();
               },
             ),
           ),

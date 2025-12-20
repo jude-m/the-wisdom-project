@@ -144,51 +144,6 @@ void main() {
       });
     });
 
-    group('submitQuery', () {
-      test('should save to recent searches', () async {
-        // ARRANGE
-        when(mockRecentSearchesRepository.addRecentSearch(any))
-            .thenAnswer((_) async {});
-        when(mockRecentSearchesRepository.getRecentSearches())
-            .thenAnswer((_) async => []);
-
-        notifier.updateQuery('test query');
-
-        // ACT
-        await notifier.submitQuery();
-
-        // ASSERT
-        verify(mockRecentSearchesRepository.addRecentSearch('test query'))
-            .called(1);
-      });
-
-      test('should not submit for empty queries', () async {
-        // ARRANGE
-        notifier.updateQuery('');
-
-        // ACT
-        await notifier.submitQuery();
-
-        // ASSERT - empty queries should not be saved to recent searches
-        verifyNever(mockRecentSearchesRepository.addRecentSearch(any));
-      });
-
-      test('should submit for single character queries', () async {
-        // ARRANGE
-        when(mockRecentSearchesRepository.addRecentSearch(any))
-            .thenAnswer((_) async {});
-        when(mockRecentSearchesRepository.getRecentSearches())
-            .thenAnswer((_) async => []);
-
-        notifier.updateQuery('d');
-
-        // ACT
-        await notifier.submitQuery();
-
-        // ASSERT - single char queries ARE now valid
-        verify(mockRecentSearchesRepository.addRecentSearch('d')).called(1);
-      });
-    });
 
     group('selectCategory', () {
       test('should update selected category', () async {
@@ -417,6 +372,63 @@ void main() {
         expect(notifier.state.queryText, equals('test'));
         expect(notifier.state.isPanelDismissed, isTrue);
         expect(notifier.state.isResultsPanelVisible, isFalse);
+      });
+    });
+
+    group('saveRecentSearchAndDismiss', () {
+      test('should save to recent searches and dismiss panel', () async {
+        // ARRANGE
+        when(mockRecentSearchesRepository.addRecentSearch(any))
+            .thenAnswer((_) async {});
+        when(mockRecentSearchesRepository.getRecentSearches())
+            .thenAnswer((_) async => [
+                  RecentSearch(queryText: 'test query', timestamp: DateTime.now()),
+                ]);
+
+        notifier.updateQuery('test query');
+        expect(notifier.state.isResultsPanelVisible, isTrue);
+
+        // ACT
+        await notifier.saveRecentSearchAndDismiss();
+
+        // ASSERT
+        verify(mockRecentSearchesRepository.addRecentSearch('test query'))
+            .called(1);
+        expect(notifier.state.isPanelDismissed, isTrue);
+        expect(notifier.state.isResultsPanelVisible, isFalse);
+        expect(notifier.state.queryText, equals('test query')); // Text preserved
+      });
+
+      test('should not save for empty queries', () async {
+        // ARRANGE
+        notifier.updateQuery('');
+
+        // ACT
+        await notifier.saveRecentSearchAndDismiss();
+
+        // ASSERT - empty queries should not be saved
+        verifyNever(mockRecentSearchesRepository.addRecentSearch(any));
+      });
+
+      test('should update recent searches list after saving', () async {
+        // ARRANGE
+        final updatedRecent = [
+          RecentSearch(queryText: 'test query', timestamp: DateTime.now()),
+          RecentSearch(queryText: 'old query', timestamp: DateTime.now()),
+        ];
+        when(mockRecentSearchesRepository.addRecentSearch(any))
+            .thenAnswer((_) async {});
+        when(mockRecentSearchesRepository.getRecentSearches())
+            .thenAnswer((_) async => updatedRecent);
+
+        notifier.updateQuery('test query');
+
+        // ACT
+        await notifier.saveRecentSearchAndDismiss();
+
+        // ASSERT
+        expect(notifier.state.recentSearches.length, equals(2));
+        expect(notifier.state.recentSearches[0].queryText, equals('test query'));
       });
     });
 
