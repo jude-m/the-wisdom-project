@@ -223,6 +223,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
 
       if ((paliMatched || sinhalaMatched) && node.contentFileId != null) {
         // Prefer Sinhala if it matched, otherwise use Pali
+        // TODO: lets get the navigator display lanaguge as the preference later.
         final matchedName = sinhalaMatched
             ? (node.sinhalaName.isNotEmpty ? node.sinhalaName : node.paliName)
             : (node.paliName.isNotEmpty ? node.paliName : node.sinhalaName);

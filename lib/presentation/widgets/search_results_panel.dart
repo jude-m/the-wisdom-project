@@ -484,25 +484,20 @@ class _SearchResultTile extends StatelessWidget {
   }
 
   /// Gets the effective query for highlighting.
-  /// Tries original query first, then converted Sinhala if needed.
+  /// Converts Singlish to Sinhala if needed, then checks for match.
   String _getEffectiveHighlightQuery(String text, String query) {
-    // Use same normalization as the search repository
-    final normalizedText = normalizeText(text, toLowerCase: true);
-    final normalizedQuery = normalizeText(query, toLowerCase: true);
-
-    // First, try the original query directly
-    if (normalizedText.contains(normalizedQuery)) {
-      return query;
-    }
-
-    // If the query is Singlish, try the converted Sinhala text
+    // Convert Singlish to Sinhala if needed, otherwise use as-is
     final transliterator = SinglishTransliterator.instance;
-    if (transliterator.isSinglishQuery(query)) {
-      final converted = transliterator.convert(query);
-      final normalizedConverted = normalizeText(converted, toLowerCase: true);
-      if (normalizedText.contains(normalizedConverted)) {
-        return converted;
-      }
+    final effectiveQuery = transliterator.isSinglishQuery(query)
+        ? transliterator.convert(query)
+        : query;
+
+    // Check if the (possibly converted) query exists in text
+    final normalizedText = normalizeText(text, toLowerCase: true);
+    final normalizedQuery = normalizeText(effectiveQuery, toLowerCase: true);
+
+    if (normalizedText.contains(normalizedQuery)) {
+      return effectiveQuery;
     }
 
     // No match found
