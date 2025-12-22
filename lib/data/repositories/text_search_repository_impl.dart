@@ -194,23 +194,22 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   }) {
     final results = <SearchResult>[];
 
-    // Get both query forms: original and transliterated
+    // Convert query to Sinhala script if needed (Singlish → Sinhala)
     // Both Pali and Sinhala names are stored in Sinhala script,
-    // so we need to try both query forms against both names
+    // so we normalize all queries to Sinhala for matching
     final transliterator = SinglishTransliterator.instance;
-    final originalQuery = normalizeText(queryText, toLowerCase: true);
-    final convertedQuery = transliterator.isSinglishQuery(queryText)
+    final searchQuery = transliterator.isSinglishQuery(queryText)
         ? normalizeText(transliterator.convert(queryText), toLowerCase: true)
-        : null; // null if no conversion needed
+        : normalizeText(queryText, toLowerCase: true);
 
     // Helper function to check if a name matches the query
     // exactMatch=false: prefix matching (startsWith)
     // exactMatch=true: exact string match
-    bool matchesQuery(String name, String query) {
+    bool matchesQuery(String name) {
       if (exactMatch) {
-        return name == query;
+        return name == searchQuery;
       } else {
-        return name.startsWith(query);
+        return name.startsWith(searchQuery);
       }
     }
 
@@ -218,17 +217,9 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       final paliName = normalizeText(node.paliName, toLowerCase: true);
       final sinhalaName = normalizeText(node.sinhalaName, toLowerCase: true);
 
-      // Try original query against both names (for direct matches)
-      // AND try converted query against both names (for transliterated matches)
-      final paliMatchedOriginal = matchesQuery(paliName, originalQuery);
-      final sinhalaMatchedOriginal = matchesQuery(sinhalaName, originalQuery);
-      final paliMatchedConverted =
-          convertedQuery != null && matchesQuery(paliName, convertedQuery);
-      final sinhalaMatchedConverted =
-          convertedQuery != null && matchesQuery(sinhalaName, convertedQuery);
-
-      final paliMatched = paliMatchedOriginal || paliMatchedConverted;
-      final sinhalaMatched = sinhalaMatchedOriginal || sinhalaMatchedConverted;
+      // Match normalized query against both Pali and Sinhala names
+      final paliMatched = matchesQuery(paliName);
+      final sinhalaMatched = matchesQuery(sinhalaName);
 
       if ((paliMatched || sinhalaMatched) && node.contentFileId != null) {
         // Prefer Sinhala if it matched, otherwise use Pali

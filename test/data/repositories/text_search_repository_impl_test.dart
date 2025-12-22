@@ -589,21 +589,20 @@ void main() {
       });
 
       test('should return pali name when only pali matches query', () async {
-        // ARRANGE - Use a query where transliteration won't match Sinhala
-        // 'Intro' transliterates to ඉන්ට්‍රො but Sinhala name is හැඳින්වීම
-        const query = SearchQuery(queryText: 'Intro');
+        // ARRANGE - Use a Sinhala query that matches only the Pali name
+        // Real data has both names in Sinhala script
+        const query = SearchQuery(queryText: 'විනයපිටක');
 
         final treeWithPaliMatch = [
           const TipitakaTreeNode(
-            nodeKey: 'intro-1',
-            paliName: 'Introduction to Pali', // DOES contain 'Intro'
-            sinhalaName:
-                'හැඳින්වීම', // Does NOT contain 'Intro' transliterations
+            nodeKey: 'pali-match-1',
+            paliName: 'විනයපිටක', // Pali name - matches query
+            sinhalaName: 'විනය පිටකය', // Sinhala name - does NOT match query
             hierarchyLevel: 1,
             entryPageIndex: 0,
             entryIndexInPage: 0,
             parentNodeKey: null,
-            contentFileId: 'intro-1',
+            contentFileId: 'pali-match-1',
           ),
         ];
 
@@ -633,7 +632,7 @@ void main() {
                 categorized.resultsByCategory[SearchCategory.title]!;
             expect(titleResults.length, equals(1));
             // Should show Pali name since only Pali matched
-            expect(titleResults[0].title, equals('Introduction to Pali'));
+            expect(titleResults[0].title, equals('විනයපිටක'));
             expect(titleResults[0].language, equals('pali'));
           },
         );
