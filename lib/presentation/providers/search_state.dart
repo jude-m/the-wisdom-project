@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/singlish_transliterator.dart';
 import '../../domain/entities/search/categorized_search_result.dart';
 import '../../domain/entities/search/recent_search.dart';
 import '../../domain/entities/search/search_category.dart';
@@ -65,6 +66,10 @@ class SearchState with _$SearchState {
     /// When false: "සති" matches "සතිපට්ඨානය", "සතිපට්ඨාන", etc.
     /// When true: "සති" matches only "සති" exactly
     @Default(false) bool exactMatch,
+
+    /// Result counts per category (for tab badges)
+    /// Updated independently from categorized results
+    @Default({}) Map<SearchCategory, int> countByResultType,
   }) = _SearchState;
 
   /// Computed property: Results panel is visible when query is not empty
@@ -129,12 +134,31 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   }
 
   /// Execute search based on selected category
+  /// Always loads counts for tab badges, then loads results for current tab
   Future<void> _performSearch() async {
+    // Always load counts for tab badges (runs in parallel with results)
+    unawaited(_loadCounts());
+
     if (state.selectedCategory == SearchCategory.all) {
       await _loadCategorizedResults();
     } else {
       await _loadFullResultsForCategory();
     }
+  }
+
+  /// Load result counts for tab badges (independent of selected category)
+  Future<void> _loadCounts() async {
+    final query = _buildSearchQuery();
+    final result = await _searchRepository.countByResultType(query);
+
+    result.fold(
+      (failure) {
+        // Keep existing counts on failure
+      },
+      (counts) {
+        state = state.copyWith(countByResultType: counts);
+      },
+    );
   }
 
   /// Load categorized results for "All" tab
@@ -242,8 +266,14 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
   /// Build search query from current state
   SearchQuery _buildSearchQuery() {
+    // Convert Singlish to Sinhala if needed (single point of conversion)
+    final transliterator = SinglishTransliterator.instance;
+    final effectiveQuery = transliterator.isSinglishQuery(state.queryText)
+        ? transliterator.convert(state.queryText)
+        : state.queryText;
+
     return SearchQuery(
-      queryText: state.queryText,
+      queryText: effectiveQuery,
       exactMatch: state.exactMatch,
       editionIds: state.selectedEditions,
       searchInPali: state.searchInPali,

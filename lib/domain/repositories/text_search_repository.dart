@@ -22,6 +22,12 @@ abstract class TextSearchRepository {
     SearchCategory category,
   );
 
+  /// Get result counts per search type (for tab badges)
+  /// Efficient method that only fetches counts, not actual results
+  Future<Either<Failure, Map<SearchCategory, int>>> countByResultType(
+    SearchQuery query,
+  );
+
   /// Get auto-complete suggestions for the given prefix
   Future<Either<Failure, List<String>>> getSuggestions(
     String prefix, {

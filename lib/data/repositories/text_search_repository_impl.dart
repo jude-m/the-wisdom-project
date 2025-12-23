@@ -10,7 +10,6 @@ import '../../domain/entities/search/search_result.dart';
 import '../../domain/entities/tipitaka_tree_node.dart';
 import '../../domain/repositories/navigation_tree_repository.dart';
 import '../../core/utils/text_utils.dart';
-import '../../core/utils/singlish_transliterator.dart';
 import '../../domain/repositories/text_search_repository.dart';
 import '../datasources/fts_datasource.dart';
 
@@ -46,7 +45,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           final nodeMap = _buildNodeMap(tree);
           final resultsByCategory = <SearchCategory, List<SearchResult>>{};
 
-          // 1. Title matches (from navigation tree)
+          // 1. Title matches (from navigation tree - in memory, fast)
           resultsByCategory[SearchCategory.title] = _searchTitles(
             nodeMap: nodeMap,
             queryText: query.queryText,
@@ -69,12 +68,8 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           // 3. Definition matches (future - placeholder)
           resultsByCategory[SearchCategory.definition] = [];
 
-          final totalCount = resultsByCategory.values
-              .fold(0, (sum, list) => sum + list.length);
-
           return Right(CategorizedSearchResult(
             resultsByCategory: resultsByCategory,
-            totalCount: totalCount,
           ));
         },
       );
@@ -150,6 +145,54 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   }
 
   @override
+  Future<Either<Failure, Map<SearchCategory, int>>> countByResultType(
+    SearchQuery query,
+  ) async {
+    try {
+      final editionsToSearch =
+          query.editionIds.isEmpty ? {'bjt'} : query.editionIds;
+
+      final treeResult = await _treeRepository.loadNavigationTree();
+
+      return await treeResult.fold(
+        (failure) async => Left(failure),
+        (tree) async {
+          final nodeMap = _buildNodeMap(tree);
+          final count = <SearchCategory, int>{};
+
+          // Title count (from navigation tree - in memory, fast)
+          count[SearchCategory.title] = _searchTitles(
+            nodeMap: nodeMap,
+            queryText: query.queryText,
+            editionId: 'bjt',
+            exactMatch: query.exactMatch,
+          ).length;
+
+          // Content count (efficient SQL COUNT)
+          count[SearchCategory.content] =
+              await _ftsDataSource.countFullTextMatches(
+            query.queryText,
+            editionId: editionsToSearch.first,
+            exactMatch: query.exactMatch,
+          );
+
+          // Definition count (future - placeholder)
+          count[SearchCategory.definition] = 0;
+
+          return Right(count);
+        },
+      );
+    } catch (e) {
+      return Left(
+        Failure.dataLoadFailure(
+          message: 'Failed to get count by result type',
+          error: e,
+        ),
+      );
+    }
+  }
+
+  @override
   Future<Either<Failure, List<String>>> getSuggestions(
     String prefix, {
     String? language,
@@ -194,13 +237,8 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   }) {
     final results = <SearchResult>[];
 
-    // Convert query to Sinhala script if needed (Singlish → Sinhala)
-    // Both Pali and Sinhala names are stored in Sinhala script,
-    // so we normalize all queries to Sinhala for matching
-    final transliterator = SinglishTransliterator.instance;
-    final searchQuery = transliterator.isSinglishQuery(queryText)
-        ? normalizeText(transliterator.convert(queryText), toLowerCase: true)
-        : normalizeText(queryText, toLowerCase: true);
+    // Normalize query for matching (caller handles Singlish conversion)
+    final searchQuery = normalizeText(queryText, toLowerCase: true);
 
     // Helper function to check if a name matches the query
     // exactMatch=false: prefix matching (startsWith)
@@ -265,7 +303,6 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
 
   /// Search for content matches using FTS database
   /// Optionally loads matched text from JSON files for preview display
-  /// Converts Singlish queries to Sinhala before searching
   Future<List<SearchResult>> _searchContent({
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
@@ -275,15 +312,8 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     int offset = 0,
     bool loadMatchedText = false,
   }) async {
-    // Convert Singlish to Sinhala (single deterministic result)
-    final transliterator = SinglishTransliterator.instance;
-    final effectiveQuery = transliterator.isSinglishQuery(queryText)
-        ? transliterator.convert(queryText)
-        : queryText;
-
-    // Single FTS call with the converted query
     final ftsMatches = await _ftsDataSource.searchContent(
-      effectiveQuery,
+      queryText,
       editionIds: editionIds,
       exactMatch: exactMatch,
       limit: limit ?? 50,

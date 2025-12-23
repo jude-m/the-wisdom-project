@@ -90,18 +90,20 @@ class RecentSearchOverlay extends ConsumerWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
               title: Text(search.queryText, style: theme.textTheme.bodyMedium),
-              trailing: IconButton(
-                icon: Icon(
-                  Icons.close,
-                  size: 18,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                onPressed: () {
+              trailing: GestureDetector(
+                onTap: () {
                   ref
                       .read(searchStateProvider.notifier)
                       .removeRecentSearch(search.queryText);
                 },
-                tooltip: 'Remove',
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Icon(
+                    Icons.close,
+                    size: 18,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ),
               onTap: () {
                 // Dismiss overlay first

@@ -56,9 +56,14 @@ mixin _$SearchState {
   bool get isPanelDismissed => throw _privateConstructorUsedError;
 
   /// Whether exact match is enabled (default: false = prefix matching)
-  /// When false: "සතිප" matches "සතිපට්ඨානය", "සතිපට්ඨාන", etc.
-  /// When true: "සතිප" matches only "සතිප" exactly
+  /// When false: "සති" matches "සතිපට්ඨානය", "සතිපට්ඨාන", etc.
+  /// When true: "සති" matches only "සති" exactly
   bool get exactMatch => throw _privateConstructorUsedError;
+
+  /// Result counts per category (for tab badges)
+  /// Updated independently from categorized results
+  Map<SearchCategory, int> get countByResultType =>
+      throw _privateConstructorUsedError;
 
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
@@ -86,7 +91,8 @@ abstract class $SearchStateCopyWith<$Res> {
       List<String> nikayaFilters,
       bool filtersVisible,
       bool isPanelDismissed,
-      bool exactMatch});
+      bool exactMatch,
+      Map<SearchCategory, int> countByResultType});
 
   $CategorizedSearchResultCopyWith<$Res>? get categorizedResults;
 }
@@ -119,6 +125,7 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
     Object? filtersVisible = null,
     Object? isPanelDismissed = null,
     Object? exactMatch = null,
+    Object? countByResultType = null,
   }) {
     return _then(_value.copyWith(
       queryText: null == queryText
@@ -173,6 +180,10 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
           ? _value.exactMatch
           : exactMatch // ignore: cast_nullable_to_non_nullable
               as bool,
+      countByResultType: null == countByResultType
+          ? _value.countByResultType
+          : countByResultType // ignore: cast_nullable_to_non_nullable
+              as Map<SearchCategory, int>,
     ) as $Val);
   }
 
@@ -213,7 +224,8 @@ abstract class _$$SearchStateImplCopyWith<$Res>
       List<String> nikayaFilters,
       bool filtersVisible,
       bool isPanelDismissed,
-      bool exactMatch});
+      bool exactMatch,
+      Map<SearchCategory, int> countByResultType});
 
   @override
   $CategorizedSearchResultCopyWith<$Res>? get categorizedResults;
@@ -245,6 +257,7 @@ class __$$SearchStateImplCopyWithImpl<$Res>
     Object? filtersVisible = null,
     Object? isPanelDismissed = null,
     Object? exactMatch = null,
+    Object? countByResultType = null,
   }) {
     return _then(_$SearchStateImpl(
       queryText: null == queryText
@@ -299,6 +312,10 @@ class __$$SearchStateImplCopyWithImpl<$Res>
           ? _value.exactMatch
           : exactMatch // ignore: cast_nullable_to_non_nullable
               as bool,
+      countByResultType: null == countByResultType
+          ? _value._countByResultType
+          : countByResultType // ignore: cast_nullable_to_non_nullable
+              as Map<SearchCategory, int>,
     ));
   }
 }
@@ -319,10 +336,12 @@ class _$SearchStateImpl extends _SearchState {
       final List<String> nikayaFilters = const [],
       this.filtersVisible = false,
       this.isPanelDismissed = false,
-      this.exactMatch = false})
+      this.exactMatch = false,
+      final Map<SearchCategory, int> countByResultType = const {}})
       : _recentSearches = recentSearches,
         _selectedEditions = selectedEditions,
         _nikayaFilters = nikayaFilters,
+        _countByResultType = countByResultType,
         super._();
 
   /// Current search query text
@@ -407,15 +426,30 @@ class _$SearchStateImpl extends _SearchState {
   final bool isPanelDismissed;
 
   /// Whether exact match is enabled (default: false = prefix matching)
-  /// When false: "සතිප" matches "සතිපට්ඨානය", "සතිපට්ඨාන", etc.
-  /// When true: "සතිප" matches only "සතිප" exactly
+  /// When false: "සති" matches "සතිපට්ඨානය", "සතිපට්ඨාන", etc.
+  /// When true: "සති" matches only "සති" exactly
   @override
   @JsonKey()
   final bool exactMatch;
 
+  /// Result counts per category (for tab badges)
+  /// Updated independently from categorized results
+  final Map<SearchCategory, int> _countByResultType;
+
+  /// Result counts per category (for tab badges)
+  /// Updated independently from categorized results
+  @override
+  @JsonKey()
+  Map<SearchCategory, int> get countByResultType {
+    if (_countByResultType is EqualUnmodifiableMapView)
+      return _countByResultType;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(_countByResultType);
+  }
+
   @override
   String toString() {
-    return 'SearchState(queryText: $queryText, recentSearches: $recentSearches, selectedCategory: $selectedCategory, categorizedResults: $categorizedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, filtersVisible: $filtersVisible, isPanelDismissed: $isPanelDismissed, exactMatch: $exactMatch)';
+    return 'SearchState(queryText: $queryText, recentSearches: $recentSearches, selectedCategory: $selectedCategory, categorizedResults: $categorizedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, filtersVisible: $filtersVisible, isPanelDismissed: $isPanelDismissed, exactMatch: $exactMatch, countByResultType: $countByResultType)';
   }
 
   @override
@@ -448,7 +482,9 @@ class _$SearchStateImpl extends _SearchState {
             (identical(other.isPanelDismissed, isPanelDismissed) ||
                 other.isPanelDismissed == isPanelDismissed) &&
             (identical(other.exactMatch, exactMatch) ||
-                other.exactMatch == exactMatch));
+                other.exactMatch == exactMatch) &&
+            const DeepCollectionEquality()
+                .equals(other._countByResultType, _countByResultType));
   }
 
   @override
@@ -466,7 +502,8 @@ class _$SearchStateImpl extends _SearchState {
       const DeepCollectionEquality().hash(_nikayaFilters),
       filtersVisible,
       isPanelDismissed,
-      exactMatch);
+      exactMatch,
+      const DeepCollectionEquality().hash(_countByResultType));
 
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
@@ -491,7 +528,8 @@ abstract class _SearchState extends SearchState {
       final List<String> nikayaFilters,
       final bool filtersVisible,
       final bool isPanelDismissed,
-      final bool exactMatch}) = _$SearchStateImpl;
+      final bool exactMatch,
+      final Map<SearchCategory, int> countByResultType}) = _$SearchStateImpl;
   const _SearchState._() : super._();
 
   /// Current search query text
@@ -544,10 +582,15 @@ abstract class _SearchState extends SearchState {
   bool get isPanelDismissed;
 
   /// Whether exact match is enabled (default: false = prefix matching)
-  /// When false: "සතිප" matches "සතිපට්ඨානය", "සතිපට්ඨාන", etc.
-  /// When true: "සතිප" matches only "සතිප" exactly
+  /// When false: "සති" matches "සතිපට්ඨානය", "සතිපට්ඨාන", etc.
+  /// When true: "සති" matches only "සති" exactly
   @override
   bool get exactMatch;
+
+  /// Result counts per category (for tab badges)
+  /// Updated independently from categorized results
+  @override
+  Map<SearchCategory, int> get countByResultType;
 
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.

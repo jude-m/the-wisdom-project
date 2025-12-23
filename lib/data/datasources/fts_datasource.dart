@@ -80,6 +80,13 @@ abstract class FTSDataSource {
     int offset = 0,
   });
 
+  /// Count full-text matches without loading results (efficient for tab badges)
+  Future<int> countFullTextMatches(
+    String query, {
+    required String editionId,
+    bool exactMatch = false,
+  });
+
   /// Get search suggestions from one or more editions
   Future<List<FTSSuggestion>> getSuggestions(
     String prefix, {
@@ -317,6 +324,32 @@ class FTSDataSourceImpl implements FTSDataSource {
       return results.map((row) => FTSMatch.fromMap(row, editionId)).toList();
     } catch (e) {
       throw Exception('FTS search failed for edition $editionId: $e');
+    }
+  }
+
+  @override
+  Future<int> countFullTextMatches(
+    String query, {
+    required String editionId,
+    bool exactMatch = false,
+  }) async {
+    await initializeEditions({editionId});
+
+    final db = _databases[editionId];
+    if (db == null) {
+      throw StateError('Edition $editionId not initialized');
+    }
+
+    try {
+      final ftsTable = '${editionId}_fts';
+      final ftsQuery = _sanitizeFtsQuery(query, exactMatch: exactMatch);
+
+      final sql = 'SELECT COUNT(*) as count FROM $ftsTable WHERE $ftsTable MATCH ?';
+      final results = await db.rawQuery(sql, [ftsQuery]);
+
+      return results.first['count'] as int;
+    } catch (e) {
+      throw Exception('FTS count failed for edition $editionId: $e');
     }
   }
 

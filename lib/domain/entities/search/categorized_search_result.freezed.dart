@@ -16,12 +16,9 @@ final _privateConstructorUsedError = UnsupportedError(
 
 /// @nodoc
 mixin _$CategorizedSearchResult {
-  /// Results grouped by category
+  /// Results grouped by category (limited preview, e.g., max 3 per category)
   Map<SearchCategory, List<SearchResult>> get resultsByCategory =>
       throw _privateConstructorUsedError;
-
-  /// Total count of all results across all categories
-  int get totalCount => throw _privateConstructorUsedError;
 
   /// Create a copy of CategorizedSearchResult
   /// with the given fields replaced by the non-null parameter values.
@@ -36,9 +33,7 @@ abstract class $CategorizedSearchResultCopyWith<$Res> {
           $Res Function(CategorizedSearchResult) then) =
       _$CategorizedSearchResultCopyWithImpl<$Res, CategorizedSearchResult>;
   @useResult
-  $Res call(
-      {Map<SearchCategory, List<SearchResult>> resultsByCategory,
-      int totalCount});
+  $Res call({Map<SearchCategory, List<SearchResult>> resultsByCategory});
 }
 
 /// @nodoc
@@ -58,17 +53,12 @@ class _$CategorizedSearchResultCopyWithImpl<$Res,
   @override
   $Res call({
     Object? resultsByCategory = null,
-    Object? totalCount = null,
   }) {
     return _then(_value.copyWith(
       resultsByCategory: null == resultsByCategory
           ? _value.resultsByCategory
           : resultsByCategory // ignore: cast_nullable_to_non_nullable
               as Map<SearchCategory, List<SearchResult>>,
-      totalCount: null == totalCount
-          ? _value.totalCount
-          : totalCount // ignore: cast_nullable_to_non_nullable
-              as int,
     ) as $Val);
   }
 }
@@ -82,9 +72,7 @@ abstract class _$$CategorizedSearchResultImplCopyWith<$Res>
       __$$CategorizedSearchResultImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call(
-      {Map<SearchCategory, List<SearchResult>> resultsByCategory,
-      int totalCount});
+  $Res call({Map<SearchCategory, List<SearchResult>> resultsByCategory});
 }
 
 /// @nodoc
@@ -103,17 +91,12 @@ class __$$CategorizedSearchResultImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? resultsByCategory = null,
-    Object? totalCount = null,
   }) {
     return _then(_$CategorizedSearchResultImpl(
       resultsByCategory: null == resultsByCategory
           ? _value._resultsByCategory
           : resultsByCategory // ignore: cast_nullable_to_non_nullable
               as Map<SearchCategory, List<SearchResult>>,
-      totalCount: null == totalCount
-          ? _value.totalCount
-          : totalCount // ignore: cast_nullable_to_non_nullable
-              as int,
     ));
   }
 }
@@ -122,15 +105,15 @@ class __$$CategorizedSearchResultImplCopyWithImpl<$Res>
 
 class _$CategorizedSearchResultImpl extends _CategorizedSearchResult {
   const _$CategorizedSearchResultImpl(
-      {required final Map<SearchCategory, List<SearchResult>> resultsByCategory,
-      required this.totalCount})
+      {required final Map<SearchCategory, List<SearchResult>>
+          resultsByCategory})
       : _resultsByCategory = resultsByCategory,
         super._();
 
-  /// Results grouped by category
+  /// Results grouped by category (limited preview, e.g., max 3 per category)
   final Map<SearchCategory, List<SearchResult>> _resultsByCategory;
 
-  /// Results grouped by category
+  /// Results grouped by category (limited preview, e.g., max 3 per category)
   @override
   Map<SearchCategory, List<SearchResult>> get resultsByCategory {
     if (_resultsByCategory is EqualUnmodifiableMapView)
@@ -139,13 +122,9 @@ class _$CategorizedSearchResultImpl extends _CategorizedSearchResult {
     return EqualUnmodifiableMapView(_resultsByCategory);
   }
 
-  /// Total count of all results across all categories
-  @override
-  final int totalCount;
-
   @override
   String toString() {
-    return 'CategorizedSearchResult(resultsByCategory: $resultsByCategory, totalCount: $totalCount)';
+    return 'CategorizedSearchResult(resultsByCategory: $resultsByCategory)';
   }
 
   @override
@@ -154,14 +133,12 @@ class _$CategorizedSearchResultImpl extends _CategorizedSearchResult {
         (other.runtimeType == runtimeType &&
             other is _$CategorizedSearchResultImpl &&
             const DeepCollectionEquality()
-                .equals(other._resultsByCategory, _resultsByCategory) &&
-            (identical(other.totalCount, totalCount) ||
-                other.totalCount == totalCount));
+                .equals(other._resultsByCategory, _resultsByCategory));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType,
-      const DeepCollectionEquality().hash(_resultsByCategory), totalCount);
+  int get hashCode => Object.hash(
+      runtimeType, const DeepCollectionEquality().hash(_resultsByCategory));
 
   /// Create a copy of CategorizedSearchResult
   /// with the given fields replaced by the non-null parameter values.
@@ -175,17 +152,13 @@ class _$CategorizedSearchResultImpl extends _CategorizedSearchResult {
 
 abstract class _CategorizedSearchResult extends CategorizedSearchResult {
   const factory _CategorizedSearchResult(
-      {required final Map<SearchCategory, List<SearchResult>> resultsByCategory,
-      required final int totalCount}) = _$CategorizedSearchResultImpl;
+      {required final Map<SearchCategory, List<SearchResult>>
+          resultsByCategory}) = _$CategorizedSearchResultImpl;
   const _CategorizedSearchResult._() : super._();
 
-  /// Results grouped by category
+  /// Results grouped by category (limited preview, e.g., max 3 per category)
   @override
   Map<SearchCategory, List<SearchResult>> get resultsByCategory;
-
-  /// Total count of all results across all categories
-  @override
-  int get totalCount;
 
   /// Create a copy of CategorizedSearchResult
   /// with the given fields replaced by the non-null parameter values.

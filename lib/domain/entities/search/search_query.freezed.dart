@@ -20,7 +20,7 @@ mixin _$SearchQuery {
   String get queryText => throw _privateConstructorUsedError;
 
   /// Whether to require exact word match (no prefix matching)
-  /// Default false = prefix matching enabled (e.g., "සතිප" matches "සතිපට්ඨානය")
+  /// Default false = prefix matching enabled (e.g., "සති" matches "සතිපට්ඨානය")
   bool get exactMatch => throw _privateConstructorUsedError;
 
   /// Editions to search within (e.g., {'bjt', 'sc'})
@@ -242,7 +242,7 @@ class _$SearchQueryImpl implements _SearchQuery {
   final String queryText;
 
   /// Whether to require exact word match (no prefix matching)
-  /// Default false = prefix matching enabled (e.g., "සතිප" matches "සතිපට්ඨානය")
+  /// Default false = prefix matching enabled (e.g., "සති" matches "සතිපට්ඨානය")
   @override
   @JsonKey()
   final bool exactMatch;
@@ -372,7 +372,7 @@ abstract class _SearchQuery implements SearchQuery {
   String get queryText;
 
   /// Whether to require exact word match (no prefix matching)
-  /// Default false = prefix matching enabled (e.g., "සතිප" matches "සතිපට්ඨානය")
+  /// Default false = prefix matching enabled (e.g., "සති" matches "සතිපට්ඨානය")
   @override
   bool get exactMatch;
 

@@ -40,6 +40,7 @@ class SearchResultsPanel extends ConsumerWidget {
           // Category tabs
           _CategoryTabBar(
             selectedCategory: searchState.selectedCategory,
+            countByResultType: searchState.countByResultType,
             onCategorySelected: (category) {
               ref.read(searchStateProvider.notifier).selectCategory(category);
             },
@@ -292,11 +293,13 @@ class _PanelHeader extends StatelessWidget {
 /// Category tab bar for switching between All, Title, Content, and Definition
 class _CategoryTabBar extends StatelessWidget {
   final SearchCategory selectedCategory;
+  final Map<SearchCategory, int> countByResultType;
   final void Function(SearchCategory) onCategorySelected;
 
   const _CategoryTabBar({
     required this.selectedCategory,
     required this.onCategorySelected,
+    required this.countByResultType,
   });
 
   @override
@@ -316,6 +319,8 @@ class _CategoryTabBar extends StatelessWidget {
       child: Row(
         children: SearchCategory.values.map((category) {
           final isSelected = category == selectedCategory;
+          final count = countByResultType[category];
+
           return Expanded(
             child: InkWell(
               onTap: () => onCategorySelected(category),
@@ -331,20 +336,65 @@ class _CategoryTabBar extends StatelessWidget {
                     ),
                   ),
                 ),
-                child: Text(
-                  category.displayName,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: isSelected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        category.displayName,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    // Show badge for non-"all" tabs when count is available
+                    if (category != SearchCategory.all && count != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 6),
+                        child: _CountBadge(count: count),
+                      ),
+                  ],
                 ),
               ),
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+}
+
+/// Pill-shaped badge showing result count for tab headers
+class _CountBadge extends StatelessWidget {
+  final int count;
+
+  const _CountBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    // Format: 0, 56, or 100+
+    final displayText = count > 100 ? '100+' : count.toString();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        displayText,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }

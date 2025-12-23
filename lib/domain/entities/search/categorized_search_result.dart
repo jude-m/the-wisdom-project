@@ -11,17 +11,18 @@ class CategorizedSearchResult with _$CategorizedSearchResult {
   const CategorizedSearchResult._();
 
   const factory CategorizedSearchResult({
-    /// Results grouped by category
+    /// Results grouped by category (limited preview, e.g., max 3 per category)
     required Map<SearchCategory, List<SearchResult>> resultsByCategory,
-
-    /// Total count of all results across all categories
-    required int totalCount,
   }) = _CategorizedSearchResult;
 
   /// Get results for a specific category
   List<SearchResult> getResultsForCategory(SearchCategory category) {
     return resultsByCategory[category] ?? [];
   }
+
+  /// Total count of preview results
+  int get totalCount =>
+      resultsByCategory.values.fold(0, (sum, list) => sum + list.length);
 
   /// Check if there are results for a category
   bool hasResultsForCategory(SearchCategory category) {
