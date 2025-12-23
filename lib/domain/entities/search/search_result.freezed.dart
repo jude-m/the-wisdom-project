@@ -23,7 +23,7 @@ mixin _$SearchResult {
   String get editionId => throw _privateConstructorUsedError;
 
   /// Category this result belongs to (title, content, or definition)
-  SearchResultType get category => throw _privateConstructorUsedError;
+  SearchResultType get resultType => throw _privateConstructorUsedError;
 
   /// Title of the sutta/document
   String get title => throw _privateConstructorUsedError;
@@ -74,7 +74,7 @@ abstract class $SearchResultCopyWith<$Res> {
   $Res call(
       {String id,
       String editionId,
-      SearchResultType category,
+      SearchResultType resultType,
       String title,
       String subtitle,
       String matchedText,
@@ -105,7 +105,7 @@ class _$SearchResultCopyWithImpl<$Res, $Val extends SearchResult>
   $Res call({
     Object? id = null,
     Object? editionId = null,
-    Object? category = null,
+    Object? resultType = null,
     Object? title = null,
     Object? subtitle = null,
     Object? matchedText = null,
@@ -127,9 +127,9 @@ class _$SearchResultCopyWithImpl<$Res, $Val extends SearchResult>
           ? _value.editionId
           : editionId // ignore: cast_nullable_to_non_nullable
               as String,
-      category: null == category
-          ? _value.category
-          : category // ignore: cast_nullable_to_non_nullable
+      resultType: null == resultType
+          ? _value.resultType
+          : resultType // ignore: cast_nullable_to_non_nullable
               as SearchResultType,
       title: null == title
           ? _value.title
@@ -190,7 +190,7 @@ abstract class _$$SearchResultImplCopyWith<$Res>
   $Res call(
       {String id,
       String editionId,
-      SearchResultType category,
+      SearchResultType resultType,
       String title,
       String subtitle,
       String matchedText,
@@ -219,7 +219,7 @@ class __$$SearchResultImplCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? editionId = null,
-    Object? category = null,
+    Object? resultType = null,
     Object? title = null,
     Object? subtitle = null,
     Object? matchedText = null,
@@ -241,9 +241,9 @@ class __$$SearchResultImplCopyWithImpl<$Res>
           ? _value.editionId
           : editionId // ignore: cast_nullable_to_non_nullable
               as String,
-      category: null == category
-          ? _value.category
-          : category // ignore: cast_nullable_to_non_nullable
+      resultType: null == resultType
+          ? _value.resultType
+          : resultType // ignore: cast_nullable_to_non_nullable
               as SearchResultType,
       title: null == title
           ? _value.title
@@ -299,7 +299,7 @@ class _$SearchResultImpl implements _SearchResult {
   const _$SearchResultImpl(
       {required this.id,
       required this.editionId,
-      required this.category,
+      required this.resultType,
       required this.title,
       required this.subtitle,
       required this.matchedText,
@@ -322,7 +322,7 @@ class _$SearchResultImpl implements _SearchResult {
 
   /// Category this result belongs to (title, content, or definition)
   @override
-  final SearchResultType category;
+  final SearchResultType resultType;
 
   /// Title of the sutta/document
   @override
@@ -372,7 +372,7 @@ class _$SearchResultImpl implements _SearchResult {
 
   @override
   String toString() {
-    return 'SearchResult(id: $id, editionId: $editionId, category: $category, title: $title, subtitle: $subtitle, matchedText: $matchedText, contextBefore: $contextBefore, contextAfter: $contextAfter, contentFileId: $contentFileId, pageIndex: $pageIndex, entryIndex: $entryIndex, nodeKey: $nodeKey, language: $language, relevanceScore: $relevanceScore)';
+    return 'SearchResult(id: $id, editionId: $editionId, resultType: $resultType, title: $title, subtitle: $subtitle, matchedText: $matchedText, contextBefore: $contextBefore, contextAfter: $contextAfter, contentFileId: $contentFileId, pageIndex: $pageIndex, entryIndex: $entryIndex, nodeKey: $nodeKey, language: $language, relevanceScore: $relevanceScore)';
   }
 
   @override
@@ -383,8 +383,8 @@ class _$SearchResultImpl implements _SearchResult {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.editionId, editionId) ||
                 other.editionId == editionId) &&
-            (identical(other.category, category) ||
-                other.category == category) &&
+            (identical(other.resultType, resultType) ||
+                other.resultType == resultType) &&
             (identical(other.title, title) || other.title == title) &&
             (identical(other.subtitle, subtitle) ||
                 other.subtitle == subtitle) &&
@@ -412,7 +412,7 @@ class _$SearchResultImpl implements _SearchResult {
       runtimeType,
       id,
       editionId,
-      category,
+      resultType,
       title,
       subtitle,
       matchedText,
@@ -438,7 +438,7 @@ abstract class _SearchResult implements SearchResult {
   const factory _SearchResult(
       {required final String id,
       required final String editionId,
-      required final SearchResultType category,
+      required final SearchResultType resultType,
       required final String title,
       required final String subtitle,
       required final String matchedText,
@@ -461,7 +461,7 @@ abstract class _SearchResult implements SearchResult {
 
   /// Category this result belongs to (title, content, or definition)
   @override
-  SearchResultType get category;
+  SearchResultType get resultType;
 
   /// Title of the sutta/document
   @override

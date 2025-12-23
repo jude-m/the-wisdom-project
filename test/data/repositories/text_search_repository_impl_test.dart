@@ -154,7 +154,7 @@ void main() {
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(sampleTree));
 
-        when(mockFTSDataSource.searchContent(
+        when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
@@ -190,7 +190,7 @@ void main() {
             expect(titleResults.length, equals(1));
             // 'brahma' matches Pali name 'Brahmajālasutta' directly
             expect(titleResults[0].title, equals('Brahmajālasutta'));
-            expect(titleResults[0].category, equals(SearchResultType.title));
+            expect(titleResults[0].resultType, equals(SearchResultType.title));
             expect(titleResults[0].language, equals('pali'));
           },
         );
@@ -258,7 +258,7 @@ void main() {
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(largeTree));
 
-        when(mockFTSDataSource.searchContent(
+        when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
@@ -305,7 +305,7 @@ void main() {
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(sampleTree));
 
-        when(mockFTSDataSource.searchContent(
+        when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
@@ -327,7 +327,7 @@ void main() {
             final contentResults =
                 categorized.resultsByType[SearchResultType.fullText]!;
             expect(contentResults.length, equals(1));
-            expect(contentResults[0].category, equals(SearchResultType.fullText));
+            expect(contentResults[0].resultType, equals(SearchResultType.fullText));
             expect(contentResults[0].contentFileId, equals('dn-1'));
           },
         );
@@ -341,7 +341,7 @@ void main() {
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(sampleTree));
 
-        when(mockFTSDataSource.searchContent(
+        when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
@@ -355,7 +355,7 @@ void main() {
         await repository.searchTopResults(query);
 
         // ASSERT - Verify exactMatch was passed to FTS datasource
-        verify(mockFTSDataSource.searchContent(
+        verify(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
@@ -373,7 +373,7 @@ void main() {
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(sampleTree));
 
-        when(mockFTSDataSource.searchContent(
+        when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
@@ -387,7 +387,7 @@ void main() {
         await repository.searchTopResults(query);
 
         // ASSERT - Verify exactMatch defaults to false
-        verify(mockFTSDataSource.searchContent(
+        verify(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
@@ -429,7 +429,7 @@ void main() {
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(sampleTree));
 
-        when(mockFTSDataSource.searchContent(
+        when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
@@ -462,7 +462,7 @@ void main() {
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(sampleTree));
 
-        when(mockFTSDataSource.searchContent(
+        when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
@@ -510,7 +510,7 @@ void main() {
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(treeWithSatiMatch));
 
-        when(mockFTSDataSource.searchContent(
+        when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
@@ -558,7 +558,7 @@ void main() {
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(treeWithSinhalaMatch));
 
-        when(mockFTSDataSource.searchContent(
+        when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
@@ -608,7 +608,7 @@ void main() {
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(treeWithPaliMatch));
 
-        when(mockFTSDataSource.searchContent(
+        when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
@@ -658,7 +658,7 @@ void main() {
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(treeWithBothMatch));
 
-        when(mockFTSDataSource.searchContent(
+        when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
@@ -733,7 +733,7 @@ void main() {
             expect(results.length, equals(1));
             // Now matches Sinhala name since query is in Sinhala
             expect(results[0].title, equals('බ්‍රහ්මජාලසූත්‍රය'));
-            expect(results[0].category, equals(SearchResultType.title));
+            expect(results[0].resultType, equals(SearchResultType.title));
           },
         );
       });
@@ -757,7 +757,7 @@ void main() {
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(sampleTree));
 
-        when(mockFTSDataSource.searchContent(
+        when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
@@ -778,12 +778,12 @@ void main() {
           (failure) => fail('Expected success but got failure'),
           (results) {
             expect(results.length, equals(1));
-            expect(results[0].category, equals(SearchResultType.fullText));
+            expect(results[0].resultType, equals(SearchResultType.fullText));
             expect(results[0].contentFileId, equals('dn-1'));
           },
         );
         // Verify FTS was called with the Sinhala query (no transliteration)
-        verify(mockFTSDataSource.searchContent(
+        verify(mockFTSDataSource.searchFullText(
           'ධම්ම',
           editionIds: {'bjt'},
           language: null,
@@ -850,7 +850,7 @@ void main() {
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(sampleTree));
 
-        when(mockFTSDataSource.searchContent(
+        when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),

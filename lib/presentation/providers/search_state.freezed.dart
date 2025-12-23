@@ -23,11 +23,10 @@ mixin _$SearchState {
   List<RecentSearch> get recentSearches => throw _privateConstructorUsedError;
 
   /// Currently selected category in results view
-  SearchResultType get selectedCategory => throw _privateConstructorUsedError;
+  SearchResultType get selectedResultType => throw _privateConstructorUsedError;
 
   /// Categorized results for "Top Results" tab (grouped by category)
-  GroupedSearchResult? get categorizedResults =>
-      throw _privateConstructorUsedError;
+  GroupedSearchResult? get groupedResults => throw _privateConstructorUsedError;
 
   /// Full results for the selected category (async state)
   AsyncValue<List<SearchResult>> get fullResults =>
@@ -81,8 +80,8 @@ abstract class $SearchStateCopyWith<$Res> {
   $Res call(
       {String queryText,
       List<RecentSearch> recentSearches,
-      SearchResultType selectedCategory,
-      GroupedSearchResult? categorizedResults,
+      SearchResultType selectedResultType,
+      GroupedSearchResult? groupedResults,
       AsyncValue<List<SearchResult>> fullResults,
       bool isLoading,
       Set<String> selectedEditions,
@@ -94,7 +93,7 @@ abstract class $SearchStateCopyWith<$Res> {
       bool exactMatch,
       Map<SearchResultType, int> countByResultType});
 
-  $GroupedSearchResultCopyWith<$Res>? get categorizedResults;
+  $GroupedSearchResultCopyWith<$Res>? get groupedResults;
 }
 
 /// @nodoc
@@ -114,8 +113,8 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
   $Res call({
     Object? queryText = null,
     Object? recentSearches = null,
-    Object? selectedCategory = null,
-    Object? categorizedResults = freezed,
+    Object? selectedResultType = null,
+    Object? groupedResults = freezed,
     Object? fullResults = null,
     Object? isLoading = null,
     Object? selectedEditions = null,
@@ -136,13 +135,13 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
           ? _value.recentSearches
           : recentSearches // ignore: cast_nullable_to_non_nullable
               as List<RecentSearch>,
-      selectedCategory: null == selectedCategory
-          ? _value.selectedCategory
-          : selectedCategory // ignore: cast_nullable_to_non_nullable
+      selectedResultType: null == selectedResultType
+          ? _value.selectedResultType
+          : selectedResultType // ignore: cast_nullable_to_non_nullable
               as SearchResultType,
-      categorizedResults: freezed == categorizedResults
-          ? _value.categorizedResults
-          : categorizedResults // ignore: cast_nullable_to_non_nullable
+      groupedResults: freezed == groupedResults
+          ? _value.groupedResults
+          : groupedResults // ignore: cast_nullable_to_non_nullable
               as GroupedSearchResult?,
       fullResults: null == fullResults
           ? _value.fullResults
@@ -191,14 +190,13 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
   /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
-  $GroupedSearchResultCopyWith<$Res>? get categorizedResults {
-    if (_value.categorizedResults == null) {
+  $GroupedSearchResultCopyWith<$Res>? get groupedResults {
+    if (_value.groupedResults == null) {
       return null;
     }
 
-    return $GroupedSearchResultCopyWith<$Res>(_value.categorizedResults!,
-        (value) {
-      return _then(_value.copyWith(categorizedResults: value) as $Val);
+    return $GroupedSearchResultCopyWith<$Res>(_value.groupedResults!, (value) {
+      return _then(_value.copyWith(groupedResults: value) as $Val);
     });
   }
 }
@@ -214,8 +212,8 @@ abstract class _$$SearchStateImplCopyWith<$Res>
   $Res call(
       {String queryText,
       List<RecentSearch> recentSearches,
-      SearchResultType selectedCategory,
-      GroupedSearchResult? categorizedResults,
+      SearchResultType selectedResultType,
+      GroupedSearchResult? groupedResults,
       AsyncValue<List<SearchResult>> fullResults,
       bool isLoading,
       Set<String> selectedEditions,
@@ -228,7 +226,7 @@ abstract class _$$SearchStateImplCopyWith<$Res>
       Map<SearchResultType, int> countByResultType});
 
   @override
-  $GroupedSearchResultCopyWith<$Res>? get categorizedResults;
+  $GroupedSearchResultCopyWith<$Res>? get groupedResults;
 }
 
 /// @nodoc
@@ -246,8 +244,8 @@ class __$$SearchStateImplCopyWithImpl<$Res>
   $Res call({
     Object? queryText = null,
     Object? recentSearches = null,
-    Object? selectedCategory = null,
-    Object? categorizedResults = freezed,
+    Object? selectedResultType = null,
+    Object? groupedResults = freezed,
     Object? fullResults = null,
     Object? isLoading = null,
     Object? selectedEditions = null,
@@ -268,13 +266,13 @@ class __$$SearchStateImplCopyWithImpl<$Res>
           ? _value._recentSearches
           : recentSearches // ignore: cast_nullable_to_non_nullable
               as List<RecentSearch>,
-      selectedCategory: null == selectedCategory
-          ? _value.selectedCategory
-          : selectedCategory // ignore: cast_nullable_to_non_nullable
+      selectedResultType: null == selectedResultType
+          ? _value.selectedResultType
+          : selectedResultType // ignore: cast_nullable_to_non_nullable
               as SearchResultType,
-      categorizedResults: freezed == categorizedResults
-          ? _value.categorizedResults
-          : categorizedResults // ignore: cast_nullable_to_non_nullable
+      groupedResults: freezed == groupedResults
+          ? _value.groupedResults
+          : groupedResults // ignore: cast_nullable_to_non_nullable
               as GroupedSearchResult?,
       fullResults: null == fullResults
           ? _value.fullResults
@@ -326,8 +324,8 @@ class _$SearchStateImpl extends _SearchState {
   const _$SearchStateImpl(
       {this.queryText = '',
       final List<RecentSearch> recentSearches = const [],
-      this.selectedCategory = SearchResultType.topResults,
-      this.categorizedResults,
+      this.selectedResultType = SearchResultType.topResults,
+      this.groupedResults,
       this.fullResults = const AsyncValue.data([]),
       this.isLoading = false,
       final Set<String> selectedEditions = const {},
@@ -364,11 +362,11 @@ class _$SearchStateImpl extends _SearchState {
   /// Currently selected category in results view
   @override
   @JsonKey()
-  final SearchResultType selectedCategory;
+  final SearchResultType selectedResultType;
 
   /// Categorized results for "Top Results" tab (grouped by category)
   @override
-  final GroupedSearchResult? categorizedResults;
+  final GroupedSearchResult? groupedResults;
 
   /// Full results for the selected category (async state)
   @override
@@ -449,7 +447,7 @@ class _$SearchStateImpl extends _SearchState {
 
   @override
   String toString() {
-    return 'SearchState(queryText: $queryText, recentSearches: $recentSearches, selectedCategory: $selectedCategory, categorizedResults: $categorizedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, filtersVisible: $filtersVisible, isPanelDismissed: $isPanelDismissed, exactMatch: $exactMatch, countByResultType: $countByResultType)';
+    return 'SearchState(queryText: $queryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, filtersVisible: $filtersVisible, isPanelDismissed: $isPanelDismissed, exactMatch: $exactMatch, countByResultType: $countByResultType)';
   }
 
   @override
@@ -461,10 +459,10 @@ class _$SearchStateImpl extends _SearchState {
                 other.queryText == queryText) &&
             const DeepCollectionEquality()
                 .equals(other._recentSearches, _recentSearches) &&
-            (identical(other.selectedCategory, selectedCategory) ||
-                other.selectedCategory == selectedCategory) &&
-            (identical(other.categorizedResults, categorizedResults) ||
-                other.categorizedResults == categorizedResults) &&
+            (identical(other.selectedResultType, selectedResultType) ||
+                other.selectedResultType == selectedResultType) &&
+            (identical(other.groupedResults, groupedResults) ||
+                other.groupedResults == groupedResults) &&
             (identical(other.fullResults, fullResults) ||
                 other.fullResults == fullResults) &&
             (identical(other.isLoading, isLoading) ||
@@ -492,8 +490,8 @@ class _$SearchStateImpl extends _SearchState {
       runtimeType,
       queryText,
       const DeepCollectionEquality().hash(_recentSearches),
-      selectedCategory,
-      categorizedResults,
+      selectedResultType,
+      groupedResults,
       fullResults,
       isLoading,
       const DeepCollectionEquality().hash(_selectedEditions),
@@ -518,8 +516,8 @@ abstract class _SearchState extends SearchState {
   const factory _SearchState(
       {final String queryText,
       final List<RecentSearch> recentSearches,
-      final SearchResultType selectedCategory,
-      final GroupedSearchResult? categorizedResults,
+      final SearchResultType selectedResultType,
+      final GroupedSearchResult? groupedResults,
       final AsyncValue<List<SearchResult>> fullResults,
       final bool isLoading,
       final Set<String> selectedEditions,
@@ -542,11 +540,11 @@ abstract class _SearchState extends SearchState {
 
   /// Currently selected category in results view
   @override
-  SearchResultType get selectedCategory;
+  SearchResultType get selectedResultType;
 
   /// Categorized results for "Top Results" tab (grouped by category)
   @override
-  GroupedSearchResult? get categorizedResults;
+  GroupedSearchResult? get groupedResults;
 
   /// Full results for the selected category (async state)
   @override

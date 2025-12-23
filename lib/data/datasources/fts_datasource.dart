@@ -70,7 +70,7 @@ abstract class FTSDataSource {
 
   /// Search for content across one or more editions
   /// Returns results tagged with their source edition
-  Future<List<FTSMatch>> searchContent(
+  Future<List<FTSMatch>> searchFullText(
     String query, {
     required Set<String> editionIds,
     String? language,
@@ -225,7 +225,7 @@ class FTSDataSourceImpl implements FTSDataSource {
   }
 
   @override
-  Future<List<FTSMatch>> searchContent(
+  Future<List<FTSMatch>> searchFullText(
     String query, {
     required Set<String> editionIds,
     String? language,

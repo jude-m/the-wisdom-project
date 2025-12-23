@@ -38,29 +38,29 @@ class SearchResultsPanel extends ConsumerWidget {
             onClose: onClose,
           ),
           // Category tabs
-          _CategoryTabBar(
-            selectedCategory: searchState.selectedCategory,
+          _SearchResultsTabBar(
+            selectedResultType: searchState.selectedResultType,
             countByResultType: searchState.countByResultType,
-            onCategorySelected: (category) {
-              ref.read(searchStateProvider.notifier).selectCategory(category);
+            onResultTypeSelected: (renameType) {
+              ref.read(searchStateProvider.notifier).selectResultType(renameType);
             },
           ),
           // Results list - different view for "All" tab vs specific category
           Expanded(
-            child: searchState.selectedCategory == SearchResultType.topResults
-                ? _buildAllTabContent(
+            child: searchState.selectedResultType == SearchResultType.topResults
+                ? _buildTopResultsTabContent(
                     context,
                     theme,
                     searchState.isLoading,
-                    searchState.categorizedResults,
+                    searchState.groupedResults,
                     searchState.queryText,
                   )
-                : _buildCategoryTabContent(
+                : _buildResultTypeTabContent(
                     context,
                     ref,
                     theme,
                     searchState.fullResults,
-                    searchState.selectedCategory,
+                    searchState.selectedResultType,
                     searchState.queryText,
                   ),
           ),
@@ -70,7 +70,7 @@ class SearchResultsPanel extends ConsumerWidget {
   }
 
   /// Builds the content for the "All" tab showing categorized results
-  Widget _buildAllTabContent(
+  Widget _buildTopResultsTabContent(
     BuildContext context,
     ThemeData theme,
     bool isLoading,
@@ -115,19 +115,19 @@ class SearchResultsPanel extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ...categorizedResults.categoriesWithResults
-              .where((category) =>
-                  category != SearchResultType.definition &&
-                  category != SearchResultType.topResults)
-              .map((category) => Column(
+              .where((resultType) =>
+                  resultType != SearchResultType.definition &&
+                  resultType != SearchResultType.topResults)
+              .map((resultType) => Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Section header
-                      _sectionHeader(theme, category.displayName.toUpperCase()),
+                      _sectionHeader(theme, resultType.displayName.toUpperCase()),
                       // Results using _SearchResultTile
                       ...categorizedResults
-                          .getResultsByType(category)
+                          .getResultsByType(resultType)
                           .map((result) => _SearchResultTile(
-                                result: result,
+                                searchResult: result,
                                 queryText: queryText,
                                 onTap: () => onResultTap?.call(result),
                               )),
@@ -155,12 +155,12 @@ class SearchResultsPanel extends ConsumerWidget {
   }
 
   /// Builds the content for specific category tabs (Title, Content, Definition)
-  Widget _buildCategoryTabContent(
+  Widget _buildResultTypeTabContent(
     BuildContext context,
     WidgetRef ref,
     ThemeData theme,
     AsyncValue<List<SearchResult>> fullResults,
-    SearchResultType selectedCategory,
+    SearchResultType selectedResultType,
     String queryText,
   ) {
     return fullResults.when(
@@ -188,7 +188,7 @@ class SearchResultsPanel extends ConsumerWidget {
                 onPressed: () {
                   ref
                       .read(searchStateProvider.notifier)
-                      .selectCategory(selectedCategory);
+                      .selectResultType(selectedResultType);
                 },
                 child: const Text('Retry'),
               ),
@@ -211,7 +211,7 @@ class SearchResultsPanel extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No ${selectedCategory.displayName.toLowerCase()} found',
+                    'No ${selectedResultType.displayName.toLowerCase()} found',
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -233,7 +233,7 @@ class SearchResultsPanel extends ConsumerWidget {
           ),
           itemBuilder: (context, index) {
             return _SearchResultTile(
-              result: results[index],
+              searchResult: results[index],
               queryText: queryText,
               onTap: () => onResultTap?.call(results[index]),
             );
@@ -291,14 +291,14 @@ class _PanelHeader extends StatelessWidget {
 }
 
 /// Category tab bar for switching between All, Title, Content, and Definition
-class _CategoryTabBar extends StatelessWidget {
-  final SearchResultType selectedCategory;
+class _SearchResultsTabBar extends StatelessWidget {
+  final SearchResultType selectedResultType;
   final Map<SearchResultType, int> countByResultType;
-  final void Function(SearchResultType) onCategorySelected;
+  final void Function(SearchResultType) onResultTypeSelected;
 
-  const _CategoryTabBar({
-    required this.selectedCategory,
-    required this.onCategorySelected,
+  const _SearchResultsTabBar({
+    required this.selectedResultType,
+    required this.onResultTypeSelected,
     required this.countByResultType,
   });
 
@@ -317,13 +317,13 @@ class _CategoryTabBar extends StatelessWidget {
         ),
       ),
       child: Row(
-        children: SearchResultType.values.map((category) {
-          final isSelected = category == selectedCategory;
-          final count = countByResultType[category];
+        children: SearchResultType.values.map((resultType) {
+          final isSelected = resultType == selectedResultType;
+          final count = countByResultType[resultType];
 
           return Expanded(
             child: InkWell(
-              onTap: () => onCategorySelected(category),
+              onTap: () => onResultTypeSelected(resultType),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
@@ -342,7 +342,7 @@ class _CategoryTabBar extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        category.displayName,
+                        resultType.displayName,
                         textAlign: TextAlign.center,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.labelLarge?.copyWith(
@@ -355,7 +355,7 @@ class _CategoryTabBar extends StatelessWidget {
                       ),
                     ),
                     // Show badge for non-"all" tabs when count is available
-                    if (category != SearchResultType.topResults && count != null)
+                    if (resultType != SearchResultType.topResults && count != null)
                       Padding(
                         padding: const EdgeInsets.only(left: 6),
                         child: _CountBadge(count: count),
@@ -402,12 +402,12 @@ class _CountBadge extends StatelessWidget {
 
 /// Individual search result tile with highlighting support
 class _SearchResultTile extends StatelessWidget {
-  final SearchResult result;
+  final SearchResult searchResult;
   final String queryText;
   final VoidCallback? onTap;
 
   const _SearchResultTile({
-    required this.result,
+    required this.searchResult,
     required this.queryText,
     this.onTap,
   });
@@ -427,7 +427,7 @@ class _SearchResultTile extends StatelessWidget {
         ),
         child: Center(
           child: Text(
-            result.editionId.toUpperCase(),
+            searchResult.editionId.toUpperCase(),
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onPrimaryContainer,
               fontWeight: FontWeight.w600,
@@ -437,7 +437,7 @@ class _SearchResultTile extends StatelessWidget {
       ),
       // Title is never highlighted - just plain text
       title: Text(
-        result.title,
+        searchResult.title,
         style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
@@ -447,7 +447,7 @@ class _SearchResultTile extends StatelessWidget {
         children: [
           const SizedBox(height: 4),
           Text(
-            result.subtitle,
+            searchResult.subtitle,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -455,11 +455,11 @@ class _SearchResultTile extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           // Only show and highlight matchedText for CONTENT results
-          if (result.category == SearchResultType.fullText &&
-              result.matchedText.isNotEmpty) ...[
+          if (searchResult.resultType == SearchResultType.fullText &&
+              searchResult.matchedText.isNotEmpty) ...[
             const SizedBox(height: 4),
             _buildHighlightedText(
-              result.matchedText,
+              searchResult.matchedText,
               queryText,
               theme,
             ),

@@ -14,7 +14,7 @@ class SearchResult with _$SearchResult {
     required String editionId,
 
     /// Category this result belongs to (title, content, or definition)
-    required SearchResultType category,
+    required SearchResultType resultType,
 
     /// Title of the sutta/document
     required String title,

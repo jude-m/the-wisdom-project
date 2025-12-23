@@ -119,7 +119,7 @@ void main() {
 
       // ASSERT - Verify search state is cleared
       expect(capturedState?.queryText, isEmpty);
-      expect(capturedState?.categorizedResults, isNull);
+      expect(capturedState?.groupedResults, isNull);
       expect(capturedState?.isResultsPanelVisible, isFalse);
     });
 

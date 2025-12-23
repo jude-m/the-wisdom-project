@@ -109,7 +109,7 @@ void main() {
         notifier.updateQuery('');
 
         // ASSERT
-        expect(notifier.state.categorizedResults, isNull);
+        expect(notifier.state.groupedResults, isNull);
         expect(notifier.state.isLoading, isFalse);
       });
 
@@ -152,7 +152,7 @@ void main() {
     });
 
 
-    group('selectCategory', () {
+    group('selectResultType', () {
       test('should update selected category', () async {
         // ARRANGE
         when(mockSearchRepository.searchByResultType(any, any))
@@ -161,10 +161,10 @@ void main() {
         notifier.updateQuery('test');
 
         // ACT
-        await notifier.selectCategory(SearchResultType.fullText);
+        await notifier.selectResultType(SearchResultType.fullText);
 
         // ASSERT
-        expect(notifier.state.selectedCategory, equals(SearchResultType.fullText));
+        expect(notifier.state.selectedResultType, equals(SearchResultType.fullText));
       });
 
       test('should load categorized results for "all" category', () async {
@@ -184,11 +184,11 @@ void main() {
         notifier.updateQuery('test');
 
         // First switch to a different category
-        await notifier.selectCategory(SearchResultType.title);
+        await notifier.selectResultType(SearchResultType.title);
         clearInteractions(mockSearchRepository);
 
         // ACT - Switch back to "all" category
-        await notifier.selectCategory(SearchResultType.topResults);
+        await notifier.selectResultType(SearchResultType.topResults);
 
         // ASSERT
         verify(mockSearchRepository.searchTopResults(any)).called(1);
@@ -202,7 +202,7 @@ void main() {
         notifier.updateQuery('test');
 
         // ACT
-        await notifier.selectCategory(SearchResultType.fullText);
+        await notifier.selectResultType(SearchResultType.fullText);
 
         // ASSERT
         verify(mockSearchRepository.searchByResultType(
@@ -226,7 +226,7 @@ void main() {
         clearInteractions(mockSearchRepository);
 
         // ACT - Select same category (default is all)
-        await notifier.selectCategory(SearchResultType.topResults);
+        await notifier.selectResultType(SearchResultType.topResults);
 
         // ASSERT
         verifyNever(mockSearchRepository.searchTopResults(any));
@@ -441,7 +441,7 @@ void main() {
 
         // ASSERT
         expect(notifier.state.queryText, isEmpty);
-        expect(notifier.state.categorizedResults, isNull);
+        expect(notifier.state.groupedResults, isNull);
         expect(notifier.state.isResultsPanelVisible, isFalse);
       });
     });
@@ -561,7 +561,7 @@ void main() {
 
         // ASSERT
         expect(notifier.state.isLoading, isFalse);
-        expect(notifier.state.categorizedResults, isNull);
+        expect(notifier.state.groupedResults, isNull);
         expect(notifier.state.queryText, equals('test')); // Query text preserved
       });
 
@@ -576,7 +576,7 @@ void main() {
         notifier.updateQuery('test');
 
         // ACT
-        await notifier.selectCategory(SearchResultType.fullText);
+        await notifier.selectResultType(SearchResultType.fullText);
 
         // ASSERT
         expect(notifier.state.isLoading, isFalse);
@@ -624,7 +624,7 @@ void main() {
         notifier.updateQuery('dhamma');
         await Future.delayed(const Duration(milliseconds: 350));
 
-        expect(notifier.state.categorizedResults, isNotNull);
+        expect(notifier.state.groupedResults, isNotNull);
       });
 
       test('should cancel debounced search when query changes rapidly',

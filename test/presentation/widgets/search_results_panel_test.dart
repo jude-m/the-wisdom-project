@@ -13,12 +13,12 @@ class FakeSearchStateNotifier extends StateNotifier<SearchState>
     implements SearchStateNotifier {
   FakeSearchStateNotifier(super.state);
 
-  SearchResultType? lastSelectedCategory;
+  SearchResultType? lastSelectedResultType;
 
   @override
-  Future<void> selectCategory(SearchResultType category) async {
-    lastSelectedCategory = category;
-    state = state.copyWith(selectedCategory: category);
+  Future<void> selectResultType(SearchResultType category) async {
+    lastSelectedResultType = category;
+    state = state.copyWith(selectedResultType: category);
   }
 
   @override
@@ -59,7 +59,7 @@ void main() {
         const SearchState(
           queryText: 'test',
           isLoading: true,
-          selectedCategory: SearchResultType.topResults,
+          selectedResultType: SearchResultType.topResults,
         ),
       );
 
@@ -89,7 +89,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           queryText: 'test',
-          selectedCategory: SearchResultType.title,
+          selectedResultType: SearchResultType.title,
           fullResults: AsyncValue.loading(),
         ),
       );
@@ -118,7 +118,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         SearchState(
           queryText: 'test',
-          selectedCategory: SearchResultType.title,
+          selectedResultType: SearchResultType.title,
           fullResults: AsyncValue.error(
             Exception('Test error'),
             StackTrace.current,
@@ -153,8 +153,8 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           queryText: 'test',
-          selectedCategory: SearchResultType.topResults,
-          categorizedResults: GroupedSearchResult(
+          selectedResultType: SearchResultType.topResults,
+          groupedResults: GroupedSearchResult(
             resultsByType: {},
           ),
         ),
@@ -187,7 +187,7 @@ void main() {
         const SearchState(
           queryText: 'test',
           fullResults: AsyncValue.data([]),
-          selectedCategory: SearchResultType.title,
+          selectedResultType: SearchResultType.title,
         ),
       );
 
@@ -239,13 +239,13 @@ void main() {
       expect(find.text('Definitions'), findsOneWidget);
     });
 
-    testWidgets('should call selectCategory when tab is tapped',
+    testWidgets('should call selectResultType when tab is tapped',
         (tester) async {
       // ARRANGE
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           queryText: 'test',
-          selectedCategory: SearchResultType.topResults,
+          selectedResultType: SearchResultType.topResults,
         ),
       );
 
@@ -269,7 +269,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // ASSERT
-      expect(notifier.lastSelectedCategory, equals(SearchResultType.fullText));
+      expect(notifier.lastSelectedResultType, equals(SearchResultType.fullText));
     });
 
     testWidgets('should call onClose when close button tapped', (tester) async {
@@ -309,7 +309,7 @@ void main() {
       const result = SearchResult(
         id: 'test_id',
         editionId: 'bjt',
-        category: SearchResultType.title,
+        resultType: SearchResultType.title,
         title: 'Metta Sutta',
         subtitle: 'Sutta Nipata',
         matchedText: '',
@@ -324,7 +324,7 @@ void main() {
         const SearchState(
           queryText: 'metta',
           fullResults: AsyncValue.data([result]),
-          selectedCategory: SearchResultType.title,
+          selectedResultType: SearchResultType.title,
         ),
       );
 
@@ -359,7 +359,7 @@ void main() {
       const result = SearchResult(
         id: 'test_id',
         editionId: 'bjt',
-        category: SearchResultType.fullText,
+        resultType: SearchResultType.fullText,
         title: 'Brahmajālasutta',
         subtitle: 'Dīgha Nikāya',
         matchedText: 'This is matched text',
@@ -374,7 +374,7 @@ void main() {
         const SearchState(
           queryText: 'test',
           fullResults: AsyncValue.data([result]),
-          selectedCategory: SearchResultType.fullText,
+          selectedResultType: SearchResultType.fullText,
         ),
       );
 
@@ -407,7 +407,7 @@ void main() {
       const titleResult = SearchResult(
         id: 'title_1',
         editionId: 'bjt',
-        category: SearchResultType.title,
+        resultType: SearchResultType.title,
         title: 'Metta Sutta',
         subtitle: 'Sutta Nipata',
         matchedText: '',
@@ -421,7 +421,7 @@ void main() {
       const contentResult = SearchResult(
         id: 'content_1',
         editionId: 'bjt',
-        category: SearchResultType.fullText,
+        resultType: SearchResultType.fullText,
         title: 'Brahmajālasutta',
         subtitle: 'Dīgha Nikāya',
         matchedText: 'Metta karuna text',
@@ -435,8 +435,8 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           queryText: 'metta',
-          selectedCategory: SearchResultType.topResults,
-          categorizedResults: GroupedSearchResult(
+          selectedResultType: SearchResultType.topResults,
+          groupedResults: GroupedSearchResult(
             resultsByType: {
               SearchResultType.title: [titleResult],
               SearchResultType.fullText: [contentResult],

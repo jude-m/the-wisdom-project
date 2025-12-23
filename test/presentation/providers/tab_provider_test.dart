@@ -316,7 +316,7 @@ SearchResult _createTestSearchResult({
   return SearchResult(
     id: 'test_$nodeKey',
     editionId: 'bjt',
-    category: category,
+    resultType: category,
     title: title,
     subtitle: 'Test Subtitle',
     matchedText: 'Test matched text',

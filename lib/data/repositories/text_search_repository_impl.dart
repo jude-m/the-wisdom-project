@@ -55,7 +55,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           );
 
           // 2. Content matches (from FTS)
-          resultsByCategory[SearchResultType.fullText] = await _searchContent(
+          resultsByCategory[SearchResultType.fullText] = await _searchFullText(
             nodeMap: nodeMap,
             queryText: query.queryText,
             editionIds: editionsToSearch,
@@ -117,7 +117,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
               ));
 
             case SearchResultType.fullText:
-              final results = await _searchContent(
+              final results = await _searchFullText(
                 nodeMap: nodeMap,
                 queryText: query.queryText,
                 editionIds: editionsToSearch,
@@ -271,7 +271,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           SearchResult(
             id: 'title_${node.nodeKey}',
             editionId: editionId,
-            category: SearchResultType.title,
+            resultType: SearchResultType.title,
             title: matchedName,
             subtitle: _buildNavigationPath(node, nodeMap),
             matchedText: matchedName,
@@ -303,7 +303,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
 
   /// Search for content matches using FTS database
   /// Optionally loads matched text from JSON files for preview display
-  Future<List<SearchResult>> _searchContent({
+  Future<List<SearchResult>> _searchFullText({
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
     required Set<String> editionIds,
@@ -312,7 +312,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     int offset = 0,
     bool loadMatchedText = false,
   }) async {
-    final ftsMatches = await _ftsDataSource.searchContent(
+    final ftsMatches = await _ftsDataSource.searchFullText(
       queryText,
       editionIds: editionIds,
       exactMatch: exactMatch,
@@ -353,7 +353,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           SearchResult(
             id: '${match.editionId}_${match.filename}_${match.eind}',
             editionId: match.editionId,
-            category: SearchResultType.fullText,
+            resultType: SearchResultType.fullText,
             title: title,
             subtitle: _buildNavigationPath(node, nodeMap),
             matchedText: matchedText,

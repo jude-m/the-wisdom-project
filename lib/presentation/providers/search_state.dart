@@ -32,10 +32,10 @@ class SearchState with _$SearchState {
     @Default([]) List<RecentSearch> recentSearches,
 
     /// Currently selected category in results view
-    @Default(SearchResultType.topResults) SearchResultType selectedCategory,
+    @Default(SearchResultType.topResults) SearchResultType selectedResultType,
 
     /// Categorized results for "Top Results" tab (grouped by category)
-    GroupedSearchResult? categorizedResults,
+    GroupedSearchResult? groupedResults,
 
     /// Full results for the selected category (async state)
     @Default(AsyncValue.data([])) AsyncValue<List<SearchResult>> fullResults,
@@ -116,7 +116,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     // If query is empty, clear results (panel will auto-hide via computed getter)
     if (query.trim().isEmpty) {
       state = state.copyWith(
-        categorizedResults: null,
+        groupedResults: null,
         fullResults: const AsyncValue.data([]),
         isLoading: false,
       );
@@ -139,7 +139,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     // Always load counts for tab badges (runs in parallel with results)
     unawaited(_loadCounts());
 
-    if (state.selectedCategory == SearchResultType.topResults) {
+    if (state.selectedResultType == SearchResultType.topResults) {
       await _loadTopResults();
     } else {
       await _loadResultsForType();
@@ -170,13 +170,13 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
       (failure) {
         state = state.copyWith(
           isLoading: false,
-          categorizedResults: null,
+          groupedResults: null,
         );
       },
       (categorizedResult) {
         state = state.copyWith(
           isLoading: false,
-          categorizedResults: categorizedResult,
+          groupedResults: categorizedResult,
         );
       },
     );
@@ -192,7 +192,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
     final result = await _searchRepository.searchByResultType(
       query,
-      state.selectedCategory,
+      state.selectedResultType,
     );
 
     result.fold(
@@ -228,11 +228,11 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   }
 
   /// Select a category tab in results view
-  Future<void> selectCategory(SearchResultType category) async {
-    if (state.selectedCategory == category) return;
+  Future<void> selectResultType(SearchResultType resultType) async {
+    if (state.selectedResultType == resultType) return;
 
     state = state.copyWith(
-      selectedCategory: category,
+      selectedResultType: resultType,
       isLoading: true,
     );
 
