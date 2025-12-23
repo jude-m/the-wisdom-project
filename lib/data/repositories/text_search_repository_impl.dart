@@ -3,8 +3,8 @@ import 'dart:developer' as developer;
 import 'package:dartz/dartz.dart';
 import 'package:flutter/services.dart';
 import '../../domain/entities/failure.dart';
-import '../../domain/entities/search/categorized_search_result.dart';
-import '../../domain/entities/search/search_category.dart';
+import '../../domain/entities/search/grouped_search_result.dart';
+import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_query.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../../domain/entities/tipitaka_tree_node.dart';
@@ -29,7 +29,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   // ============================================================================
 
   @override
-  Future<Either<Failure, CategorizedSearchResult>> searchCategorizedPreview(
+  Future<Either<Failure, GroupedSearchResult>> searchTopResults(
     SearchQuery query, {
     int maxPerCategory = 3,
   }) async {
@@ -43,10 +43,10 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
         (failure) async => Left(failure),
         (tree) async {
           final nodeMap = _buildNodeMap(tree);
-          final resultsByCategory = <SearchCategory, List<SearchResult>>{};
+          final resultsByCategory = <SearchResultType, List<SearchResult>>{};
 
           // 1. Title matches (from navigation tree - in memory, fast)
-          resultsByCategory[SearchCategory.title] = _searchTitles(
+          resultsByCategory[SearchResultType.title] = _searchTitles(
             nodeMap: nodeMap,
             queryText: query.queryText,
             editionId: 'bjt', // TODO: Support multiple editions
@@ -55,7 +55,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           );
 
           // 2. Content matches (from FTS)
-          resultsByCategory[SearchCategory.content] = await _searchContent(
+          resultsByCategory[SearchResultType.fullText] = await _searchContent(
             nodeMap: nodeMap,
             queryText: query.queryText,
             editionIds: editionsToSearch,
@@ -66,10 +66,10 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           );
 
           // 3. Definition matches (future - placeholder)
-          resultsByCategory[SearchCategory.definition] = [];
+          resultsByCategory[SearchResultType.definition] = [];
 
-          return Right(CategorizedSearchResult(
-            resultsByCategory: resultsByCategory,
+          return Right(GroupedSearchResult(
+            resultsByType: resultsByCategory,
           ));
         },
       );
@@ -84,9 +84,9 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   }
 
   @override
-  Future<Either<Failure, List<SearchResult>>> searchByCategory(
+  Future<Either<Failure, List<SearchResult>>> searchByResultType(
     SearchQuery query,
-    SearchCategory category,
+    SearchResultType resultType,
   ) async {
     try {
       final editionsToSearch =
@@ -99,15 +99,15 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
         (tree) async {
           final nodeMap = _buildNodeMap(tree);
 
-          switch (category) {
-            case SearchCategory.all:
+          switch (resultType) {
+            case SearchResultType.topResults:
               // "All" category should use searchCategorizedPreview instead
               // This case should not be reached via normal flow
               throw StateError(
                 'Use searchCategorizedPreview for SearchCategory.all',
               );
 
-            case SearchCategory.title:
+            case SearchResultType.title:
               return Right(_searchTitles(
                 nodeMap: nodeMap,
                 queryText: query.queryText,
@@ -116,7 +116,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 limit: query.limit,
               ));
 
-            case SearchCategory.content:
+            case SearchResultType.fullText:
               final results = await _searchContent(
                 nodeMap: nodeMap,
                 queryText: query.queryText,
@@ -128,7 +128,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
               );
               return Right(results);
 
-            case SearchCategory.definition:
+            case SearchResultType.definition:
               // Future: Dictionary search
               return const Right([]);
           }
@@ -145,7 +145,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   }
 
   @override
-  Future<Either<Failure, Map<SearchCategory, int>>> countByResultType(
+  Future<Either<Failure, Map<SearchResultType, int>>> countByResultType(
     SearchQuery query,
   ) async {
     try {
@@ -158,10 +158,10 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
         (failure) async => Left(failure),
         (tree) async {
           final nodeMap = _buildNodeMap(tree);
-          final count = <SearchCategory, int>{};
+          final count = <SearchResultType, int>{};
 
           // Title count (from navigation tree - in memory, fast)
-          count[SearchCategory.title] = _searchTitles(
+          count[SearchResultType.title] = _searchTitles(
             nodeMap: nodeMap,
             queryText: query.queryText,
             editionId: 'bjt',
@@ -169,7 +169,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           ).length;
 
           // Content count (efficient SQL COUNT)
-          count[SearchCategory.content] =
+          count[SearchResultType.fullText] =
               await _ftsDataSource.countFullTextMatches(
             query.queryText,
             editionId: editionsToSearch.first,
@@ -177,7 +177,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           );
 
           // Definition count (future - placeholder)
-          count[SearchCategory.definition] = 0;
+          count[SearchResultType.definition] = 0;
 
           return Right(count);
         },
@@ -271,7 +271,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           SearchResult(
             id: 'title_${node.nodeKey}',
             editionId: editionId,
-            category: SearchCategory.title,
+            category: SearchResultType.title,
             title: matchedName,
             subtitle: _buildNavigationPath(node, nodeMap),
             matchedText: matchedName,
@@ -353,7 +353,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           SearchResult(
             id: '${match.editionId}_${match.filename}_${match.eind}',
             editionId: match.editionId,
-            category: SearchCategory.content,
+            category: SearchResultType.fullText,
             title: title,
             subtitle: _buildNavigationPath(node, nodeMap),
             matchedText: matchedText,

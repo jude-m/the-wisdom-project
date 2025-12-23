@@ -1,31 +1,31 @@
 /// Represents the category of a search result
 /// Used for grouping and filtering search results
-enum SearchCategory {
+enum SearchResultType {
   /// All categories combined - shows grouped results from each category
-  all,
+  topResults,
 
   /// Matches in sutta/document/commentary titles/names
   title,
 
   /// Matches in content text (paragraphs, verses)
-  content,
+  fullText,
 
   /// Dictionary word definitions (future feature)
   definition,
 }
 
 /// Extension methods for SearchCategory
-extension SearchCategoryExtension on SearchCategory {
+extension SearchResultTypeExtension on SearchResultType {
   /// Get display name for UI
   String get displayName {
     switch (this) {
-      case SearchCategory.all:
+      case SearchResultType.topResults:
         return 'Top Results';
-      case SearchCategory.title:
+      case SearchResultType.title:
         return 'Titles';
-      case SearchCategory.content:
-        return 'Content';
-      case SearchCategory.definition:
+      case SearchResultType.fullText:
+        return 'Full text';
+      case SearchResultType.definition:
         return 'Definitions';
     }
   }
@@ -33,13 +33,13 @@ extension SearchCategoryExtension on SearchCategory {
   /// Get icon name for UI (Material icon names)
   String get iconName {
     switch (this) {
-      case SearchCategory.all:
+      case SearchResultType.topResults:
         return 'search';
-      case SearchCategory.title:
+      case SearchResultType.title:
         return 'title';
-      case SearchCategory.content:
+      case SearchResultType.fullText:
         return 'article';
-      case SearchCategory.definition:
+      case SearchResultType.definition:
         return 'menu_book';
     }
   }

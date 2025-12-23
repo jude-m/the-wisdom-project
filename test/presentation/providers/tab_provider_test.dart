@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:the_wisdom_project/domain/entities/search/search_category.dart';
+import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/domain/entities/reader_tab.dart';
@@ -199,7 +199,7 @@ void main() {
         nodeKey: 'dn-1',
         contentFileId: 'dn-1',
         title: 'Brahmajālasutta',
-        category: SearchCategory.title,
+        category: SearchResultType.title,
       );
 
       // ACT
@@ -216,7 +216,7 @@ void main() {
         nodeKey: 'mn-1',
         contentFileId: 'mn-1',
         title: 'Mūlapariyāyasutta',
-        category: SearchCategory.content,
+        category: SearchResultType.fullText,
         pageIndex: 10,
         entryIndex: 3,
       );
@@ -309,7 +309,7 @@ SearchResult _createTestSearchResult({
   required String nodeKey,
   required String contentFileId,
   String title = 'Test Title',
-  SearchCategory category = SearchCategory.title,
+  SearchResultType category = SearchResultType.title,
   int pageIndex = 0,
   int entryIndex = 0,
 }) {

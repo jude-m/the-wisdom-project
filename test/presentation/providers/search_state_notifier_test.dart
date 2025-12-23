@@ -4,9 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:the_wisdom_project/domain/entities/failure.dart';
-import 'package:the_wisdom_project/domain/entities/search/categorized_search_result.dart';
+import 'package:the_wisdom_project/domain/entities/search/grouped_search_result.dart';
 import 'package:the_wisdom_project/domain/entities/search/recent_search.dart';
-import 'package:the_wisdom_project/domain/entities/search/search_category.dart';
+import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 
@@ -20,6 +20,11 @@ void main() {
   setUp(() {
     mockSearchRepository = MockTextSearchRepository();
     mockRecentSearchesRepository = MockRecentSearchesRepository();
+
+    // Default stub for countByResultType (called by _loadCounts in parallel)
+    when(mockSearchRepository.countByResultType(any))
+        .thenAnswer((_) async => const Right({}));
+
     notifier = SearchStateNotifier(
       mockSearchRepository,
       mockRecentSearchesRepository,
@@ -119,30 +124,29 @@ void main() {
       test('should debounce search (300ms)', () {
         fakeAsync((async) {
           // ARRANGE
-          const categorizedResult = CategorizedSearchResult(
-            resultsByCategory: {
-              SearchCategory.title: [],
-              SearchCategory.content: [],
-              SearchCategory.definition: [],
+          const categorizedResult = GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [],
+              SearchResultType.fullText: [],
+              SearchResultType.definition: [],
             },
-            totalCount: 0,
           );
-          when(mockSearchRepository.searchCategorizedPreview(any))
+          when(mockSearchRepository.searchTopResults(any))
               .thenAnswer((_) async => const Right(categorizedResult));
 
           // ACT
           notifier.updateQuery('test');
 
           // ASSERT - Should not have called search yet
-          verifyNever(mockSearchRepository.searchCategorizedPreview(any));
+          verifyNever(mockSearchRepository.searchTopResults(any));
 
           // Fast forward less than 300ms
           async.elapse(const Duration(milliseconds: 200));
-          verifyNever(mockSearchRepository.searchCategorizedPreview(any));
+          verifyNever(mockSearchRepository.searchTopResults(any));
 
           // Fast forward past 300ms
           async.elapse(const Duration(milliseconds: 150));
-          verify(mockSearchRepository.searchCategorizedPreview(any)).called(1);
+          verify(mockSearchRepository.searchTopResults(any)).called(1);
         });
       });
     });
@@ -151,84 +155,82 @@ void main() {
     group('selectCategory', () {
       test('should update selected category', () async {
         // ARRANGE
-        when(mockSearchRepository.searchByCategory(any, any))
+        when(mockSearchRepository.searchByResultType(any, any))
             .thenAnswer((_) async => const Right([]));
 
         notifier.updateQuery('test');
 
         // ACT
-        await notifier.selectCategory(SearchCategory.content);
+        await notifier.selectCategory(SearchResultType.fullText);
 
         // ASSERT
-        expect(notifier.state.selectedCategory, equals(SearchCategory.content));
+        expect(notifier.state.selectedCategory, equals(SearchResultType.fullText));
       });
 
       test('should load categorized results for "all" category', () async {
         // ARRANGE
-        const categorizedResult = CategorizedSearchResult(
-          resultsByCategory: {
-            SearchCategory.title: [],
-            SearchCategory.content: [],
-            SearchCategory.definition: [],
+        const categorizedResult = GroupedSearchResult(
+          resultsByType: {
+            SearchResultType.title: [],
+            SearchResultType.fullText: [],
+            SearchResultType.definition: [],
           },
-          totalCount: 0,
         );
-        when(mockSearchRepository.searchCategorizedPreview(any))
+        when(mockSearchRepository.searchTopResults(any))
             .thenAnswer((_) async => const Right(categorizedResult));
-        when(mockSearchRepository.searchByCategory(any, any))
+        when(mockSearchRepository.searchByResultType(any, any))
             .thenAnswer((_) async => const Right([]));
 
         notifier.updateQuery('test');
 
         // First switch to a different category
-        await notifier.selectCategory(SearchCategory.title);
+        await notifier.selectCategory(SearchResultType.title);
         clearInteractions(mockSearchRepository);
 
         // ACT - Switch back to "all" category
-        await notifier.selectCategory(SearchCategory.all);
+        await notifier.selectCategory(SearchResultType.topResults);
 
         // ASSERT
-        verify(mockSearchRepository.searchCategorizedPreview(any)).called(1);
+        verify(mockSearchRepository.searchTopResults(any)).called(1);
       });
 
       test('should load full results for specific category', () async {
         // ARRANGE
-        when(mockSearchRepository.searchByCategory(any, any))
+        when(mockSearchRepository.searchByResultType(any, any))
             .thenAnswer((_) async => const Right([]));
 
         notifier.updateQuery('test');
 
         // ACT
-        await notifier.selectCategory(SearchCategory.content);
+        await notifier.selectCategory(SearchResultType.fullText);
 
         // ASSERT
-        verify(mockSearchRepository.searchByCategory(
-                any, SearchCategory.content))
+        verify(mockSearchRepository.searchByResultType(
+                any, SearchResultType.fullText))
             .called(1);
       });
 
       test('should not reload if same category selected', () async {
         // ARRANGE
-        const categorizedResult = CategorizedSearchResult(
-          resultsByCategory: {
-            SearchCategory.title: [],
-            SearchCategory.content: [],
-            SearchCategory.definition: [],
+        const categorizedResult = GroupedSearchResult(
+          resultsByType: {
+            SearchResultType.title: [],
+            SearchResultType.fullText: [],
+            SearchResultType.definition: [],
           },
-          totalCount: 0,
         );
-        when(mockSearchRepository.searchCategorizedPreview(any))
+        when(mockSearchRepository.searchTopResults(any))
             .thenAnswer((_) async => const Right(categorizedResult));
 
         notifier.updateQuery('test');
         clearInteractions(mockSearchRepository);
 
         // ACT - Select same category (default is all)
-        await notifier.selectCategory(SearchCategory.all);
+        await notifier.selectCategory(SearchResultType.topResults);
 
         // ASSERT
-        verifyNever(mockSearchRepository.searchCategorizedPreview(any));
-        verifyNever(mockSearchRepository.searchByCategory(any, any));
+        verifyNever(mockSearchRepository.searchTopResults(any));
+        verifyNever(mockSearchRepository.searchByResultType(any, any));
       });
     });
 
@@ -305,15 +307,14 @@ void main() {
 
       test('should refresh search when toggling with active query', () async {
         // ARRANGE
-        const categorizedResult = CategorizedSearchResult(
-          resultsByCategory: {
-            SearchCategory.title: [],
-            SearchCategory.content: [],
-            SearchCategory.definition: [],
+        const categorizedResult = GroupedSearchResult(
+          resultsByType: {
+            SearchResultType.title: [],
+            SearchResultType.fullText: [],
+            SearchResultType.definition: [],
           },
-          totalCount: 0,
         );
-        when(mockSearchRepository.searchCategorizedPreview(any))
+        when(mockSearchRepository.searchTopResults(any))
             .thenAnswer((_) async => const Right(categorizedResult));
 
         notifier.updateQuery('dhamma');
@@ -324,7 +325,7 @@ void main() {
         notifier.toggleExactMatch();
 
         // ASSERT - Should trigger new search
-        verify(mockSearchRepository.searchCategorizedPreview(any)).called(1);
+        verify(mockSearchRepository.searchTopResults(any)).called(1);
       });
 
       test('should not refresh search when toggling with empty query', () {
@@ -335,36 +336,36 @@ void main() {
         notifier.toggleExactMatch();
 
         // ASSERT - No search triggered
-        verifyNever(mockSearchRepository.searchCategorizedPreview(any));
+        verifyNever(mockSearchRepository.searchTopResults(any));
       });
 
       test('should include exactMatch in built SearchQuery', () async {
         // ARRANGE
-        const categorizedResult = CategorizedSearchResult(
-          resultsByCategory: {
-            SearchCategory.title: [],
-            SearchCategory.content: [],
-            SearchCategory.definition: [],
+        const categorizedResult = GroupedSearchResult(
+          resultsByType: {
+            SearchResultType.title: [],
+            SearchResultType.fullText: [],
+            SearchResultType.definition: [],
           },
-          totalCount: 0,
         );
-        when(mockSearchRepository.searchCategorizedPreview(any))
+        when(mockSearchRepository.searchTopResults(any))
             .thenAnswer((_) async => const Right(categorizedResult));
 
-        notifier.updateQuery('dhamma');
+        // Use Sinhala input directly to avoid transliteration dependency
+        notifier.updateQuery('ධම්ම');
         notifier.toggleExactMatch(); // Set exactMatch to true
 
         await Future.delayed(const Duration(milliseconds: 350)); // Wait for debounce
 
         // ASSERT - Verify the SearchQuery passed has exactMatch=true
         final captured = verify(
-          mockSearchRepository.searchCategorizedPreview(captureAny),
+          mockSearchRepository.searchTopResults(captureAny),
         ).captured;
 
         expect(captured.length, greaterThan(0));
         final query = captured.last;
         expect(query.exactMatch, isTrue);
-        expect(query.queryText, equals('dhamma'));
+        expect(query.queryText, equals('ධම්ම'));
       });
     });
 
@@ -521,15 +522,14 @@ void main() {
     group('selectRecentSearch', () {
       test('should set query and trigger search', () async {
         // ARRANGE
-        const categorizedResult = CategorizedSearchResult(
-          resultsByCategory: {
-            SearchCategory.title: [],
-            SearchCategory.content: [],
-            SearchCategory.definition: [],
+        const categorizedResult = GroupedSearchResult(
+          resultsByType: {
+            SearchResultType.title: [],
+            SearchResultType.fullText: [],
+            SearchResultType.definition: [],
           },
-          totalCount: 0,
         );
-        when(mockSearchRepository.searchCategorizedPreview(any))
+        when(mockSearchRepository.searchTopResults(any))
             .thenAnswer((_) async => const Right(categorizedResult));
         when(mockRecentSearchesRepository.addRecentSearch(any))
             .thenAnswer((_) async {});
@@ -540,7 +540,7 @@ void main() {
         // ASSERT
         expect(notifier.state.queryText, equals('dhamma'));
         expect(notifier.state.isResultsPanelVisible, isTrue);
-        verify(mockSearchRepository.searchCategorizedPreview(any)).called(1);
+        verify(mockSearchRepository.searchTopResults(any)).called(1);
         verify(mockRecentSearchesRepository.addRecentSearch('dhamma'))
             .called(1);
       });
@@ -552,7 +552,7 @@ void main() {
         const failure = Failure.dataLoadFailure(
           message: 'Database connection failed',
         );
-        when(mockSearchRepository.searchCategorizedPreview(any))
+        when(mockSearchRepository.searchTopResults(any))
             .thenAnswer((_) async => const Left(failure));
 
         // ACT
@@ -570,13 +570,13 @@ void main() {
         const failure = Failure.dataLoadFailure(
           message: 'Failed to load content results',
         );
-        when(mockSearchRepository.searchByCategory(any, any))
+        when(mockSearchRepository.searchByResultType(any, any))
             .thenAnswer((_) async => const Left(failure));
 
         notifier.updateQuery('test');
 
         // ACT
-        await notifier.selectCategory(SearchCategory.content);
+        await notifier.selectCategory(SearchResultType.fullText);
 
         // ASSERT
         expect(notifier.state.isLoading, isFalse);
@@ -599,7 +599,7 @@ void main() {
         const failure = Failure.unexpectedFailure(
           message: 'Unexpected error occurred',
         );
-        when(mockSearchRepository.searchCategorizedPreview(any))
+        when(mockSearchRepository.searchTopResults(any))
             .thenAnswer((_) async => const Left(failure));
 
         // ACT - Should not throw
@@ -611,15 +611,14 @@ void main() {
         expect(notifier.state.queryText, equals('test'));
 
         // User can try another search
-        const successResult = CategorizedSearchResult(
-          resultsByCategory: {
-            SearchCategory.title: [],
-            SearchCategory.content: [],
-            SearchCategory.definition: [],
+        const successResult = GroupedSearchResult(
+          resultsByType: {
+            SearchResultType.title: [],
+            SearchResultType.fullText: [],
+            SearchResultType.definition: [],
           },
-          totalCount: 0,
         );
-        when(mockSearchRepository.searchCategorizedPreview(any))
+        when(mockSearchRepository.searchTopResults(any))
             .thenAnswer((_) async => const Right(successResult));
 
         notifier.updateQuery('dhamma');
@@ -632,16 +631,15 @@ void main() {
           () async {
         // ARRANGE
         var callCount = 0;
-        when(mockSearchRepository.searchCategorizedPreview(any))
+        when(mockSearchRepository.searchTopResults(any))
             .thenAnswer((_) async {
           callCount++;
-          return const Right(CategorizedSearchResult(
-            resultsByCategory: {
-              SearchCategory.title: [],
-              SearchCategory.content: [],
-              SearchCategory.definition: [],
+          return const Right(GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [],
+              SearchResultType.fullText: [],
+              SearchResultType.definition: [],
             },
-            totalCount: 0,
           ));
         });
 
@@ -663,15 +661,14 @@ void main() {
       test('should handle concurrent filter changes without race conditions',
           () async {
         // ARRANGE
-        const categorizedResult = CategorizedSearchResult(
-          resultsByCategory: {
-            SearchCategory.title: [],
-            SearchCategory.content: [],
-            SearchCategory.definition: [],
+        const categorizedResult = GroupedSearchResult(
+          resultsByType: {
+            SearchResultType.title: [],
+            SearchResultType.fullText: [],
+            SearchResultType.definition: [],
           },
-          totalCount: 0,
         );
-        when(mockSearchRepository.searchCategorizedPreview(any))
+        when(mockSearchRepository.searchTopResults(any))
             .thenAnswer((_) async => const Right(categorizedResult));
 
         notifier.updateQuery('dhamma');
@@ -692,7 +689,7 @@ void main() {
         expect(notifier.state.nikayaFilters, contains('dn'));
 
         // Should have triggered searches (one per filter change)
-        verify(mockSearchRepository.searchCategorizedPreview(any))
+        verify(mockSearchRepository.searchTopResults(any))
             .called(greaterThan(0));
       });
     });

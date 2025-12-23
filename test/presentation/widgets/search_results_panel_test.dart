@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:the_wisdom_project/domain/entities/search/categorized_search_result.dart';
-import 'package:the_wisdom_project/domain/entities/search/search_category.dart';
+import 'package:the_wisdom_project/domain/entities/search/grouped_search_result.dart';
+import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
@@ -13,10 +13,10 @@ class FakeSearchStateNotifier extends StateNotifier<SearchState>
     implements SearchStateNotifier {
   FakeSearchStateNotifier(super.state);
 
-  SearchCategory? lastSelectedCategory;
+  SearchResultType? lastSelectedCategory;
 
   @override
-  Future<void> selectCategory(SearchCategory category) async {
+  Future<void> selectCategory(SearchResultType category) async {
     lastSelectedCategory = category;
     state = state.copyWith(selectedCategory: category);
   }
@@ -59,7 +59,7 @@ void main() {
         const SearchState(
           queryText: 'test',
           isLoading: true,
-          selectedCategory: SearchCategory.all,
+          selectedCategory: SearchResultType.topResults,
         ),
       );
 
@@ -89,7 +89,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           queryText: 'test',
-          selectedCategory: SearchCategory.title,
+          selectedCategory: SearchResultType.title,
           fullResults: AsyncValue.loading(),
         ),
       );
@@ -118,7 +118,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         SearchState(
           queryText: 'test',
-          selectedCategory: SearchCategory.title,
+          selectedCategory: SearchResultType.title,
           fullResults: AsyncValue.error(
             Exception('Test error'),
             StackTrace.current,
@@ -153,10 +153,9 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           queryText: 'test',
-          selectedCategory: SearchCategory.all,
-          categorizedResults: CategorizedSearchResult(
-            resultsByCategory: {},
-            totalCount: 0,
+          selectedCategory: SearchResultType.topResults,
+          categorizedResults: GroupedSearchResult(
+            resultsByType: {},
           ),
         ),
       );
@@ -188,7 +187,7 @@ void main() {
         const SearchState(
           queryText: 'test',
           fullResults: AsyncValue.data([]),
-          selectedCategory: SearchCategory.title,
+          selectedCategory: SearchResultType.title,
         ),
       );
 
@@ -233,10 +232,10 @@ void main() {
         ),
       );
 
-      // ASSERT - Now 4 tabs: Top Results, Titles, Content, Definitions
+      // ASSERT - Now 4 tabs: Top Results, Titles, Full text, Definitions
       expect(find.text('Top Results'), findsOneWidget);
       expect(find.text('Titles'), findsOneWidget);
-      expect(find.text('Content'), findsOneWidget);
+      expect(find.text('Full text'), findsOneWidget);
       expect(find.text('Definitions'), findsOneWidget);
     });
 
@@ -246,7 +245,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           queryText: 'test',
-          selectedCategory: SearchCategory.all,
+          selectedCategory: SearchResultType.topResults,
         ),
       );
 
@@ -265,12 +264,12 @@ void main() {
         ),
       );
 
-      // ACT - Tap on Content tab
-      await tester.tap(find.text('Content'));
+      // ACT - Tap on Full text tab
+      await tester.tap(find.text('Full text'));
       await tester.pumpAndSettle();
 
       // ASSERT
-      expect(notifier.lastSelectedCategory, equals(SearchCategory.content));
+      expect(notifier.lastSelectedCategory, equals(SearchResultType.fullText));
     });
 
     testWidgets('should call onClose when close button tapped', (tester) async {
@@ -310,7 +309,7 @@ void main() {
       const result = SearchResult(
         id: 'test_id',
         editionId: 'bjt',
-        category: SearchCategory.title,
+        category: SearchResultType.title,
         title: 'Metta Sutta',
         subtitle: 'Sutta Nipata',
         matchedText: '',
@@ -325,7 +324,7 @@ void main() {
         const SearchState(
           queryText: 'metta',
           fullResults: AsyncValue.data([result]),
-          selectedCategory: SearchCategory.title,
+          selectedCategory: SearchResultType.title,
         ),
       );
 
@@ -360,7 +359,7 @@ void main() {
       const result = SearchResult(
         id: 'test_id',
         editionId: 'bjt',
-        category: SearchCategory.content,
+        category: SearchResultType.fullText,
         title: 'Brahmajālasutta',
         subtitle: 'Dīgha Nikāya',
         matchedText: 'This is matched text',
@@ -375,7 +374,7 @@ void main() {
         const SearchState(
           queryText: 'test',
           fullResults: AsyncValue.data([result]),
-          selectedCategory: SearchCategory.content,
+          selectedCategory: SearchResultType.fullText,
         ),
       );
 
@@ -408,7 +407,7 @@ void main() {
       const titleResult = SearchResult(
         id: 'title_1',
         editionId: 'bjt',
-        category: SearchCategory.title,
+        category: SearchResultType.title,
         title: 'Metta Sutta',
         subtitle: 'Sutta Nipata',
         matchedText: '',
@@ -422,7 +421,7 @@ void main() {
       const contentResult = SearchResult(
         id: 'content_1',
         editionId: 'bjt',
-        category: SearchCategory.content,
+        category: SearchResultType.fullText,
         title: 'Brahmajālasutta',
         subtitle: 'Dīgha Nikāya',
         matchedText: 'Metta karuna text',
@@ -436,13 +435,12 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           queryText: 'metta',
-          selectedCategory: SearchCategory.all,
-          categorizedResults: CategorizedSearchResult(
-            resultsByCategory: {
-              SearchCategory.title: [titleResult],
-              SearchCategory.content: [contentResult],
+          selectedCategory: SearchResultType.topResults,
+          categorizedResults: GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [titleResult],
+              SearchResultType.fullText: [contentResult],
             },
-            totalCount: 2,
           ),
         ),
       );
@@ -465,7 +463,7 @@ void main() {
 
       // ASSERT - Both results should be visible with section headers
       expect(find.text('TITLES'), findsOneWidget);
-      expect(find.text('CONTENT'), findsOneWidget);
+      expect(find.text('FULL TEXT'), findsOneWidget);
       // Two ListTiles for the two results
       expect(find.byType(ListTile), findsNWidgets(2));
     });

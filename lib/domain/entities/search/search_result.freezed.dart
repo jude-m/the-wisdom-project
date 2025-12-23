@@ -23,7 +23,7 @@ mixin _$SearchResult {
   String get editionId => throw _privateConstructorUsedError;
 
   /// Category this result belongs to (title, content, or definition)
-  SearchCategory get category => throw _privateConstructorUsedError;
+  SearchResultType get category => throw _privateConstructorUsedError;
 
   /// Title of the sutta/document
   String get title => throw _privateConstructorUsedError;
@@ -74,7 +74,7 @@ abstract class $SearchResultCopyWith<$Res> {
   $Res call(
       {String id,
       String editionId,
-      SearchCategory category,
+      SearchResultType category,
       String title,
       String subtitle,
       String matchedText,
@@ -130,7 +130,7 @@ class _$SearchResultCopyWithImpl<$Res, $Val extends SearchResult>
       category: null == category
           ? _value.category
           : category // ignore: cast_nullable_to_non_nullable
-              as SearchCategory,
+              as SearchResultType,
       title: null == title
           ? _value.title
           : title // ignore: cast_nullable_to_non_nullable
@@ -190,7 +190,7 @@ abstract class _$$SearchResultImplCopyWith<$Res>
   $Res call(
       {String id,
       String editionId,
-      SearchCategory category,
+      SearchResultType category,
       String title,
       String subtitle,
       String matchedText,
@@ -244,7 +244,7 @@ class __$$SearchResultImplCopyWithImpl<$Res>
       category: null == category
           ? _value.category
           : category // ignore: cast_nullable_to_non_nullable
-              as SearchCategory,
+              as SearchResultType,
       title: null == title
           ? _value.title
           : title // ignore: cast_nullable_to_non_nullable
@@ -322,7 +322,7 @@ class _$SearchResultImpl implements _SearchResult {
 
   /// Category this result belongs to (title, content, or definition)
   @override
-  final SearchCategory category;
+  final SearchResultType category;
 
   /// Title of the sutta/document
   @override
@@ -438,7 +438,7 @@ abstract class _SearchResult implements SearchResult {
   const factory _SearchResult(
       {required final String id,
       required final String editionId,
-      required final SearchCategory category,
+      required final SearchResultType category,
       required final String title,
       required final String subtitle,
       required final String matchedText,
@@ -461,7 +461,7 @@ abstract class _SearchResult implements SearchResult {
 
   /// Category this result belongs to (title, content, or definition)
   @override
-  SearchCategory get category;
+  SearchResultType get category;
 
   /// Title of the sutta/document
   @override

@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:the_wisdom_project/data/repositories/text_search_repository_impl.dart';
 import 'package:the_wisdom_project/domain/entities/failure.dart';
-import 'package:the_wisdom_project/domain/entities/search/search_category.dart';
+import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_query.dart';
 import 'package:the_wisdom_project/data/datasources/fts_datasource.dart';
 import 'package:the_wisdom_project/domain/entities/tipitaka_tree_node.dart';
@@ -112,7 +112,7 @@ void main() {
       });
     });
 
-    group('searchCategorizedPreview', () {
+    group('searchTopResults', () {
       final sampleTree = [
         const TipitakaTreeNode(
           nodeKey: 'dn',
@@ -148,8 +148,7 @@ void main() {
       ];
 
       test('should return categorized results with title matches', () async {
-        // ARRANGE - 'brahma' transliterates to Sinhala variants including 'බ්‍රහ්ම'
-        // which matches 'බ්‍රහ්මජාලසූත්‍රය' in the tree
+        // ARRANGE - 'brahma' matches 'Brahmajālasutta' in Pali (case-insensitive)
         const query = SearchQuery(queryText: 'brahma');
 
         when(mockTreeRepository.loadNavigationTree())
@@ -166,7 +165,7 @@ void main() {
         )).thenAnswer((_) async => []);
 
         // ACT
-        final result = await repository.searchCategorizedPreview(query);
+        final result = await repository.searchTopResults(query);
 
         // ASSERT
         expect(result.isRight(), true);
@@ -175,24 +174,24 @@ void main() {
           (failure) => fail('Expected success but got failure'),
           (categorized) {
             expect(
-                categorized.resultsByCategory.containsKey(SearchCategory.title),
+                categorized.resultsByType.containsKey(SearchResultType.title),
                 true);
             expect(
-                categorized.resultsByCategory
-                    .containsKey(SearchCategory.content),
+                categorized.resultsByType
+                    .containsKey(SearchResultType.fullText),
                 true);
             expect(
-                categorized.resultsByCategory
-                    .containsKey(SearchCategory.definition),
+                categorized.resultsByType
+                    .containsKey(SearchResultType.definition),
                 true);
 
             final titleResults =
-                categorized.resultsByCategory[SearchCategory.title]!;
+                categorized.resultsByType[SearchResultType.title]!;
             expect(titleResults.length, equals(1));
-            // 'brahma' transliterates to Sinhala and matches Sinhala name
-            expect(titleResults[0].title, equals('බ්‍රහ්මජාලසූත්‍රය'));
-            expect(titleResults[0].category, equals(SearchCategory.title));
-            expect(titleResults[0].language, equals('sinhala'));
+            // 'brahma' matches Pali name 'Brahmajālasutta' directly
+            expect(titleResults[0].title, equals('Brahmajālasutta'));
+            expect(titleResults[0].category, equals(SearchResultType.title));
+            expect(titleResults[0].language, equals('pali'));
           },
         );
       });
@@ -271,7 +270,7 @@ void main() {
 
         // ACT
         final result =
-            await repository.searchCategorizedPreview(query, maxPerCategory: 2);
+            await repository.searchTopResults(query, maxPerCategory: 2);
 
         // ASSERT
         expect(result.isRight(), true);
@@ -280,7 +279,7 @@ void main() {
           (failure) => fail('Expected success but got failure'),
           (categorized) {
             final titleResults =
-                categorized.resultsByCategory[SearchCategory.title]!;
+                categorized.resultsByType[SearchResultType.title]!;
             // Should be limited to 2 even though 4 suttas match "sutta"
             expect(titleResults.length, lessThanOrEqualTo(2));
           },
@@ -317,7 +316,7 @@ void main() {
         )).thenAnswer((_) async => ftsMatches);
 
         // ACT
-        final result = await repository.searchCategorizedPreview(query);
+        final result = await repository.searchTopResults(query);
 
         // ASSERT
         expect(result.isRight(), true);
@@ -326,9 +325,9 @@ void main() {
           (failure) => fail('Expected success but got failure'),
           (categorized) {
             final contentResults =
-                categorized.resultsByCategory[SearchCategory.content]!;
+                categorized.resultsByType[SearchResultType.fullText]!;
             expect(contentResults.length, equals(1));
-            expect(contentResults[0].category, equals(SearchCategory.content));
+            expect(contentResults[0].category, equals(SearchResultType.fullText));
             expect(contentResults[0].contentFileId, equals('dn-1'));
           },
         );
@@ -353,7 +352,7 @@ void main() {
         )).thenAnswer((_) async => []);
 
         // ACT
-        await repository.searchCategorizedPreview(query);
+        await repository.searchTopResults(query);
 
         // ASSERT - Verify exactMatch was passed to FTS datasource
         verify(mockFTSDataSource.searchContent(
@@ -385,7 +384,7 @@ void main() {
         )).thenAnswer((_) async => []);
 
         // ACT
-        await repository.searchCategorizedPreview(query);
+        await repository.searchTopResults(query);
 
         // ASSERT - Verify exactMatch defaults to false
         verify(mockFTSDataSource.searchContent(
@@ -410,7 +409,7 @@ void main() {
         );
 
         // ACT
-        final result = await repository.searchCategorizedPreview(query);
+        final result = await repository.searchTopResults(query);
 
         // ASSERT
         expect(result.isLeft(), true);
@@ -441,7 +440,7 @@ void main() {
         )).thenThrow(Exception('Database error'));
 
         // ACT
-        final result = await repository.searchCategorizedPreview(query);
+        final result = await repository.searchTopResults(query);
 
         // ASSERT
         expect(result.isLeft(), true);
@@ -474,7 +473,7 @@ void main() {
         )).thenAnswer((_) async => []);
 
         // ACT
-        final result = await repository.searchCategorizedPreview(query);
+        final result = await repository.searchTopResults(query);
 
         // ASSERT
         expect(result.isRight(), true);
@@ -483,7 +482,7 @@ void main() {
           (failure) => fail('Expected success but got failure'),
           (categorized) {
             final definitionResults =
-                categorized.resultsByCategory[SearchCategory.definition]!;
+                categorized.resultsByType[SearchResultType.definition]!;
             expect(definitionResults, isEmpty);
           },
         );
@@ -522,7 +521,7 @@ void main() {
         )).thenAnswer((_) async => []);
 
         // ACT
-        final result = await repository.searchCategorizedPreview(queryWithZWJ);
+        final result = await repository.searchTopResults(queryWithZWJ);
 
         // ASSERT
         expect(result.isRight(), true);
@@ -531,7 +530,7 @@ void main() {
           (failure) => fail('Expected success but got failure'),
           (categorized) {
             final titleResults =
-                categorized.resultsByCategory[SearchCategory.title]!;
+                categorized.resultsByType[SearchResultType.title]!;
             expect(titleResults.length, equals(1));
             expect(titleResults[0].title, equals('සතිය'));
           },
@@ -570,7 +569,7 @@ void main() {
         )).thenAnswer((_) async => []);
 
         // ACT
-        final result = await repository.searchCategorizedPreview(query);
+        final result = await repository.searchTopResults(query);
 
         // ASSERT
         expect(result.isRight(), true);
@@ -579,7 +578,7 @@ void main() {
           (failure) => fail('Expected success but got failure'),
           (categorized) {
             final titleResults =
-                categorized.resultsByCategory[SearchCategory.title]!;
+                categorized.resultsByType[SearchResultType.title]!;
             expect(titleResults.length, equals(1));
             // Should show Sinhala name since that matched
             expect(titleResults[0].title, equals('සතිපට්ඨානසූත්‍රය'));
@@ -620,7 +619,7 @@ void main() {
         )).thenAnswer((_) async => []);
 
         // ACT
-        final result = await repository.searchCategorizedPreview(query);
+        final result = await repository.searchTopResults(query);
 
         // ASSERT
         expect(result.isRight(), true);
@@ -629,7 +628,7 @@ void main() {
           (failure) => fail('Expected success but got failure'),
           (categorized) {
             final titleResults =
-                categorized.resultsByCategory[SearchCategory.title]!;
+                categorized.resultsByType[SearchResultType.title]!;
             expect(titleResults.length, equals(1));
             // Should show Pali name since only Pali matched
             expect(titleResults[0].title, equals('විනයපිටක'));
@@ -670,7 +669,7 @@ void main() {
         )).thenAnswer((_) async => []);
 
         // ACT
-        final result = await repository.searchCategorizedPreview(query);
+        final result = await repository.searchTopResults(query);
 
         // ASSERT
         expect(result.isRight(), true);
@@ -679,7 +678,7 @@ void main() {
           (failure) => fail('Expected success but got failure'),
           (categorized) {
             final titleResults =
-                categorized.resultsByCategory[SearchCategory.title]!;
+                categorized.resultsByType[SearchResultType.title]!;
             expect(titleResults.length, equals(1));
             // Should prefer Sinhala when both match
             expect(titleResults[0].title, equals('සූත්‍රය'));
@@ -723,7 +722,7 @@ void main() {
 
         // ACT
         final result =
-            await repository.searchByCategory(query, SearchCategory.title);
+            await repository.searchByResultType(query, SearchResultType.title);
 
         // ASSERT
         expect(result.isRight(), true);
@@ -734,7 +733,7 @@ void main() {
             expect(results.length, equals(1));
             // Now matches Sinhala name since query is in Sinhala
             expect(results[0].title, equals('බ්‍රහ්මජාලසූත්‍රය'));
-            expect(results[0].category, equals(SearchCategory.title));
+            expect(results[0].category, equals(SearchResultType.title));
           },
         );
       });
@@ -770,7 +769,7 @@ void main() {
 
         // ACT
         final result =
-            await repository.searchByCategory(query, SearchCategory.content);
+            await repository.searchByResultType(query, SearchResultType.fullText);
 
         // ASSERT
         expect(result.isRight(), true);
@@ -779,7 +778,7 @@ void main() {
           (failure) => fail('Expected success but got failure'),
           (results) {
             expect(results.length, equals(1));
-            expect(results[0].category, equals(SearchCategory.content));
+            expect(results[0].category, equals(SearchResultType.fullText));
             expect(results[0].contentFileId, equals('dn-1'));
           },
         );
@@ -805,7 +804,7 @@ void main() {
 
         // ACT
         final result =
-            await repository.searchByCategory(query, SearchCategory.definition);
+            await repository.searchByResultType(query, SearchResultType.definition);
 
         // ASSERT
         expect(result.isRight(), true);
@@ -830,7 +829,7 @@ void main() {
 
         // ACT
         final result =
-            await repository.searchByCategory(query, SearchCategory.title);
+            await repository.searchByResultType(query, SearchResultType.title);
 
         // ASSERT
         expect(result.isLeft(), true);
@@ -863,7 +862,7 @@ void main() {
 
         // ACT
         final result =
-            await repository.searchByCategory(query, SearchCategory.content);
+            await repository.searchByResultType(query, SearchResultType.fullText);
 
         // ASSERT
         expect(result.isLeft(), true);

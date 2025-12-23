@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/singlish_transliterator.dart';
-import '../../domain/entities/search/categorized_search_result.dart';
+import '../../domain/entities/search/grouped_search_result.dart';
 import '../../domain/entities/search/recent_search.dart';
-import '../../domain/entities/search/search_category.dart';
+import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_query.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../../domain/repositories/recent_searches_repository.dart';
@@ -32,10 +32,10 @@ class SearchState with _$SearchState {
     @Default([]) List<RecentSearch> recentSearches,
 
     /// Currently selected category in results view
-    @Default(SearchCategory.all) SearchCategory selectedCategory,
+    @Default(SearchResultType.topResults) SearchResultType selectedCategory,
 
-    /// Categorized results for "All" tab (grouped by category)
-    CategorizedSearchResult? categorizedResults,
+    /// Categorized results for "Top Results" tab (grouped by category)
+    GroupedSearchResult? categorizedResults,
 
     /// Full results for the selected category (async state)
     @Default(AsyncValue.data([])) AsyncValue<List<SearchResult>> fullResults,
@@ -69,7 +69,7 @@ class SearchState with _$SearchState {
 
     /// Result counts per category (for tab badges)
     /// Updated independently from categorized results
-    @Default({}) Map<SearchCategory, int> countByResultType,
+    @Default({}) Map<SearchResultType, int> countByResultType,
   }) = _SearchState;
 
   /// Computed property: Results panel is visible when query is not empty
@@ -139,10 +139,10 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     // Always load counts for tab badges (runs in parallel with results)
     unawaited(_loadCounts());
 
-    if (state.selectedCategory == SearchCategory.all) {
-      await _loadCategorizedResults();
+    if (state.selectedCategory == SearchResultType.topResults) {
+      await _loadTopResults();
     } else {
-      await _loadFullResultsForCategory();
+      await _loadResultsForType();
     }
   }
 
@@ -162,9 +162,9 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   }
 
   /// Load categorized results for "All" tab
-  Future<void> _loadCategorizedResults() async {
+  Future<void> _loadTopResults() async {
     final query = _buildSearchQuery();
-    final result = await _searchRepository.searchCategorizedPreview(query);
+    final result = await _searchRepository.searchTopResults(query);
 
     result.fold(
       (failure) {
@@ -182,15 +182,15 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     );
   }
 
-  /// Load full results for the selected category
-  Future<void> _loadFullResultsForCategory() async {
+  /// Load full results for the selected result type
+  Future<void> _loadResultsForType() async {
     final query = _buildSearchQuery();
     state = state.copyWith(
       fullResults: const AsyncValue.loading(),
       isLoading: true,
     );
 
-    final result = await _searchRepository.searchByCategory(
+    final result = await _searchRepository.searchByResultType(
       query,
       state.selectedCategory,
     );
@@ -228,7 +228,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   }
 
   /// Select a category tab in results view
-  Future<void> selectCategory(SearchCategory category) async {
+  Future<void> selectCategory(SearchResultType category) async {
     if (state.selectedCategory == category) return;
 
     state = state.copyWith(

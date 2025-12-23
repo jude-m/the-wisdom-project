@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'search_category.dart';
+import 'search_result_type.dart';
 
 part 'search_result.freezed.dart';
 
@@ -14,7 +14,7 @@ class SearchResult with _$SearchResult {
     required String editionId,
 
     /// Category this result belongs to (title, content, or definition)
-    required SearchCategory category,
+    required SearchResultType category,
 
     /// Title of the sutta/document
     required String title,

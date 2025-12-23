@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/search/categorized_search_result.dart';
-import '../../domain/entities/search/search_category.dart';
+import '../../domain/entities/search/grouped_search_result.dart';
+import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../providers/search_provider.dart';
 import '../../core/utils/singlish_transliterator.dart';
@@ -47,7 +47,7 @@ class SearchResultsPanel extends ConsumerWidget {
           ),
           // Results list - different view for "All" tab vs specific category
           Expanded(
-            child: searchState.selectedCategory == SearchCategory.all
+            child: searchState.selectedCategory == SearchResultType.topResults
                 ? _buildAllTabContent(
                     context,
                     theme,
@@ -74,7 +74,7 @@ class SearchResultsPanel extends ConsumerWidget {
     BuildContext context,
     ThemeData theme,
     bool isLoading,
-    CategorizedSearchResult? categorizedResults,
+    GroupedSearchResult? categorizedResults,
     String queryText,
   ) {
     // Loading state
@@ -116,8 +116,8 @@ class SearchResultsPanel extends ConsumerWidget {
         children: [
           ...categorizedResults.categoriesWithResults
               .where((category) =>
-                  category != SearchCategory.definition &&
-                  category != SearchCategory.all)
+                  category != SearchResultType.definition &&
+                  category != SearchResultType.topResults)
               .map((category) => Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -125,7 +125,7 @@ class SearchResultsPanel extends ConsumerWidget {
                       _sectionHeader(theme, category.displayName.toUpperCase()),
                       // Results using _SearchResultTile
                       ...categorizedResults
-                          .getResultsForCategory(category)
+                          .getResultsByType(category)
                           .map((result) => _SearchResultTile(
                                 result: result,
                                 queryText: queryText,
@@ -160,7 +160,7 @@ class SearchResultsPanel extends ConsumerWidget {
     WidgetRef ref,
     ThemeData theme,
     AsyncValue<List<SearchResult>> fullResults,
-    SearchCategory selectedCategory,
+    SearchResultType selectedCategory,
     String queryText,
   ) {
     return fullResults.when(
@@ -292,9 +292,9 @@ class _PanelHeader extends StatelessWidget {
 
 /// Category tab bar for switching between All, Title, Content, and Definition
 class _CategoryTabBar extends StatelessWidget {
-  final SearchCategory selectedCategory;
-  final Map<SearchCategory, int> countByResultType;
-  final void Function(SearchCategory) onCategorySelected;
+  final SearchResultType selectedCategory;
+  final Map<SearchResultType, int> countByResultType;
+  final void Function(SearchResultType) onCategorySelected;
 
   const _CategoryTabBar({
     required this.selectedCategory,
@@ -317,7 +317,7 @@ class _CategoryTabBar extends StatelessWidget {
         ),
       ),
       child: Row(
-        children: SearchCategory.values.map((category) {
+        children: SearchResultType.values.map((category) {
           final isSelected = category == selectedCategory;
           final count = countByResultType[category];
 
@@ -355,7 +355,7 @@ class _CategoryTabBar extends StatelessWidget {
                       ),
                     ),
                     // Show badge for non-"all" tabs when count is available
-                    if (category != SearchCategory.all && count != null)
+                    if (category != SearchResultType.topResults && count != null)
                       Padding(
                         padding: const EdgeInsets.only(left: 6),
                         child: _CountBadge(count: count),
@@ -455,7 +455,7 @@ class _SearchResultTile extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           // Only show and highlight matchedText for CONTENT results
-          if (result.category == SearchCategory.content &&
+          if (result.category == SearchResultType.fullText &&
               result.matchedText.isNotEmpty) ...[
             const SizedBox(height: 4),
             _buildHighlightedText(
