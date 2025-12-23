@@ -131,8 +131,8 @@
     "description": "Hint text shown in search input field"
   },
 
-  "exactMatchToggle": "Exact word match",
-  "@exactMatchToggle": {
+  "isExactMatchToggle": "Exact word match",
+  "@isExactMatchToggle": {
     "description": "Tooltip for toggle button that switches between prefix matching and exact word matching in search"
   }
 }

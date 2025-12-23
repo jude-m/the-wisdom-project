@@ -288,21 +288,21 @@ void main() {
     });
 
     group('toggleExactMatch', () {
-      test('should toggle exactMatch flag on and off', () {
-        // ARRANGE - Initial state has exactMatch=false
-        expect(notifier.state.exactMatch, isFalse);
+      test('should toggle isExactMatch flag on and off', () {
+        // ARRANGE - Initial state has isExactMatch=false
+        expect(notifier.state.isExactMatch, isFalse);
 
         // ACT - Toggle to true
         notifier.toggleExactMatch();
 
         // ASSERT
-        expect(notifier.state.exactMatch, isTrue);
+        expect(notifier.state.isExactMatch, isTrue);
 
         // ACT - Toggle back to false
         notifier.toggleExactMatch();
 
         // ASSERT
-        expect(notifier.state.exactMatch, isFalse);
+        expect(notifier.state.isExactMatch, isFalse);
       });
 
       test('should refresh search when toggling with active query', () async {
@@ -339,7 +339,7 @@ void main() {
         verifyNever(mockSearchRepository.searchTopResults(any));
       });
 
-      test('should include exactMatch in built SearchQuery', () async {
+      test('should include isExactMatch in built SearchQuery', () async {
         // ARRANGE
         const categorizedResult = GroupedSearchResult(
           resultsByType: {
@@ -353,18 +353,18 @@ void main() {
 
         // Use Sinhala input directly to avoid transliteration dependency
         notifier.updateQuery('ධම්ම');
-        notifier.toggleExactMatch(); // Set exactMatch to true
+        notifier.toggleExactMatch(); // Set isExactMatch to true
 
         await Future.delayed(const Duration(milliseconds: 350)); // Wait for debounce
 
-        // ASSERT - Verify the SearchQuery passed has exactMatch=true
+        // ASSERT - Verify the SearchQuery passed has isExactMatch=true
         final captured = verify(
           mockSearchRepository.searchTopResults(captureAny),
         ).captured;
 
         expect(captured.length, greaterThan(0));
         final query = captured.last;
-        expect(query.exactMatch, isTrue);
+        expect(query.isExactMatch, isTrue);
         expect(query.queryText, equals('ධම්ම'));
       });
     });
@@ -684,7 +684,7 @@ void main() {
         await Future.delayed(const Duration(milliseconds: 50));
 
         // ASSERT - All filter changes should be reflected in final state
-        expect(notifier.state.exactMatch, isTrue);
+        expect(notifier.state.isExactMatch, isTrue);
         expect(notifier.state.searchInPali, isFalse);
         expect(notifier.state.nikayaFilters, contains('dn'));
 

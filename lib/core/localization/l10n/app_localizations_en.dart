@@ -88,5 +88,5 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchHint => 'Search';
 
   @override
-  String get exactMatchToggle => 'Exact word match';
+  String get isExactMatchToggle => 'Exact word match';
 }

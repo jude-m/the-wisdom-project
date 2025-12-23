@@ -88,5 +88,5 @@ class AppLocalizationsSi extends AppLocalizations {
   String get searchHint => 'සෙවුම් පදය ඇතුලත් කරන්න';
 
   @override
-  String get exactMatchToggle => 'එම වචනයම සොයන්න';
+  String get isExactMatchToggle => 'එම වචනයම සොයන්න';
 }

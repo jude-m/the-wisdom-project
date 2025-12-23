@@ -83,8 +83,8 @@ class _SearchBarState extends ConsumerState<SearchBar> {
         ref.watch(searchStateProvider.select((s) => s.isResultsPanelVisible));
 
     // Watch exact match state for toggle button
-    final exactMatch =
-        ref.watch(searchStateProvider.select((s) => s.exactMatch));
+    final isExactMatch =
+        ref.watch(searchStateProvider.select((s) => s.isExactMatch));
 
     // Listen to queryText changes and sync controller
     ref.listen(searchStateProvider.select((s) => s.queryText), (prev, next) {
@@ -169,7 +169,7 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 4),
                       decoration: BoxDecoration(
-                        color: exactMatch
+                        color: isExactMatch
                             ? theme.colorScheme.primaryContainer
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(8),
@@ -178,11 +178,11 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                         icon: Icon(
                           Icons.abc,
                           size: 20,
-                          color: exactMatch
+                          color: isExactMatch
                               ? theme.colorScheme.onPrimaryContainer
                               : theme.colorScheme.onSurfaceVariant,
                         ),
-                        tooltip: l10n.exactMatchToggle,
+                        tooltip: l10n.isExactMatchToggle,
                         onPressed: () {
                           ref
                               .read(searchStateProvider.notifier)

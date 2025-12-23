@@ -258,7 +258,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Exact word match'**
-  String get exactMatchToggle;
+  String get isExactMatchToggle;
 }
 
 class _AppLocalizationsDelegate

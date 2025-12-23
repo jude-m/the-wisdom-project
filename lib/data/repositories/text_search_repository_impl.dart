@@ -43,33 +43,33 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
         (failure) async => Left(failure),
         (tree) async {
           final nodeMap = _buildNodeMap(tree);
-          final resultsByCategory = <SearchResultType, List<SearchResult>>{};
+          final resultsByType = <SearchResultType, List<SearchResult>>{};
 
           // 1. Title matches (from navigation tree - in memory, fast)
-          resultsByCategory[SearchResultType.title] = _searchTitles(
+          resultsByType[SearchResultType.title] = _searchTitles(
             nodeMap: nodeMap,
             queryText: query.queryText,
             editionId: 'bjt', // TODO: Support multiple editions
-            exactMatch: query.exactMatch,
+            isExactMatch: query.isExactMatch,
             limit: maxPerCategory,
           );
 
           // 2. Content matches (from FTS)
-          resultsByCategory[SearchResultType.fullText] = await _searchFullText(
+          resultsByType[SearchResultType.fullText] = await _searchFullText(
             nodeMap: nodeMap,
             queryText: query.queryText,
             editionIds: editionsToSearch,
-            exactMatch: query.exactMatch,
+            isExactMatch: query.isExactMatch,
             limit: maxPerCategory,
             offset: 0,
             loadMatchedText: true, // Preview needs text for display
           );
 
           // 3. Definition matches (future - placeholder)
-          resultsByCategory[SearchResultType.definition] = [];
+          resultsByType[SearchResultType.definition] = [];
 
           return Right(GroupedSearchResult(
-            resultsByType: resultsByCategory,
+            resultsByType: resultsByType,
           ));
         },
       );
@@ -112,7 +112,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 nodeMap: nodeMap,
                 queryText: query.queryText,
                 editionId: 'bjt',
-                exactMatch: query.exactMatch,
+                isExactMatch: query.isExactMatch,
                 limit: query.limit,
               ));
 
@@ -121,7 +121,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 nodeMap: nodeMap,
                 queryText: query.queryText,
                 editionIds: editionsToSearch,
-                exactMatch: query.exactMatch,
+                isExactMatch: query.isExactMatch,
                 limit: query.limit,
                 offset: query.offset,
                 loadMatchedText: false, // Full results don't need text yet
@@ -165,7 +165,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             nodeMap: nodeMap,
             queryText: query.queryText,
             editionId: 'bjt',
-            exactMatch: query.exactMatch,
+            isExactMatch: query.isExactMatch,
           ).length;
 
           // Content count (efficient SQL COUNT)
@@ -173,7 +173,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
               await _ftsDataSource.countFullTextMatches(
             query.queryText,
             editionId: editionsToSearch.first,
-            exactMatch: query.exactMatch,
+            isExactMatch: query.isExactMatch,
           );
 
           // Definition count (future - placeholder)
@@ -226,13 +226,13 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   /// Prefers Sinhala name if both languages match
   /// Supports Singlish (romanized Sinhala) transliteration search
   ///
-  /// When [exactMatch] is false (default), uses prefix matching (startsWith).
-  /// When [exactMatch] is true, requires exact string match.
+  /// When [isExactMatch] is false (default), uses prefix matching (startsWith).
+  /// When [isExactMatch] is true, requires exact string match.
   List<SearchResult> _searchTitles({
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
     required String editionId,
-    bool exactMatch = false,
+    bool isExactMatch = false,
     int? limit,
   }) {
     final results = <SearchResult>[];
@@ -241,10 +241,10 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     final searchQuery = normalizeText(queryText, toLowerCase: true);
 
     // Helper function to check if a name matches the query
-    // exactMatch=false: prefix matching (startsWith)
-    // exactMatch=true: exact string match
+    // isExactMatch=false: prefix matching (startsWith)
+    // isExactMatch=true: exact string match
     bool matchesQuery(String name) {
-      if (exactMatch) {
+      if (isExactMatch) {
         return name == searchQuery;
       } else {
         return name.startsWith(searchQuery);
@@ -307,7 +307,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
     required Set<String> editionIds,
-    bool exactMatch = false,
+    bool isExactMatch = false,
     int? limit,
     int offset = 0,
     bool loadMatchedText = false,
@@ -315,7 +315,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     final ftsMatches = await _ftsDataSource.searchFullText(
       queryText,
       editionIds: editionIds,
-      exactMatch: exactMatch,
+      isExactMatch: isExactMatch,
       limit: limit ?? 50,
       offset: offset,
     );

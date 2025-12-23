@@ -170,8 +170,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Initial state: exactMatch should be false
-      expect(capturedState?.exactMatch, isFalse);
+      // Initial state: isExactMatch should be false
+      expect(capturedState?.isExactMatch, isFalse);
 
       // Find the exact match toggle button
       final toggleButton = find.byIcon(Icons.abc);
@@ -181,15 +181,15 @@ void main() {
       await tester.tap(toggleButton);
       await tester.pumpAndSettle();
 
-      // ASSERT - exactMatch state should now be true
-      expect(capturedState?.exactMatch, isTrue);
+      // ASSERT - isExactMatch state should now be true
+      expect(capturedState?.isExactMatch, isTrue);
 
       // ACT - Tap again to toggle off
       await tester.tap(toggleButton);
       await tester.pumpAndSettle();
 
-      // ASSERT - exactMatch should return to false
-      expect(capturedState?.exactMatch, isFalse);
+      // ASSERT - isExactMatch should return to false
+      expect(capturedState?.isExactMatch, isFalse);
     });
 
     testWidgets('should show tooltip on exact match toggle button hover',

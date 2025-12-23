@@ -75,7 +75,7 @@ abstract class FTSDataSource {
     required Set<String> editionIds,
     String? language,
     List<String>? nikayaFilter,
-    bool exactMatch = false,
+    bool isExactMatch = false,
     int limit = 50,
     int offset = 0,
   });
@@ -84,7 +84,7 @@ abstract class FTSDataSource {
   Future<int> countFullTextMatches(
     String query, {
     required String editionId,
-    bool exactMatch = false,
+    bool isExactMatch = false,
   });
 
   /// Get search suggestions from one or more editions
@@ -123,9 +123,9 @@ class FTSDataSourceImpl implements FTSDataSource {
   /// FTS4 phrase matching (with quotes):
   /// - `"අනාථ"*` matches the exact PHRASE "අනාථ" - much more restrictive
   ///
-  /// When [exactMatch] is false (default), appends * for prefix/token matching.
-  /// When [exactMatch] is true, no asterisk for exact token match.
-  String _sanitizeFtsQuery(String query, {bool exactMatch = false}) {
+  /// When [isExactMatch] is false (default), appends * for prefix/token matching.
+  /// When [isExactMatch] is true, no asterisk for exact token match.
+  String _sanitizeFtsQuery(String query, {bool isExactMatch = false}) {
     // Normalize: trim and remove zero-width characters, periods, commas
     var sanitized = query.trim();
 
@@ -149,12 +149,12 @@ class FTSDataSourceImpl implements FTSDataSource {
 
     if (words.length == 1) {
       // Single word: simple token matching (no quotes)
-      // exactMatch=false: අනාථ* (prefix token matching)
-      // exactMatch=true: අනාථ (exact token matching)
-      return exactMatch ? sanitized : '$sanitized*';
+      // isExactMatch=false: අනාථ* (prefix token matching)
+      // isExactMatch=true: අනාථ (exact token matching)
+      return isExactMatch ? sanitized : '$sanitized*';
     } else {
       // Multi-word: use NEAR/10 for proximity matching (same as tipitaka.lk default)
-      if (exactMatch) {
+      if (isExactMatch) {
         // Exact match for each word with NEAR proximity
         return words.join(' NEAR/10 ');
       } else {
@@ -230,7 +230,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     required Set<String> editionIds,
     String? language,
     List<String>? nikayaFilter,
-    bool exactMatch = false,
+    bool isExactMatch = false,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -244,7 +244,7 @@ class FTSDataSourceImpl implements FTSDataSource {
         query,
         language: language,
         nikayaFilter: nikayaFilter,
-        exactMatch: exactMatch,
+        isExactMatch: isExactMatch,
         limit: limit,
         offset: offset,
       );
@@ -262,7 +262,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     String query, {
     String? language,
     List<String>? nikayaFilter,
-    bool exactMatch = false,
+    bool isExactMatch = false,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -278,7 +278,7 @@ class FTSDataSourceImpl implements FTSDataSource {
 
       // Sanitize query for FTS MATCH
       // Testing parameterized query approach for FTS MATCH
-      final ftsQuery = _sanitizeFtsQuery(query, exactMatch: exactMatch);
+      final ftsQuery = _sanitizeFtsQuery(query, isExactMatch: isExactMatch);
 
       // Build the SQL query using parameterized query for MATCH clause
       // Note: For contentless FTS4, use table name in MATCH, not column name
@@ -311,7 +311,7 @@ class FTSDataSourceImpl implements FTSDataSource {
       buffer.write(' LIMIT ? OFFSET ?');
       args.addAll([limit, offset]);
 
-      _log('FTS query: "$ftsQuery" (exactMatch: $exactMatch)');
+      _log('FTS query: "$ftsQuery" (isExactMatch: $isExactMatch)');
       _log('SQL: ${buffer.toString().trim()}');
       // Execute query
       final List<Map<String, dynamic>> results = await db.rawQuery(
@@ -331,7 +331,7 @@ class FTSDataSourceImpl implements FTSDataSource {
   Future<int> countFullTextMatches(
     String query, {
     required String editionId,
-    bool exactMatch = false,
+    bool isExactMatch = false,
   }) async {
     await initializeEditions({editionId});
 
@@ -342,7 +342,7 @@ class FTSDataSourceImpl implements FTSDataSource {
 
     try {
       final ftsTable = '${editionId}_fts';
-      final ftsQuery = _sanitizeFtsQuery(query, exactMatch: exactMatch);
+      final ftsQuery = _sanitizeFtsQuery(query, isExactMatch: isExactMatch);
 
       final sql = 'SELECT COUNT(*) as count FROM $ftsTable WHERE $ftsTable MATCH ?';
       final results = await db.rawQuery(sql, [ftsQuery]);

@@ -57,7 +57,7 @@ mixin _$SearchState {
   /// Whether exact match is enabled (default: false = prefix matching)
   /// When false: "සති" matches "සතිපට්ඨානය", "සතිපට්ඨාන", etc.
   /// When true: "සති" matches only "සති" exactly
-  bool get exactMatch => throw _privateConstructorUsedError;
+  bool get isExactMatch => throw _privateConstructorUsedError;
 
   /// Result counts per category (for tab badges)
   /// Updated independently from categorized results
@@ -90,7 +90,7 @@ abstract class $SearchStateCopyWith<$Res> {
       List<String> nikayaFilters,
       bool filtersVisible,
       bool isPanelDismissed,
-      bool exactMatch,
+      bool isExactMatch,
       Map<SearchResultType, int> countByResultType});
 
   $GroupedSearchResultCopyWith<$Res>? get groupedResults;
@@ -123,7 +123,7 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
     Object? nikayaFilters = null,
     Object? filtersVisible = null,
     Object? isPanelDismissed = null,
-    Object? exactMatch = null,
+    Object? isExactMatch = null,
     Object? countByResultType = null,
   }) {
     return _then(_value.copyWith(
@@ -175,9 +175,9 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
           ? _value.isPanelDismissed
           : isPanelDismissed // ignore: cast_nullable_to_non_nullable
               as bool,
-      exactMatch: null == exactMatch
-          ? _value.exactMatch
-          : exactMatch // ignore: cast_nullable_to_non_nullable
+      isExactMatch: null == isExactMatch
+          ? _value.isExactMatch
+          : isExactMatch // ignore: cast_nullable_to_non_nullable
               as bool,
       countByResultType: null == countByResultType
           ? _value.countByResultType
@@ -222,7 +222,7 @@ abstract class _$$SearchStateImplCopyWith<$Res>
       List<String> nikayaFilters,
       bool filtersVisible,
       bool isPanelDismissed,
-      bool exactMatch,
+      bool isExactMatch,
       Map<SearchResultType, int> countByResultType});
 
   @override
@@ -254,7 +254,7 @@ class __$$SearchStateImplCopyWithImpl<$Res>
     Object? nikayaFilters = null,
     Object? filtersVisible = null,
     Object? isPanelDismissed = null,
-    Object? exactMatch = null,
+    Object? isExactMatch = null,
     Object? countByResultType = null,
   }) {
     return _then(_$SearchStateImpl(
@@ -306,9 +306,9 @@ class __$$SearchStateImplCopyWithImpl<$Res>
           ? _value.isPanelDismissed
           : isPanelDismissed // ignore: cast_nullable_to_non_nullable
               as bool,
-      exactMatch: null == exactMatch
-          ? _value.exactMatch
-          : exactMatch // ignore: cast_nullable_to_non_nullable
+      isExactMatch: null == isExactMatch
+          ? _value.isExactMatch
+          : isExactMatch // ignore: cast_nullable_to_non_nullable
               as bool,
       countByResultType: null == countByResultType
           ? _value._countByResultType
@@ -334,7 +334,7 @@ class _$SearchStateImpl extends _SearchState {
       final List<String> nikayaFilters = const [],
       this.filtersVisible = false,
       this.isPanelDismissed = false,
-      this.exactMatch = false,
+      this.isExactMatch = false,
       final Map<SearchResultType, int> countByResultType = const {}})
       : _recentSearches = recentSearches,
         _selectedEditions = selectedEditions,
@@ -428,7 +428,7 @@ class _$SearchStateImpl extends _SearchState {
   /// When true: "සති" matches only "සති" exactly
   @override
   @JsonKey()
-  final bool exactMatch;
+  final bool isExactMatch;
 
   /// Result counts per category (for tab badges)
   /// Updated independently from categorized results
@@ -447,7 +447,7 @@ class _$SearchStateImpl extends _SearchState {
 
   @override
   String toString() {
-    return 'SearchState(queryText: $queryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, filtersVisible: $filtersVisible, isPanelDismissed: $isPanelDismissed, exactMatch: $exactMatch, countByResultType: $countByResultType)';
+    return 'SearchState(queryText: $queryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, filtersVisible: $filtersVisible, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType)';
   }
 
   @override
@@ -479,8 +479,8 @@ class _$SearchStateImpl extends _SearchState {
                 other.filtersVisible == filtersVisible) &&
             (identical(other.isPanelDismissed, isPanelDismissed) ||
                 other.isPanelDismissed == isPanelDismissed) &&
-            (identical(other.exactMatch, exactMatch) ||
-                other.exactMatch == exactMatch) &&
+            (identical(other.isExactMatch, isExactMatch) ||
+                other.isExactMatch == isExactMatch) &&
             const DeepCollectionEquality()
                 .equals(other._countByResultType, _countByResultType));
   }
@@ -500,7 +500,7 @@ class _$SearchStateImpl extends _SearchState {
       const DeepCollectionEquality().hash(_nikayaFilters),
       filtersVisible,
       isPanelDismissed,
-      exactMatch,
+      isExactMatch,
       const DeepCollectionEquality().hash(_countByResultType));
 
   /// Create a copy of SearchState
@@ -526,7 +526,7 @@ abstract class _SearchState extends SearchState {
       final List<String> nikayaFilters,
       final bool filtersVisible,
       final bool isPanelDismissed,
-      final bool exactMatch,
+      final bool isExactMatch,
       final Map<SearchResultType, int> countByResultType}) = _$SearchStateImpl;
   const _SearchState._() : super._();
 
@@ -583,7 +583,7 @@ abstract class _SearchState extends SearchState {
   /// When false: "සති" matches "සතිපට්ඨානය", "සතිපට්ඨාන", etc.
   /// When true: "සති" matches only "සති" exactly
   @override
-  bool get exactMatch;
+  bool get isExactMatch;
 
   /// Result counts per category (for tab badges)
   /// Updated independently from categorized results

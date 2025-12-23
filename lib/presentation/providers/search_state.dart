@@ -65,7 +65,7 @@ class SearchState with _$SearchState {
     /// Whether exact match is enabled (default: false = prefix matching)
     /// When false: "සති" matches "සතිපට්ඨානය", "සතිපට්ඨාන", etc.
     /// When true: "සති" matches only "සති" exactly
-    @Default(false) bool exactMatch,
+    @Default(false) bool isExactMatch,
 
     /// Result counts per category (for tab badges)
     /// Updated independently from categorized results
@@ -274,7 +274,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
     return SearchQuery(
       queryText: effectiveQuery,
-      exactMatch: state.exactMatch,
+      isExactMatch: state.isExactMatch,
       editionIds: state.selectedEditions,
       searchInPali: state.searchInPali,
       searchInSinhala: state.searchInSinhala,
@@ -285,7 +285,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   /// Toggle exact match mode
   /// When enabled, searches for exact word matches only (no prefix matching)
   void toggleExactMatch() {
-    state = state.copyWith(exactMatch: !state.exactMatch);
+    state = state.copyWith(isExactMatch: !state.isExactMatch);
     _refreshSearchIfNeeded();
   }
 

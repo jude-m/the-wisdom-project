@@ -11,7 +11,7 @@ class SearchQuery with _$SearchQuery {
 
     /// Whether to require exact word match (no prefix matching)
     /// Default false = prefix matching enabled (e.g., "සති" matches "සතිපට්ඨානය")
-    @Default(false) bool exactMatch,
+    @Default(false) bool isExactMatch,
 
     /// Editions to search within (e.g., {'bjt', 'sc'})
     /// If empty, searches all available editions
