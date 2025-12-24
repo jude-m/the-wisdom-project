@@ -32,35 +32,47 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     _scrollController.addListener(_onScroll);
   }
 
+  /// Scroll listener for infinite scroll behavior.
   void _onScroll() {
-    // Check if we're near the bottom (within 200 pixels)
     if (_scrollController.hasClients) {
       final maxScroll = _scrollController.position.maxScrollExtent;
       final currentScroll = _scrollController.position.pixels;
       final delta = maxScroll - currentScroll;
 
+      // Infinite scroll: load next page when user scrolls near bottom (within 200px)
       if (delta < 200) {
         _loadMorePagesIfNeeded();
       }
     }
   }
 
-  /// Loads more pages if available. When content fits on screen (not scrollable),
-  /// continues loading pages until scrollable or all pages are loaded.
-  /// This fixes the bug where opening a sutta from search shows only one page
-  /// that fits on screen, leaving the user unable to scroll to load more.
+  /// Loads more pages if available.
+  ///
+  /// Documents are loaded page-by-page to save memory. This method handles two scenarios:
+  /// 1. Infinite scroll: Called without [scheduleNextCheck] when user scrolls near bottom
+  /// 2. Initial fill: Called with [scheduleNextCheck]=true to keep loading until
+  ///    content fills the screen (solves "can't scroll to load more" problem)
   void _loadMorePagesIfNeeded({bool scheduleNextCheck = false}) {
+    // Step 1: Get the current document (async state)
     final contentAsync = ref.read(currentBJTDocumentProvider);
+
+    // Step 2: Only proceed if we have actual data (not loading/error)
     contentAsync.whenData((content) {
+      // Step 3: Only proceed if document exists
       if (content != null) {
+        // Step 4: Get current last page number being shown
         final currentEnd = ref.read(activePageEndProvider);
+
+        // Step 5: Check if there are more pages to load
         if (currentEnd < content.pageCount) {
-          // Load one more page
+          // Step 6: Load one more page
           ref.read(loadMorePagesProvider)(1);
 
-          // If content isn't scrollable yet, keep loading until it is
+          // Step 7: If asked to keep checking (initial fill mode), schedule another check
           if (scheduleNextCheck && _scrollController.hasClients) {
+            // Step 8: Wait for Flutter to rebuild the UI with new content
             WidgetsBinding.instance.addPostFrameCallback((_) {
+              // Step 9: If content STILL doesn't fill the screen, load more (recursive)
               if (_scrollController.hasClients &&
                   _scrollController.position.maxScrollExtent <= 0) {
                 _loadMorePagesIfNeeded(scheduleNextCheck: true);
@@ -136,10 +148,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         if (next >= 0) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _restoreScrollPosition();
-            // Auto-load more pages if content doesn't fill the screen
-            // This is needed because when switching to a tab with the same content
-            // file (but fresh pagination), the currentBJTDocumentProvider listener
-            // won't fire since the content is already cached
+            // Cached content: When switching tabs, if the document is already cached,
+            // the content listener below won't fire. This ensures pages still load.
             _loadMorePagesIfNeeded(scheduleNextCheck: true);
           });
         }
@@ -151,11 +161,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       // When content finishes loading (transitions to AsyncData with actual content)
       next.whenData((content) {
         if (content != null && previous?.value == null) {
-          // Content just loaded, restore scroll position after widget tree is built
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _restoreScrollPosition();
-            // Auto-load more pages if content doesn't fill the screen
-            // This ensures users can always scroll to load more content
+            // Fresh content: Document just loaded (cache miss). Ensure initial
+            // pages fill the screen so user can scroll to load more.
             _loadMorePagesIfNeeded(scheduleNextCheck: true);
           });
         }
