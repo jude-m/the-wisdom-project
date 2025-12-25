@@ -69,5 +69,3 @@ tools/*.csv
 assets/databases/*.db
 
 # Temporary documents that should be deleted
-docs/multi_edition_architecture_final.txt
-.claude/agents/flutter-code-reviewer.md
