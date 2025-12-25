@@ -7,6 +7,7 @@ import '../../domain/entities/search/recent_search.dart';
 import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_query.dart';
 import '../../domain/entities/search/search_result.dart';
+import '../../domain/entities/search/search_scope.dart';
 import '../../domain/repositories/recent_searches_repository.dart';
 import '../../domain/repositories/text_search_repository.dart';
 
@@ -52,11 +53,10 @@ class SearchState with _$SearchState {
     /// Whether to search in Sinhala text
     @Default(true) bool searchInSinhala,
 
-    /// Nikaya filters (e.g., ['dn', 'mn'])
-    @Default([]) List<String> nikayaFilters,
-
-    /// Whether the filter panel is visible
-    @Default(false) bool filtersVisible,
+    /// Selected scope to filter search results.
+    /// Empty set = "All" is selected (search everything).
+    /// Non-empty = search only within selected scope (OR logic).
+    @Default({}) Set<SearchScope> selectedScope,
 
     /// Whether the panel was dismissed (user clicked result or close button)
     /// Panel reopens when user focuses the search bar again
@@ -76,6 +76,9 @@ class SearchState with _$SearchState {
   /// and panel hasn't been dismissed
   bool get isResultsPanelVisible =>
       queryText.trim().isNotEmpty && !isPanelDismissed;
+
+  /// True if "All" is effectively selected (no specific scope chosen)
+  bool get isAllSelected => selectedScope.isEmpty;
 }
 
 /// Manages search state with simplified UX flow
@@ -278,7 +281,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
       editionIds: state.selectedEditions,
       searchInPali: state.searchInPali,
       searchInSinhala: state.searchInSinhala,
-      nikayaFilters: state.nikayaFilters,
+      scope: state.selectedScope,
     );
   }
 
@@ -310,36 +313,55 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     _refreshSearchIfNeeded();
   }
 
-  /// Add nikaya filter
-  void addNikayaFilter(String nikaya) {
-    if (!state.nikayaFilters.contains(nikaya)) {
-      state = state.copyWith(
-        nikayaFilters: [...state.nikayaFilters, nikaya],
-      );
-      _refreshSearchIfNeeded();
-    }
-  }
+  // ============================================================================
+  // SCOPE SELECTION METHODS (Pattern 2: "All" as default anchor)
+  // ============================================================================
 
-  /// Remove nikaya filter
-  void removeNikayaFilter(String nikaya) {
-    state = state.copyWith(
-      nikayaFilters: state.nikayaFilters.where((n) => n != nikaya).toList(),
-    );
+  /// Select a specific scope. Automatically deselects "All".
+  /// If all scopes become selected, auto-collapses to "All".
+  void selectScope(SearchScope scope) {
+    final newScope = {...state.selectedScope, scope};
+
+    // Auto-collapse to "All" if all scopes are selected
+    if (newScope.length == SearchScope.values.length) {
+      state = state.copyWith(selectedScope: {});
+    } else {
+      state = state.copyWith(selectedScope: newScope);
+    }
     _refreshSearchIfNeeded();
   }
 
-  /// Toggle filter panel visibility
-  void toggleFilters() {
-    state = state.copyWith(filtersVisible: !state.filtersVisible);
+  /// Deselect a specific scope. If none remain, "All" becomes selected.
+  void deselectScope(SearchScope scope) {
+    final newScope = {...state.selectedScope}..remove(scope);
+    state = state.copyWith(selectedScope: newScope);
+    // Empty set = "All" selected, which is valid
+    _refreshSearchIfNeeded();
   }
 
-  /// Clear all filters
+  /// Toggle a scope on/off.
+  void toggleScope(SearchScope scope) {
+    if (state.selectedScope.contains(scope)) {
+      deselectScope(scope);
+    } else {
+      selectScope(scope);
+    }
+  }
+
+  /// Select "All" - clears all specific scope selections.
+  void selectAll() {
+    state = state.copyWith(selectedScope: {});
+    _refreshSearchIfNeeded();
+  }
+
+  /// Clear all filters (reset to defaults)
   void clearFilters() {
     state = state.copyWith(
       selectedEditions: {},
       searchInPali: true,
       searchInSinhala: true,
-      nikayaFilters: [],
+      selectedScope: {},
+      isExactMatch: false,
     );
     _refreshSearchIfNeeded();
   }

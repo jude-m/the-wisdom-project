@@ -26,6 +26,24 @@ class LightThemeColors {
   static const divider = Color(0xFFD6C9B8); // Light tan divider
   static const error = Color(0xFFC04000); // Dark orange-red
   static const onError = Color(0xFFFFFFFF); // White text on error
+
+
+  static const secondaryContainer = Color(0xFF705E46); // Warm Taupe (Selected)
+  static const onSecondaryContainer = Color(0xFFFFFFFF); // Dark Brown (Text)
+
+  // Other options:
+  // Option 2 - Deeper Sage: secondaryContainer = 0xFFB8C7AB, onSecondaryContainer = 0xFF2F3E28
+  // Option 3 - Dusty Clay: secondaryContainer = 0xFFD4BEB0, onSecondaryContainer = 0xFF4A3830
+  // Option 4 - Wheat:      secondaryContainer = 0xFFD8CCBA, onSecondaryContainer = 0xFF4A3F30
+  // Option 5 - Warm Stone: secondaryContainer = 0xFFC9C0B5, onSecondaryContainer = 0xFF3D3832
+
+
+  // const Color robeDeepRust = Color(0xFF68261E); // Deep Rust / Mahogany
+  // const Color robeDarkUmber = Color(0xFF734023); // Dark Umber Brown
+  // const Color robeRustBrown = Color(0xFF903B23); // Rust Brown
+  // const Color robeBurntOchre = Color(0xFF984928); // Burnt Ochre
+  // const Color robeCinnamon = Color(0xFF856231); // Cinnamon Brown
+  // const Color robeKhakiSand = Color(0xFFA59679); // Muted Sand / Khaki Beige
 }
 
 /// Color palette for Dark theme

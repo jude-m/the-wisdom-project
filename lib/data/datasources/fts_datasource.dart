@@ -6,6 +6,9 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../domain/entities/search/search_scope.dart';
+import '../services/scope_filter_service.dart';
+
 /// Data model for FTS search results from the database
 /// Includes edition information for multi-edition search support
 class FTSMatch {
@@ -70,20 +73,27 @@ abstract class FTSDataSource {
 
   /// Search for content across one or more editions
   /// Returns results tagged with their source edition
+  ///
+  /// [scope] filters results to specific content areas.
+  /// Empty set = search all content (no scope filter).
   Future<List<FTSMatch>> searchFullText(
     String query, {
     required Set<String> editionIds,
     String? language,
-    List<String>? nikayaFilter,
+    Set<SearchScope> scope = const {},
     bool isExactMatch = false,
     int limit = 50,
     int offset = 0,
   });
 
   /// Count full-text matches without loading results (efficient for tab badges)
+  ///
+  /// [scope] filters results to specific content areas.
+  /// Empty set = count all content (no scope filter).
   Future<int> countFullTextMatches(
     String query, {
     required String editionId,
+    Set<SearchScope> scope = const {},
     bool isExactMatch = false,
   });
 
@@ -229,7 +239,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     String query, {
     required Set<String> editionIds,
     String? language,
-    List<String>? nikayaFilter,
+    Set<SearchScope> scope = const {},
     bool isExactMatch = false,
     int limit = 50,
     int offset = 0,
@@ -243,7 +253,7 @@ class FTSDataSourceImpl implements FTSDataSource {
         editionId,
         query,
         language: language,
-        nikayaFilter: nikayaFilter,
+        scope: scope,
         isExactMatch: isExactMatch,
         limit: limit,
         offset: offset,
@@ -261,7 +271,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     String editionId,
     String query, {
     String? language,
-    List<String>? nikayaFilter,
+    Set<SearchScope> scope = const {},
     bool isExactMatch = false,
     int limit = 50,
     int offset = 0,
@@ -299,12 +309,11 @@ class FTSDataSourceImpl implements FTSDataSource {
         args.add(language);
       }
 
-      // Add nikaya filter
-      if (nikayaFilter != null && nikayaFilter.isNotEmpty) {
-        buffer.write(' AND (');
-        buffer.write(nikayaFilter.map((_) => 'm.filename LIKE ?').join(' OR '));
-        buffer.write(')');
-        args.addAll(nikayaFilter.map((n) => '$n-%'));
+      // Add scope filter
+      final scopeWhereClause = ScopeFilterService.buildScopeWhereClause(scope);
+      if (scopeWhereClause != null) {
+        buffer.write(' AND $scopeWhereClause');
+        args.addAll(ScopeFilterService.getScopeWhereParams(scope));
       }
 
       // Add pagination
@@ -331,6 +340,7 @@ class FTSDataSourceImpl implements FTSDataSource {
   Future<int> countFullTextMatches(
     String query, {
     required String editionId,
+    Set<SearchScope> scope = const {},
     bool isExactMatch = false,
   }) async {
     await initializeEditions({editionId});
@@ -342,10 +352,35 @@ class FTSDataSourceImpl implements FTSDataSource {
 
     try {
       final ftsTable = '${editionId}_fts';
+      final metaTable = '${editionId}_meta';
       final ftsQuery = _sanitizeFtsQuery(query, isExactMatch: isExactMatch);
 
-      final sql = 'SELECT COUNT(*) as count FROM $ftsTable WHERE $ftsTable MATCH ?';
-      final results = await db.rawQuery(sql, [ftsQuery]);
+      // Build query with optional scope filter
+      final buffer = StringBuffer();
+      final args = <Object>[ftsQuery];
+
+      // If scope is specified, we need to join with meta table
+      if (scope.isNotEmpty) {
+        buffer.write('''
+          SELECT COUNT(*) as count
+          FROM $ftsTable t
+          JOIN $metaTable m ON t.rowid = m.id
+          WHERE $ftsTable MATCH ?
+        ''');
+
+        final scopeWhereClause = ScopeFilterService.buildScopeWhereClause(scope);
+        if (scopeWhereClause != null) {
+          buffer.write(' AND $scopeWhereClause');
+          args.addAll(ScopeFilterService.getScopeWhereParams(scope));
+        }
+      } else {
+        // No scope filter - simple count query
+        buffer.write(
+          'SELECT COUNT(*) as count FROM $ftsTable WHERE $ftsTable MATCH ?',
+        );
+      }
+
+      final results = await db.rawQuery(buffer.toString(), args);
 
       return results.first['count'] as int;
     } catch (e) {

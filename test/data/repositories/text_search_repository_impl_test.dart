@@ -158,7 +158,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
@@ -262,7 +262,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
@@ -309,7 +309,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
@@ -345,7 +345,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
@@ -359,7 +359,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: true, // Should pass isExactMatch from query
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
@@ -377,7 +377,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
@@ -391,7 +391,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: false, // Default value
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
@@ -433,7 +433,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
@@ -466,7 +466,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
@@ -514,7 +514,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
@@ -562,7 +562,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
@@ -612,7 +612,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
@@ -662,7 +662,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
@@ -761,7 +761,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
@@ -787,10 +787,128 @@ void main() {
           'ධම්ම',
           editionIds: {'bjt'},
           language: null,
-          nikayaFilter: null,
+          scope: {},
           isExactMatch: false,
           limit: 50,
           offset: 0,
+        )).called(1);
+      });
+
+      test('should support pagination with offset parameter', () async {
+        // ARRANGE
+        const query = SearchQuery(queryText: 'ධම්ම');
+
+        // First page results
+        final firstPageMatches = [
+          FTSMatch(
+            editionId: 'bjt',
+            rowid: 1,
+            filename: 'dn-1',
+            eind: '0-5',
+            language: 'pali',
+            type: 'paragraph',
+            level: 0,
+          ),
+        ];
+
+        // Second page results (different rowid)
+        final secondPageMatches = [
+          FTSMatch(
+            editionId: 'bjt',
+            rowid: 51,
+            filename: 'dn-2',
+            eind: '10-15',
+            language: 'pali',
+            type: 'paragraph',
+            level: 0,
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(sampleTree));
+
+        // Mock first page (offset: 0)
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: 50,
+          offset: 0,
+        )).thenAnswer((_) async => firstPageMatches);
+
+        // Mock second page (offset: 50)
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: 50,
+          offset: 50,
+        )).thenAnswer((_) async => secondPageMatches);
+
+        // ACT - Get first page
+        final firstPageResult =
+            await repository.searchByResultType(query, SearchResultType.fullText);
+
+        // ASSERT - First page
+        expect(firstPageResult.isRight(), true);
+        firstPageResult.fold(
+          (failure) => fail('Expected success but got failure'),
+          (results) {
+            expect(results.length, equals(1));
+            expect(results[0].contentFileId, equals('dn-1'));
+          },
+        );
+
+        // Verify first page call
+        verify(mockFTSDataSource.searchFullText(
+          'ධම්ම',
+          editionIds: {'bjt'},
+          language: null,
+          scope: {},
+          isExactMatch: false,
+          limit: 50,
+          offset: 0,
+        )).called(1);
+      });
+
+      test('should pass custom limit and offset from query to FTS datasource',
+          () async {
+        // ARRANGE - Query with custom limit and offset for pagination
+        const query = SearchQuery(
+          queryText: 'ධම්ම',
+          limit: 20, // Smaller page size
+          offset: 40, // Third page (if page size is 20)
+        );
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(sampleTree));
+
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        await repository.searchByResultType(query, SearchResultType.fullText);
+
+        // ASSERT - Verify custom limit and offset from query were passed through
+        verify(mockFTSDataSource.searchFullText(
+          'ධම්ම',
+          editionIds: {'bjt'},
+          language: null,
+          scope: {},
+          isExactMatch: false,
+          limit: 20, // Custom limit from query
+          offset: 40, // Custom offset from query
         )).called(1);
       });
 
@@ -854,7 +972,7 @@ void main() {
           any,
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          nikayaFilter: anyNamed('nikayaFilter'),
+          scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),

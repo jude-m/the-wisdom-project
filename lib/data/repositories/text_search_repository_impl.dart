@@ -7,6 +7,8 @@ import '../../domain/entities/search/grouped_search_result.dart';
 import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_query.dart';
 import '../../domain/entities/search/search_result.dart';
+import '../../domain/entities/search/search_scope.dart';
+import '../../domain/entities/search/scope_filter_config.dart';
 import '../../domain/entities/tipitaka_tree_node.dart';
 import '../../domain/repositories/navigation_tree_repository.dart';
 import '../../core/utils/text_utils.dart';
@@ -50,6 +52,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             nodeMap: nodeMap,
             queryText: query.queryText,
             editionId: 'bjt', // TODO: Support multiple editions
+            scope: query.scope,
             isExactMatch: query.isExactMatch,
             limit: maxPerCategory,
           );
@@ -59,6 +62,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             nodeMap: nodeMap,
             queryText: query.queryText,
             editionIds: editionsToSearch,
+            scope: query.scope,
             isExactMatch: query.isExactMatch,
             limit: maxPerCategory,
             offset: 0,
@@ -112,6 +116,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 nodeMap: nodeMap,
                 queryText: query.queryText,
                 editionId: 'bjt',
+                scope: query.scope,
                 isExactMatch: query.isExactMatch,
                 limit: query.limit,
               ));
@@ -121,6 +126,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 nodeMap: nodeMap,
                 queryText: query.queryText,
                 editionIds: editionsToSearch,
+                scope: query.scope,
                 isExactMatch: query.isExactMatch,
                 limit: query.limit,
                 offset: query.offset,
@@ -165,6 +171,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             nodeMap: nodeMap,
             queryText: query.queryText,
             editionId: 'bjt',
+            scope: query.scope,
             isExactMatch: query.isExactMatch,
           ).length;
 
@@ -173,6 +180,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
               await _ftsDataSource.countFullTextMatches(
             query.queryText,
             editionId: editionsToSearch.first,
+            scope: query.scope,
             isExactMatch: query.isExactMatch,
           );
 
@@ -228,10 +236,14 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   ///
   /// When [isExactMatch] is false (default), uses prefix matching (startsWith).
   /// When [isExactMatch] is true, requires exact string match.
+  ///
+  /// [scope] filters results to specific content areas.
+  /// Empty set = search all content (no scope filter).
   List<SearchResult> _searchTitles({
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
     required String editionId,
+    Set<SearchScope> scope = const {},
     bool isExactMatch = false,
     int? limit,
   }) {
@@ -239,6 +251,9 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
 
     // Normalize query for matching (caller handles Singlish conversion)
     final searchQuery = normalizeText(queryText, toLowerCase: true);
+
+    // Get scope patterns for filtering (empty = no filter)
+    final scopePatterns = ScopeFilterConfig.getPatternsForScope(scope);
 
     // Helper function to check if a name matches the query
     // isExactMatch=false: prefix matching (startsWith)
@@ -251,6 +266,13 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       }
     }
 
+    // Helper function to check if contentFileId matches any scope pattern
+    bool matchesScope(String? contentFileId) {
+      if (scopePatterns.isEmpty) return true; // No filter = match all
+      if (contentFileId == null) return false;
+      return scopePatterns.any((pattern) => contentFileId.startsWith(pattern));
+    }
+
     for (final node in nodeMap.values) {
       final paliName = normalizeText(node.paliName, toLowerCase: true);
       final sinhalaName = normalizeText(node.sinhalaName, toLowerCase: true);
@@ -259,7 +281,10 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       final paliMatched = matchesQuery(paliName);
       final sinhalaMatched = matchesQuery(sinhalaName);
 
-      if ((paliMatched || sinhalaMatched) && node.contentFileId != null) {
+      // Check both name match AND scope match
+      if ((paliMatched || sinhalaMatched) &&
+          node.contentFileId != null &&
+          matchesScope(node.contentFileId)) {
         // Prefer Sinhala if it matched, otherwise use Pali
         // TODO: lets get the navigator display lanaguge as the preference later.
         final matchedName = sinhalaMatched
@@ -307,6 +332,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
     required Set<String> editionIds,
+    Set<SearchScope> scope = const {},
     bool isExactMatch = false,
     int? limit,
     int offset = 0,
@@ -315,6 +341,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     final ftsMatches = await _ftsDataSource.searchFullText(
       queryText,
       editionIds: editionIds,
+      scope: scope,
       isExactMatch: isExactMatch,
       limit: limit ?? 50,
       offset: offset,

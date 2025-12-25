@@ -6,6 +6,7 @@ import '../../domain/entities/search/search_result.dart';
 import '../providers/search_provider.dart';
 import '../../core/utils/singlish_transliterator.dart';
 import '../../core/utils/text_utils.dart';
+import 'scope_filter_chips.dart';
 
 /// Slide-out panel for displaying full search results
 /// Used as a side panel on desktop and full-screen overlay on mobile
@@ -32,9 +33,8 @@ class SearchResultsPanel extends ConsumerWidget {
       elevation: 8,
       child: Column(
         children: [
-          // Custom header with close button
+          // Header with scope filters and close button
           _PanelHeader(
-            queryText: searchState.queryText,
             onClose: onClose,
           ),
           // Category tabs
@@ -244,13 +244,12 @@ class SearchResultsPanel extends ConsumerWidget {
   }
 }
 
-/// Custom header for the search results panel
+/// Header for the search results panel
+/// Contains close button (for mobile full-screen) and scope filter chips
 class _PanelHeader extends StatelessWidget {
-  final String queryText;
   final VoidCallback onClose;
 
   const _PanelHeader({
-    required this.queryText,
     required this.onClose,
   });
 
@@ -259,7 +258,7 @@ class _PanelHeader extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      height: 60,
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         border: Border(
@@ -276,13 +275,9 @@ class _PanelHeader extends StatelessWidget {
             onPressed: onClose,
             tooltip: 'Close',
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Results for "$queryText"',
-              style: theme.textTheme.titleMedium,
-              overflow: TextOverflow.ellipsis,
-            ),
+          // Scope filter chips (scrollable)
+          const Expanded(
+            child: ScopeFilterChips(),
           ),
         ],
       ),
@@ -350,11 +345,11 @@ class _SearchResultsTabBar extends StatelessWidget {
                               ? theme.colorScheme.primary
                               : theme.colorScheme.onSurfaceVariant,
                           fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.w500,
+                              isSelected ? FontWeight.w600 : FontWeight.w400,
                         ),
                       ),
                     ),
-                    // Show badge for non-"all" tabs when count is available
+                    // Show badge for non-"Top Results" tabs when count is available
                     if (resultType != SearchResultType.topResults && count != null)
                       Padding(
                         padding: const EdgeInsets.only(left: 6),

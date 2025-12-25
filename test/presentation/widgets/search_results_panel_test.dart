@@ -27,7 +27,8 @@ class FakeSearchStateNotifier extends StateNotifier<SearchState>
 
 void main() {
   group('SearchResultsPanel -', () {
-    testWidgets('should render header with query text', (tester) async {
+    testWidgets('should render header with close button and scope filters',
+        (tester) async {
       // ARRANGE
       final notifier = FakeSearchStateNotifier(
         const SearchState(queryText: 'metta'),
@@ -48,8 +49,10 @@ void main() {
         ),
       );
 
-      // ASSERT
-      expect(find.text('Results for "metta"'), findsOneWidget);
+      // ASSERT - Header now contains close button and scope filter chips
+      expect(find.byIcon(Icons.close), findsOneWidget);
+      // Scope filter "All" chip should be visible (default selected)
+      expect(find.text('All'), findsOneWidget);
     });
 
     testWidgets('should show loading indicator when isLoading is true',
@@ -237,6 +240,113 @@ void main() {
       expect(find.text('Titles'), findsOneWidget);
       expect(find.text('Full text'), findsOneWidget);
       expect(find.text('Definitions'), findsOneWidget);
+    });
+
+    testWidgets('should display count badges on tabs', (tester) async {
+      // ARRANGE - Test various count scenarios
+      final notifier = FakeSearchStateNotifier(
+        const SearchState(
+          queryText: 'test',
+          countByResultType: {
+            SearchResultType.topResults: 15, // Top Results doesn't show badge
+            SearchResultType.title: 42,
+            SearchResultType.fullText: 150, // Should show as "100+"
+            SearchResultType.definition: 3,
+          },
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            searchStateProvider.overrideWith((ref) => notifier),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: SearchResultsPanel(
+                onClose: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // ASSERT - Verify count badges are displayed correctly
+      // Top Results tab does NOT show a count badge (per implementation line 354)
+      expect(find.text('42'), findsOneWidget); // Title count
+      expect(find.text('100+'), findsOneWidget); // Full text count (truncated at 100)
+      expect(find.text('3'), findsOneWidget); // Definition count
+    });
+
+    testWidgets('should display zero count badges when counts are zero',
+        (tester) async {
+      // ARRANGE - All counts are zero (badges still show with "0")
+      final notifier = FakeSearchStateNotifier(
+        const SearchState(
+          queryText: 'test',
+          countByResultType: {
+            SearchResultType.topResults: 0, // Top Results doesn't show badge
+            SearchResultType.title: 0,
+            SearchResultType.fullText: 0,
+            SearchResultType.definition: 0,
+          },
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            searchStateProvider.overrideWith((ref) => notifier),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: SearchResultsPanel(
+                onClose: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // ASSERT - Verify tabs exist and count badges show "0"
+      // Implementation shows badges even when count is 0 (as long as count != null)
+      expect(find.text('Top Results'), findsOneWidget);
+      expect(find.text('Titles'), findsOneWidget);
+      expect(find.text('Full text'), findsOneWidget);
+      expect(find.text('Definitions'), findsOneWidget);
+      // Three "0" badges (for Title, Full text, Definition - not Top Results)
+      expect(find.text('0'), findsNWidgets(3));
+    });
+
+    testWidgets('should display count badge at exactly 100', (tester) async {
+      // ARRANGE - Edge case: exactly 100 results
+      final notifier = FakeSearchStateNotifier(
+        const SearchState(
+          queryText: 'test',
+          countByResultType: {
+            SearchResultType.title: 100,
+          },
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            searchStateProvider.overrideWith((ref) => notifier),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: SearchResultsPanel(
+                onClose: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // ASSERT - At exactly 100, should show "100" not "100+"
+      expect(find.text('100'), findsOneWidget);
+      expect(find.text('100+'), findsNothing);
     });
 
     testWidgets('should call selectResultType when tab is tapped',

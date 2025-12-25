@@ -8,6 +8,7 @@ import 'package:the_wisdom_project/domain/entities/search/grouped_search_result.
 import 'package:the_wisdom_project/domain/entities/search/recent_search.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
+import 'package:the_wisdom_project/domain/entities/search/search_scope.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 
 import '../../helpers/mocks.mocks.dart';
@@ -305,27 +306,29 @@ void main() {
         expect(notifier.state.isExactMatch, isFalse);
       });
 
-      test('should refresh search when toggling with active query', () async {
-        // ARRANGE
-        const categorizedResult = GroupedSearchResult(
-          resultsByType: {
-            SearchResultType.title: [],
-            SearchResultType.fullText: [],
-            SearchResultType.definition: [],
-          },
-        );
-        when(mockSearchRepository.searchTopResults(any))
-            .thenAnswer((_) async => const Right(categorizedResult));
+      test('should refresh search when toggling with active query', () {
+        fakeAsync((async) {
+          // ARRANGE
+          const categorizedResult = GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [],
+              SearchResultType.fullText: [],
+              SearchResultType.definition: [],
+            },
+          );
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async => const Right(categorizedResult));
 
-        notifier.updateQuery('dhamma');
-        await Future.delayed(const Duration(milliseconds: 350)); // Wait for debounce
-        clearInteractions(mockSearchRepository);
+          notifier.updateQuery('dhamma');
+          async.elapse(const Duration(milliseconds: 350)); // Wait for debounce
+          clearInteractions(mockSearchRepository);
 
-        // ACT - Toggle exact match
-        notifier.toggleExactMatch();
+          // ACT - Toggle exact match
+          notifier.toggleExactMatch();
 
-        // ASSERT - Should trigger new search
-        verify(mockSearchRepository.searchTopResults(any)).called(1);
+          // ASSERT - Should trigger new search
+          verify(mockSearchRepository.searchTopResults(any)).called(1);
+        });
       });
 
       test('should not refresh search when toggling with empty query', () {
@@ -339,33 +342,35 @@ void main() {
         verifyNever(mockSearchRepository.searchTopResults(any));
       });
 
-      test('should include isExactMatch in built SearchQuery', () async {
-        // ARRANGE
-        const categorizedResult = GroupedSearchResult(
-          resultsByType: {
-            SearchResultType.title: [],
-            SearchResultType.fullText: [],
-            SearchResultType.definition: [],
-          },
-        );
-        when(mockSearchRepository.searchTopResults(any))
-            .thenAnswer((_) async => const Right(categorizedResult));
+      test('should include isExactMatch in built SearchQuery', () {
+        fakeAsync((async) {
+          // ARRANGE
+          const categorizedResult = GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [],
+              SearchResultType.fullText: [],
+              SearchResultType.definition: [],
+            },
+          );
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async => const Right(categorizedResult));
 
-        // Use Sinhala input directly to avoid transliteration dependency
-        notifier.updateQuery('ධම්ම');
-        notifier.toggleExactMatch(); // Set isExactMatch to true
+          // Use Sinhala input directly to avoid transliteration dependency
+          notifier.updateQuery('ධම්ම');
+          notifier.toggleExactMatch(); // Set isExactMatch to true
 
-        await Future.delayed(const Duration(milliseconds: 350)); // Wait for debounce
+          async.elapse(const Duration(milliseconds: 350)); // Wait for debounce
 
-        // ASSERT - Verify the SearchQuery passed has isExactMatch=true
-        final captured = verify(
-          mockSearchRepository.searchTopResults(captureAny),
-        ).captured;
+          // ASSERT - Verify the SearchQuery passed has isExactMatch=true
+          final captured = verify(
+            mockSearchRepository.searchTopResults(captureAny),
+          ).captured;
 
-        expect(captured.length, greaterThan(0));
-        final query = captured.last;
-        expect(query.isExactMatch, isTrue);
-        expect(query.queryText, equals('ධම්ම'));
+          expect(captured.length, greaterThan(0));
+          final query = captured.last;
+          expect(query.isExactMatch, isTrue);
+          expect(query.queryText, equals('ධම්ම'));
+        });
       });
     });
 
@@ -389,33 +394,36 @@ void main() {
         expect(notifier.state.searchInSinhala, isTrue);
       });
 
-      test('addNikayaFilter should add nikaya filter', () {
+      test('selectScope should add scope filter', () {
         // ACT
-        notifier.addNikayaFilter('dn');
-        notifier.addNikayaFilter('mn');
+        notifier.selectScope(SearchScope.sutta);
+        notifier.selectScope(SearchScope.vinaya);
 
         // ASSERT
-        expect(notifier.state.nikayaFilters, containsAll(['dn', 'mn']));
+        expect(
+          notifier.state.selectedScope,
+          containsAll([SearchScope.sutta, SearchScope.vinaya]),
+        );
       });
 
-      test('removeNikayaFilter should remove nikaya filter', () {
+      test('deselectScope should remove scope filter', () {
         // ARRANGE
-        notifier.addNikayaFilter('dn');
-        notifier.addNikayaFilter('mn');
+        notifier.selectScope(SearchScope.sutta);
+        notifier.selectScope(SearchScope.vinaya);
 
         // ACT
-        notifier.removeNikayaFilter('dn');
+        notifier.deselectScope(SearchScope.sutta);
 
         // ASSERT
-        expect(notifier.state.nikayaFilters, contains('mn'));
-        expect(notifier.state.nikayaFilters, isNot(contains('dn')));
+        expect(notifier.state.selectedScope, contains(SearchScope.vinaya));
+        expect(notifier.state.selectedScope, isNot(contains(SearchScope.sutta)));
       });
 
       test('clearFilters should reset all filters', () {
         // ARRANGE
         notifier.toggleEdition('sc');
         notifier.setLanguageFilter(pali: false);
-        notifier.addNikayaFilter('dn');
+        notifier.selectScope(SearchScope.sutta);
 
         // ACT
         notifier.clearFilters();
@@ -424,7 +432,130 @@ void main() {
         expect(notifier.state.selectedEditions, isEmpty);
         expect(notifier.state.searchInPali, isTrue);
         expect(notifier.state.searchInSinhala, isTrue);
-        expect(notifier.state.nikayaFilters, isEmpty);
+        expect(notifier.state.selectedScope, isEmpty);
+      });
+    });
+
+    group('Scope selection (Pattern 2: All as default)', () {
+      // Test 1: Default state is "All" selected (empty set)
+      test('should have empty selectedScope by default (All selected)', () {
+        expect(notifier.state.selectedScope, isEmpty);
+        expect(notifier.state.isAllSelected, isTrue);
+      });
+
+      // Test 2: selectScope adds scope and triggers search
+      test('should add scope when selectScope is called', () {
+        fakeAsync((async) {
+          // ARRANGE
+          const categorizedResult = GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [],
+              SearchResultType.fullText: [],
+              SearchResultType.definition: [],
+            },
+          );
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async => const Right(categorizedResult));
+
+          notifier.updateQuery('test');
+          async.elapse(const Duration(milliseconds: 350));
+          clearInteractions(mockSearchRepository);
+
+          // ACT
+          notifier.selectScope(SearchScope.sutta);
+
+          // ASSERT
+          expect(notifier.state.selectedScope, contains(SearchScope.sutta));
+          expect(notifier.state.isAllSelected, isFalse);
+          verify(mockSearchRepository.searchTopResults(any)).called(1);
+        });
+      });
+
+      // Test 3: Auto-collapse to "All" when all 5 scopes selected
+      test('should auto-collapse to All when all scopes are selected', () {
+        // ACT - Select all 5 scopes one by one
+        notifier.selectScope(SearchScope.sutta);
+        notifier.selectScope(SearchScope.vinaya);
+        notifier.selectScope(SearchScope.abhidhamma);
+        notifier.selectScope(SearchScope.commentaries);
+        notifier.selectScope(SearchScope.treatises);
+
+        // ASSERT - Should collapse to empty set = "All"
+        expect(notifier.state.selectedScope, isEmpty);
+        expect(notifier.state.isAllSelected, isTrue);
+      });
+
+      // Test 4: deselectScope removes scope and leaves remaining
+      test('should remove only the specified scope when deselecting', () {
+        // ARRANGE
+        notifier.selectScope(SearchScope.sutta);
+        notifier.selectScope(SearchScope.vinaya);
+        expect(notifier.state.selectedScope.length, equals(2));
+
+        // ACT
+        notifier.deselectScope(SearchScope.sutta);
+
+        // ASSERT
+        expect(notifier.state.selectedScope, contains(SearchScope.vinaya));
+        expect(notifier.state.selectedScope, isNot(contains(SearchScope.sutta)));
+        expect(notifier.state.selectedScope.length, equals(1));
+      });
+
+      // Test 5: toggleScope toggles on/off correctly
+      test('should toggle scope on and off', () {
+        // ACT - Toggle on
+        notifier.toggleScope(SearchScope.sutta);
+        expect(notifier.state.selectedScope, contains(SearchScope.sutta));
+
+        // ACT - Toggle off
+        notifier.toggleScope(SearchScope.sutta);
+        expect(notifier.state.selectedScope, isNot(contains(SearchScope.sutta)));
+      });
+
+      // Test 6: selectAll clears all specific selections
+      test('should clear all scopes when selectAll is called', () {
+        // ARRANGE
+        notifier.selectScope(SearchScope.sutta);
+        notifier.selectScope(SearchScope.vinaya);
+        expect(notifier.state.selectedScope, isNotEmpty);
+
+        // ACT
+        notifier.selectAll();
+
+        // ASSERT
+        expect(notifier.state.selectedScope, isEmpty);
+        expect(notifier.state.isAllSelected, isTrue);
+      });
+
+      // Test 7: Scope included in SearchQuery
+      test('should include selectedScope in built SearchQuery', () {
+        fakeAsync((async) {
+          // ARRANGE
+          const categorizedResult = GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [],
+              SearchResultType.fullText: [],
+              SearchResultType.definition: [],
+            },
+          );
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async => const Right(categorizedResult));
+
+          notifier.selectScope(SearchScope.sutta);
+          notifier.selectScope(SearchScope.vinaya);
+          notifier.updateQuery('ධම්ම'); // Use Sinhala to avoid transliteration
+          async.elapse(const Duration(milliseconds: 350));
+
+          // ASSERT - Verify SearchQuery has correct scope
+          final captured = verify(
+            mockSearchRepository.searchTopResults(captureAny),
+          ).captured;
+
+          expect(captured.length, greaterThan(0));
+          final query = captured.last;
+          expect(
+              query.scope, containsAll([SearchScope.sutta, SearchScope.vinaya]));
+        });
       });
     });
 
@@ -547,22 +678,24 @@ void main() {
     });
 
     group('Error handling', () {
-      test('should clear results when categorized search fails', () async {
-        // ARRANGE
-        const failure = Failure.dataLoadFailure(
-          message: 'Database connection failed',
-        );
-        when(mockSearchRepository.searchTopResults(any))
-            .thenAnswer((_) async => const Left(failure));
+      test('should clear results when categorized search fails', () {
+        fakeAsync((async) {
+          // ARRANGE
+          const failure = Failure.dataLoadFailure(
+            message: 'Database connection failed',
+          );
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async => const Left(failure));
 
-        // ACT
-        notifier.updateQuery('test');
-        await Future.delayed(const Duration(milliseconds: 350)); // Wait for debounce
+          // ACT
+          notifier.updateQuery('test');
+          async.elapse(const Duration(milliseconds: 350)); // Wait for debounce
 
-        // ASSERT
-        expect(notifier.state.isLoading, isFalse);
-        expect(notifier.state.groupedResults, isNull);
-        expect(notifier.state.queryText, equals('test')); // Query text preserved
+          // ASSERT
+          expect(notifier.state.isLoading, isFalse);
+          expect(notifier.state.groupedResults, isNull);
+          expect(notifier.state.queryText, equals('test')); // Query text preserved
+        });
       });
 
       test('should set error state when category search fails', () async {
@@ -593,104 +726,107 @@ void main() {
         }
       });
 
-      test('should handle search failure gracefully without crashing',
-          () async {
-        // ARRANGE
-        const failure = Failure.unexpectedFailure(
-          message: 'Unexpected error occurred',
-        );
-        when(mockSearchRepository.searchTopResults(any))
-            .thenAnswer((_) async => const Left(failure));
+      test('should handle search failure gracefully without crashing', () {
+        fakeAsync((async) {
+          // ARRANGE
+          const failure = Failure.unexpectedFailure(
+            message: 'Unexpected error occurred',
+          );
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async => const Left(failure));
 
-        // ACT - Should not throw
-        notifier.updateQuery('test');
-        await Future.delayed(const Duration(milliseconds: 350));
+          // ACT - Should not throw
+          notifier.updateQuery('test');
+          async.elapse(const Duration(milliseconds: 350));
 
-        // ASSERT - App should continue functioning
-        expect(notifier.state.isLoading, isFalse);
-        expect(notifier.state.queryText, equals('test'));
+          // ASSERT - App should continue functioning
+          expect(notifier.state.isLoading, isFalse);
+          expect(notifier.state.queryText, equals('test'));
 
-        // User can try another search
-        const successResult = GroupedSearchResult(
-          resultsByType: {
-            SearchResultType.title: [],
-            SearchResultType.fullText: [],
-            SearchResultType.definition: [],
-          },
-        );
-        when(mockSearchRepository.searchTopResults(any))
-            .thenAnswer((_) async => const Right(successResult));
-
-        notifier.updateQuery('dhamma');
-        await Future.delayed(const Duration(milliseconds: 350));
-
-        expect(notifier.state.groupedResults, isNotNull);
-      });
-
-      test('should cancel debounced search when query changes rapidly',
-          () async {
-        // ARRANGE
-        var callCount = 0;
-        when(mockSearchRepository.searchTopResults(any))
-            .thenAnswer((_) async {
-          callCount++;
-          return const Right(GroupedSearchResult(
+          // User can try another search
+          const successResult = GroupedSearchResult(
             resultsByType: {
               SearchResultType.title: [],
               SearchResultType.fullText: [],
               SearchResultType.definition: [],
             },
-          ));
+          );
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async => const Right(successResult));
+
+          notifier.updateQuery('dhamma');
+          async.elapse(const Duration(milliseconds: 350));
+
+          expect(notifier.state.groupedResults, isNotNull);
         });
-
-        // ACT - Rapidly change query three times
-        notifier.updateQuery('a');
-        await Future.delayed(const Duration(milliseconds: 100));
-
-        notifier.updateQuery('ab');
-        await Future.delayed(const Duration(milliseconds: 100));
-
-        notifier.updateQuery('abc');
-        await Future.delayed(const Duration(milliseconds: 350)); // Wait for final debounce
-
-        // ASSERT - Should only search once (for 'abc'), not three times
-        expect(callCount, equals(1));
-        expect(notifier.state.queryText, equals('abc'));
       });
 
-      test('should handle concurrent filter changes without race conditions',
-          () async {
-        // ARRANGE
-        const categorizedResult = GroupedSearchResult(
-          resultsByType: {
-            SearchResultType.title: [],
-            SearchResultType.fullText: [],
-            SearchResultType.definition: [],
-          },
-        );
-        when(mockSearchRepository.searchTopResults(any))
-            .thenAnswer((_) async => const Right(categorizedResult));
+      test('should cancel debounced search when query changes rapidly', () {
+        fakeAsync((async) {
+          // ARRANGE
+          var callCount = 0;
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async {
+            callCount++;
+            return const Right(GroupedSearchResult(
+              resultsByType: {
+                SearchResultType.title: [],
+                SearchResultType.fullText: [],
+                SearchResultType.definition: [],
+              },
+            ));
+          });
 
-        notifier.updateQuery('dhamma');
-        await Future.delayed(const Duration(milliseconds: 350));
-        clearInteractions(mockSearchRepository);
+          // ACT - Rapidly change query three times
+          notifier.updateQuery('a');
+          async.elapse(const Duration(milliseconds: 100));
 
-        // ACT - Rapidly toggle filters
-        notifier.toggleExactMatch();
-        notifier.setLanguageFilter(pali: false);
-        notifier.addNikayaFilter('dn');
+          notifier.updateQuery('ab');
+          async.elapse(const Duration(milliseconds: 100));
 
-        // Wait for all searches to complete
-        await Future.delayed(const Duration(milliseconds: 50));
+          notifier.updateQuery('abc');
+          async.elapse(const Duration(milliseconds: 350)); // Wait for final debounce
 
-        // ASSERT - All filter changes should be reflected in final state
-        expect(notifier.state.isExactMatch, isTrue);
-        expect(notifier.state.searchInPali, isFalse);
-        expect(notifier.state.nikayaFilters, contains('dn'));
+          // ASSERT - Should only search once (for 'abc'), not three times
+          expect(callCount, equals(1));
+          expect(notifier.state.queryText, equals('abc'));
+        });
+      });
 
-        // Should have triggered searches (one per filter change)
-        verify(mockSearchRepository.searchTopResults(any))
-            .called(greaterThan(0));
+      test('should handle concurrent filter changes without race conditions', () {
+        fakeAsync((async) {
+          // ARRANGE
+          const categorizedResult = GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [],
+              SearchResultType.fullText: [],
+              SearchResultType.definition: [],
+            },
+          );
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async => const Right(categorizedResult));
+
+          notifier.updateQuery('dhamma');
+          async.elapse(const Duration(milliseconds: 350));
+          clearInteractions(mockSearchRepository);
+
+          // ACT - Rapidly toggle filters
+          notifier.toggleExactMatch();
+          notifier.setLanguageFilter(pali: false);
+          notifier.selectScope(SearchScope.sutta);
+
+          // Wait for all searches to complete
+          async.elapse(const Duration(milliseconds: 50));
+
+          // ASSERT - All filter changes should be reflected in final state
+          expect(notifier.state.isExactMatch, isTrue);
+          expect(notifier.state.searchInPali, isFalse);
+          expect(notifier.state.selectedScope, contains(SearchScope.sutta));
+
+          // Should have triggered searches (one per filter change)
+          verify(mockSearchRepository.searchTopResults(any))
+              .called(greaterThan(0));
+        });
       });
     });
   });

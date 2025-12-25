@@ -44,11 +44,10 @@ mixin _$SearchState {
   /// Whether to search in Sinhala text
   bool get searchInSinhala => throw _privateConstructorUsedError;
 
-  /// Nikaya filters (e.g., ['dn', 'mn'])
-  List<String> get nikayaFilters => throw _privateConstructorUsedError;
-
-  /// Whether the filter panel is visible
-  bool get filtersVisible => throw _privateConstructorUsedError;
+  /// Selected scope to filter search results.
+  /// Empty set = "All" is selected (search everything).
+  /// Non-empty = search only within selected scope (OR logic).
+  Set<SearchScope> get selectedScope => throw _privateConstructorUsedError;
 
   /// Whether the panel was dismissed (user clicked result or close button)
   /// Panel reopens when user focuses the search bar again
@@ -87,8 +86,7 @@ abstract class $SearchStateCopyWith<$Res> {
       Set<String> selectedEditions,
       bool searchInPali,
       bool searchInSinhala,
-      List<String> nikayaFilters,
-      bool filtersVisible,
+      Set<SearchScope> selectedScope,
       bool isPanelDismissed,
       bool isExactMatch,
       Map<SearchResultType, int> countByResultType});
@@ -120,8 +118,7 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
     Object? selectedEditions = null,
     Object? searchInPali = null,
     Object? searchInSinhala = null,
-    Object? nikayaFilters = null,
-    Object? filtersVisible = null,
+    Object? selectedScope = null,
     Object? isPanelDismissed = null,
     Object? isExactMatch = null,
     Object? countByResultType = null,
@@ -163,14 +160,10 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
           ? _value.searchInSinhala
           : searchInSinhala // ignore: cast_nullable_to_non_nullable
               as bool,
-      nikayaFilters: null == nikayaFilters
-          ? _value.nikayaFilters
-          : nikayaFilters // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-      filtersVisible: null == filtersVisible
-          ? _value.filtersVisible
-          : filtersVisible // ignore: cast_nullable_to_non_nullable
-              as bool,
+      selectedScope: null == selectedScope
+          ? _value.selectedScope
+          : selectedScope // ignore: cast_nullable_to_non_nullable
+              as Set<SearchScope>,
       isPanelDismissed: null == isPanelDismissed
           ? _value.isPanelDismissed
           : isPanelDismissed // ignore: cast_nullable_to_non_nullable
@@ -219,8 +212,7 @@ abstract class _$$SearchStateImplCopyWith<$Res>
       Set<String> selectedEditions,
       bool searchInPali,
       bool searchInSinhala,
-      List<String> nikayaFilters,
-      bool filtersVisible,
+      Set<SearchScope> selectedScope,
       bool isPanelDismissed,
       bool isExactMatch,
       Map<SearchResultType, int> countByResultType});
@@ -251,8 +243,7 @@ class __$$SearchStateImplCopyWithImpl<$Res>
     Object? selectedEditions = null,
     Object? searchInPali = null,
     Object? searchInSinhala = null,
-    Object? nikayaFilters = null,
-    Object? filtersVisible = null,
+    Object? selectedScope = null,
     Object? isPanelDismissed = null,
     Object? isExactMatch = null,
     Object? countByResultType = null,
@@ -294,14 +285,10 @@ class __$$SearchStateImplCopyWithImpl<$Res>
           ? _value.searchInSinhala
           : searchInSinhala // ignore: cast_nullable_to_non_nullable
               as bool,
-      nikayaFilters: null == nikayaFilters
-          ? _value._nikayaFilters
-          : nikayaFilters // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-      filtersVisible: null == filtersVisible
-          ? _value.filtersVisible
-          : filtersVisible // ignore: cast_nullable_to_non_nullable
-              as bool,
+      selectedScope: null == selectedScope
+          ? _value._selectedScope
+          : selectedScope // ignore: cast_nullable_to_non_nullable
+              as Set<SearchScope>,
       isPanelDismissed: null == isPanelDismissed
           ? _value.isPanelDismissed
           : isPanelDismissed // ignore: cast_nullable_to_non_nullable
@@ -331,14 +318,13 @@ class _$SearchStateImpl extends _SearchState {
       final Set<String> selectedEditions = const {},
       this.searchInPali = true,
       this.searchInSinhala = true,
-      final List<String> nikayaFilters = const [],
-      this.filtersVisible = false,
+      final Set<SearchScope> selectedScope = const {},
       this.isPanelDismissed = false,
       this.isExactMatch = false,
       final Map<SearchResultType, int> countByResultType = const {}})
       : _recentSearches = recentSearches,
         _selectedEditions = selectedEditions,
-        _nikayaFilters = nikayaFilters,
+        _selectedScope = selectedScope,
         _countByResultType = countByResultType,
         super._();
 
@@ -400,22 +386,21 @@ class _$SearchStateImpl extends _SearchState {
   @JsonKey()
   final bool searchInSinhala;
 
-  /// Nikaya filters (e.g., ['dn', 'mn'])
-  final List<String> _nikayaFilters;
+  /// Selected scope to filter search results.
+  /// Empty set = "All" is selected (search everything).
+  /// Non-empty = search only within selected scope (OR logic).
+  final Set<SearchScope> _selectedScope;
 
-  /// Nikaya filters (e.g., ['dn', 'mn'])
+  /// Selected scope to filter search results.
+  /// Empty set = "All" is selected (search everything).
+  /// Non-empty = search only within selected scope (OR logic).
   @override
   @JsonKey()
-  List<String> get nikayaFilters {
-    if (_nikayaFilters is EqualUnmodifiableListView) return _nikayaFilters;
+  Set<SearchScope> get selectedScope {
+    if (_selectedScope is EqualUnmodifiableSetView) return _selectedScope;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_nikayaFilters);
+    return EqualUnmodifiableSetView(_selectedScope);
   }
-
-  /// Whether the filter panel is visible
-  @override
-  @JsonKey()
-  final bool filtersVisible;
 
   /// Whether the panel was dismissed (user clicked result or close button)
   /// Panel reopens when user focuses the search bar again
@@ -447,7 +432,7 @@ class _$SearchStateImpl extends _SearchState {
 
   @override
   String toString() {
-    return 'SearchState(queryText: $queryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, filtersVisible: $filtersVisible, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType)';
+    return 'SearchState(queryText: $queryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, selectedScope: $selectedScope, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType)';
   }
 
   @override
@@ -474,9 +459,7 @@ class _$SearchStateImpl extends _SearchState {
             (identical(other.searchInSinhala, searchInSinhala) ||
                 other.searchInSinhala == searchInSinhala) &&
             const DeepCollectionEquality()
-                .equals(other._nikayaFilters, _nikayaFilters) &&
-            (identical(other.filtersVisible, filtersVisible) ||
-                other.filtersVisible == filtersVisible) &&
+                .equals(other._selectedScope, _selectedScope) &&
             (identical(other.isPanelDismissed, isPanelDismissed) ||
                 other.isPanelDismissed == isPanelDismissed) &&
             (identical(other.isExactMatch, isExactMatch) ||
@@ -497,8 +480,7 @@ class _$SearchStateImpl extends _SearchState {
       const DeepCollectionEquality().hash(_selectedEditions),
       searchInPali,
       searchInSinhala,
-      const DeepCollectionEquality().hash(_nikayaFilters),
-      filtersVisible,
+      const DeepCollectionEquality().hash(_selectedScope),
       isPanelDismissed,
       isExactMatch,
       const DeepCollectionEquality().hash(_countByResultType));
@@ -523,8 +505,7 @@ abstract class _SearchState extends SearchState {
       final Set<String> selectedEditions,
       final bool searchInPali,
       final bool searchInSinhala,
-      final List<String> nikayaFilters,
-      final bool filtersVisible,
+      final Set<SearchScope> selectedScope,
       final bool isPanelDismissed,
       final bool isExactMatch,
       final Map<SearchResultType, int> countByResultType}) = _$SearchStateImpl;
@@ -566,13 +547,11 @@ abstract class _SearchState extends SearchState {
   @override
   bool get searchInSinhala;
 
-  /// Nikaya filters (e.g., ['dn', 'mn'])
+  /// Selected scope to filter search results.
+  /// Empty set = "All" is selected (search everything).
+  /// Non-empty = search only within selected scope (OR logic).
   @override
-  List<String> get nikayaFilters;
-
-  /// Whether the filter panel is visible
-  @override
-  bool get filtersVisible;
+  Set<SearchScope> get selectedScope;
 
   /// Whether the panel was dismissed (user clicked result or close button)
   /// Panel reopens when user focuses the search bar again

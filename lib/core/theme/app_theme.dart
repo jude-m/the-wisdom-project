@@ -39,6 +39,11 @@ class AppTheme {
         onError: LightThemeColors.onError,
         outline: LightThemeColors.divider,
         outlineVariant: LightThemeColors.divider.withOpacity(0.5),
+
+        secondaryContainer: LightThemeColors.secondaryContainer,
+        onSecondaryContainer: LightThemeColors.onSecondaryContainer
+
+
       ),
 
       // Text entry typography

@@ -33,11 +33,16 @@ mixin _$SearchQuery {
   /// Whether to search in Sinhala text
   bool get searchInSinhala => throw _privateConstructorUsedError;
 
-  /// Filter by Nikaya (e.g., ['dn', 'mn'])
-  List<String> get nikayaFilters => throw _privateConstructorUsedError;
-
-  /// Filter by label/tag
-  List<String> get labelFilters => throw _privateConstructorUsedError;
+  /// Selected scope to search within.
+  ///
+  /// Empty set = search all content (no scope filter applied).
+  /// Non-empty = search only within the selected scope (OR logic).
+  ///
+  /// Example:
+  /// - {} = search everything
+  /// - {sutta} = search only Sutta Pitaka
+  /// - {sutta, commentaries} = search Sutta Pitaka OR Commentaries
+  Set<SearchScope> get scope => throw _privateConstructorUsedError;
 
   /// Maximum number of results to return
   int get limit => throw _privateConstructorUsedError;
@@ -64,8 +69,7 @@ abstract class $SearchQueryCopyWith<$Res> {
       Set<String> editionIds,
       bool searchInPali,
       bool searchInSinhala,
-      List<String> nikayaFilters,
-      List<String> labelFilters,
+      Set<SearchScope> scope,
       int limit,
       int offset});
 }
@@ -90,8 +94,7 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
     Object? editionIds = null,
     Object? searchInPali = null,
     Object? searchInSinhala = null,
-    Object? nikayaFilters = null,
-    Object? labelFilters = null,
+    Object? scope = null,
     Object? limit = null,
     Object? offset = null,
   }) {
@@ -116,14 +119,10 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
           ? _value.searchInSinhala
           : searchInSinhala // ignore: cast_nullable_to_non_nullable
               as bool,
-      nikayaFilters: null == nikayaFilters
-          ? _value.nikayaFilters
-          : nikayaFilters // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-      labelFilters: null == labelFilters
-          ? _value.labelFilters
-          : labelFilters // ignore: cast_nullable_to_non_nullable
-              as List<String>,
+      scope: null == scope
+          ? _value.scope
+          : scope // ignore: cast_nullable_to_non_nullable
+              as Set<SearchScope>,
       limit: null == limit
           ? _value.limit
           : limit // ignore: cast_nullable_to_non_nullable
@@ -150,8 +149,7 @@ abstract class _$$SearchQueryImplCopyWith<$Res>
       Set<String> editionIds,
       bool searchInPali,
       bool searchInSinhala,
-      List<String> nikayaFilters,
-      List<String> labelFilters,
+      Set<SearchScope> scope,
       int limit,
       int offset});
 }
@@ -174,8 +172,7 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
     Object? editionIds = null,
     Object? searchInPali = null,
     Object? searchInSinhala = null,
-    Object? nikayaFilters = null,
-    Object? labelFilters = null,
+    Object? scope = null,
     Object? limit = null,
     Object? offset = null,
   }) {
@@ -200,14 +197,10 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
           ? _value.searchInSinhala
           : searchInSinhala // ignore: cast_nullable_to_non_nullable
               as bool,
-      nikayaFilters: null == nikayaFilters
-          ? _value._nikayaFilters
-          : nikayaFilters // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-      labelFilters: null == labelFilters
-          ? _value._labelFilters
-          : labelFilters // ignore: cast_nullable_to_non_nullable
-              as List<String>,
+      scope: null == scope
+          ? _value._scope
+          : scope // ignore: cast_nullable_to_non_nullable
+              as Set<SearchScope>,
       limit: null == limit
           ? _value.limit
           : limit // ignore: cast_nullable_to_non_nullable
@@ -229,13 +222,11 @@ class _$SearchQueryImpl implements _SearchQuery {
       final Set<String> editionIds = const {},
       this.searchInPali = true,
       this.searchInSinhala = true,
-      final List<String> nikayaFilters = const [],
-      final List<String> labelFilters = const [],
+      final Set<SearchScope> scope = const {},
       this.limit = 50,
       this.offset = 0})
       : _editionIds = editionIds,
-        _nikayaFilters = nikayaFilters,
-        _labelFilters = labelFilters;
+        _scope = scope;
 
   /// The search query text
   @override
@@ -271,28 +262,32 @@ class _$SearchQueryImpl implements _SearchQuery {
   @JsonKey()
   final bool searchInSinhala;
 
-  /// Filter by Nikaya (e.g., ['dn', 'mn'])
-  final List<String> _nikayaFilters;
+  /// Selected scope to search within.
+  ///
+  /// Empty set = search all content (no scope filter applied).
+  /// Non-empty = search only within the selected scope (OR logic).
+  ///
+  /// Example:
+  /// - {} = search everything
+  /// - {sutta} = search only Sutta Pitaka
+  /// - {sutta, commentaries} = search Sutta Pitaka OR Commentaries
+  final Set<SearchScope> _scope;
 
-  /// Filter by Nikaya (e.g., ['dn', 'mn'])
+  /// Selected scope to search within.
+  ///
+  /// Empty set = search all content (no scope filter applied).
+  /// Non-empty = search only within the selected scope (OR logic).
+  ///
+  /// Example:
+  /// - {} = search everything
+  /// - {sutta} = search only Sutta Pitaka
+  /// - {sutta, commentaries} = search Sutta Pitaka OR Commentaries
   @override
   @JsonKey()
-  List<String> get nikayaFilters {
-    if (_nikayaFilters is EqualUnmodifiableListView) return _nikayaFilters;
+  Set<SearchScope> get scope {
+    if (_scope is EqualUnmodifiableSetView) return _scope;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_nikayaFilters);
-  }
-
-  /// Filter by label/tag
-  final List<String> _labelFilters;
-
-  /// Filter by label/tag
-  @override
-  @JsonKey()
-  List<String> get labelFilters {
-    if (_labelFilters is EqualUnmodifiableListView) return _labelFilters;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_labelFilters);
+    return EqualUnmodifiableSetView(_scope);
   }
 
   /// Maximum number of results to return
@@ -307,7 +302,7 @@ class _$SearchQueryImpl implements _SearchQuery {
 
   @override
   String toString() {
-    return 'SearchQuery(queryText: $queryText, isExactMatch: $isExactMatch, editionIds: $editionIds, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, nikayaFilters: $nikayaFilters, labelFilters: $labelFilters, limit: $limit, offset: $offset)';
+    return 'SearchQuery(queryText: $queryText, isExactMatch: $isExactMatch, editionIds: $editionIds, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, limit: $limit, offset: $offset)';
   }
 
   @override
@@ -325,10 +320,7 @@ class _$SearchQueryImpl implements _SearchQuery {
                 other.searchInPali == searchInPali) &&
             (identical(other.searchInSinhala, searchInSinhala) ||
                 other.searchInSinhala == searchInSinhala) &&
-            const DeepCollectionEquality()
-                .equals(other._nikayaFilters, _nikayaFilters) &&
-            const DeepCollectionEquality()
-                .equals(other._labelFilters, _labelFilters) &&
+            const DeepCollectionEquality().equals(other._scope, _scope) &&
             (identical(other.limit, limit) || other.limit == limit) &&
             (identical(other.offset, offset) || other.offset == offset));
   }
@@ -341,8 +333,7 @@ class _$SearchQueryImpl implements _SearchQuery {
       const DeepCollectionEquality().hash(_editionIds),
       searchInPali,
       searchInSinhala,
-      const DeepCollectionEquality().hash(_nikayaFilters),
-      const DeepCollectionEquality().hash(_labelFilters),
+      const DeepCollectionEquality().hash(_scope),
       limit,
       offset);
 
@@ -362,8 +353,7 @@ abstract class _SearchQuery implements SearchQuery {
       final Set<String> editionIds,
       final bool searchInPali,
       final bool searchInSinhala,
-      final List<String> nikayaFilters,
-      final List<String> labelFilters,
+      final Set<SearchScope> scope,
       final int limit,
       final int offset}) = _$SearchQueryImpl;
 
@@ -389,13 +379,17 @@ abstract class _SearchQuery implements SearchQuery {
   @override
   bool get searchInSinhala;
 
-  /// Filter by Nikaya (e.g., ['dn', 'mn'])
+  /// Selected scope to search within.
+  ///
+  /// Empty set = search all content (no scope filter applied).
+  /// Non-empty = search only within the selected scope (OR logic).
+  ///
+  /// Example:
+  /// - {} = search everything
+  /// - {sutta} = search only Sutta Pitaka
+  /// - {sutta, commentaries} = search Sutta Pitaka OR Commentaries
   @override
-  List<String> get nikayaFilters;
-
-  /// Filter by label/tag
-  @override
-  List<String> get labelFilters;
+  Set<SearchScope> get scope;
 
   /// Maximum number of results to return
   @override

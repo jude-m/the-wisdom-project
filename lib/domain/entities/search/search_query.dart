@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'search_scope.dart';
+
 part 'search_query.freezed.dart';
 
 /// Represents a search query with filters
@@ -23,11 +25,16 @@ class SearchQuery with _$SearchQuery {
     /// Whether to search in Sinhala text
     @Default(true) bool searchInSinhala,
 
-    /// Filter by Nikaya (e.g., ['dn', 'mn'])
-    @Default([]) List<String> nikayaFilters,
-
-    /// Filter by label/tag
-    @Default([]) List<String> labelFilters,
+    /// Selected scope to search within.
+    ///
+    /// Empty set = search all content (no scope filter applied).
+    /// Non-empty = search only within the selected scope (OR logic).
+    ///
+    /// Example:
+    /// - {} = search everything
+    /// - {sutta} = search only Sutta Pitaka
+    /// - {sutta, commentaries} = search Sutta Pitaka OR Commentaries
+    @Default({}) Set<SearchScope> scope,
 
     /// Maximum number of results to return
     @Default(50) int limit,
