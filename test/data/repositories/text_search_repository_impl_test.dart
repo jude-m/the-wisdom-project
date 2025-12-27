@@ -5,6 +5,7 @@ import 'package:the_wisdom_project/data/repositories/text_search_repository_impl
 import 'package:the_wisdom_project/domain/entities/failure.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_query.dart';
+import 'package:the_wisdom_project/domain/entities/search/search_scope.dart';
 import 'package:the_wisdom_project/data/datasources/fts_datasource.dart';
 import 'package:the_wisdom_project/domain/entities/tipitaka_tree_node.dart';
 
@@ -686,9 +687,877 @@ void main() {
           },
         );
       });
+
+      // ========================================================================
+      // CONTAINS MATCHING TESTS (isExactMatch=false)
+      // ========================================================================
+
+      test('should match query in middle of title with contains matching (isExactMatch=false)',
+          () async {
+        // ARRANGE - Query "jāla" should match "Brahmajālasutta" (middle position)
+        const query = SearchQuery(queryText: 'jāla', isExactMatch: false);
+
+        final treeWithMiddleMatch = [
+          const TipitakaTreeNode(
+            nodeKey: 'dn-1',
+            paliName: 'Brahmajālasutta', // Contains "jāla" in the middle
+            sinhalaName: 'බ්‍රහ්මජාලසූත්‍රය',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'dn-1',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithMiddleMatch));
+
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchTopResults(query);
+
+        // ASSERT
+        expect(result.isRight(), true);
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByType[SearchResultType.title]!;
+            expect(titleResults.length, equals(1));
+            expect(titleResults[0].title, equals('Brahmajālasutta'));
+          },
+        );
+      });
+
+      test('should match with case insensitivity in contains mode', () async {
+        // ARRANGE - Uppercase query should match lowercase/mixed case title
+        const query = SearchQuery(queryText: 'JĀLA', isExactMatch: false);
+
+        final treeWithCaseVariation = [
+          const TipitakaTreeNode(
+            nodeKey: 'dn-1',
+            paliName: 'Brahmajālasutta', // Mixed case
+            sinhalaName: 'බ්‍රහ්මජාලසූත්‍රය',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'dn-1',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithCaseVariation));
+
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchTopResults(query);
+
+        // ASSERT
+        expect(result.isRight(), true);
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByType[SearchResultType.title]!;
+            expect(titleResults.length, equals(1));
+            expect(titleResults[0].title, equals('Brahmajālasutta'));
+          },
+        );
+      });
+
+      test('should match Sinhala substring with contains matching', () async {
+        // ARRANGE - Sinhala query substring should match Sinhala title
+        const query = SearchQuery(queryText: 'මජාල', isExactMatch: false);
+
+        final treeWithSinhalaSubstring = [
+          const TipitakaTreeNode(
+            nodeKey: 'dn-1',
+            paliName: 'Brahmajālasutta',
+            sinhalaName: 'බ්‍රහ්මජාලසූත්‍රය', // Contains "මජාල"
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'dn-1',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithSinhalaSubstring));
+
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchTopResults(query);
+
+        // ASSERT
+        expect(result.isRight(), true);
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByType[SearchResultType.title]!;
+            expect(titleResults.length, equals(1));
+            expect(titleResults[0].title, equals('බ්‍රහ්මජාලසූත්‍රය'));
+            expect(titleResults[0].language, equals('sinhala'));
+          },
+        );
+      });
+
+      // ========================================================================
+      // WORD BOUNDARY MATCHING TESTS (isExactMatch=true)
+      // ========================================================================
+
+      test('should match complete word only with word boundary (isExactMatch=true)',
+          () async {
+        // ARRANGE - Test all 4 boundary conditions
+        const query = SearchQuery(queryText: 'Dhamma', isExactMatch: true);
+
+        final treeWithWordBoundaries = [
+          // Should match: exact match
+          const TipitakaTreeNode(
+            nodeKey: 'exact-1',
+            paliName: 'Dhamma',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'exact-1',
+          ),
+          // Should match: word at start with space after
+          const TipitakaTreeNode(
+            nodeKey: 'start-1',
+            paliName: 'Dhamma Sutta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'start-1',
+          ),
+          // Should match: word at end with space before
+          const TipitakaTreeNode(
+            nodeKey: 'end-1',
+            paliName: 'The Dhamma',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'end-1',
+          ),
+          // Should match: word in middle with spaces
+          const TipitakaTreeNode(
+            nodeKey: 'middle-1',
+            paliName: 'Teaching Dhamma Today',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'middle-1',
+          ),
+          // Should NOT match: part of a larger word
+          const TipitakaTreeNode(
+            nodeKey: 'no-match-1',
+            paliName: 'Dhammasutta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'no-match-1',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithWordBoundaries));
+
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchTopResults(query);
+
+        // ASSERT
+        expect(result.isRight(), true);
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByType[SearchResultType.title]!;
+            // Should match up to 3 (default maxPerCategory) word boundary matches
+            // but NOT the compound word "Dhammasutta"
+            expect(titleResults.length, equals(3));
+
+            final titles = titleResults.map((r) => r.title).toList();
+            // Verify compound word is NOT matched (key assertion)
+            expect(titles, isNot(contains('Dhammasutta')));
+            // Verify matches are from valid word boundary results
+            for (final title in titles) {
+              expect(
+                ['Dhamma', 'Dhamma Sutta', 'The Dhamma', 'Teaching Dhamma Today'],
+                contains(title),
+              );
+            }
+          },
+        );
+      });
+
+      test('should respect word boundaries at all positions (isExactMatch=true)',
+          () async {
+        // ARRANGE - Test specific boundary scenarios
+        const query = SearchQuery(queryText: 'sutta', isExactMatch: true);
+
+        final treeWithBoundaryTests = [
+          // Match: Exact word "sutta"
+          const TipitakaTreeNode(
+            nodeKey: 'b1',
+            paliName: 'sutta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'b1',
+          ),
+          // Match: "sutta " at beginning
+          const TipitakaTreeNode(
+            nodeKey: 'b2',
+            paliName: 'sutta pitaka',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'b2',
+          ),
+          // Match: " sutta" at end
+          const TipitakaTreeNode(
+            nodeKey: 'b3',
+            paliName: 'brahmajāla sutta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'b3',
+          ),
+          // Match: " sutta " in middle
+          const TipitakaTreeNode(
+            nodeKey: 'b4',
+            paliName: 'first sutta text',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'b4',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithBoundaryTests));
+
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchTopResults(query);
+
+        // ASSERT
+        expect(result.isRight(), true);
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByType[SearchResultType.title]!;
+            // All 4 nodes match word boundary, limited to 3 by default maxPerCategory
+            expect(titleResults.length, equals(3));
+          },
+        );
+      });
+
+      test('should NOT match across punctuation without spaces (isExactMatch=true)',
+          () async {
+        // ARRANGE - Test that punctuation is NOT treated as word boundary
+        // Current implementation only uses spaces as boundaries
+        const query = SearchQuery(queryText: 'sutta', isExactMatch: true);
+
+        final treeWithPunctuation = [
+          // Should NOT match: hyphen is not a word boundary (no space)
+          const TipitakaTreeNode(
+            nodeKey: 'hyphen-1',
+            paliName: 'Brahma-sutta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'hyphen-1',
+          ),
+          // Should match: space before 'sutta' is a word boundary
+          const TipitakaTreeNode(
+            nodeKey: 'space-1',
+            paliName: 'Brahma sutta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'space-1',
+          ),
+          // Should NOT match: period is not a word boundary (no space)
+          const TipitakaTreeNode(
+            nodeKey: 'period-1',
+            paliName: 'First.sutta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'period-1',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithPunctuation));
+
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchTopResults(query);
+
+        // ASSERT
+        expect(result.isRight(), true);
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByType[SearchResultType.title]!;
+            // Should only match 'Brahma sutta', not punctuation-separated ones
+            expect(titleResults.length, equals(1));
+            expect(titleResults[0].title, equals('Brahma sutta'));
+            expect(titleResults[0].nodeKey, equals('space-1'));
+          },
+        );
+      });
+
+      // ========================================================================
+      // DUAL-CRITERIA SORTING TESTS
+      // ========================================================================
+
+      test('should sort with dual criteria: startsWith before contains, leaf before parent',
+          () async {
+        // ARRANGE - Create 4 node types to test both sort criteria
+        const query = SearchQuery(queryText: 'sutta', isExactMatch: false);
+
+        final treeWithSortingTest = [
+          // Priority 4 (lowest): contains + parent
+          const TipitakaTreeNode(
+            nodeKey: 'parent-contains',
+            paliName: 'Brahmajālasutta Collection',
+            sinhalaName: '',
+            hierarchyLevel: 1,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'parent-contains',
+            childNodes: [
+              TipitakaTreeNode(
+                nodeKey: 'child-dummy',
+                paliName: 'Child',
+                sinhalaName: '',
+                hierarchyLevel: 2,
+                entryPageIndex: 0,
+                entryIndexInPage: 0,
+                parentNodeKey: 'parent-contains',
+                contentFileId: 'child-dummy',
+              ),
+            ],
+          ),
+          // Priority 3: contains + leaf
+          const TipitakaTreeNode(
+            nodeKey: 'leaf-contains',
+            paliName: 'Brahmajālasutta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'leaf-contains',
+          ),
+          // Priority 2: startsWith + parent
+          const TipitakaTreeNode(
+            nodeKey: 'parent-starts',
+            paliName: 'Sutta Pitaka',
+            sinhalaName: '',
+            hierarchyLevel: 1,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'parent-starts',
+            childNodes: [
+              TipitakaTreeNode(
+                nodeKey: 'child-dummy2',
+                paliName: 'Child',
+                sinhalaName: '',
+                hierarchyLevel: 2,
+                entryPageIndex: 0,
+                entryIndexInPage: 0,
+                parentNodeKey: 'parent-starts',
+                contentFileId: 'child-dummy2',
+              ),
+            ],
+          ),
+          // Priority 1 (highest): startsWith + leaf
+          const TipitakaTreeNode(
+            nodeKey: 'leaf-starts',
+            paliName: 'Suttanipāta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'leaf-starts',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithSortingTest));
+
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchTopResults(query, maxPerCategory: 10);
+
+        // ASSERT
+        expect(result.isRight(), true);
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByType[SearchResultType.title]!;
+            expect(titleResults.length, equals(4));
+
+            // Verify correct sort order
+            expect(titleResults[0].nodeKey, equals('leaf-starts')); // 1st: startsWith + leaf
+            expect(titleResults[1].nodeKey, equals('parent-starts')); // 2nd: startsWith + parent
+            expect(titleResults[2].nodeKey, equals('leaf-contains')); // 3rd: contains + leaf
+            expect(titleResults[3].nodeKey, equals('parent-contains')); // 4th: contains + parent
+          },
+        );
+      });
+
+      test('should apply limit after sorting (not before)', () async {
+        // ARRANGE - Ensure limit gets top priority results, not just first N found
+        const query = SearchQuery(queryText: 'sutta', isExactMatch: false);
+
+        final treeWithLimitTest = [
+          // Lower priority: contains match
+          const TipitakaTreeNode(
+            nodeKey: 'contains-1',
+            paliName: 'Brahmajālasutta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'contains-1',
+          ),
+          // Higher priority: startsWith match
+          const TipitakaTreeNode(
+            nodeKey: 'starts-1',
+            paliName: 'Suttanipāta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'starts-1',
+          ),
+          // Higher priority: startsWith match
+          const TipitakaTreeNode(
+            nodeKey: 'starts-2',
+            paliName: 'Sutta Pitaka',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'starts-2',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithLimitTest));
+
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT - Limit to 2 results
+        final result = await repository.searchTopResults(query, maxPerCategory: 2);
+
+        // ASSERT
+        expect(result.isRight(), true);
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByType[SearchResultType.title]!;
+
+            // Should return TOP 2 by priority (both startsWith), not first 2 found
+            expect(titleResults.length, equals(2));
+            expect(titleResults[0].nodeKey, equals('starts-1'));
+            expect(titleResults[1].nodeKey, equals('starts-2'));
+            // The contains match should be excluded by limit
+            expect(titleResults.map((r) => r.nodeKey), isNot(contains('contains-1')));
+          },
+        );
+      });
+
+      // ========================================================================
+      // SCOPE FILTERING INTEGRATION TESTS
+      // ========================================================================
+
+      test('should filter title search results by scope', () async {
+        // ARRANGE - Create nodes in different scopes
+        const query = SearchQuery(
+          queryText: 'sutta',
+          scope: {SearchScope.sutta}, // Only search in Sutta scope
+        );
+
+        final treeWithMultipleScopes = [
+          // In Sutta scope - should match
+          const TipitakaTreeNode(
+            nodeKey: 'sutta-1',
+            paliName: 'Brahmajālasutta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'dn-1', // Sutta file
+          ),
+          // In Vinaya scope - should NOT match
+          const TipitakaTreeNode(
+            nodeKey: 'vinaya-1',
+            paliName: 'Vinayasutta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'vin-1', // Vinaya file
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithMultipleScopes));
+
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchTopResults(query);
+
+        // ASSERT
+        expect(result.isRight(), true);
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByType[SearchResultType.title]!;
+            // Should only return Sutta scope results
+            expect(titleResults.length, equals(1));
+            expect(titleResults[0].contentFileId, startsWith('dn-'));
+            expect(titleResults[0].nodeKey, equals('sutta-1'));
+          },
+        );
+      });
+
+      test('should pass scope filter to FTS datasource for full text search',
+          () async {
+        // ARRANGE
+        const query = SearchQuery(
+          queryText: 'dhamma',
+          scope: {SearchScope.vinaya}, // Only search Vinaya
+        );
+
+        final sampleTree = [
+          const TipitakaTreeNode(
+            nodeKey: 'test-1',
+            paliName: 'Test',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'test-1',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(sampleTree));
+
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        await repository.searchTopResults(query);
+
+        // ASSERT - Verify scope was passed to FTS datasource
+        verify(mockFTSDataSource.searchFullText(
+          'dhamma',
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: {SearchScope.vinaya}, // Scope should be passed through
+          isExactMatch: false,
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).called(1);
+      });
+
+      // ========================================================================
+      // EDGE CASE TESTS
+      // ========================================================================
+
+      test('should exclude nodes without contentFileId from results', () async {
+        // ARRANGE - Node matches query but has no contentFileId
+        const query = SearchQuery(queryText: 'pitaka');
+
+        final treeWithNullContentFileId = [
+          // Parent node with no contentFileId - should be excluded
+          const TipitakaTreeNode(
+            nodeKey: 'root-1',
+            paliName: 'Sutta Pitaka',
+            sinhalaName: '',
+            hierarchyLevel: 0,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: null, // No content file - can't display
+            childNodes: [
+              TipitakaTreeNode(
+                nodeKey: 'child-1',
+                paliName: 'Child Pitaka',
+                sinhalaName: '',
+                hierarchyLevel: 1,
+                entryPageIndex: 0,
+                entryIndexInPage: 0,
+                parentNodeKey: 'root-1',
+                contentFileId: 'child-1', // Has content file - should match
+              ),
+            ],
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithNullContentFileId));
+
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchTopResults(query);
+
+        // ASSERT
+        expect(result.isRight(), true);
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByType[SearchResultType.title]!;
+            // Should only include the child with contentFileId
+            expect(titleResults.length, equals(1));
+            expect(titleResults[0].nodeKey, equals('child-1'));
+            expect(titleResults[0].contentFileId, isNotNull);
+          },
+        );
+      });
+
+      test('should handle empty query string gracefully', () async {
+        // ARRANGE - Empty query
+        const query = SearchQuery(queryText: '');
+
+        final sampleTree = [
+          const TipitakaTreeNode(
+            nodeKey: 'test-1',
+            paliName: 'Test Sutta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'test-1',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(sampleTree));
+
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchTopResults(query);
+
+        // ASSERT - Should not throw, return empty or all results depending on business logic
+        expect(result.isRight(), true);
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByType[SearchResultType.title]!;
+            // Empty query behavior: currently matches all (contains logic)
+            // This test documents current behavior
+            expect(titleResults, isA<List>());
+          },
+        );
+      });
+
+      test('should handle nodes with empty names gracefully', () async {
+        // ARRANGE - Node with empty Pali name but valid Sinhala name
+        const query = SearchQuery(queryText: 'සූත්‍ර');
+
+        final treeWithEmptyPaliName = [
+          const TipitakaTreeNode(
+            nodeKey: 'empty-pali-1',
+            paliName: '', // Empty Pali name
+            sinhalaName: 'සූත්‍රය', // Matches query
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'test-1',
+          ),
+        ];
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeWithEmptyPaliName));
+
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          language: anyNamed('language'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+
+        // ACT
+        final result = await repository.searchTopResults(query);
+
+        // ASSERT - Should match Sinhala name even when Pali is empty
+        expect(result.isRight(), true);
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titleResults =
+                categorized.resultsByType[SearchResultType.title]!;
+            expect(titleResults.length, equals(1));
+            expect(titleResults[0].title, equals('සූත්‍රය'));
+          },
+        );
+      });
     });
 
-    group('searchByCategory', () {
+    group('searchByResultType', () {
       final sampleTree = [
         const TipitakaTreeNode(
           nodeKey: 'dn',
@@ -912,26 +1781,47 @@ void main() {
         )).called(1);
       });
 
-      test('should return empty for definition category (placeholder)',
+      test('should return failure when definition search is attempted',
           () async {
-        // ARRANGE - Use non-romanized query
-        const query = SearchQuery(queryText: '123');
+        // ARRANGE
+        const query = SearchQuery(queryText: 'dhamma');
 
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(sampleTree));
 
         // ACT
-        final result =
-            await repository.searchByResultType(query, SearchResultType.definition);
+        final result = await repository.searchByResultType(query, SearchResultType.definition);
 
-        // ASSERT
-        expect(result.isRight(), true);
-
+        // ASSERT - StateError is caught and wrapped in Failure
+        expect(result.isLeft(), true);
         result.fold(
-          (failure) => fail('Expected success but got failure'),
-          (results) {
-            expect(results, isEmpty);
+          (failure) {
+            expect(failure, isA<DataLoadFailure>());
+            expect(failure.userMessage, contains('Failed to search by type'));
           },
+          (_) => fail('Expected failure but got success'),
+        );
+      });
+
+      test('should return failure when topResults type is used with searchByResultType',
+          () async {
+        // ARRANGE
+        const query = SearchQuery(queryText: 'dhamma');
+
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(sampleTree));
+
+        // ACT
+        final result = await repository.searchByResultType(query, SearchResultType.topResults);
+
+        // ASSERT - StateError is caught and wrapped in Failure
+        expect(result.isLeft(), true);
+        result.fold(
+          (failure) {
+            expect(failure, isA<DataLoadFailure>());
+            expect(failure.userMessage, contains('Failed to search by type'));
+          },
+          (_) => fail('Expected failure but got success'),
         );
       });
 
@@ -989,7 +1879,7 @@ void main() {
           (failure) {
             expect(failure, isA<DataLoadFailure>());
             expect(
-                failure.userMessage, contains('Failed to search by category'));
+                failure.userMessage, contains('Failed to search by type'));
           },
           (results) => fail('Expected failure but got success'),
         );

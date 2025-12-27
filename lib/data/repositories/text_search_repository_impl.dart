@@ -66,7 +66,6 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             isExactMatch: query.isExactMatch,
             limit: maxPerCategory,
             offset: 0,
-            loadMatchedText: true, // Preview needs text for display
           );
 
           // 3. Definition matches (future - placeholder)
@@ -108,9 +107,8 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
               // "All" category should use searchCategorizedPreview instead
               // This case should not be reached via normal flow
               throw StateError(
-                'Use searchCategorizedPreview for SearchCategory.all',
+                'Use searchTopResults for SearchResultType.topResults',
               );
-
             case SearchResultType.title:
               return Right(_searchTitles(
                 nodeMap: nodeMap,
@@ -130,20 +128,21 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 isExactMatch: query.isExactMatch,
                 limit: query.limit,
                 offset: query.offset,
-                loadMatchedText: false, // Full results don't need text yet
               );
               return Right(results);
 
             case SearchResultType.definition:
               // Future: Dictionary search
-              return const Right([]);
+              throw StateError(
+                'Definitions not implemented',
+              );
           }
         },
       );
     } catch (e) {
       return Left(
         Failure.dataLoadFailure(
-          message: 'Failed to search by category',
+          message: 'Failed to search by type',
           error: e,
         ),
       );
@@ -256,13 +255,17 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     final scopePatterns = ScopeFilterConfig.getPatternsForScope(scope);
 
     // Helper function to check if a name matches the query
-    // isExactMatch=false: prefix matching (startsWith)
-    // isExactMatch=true: exact string match
+    // isExactMatch=false: contains matching (includes startsWith)
+    // isExactMatch=true: word boundary match (query appears as complete word)
     bool matchesQuery(String name) {
       if (isExactMatch) {
-        return name == searchQuery;
+        // Word boundary match: query must appear as a complete word
+        return name == searchQuery ||
+            name.startsWith('$searchQuery ') ||
+            name.endsWith(' $searchQuery') ||
+            name.contains(' $searchQuery ');
       } else {
-        return name.startsWith(searchQuery);
+        return name.contains(searchQuery);
       }
     }
 
@@ -310,11 +313,22 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       }
     }
 
-    // Sort: leaf nodes (individual suttas) appear first
+    // Sort with dual criteria:
+    // 1. Primary: startsWith matches before contains-only matches
+    // 2. Secondary: leaf nodes (individual suttas) before parent nodes
     results.sort((a, b) {
+      // Primary sort: startsWith first
+      final titleA = normalizeText(a.title, toLowerCase: true);
+      final titleB = normalizeText(b.title, toLowerCase: true);
+      final aStartsWith = titleA.startsWith(searchQuery);
+      final bStartsWith = titleB.startsWith(searchQuery);
+
+      if (aStartsWith && !bStartsWith) return -1;
+      if (!aStartsWith && bStartsWith) return 1;
+
+      // Secondary sort: leaf nodes first
       final nodeA = nodeMap[a.nodeKey];
       final nodeB = nodeMap[b.nodeKey];
-      // Use the isLeafNode getter from TipitakaTreeNode
       final isLeafA = nodeA?.isLeafNode ?? true;
       final isLeafB = nodeB?.isLeafNode ?? true;
 
@@ -327,7 +341,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   }
 
   /// Search for content matches using FTS database
-  /// Optionally loads matched text from JSON files for preview display
+  /// Always loads matched text from JSON files for display
   Future<List<SearchResult>> _searchFullText({
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
@@ -336,7 +350,6 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     bool isExactMatch = false,
     int? limit,
     int offset = 0,
-    bool loadMatchedText = false,
   }) async {
     final ftsMatches = await _ftsDataSource.searchFullText(
       queryText,
@@ -360,16 +373,13 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
         final pageIndex = int.parse(eindParts[0]);
         final entryIndex = int.parse(eindParts[1]);
 
-        // Optionally load actual text content for preview
-        String matchedText = '';
-        if (loadMatchedText) {
-          matchedText = await _loadTextForMatch(
-                match.filename,
-                match.eind,
-                match.language,
-              ) ??
-              '';
-        }
+        // Load text content for display
+        final matchedText = await _loadTextForMatch(
+              match.filename,
+              match.eind,
+              match.language,
+            ) ??
+            '';
 
         // Prefer Sinhala title if language is sinh, otherwise use Pali
         final title = match.language == 'sinh'
