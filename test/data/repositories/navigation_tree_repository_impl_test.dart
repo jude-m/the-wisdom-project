@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:the_wisdom_project/data/repositories/navigation_tree_repository_impl.dart';
 import 'package:the_wisdom_project/domain/entities/failure.dart';
-import 'package:the_wisdom_project/domain/entities/tipitaka_tree_node.dart';
+import 'package:the_wisdom_project/domain/entities/navigation/tipitaka_tree_node.dart';
 
 import '../../helpers/mocks.mocks.dart';
 import '../../helpers/test_data.dart';

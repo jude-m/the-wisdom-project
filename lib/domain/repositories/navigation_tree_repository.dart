@@ -1,6 +1,6 @@
 import 'package:dartz/dartz.dart';
 import '../entities/failure.dart';
-import '../entities/tipitaka_tree_node.dart';
+import '../entities/navigation/tipitaka_tree_node.dart';
 
 /// Repository interface for managing the Tipitaka navigation tree
 ///

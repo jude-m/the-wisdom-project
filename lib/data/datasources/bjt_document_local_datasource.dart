@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import '../../domain/entities/bjt/bjt_document.dart';
 import '../../domain/entities/bjt/bjt_page.dart';
 import '../../domain/entities/bjt/bjt_section.dart';
-import '../../domain/entities/entry.dart';
-import '../../domain/entities/entry_type.dart';
+import '../../domain/entities/content/entry.dart';
+import '../../domain/entities/content/entry_type.dart';
 
 /// Local data source for loading BJT documents from assets
 /// Specific to Buddha Jayanti Tripitaka edition

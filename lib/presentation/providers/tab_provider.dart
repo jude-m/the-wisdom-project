@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/reader_tab.dart';
+import '../models/reader_tab.dart';
 import '../../domain/entities/search/search_result.dart';
 
 /// State notifier for managing the list of reader tabs

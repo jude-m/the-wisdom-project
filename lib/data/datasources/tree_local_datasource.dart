@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
-import '../../domain/entities/tipitaka_tree_node.dart';
+import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 
 /// Local data source for loading the navigation tree from assets
 abstract class TreeLocalDataSource {

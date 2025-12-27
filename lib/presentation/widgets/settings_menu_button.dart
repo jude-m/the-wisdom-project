@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/theme_notifier.dart';
-import '../../domain/entities/navigation_language.dart';
-import '../../domain/entities/column_display_mode.dart';
+import '../../domain/entities/navigation/navigation_language.dart';
+import '../models/column_display_mode.dart';
 import '../providers/navigation_tree_provider.dart';
 import '../providers/document_provider.dart';
 

@@ -1,6 +1,6 @@
 import 'package:dartz/dartz.dart';
 import '../../domain/entities/failure.dart';
-import '../../domain/entities/tipitaka_tree_node.dart';
+import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../../domain/repositories/navigation_tree_repository.dart';
 import '../datasources/tree_local_datasource.dart';
 

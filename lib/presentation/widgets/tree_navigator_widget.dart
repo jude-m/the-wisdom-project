@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/tipitaka_tree_node.dart';
-import '../../domain/entities/reader_tab.dart';
+import '../../domain/entities/navigation/tipitaka_tree_node.dart';
+import '../models/reader_tab.dart';
 import '../providers/navigation_tree_provider.dart';
 import '../providers/tab_provider.dart';
 

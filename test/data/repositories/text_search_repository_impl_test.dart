@@ -7,7 +7,7 @@ import 'package:the_wisdom_project/domain/entities/search/search_result_type.dar
 import 'package:the_wisdom_project/domain/entities/search/search_query.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_scope.dart';
 import 'package:the_wisdom_project/data/datasources/fts_datasource.dart';
-import 'package:the_wisdom_project/domain/entities/tipitaka_tree_node.dart';
+import 'package:the_wisdom_project/domain/entities/navigation/tipitaka_tree_node.dart';
 
 import '../../helpers/mocks.mocks.dart';
 

@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'entry.dart';
-import 'bjt/bjt_document.dart';
+import '../bjt/bjt_document.dart';
 
 part 'text_layer.freezed.dart';
 

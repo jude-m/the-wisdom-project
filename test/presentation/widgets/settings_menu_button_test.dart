@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/presentation/widgets/settings_menu_button.dart';
 import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
-import 'package:the_wisdom_project/domain/entities/column_display_mode.dart';
-import 'package:the_wisdom_project/domain/entities/navigation_language.dart';
+import 'package:the_wisdom_project/presentation/models/column_display_mode.dart';
+import 'package:the_wisdom_project/domain/entities/navigation/navigation_language.dart';
 
 import '../../helpers/pump_app.dart';
 

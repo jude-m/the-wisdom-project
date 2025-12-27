@@ -1,4 +1,6 @@
 /// Represents the display mode for the dual-pane reader
+///
+/// TODO: Persist user's column display preference (SharedPreferences or similar)
 enum ColumnDisplayMode {
   /// Display only Pali content in a single column
   paliOnly,

@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/datasources/tree_local_datasource.dart';
 import '../../data/repositories/navigation_tree_repository_impl.dart';
-import '../../domain/entities/tipitaka_tree_node.dart';
-import '../../domain/entities/navigation_language.dart';
+import '../../domain/entities/navigation/tipitaka_tree_node.dart';
+import '../../domain/entities/navigation/navigation_language.dart';
 import '../../domain/repositories/navigation_tree_repository.dart';
 import '../../domain/usecases/load_navigation_tree_usecase.dart';
 

@@ -1,6 +1,6 @@
 import 'package:dartz/dartz.dart';
 import '../entities/failure.dart';
-import '../entities/tipitaka_tree_node.dart';
+import '../entities/navigation/tipitaka_tree_node.dart';
 import '../repositories/navigation_tree_repository.dart';
 
 /// Use case for loading the navigation tree

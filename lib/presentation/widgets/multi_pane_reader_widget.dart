@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/column_display_mode.dart';
-import '../../domain/entities/entry.dart';
-import '../../domain/entities/entry_type.dart';
+import '../models/column_display_mode.dart';
+import '../../domain/entities/content/entry.dart';
+import '../../domain/entities/content/entry_type.dart';
 import '../providers/document_provider.dart';
 import '../providers/tab_provider.dart'
     show

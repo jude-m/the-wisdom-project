@@ -9,7 +9,7 @@ import '../../domain/entities/search/search_query.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../../domain/entities/search/search_scope.dart';
 import '../../domain/entities/search/scope_filter_config.dart';
-import '../../domain/entities/tipitaka_tree_node.dart';
+import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../../domain/repositories/navigation_tree_repository.dart';
 import '../../core/utils/text_utils.dart';
 import '../../domain/repositories/text_search_repository.dart';
