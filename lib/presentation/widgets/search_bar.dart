@@ -31,7 +31,7 @@ class _SearchBarState extends ConsumerState<SearchBar> {
 
     // Sync controller with initial state if needed
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final queryText = ref.read(searchStateProvider).queryText;
+      final queryText = ref.read(searchStateProvider).rawQueryText;
       if (queryText.isNotEmpty && _controller.text != queryText) {
         _controller.text = queryText;
       }
@@ -53,7 +53,7 @@ class _SearchBarState extends ConsumerState<SearchBar> {
 
       // Only show overlay if query is empty
       // When query has any text, the results panel is shown instead
-      final queryText = ref.read(searchStateProvider).queryText;
+      final queryText = ref.read(searchStateProvider).rawQueryText;
       if (queryText.trim().isEmpty) {
         _overlayController.show();
       }
@@ -87,7 +87,7 @@ class _SearchBarState extends ConsumerState<SearchBar> {
         ref.watch(searchStateProvider.select((s) => s.isExactMatch));
 
     // Listen to queryText changes and sync controller
-    ref.listen(searchStateProvider.select((s) => s.queryText), (prev, next) {
+    ref.listen(searchStateProvider.select((s) => s.rawQueryText), (prev, next) {
       if (_controller.text != next) {
         _controller.text = next;
         // Move cursor to end

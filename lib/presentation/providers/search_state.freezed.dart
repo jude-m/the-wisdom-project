@@ -16,8 +16,14 @@ final _privateConstructorUsedError = UnsupportedError(
 
 /// @nodoc
 mixin _$SearchState {
-  /// Current search query text
-  String get queryText => throw _privateConstructorUsedError;
+  /// Current search query text (raw user input)
+  String get rawQueryText => throw _privateConstructorUsedError;
+
+  /// Effective query text (sanitized + converted to Sinhala if Singlish)
+  /// This is computed once when query changes and used for:
+  /// - Repository searches (via SearchQuery)
+  /// - UI highlighting (avoids re-conversion per result row)
+  String get effectiveQueryText => throw _privateConstructorUsedError;
 
   /// Recent search history
   List<RecentSearch> get recentSearches => throw _privateConstructorUsedError;
@@ -78,7 +84,8 @@ abstract class $SearchStateCopyWith<$Res> {
       _$SearchStateCopyWithImpl<$Res, SearchState>;
   @useResult
   $Res call(
-      {String queryText,
+      {String rawQueryText,
+      String effectiveQueryText,
       List<RecentSearch> recentSearches,
       SearchResultType selectedResultType,
       GroupedSearchResult? groupedResults,
@@ -110,7 +117,8 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? queryText = null,
+    Object? rawQueryText = null,
+    Object? effectiveQueryText = null,
     Object? recentSearches = null,
     Object? selectedResultType = null,
     Object? groupedResults = freezed,
@@ -125,9 +133,13 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
     Object? countByResultType = null,
   }) {
     return _then(_value.copyWith(
-      queryText: null == queryText
-          ? _value.queryText
-          : queryText // ignore: cast_nullable_to_non_nullable
+      rawQueryText: null == rawQueryText
+          ? _value.rawQueryText
+          : rawQueryText // ignore: cast_nullable_to_non_nullable
+              as String,
+      effectiveQueryText: null == effectiveQueryText
+          ? _value.effectiveQueryText
+          : effectiveQueryText // ignore: cast_nullable_to_non_nullable
               as String,
       recentSearches: null == recentSearches
           ? _value.recentSearches
@@ -204,7 +216,8 @@ abstract class _$$SearchStateImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {String queryText,
+      {String rawQueryText,
+      String effectiveQueryText,
       List<RecentSearch> recentSearches,
       SearchResultType selectedResultType,
       GroupedSearchResult? groupedResults,
@@ -235,7 +248,8 @@ class __$$SearchStateImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? queryText = null,
+    Object? rawQueryText = null,
+    Object? effectiveQueryText = null,
     Object? recentSearches = null,
     Object? selectedResultType = null,
     Object? groupedResults = freezed,
@@ -250,9 +264,13 @@ class __$$SearchStateImplCopyWithImpl<$Res>
     Object? countByResultType = null,
   }) {
     return _then(_$SearchStateImpl(
-      queryText: null == queryText
-          ? _value.queryText
-          : queryText // ignore: cast_nullable_to_non_nullable
+      rawQueryText: null == rawQueryText
+          ? _value.rawQueryText
+          : rawQueryText // ignore: cast_nullable_to_non_nullable
+              as String,
+      effectiveQueryText: null == effectiveQueryText
+          ? _value.effectiveQueryText
+          : effectiveQueryText // ignore: cast_nullable_to_non_nullable
               as String,
       recentSearches: null == recentSearches
           ? _value._recentSearches
@@ -310,7 +328,8 @@ class __$$SearchStateImplCopyWithImpl<$Res>
 
 class _$SearchStateImpl extends _SearchState {
   const _$SearchStateImpl(
-      {this.queryText = '',
+      {this.rawQueryText = '',
+      this.effectiveQueryText = '',
       final List<RecentSearch> recentSearches = const [],
       this.selectedResultType = SearchResultType.topResults,
       this.groupedResults,
@@ -329,10 +348,18 @@ class _$SearchStateImpl extends _SearchState {
         _countByResultType = countByResultType,
         super._();
 
-  /// Current search query text
+  /// Current search query text (raw user input)
   @override
   @JsonKey()
-  final String queryText;
+  final String rawQueryText;
+
+  /// Effective query text (sanitized + converted to Sinhala if Singlish)
+  /// This is computed once when query changes and used for:
+  /// - Repository searches (via SearchQuery)
+  /// - UI highlighting (avoids re-conversion per result row)
+  @override
+  @JsonKey()
+  final String effectiveQueryText;
 
   /// Recent search history
   final List<RecentSearch> _recentSearches;
@@ -434,7 +461,7 @@ class _$SearchStateImpl extends _SearchState {
 
   @override
   String toString() {
-    return 'SearchState(queryText: $queryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, selectedScope: $selectedScope, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType)';
+    return 'SearchState(rawQueryText: $rawQueryText, effectiveQueryText: $effectiveQueryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, selectedScope: $selectedScope, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType)';
   }
 
   @override
@@ -442,8 +469,10 @@ class _$SearchStateImpl extends _SearchState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$SearchStateImpl &&
-            (identical(other.queryText, queryText) ||
-                other.queryText == queryText) &&
+            (identical(other.rawQueryText, rawQueryText) ||
+                other.rawQueryText == rawQueryText) &&
+            (identical(other.effectiveQueryText, effectiveQueryText) ||
+                other.effectiveQueryText == effectiveQueryText) &&
             const DeepCollectionEquality()
                 .equals(other._recentSearches, _recentSearches) &&
             (identical(other.selectedResultType, selectedResultType) ||
@@ -473,7 +502,8 @@ class _$SearchStateImpl extends _SearchState {
   @override
   int get hashCode => Object.hash(
       runtimeType,
-      queryText,
+      rawQueryText,
+      effectiveQueryText,
       const DeepCollectionEquality().hash(_recentSearches),
       selectedResultType,
       groupedResults,
@@ -498,7 +528,8 @@ class _$SearchStateImpl extends _SearchState {
 
 abstract class _SearchState extends SearchState {
   const factory _SearchState(
-      {final String queryText,
+      {final String rawQueryText,
+      final String effectiveQueryText,
       final List<RecentSearch> recentSearches,
       final SearchResultType selectedResultType,
       final GroupedSearchResult? groupedResults,
@@ -513,9 +544,16 @@ abstract class _SearchState extends SearchState {
       final Map<SearchResultType, int> countByResultType}) = _$SearchStateImpl;
   const _SearchState._() : super._();
 
-  /// Current search query text
+  /// Current search query text (raw user input)
   @override
-  String get queryText;
+  String get rawQueryText;
+
+  /// Effective query text (sanitized + converted to Sinhala if Singlish)
+  /// This is computed once when query changes and used for:
+  /// - Repository searches (via SearchQuery)
+  /// - UI highlighting (avoids re-conversion per result row)
+  @override
+  String get effectiveQueryText;
 
   /// Recent search history
   @override

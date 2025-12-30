@@ -27,8 +27,14 @@ class SearchState with _$SearchState {
   const SearchState._();
 
   const factory SearchState({
-    /// Current search query text
-    @Default('') String queryText,
+    /// Current search query text (raw user input)
+    @Default('') String rawQueryText,
+
+    /// Effective query text (sanitized + converted to Sinhala if Singlish)
+    /// This is computed once when query changes and used for:
+    /// - Repository searches (via SearchQuery)
+    /// - UI highlighting (avoids re-conversion per result row)
+    @Default('') String effectiveQueryText,
 
     /// Recent search history
     @Default([]) List<RecentSearch> recentSearches,
@@ -77,7 +83,7 @@ class SearchState with _$SearchState {
   /// Computed property: Results panel is visible when query is not empty
   /// and panel hasn't been dismissed
   bool get isResultsPanelVisible =>
-      queryText.trim().isNotEmpty && !isPanelDismissed;
+      rawQueryText.trim().isNotEmpty && !isPanelDismissed;
 
   /// True if "All" is effectively selected (no specific scope chosen)
   bool get isAllSelected => selectedScope.isEmpty;
@@ -114,12 +120,21 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   }
 
   /// Update search query text (debounced search)
+  /// Computes effectiveQueryText once here, avoiding per-row conversion later.
   void updateQuery(String query) {
-    state = state.copyWith(queryText: query);
     _debounceTimer?.cancel();
 
-    // If query is empty, clear results (panel will auto-hide via computed getter)
-    if (query.trim().isEmpty) {
+    // Compute effective query (sanitized + Singlish→Sinhala)
+    final effectiveQuery = _computeEffectiveQuery(query);
+
+    // Update both rawQueryText and effectiveQueryText together
+    state = state.copyWith(
+      rawQueryText: query,
+      effectiveQueryText: effectiveQuery,
+    );
+
+    // If query is empty or invalid, clear results
+    if (query.trim().isEmpty || effectiveQuery.isEmpty) {
       state = state.copyWith(
         groupedResults: null,
         fullResults: const AsyncValue.data([]),
@@ -128,10 +143,8 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
       return;
     }
 
-    // Set loading state
+    // Set loading state and debounce search (300ms)
     state = state.copyWith(isLoading: true);
-
-    // Debounce search (300ms)
     _debounceTimer = Timer(
       const Duration(milliseconds: 300),
       _performSearch,
@@ -242,10 +255,10 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   /// Called when user selects a search result
   /// Saves to recent searches and dismisses the panel
   Future<void> saveRecentSearchAndDismiss() async {
-    if (state.queryText.trim().isEmpty) return;
+    if (state.rawQueryText.trim().isEmpty) return;
 
     // Save to recent searches (user found what they wanted)
-    await _recentSearchesRepository.addRecentSearch(state.queryText);
+    await _recentSearchesRepository.addRecentSearch(state.rawQueryText);
 
     // Update recent searches list for next time
     final recentSearches = await _recentSearchesRepository.getRecentSearches();
@@ -269,14 +282,21 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   }
 
   /// Handle clicking on a recent search
-  Future<void> selectRecentSearch(String queryText) async {
-    state = state.copyWith(queryText: queryText, isLoading: true);
+  Future<void> selectRecentSearch(String query) async {
+    // Compute effective query (sanitized + Singlish→Sinhala)
+    final effectiveQuery = _computeEffectiveQuery(query);
+
+    state = state.copyWith(
+      rawQueryText: query,
+      effectiveQueryText: effectiveQuery,
+      isLoading: true,
+    );
 
     // Debounce not needed for direct selection
     await _performSearch();
 
     // Save to recent (bumps it to top)
-    await _recentSearchesRepository.addRecentSearch(queryText);
+    await _recentSearchesRepository.addRecentSearch(query);
   }
 
   /// Remove a recent search from history
@@ -292,21 +312,28 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     state = state.copyWith(recentSearches: []);
   }
 
-  /// Builds validated [SearchQuery] from current state, or `null` if invalid.
-  /// Sanitizes query and converts Singlish to Sinhala (single point of conversion).
-  SearchQuery? _buildSearchQuery() {
-    final sanitized = sanitizeSearchQuery(state.queryText);
-    if (sanitized == null) {
-      return null; // Invalid query - no Sinhala/English/digits
-    }
-    
+  /// Computes the effective query from raw input.
+  /// Sanitizes and converts Singlish to Sinhala if needed.
+  /// Returns empty string if query is invalid.
+  String _computeEffectiveQuery(String query) {
+    final sanitized = sanitizeSearchQuery(query);
+    if (sanitized == null) return '';
+
     final transliterator = SinglishTransliterator.instance;
-    final effectiveQuery = transliterator.isSinglishQuery(sanitized)
+    return transliterator.isSinglishQuery(sanitized)
         ? transliterator.convert(sanitized)
         : sanitized;
+  }
+
+  /// Builds validated [SearchQuery] from current state, or `null` if invalid.
+  /// Uses pre-computed effectiveQueryText from state.
+  SearchQuery? _buildSearchQuery() {
+    if (state.effectiveQueryText.isEmpty) {
+      return null; // Invalid query - no valid content
+    }
 
     return SearchQuery(
-      queryText: effectiveQuery,
+      queryText: state.effectiveQueryText,
       isExactMatch: state.isExactMatch,
       editionIds: state.selectedEditions,
       searchInPali: state.searchInPali,
@@ -398,7 +425,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
   /// Refresh search if query is active
   void _refreshSearchIfNeeded() {
-    if (state.queryText.trim().isEmpty) return;
+    if (state.rawQueryText.trim().isEmpty) return;
     _performSearch();
   }
 

@@ -4,7 +4,6 @@ import '../../domain/entities/search/grouped_search_result.dart';
 import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../providers/search_provider.dart';
-import '../../core/utils/singlish_transliterator.dart';
 import '../../core/utils/text_utils.dart';
 import 'scope_filter_chips.dart';
 
@@ -53,7 +52,7 @@ class SearchResultsPanel extends ConsumerWidget {
                     theme,
                     searchState.isLoading,
                     searchState.groupedResults,
-                    searchState.queryText,
+                    searchState.effectiveQueryText,
                   )
                 : _buildResultTypeTabContent(
                     context,
@@ -61,7 +60,7 @@ class SearchResultsPanel extends ConsumerWidget {
                     theme,
                     searchState.fullResults,
                     searchState.selectedResultType,
-                    searchState.queryText,
+                    searchState.effectiveQueryText,
                   ),
           ),
         ],
@@ -75,7 +74,7 @@ class SearchResultsPanel extends ConsumerWidget {
     ThemeData theme,
     bool isLoading,
     GroupedSearchResult? categorizedResults,
-    String queryText,
+    String effectiveQuery,
   ) {
     // Loading state
     if (isLoading) {
@@ -111,7 +110,7 @@ class SearchResultsPanel extends ConsumerWidget {
                           .getResultsByType(resultType)
                           .map((result) => _SearchResultTile(
                                 searchResult: result,
-                                queryText: queryText,
+                                effectiveQuery: effectiveQuery,
                                 onTap: () => onResultTap?.call(result),
                               )),
                     ],
@@ -129,7 +128,7 @@ class SearchResultsPanel extends ConsumerWidget {
     ThemeData theme,
     AsyncValue<List<SearchResult>?> fullResults,
     SearchResultType selectedResultType,
-    String queryText,
+    String effectiveQuery,
   ) {
     return fullResults.when(
       loading: () => const Center(
@@ -189,7 +188,7 @@ class SearchResultsPanel extends ConsumerWidget {
           itemBuilder: (context, index) {
             return _SearchResultTile(
               searchResult: results[index],
-              queryText: queryText,
+              effectiveQuery: effectiveQuery,
               onTap: () => onResultTap?.call(results[index]),
             );
           },
@@ -403,12 +402,15 @@ class _CountBadge extends StatelessWidget {
 /// Individual search result tile with highlighting support
 class _SearchResultTile extends StatelessWidget {
   final SearchResult searchResult;
-  final String queryText;
+
+  /// Pre-computed effective query (sanitized + Singlish→Sinhala converted)
+  /// from SearchState. No per-row conversion needed.
+  final String effectiveQuery;
   final VoidCallback? onTap;
 
   const _SearchResultTile({
     required this.searchResult,
-    required this.queryText,
+    required this.effectiveQuery,
     this.onTap,
   });
 
@@ -460,7 +462,6 @@ class _SearchResultTile extends StatelessWidget {
             const SizedBox(height: 4),
             _buildHighlightedText(
               searchResult.matchedText,
-              queryText,
               theme,
             ),
           ],
@@ -470,41 +471,23 @@ class _SearchResultTile extends StatelessWidget {
     );
   }
 
-  /// Builds highlighted text for content matches
-  /// Uses effective query (original or Sinhala conversion) for proper highlighting
-  Widget _buildHighlightedText(String text, String query, ThemeData theme) {
+  /// Builds highlighted text for content matches.
+  /// Uses pre-computed effectiveQuery from state (no conversion needed here).
+  Widget _buildHighlightedText(String matchedText, ThemeData theme) {
     final baseStyle = theme.textTheme.bodySmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
     );
 
-    if (query.isEmpty) {
-      return Text(
-        text,
-        style: baseStyle,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      );
-    }
+    // Check if query exists in text (using normalized comparison)
+    final normalizedText = normalizeText(matchedText, toLowerCase: true);
+    //final normalizedQuery = normalizeText(effectiveQuery, toLowerCase: true);
+    final hasMatch = normalizedText.contains(effectiveQuery);
 
-    // Sanitize query (strips invalid chars like @, #, etc.)
-    final sanitizedQuery = sanitizeSearchQuery(query);
-    if (sanitizedQuery == null || sanitizedQuery.isEmpty) {
-      return Text(
-        text,
-        style: baseStyle,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      );
-    }
-
-    // Get the effective query to use for highlighting (may be converted to Sinhala)
-    final effectiveQuery = _getEffectiveHighlightQuery(text, sanitizedQuery);
-
-    if (effectiveQuery.isEmpty) {
+    if (effectiveQuery.isEmpty || !hasMatch) {
       // No match found, just show the beginning of text
-      final end = 150.clamp(0, text.length);
+      final end = 150.clamp(0, matchedText.length);
       return Text(
-        text.length > end ? '${text.substring(0, end)}...' : text,
+        matchedText.length > end ? '${matchedText.substring(0, end)}...' : matchedText,
         style: baseStyle,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
@@ -512,7 +495,7 @@ class _SearchResultTile extends StatelessWidget {
     }
 
     // Create snippet centered around the match
-    final snippet = _createSnippet(text: text, query: effectiveQuery);
+    final snippet = _createSnippet(text: matchedText, query: effectiveQuery);
 
     // Build highlighted spans
     final highlightStyle = TextStyle(
@@ -532,27 +515,6 @@ class _SearchResultTile extends StatelessWidget {
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
     );
-  }
-
-  /// Gets the effective query for highlighting.
-  /// Converts Singlish to Sinhala if needed, then checks for match.
-  String _getEffectiveHighlightQuery(String text, String query) {
-    // Convert Singlish to Sinhala if needed, otherwise use as-is
-    final transliterator = SinglishTransliterator.instance;
-    final effectiveQuery = transliterator.isSinglishQuery(query)
-        ? transliterator.convert(query)
-        : query;
-
-    // Check if the (possibly converted) query exists in text
-    final normalizedText = normalizeText(text, toLowerCase: true);
-    final normalizedQuery = normalizeText(effectiveQuery, toLowerCase: true);
-
-    if (normalizedText.contains(normalizedQuery)) {
-      return effectiveQuery;
-    }
-
-    // No match found
-    return '';
   }
 
   /// Creates a snippet of text centered around the first match of the query

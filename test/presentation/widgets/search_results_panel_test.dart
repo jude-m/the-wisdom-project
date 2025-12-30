@@ -31,7 +31,7 @@ void main() {
         (tester) async {
       // ARRANGE
       final notifier = FakeSearchStateNotifier(
-        const SearchState(queryText: 'metta'),
+        const SearchState(rawQueryText: 'metta'),
       );
 
       await tester.pumpWidget(
@@ -60,7 +60,7 @@ void main() {
       // ARRANGE - "All" tab uses isLoading, not fullResults.loading()
       final notifier = FakeSearchStateNotifier(
         const SearchState(
-          queryText: 'test',
+          rawQueryText: 'test',
           isLoading: true,
           selectedResultType: SearchResultType.topResults,
         ),
@@ -91,7 +91,7 @@ void main() {
       // ARRANGE - Specific category tabs use fullResults
       final notifier = FakeSearchStateNotifier(
         const SearchState(
-          queryText: 'test',
+          rawQueryText: 'test',
           selectedResultType: SearchResultType.title,
           fullResults: AsyncValue.loading(),
         ),
@@ -120,7 +120,7 @@ void main() {
       // ARRANGE - Use a specific category since "All" tab doesn't use fullResults
       final notifier = FakeSearchStateNotifier(
         SearchState(
-          queryText: 'test',
+          rawQueryText: 'test',
           selectedResultType: SearchResultType.title,
           fullResults: AsyncValue.error(
             Exception('Test error'),
@@ -155,7 +155,7 @@ void main() {
       // ARRANGE - "All" tab uses categorizedResults
       final notifier = FakeSearchStateNotifier(
         const SearchState(
-          queryText: 'test',
+          rawQueryText: 'test',
           selectedResultType: SearchResultType.topResults,
           groupedResults: GroupedSearchResult(
             resultsByType: {},
@@ -188,7 +188,7 @@ void main() {
       // ARRANGE
       final notifier = FakeSearchStateNotifier(
         const SearchState(
-          queryText: 'test',
+          rawQueryText: 'test',
           fullResults: AsyncValue.data([]),
           selectedResultType: SearchResultType.title,
         ),
@@ -217,7 +217,7 @@ void main() {
     testWidgets('should render category tab bar with 4 tabs', (tester) async {
       // ARRANGE
       final notifier = FakeSearchStateNotifier(
-        const SearchState(queryText: 'test'),
+        const SearchState(rawQueryText: 'test'),
       );
 
       await tester.pumpWidget(
@@ -246,7 +246,7 @@ void main() {
       // ARRANGE - Test various count scenarios
       final notifier = FakeSearchStateNotifier(
         const SearchState(
-          queryText: 'test',
+          rawQueryText: 'test',
           countByResultType: {
             SearchResultType.topResults: 15, // Top Results doesn't show badge
             SearchResultType.title: 42,
@@ -283,7 +283,7 @@ void main() {
       // ARRANGE - All counts are zero (badges still show with "0")
       final notifier = FakeSearchStateNotifier(
         const SearchState(
-          queryText: 'test',
+          rawQueryText: 'test',
           countByResultType: {
             SearchResultType.topResults: 0, // Top Results doesn't show badge
             SearchResultType.title: 0,
@@ -322,7 +322,7 @@ void main() {
       // ARRANGE - Edge case: exactly 100 results
       final notifier = FakeSearchStateNotifier(
         const SearchState(
-          queryText: 'test',
+          rawQueryText: 'test',
           countByResultType: {
             SearchResultType.title: 100,
           },
@@ -354,7 +354,7 @@ void main() {
       // ARRANGE
       final notifier = FakeSearchStateNotifier(
         const SearchState(
-          queryText: 'test',
+          rawQueryText: 'test',
           selectedResultType: SearchResultType.topResults,
         ),
       );
@@ -386,7 +386,7 @@ void main() {
       // ARRANGE
       bool closeCalled = false;
       final notifier = FakeSearchStateNotifier(
-        const SearchState(queryText: 'test'),
+        const SearchState(rawQueryText: 'test'),
       );
 
       await tester.pumpWidget(
@@ -432,7 +432,7 @@ void main() {
 
       final notifier = FakeSearchStateNotifier(
         const SearchState(
-          queryText: 'metta',
+          rawQueryText: 'metta',
           fullResults: AsyncValue.data([result]),
           selectedResultType: SearchResultType.title,
         ),
@@ -482,7 +482,7 @@ void main() {
 
       final notifier = FakeSearchStateNotifier(
         const SearchState(
-          queryText: 'test',
+          rawQueryText: 'test',
           fullResults: AsyncValue.data([result]),
           selectedResultType: SearchResultType.fullText,
         ),
@@ -544,7 +544,7 @@ void main() {
 
       final notifier = FakeSearchStateNotifier(
         const SearchState(
-          queryText: 'metta',
+          rawQueryText: 'metta',
           selectedResultType: SearchResultType.topResults,
           groupedResults: GroupedSearchResult(
             resultsByType: {
