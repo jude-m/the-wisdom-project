@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/singlish_transliterator.dart';
+import '../../core/utils/text_utils.dart';
 import '../../domain/entities/search/grouped_search_result.dart';
 import '../../domain/entities/search/recent_search.dart';
 import '../../domain/entities/search/search_result_type.dart';
@@ -39,7 +40,8 @@ class SearchState with _$SearchState {
     GroupedSearchResult? groupedResults,
 
     /// Full results for the selected category (async state)
-    @Default(AsyncValue.data([])) AsyncValue<List<SearchResult>> fullResults,
+    /// null = invalid query (didn't search), [] = valid query with no results
+    @Default(AsyncValue.data(null)) AsyncValue<List<SearchResult>?> fullResults,
 
     /// Whether results are currently loading
     @Default(false) bool isLoading,
@@ -152,6 +154,12 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   /// Load result counts for tab badges (independent of selected category)
   Future<void> _loadCounts() async {
     final query = _buildSearchQuery();
+    if (query == null) {
+      // Invalid query - clear counts
+      state = state.copyWith(countByResultType: {});
+      return;
+    }
+
     final result = await _searchRepository.countByResultType(query);
 
     result.fold(
@@ -167,6 +175,15 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   /// Load categorized results for "All" tab
   Future<void> _loadTopResults() async {
     final query = _buildSearchQuery();
+    if (query == null) {
+      // Invalid query - set empty results, don't call repository
+      state = state.copyWith(
+        isLoading: false,
+        groupedResults: null,
+      );
+      return;
+    }
+
     final result = await _searchRepository.searchTopResults(query);
 
     result.fold(
@@ -188,6 +205,14 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   /// Load full results for the selected result type
   Future<void> _loadResultsForType() async {
     final query = _buildSearchQuery();
+    if (query == null) {
+      state = state.copyWith(
+        fullResults: const AsyncValue.data(null),
+        isLoading: false,
+      );
+      return;
+    }
+
     state = state.copyWith(
       fullResults: const AsyncValue.loading(),
       isLoading: true,
@@ -267,13 +292,18 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     state = state.copyWith(recentSearches: []);
   }
 
-  /// Build search query from current state
-  SearchQuery _buildSearchQuery() {
-    // Convert Singlish to Sinhala if needed (single point of conversion)
+  /// Builds validated [SearchQuery] from current state, or `null` if invalid.
+  /// Sanitizes query and converts Singlish to Sinhala (single point of conversion).
+  SearchQuery? _buildSearchQuery() {
+    final sanitized = sanitizeSearchQuery(state.queryText);
+    if (sanitized == null) {
+      return null; // Invalid query - no Sinhala/English/digits
+    }
+    
     final transliterator = SinglishTransliterator.instance;
-    final effectiveQuery = transliterator.isSinglishQuery(state.queryText)
-        ? transliterator.convert(state.queryText)
-        : state.queryText;
+    final effectiveQuery = transliterator.isSinglishQuery(sanitized)
+        ? transliterator.convert(sanitized)
+        : sanitized;
 
     return SearchQuery(
       queryText: effectiveQuery,

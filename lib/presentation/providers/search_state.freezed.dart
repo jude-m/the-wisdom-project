@@ -29,7 +29,8 @@ mixin _$SearchState {
   GroupedSearchResult? get groupedResults => throw _privateConstructorUsedError;
 
   /// Full results for the selected category (async state)
-  AsyncValue<List<SearchResult>> get fullResults =>
+  /// null = invalid query (didn't search), [] = valid query with no results
+  AsyncValue<List<SearchResult>?> get fullResults =>
       throw _privateConstructorUsedError;
 
   /// Whether results are currently loading
@@ -81,7 +82,7 @@ abstract class $SearchStateCopyWith<$Res> {
       List<RecentSearch> recentSearches,
       SearchResultType selectedResultType,
       GroupedSearchResult? groupedResults,
-      AsyncValue<List<SearchResult>> fullResults,
+      AsyncValue<List<SearchResult>?> fullResults,
       bool isLoading,
       Set<String> selectedEditions,
       bool searchInPali,
@@ -143,7 +144,7 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
       fullResults: null == fullResults
           ? _value.fullResults
           : fullResults // ignore: cast_nullable_to_non_nullable
-              as AsyncValue<List<SearchResult>>,
+              as AsyncValue<List<SearchResult>?>,
       isLoading: null == isLoading
           ? _value.isLoading
           : isLoading // ignore: cast_nullable_to_non_nullable
@@ -207,7 +208,7 @@ abstract class _$$SearchStateImplCopyWith<$Res>
       List<RecentSearch> recentSearches,
       SearchResultType selectedResultType,
       GroupedSearchResult? groupedResults,
-      AsyncValue<List<SearchResult>> fullResults,
+      AsyncValue<List<SearchResult>?> fullResults,
       bool isLoading,
       Set<String> selectedEditions,
       bool searchInPali,
@@ -268,7 +269,7 @@ class __$$SearchStateImplCopyWithImpl<$Res>
       fullResults: null == fullResults
           ? _value.fullResults
           : fullResults // ignore: cast_nullable_to_non_nullable
-              as AsyncValue<List<SearchResult>>,
+              as AsyncValue<List<SearchResult>?>,
       isLoading: null == isLoading
           ? _value.isLoading
           : isLoading // ignore: cast_nullable_to_non_nullable
@@ -313,7 +314,7 @@ class _$SearchStateImpl extends _SearchState {
       final List<RecentSearch> recentSearches = const [],
       this.selectedResultType = SearchResultType.topResults,
       this.groupedResults,
-      this.fullResults = const AsyncValue.data([]),
+      this.fullResults = const AsyncValue.data(null),
       this.isLoading = false,
       final Set<String> selectedEditions = const {},
       this.searchInPali = true,
@@ -355,9 +356,10 @@ class _$SearchStateImpl extends _SearchState {
   final GroupedSearchResult? groupedResults;
 
   /// Full results for the selected category (async state)
+  /// null = invalid query (didn't search), [] = valid query with no results
   @override
   @JsonKey()
-  final AsyncValue<List<SearchResult>> fullResults;
+  final AsyncValue<List<SearchResult>?> fullResults;
 
   /// Whether results are currently loading
   @override
@@ -500,7 +502,7 @@ abstract class _SearchState extends SearchState {
       final List<RecentSearch> recentSearches,
       final SearchResultType selectedResultType,
       final GroupedSearchResult? groupedResults,
-      final AsyncValue<List<SearchResult>> fullResults,
+      final AsyncValue<List<SearchResult>?> fullResults,
       final bool isLoading,
       final Set<String> selectedEditions,
       final bool searchInPali,
@@ -528,8 +530,9 @@ abstract class _SearchState extends SearchState {
   GroupedSearchResult? get groupedResults;
 
   /// Full results for the selected category (async state)
+  /// null = invalid query (didn't search), [] = valid query with no results
   @override
-  AsyncValue<List<SearchResult>> get fullResults;
+  AsyncValue<List<SearchResult>?> get fullResults;
 
   /// Whether results are currently loading
   @override

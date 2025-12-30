@@ -36,6 +36,15 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     int maxPerCategory = 3,
   }) async {
     try {
+      // Defensive guard - StateNotifier should validate before calling
+      if (query.queryText.trim().isEmpty) {
+        return const Right(GroupedSearchResult(resultsByType: {
+          SearchResultType.title: [],
+          SearchResultType.fullText: [],
+          SearchResultType.definition: [],
+        }));
+      }
+
       final editionsToSearch =
           query.editionIds.isEmpty ? {'bjt'} : query.editionIds;
 
@@ -92,6 +101,11 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     SearchResultType resultType,
   ) async {
     try {
+      // Defensive guard - StateNotifier should validate before calling
+      if (query.queryText.trim().isEmpty) {
+        return const Right([]);
+      }
+
       final editionsToSearch =
           query.editionIds.isEmpty ? {'bjt'} : query.editionIds;
 
@@ -154,6 +168,15 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     SearchQuery query,
   ) async {
     try {
+      // Defensive guard - StateNotifier should validate before calling
+      if (query.queryText.trim().isEmpty) {
+        return const Right({
+          SearchResultType.title: 0,
+          SearchResultType.fullText: 0,
+          SearchResultType.definition: 0,
+        });
+      }
+
       final editionsToSearch =
           query.editionIds.isEmpty ? {'bjt'} : query.editionIds;
 
@@ -248,9 +271,6 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   }) {
     final results = <SearchResult>[];
 
-    // Normalize query for matching (caller handles Singlish conversion)
-    final searchQuery = normalizeText(queryText, toLowerCase: true);
-
     // Get scope patterns for filtering (empty = no filter)
     final scopePatterns = ScopeFilterConfig.getPatternsForScope(scope);
 
@@ -260,12 +280,12 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     bool matchesQuery(String name) {
       if (isExactMatch) {
         // Word boundary match: query must appear as a complete word
-        return name == searchQuery ||
-            name.startsWith('$searchQuery ') ||
-            name.endsWith(' $searchQuery') ||
-            name.contains(' $searchQuery ');
+        return name == queryText ||
+            name.startsWith('$queryText ') ||
+            name.endsWith(' $queryText') ||
+            name.contains(' $queryText ');
       } else {
-        return name.contains(searchQuery);
+        return name.contains(queryText);
       }
     }
 
@@ -320,8 +340,8 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       // Primary sort: startsWith first
       final titleA = normalizeText(a.title, toLowerCase: true);
       final titleB = normalizeText(b.title, toLowerCase: true);
-      final aStartsWith = titleA.startsWith(searchQuery);
-      final bStartsWith = titleB.startsWith(searchQuery);
+      final aStartsWith = titleA.startsWith(queryText);
+      final bStartsWith = titleB.startsWith(queryText);
 
       if (aStartsWith && !bStartsWith) return -1;
       if (!aStartsWith && bStartsWith) return 1;

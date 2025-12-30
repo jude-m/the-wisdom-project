@@ -82,31 +82,14 @@ class SearchResultsPanel extends ConsumerWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // No results
-    if (categorizedResults == null || categorizedResults.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.search_off,
-                size: 48,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No results found',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
+    // Invalid query - didn't search
+    if (categorizedResults == null) {
+      return _buildEmptyState(theme, isInvalidQuery: true);
+    }
+
+    // Valid query - searched but no results
+    if (categorizedResults.isEmpty) {
+      return _buildEmptyState(theme, isInvalidQuery: false);
     }
 
     // Build categorized results with _SearchResultTile
@@ -139,27 +122,12 @@ class SearchResultsPanel extends ConsumerWidget {
     );
   }
 
-  /// Section header widget
-  Widget _sectionHeader(ThemeData theme, String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Text(
-        title,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 1.2,
-        ),
-      ),
-    );
-  }
-
   /// Builds the content for specific category tabs (Title, Content, Definition)
   Widget _buildResultTypeTabContent(
     BuildContext context,
     WidgetRef ref,
     ThemeData theme,
-    AsyncValue<List<SearchResult>> fullResults,
+    AsyncValue<List<SearchResult>?> fullResults,
     SearchResultType selectedResultType,
     String queryText,
   ) {
@@ -197,29 +165,16 @@ class SearchResultsPanel extends ConsumerWidget {
         ),
       ),
       data: (results) {
+        // Invalid query - didn't search
+        if (results == null) {
+          return _buildEmptyState(theme, isInvalidQuery: true);
+        }
+        // Valid query - no results
         if (results.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.search_off,
-                    size: 48,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No ${selectedResultType.displayName.toLowerCase()} found',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
+          return _buildEmptyState(
+            theme,
+            isInvalidQuery: false,
+            resultTypeName: selectedResultType.displayName.toLowerCase(),
           );
         }
 
@@ -240,6 +195,56 @@ class SearchResultsPanel extends ConsumerWidget {
           },
         );
       },
+    );
+  }
+
+  /// Section header widget
+  Widget _sectionHeader(ThemeData theme, String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Text(
+        title,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  /// Builds empty state widget for invalid query or no results
+  Widget _buildEmptyState(
+    ThemeData theme, {
+    required bool isInvalidQuery,
+    String? resultTypeName,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isInvalidQuery ? Icons.edit_note : Icons.search_off,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isInvalidQuery
+                  ? 'Enter a valid search query'
+                  : resultTypeName != null
+                      ? 'No $resultTypeName found'
+                      : 'No results found',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -481,8 +486,9 @@ class _SearchResultTile extends StatelessWidget {
       );
     }
 
-    final normalizedQuery = normalizeQueryText(query);
-    if (normalizedQuery.isEmpty) {
+    // Sanitize query (strips invalid chars like @, #, etc.)
+    final sanitizedQuery = sanitizeSearchQuery(query);
+    if (sanitizedQuery == null || sanitizedQuery.isEmpty) {
       return Text(
         text,
         style: baseStyle,
@@ -492,7 +498,7 @@ class _SearchResultTile extends StatelessWidget {
     }
 
     // Get the effective query to use for highlighting (may be converted to Sinhala)
-    final effectiveQuery = _getEffectiveHighlightQuery(text, normalizedQuery);
+    final effectiveQuery = _getEffectiveHighlightQuery(text, sanitizedQuery);
 
     if (effectiveQuery.isEmpty) {
       // No match found, just show the beginning of text

@@ -121,47 +121,21 @@ class FTSDataSourceImpl implements FTSDataSource {
     developer.log(message, name: 'FTSDataSource');
   }
 
-  /// Sanitize FTS query for safe execution.
-  ///
-  /// This method follows tipitaka.lk's approach:
-  /// - For simple queries: pass directly to FTS with optional * for prefix matching
-  /// - NO double quotes wrapping (quotes change FTS from token to phrase matching)
-  ///
-  /// FTS4 token matching (without quotes):
-  /// - `අනාථ*` matches any word TOKEN starting with "අනාථ" anywhere in text
-  ///
-  /// FTS4 phrase matching (with quotes):
-  /// - `"අනාථ"*` matches the exact PHRASE "අනාථ" - much more restrictive
-  ///
-  /// When [isExactMatch] is false (default), appends * for prefix/token matching.
-  /// When [isExactMatch] is true, no asterisk for exact token match.
-  String _sanitizeFtsQuery(String query, {bool isExactMatch = false}) {
-    // Normalize: trim and remove zero-width characters, periods, commas
-    var sanitized = query.trim();
-
-    // Remove ALL zero-width Unicode characters that can break FTS matching:
-    // - U+200D: Zero-Width Joiner (ZWJ)
-    // - U+200C: Zero-Width Non-Joiner (ZWNJ)
-    // - U+200B: Zero-Width Space (ZWSP) - THIS WAS MISSING!
-    // - U+FEFF: Byte Order Mark (BOM)
-    // Also remove period and comma (same as tipitaka.lk)
-    sanitized = sanitized.replaceAll(RegExp(r'[\u200d\u200c\u200b\ufeff\.,]'), '');
-
-    // Collapse multiple spaces to single space
-    sanitized = sanitized.replaceAll(RegExp(r'\s+'), ' ');
-
-    if (sanitized.isEmpty) {
+  /// Builds FTS query syntax. Single word: `word*` (prefix). Multi-word: `word1* NEAR/10 word2*`.
+  /// When [isExactMatch] is true, omits `*` for exact token matching.
+  String _buildFtsQuery(String queryText, {bool isExactMatch = false}) {
+    if (queryText.isEmpty) {
       return '""';
     }
 
     // Handle multi-word queries
-    final words = sanitized.split(' ');
+    final words = queryText.split(' ');
 
     if (words.length == 1) {
       // Single word: simple token matching (no quotes)
       // isExactMatch=false: අනාථ* (prefix token matching)
       // isExactMatch=true: අනාථ (exact token matching)
-      return isExactMatch ? sanitized : '$sanitized*';
+      return isExactMatch ? queryText : '$queryText*';
     } else {
       // Multi-word: use NEAR/10 for proximity matching (same as tipitaka.lk default)
       if (isExactMatch) {
@@ -286,9 +260,8 @@ class FTSDataSourceImpl implements FTSDataSource {
       final ftsTable = '${editionId}_fts';
       final metaTable = '${editionId}_meta';
 
-      // Sanitize query for FTS MATCH
-      // Testing parameterized query approach for FTS MATCH
-      final ftsQuery = _sanitizeFtsQuery(query, isExactMatch: isExactMatch);
+      // Build FTS query syntax (query already validated by repository)
+      final ftsQuery = _buildFtsQuery(query, isExactMatch: isExactMatch);
 
       // Build the SQL query using parameterized query for MATCH clause
       // Note: For contentless FTS4, use table name in MATCH, not column name
@@ -353,7 +326,9 @@ class FTSDataSourceImpl implements FTSDataSource {
     try {
       final ftsTable = '${editionId}_fts';
       final metaTable = '${editionId}_meta';
-      final ftsQuery = _sanitizeFtsQuery(query, isExactMatch: isExactMatch);
+
+      // Build FTS query syntax (query already validated by repository)
+      final ftsQuery = _buildFtsQuery(query, isExactMatch: isExactMatch);
 
       // Build query with optional scope filter
       final buffer = StringBuffer();
