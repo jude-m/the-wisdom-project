@@ -451,6 +451,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       case EntryType.heading:
         textStyle = Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.secondary,
             );
         break;
       case EntryType.centered:
@@ -481,9 +482,11 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     return Text(
       entry.plainText,
       style: textStyle,
-      textAlign: entry.entryType == EntryType.centered
-          ? TextAlign.center
-          : TextAlign.left,
+      textAlign: switch (entry.entryType) {
+        EntryType.heading => TextAlign.center,
+        EntryType.paragraph || EntryType.unindented => TextAlign.justify,
+        _ => TextAlign.left, // gatha
+      },
     );
   }
 }
