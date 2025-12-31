@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/search/search_scope.dart';
@@ -42,14 +43,24 @@ class _ScopeFilterChipsState extends ConsumerState<ScopeFilterChips> {
 
     return SizedBox(
       height: 48,
-      child: Scrollbar(
-        controller: _scrollController,
-        thumbVisibility: false,
-        child: ListView(
-          controller: _scrollController,
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          children: [
+      child: ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(
+            dragDevices: {
+              PointerDeviceKind.touch,
+              PointerDeviceKind.mouse,
+              PointerDeviceKind.trackpad,
+              PointerDeviceKind.stylus,
+            },
+            scrollbars: false,
+          ),
+          child: ListView(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            children: [
             // "All" chip - always first
             Padding(
               padding: const EdgeInsets.only(right: 6),
@@ -75,9 +86,9 @@ class _ScopeFilterChipsState extends ConsumerState<ScopeFilterChips> {
                 ),
               );
             }),
-          ],
+            ],
+          ),
         ),
-      ),
     );
   }
 }
