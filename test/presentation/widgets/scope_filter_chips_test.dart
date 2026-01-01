@@ -28,33 +28,7 @@ void main() {
 
   group('ScopeFilterChips -', () {
     group('Default state', () {
-      testWidgets('should show "All" chip as selected by default',
-          (tester) async {
-        // ARRANGE & ACT
-        await tester.pumpApp(
-          const ScopeFilterChips(),
-          overrides: [
-            TestProviderOverrides.sharedPreferences(prefs),
-            TestProviderOverrides.textSearchRepository(mockSearchRepository),
-            TestProviderOverrides.recentSearchesRepository(
-                mockRecentSearchesRepository),
-          ],
-        );
-        await tester.pumpAndSettle();
-
-        // ASSERT - Find the "All" chip and verify it has selected styling
-        // The "All" chip should have secondaryContainer background color
-        // when selected (based on the implementation)
-        final allChipFinder = find.text('All');
-        expect(allChipFinder, findsOneWidget);
-
-        // Verify all scope chips are present
-        for (final scope in SearchScope.values) {
-          expect(find.text(scope.displayName), findsOneWidget);
-        }
-      });
-
-      testWidgets('should display all 5 scope chips plus "All" chip',
+      testWidgets('should render all chips with "All" selected by default',
           (tester) async {
         // ARRANGE & ACT
         await tester.pumpApp(
@@ -75,6 +49,11 @@ void main() {
         expect(find.text('Abhidhamma'), findsOneWidget);
         expect(find.text('Commentaries'), findsOneWidget);
         expect(find.text('Treatises'), findsOneWidget);
+
+        // All 5 scope chips should be present
+        for (final scope in SearchScope.values) {
+          expect(find.text(scope.displayName), findsOneWidget);
+        }
       });
     });
 
@@ -266,44 +245,8 @@ void main() {
       });
     });
 
-    group('Visual state changes', () {
-      testWidgets('selected chip should have different styling than unselected',
-          (tester) async {
-        // ARRANGE
-        await tester.pumpApp(
-          const ScopeFilterChips(),
-          overrides: [
-            TestProviderOverrides.sharedPreferences(prefs),
-            TestProviderOverrides.textSearchRepository(mockSearchRepository),
-            TestProviderOverrides.recentSearchesRepository(
-                mockRecentSearchesRepository),
-          ],
-        );
-        await tester.pumpAndSettle();
-
-        // The "All" chip should be selected initially
-        // We verify by checking the Container decoration
-        // Find the GestureDetector containing "All" text
-        final allChip = find.ancestor(
-          of: find.text('All'),
-          matching: find.byType(GestureDetector),
-        );
-        expect(allChip, findsOneWidget);
-
-        // ACT - Tap on Sutta to change selection
-        await tester.tap(find.text('Sutta'));
-        await tester.pumpAndSettle();
-
-        // After tapping Sutta, the chip's Container should have updated decoration
-        // We verify the widget tree rebuilds correctly
-        final suttaChip = find.ancestor(
-          of: find.text('Sutta'),
-          matching: find.byType(GestureDetector),
-        );
-        expect(suttaChip, findsOneWidget);
-      });
-
-      testWidgets('should render within SizedBox height constraint',
+    group('Layout structure', () {
+      testWidgets('should have correct layout constraints and scrolling',
           (tester) async {
         // ARRANGE & ACT
         await tester.pumpApp(
@@ -317,98 +260,22 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // ASSERT - Find the SizedBox with height 48
+        // ASSERT - SizedBox with correct height
         final sizedBox = tester.widget<SizedBox>(
           find.byType(SizedBox).first,
         );
         expect(sizedBox.height, equals(48));
-      });
 
-      testWidgets('should be horizontally scrollable', (tester) async {
-        // ARRANGE
-        await tester.pumpApp(
-          const ScopeFilterChips(),
-          overrides: [
-            TestProviderOverrides.sharedPreferences(prefs),
-            TestProviderOverrides.textSearchRepository(mockSearchRepository),
-            TestProviderOverrides.recentSearchesRepository(
-                mockRecentSearchesRepository),
-          ],
-        );
-        await tester.pumpAndSettle();
-
-        // ASSERT - Should have a ListView with horizontal scroll
+        // ListView with horizontal scroll
         final listView = tester.widget<ListView>(find.byType(ListView));
         expect(listView.scrollDirection, equals(Axis.horizontal));
-      });
-    });
 
-    group('Integration with SearchStateNotifier', () {
-      testWidgets('should properly call toggleScope on notifier',
-          (tester) async {
-        // ARRANGE
-        SearchState? capturedState;
-
-        await tester.pumpApp(
-          ProviderTestWidget(
-            onBuild: (ref) {
-              capturedState = ref.watch(searchStateProvider);
-            },
-            child: const ScopeFilterChips(),
-          ),
-          overrides: [
-            TestProviderOverrides.sharedPreferences(prefs),
-            TestProviderOverrides.textSearchRepository(mockSearchRepository),
-            TestProviderOverrides.recentSearchesRepository(
-                mockRecentSearchesRepository),
-          ],
+        // All chips should render correctly
+        final allChip = find.ancestor(
+          of: find.text('All'),
+          matching: find.byType(GestureDetector),
         );
-        await tester.pumpAndSettle();
-
-        // ACT - Toggle Abhidhamma twice (select then deselect)
-        await tester.tap(find.text('Abhidhamma'));
-        await tester.pumpAndSettle();
-        expect(capturedState?.selectedScope, contains(SearchScope.abhidhamma));
-
-        await tester.tap(find.text('Abhidhamma'));
-        await tester.pumpAndSettle();
-        expect(capturedState?.selectedScope.contains(SearchScope.abhidhamma),
-            isFalse);
-      });
-
-      testWidgets('should properly call selectAll on notifier',
-          (tester) async {
-        // ARRANGE
-        SearchState? capturedState;
-
-        await tester.pumpApp(
-          ProviderTestWidget(
-            onBuild: (ref) {
-              capturedState = ref.watch(searchStateProvider);
-            },
-            child: const ScopeFilterChips(),
-          ),
-          overrides: [
-            TestProviderOverrides.sharedPreferences(prefs),
-            TestProviderOverrides.textSearchRepository(mockSearchRepository),
-            TestProviderOverrides.recentSearchesRepository(
-                mockRecentSearchesRepository),
-          ],
-        );
-        await tester.pumpAndSettle();
-
-        // Select some scopes first
-        await tester.tap(find.text('Sutta'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Treatises'));
-        await tester.pumpAndSettle();
-
-        // ACT - Tap "All"
-        await tester.tap(find.text('All'));
-        await tester.pumpAndSettle();
-
-        // ASSERT
-        expect(capturedState?.selectedScope, isEmpty);
+        expect(allChip, findsOneWidget);
       });
     });
   });

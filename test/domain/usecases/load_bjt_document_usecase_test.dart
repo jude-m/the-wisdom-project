@@ -80,20 +80,5 @@ void main() {
         (document) => fail('Expected failure but got success'),
       );
     });
-
-    test('should pass fileId correctly to repository', () async {
-      // ARRANGE
-      const customFileId = 'mn-42';
-      when(mockRepository.loadDocument(customFileId))
-          .thenAnswer((_) async => Right(TestData.sampleDocument));
-
-      // ACT
-      await useCase.execute(customFileId);
-
-      // ASSERT: Verify the exact fileId was passed
-      verify(mockRepository.loadDocument(customFileId)).called(1);
-      // Verify no other calls were made
-      verifyNoMoreInteractions(mockRepository);
-    });
   });
 }

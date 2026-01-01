@@ -66,33 +66,11 @@ void main() {
       expect(find.text('Sutta 2'), findsOneWidget);
     });
 
-    testWidgets('should show document icon for tabs with content',
+    testWidgets('should show correct icon based on content availability',
         (tester) async {
-      // ARRANGE
+      // ARRANGE - Tab with content and tab without content
       final tabWithContent =
           createTab(label: 'With Content', contentFileId: 'dn-1');
-
-      // ACT
-      await tester.pumpApp(
-        const TabBarWidget(),
-        overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier();
-            notifier.addTab(tabWithContent);
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0),
-        ],
-      );
-      await tester.pumpAndSettle();
-
-      // ASSERT
-      expect(find.byIcon(Icons.description_outlined), findsOneWidget);
-    });
-
-    testWidgets('should show folder icon for tabs without content',
-        (tester) async {
-      // ARRANGE
       final tabWithoutContent =
           createTab(label: 'Folder Tab', contentFileId: null);
 
@@ -102,6 +80,7 @@ void main() {
         overrides: [
           tabsProvider.overrideWith((ref) {
             final notifier = TabsNotifier();
+            notifier.addTab(tabWithContent);
             notifier.addTab(tabWithoutContent);
             return notifier;
           }),
@@ -110,7 +89,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // ASSERT
+      // ASSERT - Document icon for tab with content
+      expect(find.byIcon(Icons.description_outlined), findsOneWidget);
+      // Folder icon for tab without content
       expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
     });
   });
@@ -149,9 +130,10 @@ void main() {
   // Tab Interaction Tests
   // ============================================================
   group('Tab interactions', () {
-    testWidgets('should have close button on each tab', (tester) async {
+    testWidgets('should render tab structure with close button and tooltip',
+        (tester) async {
       // ARRANGE
-      final tab = createTab(label: 'Closable Tab', contentFileId: 'dn-1');
+      final tab = createTab(label: 'Tab', contentFileId: 'dn-1');
 
       // ACT
       await tester.pumpApp(
@@ -167,29 +149,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // ASSERT
+      // ASSERT - Tab should have close button
       expect(find.byIcon(Icons.close), findsOneWidget);
-    });
-
-    testWidgets('should show tooltip with full name', (tester) async {
-      // ARRANGE
-      final tab = createTab(label: 'Short', contentFileId: 'dn-1');
-
-      // ACT
-      await tester.pumpApp(
-        const TabBarWidget(),
-        overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier();
-            notifier.addTab(tab);
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0),
-        ],
-      );
-      await tester.pumpAndSettle();
-
-      // ASSERT - Tooltip widget should exist
+      // Tab should have tooltip for full name
       expect(find.byType(Tooltip), findsOneWidget);
     });
   });
@@ -338,35 +300,7 @@ void main() {
   // Multiple Tabs Tests
   // ============================================================
   group('Multiple tabs', () {
-    testWidgets('should use horizontal ListView for tabs', (tester) async {
-      // ARRANGE
-      final tab1 = createTab(label: 'Tab A', contentFileId: 'file-a');
-      final tab2 = createTab(label: 'Tab B', contentFileId: 'file-b');
-
-      // ACT
-      await tester.pumpApp(
-        const TabBarWidget(),
-        overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier();
-            notifier.addTab(tab1);
-            notifier.addTab(tab2);
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0),
-        ],
-      );
-      await tester.pumpAndSettle();
-
-      // ASSERT - ListView should be horizontal
-      final listView = tester.widget<ListView>(find.byType(ListView));
-      expect(listView.scrollDirection, Axis.horizontal);
-
-      // At least the first tab should be visible
-      expect(find.text('Tab A'), findsOneWidget);
-    });
-
-    testWidgets('should be scrollable to reveal hidden tabs', (tester) async {
+    testWidgets('should use horizontal scrollable ListView', (tester) async {
       // ARRANGE - Create many tabs that won't all fit on screen
       final tabs = List.generate(
         10,
@@ -388,6 +322,10 @@ void main() {
         ],
       );
       await tester.pumpAndSettle();
+
+      // ASSERT - ListView should be horizontal
+      final listView = tester.widget<ListView>(find.byType(ListView));
+      expect(listView.scrollDirection, Axis.horizontal);
 
       // First tab should be visible
       expect(find.text('Tab Number 0'), findsOneWidget);

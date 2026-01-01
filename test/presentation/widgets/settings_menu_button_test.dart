@@ -11,74 +11,31 @@ import '../../helpers/pump_app.dart';
 
 void main() {
   group('SettingsMenuButton', () {
-    testWidgets('should open settings menu when tapped', (tester) async {
+    testWidgets('should render complete settings menu structure', (tester) async {
       await tester.pumpApp(const SettingsMenuButton());
 
       // Initially menu is closed
       expect(find.byType(PopupMenuItem), findsNothing);
 
-      // Tap the settings button
+      // Open menu
       await tester.tap(find.byIcon(Icons.settings));
       await tester.pumpAndSettle();
 
-      // Verify menu items are visible
+      // Verify all sections present
       expect(find.text('Theme'), findsOneWidget);
       expect(find.text('Navigation Language'), findsOneWidget);
       expect(find.text('Sutta Language'), findsOneWidget);
-    });
 
-    testWidgets('should show theme selectors', (tester) async {
-      await tester.pumpApp(const SettingsMenuButton());
-
-      // Open menu
-      await tester.tap(find.byIcon(Icons.settings));
-      await tester.pumpAndSettle();
-
-      // Verify theme options present
+      // Verify all theme options
       expect(find.text('Light'), findsOneWidget);
       expect(find.text('Dark'), findsOneWidget);
       expect(find.text('Warm'), findsOneWidget);
-    });
-
-    testWidgets('should change theme when selected', (tester) async {
-      await tester.pumpApp(const SettingsMenuButton());
-
-      // Open menu
-      await tester.tap(find.byIcon(Icons.settings));
-      await tester.pumpAndSettle();
-
-      // Tap Dark theme
-      await tester.tap(find.text('Dark'));
-      await tester.pumpAndSettle();
-
-      // Verify theme changed (we can check the provider state if needed,
-      // but for widget test verifying interaction is good)
-      // Since PopupMenu closes on selection usually, we might need to reopen
-      // But SegmentedButton might stay open depending on implementation.
-      // Checking the icon selection state is tricky without finding the SegmentedButton widget state.
-      // Instead we can rely on the fact that no error occurred.
-    });
-
-    testWidgets('should show navigation language selectors', (tester) async {
-      await tester.pumpApp(const SettingsMenuButton());
-
-      // Open menu
-      await tester.tap(find.byIcon(Icons.settings));
-      await tester.pumpAndSettle();
 
       // Verify language options
-      expect(find.text('Pali'), findsOneWidget); // Found in both nav and sutta
+      expect(find.text('Pali'), findsOneWidget);
       expect(find.text('සිංහල'), findsOneWidget);
-    });
 
-    testWidgets('should show sutta language options', (tester) async {
-      await tester.pumpApp(const SettingsMenuButton());
-
-      // Open menu
-      await tester.tap(find.byIcon(Icons.settings));
-      await tester.pumpAndSettle();
-
-      // Verify column modes
+      // Verify sutta language (column mode) options
       expect(find.text('P'), findsOneWidget);
       expect(find.text('P+S'), findsOneWidget);
       expect(find.text('S'), findsOneWidget);

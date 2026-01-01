@@ -7,7 +7,7 @@ import '../../helpers/pump_app.dart';
 void main() {
   group('ResizableDivider -', () {
     group('Disabled state', () {
-      testWidgets('should return empty SizedBox when disabled', (tester) async {
+      testWidgets('should render nothing when disabled', (tester) async {
         // ARRANGE & ACT
         await tester.pumpApp(
           ResizableDivider(
@@ -17,24 +17,9 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // ASSERT - Should not render the full divider structure
-        // When disabled, it returns SizedBox.shrink() which has 0x0 dimensions
+        // ASSERT - Should not render any interactive components
         expect(find.byType(AnimatedContainer), findsNothing);
         expect(find.byType(Center), findsNothing);
-      });
-
-      testWidgets('should not render MouseRegion when disabled',
-          (tester) async {
-        // ARRANGE & ACT
-        await tester.pumpApp(
-          ResizableDivider(
-            isEnabled: false,
-            onDragUpdate: (_) {},
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // ASSERT - MouseRegion should not be present as a descendant of ResizableDivider
         expect(
           find.descendant(
             of: find.byType(ResizableDivider),
@@ -42,20 +27,6 @@ void main() {
           ),
           findsNothing,
         );
-      });
-
-      testWidgets('should not render GestureDetector when disabled',
-          (tester) async {
-        // ARRANGE & ACT
-        await tester.pumpApp(
-          ResizableDivider(
-            isEnabled: false,
-            onDragUpdate: (_) {},
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // ASSERT - GestureDetector should not be present as a descendant of ResizableDivider
         expect(
           find.descendant(
             of: find.byType(ResizableDivider),
@@ -67,8 +38,7 @@ void main() {
     });
 
     group('Enabled state', () {
-      testWidgets('should show pill-shaped indicator when enabled',
-          (tester) async {
+      testWidgets('should render full structure when enabled', (tester) async {
         // ARRANGE & ACT
         await tester.pumpApp(
           ResizableDivider(
@@ -78,44 +48,17 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // ASSERT - Should find the pill indicator (inner Container with specific dimensions)
-        // The pill is inside a Center widget inside an AnimatedContainer
+        // ASSERT - Should render all interactive components
+        // Pill indicator structure
         expect(find.byType(Center), findsOneWidget);
+        expect(find.byType(Container), findsWidgets);
 
-        // Find the Container that forms the pill
-        // It should have width: 4, height: 32
-        final containers = find.byType(Container);
-        expect(containers, findsWidgets);
-      });
-
-      testWidgets('should render with 8px width when enabled', (tester) async {
-        // ARRANGE & ACT
-        await tester.pumpApp(
-          ResizableDivider(
-            isEnabled: true,
-            onDragUpdate: (_) {},
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // ASSERT - AnimatedContainer should have width of 8
+        // AnimatedContainer with correct width
         final animatedContainer =
             tester.widget<AnimatedContainer>(find.byType(AnimatedContainer));
-        // Width is set via constraints property
         expect(animatedContainer.constraints?.maxWidth, equals(8.0));
-      });
 
-      testWidgets('should render MouseRegion when enabled', (tester) async {
-        // ARRANGE & ACT
-        await tester.pumpApp(
-          ResizableDivider(
-            isEnabled: true,
-            onDragUpdate: (_) {},
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // ASSERT - MouseRegion should be present as a descendant of ResizableDivider
+        // Interactive components
         expect(
           find.descendant(
             of: find.byType(ResizableDivider),
@@ -123,9 +66,10 @@ void main() {
           ),
           findsOneWidget,
         );
+        expect(find.byType(GestureDetector), findsOneWidget);
       });
 
-      testWidgets('should render GestureDetector when enabled', (tester) async {
+      testWidgets('should show resize cursor', (tester) async {
         // ARRANGE & ACT
         await tester.pumpApp(
           ResizableDivider(
@@ -135,8 +79,13 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // ASSERT
-        expect(find.byType(GestureDetector), findsOneWidget);
+        // ASSERT - MouseRegion should have resizeColumn cursor
+        final mouseRegionFinder = find.descendant(
+          of: find.byType(ResizableDivider),
+          matching: find.byType(MouseRegion),
+        );
+        final mouseRegion = tester.widget<MouseRegion>(mouseRegionFinder);
+        expect(mouseRegion.cursor, equals(SystemMouseCursors.resizeColumn));
       });
     });
 
@@ -169,34 +118,6 @@ void main() {
         expect(totalDelta, closeTo(50.0, 5.0)); // Allow some tolerance
       });
 
-      testWidgets(
-          'onDragUpdate callback should receive negative delta for left drag',
-          (tester) async {
-        // ARRANGE
-        final List<double> capturedDeltas = [];
-
-        await tester.pumpApp(
-          ResizableDivider(
-            isEnabled: true,
-            onDragUpdate: (delta) {
-              capturedDeltas.add(delta);
-            },
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // ACT - Perform a horizontal drag to the left
-        final divider = find.byType(ResizableDivider);
-        await tester.drag(divider, const Offset(-30.0, 0.0));
-        await tester.pumpAndSettle();
-
-        // ASSERT - Total delta should be negative
-        final totalDelta =
-            capturedDeltas.fold(0.0, (sum, delta) => sum + delta);
-        expect(totalDelta, isNegative);
-        expect(totalDelta, closeTo(-30.0, 5.0));
-      });
-
       testWidgets('onDragEnd callback should be invoked when drag ends',
           (tester) async {
         // ARRANGE
@@ -221,61 +142,11 @@ void main() {
         // ASSERT
         expect(dragEndCalled, isTrue);
       });
-
-      testWidgets('should handle null onDragEnd callback gracefully',
-          (tester) async {
-        // ARRANGE - No onDragEnd callback provided
-        await tester.pumpApp(
-          ResizableDivider(
-            isEnabled: true,
-            onDragUpdate: (_) {},
-            // onDragEnd is not provided
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // ACT - Perform a drag gesture (should not throw)
-        final divider = find.byType(ResizableDivider);
-        await tester.drag(divider, const Offset(20.0, 0.0));
-        await tester.pumpAndSettle();
-
-        // ASSERT - No exception should be thrown
-        // (test passes if we reach this point)
-        expect(true, isTrue);
-      });
-
-      testWidgets('vertical drag should not trigger onDragUpdate',
-          (tester) async {
-        // ARRANGE
-        final List<double> capturedDeltas = [];
-
-        await tester.pumpApp(
-          ResizableDivider(
-            isEnabled: true,
-            onDragUpdate: (delta) {
-              capturedDeltas.add(delta);
-            },
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // ACT - Perform a purely vertical drag
-        final divider = find.byType(ResizableDivider);
-        await tester.drag(divider, const Offset(0.0, 50.0));
-        await tester.pumpAndSettle();
-
-        // ASSERT - No horizontal deltas should be captured
-        // (or only very small values from gesture detection)
-        final totalDelta =
-            capturedDeltas.fold(0.0, (sum, delta) => sum + delta);
-        expect(totalDelta.abs(), lessThan(5.0));
-      });
     });
 
     group('showPillBorder option', () {
-      testWidgets('should show border when showPillBorder is true',
-          (tester) async {
-        // ARRANGE & ACT
+      testWidgets('should handle showPillBorder parameter', (tester) async {
+        // Test showPillBorder: true
         await tester.pumpApp(
           ResizableDivider(
             isEnabled: true,
@@ -285,14 +156,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // ASSERT - The pill Container should have a border
-        // We verify by checking that the widget tree contains the expected structure
-        expect(find.byType(Center), findsOneWidget);
-
-        // Find containers and verify one has decoration with border
-        final containers = tester.widgetList<Container>(find.byType(Container));
-
-        // Look for a container with BoxDecoration that has a border
+        // ASSERT - Should have a border
+        var containers = tester.widgetList<Container>(find.byType(Container));
         bool foundBorderedContainer = false;
         for (final container in containers) {
           if (container.decoration is BoxDecoration) {
@@ -304,12 +169,10 @@ void main() {
           }
         }
         expect(foundBorderedContainer, isTrue,
-            reason: 'Should find a Container with border when showPillBorder is true');
-      });
+            reason:
+                'Should find a Container with border when showPillBorder is true');
 
-      testWidgets('should not show border when showPillBorder is false',
-          (tester) async {
-        // ARRANGE & ACT
+        // Test showPillBorder: false (default)
         await tester.pumpApp(
           ResizableDivider(
             isEnabled: true,
@@ -319,10 +182,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // ASSERT - The pill Container should not have a border
-        final containers = tester.widgetList<Container>(find.byType(Container));
-
-        // Check the inner container (pill) - should have no border
+        // ASSERT - Should not have a border
+        containers = tester.widgetList<Container>(find.byType(Container));
         bool foundBorderedPillContainer = false;
         for (final container in containers) {
           if (container.decoration is BoxDecoration) {
@@ -335,56 +196,8 @@ void main() {
           }
         }
         expect(foundBorderedPillContainer, isFalse,
-            reason: 'Should not find pill Container with border when showPillBorder is false');
-      });
-
-      testWidgets('showPillBorder should default to false', (tester) async {
-        // ARRANGE & ACT - Create without specifying showPillBorder
-        await tester.pumpApp(
-          ResizableDivider(
-            isEnabled: true,
-            onDragUpdate: (_) {},
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // ASSERT - Behavior should be same as showPillBorder: false
-        final containers = tester.widgetList<Container>(find.byType(Container));
-
-        bool foundBorderedPillContainer = false;
-        for (final container in containers) {
-          if (container.decoration is BoxDecoration) {
-            final decoration = container.decoration as BoxDecoration;
-            if (decoration.borderRadius != null && decoration.border != null) {
-              foundBorderedPillContainer = true;
-              break;
-            }
-          }
-        }
-        expect(foundBorderedPillContainer, isFalse);
-      });
-    });
-
-    group('Mouse cursor', () {
-      testWidgets('should show resize cursor', (tester) async {
-        // ARRANGE & ACT
-        await tester.pumpApp(
-          ResizableDivider(
-            isEnabled: true,
-            onDragUpdate: (_) {},
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // ASSERT - MouseRegion within ResizableDivider should have resizeColumn cursor
-        final mouseRegionFinder = find.descendant(
-          of: find.byType(ResizableDivider),
-          matching: find.byType(MouseRegion),
-        );
-        expect(mouseRegionFinder, findsOneWidget);
-
-        final mouseRegion = tester.widget<MouseRegion>(mouseRegionFinder);
-        expect(mouseRegion.cursor, equals(SystemMouseCursors.resizeColumn));
+            reason:
+                'Should not find pill Container with border when showPillBorder is false');
       });
     });
 

@@ -69,3 +69,4 @@ tools/*.csv
 assets/databases/*.db
 
 # Temporary documents that should be deleted
+TEST_AUDIT_REPORT.md

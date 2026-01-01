@@ -123,27 +123,6 @@ void main() {
       expect(capturedState?.isResultsPanelVisible, isFalse);
     });
 
-    testWidgets('should show exact match toggle button', (tester) async {
-      // ARRANGE
-      when(mockRecentSearchesRepository.getRecentSearches())
-          .thenAnswer((_) async => []);
-
-      // ACT
-      await tester.pumpApp(
-        const app_search.SearchBar(),
-        overrides: [
-          TestProviderOverrides.sharedPreferences(prefs),
-          TestProviderOverrides.textSearchRepository(mockSearchRepository),
-          TestProviderOverrides.recentSearchesRepository(
-              mockRecentSearchesRepository),
-        ],
-      );
-      await tester.pumpAndSettle();
-
-      // ASSERT - Exact match toggle button (ABC icon) should be visible
-      expect(find.byIcon(Icons.abc), findsOneWidget);
-    });
-
     testWidgets('should toggle exact match when toggle button pressed',
         (tester) async {
       // ARRANGE

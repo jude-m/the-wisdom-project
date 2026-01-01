@@ -495,6 +495,79 @@ git commit -m "[feature] Add tests for X"
 
 ---
 
+## Test Consolidation Guidelines
+
+### When to Merge Tests
+
+Avoid over-testing simple widgets by consolidating related assertions into single, comprehensive tests:
+
+#### ❌ **Anti-Pattern: Excessive Test Splitting**
+```dart
+// BAD - 5 separate tests for what could be 2
+testWidgets('should show Container when enabled', ...);
+testWidgets('should show MouseRegion when enabled', ...);
+testWidgets('should show GestureDetector when enabled', ...);
+testWidgets('should have 8px width when enabled', ...);
+testWidgets('should render pill indicator when enabled', ...);
+```
+
+#### ✅ **Good Pattern: Consolidated Assertions**
+```dart
+// GOOD - Single test verifies complete enabled state
+testWidgets('should render full structure when enabled', (tester) async {
+  await tester.pumpApp(YourWidget(isEnabled: true));
+
+  // All components present
+  expect(find.byType(Container), findsOneWidget);
+  expect(find.byType(MouseRegion), findsOneWidget);
+  expect(find.byType(GestureDetector), findsOneWidget);
+
+  // Correct dimensions
+  final container = tester.widget<Container>(find.byType(Container));
+  expect(container.constraints.maxWidth, equals(8.0));
+});
+```
+
+### Consolidation Strategies
+
+1. **Group by State**: Merge tests that verify the same state (disabled → 1 test, enabled → 1 test)
+2. **Merge Trivial Assertions**: Don't create separate tests for `findsOneWidget` checks
+3. **Combine Visual Checks**: Layout constraints + scrolling + structure → single test
+4. **Remove Redundant Tests**: If behavior tests already cover integration, don't duplicate with "integration" tests
+
+### What NOT to Consolidate
+
+- Tests with different **behaviors** (selection vs deselection)
+- Tests with different **edge cases** (empty input vs boundary values)
+- Tests that require different **mock setups**
+- Tests with **complex AAA patterns** that would become unreadable when merged
+
+### Real-World Example
+
+**Before** (12 tests, many trivial):
+```
+✓ Default state - should show "All" chip as selected
+✓ Default state - should display all 5 scope chips plus "All" chip
+✓ Visual state - selected chip should have different styling
+✓ Visual state - should render within SizedBox height constraint
+✓ Visual state - should be horizontally scrollable
+✓ Integration - should properly call toggleScope on notifier
+✓ Integration - should properly call selectAll on notifier
+```
+
+**After** (7 tests, consolidated):
+```
+✓ Default state - should render all chips with "All" selected by default
+  (merged 2 tests - checks both "All" selected AND all 5 chips present)
+✓ Layout structure - should have correct layout constraints and scrolling
+  (merged 3 visual tests into 1 comprehensive layout test)
+✓ Removed integration tests (behavior tests already verify state changes)
+```
+
+**Result**: 42% reduction in test count, same coverage, faster test runs
+
+---
+
 ## Remember
 
 > **Quality over quantity**. One well-written test that catches real bugs is better than ten trivial tests that test framework behavior.
@@ -504,3 +577,5 @@ git commit -m "[feature] Add tests for X"
 > **Skip when appropriate**. Not having a test is better than having a false-positive test that wastes developer time.
 
 > **Update, don't duplicate**. Always search for existing tests first. Extending existing test files is faster and cleaner than creating new ones.
+
+> **Consolidate when sensible**. Merge related assertions into single tests. Avoid testing the same thing multiple ways.

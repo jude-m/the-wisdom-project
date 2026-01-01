@@ -60,7 +60,35 @@ test('returns right', ...);  test('debounces search by 300ms', ...);
 | Tests framework behavior (MediaQuery, String.trim) | Remove |
 | Tests trivial code (getters, Freezed constructors) | Remove |
 | Over-tests stable algorithm (30+ transliteration tests) | Reduce to 5-10 |
-| Duplicate coverage (same check at unit + widget level) | Keep one | Show merge options
+| Duplicate coverage (same check at unit + widget level) | Keep one | Show merge options |
+| Tests fixtures (TestData.rootNode.nodeKey == 'sp') | Remove - testing test infrastructure |
+| Trivial assertion only (`expect(true, isTrue)`) | Remove - provides zero value |
+
+### 7. Over-Testing Simple Widgets
+**Flag when tests can be consolidated:**
+
+```dart
+// 🔴 BAD - 5 separate tests for simple widget structure
+testWidgets('should show Container when enabled', ...);
+testWidgets('should show MouseRegion when enabled', ...);
+testWidgets('should show GestureDetector when enabled', ...);
+testWidgets('should show pill indicator when enabled', ...);
+testWidgets('should have 8px width when enabled', ...);
+
+// 🟢 GOOD - Single comprehensive test
+testWidgets('should render full structure when enabled', (tester) async {
+  // Verify all components + dimensions in one test
+  expect(find.byType(Container), findsOneWidget);
+  expect(find.byType(MouseRegion), findsOneWidget);
+  expect(container.constraints.maxWidth, equals(8.0));
+});
+```
+
+**Consolidation Checklist:**
+- [ ] Multiple tests verify same state → merge into 1
+- [ ] Visual tests only check widget existence → merge with layout test
+- [ ] Integration tests duplicate behavior tests → remove integration tests
+- [ ] Default parameter tests → merge all cases into single parametric test
 
 ---
 
