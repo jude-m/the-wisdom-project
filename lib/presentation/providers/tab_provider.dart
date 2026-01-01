@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/constants.dart';
 import '../models/reader_tab.dart';
 import '../../domain/entities/search/search_result.dart';
+import 'navigation_tree_provider.dart';
+import 'navigator_sync_provider.dart';
 
 /// State notifier for managing the list of reader tabs
 class TabsNotifier extends StateNotifier<List<ReaderTab>> {
@@ -187,6 +190,9 @@ final switchTabProvider = Provider<void Function(int)>((ref) {
   return (int newTabIndex) {
     // Just update the active tab index - all content state is derived automatically
     ref.read(activeTabIndexProvider.notifier).state = newTabIndex;
+
+    // Sync navigator to the new active tab
+    ref.read(syncNavigatorToActiveTabProvider)();
   };
 });
 
@@ -234,12 +240,20 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
       // activePageIndexProvider will update based on the new active tab
 
       if (newActiveIndex < 0) {
-        // No tabs left - clear all scroll positions
+        // No tabs left - reset to initial state
         ref.read(tabScrollPositionsProvider.notifier).state = {};
+        ref.read(selectedNodeProvider.notifier).state = null;
+        ref.read(expandedNodesProvider.notifier).state = {kSuttaPitakaNodeKey};
+      } else {
+        // Sync navigator to the new active tab
+        ref.read(syncNavigatorToActiveTabProvider)();
       }
     } else if (tabIndex < currentTabIndex) {
       // If we closed a tab before the active one, adjust the active index
       ref.read(activeTabIndexProvider.notifier).state = currentTabIndex - 1;
+
+      // Sync navigator to the adjusted active tab
+      ref.read(syncNavigatorToActiveTabProvider)();
     }
   };
 });
@@ -270,5 +284,8 @@ final openTabFromSearchResultProvider =
     // - activePageStartProvider, activePageEndProvider, activeEntryStartProvider
     final newIndex = ref.read(tabsProvider.notifier).addTab(newTab);
     ref.read(activeTabIndexProvider.notifier).state = newIndex;
+
+    // Sync navigator to the new active tab
+    ref.read(syncNavigatorToActiveTabProvider)();
   };
 });

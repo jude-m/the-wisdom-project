@@ -5,76 +5,123 @@ import '../models/reader_tab.dart';
 import '../providers/navigation_tree_provider.dart';
 import '../providers/tab_provider.dart';
 
-class TreeNavigatorWidget extends ConsumerWidget {
+class TreeNavigatorWidget extends ConsumerStatefulWidget {
   const TreeNavigatorWidget({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TreeNavigatorWidget> createState() =>
+      _TreeNavigatorWidgetState();
+}
+
+class _TreeNavigatorWidgetState extends ConsumerState<TreeNavigatorWidget> {
+  // Store GlobalKeys for each node to enable scroll-to-selected
+  final Map<String, GlobalKey> _nodeKeys = {};
+
+  GlobalKey _getKeyForNode(String nodeKey) {
+    return _nodeKeys.putIfAbsent(nodeKey, () => GlobalKey());
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final treeAsync = ref.watch(navigationTreeProvider);
 
-    return Column(
-      children: [
-        // Tree content
-        Expanded(
-          child: treeAsync.when(
-            data: (rootNodes) {
-              if (rootNodes.isEmpty) {
-                return const Center(
-                  child: Text('No content available'),
-                );
-              }
+    // Listen to scroll requests (only triggered by tab switch/search, not manual nav clicks)
+    ref.listen<String?>(scrollToNodeRequestProvider, (previous, next) {
+      if (next != null && next != previous) {
+        _scrollToSelectedNode(next);
+      }
+    });
 
-              return ListView.builder(
-                itemCount: rootNodes.length,
-                itemBuilder: (context, index) {
-                  return TreeNodeWidget(
-                    node: rootNodes[index],
-                    level: 0,
-                  );
-                },
-              );
-            },
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
-            error: (error, stack) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        size: 48, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Error loading navigation tree',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      error.toString(),
-                      style: Theme.of(context).textTheme.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+    return treeAsync.when(
+      data: (rootNodes) {
+        if (rootNodes.isEmpty) {
+          return const Center(
+            child: Text('No content available'),
+          );
+        }
+
+        return ListView.builder(
+          itemCount: rootNodes.length,
+          itemBuilder: (context, index) {
+            return TreeNodeWidget(
+              node: rootNodes[index],
+              level: 0,
+              getKeyForNode: _getKeyForNode,
+            );
+          },
+        );
+      },
+      loading: () => const Center(
+        child: CircularProgressIndicator(),
+      ),
+      error: (error, stack) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(
+                'Error loading navigation tree',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-            ),
+              const SizedBox(height: 8),
+              Text(
+                error.toString(),
+                style: Theme.of(context).textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
+  }
+
+  /// Scrolls to the selected node in the tree.
+  /// Uses a retry mechanism to wait for the node to be rendered after expansion.
+  void _scrollToSelectedNode(String nodeKey) {
+    _attemptScrollToNode(nodeKey, retriesRemaining: 5);
+  }
+
+  /// Attempts to scroll to a node, retrying if the node isn't rendered yet.
+  /// This handles the async nature of tree expansion and layout.
+  void _attemptScrollToNode(String nodeKey, {required int retriesRemaining}) {
+    if (!mounted || retriesRemaining <= 0) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      final key = _nodeKeys[nodeKey];
+      final context = key?.currentContext;
+
+      if (context != null) {
+        // Node is rendered, scroll to it
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          alignment: 0.2, // Position at 20% from top
+        );
+      } else {
+        // Node not yet rendered, retry after next frame
+        _attemptScrollToNode(nodeKey, retriesRemaining: retriesRemaining - 1);
+      }
+    });
   }
 }
 
 class TreeNodeWidget extends ConsumerWidget {
   final TipitakaTreeNode node;
   final int level;
+  final GlobalKey Function(String nodeKey) getKeyForNode;
 
   const TreeNodeWidget({
     super.key,
     required this.node,
     required this.level,
+    required this.getKeyForNode,
   });
 
   @override
@@ -92,6 +139,7 @@ class TreeNodeWidget extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
+          key: getKeyForNode(node.nodeKey),
           padding: EdgeInsets.only(
             left: 16.0 + (level * 20.0),
             right: 16.0,
@@ -104,7 +152,7 @@ class TreeNodeWidget extends ConsumerWidget {
                 : null,
             border: Border(
               bottom: BorderSide(
-                color: Theme.of(context).dividerColor.withOpacity(0.3),
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
                 width: 0.5,
               ),
             ),
@@ -173,7 +221,7 @@ class TreeNodeWidget extends ConsumerWidget {
                             : Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(0.6),
+                                .withValues(alpha: 0.6),
                       ),
                       const SizedBox(width: 8),
 
@@ -208,6 +256,7 @@ class TreeNodeWidget extends ConsumerWidget {
             return TreeNodeWidget(
               node: childNode,
               level: level + 1,
+              getKeyForNode: getKeyForNode,
             );
           }),
       ],
