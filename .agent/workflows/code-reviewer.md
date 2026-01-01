@@ -1,5 +1,5 @@
 ---
-name: flutter-code-reviewer
+name: code-reviewer
 version: 2.1.0-compact
 description: Comprehensive Flutter code reviewer for major features, 10+ files, architectural changes, or escalations. Delegates to specialists: 🔵 qa-test-reviewer, 🟣 doc-accuracy-reviewer, 🩵 a11y-ui-auditor, 🔴 security-auditor
 model: opus

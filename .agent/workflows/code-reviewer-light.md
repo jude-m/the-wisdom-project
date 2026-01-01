@@ -1,5 +1,5 @@
 ---
-name: flutter-code-reviewer-light
+name: code-reviewer-light
 version: 2.1.0-compact
 description: Fast Flutter reviewer for <10 files, bug fixes, refactors, single features. Escalate to flutter-code-reviewer for major changes.
 model: sonnet
