@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/constants.dart';
 import '../../data/datasources/tree_local_datasource.dart';
 import '../../data/repositories/navigation_tree_repository_impl.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
@@ -37,11 +38,16 @@ final navigationTreeProvider =
   );
 });
 
-// State for expanded nodes
-final expandedNodesProvider = StateProvider<Set<String>>((ref) => {});
+// State for expanded nodes - Sutta Pitaka expanded by default
+final expandedNodesProvider =
+    StateProvider<Set<String>>((ref) => {kSuttaPitakaNodeKey});
 
 // State for selected node
 final selectedNodeProvider = StateProvider<String?>((ref) => null);
+
+// State for scroll-to-node requests (only set by sync, not manual selection)
+// This separates "selection" from "scroll request"
+final scrollToNodeRequestProvider = StateProvider<String?>((ref) => null);
 
 // State for navigation language preference
 final navigationLanguageProvider = StateProvider<NavigationLanguage>((ref) {
