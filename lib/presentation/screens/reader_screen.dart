@@ -8,9 +8,12 @@ import '../widgets/tab_bar_widget.dart';
 import '../widgets/settings_menu_button.dart';
 import '../widgets/search_bar.dart' as app;
 import '../widgets/search_results_panel.dart';
+import '../widgets/resizable_divider.dart';
 import '../providers/navigator_visibility_provider.dart';
 import '../providers/tab_provider.dart';
 import '../providers/search_provider.dart';
+import '../providers/pane_width_provider.dart';
+import '../../core/constants/constants.dart';
 import '../../domain/entities/search/search_result.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
@@ -51,17 +54,30 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Widget build(BuildContext context) {
     final ref = this.ref;
     final screenWidth = ResponsiveUtils.screenWidth(context);
-    final isDesktop = ResponsiveUtils.isDesktop(context);
     final isMobile = ResponsiveUtils.isMobile(context);
+    final isTabletOrDesktop = ResponsiveUtils.isTabletOrDesktop(context);
     final navigatorVisible = ref.watch(navigatorVisibleProvider);
 
     // Watch search state to show/hide search panel
     final searchState = ref.watch(searchStateProvider);
 
-    // Calculate panel width: half of reader pane (screen minus navigator)
-    final navigatorWidth = (isDesktop && navigatorVisible) ? 350.0 : 0.0;
-    final readerWidth = screenWidth - navigatorWidth;
-    final panelWidth = readerWidth / 2;
+    // Watch pane widths from providers
+    final navigatorWidth = ref.watch(navigatorWidthProvider);
+    final searchPanelWidth = ref.watch(searchPanelWidthProvider);
+
+    // Calculate effective navigator width (0 if hidden or on mobile)
+    final effectiveNavWidth =
+        (isTabletOrDesktop && navigatorVisible) ? navigatorWidth : 0.0;
+
+    // Calculate dynamic max for search panel (ensure 400px reader content)
+    final searchPanelMaxWidth = (screenWidth - effectiveNavWidth - 400.0)
+        .clamp(PaneWidthConstants.searchMin, PaneWidthConstants.searchMaxAbsolute);
+
+    // Clamp search panel width to dynamic max
+    final effectiveSearchWidth = searchPanelWidth.clamp(
+      PaneWidthConstants.searchMin,
+      searchPanelMaxWidth,
+    );
 
     return KeyboardListener(
       focusNode: _keyboardFocusNode,
@@ -95,13 +111,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         ),
         body: Stack(
           children: [
-            // Main reader layout
+            // Main reader layout - Navigator full height, Divider below tab bar
             Row(
               children: [
-                // Tree Navigator (left side) - desktop only when visible
-                if (isDesktop && navigatorVisible)
+                // Navigator (full height, left side)
+                if (isTabletOrDesktop && navigatorVisible)
                   SizedBox(
-                    width: 350,
+                    width: navigatorWidth,
                     child: Container(
                       decoration: BoxDecoration(
                         border: Border(
@@ -115,16 +131,34 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                     ),
                   ),
 
-                // Reader area with tabs (right side)
-                const Expanded(
+                // Reader area with tabs and divider
+                Expanded(
                   child: Column(
                     children: [
-                      // Tab bar
-                      TabBarWidget(),
-
-                      // Multi-Pane Reader
+                      // Tab bar (full width of this column)
+                      const TabBarWidget(),
+                      // Content area with divider + reader
                       Expanded(
-                        child: MultiPaneReaderWidget(),
+                        child: Row(
+                          children: [
+                            // Resizable divider (only in content area, below tab bar)
+                            if (isTabletOrDesktop && navigatorVisible)
+                              ResizableDivider(
+                                isEnabled: isTabletOrDesktop,
+                                onDragUpdate: (delta) {
+                                  final newWidth = navigatorWidth + delta;
+                                  ref
+                                      .read(navigatorWidthProvider.notifier)
+                                      .state = newWidth.clamp(
+                                    PaneWidthConstants.navigatorMin,
+                                    PaneWidthConstants.navigatorMax,
+                                  );
+                                },
+                              ),
+                            // Reader content
+                            const Expanded(child: MultiPaneReaderWidget()),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -132,8 +166,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               ],
             ),
 
-            // Mobile: Full-screen navigator overlay
-            if (!isDesktop && navigatorVisible)
+            // Mobile: Full-screen navigator overlay (tablet/desktop use sidebar)
+            if (isMobile && navigatorVisible)
               Positioned.fill(
                 child: Material(
                   color: Theme.of(context).colorScheme.surface,
@@ -179,10 +213,30 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   right: 0,
                   top: 0,
                   bottom: 0,
-                  width: panelWidth.clamp(350, 500),
-                  child: SearchResultsPanel(
-                    onClose: _closeSearchPanel,
-                    onResultTap: _handleSearchResultTap,
+                  width: effectiveSearchWidth + PaneWidthConstants.dividerWidth,
+                  child: Row(
+                    children: [
+                      // Resizable divider on left edge of search panel
+                      ResizableDivider(
+                        isEnabled: isTabletOrDesktop,
+                        showPillBorder: true, // More visible on dark background
+                        onDragUpdate: (delta) {
+                          // Negative delta (drag left) = wider panel
+                          final newWidth = searchPanelWidth - delta;
+                          ref.read(searchPanelWidthProvider.notifier).state =
+                              newWidth.clamp(
+                            PaneWidthConstants.searchMin,
+                            searchPanelMaxWidth,
+                          );
+                        },
+                      ),
+                      Expanded(
+                        child: SearchResultsPanel(
+                          onClose: _closeSearchPanel,
+                          onResultTap: _handleSearchResultTap,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
             ],
