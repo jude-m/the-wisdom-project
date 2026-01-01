@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:the_wisdom_project/core/constants/constants.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
+import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 
@@ -284,6 +286,258 @@ void main() {
       // Pagination is now derived from the active tab, not restored to global providers
       expect(container.read(activePageStartProvider), equals(3));
       expect(container.read(activePageEndProvider), equals(8));
+    });
+  });
+
+  group('closeTabProvider -', () {
+    late ProviderContainer container;
+
+    setUp(() {
+      container = ProviderContainer();
+    });
+
+    tearDown(() {
+      container.dispose();
+    });
+
+    test('closing active tab should select previous tab', () {
+      // ARRANGE - Add 3 tabs and make the last one active
+      final notifier = container.read(tabsProvider.notifier);
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
+
+      // Set the last tab (index 2) as active
+      container.read(activeTabIndexProvider.notifier).state = 2;
+      expect(container.read(activeTabIndexProvider), equals(2));
+
+      // ACT - Close the active tab (index 2)
+      container.read(closeTabProvider)(2);
+
+      // ASSERT - Should select previous tab (index 1)
+      expect(container.read(activeTabIndexProvider), equals(1));
+      expect(container.read(tabsProvider).length, equals(2));
+      expect(container.read(activeContentFileIdProvider), equals('mn-1'));
+    });
+
+    test('closing active tab when it is the first tab should select next tab',
+        () {
+      // ARRANGE - Add 2 tabs and make the first one active
+      final notifier = container.read(tabsProvider.notifier);
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+
+      container.read(activeTabIndexProvider.notifier).state = 0;
+
+      // ACT - Close the first tab (index 0)
+      container.read(closeTabProvider)(0);
+
+      // ASSERT - Should select the next tab (which is now at index 0)
+      expect(container.read(activeTabIndexProvider), equals(0));
+      expect(container.read(tabsProvider).length, equals(1));
+      expect(container.read(activeContentFileIdProvider), equals('mn-1'));
+    });
+
+    test('closing the only tab should set activeTabIndex to -1', () {
+      // ARRANGE - Add only 1 tab and make it active
+      final notifier = container.read(tabsProvider.notifier);
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+      container.read(activeTabIndexProvider.notifier).state = 0;
+
+      // ACT - Close the only tab
+      container.read(closeTabProvider)(0);
+
+      // ASSERT - activeTabIndex should be -1 (no tabs)
+      expect(container.read(activeTabIndexProvider), equals(-1));
+      expect(container.read(tabsProvider), isEmpty);
+      expect(container.read(activeContentFileIdProvider), isNull);
+    });
+
+    test('closing tab before active should adjust activeTabIndex correctly',
+        () {
+      // ARRANGE - Add 3 tabs and make the last one (index 2) active
+      final notifier = container.read(tabsProvider.notifier);
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
+
+      container.read(activeTabIndexProvider.notifier).state = 2;
+
+      // ACT - Close the first tab (index 0), which is before the active tab
+      container.read(closeTabProvider)(0);
+
+      // ASSERT - Active tab index should be adjusted from 2 to 1
+      expect(container.read(activeTabIndexProvider), equals(1));
+      expect(container.read(tabsProvider).length, equals(2));
+      // The active tab content should still be sn-1
+      expect(container.read(activeContentFileIdProvider), equals('sn-1'));
+    });
+
+    test('closing tab after active should not change activeTabIndex', () {
+      // ARRANGE - Add 3 tabs and make the first one (index 0) active
+      final notifier = container.read(tabsProvider.notifier);
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
+
+      container.read(activeTabIndexProvider.notifier).state = 0;
+
+      // ACT - Close the last tab (index 2), which is after the active tab
+      container.read(closeTabProvider)(2);
+
+      // ASSERT - Active tab index should remain 0
+      expect(container.read(activeTabIndexProvider), equals(0));
+      expect(container.read(tabsProvider).length, equals(2));
+      expect(container.read(activeContentFileIdProvider), equals('dn-1'));
+    });
+
+    test('scroll positions should be shifted correctly after close', () {
+      // ARRANGE - Add 3 tabs with scroll positions
+      final notifier = container.read(tabsProvider.notifier);
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
+
+      // Set scroll positions for all tabs
+      container.read(saveTabScrollPositionProvider)(0, 100.0);
+      container.read(saveTabScrollPositionProvider)(1, 200.0);
+      container.read(saveTabScrollPositionProvider)(2, 300.0);
+
+      container.read(activeTabIndexProvider.notifier).state = 2;
+
+      // ACT - Close tab at index 1
+      container.read(closeTabProvider)(1);
+
+      // ASSERT - Scroll positions should be shifted
+      // Tab 0 remains at position 100.0
+      // Tab 2 (now at index 1) should have position 300.0
+      expect(container.read(getTabScrollPositionProvider)(0), equals(100.0));
+      expect(container.read(getTabScrollPositionProvider)(1), equals(300.0));
+      // Position for removed index should return default (0.0)
+      expect(container.read(getTabScrollPositionProvider)(2), equals(0.0));
+    });
+
+    test('closing the only tab should clear selectedNode', () {
+      // ARRANGE - Add 1 tab and set a selected node
+      final notifier = container.read(tabsProvider.notifier);
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+      container.read(activeTabIndexProvider.notifier).state = 0;
+      container.read(selectedNodeProvider.notifier).state = 'dn-1';
+
+      // ACT - Close the only tab
+      container.read(closeTabProvider)(0);
+
+      // ASSERT - selectedNode should be null
+      expect(container.read(selectedNodeProvider), isNull);
+    });
+
+    test('closing the only tab should reset expandedNodes to default', () {
+      // ARRANGE - Add 1 tab and expand some nodes
+      final notifier = container.read(tabsProvider.notifier);
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+      container.read(activeTabIndexProvider.notifier).state = 0;
+      container.read(expandedNodesProvider.notifier).state = {'dn', 'mn', 'sn'};
+
+      // ACT - Close the only tab
+      container.read(closeTabProvider)(0);
+
+      // ASSERT - expandedNodes should reset to default (Sutta Pitaka)
+      expect(container.read(expandedNodesProvider), equals({kSuttaPitakaNodeKey}));
+    });
+
+    test('closing the only tab should clear scroll positions', () {
+      // ARRANGE - Add 1 tab with scroll position
+      final notifier = container.read(tabsProvider.notifier);
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+      container.read(activeTabIndexProvider.notifier).state = 0;
+      container.read(saveTabScrollPositionProvider)(0, 500.0);
+
+      // ACT - Close the only tab
+      container.read(closeTabProvider)(0);
+
+      // ASSERT - Scroll positions should be empty
+      expect(container.read(tabScrollPositionsProvider), isEmpty);
+    });
+
+    test('closing middle tab should correctly shift scroll positions', () {
+      // ARRANGE - Add 4 tabs with scroll positions
+      final notifier = container.read(tabsProvider.notifier);
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'an-1', contentFileId: 'an-1'));
+
+      container.read(saveTabScrollPositionProvider)(0, 100.0);
+      container.read(saveTabScrollPositionProvider)(1, 200.0);
+      container.read(saveTabScrollPositionProvider)(2, 300.0);
+      container.read(saveTabScrollPositionProvider)(3, 400.0);
+
+      container.read(activeTabIndexProvider.notifier).state = 0;
+
+      // ACT - Close tab at index 1 (middle tab)
+      container.read(closeTabProvider)(1);
+
+      // ASSERT - Verify scroll positions are shifted correctly
+      // Index 0 stays the same
+      expect(container.read(getTabScrollPositionProvider)(0), equals(100.0));
+      // Index 2 becomes index 1 with value 300.0
+      expect(container.read(getTabScrollPositionProvider)(1), equals(300.0));
+      // Index 3 becomes index 2 with value 400.0
+      expect(container.read(getTabScrollPositionProvider)(2), equals(400.0));
+      // Old index 3 no longer exists
+      expect(container.read(getTabScrollPositionProvider)(3), equals(0.0));
+    });
+
+    test('closing active middle tab should select previous and shift positions',
+        () {
+      // ARRANGE - Add 3 tabs, make middle one active
+      final notifier = container.read(tabsProvider.notifier);
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
+
+      container.read(saveTabScrollPositionProvider)(0, 100.0);
+      container.read(saveTabScrollPositionProvider)(1, 200.0);
+      container.read(saveTabScrollPositionProvider)(2, 300.0);
+
+      container.read(activeTabIndexProvider.notifier).state = 1;
+
+      // ACT - Close the active middle tab
+      container.read(closeTabProvider)(1);
+
+      // ASSERT
+      // Active index should be 0 (previous tab)
+      expect(container.read(activeTabIndexProvider), equals(0));
+      // Content should be from the first tab
+      expect(container.read(activeContentFileIdProvider), equals('dn-1'));
+      // Scroll positions should be shifted
+      expect(container.read(getTabScrollPositionProvider)(0), equals(100.0));
+      expect(container.read(getTabScrollPositionProvider)(1), equals(300.0));
     });
   });
 }

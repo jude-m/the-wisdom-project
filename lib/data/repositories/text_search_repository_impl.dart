@@ -271,6 +271,9 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   }) {
     final results = <SearchResult>[];
 
+    // Normalize query for matching (caller handles Singlish conversion)
+    final searchQuery = normalizeText(queryText, toLowerCase: true);
+
     // Get scope patterns for filtering (empty = no filter)
     final scopePatterns = ScopeFilterConfig.getPatternsForScope(scope);
 
@@ -280,12 +283,12 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     bool matchesQuery(String name) {
       if (isExactMatch) {
         // Word boundary match: query must appear as a complete word
-        return name == queryText ||
-            name.startsWith('$queryText ') ||
-            name.endsWith(' $queryText') ||
-            name.contains(' $queryText ');
+        return name == searchQuery ||
+            name.startsWith('$searchQuery ') ||
+            name.endsWith(' $searchQuery') ||
+            name.contains(' $searchQuery ');
       } else {
-        return name.contains(queryText);
+        return name.contains(searchQuery);
       }
     }
 
@@ -340,8 +343,8 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       // Primary sort: startsWith first
       final titleA = normalizeText(a.title, toLowerCase: true);
       final titleB = normalizeText(b.title, toLowerCase: true);
-      final aStartsWith = titleA.startsWith(queryText);
-      final bStartsWith = titleB.startsWith(queryText);
+      final aStartsWith = titleA.startsWith(searchQuery);
+      final bStartsWith = titleB.startsWith(searchQuery);
 
       if (aStartsWith && !bStartsWith) return -1;
       if (!aStartsWith && bStartsWith) return 1;

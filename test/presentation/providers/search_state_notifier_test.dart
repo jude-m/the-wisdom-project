@@ -99,7 +99,7 @@ void main() {
         notifier.updateQuery('dhamma');
 
         // ASSERT
-        expect(notifier.state.queryText, equals('dhamma'));
+        expect(notifier.state.rawQueryText, equals('dhamma'));
       });
 
       test('should clear results for empty queries', () {
@@ -333,7 +333,7 @@ void main() {
 
       test('should not refresh search when toggling with empty query', () {
         // ARRANGE - Empty query
-        expect(notifier.state.queryText, isEmpty);
+        expect(notifier.state.rawQueryText, isEmpty);
 
         // ACT - Toggle exact match
         notifier.toggleExactMatch();
@@ -571,7 +571,7 @@ void main() {
         notifier.clearSearch();
 
         // ASSERT
-        expect(notifier.state.queryText, isEmpty);
+        expect(notifier.state.rawQueryText, isEmpty);
         expect(notifier.state.groupedResults, isNull);
         expect(notifier.state.isResultsPanelVisible, isFalse);
       });
@@ -587,7 +587,7 @@ void main() {
         notifier.dismissResultsPanel();
 
         // ASSERT - query text is kept, but panel is hidden
-        expect(notifier.state.queryText, equals('test'));
+        expect(notifier.state.rawQueryText, equals('test'));
         expect(notifier.state.isPanelDismissed, isTrue);
         expect(notifier.state.isResultsPanelVisible, isFalse);
       });
@@ -614,7 +614,7 @@ void main() {
             .called(1);
         expect(notifier.state.isPanelDismissed, isTrue);
         expect(notifier.state.isResultsPanelVisible, isFalse);
-        expect(notifier.state.queryText, equals('test query')); // Text preserved
+        expect(notifier.state.rawQueryText, equals('test query')); // Text preserved
       });
 
       test('should not save for empty queries', () async {
@@ -669,7 +669,7 @@ void main() {
         await notifier.selectRecentSearch('dhamma');
 
         // ASSERT
-        expect(notifier.state.queryText, equals('dhamma'));
+        expect(notifier.state.rawQueryText, equals('dhamma'));
         expect(notifier.state.isResultsPanelVisible, isTrue);
         verify(mockSearchRepository.searchTopResults(any)).called(1);
         verify(mockRecentSearchesRepository.addRecentSearch('dhamma'))
@@ -694,7 +694,7 @@ void main() {
           // ASSERT
           expect(notifier.state.isLoading, isFalse);
           expect(notifier.state.groupedResults, isNull);
-          expect(notifier.state.queryText, equals('test')); // Query text preserved
+          expect(notifier.state.rawQueryText, equals('test')); // Query text preserved
         });
       });
 
@@ -716,10 +716,10 @@ void main() {
 
         // Check that fullResults is in error state
         final results = notifier.state.fullResults;
-        expect(results, isA<AsyncError<List<SearchResult>>>());
+        expect(results, isA<AsyncError<List<SearchResult>?>>());
 
         // Access error from AsyncError
-        if (results is AsyncError<List<SearchResult>>) {
+        if (results is AsyncError<List<SearchResult>?>) {
           expect(results.error, isA<Failure>());
           final error = results.error as Failure;
           expect(error.userMessage, contains('Failed to load data'));
@@ -741,7 +741,7 @@ void main() {
 
           // ASSERT - App should continue functioning
           expect(notifier.state.isLoading, isFalse);
-          expect(notifier.state.queryText, equals('test'));
+          expect(notifier.state.rawQueryText, equals('test'));
 
           // User can try another search
           const successResult = GroupedSearchResult(
@@ -789,7 +789,7 @@ void main() {
 
           // ASSERT - Should only search once (for 'abc'), not three times
           expect(callCount, equals(1));
-          expect(notifier.state.queryText, equals('abc'));
+          expect(notifier.state.rawQueryText, equals('abc'));
         });
       });
 

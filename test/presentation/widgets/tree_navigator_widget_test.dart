@@ -158,17 +158,25 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Initially child nodes should not be visible
-      expect(find.text('දීඝ නිකාය'), findsNothing); // Digha Nikaya in Sinhala
+      // Sutta Pitaka is expanded by default, so its children are visible
+      expect(find.text('දීඝ නිකාය'), findsOneWidget); // Digha Nikaya in Sinhala
 
-      // Find and tap the chevron icon
+      // Collapse Sutta Pitaka first by tapping its chevron
+      final suttaPitakaChevron = find.byIcon(Icons.expand_more).first;
+      await tester.tap(suttaPitakaChevron);
+      await tester.pumpAndSettle();
+
+      // Now child nodes should not be visible
+      expect(find.text('දීඝ නිකාය'), findsNothing);
+
+      // Re-expand by tapping the chevron icon
       final chevrons = find.byIcon(Icons.chevron_right);
       expect(chevrons, findsWidgets);
 
       await tester.tap(chevrons.first);
       await tester.pumpAndSettle();
 
-      // ASSERT - Child should now be visible
+      // ASSERT - Child should now be visible again
       expect(find.text('දීඝ නිකාය'), findsOneWidget);
     });
 

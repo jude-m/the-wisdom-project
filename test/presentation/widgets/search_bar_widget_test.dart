@@ -110,7 +110,7 @@ void main() {
       await tester.pump();
 
       // Verify state is set
-      expect(capturedState?.queryText, equals('dhamma'));
+      expect(capturedState?.rawQueryText, equals('dhamma'));
       expect(capturedState?.isResultsPanelVisible, isTrue);
 
       // ACT - Press clear button with warnIfMissed: false since overlay may be present
@@ -118,7 +118,7 @@ void main() {
       await tester.pump();
 
       // ASSERT - Verify search state is cleared
-      expect(capturedState?.queryText, isEmpty);
+      expect(capturedState?.rawQueryText, isEmpty);
       expect(capturedState?.groupedResults, isNull);
       expect(capturedState?.isResultsPanelVisible, isFalse);
     });
