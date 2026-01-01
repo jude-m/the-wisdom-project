@@ -29,7 +29,6 @@ class SearchResultsPanel extends ConsumerWidget {
 
     return Material(
       color: theme.colorScheme.surface,
-      elevation: 8,
       child: Column(
         children: [
           // Header with scope filters and close button

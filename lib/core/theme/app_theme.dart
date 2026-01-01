@@ -22,7 +22,7 @@ class AppTheme {
       colorScheme: ColorScheme.light(
         primary: LightThemeColors.primary,
         onPrimary: LightThemeColors.onPrimary,
-        primaryContainer: LightThemeColors.accent.withOpacity(0.2),
+        primaryContainer: LightThemeColors.accent.withValues(alpha: 0.2),
         onPrimaryContainer: LightThemeColors.primary,
         secondary: LightThemeColors.accent,
         onSecondary: LightThemeColors.onPrimary,
@@ -38,7 +38,7 @@ class AppTheme {
         error: LightThemeColors.error,
         onError: LightThemeColors.onError,
         outline: LightThemeColors.divider,
-        outlineVariant: LightThemeColors.divider.withOpacity(0.5),
+        outlineVariant: LightThemeColors.divider.withValues(alpha: 0.5),
 
         secondaryContainer: LightThemeColors.secondaryContainer,
         onSecondaryContainer: LightThemeColors.onSecondaryContainer
@@ -73,7 +73,7 @@ class AppTheme {
       colorScheme: ColorScheme.dark(
         primary: DarkThemeColors.primary,
         onPrimary: DarkThemeColors.onPrimary,
-        primaryContainer: DarkThemeColors.accent.withOpacity(0.2),
+        primaryContainer: DarkThemeColors.accent.withValues(alpha: 0.2),
         onPrimaryContainer: DarkThemeColors.primary,
         secondary: DarkThemeColors.accent,
         onSecondary: DarkThemeColors.onPrimary,
@@ -89,7 +89,7 @@ class AppTheme {
         error: DarkThemeColors.error,
         onError: DarkThemeColors.onError,
         outline: DarkThemeColors.divider,
-        outlineVariant: DarkThemeColors.divider.withOpacity(0.5),
+        outlineVariant: DarkThemeColors.divider.withValues(alpha: 0.5),
       ),
 
       // Text entry typography
@@ -119,7 +119,7 @@ class AppTheme {
       colorScheme: ColorScheme.dark(
         primary: WarmThemeColors.primary,
         onPrimary: WarmThemeColors.onPrimary,
-        primaryContainer: WarmThemeColors.accent.withOpacity(0.25),
+        primaryContainer: WarmThemeColors.accent.withValues(alpha: 0.25),
         onPrimaryContainer: WarmThemeColors.primary,
         secondary: WarmThemeColors.accent,
         onSecondary: WarmThemeColors.onPrimary,
@@ -135,7 +135,7 @@ class AppTheme {
         error: WarmThemeColors.error,
         onError: WarmThemeColors.onError,
         outline: WarmThemeColors.divider,
-        outlineVariant: WarmThemeColors.divider.withOpacity(0.5),
+        outlineVariant: WarmThemeColors.divider.withValues(alpha: 0.5),
       ),
 
       // Text entry typography
