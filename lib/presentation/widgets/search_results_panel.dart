@@ -516,16 +516,19 @@ class _SearchResultTile extends StatelessWidget {
     );
   }
 
-  /// Creates a snippet of text centered around the first match of the query
+  /// Creates a snippet of text centered around the first match of the query.
+  /// Uses normalized text for matching (removes ZWJ) but preserves original
+  /// text for display (proper Sinhala rendering with repaya marks).
   String _createSnippet({
     required String text,
     required String query,
     int contextBefore = 50,
     int contextAfter = 100,
   }) {
-    final lowerText = text.toLowerCase();
-    final lowerQuery = query.toLowerCase();
-    final matchIndex = lowerText.indexOf(lowerQuery);
+    // Normalize both for matching (removes ZWJ, lowercases)
+    final normalizedText = normalizeText(text, toLowerCase: true);
+    final normalizedQuery = normalizeText(query, toLowerCase: true);
+    final matchIndex = normalizedText.indexOf(normalizedQuery);
 
     if (matchIndex == -1) {
       // No match, return beginning of text
@@ -533,9 +536,17 @@ class _SearchResultTile extends StatelessWidget {
       return text.length > end ? '${text.substring(0, end)}...' : text;
     }
 
-    final snippetStart = (matchIndex - contextBefore).clamp(0, text.length);
-    final snippetEnd =
-        (matchIndex + query.length + contextAfter).clamp(0, text.length);
+    // Map normalized positions to original text positions
+    final positionMap = createNormalizedToOriginalPositionMap(text);
+    final matchStart = positionMap[matchIndex];
+    final matchEndNorm = matchIndex + normalizedQuery.length;
+    final matchEnd = matchEndNorm < positionMap.length
+        ? positionMap[matchEndNorm]
+        : text.length;
+
+    // Calculate snippet boundaries in original text
+    final snippetStart = (matchStart - contextBefore).clamp(0, text.length);
+    final snippetEnd = (matchEnd + contextAfter).clamp(0, text.length);
 
     var snippet = text.substring(snippetStart, snippetEnd);
 
@@ -550,36 +561,58 @@ class _SearchResultTile extends StatelessWidget {
     return snippet;
   }
 
-  /// Builds highlighted text spans for all matches of the query
+  /// Builds highlighted text spans for all matches of the query.
+  /// Uses normalized text for matching (removes ZWJ) but preserves original
+  /// text in spans for proper Sinhala rendering with repaya marks.
   List<TextSpan> _buildHighlightedSpans({
     required String text,
     required String query,
     required TextStyle highlightStyle,
   }) {
     final spans = <TextSpan>[];
-    final lowerText = text.toLowerCase();
-    final lowerQuery = query.toLowerCase();
-    int start = 0;
+
+    // Normalize for matching (removes ZWJ, lowercases)
+    final normalizedText = normalizeText(text, toLowerCase: true);
+    final normalizedQuery = normalizeText(query, toLowerCase: true);
+
+    // Create position mapping from normalized to original text
+    final positionMap = createNormalizedToOriginalPositionMap(text);
+
+    int normStart = 0;
+    int origStart = 0;
 
     while (true) {
-      final index = lowerText.indexOf(lowerQuery, start);
-      if (index == -1) {
-        if (start < text.length) {
-          spans.add(TextSpan(text: text.substring(start)));
+      // Find next match in normalized text
+      final normIndex = normalizedText.indexOf(normalizedQuery, normStart);
+      if (normIndex == -1) {
+        // No more matches, add remaining original text
+        if (origStart < text.length) {
+          spans.add(TextSpan(text: text.substring(origStart)));
         }
         break;
       }
 
-      if (index > start) {
-        spans.add(TextSpan(text: text.substring(start, index)));
+      // Map normalized positions to original text positions
+      final matchStartOrig = positionMap[normIndex];
+      final matchEndNorm = normIndex + normalizedQuery.length;
+      final matchEndOrig = matchEndNorm < positionMap.length
+          ? positionMap[matchEndNorm]
+          : text.length;
+
+      // Add text before match (from original text)
+      if (matchStartOrig > origStart) {
+        spans.add(TextSpan(text: text.substring(origStart, matchStartOrig)));
       }
 
+      // Add highlighted match (original text preserves ZWJ for rendering)
       spans.add(TextSpan(
-        text: text.substring(index, index + query.length),
+        text: text.substring(matchStartOrig, matchEndOrig),
         style: highlightStyle,
       ));
 
-      start = index + query.length;
+      // Advance cursors
+      normStart = matchEndNorm;
+      origStart = matchEndOrig;
     }
 
     return spans;

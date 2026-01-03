@@ -1,5 +1,4 @@
-/// Removes zero-width Unicode chars (ZWJ, ZWNJ, ZWSP, BOM), collapses
-/// whitespace, and optionally lowercases for case-insensitive matching.
+/// Removes zero-width chars, collapses whitespace, optionally lowercases.
 String normalizeText(String text, {bool toLowerCase = false}) {
   var normalized = text
       .replaceAll('\u200D', '') // Zero-Width Joiner
@@ -13,32 +12,45 @@ String normalizeText(String text, {bool toLowerCase = false}) {
   return toLowerCase ? normalized.toLowerCase() : normalized;
 }
 
-/// Alias for [normalizeText] without lowercasing.
-/// Used for query sanitization before FTS search.
+/// Normalizes query text for FTS search (no lowercasing).
 String normalizeQueryText(String query) => normalizeText(query);
 
-/// Chars stripped from queries. Escaped for regex: \[ \] \\ \^
-/// Note: Periods/commas NOT stripped - needed for title search (e.g., "1. 1. 1.").
-/// FTS handles them via unicode61 tokenizer.
+/// Zero-width characters removed during normalization.
+const _zeroWidthChars = {'\u200D', '\u200C', '\u200B', '\uFEFF'};
+
+/// Maps normalized text positions back to original positions.
+/// Returns list where `map[i]` = original position for normalized index `i`.
+List<int> createNormalizedToOriginalPositionMap(String originalText) {
+  final map = <int>[];
+
+  for (int i = 0; i < originalText.length; i++) {
+    final char = originalText[i];
+    // Skip zero-width characters (they don't appear in normalized text)
+    if (_zeroWidthChars.contains(char)) {
+      continue;
+    }
+    map.add(i);
+  }
+  // Add end position for substring extraction
+  map.add(originalText.length);
+
+  return map;
+}
+
+/// Chars stripped from queries. Periods/commas kept for title search.
 const _invalidSearchChars = r'"()*{}\[\]@#$%&=<>~\\`|/;\^!';
 final _invalidCharsPattern = RegExp('[$_invalidSearchChars]');
 
-/// Regex pattern to check for valid content.
-/// Matches Sinhala (U+0D80-U+0DFF), English (a-zA-Z), or digits (0-9).
+/// Matches valid content: Sinhala, English, or digits.
 final _validContentPattern = RegExp(r'[\u0D80-\u0DFFa-zA-Z0-9]');
 
-/// Sinhala dependent vowel signs (pillam) - must attach to base characters.
-/// Includes: virama (U+0DCA), vowel signs (U+0DCF-U+0DDF, U+0DF2-U+0DF3)
+/// Sinhala dependent vowel signs (pillam) - must attach to base chars.
 final _sinhalaPillamPattern = RegExp(r'[\u0DCA\u0DCF-\u0DDF\u0DF2\u0DF3]');
 
-/// Sinhala base characters that can stand alone:
-/// - Independent vowels: U+0D85-U+0D96 (අ ආ ඇ ඈ ඉ...)
-/// - Consonants: U+0D9A-U+0DC6 (ක ඛ ග ඝ...)
+/// Sinhala base characters (independent vowels + consonants).
 final _sinhalaBaseCharPattern = RegExp(r'[\u0D85-\u0D96\u0D9A-\u0DC6]');
 
-/// Sanitizes search query by stripping invalid chars (see [_invalidSearchChars]).
-/// Returns `null` if no valid content (Sinhala/English/digits) remains,
-/// or if query contains Sinhala vowel signs (pillam) without base characters.
+/// Strips invalid chars, returns `null` if no valid content remains.
 String? sanitizeSearchQuery(String query) {
   var sanitized = normalizeText(query);
   sanitized = sanitized.replaceAll(_invalidCharsPattern, '');
