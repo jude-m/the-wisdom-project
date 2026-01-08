@@ -60,6 +60,8 @@ class SearchResultsPanel extends ConsumerWidget {
                     searchState.fullResults,
                     searchState.selectedResultType,
                     searchState.effectiveQueryText,
+                    searchState
+                        .countByResultType[searchState.selectedResultType],
                   ),
           ),
         ],
@@ -128,6 +130,7 @@ class SearchResultsPanel extends ConsumerWidget {
     AsyncValue<List<SearchResult>?> fullResults,
     SearchResultType selectedResultType,
     String effectiveQuery,
+    int? totalCount,
   ) {
     return fullResults.when(
       loading: () => const Center(
@@ -176,15 +179,26 @@ class SearchResultsPanel extends ConsumerWidget {
           );
         }
 
+        // Check if DB has more results than currently displayed.
+        // When true, we append a footer row showing "Viewing X out of Y".
+        final hasMoreResults =
+            totalCount != null && totalCount > results.length;
+
         return ListView.separated(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: results.length,
+          // Add +1 for footer row when results are truncated
+          itemCount: hasMoreResults ? results.length + 1 : results.length,
           separatorBuilder: (context, index) => Divider(
             height: 1,
             indent: 72,
             color: theme.colorScheme.outlineVariant,
           ),
           itemBuilder: (context, index) {
+            // Render footer as the last item when results are truncated
+            if (hasMoreResults && index == results.length) {
+              return _footer(theme, results.length, totalCount!);
+            }
+
             return _SearchResultTile(
               searchResult: results[index],
               effectiveQuery: effectiveQuery,
@@ -193,6 +207,41 @@ class SearchResultsPanel extends ConsumerWidget {
           },
         );
       },
+    );
+  }
+
+  /// Footer widget showing truncation info when results exceed display limit.
+  ///
+  /// Displayed at the bottom of the results list when [totalCount] > [displayedCount].
+  /// Shows "Viewing X out of Y results" with decorative dividers on each side.
+  Widget _footer(ThemeData theme, int displayedCount, int totalCount) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Divider(
+              color: theme.colorScheme.outlineVariant,
+              thickness: 1,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Viewing $displayedCount out of $totalCount results',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Divider(
+              color: theme.colorScheme.outlineVariant,
+              thickness: 1,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
