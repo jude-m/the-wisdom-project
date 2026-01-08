@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:the_wisdom_project/core/constants/constants.dart';
 import 'package:the_wisdom_project/domain/entities/failure.dart';
 import 'package:the_wisdom_project/domain/usecases/load_navigation_tree_usecase.dart';
 
@@ -41,8 +42,10 @@ void main() {
             fail('Expected success but got failure: ${failure.userMessage}'),
         (tree) {
           expect(tree.length, equals(2)); // sampleTree has 2 root nodes
-          expect(tree[0].nodeKey, equals('sp')); // Sutta Pitaka
-          expect(tree[1].nodeKey, equals('vp')); // Vinaya Pitaka
+          expect(tree[0].nodeKey,
+              equals(TipitakaNodeKeys.suttaPitaka)); // Sutta Pitaka
+          expect(tree[1].nodeKey,
+              equals(TipitakaNodeKeys.vinayaPitaka)); // Vinaya Pitaka
         },
       );
 

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:the_wisdom_project/core/constants/constants.dart';
 import 'package:the_wisdom_project/data/repositories/navigation_tree_repository_impl.dart';
 import 'package:the_wisdom_project/domain/entities/failure.dart';
 import 'package:the_wisdom_project/domain/entities/navigation/tipitaka_tree_node.dart';
@@ -35,7 +36,7 @@ void main() {
         (failure) => fail('Expected success'),
         (tree) {
           expect(tree.length, equals(2));
-          expect(tree[0].nodeKey, equals('sp'));
+          expect(tree[0].nodeKey, equals(TipitakaNodeKeys.suttaPitaka));
         },
       );
 
@@ -90,14 +91,15 @@ void main() {
           .thenAnswer((_) async => TestData.sampleTree);
 
       // ACT
-      final result = await repository.getNodeByKey('sp');
+      final result =
+          await repository.getNodeByKey(TipitakaNodeKeys.suttaPitaka);
 
       // ASSERT
       expect(result.isRight(), true);
       result.fold(
         (failure) => fail('Expected success'),
         (node) {
-          expect(node.nodeKey, equals('sp'));
+          expect(node.nodeKey, equals(TipitakaNodeKeys.suttaPitaka));
           expect(node.paliName, equals('Sutta Pitaka'));
         },
       );
@@ -147,7 +149,7 @@ void main() {
           .thenAnswer((_) async => TestData.sampleTree);
 
       // ACT - Call getNodeByKey without loading tree first
-      await repository.getNodeByKey('sp');
+      await repository.getNodeByKey(TipitakaNodeKeys.suttaPitaka);
 
       // ASSERT - Tree should have been loaded
       verify(mockDataSource.loadNavigationTree()).called(1);
@@ -172,8 +174,8 @@ void main() {
         (failure) => fail('Expected success'),
         (roots) {
           expect(roots.length, equals(2));
-          expect(roots[0].nodeKey, equals('sp'));
-          expect(roots[1].nodeKey, equals('vp'));
+          expect(roots[0].nodeKey, equals(TipitakaNodeKeys.suttaPitaka));
+          expect(roots[1].nodeKey, equals(TipitakaNodeKeys.vinayaPitaka));
         },
       );
     });

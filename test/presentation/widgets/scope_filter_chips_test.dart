@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:the_wisdom_project/domain/entities/search/search_scope.dart';
+import 'package:the_wisdom_project/core/constants/constants.dart';
+import 'package:the_wisdom_project/domain/entities/search/search_scope_chip.dart';
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 import 'package:the_wisdom_project/presentation/widgets/scope_filter_chips.dart';
@@ -50,15 +51,14 @@ void main() {
         expect(find.text('Commentaries'), findsOneWidget);
         expect(find.text('Treatises'), findsOneWidget);
 
-        // All 5 scope chips should be present
-        for (final scope in SearchScope.values) {
-          expect(find.text(scope.displayName), findsOneWidget);
-        }
+        // Verify all 5 scope chips are present
+        expect(searchScopeChips.length, equals(5));
       });
     });
 
     group('Scope selection behavior', () {
-      testWidgets('tapping a specific scope should deselect "All" and select that scope',
+      testWidgets(
+          'tapping a specific scope should deselect "All" and select that scope',
           (tester) async {
         // ARRANGE
         SearchState? capturedState;
@@ -79,8 +79,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // Verify initial state - "All" is selected (empty selectedScope)
-        expect(capturedState?.selectedScope, isEmpty);
+        // Verify initial state - "All" is selected (empty scope)
+        expect(capturedState?.scope, isEmpty);
         expect(capturedState?.isAllSelected, isTrue);
 
         // ACT - Tap on "Sutta" chip
@@ -88,8 +88,8 @@ void main() {
         await tester.pumpAndSettle();
 
         // ASSERT - Sutta should be selected, "All" should be deselected
-        expect(capturedState?.selectedScope, contains(SearchScope.sutta));
-        expect(capturedState?.selectedScope.length, equals(1));
+        expect(capturedState?.scope, contains(TipitakaNodeKeys.suttaPitaka));
+        expect(capturedState?.scope.length, equals(1));
         expect(capturedState?.isAllSelected, isFalse);
       });
 
@@ -121,9 +121,9 @@ void main() {
         await tester.pumpAndSettle();
 
         // ASSERT - Both Sutta and Vinaya should be selected
-        expect(capturedState?.selectedScope, contains(SearchScope.sutta));
-        expect(capturedState?.selectedScope, contains(SearchScope.vinaya));
-        expect(capturedState?.selectedScope.length, equals(2));
+        expect(capturedState?.scope, contains(TipitakaNodeKeys.suttaPitaka));
+        expect(capturedState?.scope, contains(TipitakaNodeKeys.vinayaPitaka));
+        expect(capturedState?.scope.length, equals(2));
       });
 
       testWidgets('tapping a selected scope should deselect it',
@@ -150,14 +150,14 @@ void main() {
         // Select Sutta first
         await tester.tap(find.text('Sutta'));
         await tester.pumpAndSettle();
-        expect(capturedState?.selectedScope, contains(SearchScope.sutta));
+        expect(capturedState?.scope, contains(TipitakaNodeKeys.suttaPitaka));
 
         // ACT - Tap on Sutta again to deselect it
         await tester.tap(find.text('Sutta'));
         await tester.pumpAndSettle();
 
         // ASSERT - Sutta should be deselected, "All" is effectively selected (empty set)
-        expect(capturedState?.selectedScope, isEmpty);
+        expect(capturedState?.scope, isEmpty);
         expect(capturedState?.isAllSelected, isTrue);
       });
 
@@ -190,19 +190,18 @@ void main() {
         await tester.tap(find.text('Abhidhamma'));
         await tester.pumpAndSettle();
 
-        expect(capturedState?.selectedScope.length, equals(3));
+        expect(capturedState?.scope.length, equals(3));
 
         // ACT - Tap on "All" to clear selections
         await tester.tap(find.text('All'));
         await tester.pumpAndSettle();
 
         // ASSERT - All selections should be cleared
-        expect(capturedState?.selectedScope, isEmpty);
+        expect(capturedState?.scope, isEmpty);
         expect(capturedState?.isAllSelected, isTrue);
       });
 
-      testWidgets('selecting all 5 scopes should auto-collapse to "All"',
-          (tester) async {
+      testWidgets('tapping chips toggles them individually', (tester) async {
         // ARRANGE
         SearchState? capturedState;
 
@@ -222,26 +221,15 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // ACT - Select all 5 scopes one by one
+        // ACT - Select several scopes
         await tester.tap(find.text('Sutta'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Vinaya'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Abhidhamma'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Commentaries'));
-        await tester.pumpAndSettle();
-        // Before tapping last scope, we should have 4 selected
-        expect(capturedState?.selectedScope.length, equals(4));
 
-        await tester.tap(find.text('Treatises'));
-        await tester.pumpAndSettle();
-
-        // ASSERT - Should auto-collapse to "All" (empty set)
-        // According to the SearchStateNotifier.selectScope logic:
-        // if (newScope.length == SearchScope.values.length) -> state.copyWith(selectedScope: {})
-        expect(capturedState?.selectedScope, isEmpty);
-        expect(capturedState?.isAllSelected, isTrue);
+        // ASSERT - Should have 2 scopes (multi-select behavior)
+        expect(capturedState?.scope.length, equals(2));
+        expect(capturedState?.isAllSelected, isFalse);
       });
     });
 

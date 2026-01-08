@@ -26,8 +26,8 @@ void main() {
       // ARRANGE & ACT
       final expandedNodes = container.read(expandedNodesProvider);
 
-      // ASSERT - Default should have Sutta Pitaka (kSuttaPitakaNodeKey) expanded
-      expect(expandedNodes, contains(kSuttaPitakaNodeKey));
+      // ASSERT - Default should have Sutta Pitaka (TipitakaNodeKeys.suttaPitaka) expanded
+      expect(expandedNodes, contains(TipitakaNodeKeys.suttaPitaka));
       expect(expandedNodes.length, equals(1));
     });
 
@@ -56,15 +56,15 @@ void main() {
 
     test('should add node to expanded set when not already expanded', () {
       // ARRANGE - Start with default (only Sutta Pitaka expanded)
-      expect(
-          container.read(expandedNodesProvider), equals({kSuttaPitakaNodeKey}));
+      expect(container.read(expandedNodesProvider),
+          equals({TipitakaNodeKeys.suttaPitaka}));
 
       // ACT - Toggle a new node
       container.read(toggleNodeExpansionProvider)('vinaya-pitaka');
 
       // ASSERT - Should now have both nodes expanded
       final expandedNodes = container.read(expandedNodesProvider);
-      expect(expandedNodes, contains(kSuttaPitakaNodeKey));
+      expect(expandedNodes, contains(TipitakaNodeKeys.suttaPitaka));
       expect(expandedNodes, contains('vinaya-pitaka'));
       expect(expandedNodes.length, equals(2));
     });
@@ -72,7 +72,7 @@ void main() {
     test('should remove node from expanded set when already expanded', () {
       // ARRANGE - Set initial expanded nodes
       container.read(expandedNodesProvider.notifier).state = {
-        kSuttaPitakaNodeKey,
+        TipitakaNodeKeys.suttaPitaka,
         'vinaya-pitaka',
       };
 
@@ -81,15 +81,15 @@ void main() {
 
       // ASSERT - Should only have Sutta Pitaka expanded
       final expandedNodes = container.read(expandedNodesProvider);
-      expect(expandedNodes, contains(kSuttaPitakaNodeKey));
+      expect(expandedNodes, contains(TipitakaNodeKeys.suttaPitaka));
       expect(expandedNodes.contains('vinaya-pitaka'), isFalse);
       expect(expandedNodes.length, equals(1));
     });
 
     test('should toggle the same node twice (expand then collapse)', () {
       // ARRANGE
-      expect(container.read(expandedNodesProvider).contains('test-node'),
-          isFalse);
+      expect(
+          container.read(expandedNodesProvider).contains('test-node'), isFalse);
 
       // ACT - Toggle to expand
       container.read(toggleNodeExpansionProvider)('test-node');
@@ -99,8 +99,8 @@ void main() {
       container.read(toggleNodeExpansionProvider)('test-node');
 
       // ASSERT
-      expect(container.read(expandedNodesProvider).contains('test-node'),
-          isFalse);
+      expect(
+          container.read(expandedNodesProvider).contains('test-node'), isFalse);
     });
   });
 
@@ -221,7 +221,8 @@ void main() {
       expect(container.read(scrollToNodeRequestProvider), isNull);
     });
 
-    test('should allow setting same value consecutively using null-then-set pattern',
+    test(
+        'should allow setting same value consecutively using null-then-set pattern',
         () {
       // This tests the pattern used in syncNavigatorToActiveTabProvider
       // to force listeners to fire even when re-selecting the same node
@@ -299,18 +300,18 @@ void main() {
       //     dn-1 (Brahmajala Sutta)
       final tree = [
         _createTestTreeNode(
-          nodeKey: 'sp',
+          nodeKey: TipitakaNodeKeys.suttaPitaka,
           paliName: 'Sutta Pitaka',
           childNodes: [
             _createTestTreeNode(
-              nodeKey: 'dn',
+              nodeKey: TipitakaNodeKeys.dighaNikaya,
               paliName: 'Digha Nikaya',
-              parentNodeKey: 'sp',
+              parentNodeKey: TipitakaNodeKeys.suttaPitaka,
               childNodes: [
                 _createTestTreeNode(
                   nodeKey: 'dn-1',
                   paliName: 'Brahmajala Sutta',
-                  parentNodeKey: 'dn',
+                  parentNodeKey: TipitakaNodeKeys.dighaNikaya,
                   contentFileId: 'dn-1',
                 ),
               ],
@@ -339,8 +340,8 @@ void main() {
 
       // ASSERT - sp and dn should be expanded (parent nodes), but not dn-1 itself
       final expandedNodes = container.read(expandedNodesProvider);
-      expect(expandedNodes, contains('sp'));
-      expect(expandedNodes, contains('dn'));
+      expect(expandedNodes, contains(TipitakaNodeKeys.suttaPitaka));
+      expect(expandedNodes, contains(TipitakaNodeKeys.dighaNikaya));
       // The target node itself should not be expanded (only parents)
       expect(expandedNodes.contains('dn-1'), isFalse);
     });
@@ -349,7 +350,7 @@ void main() {
       // ARRANGE - Simple tree with root node
       final tree = [
         _createTestTreeNode(
-          nodeKey: 'sp',
+          nodeKey: TipitakaNodeKeys.suttaPitaka,
           paliName: 'Sutta Pitaka',
         ),
       ];
@@ -370,7 +371,7 @@ void main() {
       container.read(expandedNodesProvider.notifier).state = {};
 
       // ACT - Expand path to root node
-      container.read(expandPathToNodeProvider)('sp');
+      container.read(expandPathToNodeProvider)(TipitakaNodeKeys.suttaPitaka);
 
       // ASSERT - No nodes should be expanded (root has no parents)
       final expandedNodes = container.read(expandedNodesProvider);
@@ -381,18 +382,18 @@ void main() {
       // ARRANGE
       final tree = [
         _createTestTreeNode(
-          nodeKey: 'sp',
+          nodeKey: TipitakaNodeKeys.suttaPitaka,
           paliName: 'Sutta Pitaka',
           childNodes: [
             _createTestTreeNode(
-              nodeKey: 'dn',
+              nodeKey: TipitakaNodeKeys.dighaNikaya,
               paliName: 'Digha Nikaya',
-              parentNodeKey: 'sp',
+              parentNodeKey: TipitakaNodeKeys.suttaPitaka,
               childNodes: [
                 _createTestTreeNode(
                   nodeKey: 'dn-1',
                   paliName: 'Brahmajala Sutta',
-                  parentNodeKey: 'dn',
+                  parentNodeKey: TipitakaNodeKeys.dighaNikaya,
                   contentFileId: 'dn-1',
                 ),
               ],
@@ -400,13 +401,13 @@ void main() {
           ],
         ),
         _createTestTreeNode(
-          nodeKey: 'vp',
+          nodeKey: TipitakaNodeKeys.vinayaPitaka,
           paliName: 'Vinaya Pitaka',
           childNodes: [
             _createTestTreeNode(
               nodeKey: 'mahavagga',
               paliName: 'Mahavagga',
-              parentNodeKey: 'vp',
+              parentNodeKey: TipitakaNodeKeys.vinayaPitaka,
             ),
           ],
         ),
@@ -420,22 +421,24 @@ void main() {
           TestProviderOverrides.navigationTreeRepository(mockRepository),
         ],
       );
-
       // Wait for the navigation tree to load
       await container.read(navigationTreeProvider.future);
 
       // Set some existing expanded nodes
-      container.read(expandedNodesProvider.notifier).state = {'vp', 'mahavagga'};
+      container.read(expandedNodesProvider.notifier).state = {
+        TipitakaNodeKeys.vinayaPitaka,
+        'mahavagga'
+      };
 
       // ACT - Expand path to dn-1
       container.read(expandPathToNodeProvider)('dn-1');
 
       // ASSERT - Should have existing + new expanded nodes
       final expandedNodes = container.read(expandedNodesProvider);
-      expect(expandedNodes, contains('vp'));
+      expect(expandedNodes, contains(TipitakaNodeKeys.vinayaPitaka));
       expect(expandedNodes, contains('mahavagga'));
-      expect(expandedNodes, contains('sp'));
-      expect(expandedNodes, contains('dn'));
+      expect(expandedNodes, contains(TipitakaNodeKeys.suttaPitaka));
+      expect(expandedNodes, contains(TipitakaNodeKeys.dighaNikaya));
     });
   });
 
@@ -455,19 +458,19 @@ void main() {
       // ARRANGE
       final tree = [
         _createTestTreeNode(
-          nodeKey: 'sp',
+          nodeKey: TipitakaNodeKeys.suttaPitaka,
           paliName: 'Sutta Pitaka',
           childNodes: [
             _createTestTreeNode(
-              nodeKey: 'dn',
+              nodeKey: TipitakaNodeKeys.dighaNikaya,
               paliName: 'Digha Nikaya',
-              parentNodeKey: 'sp',
+              parentNodeKey: TipitakaNodeKeys.suttaPitaka,
               childNodes: [
                 _createTestTreeNode(
                   nodeKey: 'dn-1',
                   paliName: 'Brahmajala Sutta',
                   sinhalaName: 'බ්‍රහ්මජාල සූත්‍රය',
-                  parentNodeKey: 'dn',
+                  parentNodeKey: TipitakaNodeKeys.dighaNikaya,
                   contentFileId: 'dn-1',
                 ),
               ],
@@ -502,7 +505,7 @@ void main() {
       // ARRANGE
       final tree = [
         _createTestTreeNode(
-          nodeKey: 'sp',
+          nodeKey: TipitakaNodeKeys.suttaPitaka,
           paliName: 'Sutta Pitaka',
         ),
       ];
@@ -584,7 +587,9 @@ void main() {
         (_) => Future.delayed(
           const Duration(seconds: 1),
           () => Right([
-            _createTestTreeNode(nodeKey: 'sp', paliName: 'Sutta Pitaka'),
+            _createTestTreeNode(
+                nodeKey: TipitakaNodeKeys.suttaPitaka,
+                paliName: 'Sutta Pitaka'),
           ]),
         ),
       );
@@ -596,7 +601,8 @@ void main() {
       );
 
       // ACT - Don't wait for the tree to load
-      final node = container.read(nodeByKeyProvider('sp'));
+      final node =
+          container.read(nodeByKeyProvider(TipitakaNodeKeys.suttaPitaka));
 
       // ASSERT - Should return null while loading
       expect(node, isNull);
@@ -618,9 +624,13 @@ void main() {
     test('should load navigation tree successfully', () async {
       // ARRANGE
       final tree = [
-        _createTestTreeNode(nodeKey: 'sp', paliName: 'Sutta Pitaka'),
-        _createTestTreeNode(nodeKey: 'vp', paliName: 'Vinaya Pitaka'),
-        _createTestTreeNode(nodeKey: 'ap', paliName: 'Abhidhamma Pitaka'),
+        _createTestTreeNode(
+            nodeKey: TipitakaNodeKeys.suttaPitaka, paliName: 'Sutta Pitaka'),
+        _createTestTreeNode(
+            nodeKey: TipitakaNodeKeys.vinayaPitaka, paliName: 'Vinaya Pitaka'),
+        _createTestTreeNode(
+            nodeKey: TipitakaNodeKeys.abhidhammaPitaka,
+            paliName: 'Abhidhamma Pitaka'),
       ];
 
       when(mockRepository.loadNavigationTree())
@@ -637,9 +647,9 @@ void main() {
 
       // ASSERT
       expect(result.length, equals(3));
-      expect(result[0].nodeKey, equals('sp'));
-      expect(result[1].nodeKey, equals('vp'));
-      expect(result[2].nodeKey, equals('ap'));
+      expect(result[0].nodeKey, equals(TipitakaNodeKeys.suttaPitaka));
+      expect(result[1].nodeKey, equals(TipitakaNodeKeys.vinayaPitaka));
+      expect(result[2].nodeKey, equals(TipitakaNodeKeys.abhidhammaPitaka));
     });
   });
 }

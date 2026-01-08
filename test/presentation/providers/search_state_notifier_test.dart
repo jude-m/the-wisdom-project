@@ -3,12 +3,13 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:the_wisdom_project/core/constants/constants.dart';
 import 'package:the_wisdom_project/domain/entities/failure.dart';
 import 'package:the_wisdom_project/domain/entities/search/grouped_search_result.dart';
 import 'package:the_wisdom_project/domain/entities/search/recent_search.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
-import 'package:the_wisdom_project/domain/entities/search/search_scope.dart';
+import 'package:the_wisdom_project/domain/entities/search/search_scope_chip.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 
 import '../../helpers/mocks.mocks.dart';
@@ -152,7 +153,6 @@ void main() {
       });
     });
 
-
     group('selectResultType', () {
       test('should update selected category', () async {
         // ARRANGE
@@ -165,7 +165,8 @@ void main() {
         await notifier.selectResultType(SearchResultType.fullText);
 
         // ASSERT
-        expect(notifier.state.selectedResultType, equals(SearchResultType.fullText));
+        expect(notifier.state.selectedResultType,
+            equals(SearchResultType.fullText));
       });
 
       test('should load categorized results for "all" category', () async {
@@ -394,36 +395,40 @@ void main() {
         expect(notifier.state.searchInSinhala, isTrue);
       });
 
-      test('selectScope should add scope filter', () {
+      test('setScope should set scope filter', () {
         // ACT
-        notifier.selectScope(SearchScope.sutta);
-        notifier.selectScope(SearchScope.vinaya);
+        notifier.setScope(
+            {TipitakaNodeKeys.suttaPitaka, TipitakaNodeKeys.vinayaPitaka});
 
         // ASSERT
         expect(
-          notifier.state.selectedScope,
-          containsAll([SearchScope.sutta, SearchScope.vinaya]),
+          notifier.state.scope,
+          containsAll(
+              [TipitakaNodeKeys.suttaPitaka, TipitakaNodeKeys.vinayaPitaka]),
         );
       });
 
-      test('deselectScope should remove scope filter', () {
+      test('setScope should replace existing scope', () {
         // ARRANGE
-        notifier.selectScope(SearchScope.sutta);
-        notifier.selectScope(SearchScope.vinaya);
+        notifier.setScope(
+            {TipitakaNodeKeys.suttaPitaka, TipitakaNodeKeys.vinayaPitaka});
 
         // ACT
-        notifier.deselectScope(SearchScope.sutta);
+        notifier.setScope({TipitakaNodeKeys.dighaNikaya});
 
         // ASSERT
-        expect(notifier.state.selectedScope, contains(SearchScope.vinaya));
-        expect(notifier.state.selectedScope, isNot(contains(SearchScope.sutta)));
+        expect(notifier.state.scope, contains(TipitakaNodeKeys.dighaNikaya));
+        expect(notifier.state.scope,
+            isNot(contains(TipitakaNodeKeys.suttaPitaka)));
+        expect(notifier.state.scope,
+            isNot(contains(TipitakaNodeKeys.vinayaPitaka)));
       });
 
       test('clearFilters should reset all filters', () {
         // ARRANGE
         notifier.toggleEdition('sc');
         notifier.setLanguageFilter(pali: false);
-        notifier.selectScope(SearchScope.sutta);
+        notifier.setScope({TipitakaNodeKeys.suttaPitaka});
 
         // ACT
         notifier.clearFilters();
@@ -432,19 +437,19 @@ void main() {
         expect(notifier.state.selectedEditions, isEmpty);
         expect(notifier.state.searchInPali, isTrue);
         expect(notifier.state.searchInSinhala, isTrue);
-        expect(notifier.state.selectedScope, isEmpty);
+        expect(notifier.state.scope, isEmpty);
       });
     });
 
     group('Scope selection (Pattern 2: All as default)', () {
       // Test 1: Default state is "All" selected (empty set)
-      test('should have empty selectedScope by default (All selected)', () {
-        expect(notifier.state.selectedScope, isEmpty);
+      test('should have empty scope by default (All selected)', () {
+        expect(notifier.state.scope, isEmpty);
         expect(notifier.state.isAllSelected, isTrue);
       });
 
-      // Test 2: selectScope adds scope and triggers search
-      test('should add scope when selectScope is called', () {
+      // Test 2: setScope sets scope and triggers search
+      test('should set scope when setScope is called', () {
         fakeAsync((async) {
           // ARRANGE
           const categorizedResult = GroupedSearchResult(
@@ -462,73 +467,62 @@ void main() {
           clearInteractions(mockSearchRepository);
 
           // ACT
-          notifier.selectScope(SearchScope.sutta);
+          notifier.setScope({TipitakaNodeKeys.suttaPitaka});
 
           // ASSERT
-          expect(notifier.state.selectedScope, contains(SearchScope.sutta));
+          expect(notifier.state.scope, contains(TipitakaNodeKeys.suttaPitaka));
           expect(notifier.state.isAllSelected, isFalse);
           verify(mockSearchRepository.searchTopResults(any)).called(1);
         });
       });
 
-      // Test 3: Auto-collapse to "All" when all 5 scopes selected
-      test('should auto-collapse to All when all scopes are selected', () {
-        // ACT - Select all 5 scopes one by one
-        notifier.selectScope(SearchScope.sutta);
-        notifier.selectScope(SearchScope.vinaya);
-        notifier.selectScope(SearchScope.abhidhamma);
-        notifier.selectScope(SearchScope.commentaries);
-        notifier.selectScope(SearchScope.treatises);
+      // Test 3: Setting empty scope means "All"
+      test('should treat empty scope as All', () {
+        // ARRANGE
+        notifier.setScope({TipitakaNodeKeys.suttaPitaka});
 
-        // ASSERT - Should collapse to empty set = "All"
-        expect(notifier.state.selectedScope, isEmpty);
+        // ACT - Set to empty
+        notifier.setScope({});
+
+        // ASSERT - Should be "All"
+        expect(notifier.state.scope, isEmpty);
         expect(notifier.state.isAllSelected, isTrue);
       });
 
-      // Test 4: deselectScope removes scope and leaves remaining
-      test('should remove only the specified scope when deselecting', () {
+      // Test 4: setScope replaces existing scope
+      test('should replace existing scope with new scope', () {
         // ARRANGE
-        notifier.selectScope(SearchScope.sutta);
-        notifier.selectScope(SearchScope.vinaya);
-        expect(notifier.state.selectedScope.length, equals(2));
+        notifier.setScope(
+            {TipitakaNodeKeys.suttaPitaka, TipitakaNodeKeys.vinayaPitaka});
+        expect(notifier.state.scope.length, equals(2));
 
         // ACT
-        notifier.deselectScope(SearchScope.sutta);
+        notifier.setScope({TipitakaNodeKeys.dighaNikaya});
 
         // ASSERT
-        expect(notifier.state.selectedScope, contains(SearchScope.vinaya));
-        expect(notifier.state.selectedScope, isNot(contains(SearchScope.sutta)));
-        expect(notifier.state.selectedScope.length, equals(1));
+        expect(notifier.state.scope, contains(TipitakaNodeKeys.dighaNikaya));
+        expect(notifier.state.scope,
+            isNot(contains(TipitakaNodeKeys.suttaPitaka)));
+        expect(notifier.state.scope.length, equals(1));
       });
 
-      // Test 5: toggleScope toggles on/off correctly
-      test('should toggle scope on and off', () {
-        // ACT - Toggle on
-        notifier.toggleScope(SearchScope.sutta);
-        expect(notifier.state.selectedScope, contains(SearchScope.sutta));
-
-        // ACT - Toggle off
-        notifier.toggleScope(SearchScope.sutta);
-        expect(notifier.state.selectedScope, isNot(contains(SearchScope.sutta)));
-      });
-
-      // Test 6: selectAll clears all specific selections
-      test('should clear all scopes when selectAll is called', () {
+      // Test 5: selectAll clears scope
+      test('should clear scope when selectAll is called', () {
         // ARRANGE
-        notifier.selectScope(SearchScope.sutta);
-        notifier.selectScope(SearchScope.vinaya);
-        expect(notifier.state.selectedScope, isNotEmpty);
+        notifier.setScope(
+            {TipitakaNodeKeys.suttaPitaka, TipitakaNodeKeys.vinayaPitaka});
+        expect(notifier.state.scope, isNotEmpty);
 
         // ACT
         notifier.selectAll();
 
         // ASSERT
-        expect(notifier.state.selectedScope, isEmpty);
+        expect(notifier.state.scope, isEmpty);
         expect(notifier.state.isAllSelected, isTrue);
       });
 
-      // Test 7: Scope included in SearchQuery
-      test('should include selectedScope in built SearchQuery', () {
+      // Test 6: Scope included in SearchQuery
+      test('should include scope in built SearchQuery', () {
         fakeAsync((async) {
           // ARRANGE
           const categorizedResult = GroupedSearchResult(
@@ -541,8 +535,8 @@ void main() {
           when(mockSearchRepository.searchTopResults(any))
               .thenAnswer((_) async => const Right(categorizedResult));
 
-          notifier.selectScope(SearchScope.sutta);
-          notifier.selectScope(SearchScope.vinaya);
+          notifier.setScope(
+              {TipitakaNodeKeys.suttaPitaka, TipitakaNodeKeys.vinayaPitaka});
           notifier.updateQuery('ධම්ම'); // Use Sinhala to avoid transliteration
           async.elapse(const Duration(milliseconds: 350));
 
@@ -554,7 +548,11 @@ void main() {
           expect(captured.length, greaterThan(0));
           final query = captured.last;
           expect(
-              query.scope, containsAll([SearchScope.sutta, SearchScope.vinaya]));
+              query.scope,
+              containsAll([
+                TipitakaNodeKeys.suttaPitaka,
+                TipitakaNodeKeys.vinayaPitaka
+              ]));
         });
       });
     });
@@ -600,7 +598,8 @@ void main() {
             .thenAnswer((_) async {});
         when(mockRecentSearchesRepository.getRecentSearches())
             .thenAnswer((_) async => [
-                  RecentSearch(queryText: 'test query', timestamp: DateTime.now()),
+                  RecentSearch(
+                      queryText: 'test query', timestamp: DateTime.now()),
                 ]);
 
         notifier.updateQuery('test query');
@@ -614,7 +613,8 @@ void main() {
             .called(1);
         expect(notifier.state.isPanelDismissed, isTrue);
         expect(notifier.state.isResultsPanelVisible, isFalse);
-        expect(notifier.state.rawQueryText, equals('test query')); // Text preserved
+        expect(notifier.state.rawQueryText,
+            equals('test query')); // Text preserved
       });
 
       test('should not save for empty queries', () async {
@@ -646,7 +646,8 @@ void main() {
 
         // ASSERT
         expect(notifier.state.recentSearches.length, equals(2));
-        expect(notifier.state.recentSearches[0].queryText, equals('test query'));
+        expect(
+            notifier.state.recentSearches[0].queryText, equals('test query'));
       });
     });
 
@@ -694,7 +695,8 @@ void main() {
           // ASSERT
           expect(notifier.state.isLoading, isFalse);
           expect(notifier.state.groupedResults, isNull);
-          expect(notifier.state.rawQueryText, equals('test')); // Query text preserved
+          expect(notifier.state.rawQueryText,
+              equals('test')); // Query text preserved
         });
       });
 
@@ -785,7 +787,8 @@ void main() {
           async.elapse(const Duration(milliseconds: 100));
 
           notifier.updateQuery('abc');
-          async.elapse(const Duration(milliseconds: 350)); // Wait for final debounce
+          async.elapse(
+              const Duration(milliseconds: 350)); // Wait for final debounce
 
           // ASSERT - Should only search once (for 'abc'), not three times
           expect(callCount, equals(1));
@@ -793,7 +796,8 @@ void main() {
         });
       });
 
-      test('should handle concurrent filter changes without race conditions', () {
+      test('should handle concurrent filter changes without race conditions',
+          () {
         fakeAsync((async) {
           // ARRANGE
           const categorizedResult = GroupedSearchResult(
@@ -813,7 +817,7 @@ void main() {
           // ACT - Rapidly toggle filters
           notifier.toggleExactMatch();
           notifier.setLanguageFilter(pali: false);
-          notifier.selectScope(SearchScope.sutta);
+          notifier.setScope({TipitakaNodeKeys.suttaPitaka});
 
           // Wait for all searches to complete
           async.elapse(const Duration(milliseconds: 50));
@@ -821,12 +825,80 @@ void main() {
           // ASSERT - All filter changes should be reflected in final state
           expect(notifier.state.isExactMatch, isTrue);
           expect(notifier.state.searchInPali, isFalse);
-          expect(notifier.state.selectedScope, contains(SearchScope.sutta));
+          expect(notifier.state.scope, contains(TipitakaNodeKeys.suttaPitaka));
 
           // Should have triggered searches (one per filter change)
           verify(mockSearchRepository.searchTopResults(any))
               .called(greaterThan(0));
         });
+      });
+    });
+
+    group('setProximityDistance', () {
+      test('should trigger search refresh when query is active', () {
+        fakeAsync((async) {
+          // ARRANGE
+          const categorizedResult = GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [],
+              SearchResultType.fullText: [],
+              SearchResultType.definition: [],
+            },
+          );
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async => const Right(categorizedResult));
+
+          notifier.updateQuery('dhamma');
+          async.elapse(const Duration(milliseconds: 350));
+          clearInteractions(mockSearchRepository);
+
+          // ACT
+          notifier.setProximityDistance(5);
+
+          // ASSERT
+          verify(mockSearchRepository.searchTopResults(any)).called(1);
+        });
+      });
+    });
+
+    group('toggleChipScope', () {
+      test('should add chip nodeKeys when chip is not selected', () {
+        // ARRANGE
+        expect(notifier.state.scope, isEmpty);
+        final suttaChip = searchScopeChips.firstWhere((c) => c.id == 'sutta');
+
+        // ACT
+        notifier.toggleChipScope(suttaChip);
+
+        // ASSERT
+        expect(notifier.state.scope, containsAll(suttaChip.nodeKeys));
+      });
+
+      test('should remove chip nodeKeys when chip is already selected', () {
+        // ARRANGE
+        final suttaChip = searchScopeChips.firstWhere((c) => c.id == 'sutta');
+        notifier.toggleChipScope(suttaChip);
+        expect(notifier.state.scope, isNotEmpty);
+
+        // ACT
+        notifier.toggleChipScope(suttaChip);
+
+        // ASSERT
+        expect(notifier.state.scope, isEmpty);
+      });
+
+      test('should allow multi-select of chips', () {
+        // ARRANGE
+        final suttaChip = searchScopeChips.firstWhere((c) => c.id == 'sutta');
+        final vinayaChip = searchScopeChips.firstWhere((c) => c.id == 'vinaya');
+
+        // ACT
+        notifier.toggleChipScope(suttaChip);
+        notifier.toggleChipScope(vinayaChip);
+
+        // ASSERT - Both chips should be selected
+        expect(notifier.state.scope, containsAll(suttaChip.nodeKeys));
+        expect(notifier.state.scope, containsAll(vinayaChip.nodeKeys));
       });
     });
   });

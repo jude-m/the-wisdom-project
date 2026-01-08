@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import 'package:the_wisdom_project/domain/entities/search/grouped_search_result.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
@@ -40,6 +41,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () {},
@@ -72,6 +75,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () {},
@@ -103,6 +108,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () {},
@@ -135,6 +142,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () {},
@@ -169,6 +178,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () {},
@@ -200,6 +211,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () {},
@@ -226,6 +239,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () {},
@@ -262,6 +277,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () {},
@@ -274,7 +291,8 @@ void main() {
       // ASSERT - Verify count badges are displayed correctly
       // Top Results tab does NOT show a count badge (per implementation line 354)
       expect(find.text('42'), findsOneWidget); // Title count
-      expect(find.text('100+'), findsOneWidget); // Full text count (truncated at 100)
+      expect(find.text('100+'),
+          findsOneWidget); // Full text count (truncated at 100)
       expect(find.text('3'), findsOneWidget); // Definition count
     });
 
@@ -299,6 +317,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () {},
@@ -335,6 +355,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () {},
@@ -365,6 +387,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () {},
@@ -379,7 +403,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // ASSERT
-      expect(notifier.lastSelectedResultType, equals(SearchResultType.fullText));
+      expect(
+          notifier.lastSelectedResultType, equals(SearchResultType.fullText));
     });
 
     testWidgets('should call onClose when close button tapped', (tester) async {
@@ -395,6 +420,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () => closeCalled = true,
@@ -444,6 +471,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () {},
@@ -494,6 +523,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () {},
@@ -561,6 +592,8 @@ void main() {
             searchStateProvider.overrideWith((ref) => notifier),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SearchResultsPanel(
                 onClose: () {},
@@ -576,6 +609,108 @@ void main() {
       expect(find.text('FULL TEXT'), findsOneWidget);
       // Two ListTiles for the two results
       expect(find.byType(ListTile), findsNWidgets(2));
+    });
+
+    group('Result count footer', () {
+      testWidgets('should show footer when totalCount exceeds displayed count',
+          (tester) async {
+        // ARRANGE - 2 results displayed out of 150 total
+        const result = SearchResult(
+          id: 'test_1',
+          editionId: 'bjt',
+          resultType: SearchResultType.fullText,
+          title: 'Test Sutta',
+          subtitle: 'Test Collection',
+          matchedText: 'test content',
+          contentFileId: 'dn-1',
+          pageIndex: 0,
+          entryIndex: 0,
+          nodeKey: 'dn-1',
+          language: 'pali',
+        );
+
+        final notifier = FakeSearchStateNotifier(
+          SearchState(
+            rawQueryText: 'test',
+            selectedResultType: SearchResultType.fullText,
+            fullResults: AsyncValue.data(List.generate(2, (_) => result)),
+            countByResultType: const {
+              SearchResultType.fullText: 150, // Total exceeds displayed
+            },
+          ),
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              searchStateProvider.overrideWith((ref) => notifier),
+            ],
+            child: MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(
+                body: SearchResultsPanel(
+                  onClose: () {},
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // ASSERT - Footer shows "Viewing X out of Y results"
+        expect(find.textContaining('Viewing 2 out of 150'), findsOneWidget);
+      });
+
+      testWidgets('should hide footer when all results are displayed',
+          (tester) async {
+        // ARRANGE - All results fit (3 out of 3)
+        const result = SearchResult(
+          id: 'test_1',
+          editionId: 'bjt',
+          resultType: SearchResultType.fullText,
+          title: 'Test Sutta',
+          subtitle: 'Test Collection',
+          matchedText: 'test content',
+          contentFileId: 'dn-1',
+          pageIndex: 0,
+          entryIndex: 0,
+          nodeKey: 'dn-1',
+          language: 'pali',
+        );
+
+        final notifier = FakeSearchStateNotifier(
+          SearchState(
+            rawQueryText: 'test',
+            selectedResultType: SearchResultType.fullText,
+            fullResults: AsyncValue.data(List.generate(3, (_) => result)),
+            countByResultType: const {
+              SearchResultType.fullText: 3, // Total equals displayed
+            },
+          ),
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              searchStateProvider.overrideWith((ref) => notifier),
+            ],
+            child: MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(
+                body: SearchResultsPanel(
+                  onClose: () {},
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // ASSERT - No footer when all results displayed
+        expect(find.textContaining('Viewing'), findsNothing);
+      });
     });
   });
 }

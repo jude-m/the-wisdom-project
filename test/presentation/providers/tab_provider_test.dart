@@ -453,13 +453,18 @@ void main() {
       notifier
           .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
       container.read(activeTabIndexProvider.notifier).state = 0;
-      container.read(expandedNodesProvider.notifier).state = {'dn', 'mn', 'sn'};
+      container.read(expandedNodesProvider.notifier).state = {
+        TipitakaNodeKeys.dighaNikaya,
+        TipitakaNodeKeys.majjhimaNikaya,
+        TipitakaNodeKeys.samyuttaNikaya
+      };
 
       // ACT - Close the only tab
       container.read(closeTabProvider)(0);
 
       // ASSERT - expandedNodes should reset to default (Sutta Pitaka)
-      expect(container.read(expandedNodesProvider), equals({kSuttaPitakaNodeKey}));
+      expect(container.read(expandedNodesProvider),
+          equals({TipitakaNodeKeys.suttaPitaka}));
     });
 
     test('closing the only tab should clear scroll positions', () {

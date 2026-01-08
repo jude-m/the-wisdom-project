@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:the_wisdom_project/domain/entities/search/search_scope.dart';
+import 'package:the_wisdom_project/core/constants/constants.dart';
 import 'package:the_wisdom_project/domain/entities/search/scope_filter_config.dart';
 
 void main() {
@@ -14,22 +14,22 @@ void main() {
         expect(patterns, isEmpty);
       });
 
-      // Test 2: Single scope returns correct patterns
-      test('should return correct patterns for sutta scope', () {
+      // Test 2: Single root node key returns correct patterns
+      test('should return correct patterns for sutta pitaka (sp)', () {
         // ACT
-        final patterns =
-            ScopeFilterConfig.getPatternsForScope({SearchScope.sutta});
+        final patterns = ScopeFilterConfig.getPatternsForScope(
+            {TipitakaNodeKeys.suttaPitaka});
 
         // ASSERT
         expect(patterns, equals(['dn-', 'mn-', 'sn-', 'an-', 'kn-']));
       });
 
-      // Test 3: Multiple scopes combine patterns (OR logic)
-      test('should combine patterns for multiple scopes', () {
+      // Test 3: Multiple node keys combine patterns (OR logic)
+      test('should combine patterns for multiple node keys', () {
         // ACT
         final patterns = ScopeFilterConfig.getPatternsForScope({
-          SearchScope.sutta,
-          SearchScope.vinaya,
+          TipitakaNodeKeys.suttaPitaka,
+          TipitakaNodeKeys.vinayaPitaka,
         });
 
         // ASSERT
@@ -38,34 +38,86 @@ void main() {
         expect(patterns.length, equals(6)); // 5 sutta + 1 vinaya
       });
 
-      // Test 4: All scopes combine correctly
-      test('should return all patterns when all scopes selected', () {
+      // Test 4: Specific nikaya returns single pattern
+      test('should return single pattern for specific nikaya', () {
         // ACT
         final patterns = ScopeFilterConfig.getPatternsForScope(
-          SearchScope.values.toSet(),
-        );
+            {TipitakaNodeKeys.dighaNikaya, TipitakaNodeKeys.majjhimaNikaya});
 
         // ASSERT
-        expect(patterns, containsAll(['dn-', 'vp-', 'ap-', 'atta-', 'anya-']));
-        expect(patterns.length, equals(9)); // 5+1+1+1+1
+        expect(patterns, equals(['dn-', 'mn-']));
+      });
+
+      // Test 5: Sub-node keys work correctly
+      test('should return pattern for sub-node key', () {
+        // ACT
+        final patterns = ScopeFilterConfig.getPatternsForScope({'dn-1'});
+
+        // ASSERT
+        expect(patterns, equals(['dn-1-']));
+      });
+
+      // Test 6: Commentary expansion works
+      test('should expand atta-sp to commentary patterns', () {
+        // ACT
+        final patterns = ScopeFilterConfig.getPatternsForScope(
+            {TipitakaNodeKeys.suttaAtthakatha});
+
+        // ASSERT
+        expect(
+            patterns,
+            equals(
+                ['atta-dn-', 'atta-mn-', 'atta-sn-', 'atta-an-', 'atta-kn-']));
       });
     });
 
-    group('hasSubCategories', () {
-      // Test 5: Only Sutta has sub-categories currently
-      test('should return true for sutta scope', () {
-        expect(ScopeFilterConfig.hasSubCategories(SearchScope.sutta), isTrue);
+    group('getPatternsForNodeKey', () {
+      // Test 7: Root node that needs expansion
+      test('should expand sp to nikaya patterns', () {
+        // ACT
+        final patterns = ScopeFilterConfig.getPatternsForNodeKey(
+            TipitakaNodeKeys.suttaPitaka);
+
+        // ASSERT
+        expect(patterns, equals(['dn-', 'mn-', 'sn-', 'an-', 'kn-']));
       });
 
-      test('should return false for other scopes', () {
-        expect(
-            ScopeFilterConfig.hasSubCategories(SearchScope.vinaya), isFalse);
-        expect(
-            ScopeFilterConfig.hasSubCategories(SearchScope.abhidhamma), isFalse);
-        expect(ScopeFilterConfig.hasSubCategories(SearchScope.commentaries),
-            isFalse);
-        expect(
-            ScopeFilterConfig.hasSubCategories(SearchScope.treatises), isFalse);
+      // Test 8: Direct mapping node keys
+      test('should return direct pattern for vp', () {
+        // ACT
+        final patterns = ScopeFilterConfig.getPatternsForNodeKey(
+            TipitakaNodeKeys.vinayaPitaka);
+
+        // ASSERT
+        expect(patterns, equals(['vp-']));
+      });
+
+      test('should return direct pattern for ap', () {
+        // ACT
+        final patterns = ScopeFilterConfig.getPatternsForNodeKey(
+            TipitakaNodeKeys.abhidhammaPitaka);
+
+        // ASSERT
+        expect(patterns, equals(['ap-']));
+      });
+
+      test('should return direct pattern for anya', () {
+        // ACT
+        final patterns =
+            ScopeFilterConfig.getPatternsForNodeKey(TipitakaNodeKeys.treatises);
+
+        // ASSERT
+        expect(patterns, equals(['anya-']));
+      });
+
+      // Test 9: Specific node key
+      test('should return pattern for specific node like dn', () {
+        // ACT
+        final patterns = ScopeFilterConfig.getPatternsForNodeKey(
+            TipitakaNodeKeys.dighaNikaya);
+
+        // ASSERT
+        expect(patterns, equals(['dn-']));
       });
     });
   });

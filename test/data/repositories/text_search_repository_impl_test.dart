@@ -1,11 +1,11 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:the_wisdom_project/core/constants/constants.dart';
 import 'package:the_wisdom_project/data/repositories/text_search_repository_impl.dart';
 import 'package:the_wisdom_project/domain/entities/failure.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_query.dart';
-import 'package:the_wisdom_project/domain/entities/search/search_scope.dart';
 import 'package:the_wisdom_project/data/datasources/fts_datasource.dart';
 import 'package:the_wisdom_project/domain/entities/navigation/tipitaka_tree_node.dart';
 
@@ -116,7 +116,7 @@ void main() {
     group('searchTopResults', () {
       final sampleTree = [
         const TipitakaTreeNode(
-          nodeKey: 'dn',
+          nodeKey: TipitakaNodeKeys.dighaNikaya,
           paliName: 'Dīgha Nikāya',
           sinhalaName: 'දීඝනිකාය',
           hierarchyLevel: 0,
@@ -131,7 +131,7 @@ void main() {
               hierarchyLevel: 2,
               entryPageIndex: 0,
               entryIndexInPage: 0,
-              parentNodeKey: 'dn',
+              parentNodeKey: TipitakaNodeKeys.dighaNikaya,
               contentFileId: 'dn-1',
             ),
             TipitakaTreeNode(
@@ -141,7 +141,7 @@ void main() {
               hierarchyLevel: 2,
               entryPageIndex: 0,
               entryIndexInPage: 0,
-              parentNodeKey: 'dn',
+              parentNodeKey: TipitakaNodeKeys.dighaNikaya,
               contentFileId: 'dn-2',
             ),
           ],
@@ -204,7 +204,7 @@ void main() {
         // Add more suttas to tree for testing limit
         final largeTree = [
           const TipitakaTreeNode(
-            nodeKey: 'dn',
+            nodeKey: TipitakaNodeKeys.dighaNikaya,
             paliName: 'Dīgha Nikāya',
             sinhalaName: 'දීඝනිකාය',
             hierarchyLevel: 0,
@@ -219,7 +219,7 @@ void main() {
                 hierarchyLevel: 2,
                 entryPageIndex: 0,
                 entryIndexInPage: 0,
-                parentNodeKey: 'dn',
+                parentNodeKey: TipitakaNodeKeys.dighaNikaya,
                 contentFileId: 'dn-1',
               ),
               TipitakaTreeNode(
@@ -229,7 +229,7 @@ void main() {
                 hierarchyLevel: 2,
                 entryPageIndex: 0,
                 entryIndexInPage: 0,
-                parentNodeKey: 'dn',
+                parentNodeKey: TipitakaNodeKeys.dighaNikaya,
                 contentFileId: 'dn-2',
               ),
               TipitakaTreeNode(
@@ -239,7 +239,7 @@ void main() {
                 hierarchyLevel: 2,
                 entryPageIndex: 0,
                 entryIndexInPage: 0,
-                parentNodeKey: 'dn',
+                parentNodeKey: TipitakaNodeKeys.dighaNikaya,
                 contentFileId: 'dn-3',
               ),
               TipitakaTreeNode(
@@ -249,7 +249,7 @@ void main() {
                 hierarchyLevel: 2,
                 entryPageIndex: 0,
                 entryIndexInPage: 0,
-                parentNodeKey: 'dn',
+                parentNodeKey: TipitakaNodeKeys.dighaNikaya,
                 contentFileId: 'dn-4',
               ),
             ],
@@ -328,13 +328,15 @@ void main() {
             final contentResults =
                 categorized.resultsByType[SearchResultType.fullText]!;
             expect(contentResults.length, equals(1));
-            expect(contentResults[0].resultType, equals(SearchResultType.fullText));
+            expect(contentResults[0].resultType,
+                equals(SearchResultType.fullText));
             expect(contentResults[0].contentFileId, equals('dn-1'));
           },
         );
       });
 
-      test('should pass isExactMatch=true to FTS when query has isExactMatch enabled',
+      test(
+          'should pass isExactMatch=true to FTS when query has isExactMatch enabled',
           () async {
         // ARRANGE
         const query = SearchQuery(queryText: 'dhamma', isExactMatch: true);
@@ -369,7 +371,8 @@ void main() {
 
       test('should pass isExactMatch=false to FTS by default', () async {
         // ARRANGE
-        const query = SearchQuery(queryText: 'dhamma'); // isExactMatch defaults to false
+        const query =
+            SearchQuery(queryText: 'dhamma'); // isExactMatch defaults to false
 
         when(mockTreeRepository.loadNavigationTree())
             .thenAnswer((_) async => Right(sampleTree));
@@ -692,7 +695,8 @@ void main() {
       // CONTAINS MATCHING TESTS (isExactMatch=false)
       // ========================================================================
 
-      test('should match query in middle of title with contains matching (isExactMatch=false)',
+      test(
+          'should match query in middle of title with contains matching (isExactMatch=false)',
           () async {
         // ARRANGE - Query "jāla" should match "Brahmajālasutta" (middle position)
         const query = SearchQuery(queryText: 'jāla', isExactMatch: false);
@@ -836,7 +840,8 @@ void main() {
       // WORD BOUNDARY MATCHING TESTS (isExactMatch=true)
       // ========================================================================
 
-      test('should match complete word only with word boundary (isExactMatch=true)',
+      test(
+          'should match complete word only with word boundary (isExactMatch=true)',
           () async {
         // ARRANGE - Test all 4 boundary conditions
         const query = SearchQuery(queryText: 'Dhamma', isExactMatch: true);
@@ -932,7 +937,12 @@ void main() {
             // Verify matches are from valid word boundary results
             for (final title in titles) {
               expect(
-                ['Dhamma', 'Dhamma Sutta', 'The Dhamma', 'Teaching Dhamma Today'],
+                [
+                  'Dhamma',
+                  'Dhamma Sutta',
+                  'The Dhamma',
+                  'Teaching Dhamma Today'
+                ],
                 contains(title),
               );
             }
@@ -940,7 +950,8 @@ void main() {
         );
       });
 
-      test('should respect word boundaries at all positions (isExactMatch=true)',
+      test(
+          'should respect word boundaries at all positions (isExactMatch=true)',
           () async {
         // ARRANGE - Test specific boundary scenarios
         const query = SearchQuery(queryText: 'sutta', isExactMatch: true);
@@ -1021,7 +1032,8 @@ void main() {
         );
       });
 
-      test('should NOT match across punctuation without spaces (isExactMatch=true)',
+      test(
+          'should NOT match across punctuation without spaces (isExactMatch=true)',
           () async {
         // ARRANGE - Test that punctuation is NOT treated as word boundary
         // Current implementation only uses spaces as boundaries
@@ -1098,7 +1110,8 @@ void main() {
       // DUAL-CRITERIA SORTING TESTS
       // ========================================================================
 
-      test('should sort with dual criteria: startsWith before contains, leaf before parent',
+      test(
+          'should sort with dual criteria: startsWith before contains, leaf before parent',
           () async {
         // ARRANGE - Create 4 node types to test both sort criteria
         const query = SearchQuery(queryText: 'sutta', isExactMatch: false);
@@ -1188,7 +1201,8 @@ void main() {
         )).thenAnswer((_) async => []);
 
         // ACT
-        final result = await repository.searchTopResults(query, maxPerCategory: 10);
+        final result =
+            await repository.searchTopResults(query, maxPerCategory: 10);
 
         // ASSERT
         expect(result.isRight(), true);
@@ -1200,10 +1214,14 @@ void main() {
             expect(titleResults.length, equals(4));
 
             // Verify correct sort order
-            expect(titleResults[0].nodeKey, equals('leaf-starts')); // 1st: startsWith + leaf
-            expect(titleResults[1].nodeKey, equals('parent-starts')); // 2nd: startsWith + parent
-            expect(titleResults[2].nodeKey, equals('leaf-contains')); // 3rd: contains + leaf
-            expect(titleResults[3].nodeKey, equals('parent-contains')); // 4th: contains + parent
+            expect(titleResults[0].nodeKey,
+                equals('leaf-starts')); // 1st: startsWith + leaf
+            expect(titleResults[1].nodeKey,
+                equals('parent-starts')); // 2nd: startsWith + parent
+            expect(titleResults[2].nodeKey,
+                equals('leaf-contains')); // 3rd: contains + leaf
+            expect(titleResults[3].nodeKey,
+                equals('parent-contains')); // 4th: contains + parent
           },
         );
       });
@@ -1262,7 +1280,8 @@ void main() {
         )).thenAnswer((_) async => []);
 
         // ACT - Limit to 2 results
-        final result = await repository.searchTopResults(query, maxPerCategory: 2);
+        final result =
+            await repository.searchTopResults(query, maxPerCategory: 2);
 
         // ASSERT
         expect(result.isRight(), true);
@@ -1277,7 +1296,8 @@ void main() {
             expect(titleResults[0].nodeKey, equals('starts-1'));
             expect(titleResults[1].nodeKey, equals('starts-2'));
             // The contains match should be excluded by limit
-            expect(titleResults.map((r) => r.nodeKey), isNot(contains('contains-1')));
+            expect(titleResults.map((r) => r.nodeKey),
+                isNot(contains('contains-1')));
           },
         );
       });
@@ -1290,7 +1310,7 @@ void main() {
         // ARRANGE - Create nodes in different scopes
         const query = SearchQuery(
           queryText: 'sutta',
-          scope: {SearchScope.sutta}, // Only search in Sutta scope
+          scope: {TipitakaNodeKeys.suttaPitaka}, // Only search in Sutta Pitaka
         );
 
         final treeWithMultipleScopes = [
@@ -1354,7 +1374,7 @@ void main() {
         // ARRANGE
         const query = SearchQuery(
           queryText: 'dhamma',
-          scope: {SearchScope.vinaya}, // Only search Vinaya
+          scope: {TipitakaNodeKeys.vinayaPitaka}, // Only search Vinaya Pitaka
         );
 
         final sampleTree = [
@@ -1391,8 +1411,11 @@ void main() {
           'dhamma',
           editionIds: anyNamed('editionIds'),
           language: anyNamed('language'),
-          scope: {SearchScope.vinaya}, // Scope should be passed through
+          scope: {
+            TipitakaNodeKeys.vinayaPitaka
+          }, // Scope should be passed through
           isExactMatch: false,
+          proximity: anyNamed('proximity'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
         )).called(1);
@@ -1560,7 +1583,7 @@ void main() {
     group('searchByResultType', () {
       final sampleTree = [
         const TipitakaTreeNode(
-          nodeKey: 'dn',
+          nodeKey: TipitakaNodeKeys.dighaNikaya,
           paliName: 'Dīgha Nikāya',
           sinhalaName: 'දීඝනිකාය',
           hierarchyLevel: 0,
@@ -1575,7 +1598,7 @@ void main() {
               hierarchyLevel: 2,
               entryPageIndex: 0,
               entryIndexInPage: 0,
-              parentNodeKey: 'dn',
+              parentNodeKey: TipitakaNodeKeys.dighaNikaya,
               contentFileId: 'dn-1',
             ),
           ],
@@ -1637,8 +1660,8 @@ void main() {
         )).thenAnswer((_) async => ftsMatches);
 
         // ACT
-        final result =
-            await repository.searchByResultType(query, SearchResultType.fullText);
+        final result = await repository.searchByResultType(
+            query, SearchResultType.fullText);
 
         // ASSERT
         expect(result.isRight(), true);
@@ -1719,8 +1742,8 @@ void main() {
         )).thenAnswer((_) async => secondPageMatches);
 
         // ACT - Get first page
-        final firstPageResult =
-            await repository.searchByResultType(query, SearchResultType.fullText);
+        final firstPageResult = await repository.searchByResultType(
+            query, SearchResultType.fullText);
 
         // ASSERT - First page
         expect(firstPageResult.isRight(), true);
@@ -1790,7 +1813,8 @@ void main() {
             .thenAnswer((_) async => Right(sampleTree));
 
         // ACT
-        final result = await repository.searchByResultType(query, SearchResultType.definition);
+        final result = await repository.searchByResultType(
+            query, SearchResultType.definition);
 
         // ASSERT - StateError is caught and wrapped in Failure
         expect(result.isLeft(), true);
@@ -1803,7 +1827,8 @@ void main() {
         );
       });
 
-      test('should return failure when topResults type is used with searchByResultType',
+      test(
+          'should return failure when topResults type is used with searchByResultType',
           () async {
         // ARRANGE
         const query = SearchQuery(queryText: 'dhamma');
@@ -1812,7 +1837,8 @@ void main() {
             .thenAnswer((_) async => Right(sampleTree));
 
         // ACT
-        final result = await repository.searchByResultType(query, SearchResultType.topResults);
+        final result = await repository.searchByResultType(
+            query, SearchResultType.topResults);
 
         // ASSERT - StateError is caught and wrapped in Failure
         expect(result.isLeft(), true);
@@ -1869,8 +1895,8 @@ void main() {
         )).thenThrow(Exception('Database error'));
 
         // ACT
-        final result =
-            await repository.searchByResultType(query, SearchResultType.fullText);
+        final result = await repository.searchByResultType(
+            query, SearchResultType.fullText);
 
         // ASSERT
         expect(result.isLeft(), true);
@@ -1878,8 +1904,7 @@ void main() {
         result.fold(
           (failure) {
             expect(failure, isA<DataLoadFailure>());
-            expect(
-                failure.userMessage, contains('Failed to search by type'));
+            expect(failure.userMessage, contains('Failed to search by type'));
           },
           (results) => fail('Expected failure but got success'),
         );
