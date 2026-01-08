@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import '../providers/search_provider.dart';
+import 'proximity_dialog.dart';
 import 'recent_search_overlay.dart';
 
 /// Simple search bar for AppBar with dropdown overlay for recent searches
@@ -86,6 +87,12 @@ class _SearchBarState extends ConsumerState<SearchBar> {
     final isExactMatch =
         ref.watch(searchStateProvider.select((s) => s.isExactMatch));
 
+    // Watch proximity state for toggle button
+    // Active when: phrase search (null) OR non-default distance (!= 10)
+    final proximityDistance =
+        ref.watch(searchStateProvider.select((s) => s.proximityDistance));
+    final isProximityActive = proximityDistance == null || proximityDistance != 10;
+
     // Listen to queryText changes and sync controller
     ref.listen(searchStateProvider.select((s) => s.rawQueryText), (prev, next) {
       if (_controller.text != next) {
@@ -167,7 +174,7 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                   children: [
                     // Exact match toggle button with clear visual state
                     Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      margin: const EdgeInsets.only(left: 4),
                       decoration: BoxDecoration(
                         color: isExactMatch
                             ? theme.colorScheme.primaryContainer
@@ -188,6 +195,26 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                               .read(searchStateProvider.notifier)
                               .toggleExactMatch();
                         },
+                      ),
+                    ),
+                    // Proximity toggle button - opens proximity dialog
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isProximityActive
+                            ? theme.colorScheme.primaryContainer
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.space_bar,
+                          size: 20,
+                          color: isProximityActive
+                              ? theme.colorScheme.onPrimaryContainer
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                        tooltip: l10n.wordProximity,
+                        onPressed: () => ProximityDialog.show(context),
                       ),
                     ),
                     // Clear button (only shown when text is present)

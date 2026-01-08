@@ -1,7 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'search_scope.dart';
-
 part 'search_query.freezed.dart';
 
 /// Represents a search query with filters
@@ -25,16 +23,23 @@ class SearchQuery with _$SearchQuery {
     /// Whether to search in Sinhala text
     @Default(true) bool searchInSinhala,
 
-    /// Selected scope to search within.
+    /// Search scope using tree node keys (e.g., 'sp', 'dn', 'kn-dhp').
     ///
     /// Empty set = search all content (no scope filter applied).
     /// Non-empty = search only within the selected scope (OR logic).
     ///
-    /// Example:
+    /// Examples:
     /// - {} = search everything
-    /// - {sutta} = search only Sutta Pitaka
-    /// - {sutta, commentaries} = search Sutta Pitaka OR Commentaries
-    @Default({}) Set<SearchScope> scope,
+    /// - {'sp'} = search only Sutta Pitaka
+    /// - {'dn', 'mn'} = search Digha Nikaya OR Majjhima Nikaya
+    /// - {'atta-vp', 'atta-sp', 'atta-ap'} = search all Commentaries
+    @Default({}) Set<String> scope,
+
+    /// Proximity distance for multi-word queries.
+    /// Default 10 = words within 10 tokens (NEAR/10).
+    /// null = phrase matching (consecutive words only).
+    /// 1-30 = NEAR/n proximity search.
+    @Default(10) int? proximityDistance,
 
     /// Maximum number of results to return
     @Default(50) int limit,

@@ -33,16 +33,23 @@ mixin _$SearchQuery {
   /// Whether to search in Sinhala text
   bool get searchInSinhala => throw _privateConstructorUsedError;
 
-  /// Selected scope to search within.
+  /// Search scope using tree node keys (e.g., 'sp', 'dn', 'kn-dhp').
   ///
   /// Empty set = search all content (no scope filter applied).
   /// Non-empty = search only within the selected scope (OR logic).
   ///
-  /// Example:
+  /// Examples:
   /// - {} = search everything
-  /// - {sutta} = search only Sutta Pitaka
-  /// - {sutta, commentaries} = search Sutta Pitaka OR Commentaries
-  Set<SearchScope> get scope => throw _privateConstructorUsedError;
+  /// - {'sp'} = search only Sutta Pitaka
+  /// - {'dn', 'mn'} = search Digha Nikaya OR Majjhima Nikaya
+  /// - {'atta-vp', 'atta-sp', 'atta-ap'} = search all Commentaries
+  Set<String> get scope => throw _privateConstructorUsedError;
+
+  /// Proximity distance for multi-word queries.
+  /// Default 10 = words within 10 tokens (NEAR/10).
+  /// null = phrase matching (consecutive words only).
+  /// 1-30 = NEAR/n proximity search.
+  int? get proximityDistance => throw _privateConstructorUsedError;
 
   /// Maximum number of results to return
   int get limit => throw _privateConstructorUsedError;
@@ -69,7 +76,8 @@ abstract class $SearchQueryCopyWith<$Res> {
       Set<String> editionIds,
       bool searchInPali,
       bool searchInSinhala,
-      Set<SearchScope> scope,
+      Set<String> scope,
+      int? proximityDistance,
       int limit,
       int offset});
 }
@@ -95,6 +103,7 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
     Object? searchInPali = null,
     Object? searchInSinhala = null,
     Object? scope = null,
+    Object? proximityDistance = freezed,
     Object? limit = null,
     Object? offset = null,
   }) {
@@ -122,7 +131,11 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
       scope: null == scope
           ? _value.scope
           : scope // ignore: cast_nullable_to_non_nullable
-              as Set<SearchScope>,
+              as Set<String>,
+      proximityDistance: freezed == proximityDistance
+          ? _value.proximityDistance
+          : proximityDistance // ignore: cast_nullable_to_non_nullable
+              as int?,
       limit: null == limit
           ? _value.limit
           : limit // ignore: cast_nullable_to_non_nullable
@@ -149,7 +162,8 @@ abstract class _$$SearchQueryImplCopyWith<$Res>
       Set<String> editionIds,
       bool searchInPali,
       bool searchInSinhala,
-      Set<SearchScope> scope,
+      Set<String> scope,
+      int? proximityDistance,
       int limit,
       int offset});
 }
@@ -173,6 +187,7 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
     Object? searchInPali = null,
     Object? searchInSinhala = null,
     Object? scope = null,
+    Object? proximityDistance = freezed,
     Object? limit = null,
     Object? offset = null,
   }) {
@@ -200,7 +215,11 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
       scope: null == scope
           ? _value._scope
           : scope // ignore: cast_nullable_to_non_nullable
-              as Set<SearchScope>,
+              as Set<String>,
+      proximityDistance: freezed == proximityDistance
+          ? _value.proximityDistance
+          : proximityDistance // ignore: cast_nullable_to_non_nullable
+              as int?,
       limit: null == limit
           ? _value.limit
           : limit // ignore: cast_nullable_to_non_nullable
@@ -222,7 +241,8 @@ class _$SearchQueryImpl implements _SearchQuery {
       final Set<String> editionIds = const {},
       this.searchInPali = true,
       this.searchInSinhala = true,
-      final Set<SearchScope> scope = const {},
+      final Set<String> scope = const {},
+      this.proximityDistance = 10,
       this.limit = 50,
       this.offset = 0})
       : _editionIds = editionIds,
@@ -262,33 +282,43 @@ class _$SearchQueryImpl implements _SearchQuery {
   @JsonKey()
   final bool searchInSinhala;
 
-  /// Selected scope to search within.
+  /// Search scope using tree node keys (e.g., 'sp', 'dn', 'kn-dhp').
   ///
   /// Empty set = search all content (no scope filter applied).
   /// Non-empty = search only within the selected scope (OR logic).
   ///
-  /// Example:
+  /// Examples:
   /// - {} = search everything
-  /// - {sutta} = search only Sutta Pitaka
-  /// - {sutta, commentaries} = search Sutta Pitaka OR Commentaries
-  final Set<SearchScope> _scope;
+  /// - {'sp'} = search only Sutta Pitaka
+  /// - {'dn', 'mn'} = search Digha Nikaya OR Majjhima Nikaya
+  /// - {'atta-vp', 'atta-sp', 'atta-ap'} = search all Commentaries
+  final Set<String> _scope;
 
-  /// Selected scope to search within.
+  /// Search scope using tree node keys (e.g., 'sp', 'dn', 'kn-dhp').
   ///
   /// Empty set = search all content (no scope filter applied).
   /// Non-empty = search only within the selected scope (OR logic).
   ///
-  /// Example:
+  /// Examples:
   /// - {} = search everything
-  /// - {sutta} = search only Sutta Pitaka
-  /// - {sutta, commentaries} = search Sutta Pitaka OR Commentaries
+  /// - {'sp'} = search only Sutta Pitaka
+  /// - {'dn', 'mn'} = search Digha Nikaya OR Majjhima Nikaya
+  /// - {'atta-vp', 'atta-sp', 'atta-ap'} = search all Commentaries
   @override
   @JsonKey()
-  Set<SearchScope> get scope {
+  Set<String> get scope {
     if (_scope is EqualUnmodifiableSetView) return _scope;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableSetView(_scope);
   }
+
+  /// Proximity distance for multi-word queries.
+  /// Default 10 = words within 10 tokens (NEAR/10).
+  /// null = phrase matching (consecutive words only).
+  /// 1-30 = NEAR/n proximity search.
+  @override
+  @JsonKey()
+  final int? proximityDistance;
 
   /// Maximum number of results to return
   @override
@@ -302,7 +332,7 @@ class _$SearchQueryImpl implements _SearchQuery {
 
   @override
   String toString() {
-    return 'SearchQuery(queryText: $queryText, isExactMatch: $isExactMatch, editionIds: $editionIds, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, limit: $limit, offset: $offset)';
+    return 'SearchQuery(queryText: $queryText, isExactMatch: $isExactMatch, editionIds: $editionIds, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, proximityDistance: $proximityDistance, limit: $limit, offset: $offset)';
   }
 
   @override
@@ -321,6 +351,8 @@ class _$SearchQueryImpl implements _SearchQuery {
             (identical(other.searchInSinhala, searchInSinhala) ||
                 other.searchInSinhala == searchInSinhala) &&
             const DeepCollectionEquality().equals(other._scope, _scope) &&
+            (identical(other.proximityDistance, proximityDistance) ||
+                other.proximityDistance == proximityDistance) &&
             (identical(other.limit, limit) || other.limit == limit) &&
             (identical(other.offset, offset) || other.offset == offset));
   }
@@ -334,6 +366,7 @@ class _$SearchQueryImpl implements _SearchQuery {
       searchInPali,
       searchInSinhala,
       const DeepCollectionEquality().hash(_scope),
+      proximityDistance,
       limit,
       offset);
 
@@ -353,7 +386,8 @@ abstract class _SearchQuery implements SearchQuery {
       final Set<String> editionIds,
       final bool searchInPali,
       final bool searchInSinhala,
-      final Set<SearchScope> scope,
+      final Set<String> scope,
+      final int? proximityDistance,
       final int limit,
       final int offset}) = _$SearchQueryImpl;
 
@@ -379,17 +413,25 @@ abstract class _SearchQuery implements SearchQuery {
   @override
   bool get searchInSinhala;
 
-  /// Selected scope to search within.
+  /// Search scope using tree node keys (e.g., 'sp', 'dn', 'kn-dhp').
   ///
   /// Empty set = search all content (no scope filter applied).
   /// Non-empty = search only within the selected scope (OR logic).
   ///
-  /// Example:
+  /// Examples:
   /// - {} = search everything
-  /// - {sutta} = search only Sutta Pitaka
-  /// - {sutta, commentaries} = search Sutta Pitaka OR Commentaries
+  /// - {'sp'} = search only Sutta Pitaka
+  /// - {'dn', 'mn'} = search Digha Nikaya OR Majjhima Nikaya
+  /// - {'atta-vp', 'atta-sp', 'atta-ap'} = search all Commentaries
   @override
-  Set<SearchScope> get scope;
+  Set<String> get scope;
+
+  /// Proximity distance for multi-word queries.
+  /// Default 10 = words within 10 tokens (NEAR/10).
+  /// null = phrase matching (consecutive words only).
+  /// 1-30 = NEAR/n proximity search.
+  @override
+  int? get proximityDistance;
 
   /// Maximum number of results to return
   @override

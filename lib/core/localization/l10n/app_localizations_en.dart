@@ -89,4 +89,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get isExactMatchToggle => 'Exact word match';
+
+  @override
+  String get refineSearch => 'Refine Search';
+
+  @override
+  String get refine => 'Refine';
+
+  @override
+  String get scope => 'Scope';
+
+  @override
+  String get wordProximity => 'Word Proximity';
+
+  @override
+  String get phraseSearch => 'Phrase search (exact consecutive words)';
+
+  @override
+  String wordsApart(int count) {
+    return '$count words apart';
+  }
+
+  @override
+  String get exactConsecutiveWords => 'Exact consecutive words';
+
+  @override
+  String get apply => 'Apply';
+
+  @override
+  String get reset => 'Reset';
+
+  @override
+  String get clear => 'Clear';
+
+  @override
+  String get scopeAll => 'All';
+
+  @override
+  String get scopeSutta => 'Sutta';
+
+  @override
+  String get scopeVinaya => 'Vinaya';
+
+  @override
+  String get scopeAbhidhamma => 'Abhidhamma';
+
+  @override
+  String get scopeCommentaries => 'Commentaries';
+
+  @override
+  String get scopeTreatises => 'Treatises';
 }

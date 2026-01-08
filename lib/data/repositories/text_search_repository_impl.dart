@@ -7,7 +7,6 @@ import '../../domain/entities/search/grouped_search_result.dart';
 import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_query.dart';
 import '../../domain/entities/search/search_result.dart';
-import '../../domain/entities/search/search_scope.dart';
 import '../../domain/entities/search/scope_filter_config.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../../domain/repositories/navigation_tree_repository.dart';
@@ -73,6 +72,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             editionIds: editionsToSearch,
             scope: query.scope,
             isExactMatch: query.isExactMatch,
+            proximity: query.proximityDistance,
             limit: maxPerCategory,
             offset: 0,
           );
@@ -140,6 +140,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 editionIds: editionsToSearch,
                 scope: query.scope,
                 isExactMatch: query.isExactMatch,
+                proximity: query.proximityDistance,
                 limit: query.limit,
                 offset: query.offset,
               );
@@ -204,6 +205,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             editionId: editionsToSearch.first,
             scope: query.scope,
             isExactMatch: query.isExactMatch,
+            proximity: query.proximityDistance,
           );
 
           // Definition count (future - placeholder)
@@ -259,13 +261,13 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   /// When [isExactMatch] is false (default), uses prefix matching (startsWith).
   /// When [isExactMatch] is true, requires exact string match.
   ///
-  /// [scope] filters results to specific content areas.
-  /// Empty set = search all content (no scope filter).
+  /// [scope] - Tree node keys (e.g., 'sp', 'dn', 'dn-1') for filtering.
+  /// Empty set = search all content.
   List<SearchResult> _searchTitles({
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
     required String editionId,
-    Set<SearchScope> scope = const {},
+    Set<String> scope = const {},
     bool isExactMatch = false,
     int? limit,
   }) {
@@ -274,7 +276,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     // Normalize query for matching (caller handles Singlish conversion)
     final searchQuery = normalizeText(queryText, toLowerCase: true);
 
-    // Get scope patterns for filtering (empty = no filter)
+    // Get scope patterns for filtering
     final scopePatterns = ScopeFilterConfig.getPatternsForScope(scope);
 
     // Helper function to check if a name matches the query
@@ -293,10 +295,13 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     }
 
     // Helper function to check if contentFileId matches any scope pattern
+    // Patterns from getPatternsForScope are prefix-only (e.g., 'dn-')
+    // SQL LIKE wildcard (%) is added by the service layer, not here
     bool matchesScope(String? contentFileId) {
       if (scopePatterns.isEmpty) return true; // No filter = match all
       if (contentFileId == null) return false;
-      return scopePatterns.any((pattern) => contentFileId.startsWith(pattern));
+      return scopePatterns
+          .any((pattern) => contentFileId.startsWith(pattern));
     }
 
     for (final node in nodeMap.values) {
@@ -365,12 +370,21 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
 
   /// Search for content matches using FTS database
   /// Always loads matched text from JSON files for display
+  ///
+  /// [scope] - Tree node keys (e.g., 'sp', 'dn', 'dn-1') for filtering.
+  /// Empty set = search all content.
+  ///
+  /// [proximity] controls multi-word matching:
+  /// - null = phrase matching (consecutive words)
+  /// - 1-30 = NEAR/n proximity (words within n tokens)
+  /// - Default 10 = current behavior
   Future<List<SearchResult>> _searchFullText({
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
     required Set<String> editionIds,
-    Set<SearchScope> scope = const {},
+    Set<String> scope = const {},
     bool isExactMatch = false,
+    int? proximity = 10,
     int? limit,
     int offset = 0,
   }) async {
@@ -379,6 +393,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       editionIds: editionIds,
       scope: scope,
       isExactMatch: isExactMatch,
+      proximity: proximity,
       limit: limit ?? 50,
       offset: offset,
     );

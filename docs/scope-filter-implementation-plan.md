@@ -603,3 +603,283 @@ dart run build_runner build --delete-conflicting-outputs
 2. **Scope label** - "Searching in: Sutta, Vinaya" above chips
 3. **Localization** - Sinhala chip labels via AppLocalizations
 4. **Persisted preferences** - Remember last scope selections
+
+-----
+
+  ---
+  Refine Search System - Comprehensive Overview
+
+  1. Architecture Diagram
+
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │                              USER INTERFACE                                  │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │                                                                             │
+  │  ┌─────────────────────────────────────────────────────────────────────┐   │
+  │  │                    ScopeFilterChips (Widget)                         │   │
+  │  │  ┌──────┐ ┌───────┐ ┌────────┐ ┌───────────┐ ┌──────────┐ ┌────────┐│   │
+  │  │  │ All  │ │ Sutta │ │ Vinaya │ │Abhidhamma │ │Commentar.│ │ Refine ││   │
+  │  │  └──┬───┘ └───┬───┘ └───┬────┘ └─────┬─────┘ └────┬─────┘ └───┬────┘│   │
+  │  │     │         │         │            │            │           │      │   │
+  │  │     │   toggleChipScope()            │            │     opens dialog │   │
+  │  └─────┼─────────┼─────────┼────────────┼────────────┼───────────┼──────┘   │
+  │        │         │         │            │            │           │          │
+  │        ▼         ▼         ▼            ▼            ▼           ▼          │
+  │  ┌─────────────────────────────────────────────────────────────────────┐   │
+  │  │                   RefineSearchDialog (Widget)                        │   │
+  │  │  ┌─────────────────────────────────────────────────────────────┐    │   │
+  │  │  │  Local State: _selectedNodeKeys, _expandedNodes             │    │   │
+  │  │  │                                                             │    │   │
+  │  │  │  ┌─────────────────────────────────────────────────────┐   │    │   │
+  │  │  │  │  Tree View (3 levels: Pitaka → Nikaya → Vagga)      │   │    │   │
+  │  │  │  │  □ Vinaya Pitaka (vp)                               │   │    │   │
+  │  │  │  │  ▼ Sutta Pitaka (sp)                                │   │    │   │
+  │  │  │  │    ☑ Digha Nikaya (dn)                              │   │    │   │
+  │  │  │  │    ☑ Majjhima Nikaya (mn)                           │   │    │   │
+  │  │  │  │  □ Abhidhamma Pitaka (ap)                           │   │    │   │
+  │  │  │  └─────────────────────────────────────────────────────┘   │    │   │
+  │  │  └─────────────────────────────────────────────────────────────┘    │   │
+  │  │                              │                                       │   │
+  │  │                    _toggleNodeSelection()                            │   │
+  │  └──────────────────────────────┼───────────────────────────────────────┘   │
+  │                                 │                                           │
+  └─────────────────────────────────┼───────────────────────────────────────────┘
+                                    │
+                                    ▼
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │                         STATE MANAGEMENT (Riverpod)                         │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │                                                                             │
+  │  ┌─────────────────────────────────────────────────────────────────────┐   │
+  │  │                SearchStateNotifier (StateNotifier)                   │   │
+  │  │                                                                      │   │
+  │  │  SearchState {                                                       │   │
+  │  │    scope: Set<String>  ←─── THE SHARED DATA ───────────────────┐    │   │
+  │  │    // e.g., {} for All, {'sp'} for Sutta, {'dn','mn'} for both│    │   │
+  │  │  }                                                              │    │   │
+  │  │                                                                 │    │   │
+  │  │  Methods:                                                       │    │   │
+  │  │  ├── setScope(nodeKeys)      ← normalizes, then updates state  │    │   │
+  │  │  ├── toggleChipScope(chip)   ← delegates to setScope()         │    │   │
+  │  │  ├── selectAll()             ← sets scope to {}                │    │   │
+  │  │  └── _normalizeScope()       ← auto-collapse if all selected   │    │   │
+  │  └─────────────────────────────────────────────────────────────────────┘   │
+  │                                 │                                           │
+  └─────────────────────────────────┼───────────────────────────────────────────┘
+                                    │
+                                    ▼
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │                            DOMAIN LAYER                                      │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │                                                                             │
+  │  ┌──────────────────────────────┐    ┌──────────────────────────────────┐  │
+  │  │     SearchScopeChip          │    │      ScopeFilterConfig           │  │
+  │  │                              │    │                                  │  │
+  │  │  Predefined chips:           │    │  Maps node keys → SQL patterns:  │  │
+  │  │  - sutta:    {'sp'}          │    │  - 'sp' → ['dn-','mn-','sn-',   │  │
+  │  │  - vinaya:   {'vp'}          │    │           'an-','kn-']          │  │
+  │  │  - abhidhamma: {'ap'}        │    │  - 'dn' → ['dn-']               │  │
+  │  │  - commentaries: {'atta-vp', │    │  - 'vp' → ['vp-']               │  │
+  │  │      'atta-sp', 'atta-ap'}   │    │                                  │  │
+  │  │  - treatises: {'anya'}       │    │  getPatternsForNodeKey(key)      │  │
+  │  │                              │    │  getPatternsForScope(scope)      │  │
+  │  └──────────────────────────────┘    └──────────────────────────────────┘  │
+  │                                                                             │
+  └─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │                             DATA LAYER                                       │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │                                                                             │
+  │  ┌─────────────────────────────────────────────────────────────────────┐   │
+  │  │                     ScopeFilterService                               │   │
+  │  │                                                                      │   │
+  │  │  buildWhereClause({'sp'})                                           │   │
+  │  │  → '(m.filename LIKE ? OR m.filename LIKE ? OR ...)'                │   │
+  │  │                                                                      │   │
+  │  │  getWhereParams({'sp'})                                             │   │
+  │  │  → ['dn-%', 'mn-%', 'sn-%', 'an-%', 'kn-%']                         │   │
+  │  └─────────────────────────────────────────────────────────────────────┘   │
+  │                                 │                                           │
+  │                                 ▼                                           │
+  │  ┌─────────────────────────────────────────────────────────────────────┐   │
+  │  │                        FTS Datasource                                │   │
+  │  │  SQL: SELECT ... WHERE (m.filename LIKE 'dn-%' OR ...)              │   │
+  │  └─────────────────────────────────────────────────────────────────────┘   │
+  │                                                                             │
+  └─────────────────────────────────────────────────────────────────────────────┘
+
+  ---
+  2. Data Flow: How Scope Chips Link with Refine Search
+
+  The Shared Data: SearchState.scope
+
+  // In SearchState (Freezed class)
+  @Default({}) Set<String> scope,
+
+  This single Set<String> is the source of truth for both scope chips and refine dialog.
+
+  | Scope Value  | Meaning                             |
+  |--------------|-------------------------------------|
+  | {} (empty)   | "All" - search everything           |
+  | {'sp'}       | Sutta Pitaka only                   |
+  | {'sp', 'vp'} | Sutta + Vinaya                      |
+  | {'dn', 'mn'} | Digha + Majjhima Nikayas (granular) |
+
+  Flow 1: Scope Chip → Search State
+
+  User clicks "Sutta" chip
+         │
+         ▼
+  ScopeFilterChips.build() calls:
+    ref.read(searchStateProvider.notifier).toggleChipScope(suttaChip)
+         │
+         ▼
+  SearchStateNotifier.toggleChipScope():
+    1. currentScope = {} (was All)
+    2. Add chip.nodeKeys → {'sp'}
+    3. Call setScope({'sp'})
+         │
+         ▼
+  SearchStateNotifier.setScope():
+    1. _normalizeScope({'sp'}) → {'sp'} (no change)
+    2. state = state.copyWith(scope: {'sp'})
+    3. _refreshSearchIfNeeded() → triggers new search
+
+  Flow 2: Refine Dialog → Search State
+
+  User opens Refine, clicks "Digha Nikaya"
+         │
+         ▼
+  RefineSearchDialog._initializeFromSearchState():
+    _selectedNodeKeys = searchState.scope  // Syncs from search state
+         │
+         ▼
+  User clicks checkbox
+         │
+         ▼
+  _toggleNodeSelection(dnNode):
+    1. Modify local _selectedNodeKeys
+    2. ref.read(searchStateProvider.notifier).setScope(_selectedNodeKeys)
+    3. Sync back: _selectedNodeKeys = ref.read(searchStateProvider).scope
+         │
+         ▼
+  SearchStateNotifier.setScope():
+    1. _normalizeScope(newScope)
+    2. Update state
+    3. Refresh search
+
+  Flow 3: Search State → UI Updates
+
+  SearchState.scope changes
+         │
+         ├──────────────────────────────────────┐
+         ▼                                      ▼
+  ScopeFilterChips                        RefineSearchDialog
+  ref.watch(searchStateProvider)          ref.read(searchStateProvider)
+         │                                      │
+         ▼                                      ▼
+  Rebuilds with:                          _selectedNodeKeys synced from
+  - isAllSelected = scope.isEmpty         search state after setScope()
+  - matchesChip(chip) for each chip
+  - hasCustomScope for Refine indicator
+
+  ---
+  3. Key Methods and Their Responsibilities
+
+  SearchStateNotifier (search_state.dart)
+
+  | Method                 | Purpose                                                                         |
+  |------------------------|---------------------------------------------------------------------------------|
+  | setScope(Set<String>)  | Central entry point. Normalizes and sets scope. Both chips and dialog use this. |
+  | toggleChipScope(chip)  | Adds/removes chip's nodeKeys, delegates to setScope()                           |
+  | selectAll()            | Sets scope to {}                                                                |
+  | _normalizeScope(scope) | Auto-collapse: if all chip keys selected → return {}                            |
+  | _getAllChipNodeKeys()  | Returns combined nodeKeys from all predefined chips                             |
+
+  RefineSearchDialog (refine_search_dialog.dart)
+
+  | Method                                 | Purpose                                                    |
+  |----------------------------------------|------------------------------------------------------------|
+  | _initializeFromSearchState()           | Loads scope from search state into local _selectedNodeKeys |
+  | _toggleNodeSelection(node)             | Handles checkbox clicks with complex logic                 |
+  | _getCoveringAncestors(nodeKey)         | Finds if any selected node already covers this one         |
+  | _getNodesNeedingExpansion(keys)        | Determines which tree nodes to expand                      |
+  | _isNodeCoveredByRoot(nodeKey, rootKey) | Pattern-based ancestor check                               |
+
+  ScopeFilterConfig (scope_filter_config.dart)
+
+  | Method                     | Purpose                               |
+  |----------------------------|---------------------------------------|
+  | getPatternsForNodeKey(key) | Converts tree key → filename patterns |
+  | getPatternsForScope(scope) | Expands full scope to patterns        |
+
+  ---
+  4. Special Behaviors
+
+  Auto-Collapse to "All"
+
+  When all 5 chip scopes are selected, automatically reverts to "All":
+
+  Set<String> _normalizeScope(Set<String> scope) {
+    final allChipNodeKeys = _getAllChipNodeKeys();
+    // {'sp', 'vp', 'ap', 'atta-vp', 'atta-sp', 'atta-ap', 'anya'}
+
+    if (scope.containsAll(allChipNodeKeys) &&
+        allChipNodeKeys.containsAll(scope)) {
+      return {}; // Collapse to "All"
+    }
+    return scope;
+  }
+
+  Implicit Selection (Visual)
+
+  When a parent is selected, children appear checked:
+
+  // In _buildTreeNode
+  final isImplicitlySelected = _getCoveringAncestors(node.nodeKey).isNotEmpty;
+  if (isAllSelected || isDirectlySelected || isImplicitlySelected) {
+    checkboxValue = true;
+  }
+
+  Narrowing Down
+
+  Clicking a child when parent is selected removes parent:
+
+  // In _toggleNodeSelection
+  final coveringAncestors = _getCoveringAncestors(node.nodeKey);
+  if (coveringAncestors.isNotEmpty) {
+    _selectedNodeKeys.removeAll(coveringAncestors); // Remove parent
+  }
+  _selectedNodeKeys.add(node.nodeKey); // Add child
+
+  ---
+  5. Debugging Checklist
+
+  When debugging scope-related issues:
+
+  1. Check SearchState.scope - What's the current value?
+  print(ref.read(searchStateProvider).scope);
+  2. Check normalization - Is auto-collapse happening correctly?
+    - All chips selected should → {}
+  3. Check pattern expansion - Is ScopeFilterConfig returning correct patterns?
+  print(ScopeFilterConfig.getPatternsForScope({'sp'}));
+  // Should be: ['dn-', 'mn-', 'sn-', 'an-', 'kn-']
+  4. Check SQL generation - Is ScopeFilterService building correct WHERE clause?
+  print(ScopeFilterService.buildWhereClause({'dn'}));
+  print(ScopeFilterService.getWhereParams({'dn'}));
+  5. Check dialog sync - After setScope(), is local state updated?
+    - _selectedNodeKeys should match searchState.scope
+
+  ---
+  6. File Reference
+
+  | File                                                | Purpose                    |
+  |-----------------------------------------------------|----------------------------|
+  | lib/presentation/providers/search_state.dart        | Shared state + notifier    |
+  | lib/presentation/widgets/scope_filter_chips.dart    | Quick filter chips UI      |
+  | lib/presentation/widgets/refine_search_dialog.dart  | Advanced tree selection UI |
+  | lib/domain/entities/search/search_scope_chip.dart   | Chip definitions           |
+  | lib/domain/entities/search/scope_filter_config.dart | Node key → pattern mapping |
+  | lib/data/services/scope_filter_service.dart         | Pattern → SQL conversion   |

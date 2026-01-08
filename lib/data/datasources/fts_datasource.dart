@@ -6,7 +6,6 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
-import '../../domain/entities/search/search_scope.dart';
 import '../services/scope_filter_service.dart';
 
 /// Data model for FTS search results from the database
@@ -74,27 +73,39 @@ abstract class FTSDataSource {
   /// Search for content across one or more editions
   /// Returns results tagged with their source edition
   ///
-  /// [scope] filters results to specific content areas.
-  /// Empty set = search all content (no scope filter).
+  /// [scope] - Tree node keys (e.g., 'sp', 'dn', 'dn-1') for filtering.
+  /// Empty set = search all content.
+  ///
+  /// [proximity] controls multi-word matching:
+  /// - null = phrase matching (consecutive words)
+  /// - 1-30 = NEAR/n proximity (words within n tokens)
+  /// - Default 10 = current behavior
   Future<List<FTSMatch>> searchFullText(
     String query, {
     required Set<String> editionIds,
     String? language,
-    Set<SearchScope> scope = const {},
+    Set<String> scope = const {},
     bool isExactMatch = false,
+    int? proximity = 10,
     int limit = 50,
     int offset = 0,
   });
 
   /// Count full-text matches without loading results (efficient for tab badges)
   ///
-  /// [scope] filters results to specific content areas.
-  /// Empty set = count all content (no scope filter).
+  /// [scope] - Tree node keys (e.g., 'sp', 'dn', 'dn-1') for filtering.
+  /// Empty set = count all content.
+  ///
+  /// [proximity] controls multi-word matching:
+  /// - null = phrase matching (consecutive words)
+  /// - 1-30 = NEAR/n proximity (words within n tokens)
+  /// - Default 10 = current behavior
   Future<int> countFullTextMatches(
     String query, {
     required String editionId,
-    Set<SearchScope> scope = const {},
+    Set<String> scope = const {},
     bool isExactMatch = false,
+    int? proximity = 10,
   });
 
   /// Get search suggestions from one or more editions
@@ -121,9 +132,23 @@ class FTSDataSourceImpl implements FTSDataSource {
     developer.log(message, name: 'FTSDataSource');
   }
 
-  /// Builds FTS query syntax. Single word: `word*` (prefix). Multi-word: `word1* NEAR/10 word2*`.
-  /// When [isExactMatch] is true, omits `*` for exact token matching.
-  String _buildFtsQuery(String queryText, {bool isExactMatch = false}) {
+  /// Builds FTS query syntax for single or multi-word queries.
+  ///
+  /// Single word:
+  /// - `word*` (prefix matching) when [isExactMatch] is false
+  /// - `word` (exact token) when [isExactMatch] is true
+  ///
+  /// Multi-word:
+  /// - When [proximity] is null: `"word1 word2"` (phrase matching - consecutive words)
+  /// - When [proximity] is set: `word1* NEAR/n word2*` (proximity matching)
+  ///
+  /// [proximity] = null for phrase matching, 1-30 for NEAR/n proximity.
+  /// Default proximity of 10 preserves current behavior.
+  String _buildFtsQuery(
+    String queryText, {
+    bool isExactMatch = false,
+    int? proximity = 10,
+  }) {
     if (queryText.isEmpty) {
       return '""';
     }
@@ -137,13 +162,21 @@ class FTSDataSourceImpl implements FTSDataSource {
       // isExactMatch=true: අනාථ (exact token matching)
       return isExactMatch ? queryText : '$queryText*';
     } else {
-      // Multi-word: use NEAR/10 for proximity matching (same as tipitaka.lk default)
-      if (isExactMatch) {
-        // Exact match for each word with NEAR proximity
-        return words.join(' NEAR/10 ');
+      // Multi-word handling
+      if (proximity == null) {
+        // Phrase matching: words must appear consecutively
+        // Use double quotes for FTS phrase query
+        final phrase = words.join(' ');
+        return '"$phrase"';
       } else {
-        // Prefix match for each word with NEAR proximity
-        return words.map((w) => '$w*').join(' NEAR/10 ');
+        // Proximity matching: words within N tokens of each other
+        if (isExactMatch) {
+          // Exact match for each word with NEAR proximity
+          return words.join(' NEAR/$proximity ');
+        } else {
+          // Prefix match for each word with NEAR proximity
+          return words.map((w) => '$w*').join(' NEAR/$proximity ');
+        }
       }
     }
   }
@@ -213,8 +246,9 @@ class FTSDataSourceImpl implements FTSDataSource {
     String query, {
     required Set<String> editionIds,
     String? language,
-    Set<SearchScope> scope = const {},
+    Set<String> scope = const {},
     bool isExactMatch = false,
+    int? proximity = 10,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -229,6 +263,7 @@ class FTSDataSourceImpl implements FTSDataSource {
         language: language,
         scope: scope,
         isExactMatch: isExactMatch,
+        proximity: proximity,
         limit: limit,
         offset: offset,
       );
@@ -245,8 +280,9 @@ class FTSDataSourceImpl implements FTSDataSource {
     String editionId,
     String query, {
     String? language,
-    Set<SearchScope> scope = const {},
+    Set<String> scope = const {},
     bool isExactMatch = false,
+    int? proximity = 10,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -261,7 +297,11 @@ class FTSDataSourceImpl implements FTSDataSource {
       final metaTable = '${editionId}_meta';
 
       // Build FTS query syntax (query already validated by repository)
-      final ftsQuery = _buildFtsQuery(query, isExactMatch: isExactMatch);
+      final ftsQuery = _buildFtsQuery(
+        query,
+        isExactMatch: isExactMatch,
+        proximity: proximity,
+      );
 
       // Build the SQL query using parameterized query for MATCH clause
       // Note: For contentless FTS4, use table name in MATCH, not column name
@@ -283,17 +323,17 @@ class FTSDataSourceImpl implements FTSDataSource {
       }
 
       // Add scope filter
-      final scopeWhereClause = ScopeFilterService.buildScopeWhereClause(scope);
+      final scopeWhereClause = ScopeFilterService.buildWhereClause(scope);
       if (scopeWhereClause != null) {
         buffer.write(' AND $scopeWhereClause');
-        args.addAll(ScopeFilterService.getScopeWhereParams(scope));
+        args.addAll(ScopeFilterService.getWhereParams(scope));
       }
 
       // Add pagination
       buffer.write(' LIMIT ? OFFSET ?');
       args.addAll([limit, offset]);
 
-      _log('FTS query: "$ftsQuery" (isExactMatch: $isExactMatch)');
+      _log('FTS query: "$ftsQuery" (isExactMatch: $isExactMatch, proximity: $proximity)');
       _log('SQL: ${buffer.toString().trim()}');
       // Execute query
       final List<Map<String, dynamic>> results = await db.rawQuery(
@@ -313,8 +353,9 @@ class FTSDataSourceImpl implements FTSDataSource {
   Future<int> countFullTextMatches(
     String query, {
     required String editionId,
-    Set<SearchScope> scope = const {},
+    Set<String> scope = const {},
     bool isExactMatch = false,
+    int? proximity = 10,
   }) async {
     await initializeEditions({editionId});
 
@@ -328,7 +369,11 @@ class FTSDataSourceImpl implements FTSDataSource {
       final metaTable = '${editionId}_meta';
 
       // Build FTS query syntax (query already validated by repository)
-      final ftsQuery = _buildFtsQuery(query, isExactMatch: isExactMatch);
+      final ftsQuery = _buildFtsQuery(
+        query,
+        isExactMatch: isExactMatch,
+        proximity: proximity,
+      );
 
       // Build query with optional scope filter
       final buffer = StringBuffer();
@@ -343,10 +388,10 @@ class FTSDataSourceImpl implements FTSDataSource {
           WHERE $ftsTable MATCH ?
         ''');
 
-        final scopeWhereClause = ScopeFilterService.buildScopeWhereClause(scope);
+        final scopeWhereClause = ScopeFilterService.buildWhereClause(scope);
         if (scopeWhereClause != null) {
           buffer.write(' AND $scopeWhereClause');
-          args.addAll(ScopeFilterService.getScopeWhereParams(scope));
+          args.addAll(ScopeFilterService.getWhereParams(scope));
         }
       } else {
         // No scope filter - simple count query

@@ -134,5 +134,90 @@
   "isExactMatchToggle": "Exact word match",
   "@isExactMatchToggle": {
     "description": "Tooltip for toggle button that switches between prefix matching and exact word matching in search"
+  },
+
+  "refineSearch": "Refine Search",
+  "@refineSearch": {
+    "description": "Title for the refine search dialog"
+  },
+
+  "refine": "Refine",
+  "@refine": {
+    "description": "Label for the refine button/chip"
+  },
+
+  "scope": "Scope",
+  "@scope": {
+    "description": "Label for the scope section in refine dialog"
+  },
+
+  "wordProximity": "Word Proximity",
+  "@wordProximity": {
+    "description": "Label for the word proximity section in refine dialog"
+  },
+
+  "phraseSearch": "Phrase search (exact consecutive words)",
+  "@phraseSearch": {
+    "description": "Label for phrase search checkbox"
+  },
+
+  "wordsApart": "{count} words apart",
+  "@wordsApart": {
+    "description": "Label showing proximity distance",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "exactConsecutiveWords": "Exact consecutive words",
+  "@exactConsecutiveWords": {
+    "description": "Label shown when phrase search is enabled"
+  },
+
+  "apply": "Apply",
+  "@apply": {
+    "description": "Button label to apply changes"
+  },
+
+  "reset": "Reset",
+  "@reset": {
+    "description": "Button label to reset to defaults"
+  },
+
+  "clear": "Clear",
+  "@clear": {
+    "description": "Button label to clear selections"
+  },
+
+  "scopeAll": "All",
+  "@scopeAll": {
+    "description": "Label for 'All' scope chip (no filter)"
+  },
+
+  "scopeSutta": "Sutta",
+  "@scopeSutta": {
+    "description": "Label for Sutta Pitaka scope chip"
+  },
+
+  "scopeVinaya": "Vinaya",
+  "@scopeVinaya": {
+    "description": "Label for Vinaya Pitaka scope chip"
+  },
+
+  "scopeAbhidhamma": "Abhidhamma",
+  "@scopeAbhidhamma": {
+    "description": "Label for Abhidhamma Pitaka scope chip"
+  },
+
+  "scopeCommentaries": "Commentaries",
+  "@scopeCommentaries": {
+    "description": "Label for Commentaries (Atthakatha) scope chip"
+  },
+
+  "scopeTreatises": "Treatises",
+  "@scopeTreatises": {
+    "description": "Label for Treatises scope chip"
   }
 }

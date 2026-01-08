@@ -53,5 +53,37 @@
 
   "searchHint": "සෙවුම් පදය ඇතුලත් කරන්න",
 
-  "isExactMatchToggle": "එම වචනයම සොයන්න"
+  "isExactMatchToggle": "එම වචනයම සොයන්න",
+
+  "refineSearch": "සූක්ෂම සෙවීම",
+
+  "refine": "සූක්ෂම",
+
+  "scope": "පරාසය",
+
+  "wordProximity": "වචන ආසන්නතාව",
+
+  "phraseSearch": "වාක්‍ය ඛණ්ඩ සෙවීම (පිළිවෙලට ඇති වචන)",
+
+  "wordsApart": "වචන {count}ක් පරතරයකින්",
+
+  "exactConsecutiveWords": "හරියටම පිළිවෙලට ඇති වචන",
+
+  "apply": "යොදන්න",
+
+  "reset": "යළි සකසන්න",
+
+  "clear": "ඉවත් කරන්න",
+
+  "scopeAll": "සියල්ල",
+
+  "scopeSutta": "සුත්ත",
+
+  "scopeVinaya": "විනය",
+
+  "scopeAbhidhamma": "අභිධම්ම",
+
+  "scopeCommentaries": "අට්ඨකථා",
+
+  "scopeTreatises": "ග්‍රන්ථ"
 }

@@ -89,4 +89,54 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get isExactMatchToggle => 'එම වචනයම සොයන්න';
+
+  @override
+  String get refineSearch => 'සූක්ෂම සෙවීම';
+
+  @override
+  String get refine => 'සූක්ෂම';
+
+  @override
+  String get scope => 'පරාසය';
+
+  @override
+  String get wordProximity => 'වචන ආසන්නතාව';
+
+  @override
+  String get phraseSearch => 'වාක්‍ය ඛණ්ඩ සෙවීම (පිළිවෙලට ඇති වචන)';
+
+  @override
+  String wordsApart(int count) {
+    return 'වචන $countක් පරතරයකින්';
+  }
+
+  @override
+  String get exactConsecutiveWords => 'හරියටම පිළිවෙලට ඇති වචන';
+
+  @override
+  String get apply => 'යොදන්න';
+
+  @override
+  String get reset => 'යළි සකසන්න';
+
+  @override
+  String get clear => 'ඉවත් කරන්න';
+
+  @override
+  String get scopeAll => 'සියල්ල';
+
+  @override
+  String get scopeSutta => 'සුත්ත';
+
+  @override
+  String get scopeVinaya => 'විනය';
+
+  @override
+  String get scopeAbhidhamma => 'අභිධම්ම';
+
+  @override
+  String get scopeCommentaries => 'අට්ඨකථා';
+
+  @override
+  String get scopeTreatises => 'ග්‍රන්ථ';
 }

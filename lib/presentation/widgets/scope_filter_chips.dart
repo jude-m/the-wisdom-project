@@ -1,8 +1,11 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/search/search_scope.dart';
+import '../../core/localization/l10n/app_localizations.dart';
+import '../../domain/entities/search/scope_utils.dart';
+import '../../domain/entities/search/search_scope_chip.dart';
 import '../providers/search_provider.dart';
+import 'refine_search_dialog.dart';
 
 /// Horizontally scrollable scope filter chips for search results.
 ///
@@ -35,11 +38,14 @@ class _ScopeFilterChipsState extends ConsumerState<ScopeFilterChips> {
 
   @override
   Widget build(BuildContext context) {
-    final selectedScope = ref.watch(
-      searchStateProvider.select((s) => s.selectedScope),
-    );
-    final isAllSelected = selectedScope.isEmpty;
+    final searchState = ref.watch(searchStateProvider);
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+
+    // Check if scope contains custom selections (not covered by predefined chips)
+    // This is true only when the refine dialog was used to select sub-nodes
+    final hasCustomScope = ScopeUtils.hasCustomSelections(searchState.scope);
+    final isAllSelected = searchState.isAllSelected;
 
     return SizedBox(
       height: 48,
@@ -61,31 +67,42 @@ class _ScopeFilterChipsState extends ConsumerState<ScopeFilterChips> {
               parent: AlwaysScrollableScrollPhysics(),
             ),
             children: [
-            // "All" chip - always first
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: _ScopeChip(
-                label: 'All',
-                isSelected: isAllSelected,
-                theme: theme,
-                onTap: () => ref.read(searchStateProvider.notifier).selectAll(),
-              ),
-            ),
-
-            // Scope chips
-            ...SearchScope.values.map((scope) {
-              final isSelected = selectedScope.contains(scope);
-              return Padding(
+              // "All" chip - always first
+              Padding(
                 padding: const EdgeInsets.only(right: 6),
                 child: _ScopeChip(
-                  label: scope.displayName,
-                  isSelected: isSelected,
+                  label: l10n.scopeAll,
+                  isSelected: isAllSelected,
                   theme: theme,
-                  onTap: () =>
-                      ref.read(searchStateProvider.notifier).toggleScope(scope),
+                  onTap: () => ref.read(searchStateProvider.notifier).selectAll(),
                 ),
-              );
-            }),
+              ),
+
+              // Scope chips from predefined list
+              ...searchScopeChips.map((chip) {
+                final isSelected = searchState.matchesChip(chip);
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: _ScopeChip(
+                    label: chip.label(context),
+                    isSelected: isSelected,
+                    theme: theme,
+                    onTap: () => ref
+                        .read(searchStateProvider.notifier)
+                        .toggleChipScope(chip),
+                  ),
+                );
+              }),
+
+              // Refine chip - opens advanced search dialog
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: _RefineChip(
+                  hasActiveFilters: hasCustomScope,
+                  theme: theme,
+                  onTap: () => RefineSearchDialog.show(context),
+                ),
+              ),
             ],
           ),
         ),
@@ -136,6 +153,78 @@ class _ScopeChip extends StatelessWidget {
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Refine chip with tune icon - opens advanced search dialog.
+/// Shows an active indicator dot when advanced filters are applied.
+class _RefineChip extends StatelessWidget {
+  final bool hasActiveFilters;
+  final ThemeData theme;
+  final VoidCallback onTap;
+
+  const _RefineChip({
+    required this.hasActiveFilters,
+    required this.theme,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 56),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(100),
+          // Outline style to distinguish from scope chips
+          color: hasActiveFilters
+              ? theme.colorScheme.primaryContainer
+              : Colors.transparent,
+          border: Border.all(
+            color: hasActiveFilters
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withValues(alpha: 0.5),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.tune,
+              size: 16,
+              color: hasActiveFilters
+                  ? theme.colorScheme.onPrimaryContainer
+                  : theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Refine',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: hasActiveFilters
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurfaceVariant,
+                fontWeight: hasActiveFilters ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+            // Active indicator dot
+            if (hasActiveFilters) ...[
+              const SizedBox(width: 4),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );

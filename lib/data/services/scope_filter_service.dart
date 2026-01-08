@@ -1,7 +1,6 @@
-import '../../domain/entities/search/search_scope.dart';
 import '../../domain/entities/search/scope_filter_config.dart';
 
-/// Service that converts [SearchScope] selections into SQL WHERE clauses.
+/// Service that converts search scope (tree node keys) into SQL WHERE clauses.
 ///
 /// This service centralizes all scope-to-SQL logic, making it easy to:
 /// - Update filtering logic in one place
@@ -10,12 +9,12 @@ import '../../domain/entities/search/scope_filter_config.dart';
 ///
 /// Example usage:
 /// ```dart
-/// final scope = {SearchScope.sutta, SearchScope.commentaries};
-/// final whereClause = ScopeFilterService.buildScopeWhereClause(scope);
+/// final scope = {'sp', 'vp'};  // Sutta Pitaka + Vinaya Pitaka
+/// final whereClause = ScopeFilterService.buildWhereClause(scope);
 /// // Returns: '(m.filename LIKE ? OR m.filename LIKE ? OR ... OR m.filename LIKE ?)'
 ///
-/// final params = ScopeFilterService.getScopeWhereParams(scope);
-/// // Returns: ['dn-%', 'mn-%', 'sn-%', 'an-%', 'kn-%', 'atta-%']
+/// final params = ScopeFilterService.getWhereParams(scope);
+/// // Returns: ['dn-%', 'mn-%', 'sn-%', 'an-%', 'kn-%', 'vp-%']
 /// ```
 class ScopeFilterService {
   // Private constructor - use static methods only
@@ -23,22 +22,33 @@ class ScopeFilterService {
 
   /// Builds SQL WHERE clause fragment for scope filtering.
   ///
+  /// Uses tree node keys (e.g., 'sp', 'dn', 'kn-dhp') to filter by
+  /// specific locations in the text hierarchy.
+  ///
   /// Returns `null` if no filter should be applied (empty scope = search all).
   ///
   /// Parameters:
-  /// - [scope]: Set of scopes to filter by. Empty set means "search all".
+  /// - [searchScope]: Set of tree node keys to filter by. Empty set means "search all".
   /// - [tableAlias]: SQL table alias (default: 'm' for meta table)
   /// - [columnName]: Column to filter on (default: 'filename')
   ///
-  /// Example output: `(m.filename LIKE ? OR m.filename LIKE ?)`
-  static String? buildScopeWhereClause(
-    Set<SearchScope> scope, {
+  /// Example:
+  /// ```dart
+  /// buildWhereClause({'dn', 'mn'})
+  /// // Returns: '(m.filename LIKE ? OR m.filename LIKE ?)'
+  ///
+  /// buildWhereClause({'sp'})
+  /// // Returns: '(m.filename LIKE ? OR m.filename LIKE ? OR m.filename LIKE ? OR m.filename LIKE ? OR m.filename LIKE ?)'
+  /// // (expanded to 5 patterns for dn, mn, sn, an, kn)
+  /// ```
+  static String? buildWhereClause(
+    Set<String> searchScope, {
     String tableAlias = 'm',
     String columnName = 'filename',
   }) {
-    if (scope.isEmpty) return null; // No filter = search all
+    if (searchScope.isEmpty) return null; // No filter = search all
 
-    final patterns = ScopeFilterConfig.getPatternsForScope(scope);
+    final patterns = ScopeFilterConfig.getPatternsForScope(searchScope);
     if (patterns.isEmpty) return null;
 
     final conditions = patterns
@@ -54,12 +64,18 @@ class ScopeFilterService {
   ///
   /// Example:
   /// ```dart
-  /// getScopeWhereParams({SearchScope.sutta})
+  /// getWhereParams({'sp'})
   /// // Returns: ['dn-%', 'mn-%', 'sn-%', 'an-%', 'kn-%']
+  ///
+  /// getWhereParams({'dn', 'mn'})
+  /// // Returns: ['dn-%', 'mn-%']
+  ///
+  /// getWhereParams({'dn-1'})
+  /// // Returns: ['dn-1-%']
   /// ```
-  static List<String> getScopeWhereParams(Set<SearchScope> scope) {
+  static List<String> getWhereParams(Set<String> scope) {
     if (scope.isEmpty) return [];
-
+    // Add SQL LIKE wildcard (%)
     return ScopeFilterConfig.getPatternsForScope(scope)
         .map((pattern) => '$pattern%')
         .toList();

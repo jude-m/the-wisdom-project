@@ -51,10 +51,21 @@ mixin _$SearchState {
   /// Whether to search in Sinhala text
   bool get searchInSinhala => throw _privateConstructorUsedError;
 
-  /// Selected scope to filter search results.
-  /// Empty set = "All" is selected (search everything).
-  /// Non-empty = search only within selected scope (OR logic).
-  Set<SearchScope> get selectedScope => throw _privateConstructorUsedError;
+  /// Search scope using tree node keys (e.g., 'sp', 'dn', 'kn-dhp').
+  ///
+  /// Empty set = search all content (no scope filter applied).
+  /// Non-empty = search only within the selected scope (OR logic).
+  ///
+  /// This is set by:
+  /// - Quick filter chips (e.g., clicking "Sutta" sets {'sp'})
+  /// - Refine dialog tree selection (e.g., {'dn', 'mn'})
+  Set<String> get scope => throw _privateConstructorUsedError;
+
+  /// Proximity distance for multi-word queries.
+  /// Default 10 = words within 10 tokens (current behavior).
+  /// null = phrase matching (consecutive words only).
+  /// 1-30 = NEAR/n proximity search.
+  int? get proximityDistance => throw _privateConstructorUsedError;
 
   /// Whether the panel was dismissed (user clicked result or close button)
   /// Panel reopens when user focuses the search bar again
@@ -94,7 +105,8 @@ abstract class $SearchStateCopyWith<$Res> {
       Set<String> selectedEditions,
       bool searchInPali,
       bool searchInSinhala,
-      Set<SearchScope> selectedScope,
+      Set<String> scope,
+      int? proximityDistance,
       bool isPanelDismissed,
       bool isExactMatch,
       Map<SearchResultType, int> countByResultType});
@@ -127,7 +139,8 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
     Object? selectedEditions = null,
     Object? searchInPali = null,
     Object? searchInSinhala = null,
-    Object? selectedScope = null,
+    Object? scope = null,
+    Object? proximityDistance = freezed,
     Object? isPanelDismissed = null,
     Object? isExactMatch = null,
     Object? countByResultType = null,
@@ -173,10 +186,14 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
           ? _value.searchInSinhala
           : searchInSinhala // ignore: cast_nullable_to_non_nullable
               as bool,
-      selectedScope: null == selectedScope
-          ? _value.selectedScope
-          : selectedScope // ignore: cast_nullable_to_non_nullable
-              as Set<SearchScope>,
+      scope: null == scope
+          ? _value.scope
+          : scope // ignore: cast_nullable_to_non_nullable
+              as Set<String>,
+      proximityDistance: freezed == proximityDistance
+          ? _value.proximityDistance
+          : proximityDistance // ignore: cast_nullable_to_non_nullable
+              as int?,
       isPanelDismissed: null == isPanelDismissed
           ? _value.isPanelDismissed
           : isPanelDismissed // ignore: cast_nullable_to_non_nullable
@@ -226,7 +243,8 @@ abstract class _$$SearchStateImplCopyWith<$Res>
       Set<String> selectedEditions,
       bool searchInPali,
       bool searchInSinhala,
-      Set<SearchScope> selectedScope,
+      Set<String> scope,
+      int? proximityDistance,
       bool isPanelDismissed,
       bool isExactMatch,
       Map<SearchResultType, int> countByResultType});
@@ -258,7 +276,8 @@ class __$$SearchStateImplCopyWithImpl<$Res>
     Object? selectedEditions = null,
     Object? searchInPali = null,
     Object? searchInSinhala = null,
-    Object? selectedScope = null,
+    Object? scope = null,
+    Object? proximityDistance = freezed,
     Object? isPanelDismissed = null,
     Object? isExactMatch = null,
     Object? countByResultType = null,
@@ -304,10 +323,14 @@ class __$$SearchStateImplCopyWithImpl<$Res>
           ? _value.searchInSinhala
           : searchInSinhala // ignore: cast_nullable_to_non_nullable
               as bool,
-      selectedScope: null == selectedScope
-          ? _value._selectedScope
-          : selectedScope // ignore: cast_nullable_to_non_nullable
-              as Set<SearchScope>,
+      scope: null == scope
+          ? _value._scope
+          : scope // ignore: cast_nullable_to_non_nullable
+              as Set<String>,
+      proximityDistance: freezed == proximityDistance
+          ? _value.proximityDistance
+          : proximityDistance // ignore: cast_nullable_to_non_nullable
+              as int?,
       isPanelDismissed: null == isPanelDismissed
           ? _value.isPanelDismissed
           : isPanelDismissed // ignore: cast_nullable_to_non_nullable
@@ -338,13 +361,14 @@ class _$SearchStateImpl extends _SearchState {
       final Set<String> selectedEditions = const {},
       this.searchInPali = true,
       this.searchInSinhala = true,
-      final Set<SearchScope> selectedScope = const {},
+      final Set<String> scope = const {},
+      this.proximityDistance = 10,
       this.isPanelDismissed = false,
       this.isExactMatch = false,
       final Map<SearchResultType, int> countByResultType = const {}})
       : _recentSearches = recentSearches,
         _selectedEditions = selectedEditions,
-        _selectedScope = selectedScope,
+        _scope = scope,
         _countByResultType = countByResultType,
         super._();
 
@@ -415,21 +439,39 @@ class _$SearchStateImpl extends _SearchState {
   @JsonKey()
   final bool searchInSinhala;
 
-  /// Selected scope to filter search results.
-  /// Empty set = "All" is selected (search everything).
-  /// Non-empty = search only within selected scope (OR logic).
-  final Set<SearchScope> _selectedScope;
+  /// Search scope using tree node keys (e.g., 'sp', 'dn', 'kn-dhp').
+  ///
+  /// Empty set = search all content (no scope filter applied).
+  /// Non-empty = search only within the selected scope (OR logic).
+  ///
+  /// This is set by:
+  /// - Quick filter chips (e.g., clicking "Sutta" sets {'sp'})
+  /// - Refine dialog tree selection (e.g., {'dn', 'mn'})
+  final Set<String> _scope;
 
-  /// Selected scope to filter search results.
-  /// Empty set = "All" is selected (search everything).
-  /// Non-empty = search only within selected scope (OR logic).
+  /// Search scope using tree node keys (e.g., 'sp', 'dn', 'kn-dhp').
+  ///
+  /// Empty set = search all content (no scope filter applied).
+  /// Non-empty = search only within the selected scope (OR logic).
+  ///
+  /// This is set by:
+  /// - Quick filter chips (e.g., clicking "Sutta" sets {'sp'})
+  /// - Refine dialog tree selection (e.g., {'dn', 'mn'})
   @override
   @JsonKey()
-  Set<SearchScope> get selectedScope {
-    if (_selectedScope is EqualUnmodifiableSetView) return _selectedScope;
+  Set<String> get scope {
+    if (_scope is EqualUnmodifiableSetView) return _scope;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableSetView(_selectedScope);
+    return EqualUnmodifiableSetView(_scope);
   }
+
+  /// Proximity distance for multi-word queries.
+  /// Default 10 = words within 10 tokens (current behavior).
+  /// null = phrase matching (consecutive words only).
+  /// 1-30 = NEAR/n proximity search.
+  @override
+  @JsonKey()
+  final int? proximityDistance;
 
   /// Whether the panel was dismissed (user clicked result or close button)
   /// Panel reopens when user focuses the search bar again
@@ -461,7 +503,7 @@ class _$SearchStateImpl extends _SearchState {
 
   @override
   String toString() {
-    return 'SearchState(rawQueryText: $rawQueryText, effectiveQueryText: $effectiveQueryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, selectedScope: $selectedScope, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType)';
+    return 'SearchState(rawQueryText: $rawQueryText, effectiveQueryText: $effectiveQueryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, proximityDistance: $proximityDistance, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType)';
   }
 
   @override
@@ -489,8 +531,9 @@ class _$SearchStateImpl extends _SearchState {
                 other.searchInPali == searchInPali) &&
             (identical(other.searchInSinhala, searchInSinhala) ||
                 other.searchInSinhala == searchInSinhala) &&
-            const DeepCollectionEquality()
-                .equals(other._selectedScope, _selectedScope) &&
+            const DeepCollectionEquality().equals(other._scope, _scope) &&
+            (identical(other.proximityDistance, proximityDistance) ||
+                other.proximityDistance == proximityDistance) &&
             (identical(other.isPanelDismissed, isPanelDismissed) ||
                 other.isPanelDismissed == isPanelDismissed) &&
             (identical(other.isExactMatch, isExactMatch) ||
@@ -512,7 +555,8 @@ class _$SearchStateImpl extends _SearchState {
       const DeepCollectionEquality().hash(_selectedEditions),
       searchInPali,
       searchInSinhala,
-      const DeepCollectionEquality().hash(_selectedScope),
+      const DeepCollectionEquality().hash(_scope),
+      proximityDistance,
       isPanelDismissed,
       isExactMatch,
       const DeepCollectionEquality().hash(_countByResultType));
@@ -538,7 +582,8 @@ abstract class _SearchState extends SearchState {
       final Set<String> selectedEditions,
       final bool searchInPali,
       final bool searchInSinhala,
-      final Set<SearchScope> selectedScope,
+      final Set<String> scope,
+      final int? proximityDistance,
       final bool isPanelDismissed,
       final bool isExactMatch,
       final Map<SearchResultType, int> countByResultType}) = _$SearchStateImpl;
@@ -588,11 +633,23 @@ abstract class _SearchState extends SearchState {
   @override
   bool get searchInSinhala;
 
-  /// Selected scope to filter search results.
-  /// Empty set = "All" is selected (search everything).
-  /// Non-empty = search only within selected scope (OR logic).
+  /// Search scope using tree node keys (e.g., 'sp', 'dn', 'kn-dhp').
+  ///
+  /// Empty set = search all content (no scope filter applied).
+  /// Non-empty = search only within the selected scope (OR logic).
+  ///
+  /// This is set by:
+  /// - Quick filter chips (e.g., clicking "Sutta" sets {'sp'})
+  /// - Refine dialog tree selection (e.g., {'dn', 'mn'})
   @override
-  Set<SearchScope> get selectedScope;
+  Set<String> get scope;
+
+  /// Proximity distance for multi-word queries.
+  /// Default 10 = words within 10 tokens (current behavior).
+  /// null = phrase matching (consecutive words only).
+  /// 1-30 = NEAR/n proximity search.
+  @override
+  int? get proximityDistance;
 
   /// Whether the panel was dismissed (user clicked result or close button)
   /// Panel reopens when user focuses the search bar again

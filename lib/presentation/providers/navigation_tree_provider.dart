@@ -40,7 +40,7 @@ final navigationTreeProvider =
 
 // State for expanded nodes - Sutta Pitaka expanded by default
 final expandedNodesProvider =
-    StateProvider<Set<String>>((ref) => {kSuttaPitakaNodeKey});
+    StateProvider<Set<String>>((ref) => {TipitakaNodeKeys.suttaPitaka});
 
 // State for selected node
 final selectedNodeProvider = StateProvider<String?>((ref) => null);

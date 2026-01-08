@@ -259,6 +259,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exact word match'**
   String get isExactMatchToggle;
+
+  /// Title for the refine search dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Refine Search'**
+  String get refineSearch;
+
+  /// Label for the refine button/chip
+  ///
+  /// In en, this message translates to:
+  /// **'Refine'**
+  String get refine;
+
+  /// Label for the scope section in refine dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Scope'**
+  String get scope;
+
+  /// Label for the word proximity section in refine dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Word Proximity'**
+  String get wordProximity;
+
+  /// Label for phrase search checkbox
+  ///
+  /// In en, this message translates to:
+  /// **'Phrase search (exact consecutive words)'**
+  String get phraseSearch;
+
+  /// Label showing proximity distance
+  ///
+  /// In en, this message translates to:
+  /// **'{count} words apart'**
+  String wordsApart(int count);
+
+  /// Label shown when phrase search is enabled
+  ///
+  /// In en, this message translates to:
+  /// **'Exact consecutive words'**
+  String get exactConsecutiveWords;
+
+  /// Button label to apply changes
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get apply;
+
+  /// Button label to reset to defaults
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get reset;
+
+  /// Button label to clear selections
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clear;
+
+  /// Label for 'All' scope chip (no filter)
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get scopeAll;
+
+  /// Label for Sutta Pitaka scope chip
+  ///
+  /// In en, this message translates to:
+  /// **'Sutta'**
+  String get scopeSutta;
+
+  /// Label for Vinaya Pitaka scope chip
+  ///
+  /// In en, this message translates to:
+  /// **'Vinaya'**
+  String get scopeVinaya;
+
+  /// Label for Abhidhamma Pitaka scope chip
+  ///
+  /// In en, this message translates to:
+  /// **'Abhidhamma'**
+  String get scopeAbhidhamma;
+
+  /// Label for Commentaries (Atthakatha) scope chip
+  ///
+  /// In en, this message translates to:
+  /// **'Commentaries'**
+  String get scopeCommentaries;
+
+  /// Label for Treatises scope chip
+  ///
+  /// In en, this message translates to:
+  /// **'Treatises'**
+  String get scopeTreatises;
 }
 
 class _AppLocalizationsDelegate

@@ -243,7 +243,7 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
         // No tabs left - reset to initial state
         ref.read(tabScrollPositionsProvider.notifier).state = {};
         ref.read(selectedNodeProvider.notifier).state = null;
-        ref.read(expandedNodesProvider.notifier).state = {kSuttaPitakaNodeKey};
+        ref.read(expandedNodesProvider.notifier).state = {TipitakaNodeKeys.suttaPitaka};
       } else {
         // Sync navigator to the new active tab
         ref.read(syncNavigatorToActiveTabProvider)();

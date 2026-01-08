@@ -8,7 +8,8 @@ import '../../domain/entities/search/recent_search.dart';
 import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_query.dart';
 import '../../domain/entities/search/search_result.dart';
-import '../../domain/entities/search/search_scope.dart';
+import '../../domain/entities/search/search_scope_chip.dart';
+import '../../domain/entities/search/scope_utils.dart';
 import '../../domain/repositories/recent_searches_repository.dart';
 import '../../domain/repositories/text_search_repository.dart';
 
@@ -61,10 +62,21 @@ class SearchState with _$SearchState {
     /// Whether to search in Sinhala text
     @Default(true) bool searchInSinhala,
 
-    /// Selected scope to filter search results.
-    /// Empty set = "All" is selected (search everything).
-    /// Non-empty = search only within selected scope (OR logic).
-    @Default({}) Set<SearchScope> selectedScope,
+    /// Search scope using tree node keys (e.g., 'sp', 'dn', 'kn-dhp').
+    ///
+    /// Empty set = search all content (no scope filter applied).
+    /// Non-empty = search only within the selected scope (OR logic).
+    ///
+    /// This is set by:
+    /// - Quick filter chips (e.g., clicking "Sutta" sets {'sp'})
+    /// - Refine dialog tree selection (e.g., {'dn', 'mn'})
+    @Default({}) Set<String> scope,
+
+    /// Proximity distance for multi-word queries.
+    /// Default 10 = words within 10 tokens (current behavior).
+    /// null = phrase matching (consecutive words only).
+    /// 1-30 = NEAR/n proximity search.
+    @Default(10) int? proximityDistance,
 
     /// Whether the panel was dismissed (user clicked result or close button)
     /// Panel reopens when user focuses the search bar again
@@ -86,7 +98,17 @@ class SearchState with _$SearchState {
       rawQueryText.trim().isNotEmpty && !isPanelDismissed;
 
   /// True if "All" is effectively selected (no specific scope chosen)
-  bool get isAllSelected => selectedScope.isEmpty;
+  bool get isAllSelected => scope.isEmpty;
+
+  /// Check if a chip is selected (all its nodeKeys are in current scope).
+  ///
+  /// For multi-select: a chip is "selected" if all of its nodeKeys are
+  /// contained within the current scope. This allows multiple chips to
+  /// be selected simultaneously.
+  bool matchesChip(SearchScopeChip chip) {
+    if (scope.isEmpty) return false; // "All" selected, no individual chip matches
+    return scope.containsAll(chip.nodeKeys);
+  }
 }
 
 /// Manages search state with simplified UX flow
@@ -338,7 +360,8 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
       editionIds: state.selectedEditions,
       searchInPali: state.searchInPali,
       searchInSinhala: state.searchInSinhala,
-      scope: state.selectedScope,
+      scope: state.scope,
+      proximityDistance: state.proximityDistance,
     );
   }
 
@@ -371,43 +394,45 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   }
 
   // ============================================================================
-  // SCOPE SELECTION METHODS (Pattern 2: "All" as default anchor)
+  // SCOPE SELECTION METHODS
   // ============================================================================
 
-  /// Select a specific scope. Automatically deselects "All".
-  /// If all scopes become selected, auto-collapses to "All".
-  void selectScope(SearchScope scope) {
-    final newScope = {...state.selectedScope, scope};
-
-    // Auto-collapse to "All" if all scopes are selected
-    if (newScope.length == SearchScope.values.length) {
-      state = state.copyWith(selectedScope: {});
-    } else {
-      state = state.copyWith(selectedScope: newScope);
-    }
+  /// Set scope from tree node keys.
+  ///
+  /// Used by both quick filter chips and the refine dialog.
+  /// [nodeKeys] - Set of tree node keys (e.g., {'sp'} for Sutta, {'dn', 'mn'} for specific nikayas)
+  /// Empty set = search all content.
+  ///
+  /// Automatically normalizes: if all chip scopes are selected, collapses to "All".
+  void setScope(Set<String> nodeKeys) {
+    final normalizedScope = ScopeUtils.normalize(nodeKeys);
+    state = state.copyWith(scope: normalizedScope);
     _refreshSearchIfNeeded();
   }
 
-  /// Deselect a specific scope. If none remain, "All" becomes selected.
-  void deselectScope(SearchScope scope) {
-    final newScope = {...state.selectedScope}..remove(scope);
-    state = state.copyWith(selectedScope: newScope);
-    // Empty set = "All" selected, which is valid
-    _refreshSearchIfNeeded();
-  }
+  /// Toggle a chip's scope on/off (multi-select behavior).
+  ///
+  /// - If chip is selected (all its nodeKeys in scope): removes its nodeKeys
+  /// - If chip is not selected: adds its nodeKeys to current scope
+  /// - Auto-collapse: if all chips are selected, reverts to "All" (empty set)
+  void toggleChipScope(SearchScopeChip chip) {
+    final currentScope = Set<String>.from(state.scope);
 
-  /// Toggle a scope on/off.
-  void toggleScope(SearchScope scope) {
-    if (state.selectedScope.contains(scope)) {
-      deselectScope(scope);
+    if (state.matchesChip(chip)) {
+      // Chip is selected - remove its nodeKeys
+      currentScope.removeAll(chip.nodeKeys);
     } else {
-      selectScope(scope);
+      // Chip not selected - add its nodeKeys
+      currentScope.addAll(chip.nodeKeys);
     }
+
+    // Delegate to setScope which handles normalization (auto-collapse)
+    setScope(currentScope);
   }
 
-  /// Select "All" - clears all specific scope selections.
+  /// Select "All" - clears scope filter.
   void selectAll() {
-    state = state.copyWith(selectedScope: {});
+    state = state.copyWith(scope: {});
     _refreshSearchIfNeeded();
   }
 
@@ -417,9 +442,21 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
       selectedEditions: {},
       searchInPali: true,
       searchInSinhala: true,
-      selectedScope: {},
+      scope: {},
+      proximityDistance: 10,
       isExactMatch: false,
     );
+    _refreshSearchIfNeeded();
+  }
+
+  // ============================================================================
+  // PROXIMITY SETTINGS
+  // ============================================================================
+
+  /// Set proximity distance for multi-word searches.
+  /// [distance] = 1-30 for NEAR/n proximity, null for phrase matching.
+  void setProximityDistance(int? distance) {
+    state = state.copyWith(proximityDistance: distance);
     _refreshSearchIfNeeded();
   }
 
