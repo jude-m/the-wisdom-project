@@ -30,5 +30,12 @@ The Wisdom Project - a Tipitaka and commentary browsing app with parallel Pali/S
 ## DO
 - Before running `flutter test` ask for user confirmation
 - full permission for grep commands in /Users/judemahipalamudali/Desktop/Dev/the-wisdom-project
-- full permission to read from tipitaka.lk project
-- full permission to proceed with web links provided by the user and general web search
+- full permission to read from tipitaka.lk project that in the Dev folder available locally.
+- full permission to proceed with web links specifically provided by the user.
+- Follow clean architecture principles.
+- Ensure the logic:
+    - Works across all platforms. 
+    - Can be extended to other languages
+    - Reuse existing classes and methods wherever possible.
+    - Identify and suggest merging any duplicated or overlapping logic
+    - Focus on correctness, clarity, and extensibility.
