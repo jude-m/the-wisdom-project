@@ -139,4 +139,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scopeTreatises => 'Treatises';
+
+  @override
+  String get searchAsPhrase => 'Search as complete phrase';
+
+  @override
+  String get searchAsSeparateWords => 'Search as separate words';
+
+  @override
+  String get anywhereInText => 'Anywhere in the same text';
 }

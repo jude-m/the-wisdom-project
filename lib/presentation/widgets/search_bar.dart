@@ -88,10 +88,23 @@ class _SearchBarState extends ConsumerState<SearchBar> {
         ref.watch(searchStateProvider.select((s) => s.isExactMatch));
 
     // Watch proximity state for toggle button
-    // Active when: phrase search (null) OR non-default distance (!= 10)
+    // Active when: not using default settings (phrase search with proximity 10)
+    final isPhraseSearch =
+        ref.watch(searchStateProvider.select((s) => s.isPhraseSearch));
+    final isAnywhereInText =
+        ref.watch(searchStateProvider.select((s) => s.isAnywhereInText));
     final proximityDistance =
         ref.watch(searchStateProvider.select((s) => s.proximityDistance));
-    final isProximityActive = proximityDistance == null || proximityDistance != 10;
+
+    // Proximity button is active when NOT using default phrase search
+    // OR when using non-default proximity settings
+    final isProximityActive = !isPhraseSearch || isAnywhereInText || proximityDistance != 10;
+
+    // Show proximity button only when user has started typing a second word
+    // (i.e., there's a space followed by at least one non-space character)
+    final rawQueryText =
+        ref.watch(searchStateProvider.select((s) => s.rawQueryText));
+    final showProximityButton = RegExp(r'\s\S').hasMatch(rawQueryText);
 
     // Listen to queryText changes and sync controller
     ref.listen(searchStateProvider.select((s) => s.rawQueryText), (prev, next) {
@@ -198,25 +211,27 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                       ),
                     ),
                     // Proximity toggle button - opens proximity dialog
-                    Container(
-                      decoration: BoxDecoration(
-                        color: isProximityActive
-                            ? theme.colorScheme.primaryContainer
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: IconButton(
-                        icon: Icon(
-                          Icons.space_bar,
-                          size: 20,
+                    // Only visible when user starts typing a second word
+                    if (showProximityButton)
+                      Container(
+                        decoration: BoxDecoration(
                           color: isProximityActive
-                              ? theme.colorScheme.onPrimaryContainer
-                              : theme.colorScheme.onSurfaceVariant,
+                              ? theme.colorScheme.primaryContainer
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        tooltip: l10n.wordProximity,
-                        onPressed: () => ProximityDialog.show(context),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.space_bar,
+                            size: 20,
+                            color: isProximityActive
+                                ? theme.colorScheme.onPrimaryContainer
+                                : theme.colorScheme.onSurfaceVariant,
+                          ),
+                          tooltip: l10n.wordProximity,
+                          onPressed: () => ProximityDialog.show(context),
+                        ),
                       ),
-                    ),
                     // Clear button (only shown when text is present)
                     if (_controller.text.isNotEmpty)
                       IconButton(

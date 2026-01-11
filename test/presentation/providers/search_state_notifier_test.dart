@@ -834,7 +834,153 @@ void main() {
       });
     });
 
+    group('setPhraseSearch', () {
+      test('should have isPhraseSearch=true by default', () {
+        expect(notifier.state.isPhraseSearch, isTrue);
+      });
+
+      test('should update isPhraseSearch state', () {
+        // ACT
+        notifier.setPhraseSearch(false);
+
+        // ASSERT
+        expect(notifier.state.isPhraseSearch, isFalse);
+      });
+
+      test('should trigger search refresh when query is active', () {
+        fakeAsync((async) {
+          // ARRANGE
+          const categorizedResult = GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [],
+              SearchResultType.fullText: [],
+              SearchResultType.definition: [],
+            },
+          );
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async => const Right(categorizedResult));
+
+          notifier.updateQuery('dhamma');
+          async.elapse(const Duration(milliseconds: 350));
+          clearInteractions(mockSearchRepository);
+
+          // ACT
+          notifier.setPhraseSearch(false);
+
+          // ASSERT
+          verify(mockSearchRepository.searchTopResults(any)).called(1);
+        });
+      });
+
+      test('should include isPhraseSearch in built SearchQuery', () {
+        fakeAsync((async) {
+          // ARRANGE
+          const categorizedResult = GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [],
+              SearchResultType.fullText: [],
+              SearchResultType.definition: [],
+            },
+          );
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async => const Right(categorizedResult));
+
+          notifier.setPhraseSearch(false);
+          notifier.updateQuery('ධම්ම');
+          async.elapse(const Duration(milliseconds: 350));
+
+          // ASSERT
+          final captured = verify(
+            mockSearchRepository.searchTopResults(captureAny),
+          ).captured;
+
+          expect(captured.length, greaterThan(0));
+          final query = captured.last;
+          expect(query.isPhraseSearch, isFalse);
+        });
+      });
+    });
+
+    group('setAnywhereInText', () {
+      test('should have isAnywhereInText=false by default', () {
+        expect(notifier.state.isAnywhereInText, isFalse);
+      });
+
+      test('should update isAnywhereInText state', () {
+        // ACT
+        notifier.setAnywhereInText(true);
+
+        // ASSERT
+        expect(notifier.state.isAnywhereInText, isTrue);
+      });
+
+      test('should trigger search refresh when query is active', () {
+        fakeAsync((async) {
+          // ARRANGE
+          const categorizedResult = GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [],
+              SearchResultType.fullText: [],
+              SearchResultType.definition: [],
+            },
+          );
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async => const Right(categorizedResult));
+
+          notifier.updateQuery('dhamma');
+          async.elapse(const Duration(milliseconds: 350));
+          clearInteractions(mockSearchRepository);
+
+          // ACT
+          notifier.setAnywhereInText(true);
+
+          // ASSERT
+          verify(mockSearchRepository.searchTopResults(any)).called(1);
+        });
+      });
+
+      test('should include isAnywhereInText in built SearchQuery', () {
+        fakeAsync((async) {
+          // ARRANGE
+          const categorizedResult = GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [],
+              SearchResultType.fullText: [],
+              SearchResultType.definition: [],
+            },
+          );
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async => const Right(categorizedResult));
+
+          notifier.setAnywhereInText(true);
+          notifier.updateQuery('ධම්ම');
+          async.elapse(const Duration(milliseconds: 350));
+
+          // ASSERT
+          final captured = verify(
+            mockSearchRepository.searchTopResults(captureAny),
+          ).captured;
+
+          expect(captured.length, greaterThan(0));
+          final query = captured.last;
+          expect(query.isAnywhereInText, isTrue);
+        });
+      });
+    });
+
     group('setProximityDistance', () {
+      test('should have proximityDistance=10 by default', () {
+        expect(notifier.state.proximityDistance, equals(10));
+      });
+
+      test('should update proximityDistance state', () {
+        // ACT
+        notifier.setProximityDistance(5);
+
+        // ASSERT
+        expect(notifier.state.proximityDistance, equals(5));
+      });
+
       test('should trigger search refresh when query is active', () {
         fakeAsync((async) {
           // ARRANGE
@@ -857,6 +1003,34 @@ void main() {
 
           // ASSERT
           verify(mockSearchRepository.searchTopResults(any)).called(1);
+        });
+      });
+
+      test('should include proximityDistance in built SearchQuery', () {
+        fakeAsync((async) {
+          // ARRANGE
+          const categorizedResult = GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [],
+              SearchResultType.fullText: [],
+              SearchResultType.definition: [],
+            },
+          );
+          when(mockSearchRepository.searchTopResults(any))
+              .thenAnswer((_) async => const Right(categorizedResult));
+
+          notifier.setProximityDistance(25);
+          notifier.updateQuery('ධම්ම');
+          async.elapse(const Duration(milliseconds: 350));
+
+          // ASSERT
+          final captured = verify(
+            mockSearchRepository.searchTopResults(captureAny),
+          ).captured;
+
+          expect(captured.length, greaterThan(0));
+          final query = captured.last;
+          expect(query.proximityDistance, equals(25));
         });
       });
     });

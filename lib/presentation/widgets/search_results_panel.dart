@@ -4,7 +4,7 @@ import '../../domain/entities/search/grouped_search_result.dart';
 import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../providers/search_provider.dart';
-import '../../core/utils/text_utils.dart';
+import 'highlighted_search_text.dart';
 import 'scope_filter_chips.dart';
 
 /// Slide-out panel for displaying full search results
@@ -52,6 +52,8 @@ class SearchResultsPanel extends ConsumerWidget {
                     searchState.isLoading,
                     searchState.groupedResults,
                     searchState.effectiveQueryText,
+                    searchState.isPhraseSearch,
+                    searchState.isExactMatch,
                   )
                 : _buildResultTypeTabContent(
                     context,
@@ -62,6 +64,8 @@ class SearchResultsPanel extends ConsumerWidget {
                     searchState.effectiveQueryText,
                     searchState
                         .countByResultType[searchState.selectedResultType],
+                    searchState.isPhraseSearch,
+                    searchState.isExactMatch,
                   ),
           ),
         ],
@@ -76,6 +80,8 @@ class SearchResultsPanel extends ConsumerWidget {
     bool isLoading,
     GroupedSearchResult? categorizedResults,
     String effectiveQuery,
+    bool isPhraseSearch,
+    bool isExactMatch,
   ) {
     // Loading state
     if (isLoading) {
@@ -112,6 +118,8 @@ class SearchResultsPanel extends ConsumerWidget {
                           .map((result) => _SearchResultTile(
                                 searchResult: result,
                                 effectiveQuery: effectiveQuery,
+                                isPhraseSearch: isPhraseSearch,
+                                isExactMatch: isExactMatch,
                                 onTap: () => onResultTap?.call(result),
                               )),
                     ],
@@ -131,6 +139,8 @@ class SearchResultsPanel extends ConsumerWidget {
     SearchResultType selectedResultType,
     String effectiveQuery,
     int? totalCount,
+    bool isPhraseSearch,
+    bool isExactMatch,
   ) {
     return fullResults.when(
       loading: () => const Center(
@@ -196,12 +206,14 @@ class SearchResultsPanel extends ConsumerWidget {
           itemBuilder: (context, index) {
             // Render footer as the last item when results are truncated
             if (hasMoreResults && index == results.length) {
-              return _footer(theme, results.length, totalCount!);
+              return _footer(theme, results.length, totalCount);
             }
 
             return _SearchResultTile(
               searchResult: results[index],
               effectiveQuery: effectiveQuery,
+              isPhraseSearch: isPhraseSearch,
+              isExactMatch: isExactMatch,
               onTap: () => onResultTap?.call(results[index]),
             );
           },
@@ -454,11 +466,22 @@ class _SearchResultTile extends StatelessWidget {
   /// Pre-computed effective query (sanitized + Singlish→Sinhala converted)
   /// from SearchState. No per-row conversion needed.
   final String effectiveQuery;
+
+  /// Whether phrase search mode is active.
+  /// Affects how multi-word queries are highlighted.
+  final bool isPhraseSearch;
+
+  /// Whether exact match mode is active.
+  /// When false (default), uses prefix matching for highlighting.
+  final bool isExactMatch;
+
   final VoidCallback? onTap;
 
   const _SearchResultTile({
     required this.searchResult,
     required this.effectiveQuery,
+    required this.isPhraseSearch,
+    required this.isExactMatch,
     this.onTap,
   });
 
@@ -508,162 +531,16 @@ class _SearchResultTile extends StatelessWidget {
           if (searchResult.resultType == SearchResultType.fullText &&
               searchResult.matchedText.isNotEmpty) ...[
             const SizedBox(height: 4),
-            _buildHighlightedText(
-              searchResult.matchedText,
-              theme,
+            HighlightedSearchText(
+              matchedText: searchResult.matchedText,
+              effectiveQuery: effectiveQuery,
+              isPhraseSearch: isPhraseSearch,
+              isExactMatch: isExactMatch,
             ),
           ],
         ],
       ),
       onTap: onTap,
     );
-  }
-
-  /// Builds highlighted text for content matches.
-  /// Uses pre-computed effectiveQuery from state (no conversion needed here).
-  Widget _buildHighlightedText(String matchedText, ThemeData theme) {
-    final baseStyle = theme.textTheme.bodySmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-    );
-
-    // Check if query exists in text (using normalized comparison)
-    final normalizedText = normalizeText(matchedText, toLowerCase: true);
-    //final normalizedQuery = normalizeText(effectiveQuery, toLowerCase: true);
-    final hasMatch = normalizedText.contains(effectiveQuery);
-
-    if (effectiveQuery.isEmpty || !hasMatch) {
-      // No match found, just show the beginning of text
-      final end = 150.clamp(0, matchedText.length);
-      return Text(
-        matchedText.length > end ? '${matchedText.substring(0, end)}...' : matchedText,
-        style: baseStyle,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      );
-    }
-
-    // Create snippet centered around the match
-    final snippet = _createSnippet(text: matchedText, query: effectiveQuery);
-
-    // Build highlighted spans
-    final highlightStyle = TextStyle(
-      backgroundColor: theme.colorScheme.primaryContainer,
-      fontWeight: FontWeight.bold,
-      color: theme.colorScheme.onPrimaryContainer,
-    );
-
-    final spans = _buildHighlightedSpans(
-      text: snippet,
-      query: effectiveQuery,
-      highlightStyle: highlightStyle,
-    );
-
-    return RichText(
-      text: TextSpan(style: baseStyle, children: spans),
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-
-  /// Creates a snippet of text centered around the first match of the query.
-  /// Uses normalized text for matching (removes ZWJ) but preserves original
-  /// text for display (proper Sinhala rendering with repaya marks).
-  String _createSnippet({
-    required String text,
-    required String query,
-    int contextBefore = 50,
-    int contextAfter = 100,
-  }) {
-    // Normalize both for matching (removes ZWJ, lowercases)
-    final normalizedText = normalizeText(text, toLowerCase: true);
-    final normalizedQuery = normalizeText(query, toLowerCase: true);
-    final matchIndex = normalizedText.indexOf(normalizedQuery);
-
-    if (matchIndex == -1) {
-      // No match, return beginning of text
-      final end = (contextBefore + contextAfter).clamp(0, text.length);
-      return text.length > end ? '${text.substring(0, end)}...' : text;
-    }
-
-    // Map normalized positions to original text positions
-    final positionMap = createNormalizedToOriginalPositionMap(text);
-    final matchStart = positionMap[matchIndex];
-    final matchEndNorm = matchIndex + normalizedQuery.length;
-    final matchEnd = matchEndNorm < positionMap.length
-        ? positionMap[matchEndNorm]
-        : text.length;
-
-    // Calculate snippet boundaries in original text
-    final snippetStart = (matchStart - contextBefore).clamp(0, text.length);
-    final snippetEnd = (matchEnd + contextAfter).clamp(0, text.length);
-
-    var snippet = text.substring(snippetStart, snippetEnd);
-
-    // Add ellipsis indicators
-    if (snippetStart > 0) {
-      snippet = '...$snippet';
-    }
-    if (snippetEnd < text.length) {
-      snippet = '$snippet...';
-    }
-
-    return snippet;
-  }
-
-  /// Builds highlighted text spans for all matches of the query.
-  /// Uses normalized text for matching (removes ZWJ) but preserves original
-  /// text in spans for proper Sinhala rendering with repaya marks.
-  List<TextSpan> _buildHighlightedSpans({
-    required String text,
-    required String query,
-    required TextStyle highlightStyle,
-  }) {
-    final spans = <TextSpan>[];
-
-    // Normalize for matching (removes ZWJ, lowercases)
-    final normalizedText = normalizeText(text, toLowerCase: true);
-    final normalizedQuery = normalizeText(query, toLowerCase: true);
-
-    // Create position mapping from normalized to original text
-    final positionMap = createNormalizedToOriginalPositionMap(text);
-
-    int normStart = 0;
-    int origStart = 0;
-
-    while (true) {
-      // Find next match in normalized text
-      final normIndex = normalizedText.indexOf(normalizedQuery, normStart);
-      if (normIndex == -1) {
-        // No more matches, add remaining original text
-        if (origStart < text.length) {
-          spans.add(TextSpan(text: text.substring(origStart)));
-        }
-        break;
-      }
-
-      // Map normalized positions to original text positions
-      final matchStartOrig = positionMap[normIndex];
-      final matchEndNorm = normIndex + normalizedQuery.length;
-      final matchEndOrig = matchEndNorm < positionMap.length
-          ? positionMap[matchEndNorm]
-          : text.length;
-
-      // Add text before match (from original text)
-      if (matchStartOrig > origStart) {
-        spans.add(TextSpan(text: text.substring(origStart, matchStartOrig)));
-      }
-
-      // Add highlighted match (original text preserves ZWJ for rendering)
-      spans.add(TextSpan(
-        text: text.substring(matchStartOrig, matchEndOrig),
-        style: highlightStyle,
-      ));
-
-      // Advance cursors
-      normStart = matchEndNorm;
-      origStart = matchEndOrig;
-    }
-
-    return spans;
   }
 }

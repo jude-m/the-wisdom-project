@@ -72,11 +72,22 @@ class SearchState with _$SearchState {
     /// - Refine dialog tree selection (e.g., {'dn', 'mn'})
     @Default({}) Set<String> scope,
 
-    /// Proximity distance for multi-word queries.
-    /// Default 10 = words within 10 tokens (current behavior).
-    /// null = phrase matching (consecutive words only).
-    /// 1-30 = NEAR/n proximity search.
-    @Default(10) int? proximityDistance,
+    /// Whether to search as a phrase (consecutive words) or separate words.
+    /// - true (DEFAULT) = phrase search (words must be adjacent)
+    /// - false = separate-word search (words within proximity distance)
+    @Default(true) bool isPhraseSearch,
+
+    /// Whether to ignore proximity and search anywhere in the same text unit.
+    /// Only applies when [isPhraseSearch] is false.
+    /// - true = search for words anywhere in the text (uses very large proximity)
+    /// - false (DEFAULT) = use [proximityDistance] for proximity constraint
+    @Default(false) bool isAnywhereInText,
+
+    /// Proximity distance for multi-word separate-word queries.
+    /// Only applies when [isPhraseSearch] is false and [isAnywhereInText] is false.
+    /// Default 10 = words within 10 tokens (NEAR/10).
+    /// Range: 1-100.
+    @Default(10) int proximityDistance,
 
     /// Whether the panel was dismissed (user clicked result or close button)
     /// Panel reopens when user focuses the search bar again
@@ -361,6 +372,8 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
       searchInPali: state.searchInPali,
       searchInSinhala: state.searchInSinhala,
       scope: state.scope,
+      isPhraseSearch: state.isPhraseSearch,
+      isAnywhereInText: state.isAnywhereInText,
       proximityDistance: state.proximityDistance,
     );
   }
@@ -443,6 +456,8 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
       searchInPali: true,
       searchInSinhala: true,
       scope: {},
+      isPhraseSearch: true,
+      isAnywhereInText: false,
       proximityDistance: 10,
       isExactMatch: false,
     );
@@ -450,12 +465,29 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   }
 
   // ============================================================================
-  // PROXIMITY SETTINGS
+  // PHRASE/PROXIMITY SETTINGS
   // ============================================================================
 
-  /// Set proximity distance for multi-word searches.
-  /// [distance] = 1-30 for NEAR/n proximity, null for phrase matching.
-  void setProximityDistance(int? distance) {
+  /// Toggle phrase search mode.
+  /// When enabled (default), searches for consecutive words.
+  /// When disabled, searches for words within proximity distance.
+  void setPhraseSearch(bool isPhraseSearch) {
+    state = state.copyWith(isPhraseSearch: isPhraseSearch);
+    _refreshSearchIfNeeded();
+  }
+
+  /// Toggle "anywhere in text" mode.
+  /// Only applies when [isPhraseSearch] is false.
+  /// When enabled, ignores proximity distance and searches anywhere in the text.
+  void setAnywhereInText(bool isAnywhereInText) {
+    state = state.copyWith(isAnywhereInText: isAnywhereInText);
+    _refreshSearchIfNeeded();
+  }
+
+  /// Set proximity distance for multi-word separate-word searches.
+  /// [distance] = 1-100 for NEAR/n proximity.
+  /// Only applies when [isPhraseSearch] is false and [isAnywhereInText] is false.
+  void setProximityDistance(int distance) {
     state = state.copyWith(proximityDistance: distance);
     _refreshSearchIfNeeded();
   }

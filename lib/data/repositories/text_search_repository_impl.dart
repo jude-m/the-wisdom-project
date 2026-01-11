@@ -72,7 +72,9 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             editionIds: editionsToSearch,
             scope: query.scope,
             isExactMatch: query.isExactMatch,
-            proximity: query.proximityDistance,
+            isPhraseSearch: query.isPhraseSearch,
+            isAnywhereInText: query.isAnywhereInText,
+            proximityDistance: query.proximityDistance,
             limit: maxPerCategory,
             offset: 0,
           );
@@ -140,7 +142,9 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 editionIds: editionsToSearch,
                 scope: query.scope,
                 isExactMatch: query.isExactMatch,
-                proximity: query.proximityDistance,
+                isPhraseSearch: query.isPhraseSearch,
+                isAnywhereInText: query.isAnywhereInText,
+                proximityDistance: query.proximityDistance,
                 limit: query.limit,
                 offset: query.offset,
               );
@@ -205,7 +209,9 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             editionId: editionsToSearch.first,
             scope: query.scope,
             isExactMatch: query.isExactMatch,
-            proximity: query.proximityDistance,
+            isPhraseSearch: query.isPhraseSearch,
+            isAnywhereInText: query.isAnywhereInText,
+            proximityDistance: query.proximityDistance,
           );
 
           // Definition count (future - placeholder)
@@ -374,17 +380,23 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   /// [scope] - Tree node keys (e.g., 'sp', 'dn', 'dn-1') for filtering.
   /// Empty set = search all content.
   ///
-  /// [proximity] controls multi-word matching:
-  /// - null = phrase matching (consecutive words)
-  /// - 1-30 = NEAR/n proximity (words within n tokens)
-  /// - Default 10 = current behavior
+  /// [isPhraseSearch] - true for phrase matching (consecutive/adjacent words),
+  /// false for separate-word search (words within proximity).
+  ///
+  /// [isAnywhereInText] - When true and isPhraseSearch is false, ignores
+  /// proximity distance and searches anywhere in the text.
+  ///
+  /// [proximityDistance] - Distance for NEAR/n proximity (1-100).
+  /// Only used when isPhraseSearch is false and isAnywhereInText is false.
   Future<List<SearchResult>> _searchFullText({
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
     required Set<String> editionIds,
     Set<String> scope = const {},
     bool isExactMatch = false,
-    int? proximity = 10,
+    bool isPhraseSearch = true,
+    bool isAnywhereInText = false,
+    int proximityDistance = 10,
     int? limit,
     int offset = 0,
   }) async {
@@ -393,7 +405,9 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       editionIds: editionIds,
       scope: scope,
       isExactMatch: isExactMatch,
-      proximity: proximity,
+      isPhraseSearch: isPhraseSearch,
+      isAnywhereInText: isAnywhereInText,
+      proximityDistance: proximityDistance,
       limit: limit ?? 50,
       offset: offset,
     );

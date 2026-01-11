@@ -1415,7 +1415,9 @@ void main() {
             TipitakaNodeKeys.vinayaPitaka
           }, // Scope should be passed through
           isExactMatch: false,
-          proximity: anyNamed('proximity'),
+          isPhraseSearch: anyNamed('isPhraseSearch'),
+          isAnywhereInText: anyNamed('isAnywhereInText'),
+          proximityDistance: anyNamed('proximityDistance'),
           limit: anyNamed('limit'),
           offset: anyNamed('offset'),
         )).called(1);

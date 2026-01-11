@@ -35,11 +35,22 @@ class SearchQuery with _$SearchQuery {
     /// - {'atta-vp', 'atta-sp', 'atta-ap'} = search all Commentaries
     @Default({}) Set<String> scope,
 
-    /// Proximity distance for multi-word queries.
+    /// Whether to search as a phrase (consecutive words) or separate words.
+    /// - true (DEFAULT) = phrase search (words must be adjacent)
+    /// - false = separate-word search (words within proximity distance)
+    @Default(true) bool isPhraseSearch,
+
+    /// Whether to ignore proximity and search anywhere in the same text unit.
+    /// Only applies when [isPhraseSearch] is false.
+    /// - true = search for words anywhere in the text (uses very large proximity)
+    /// - false (DEFAULT) = use [proximityDistance] for proximity constraint
+    @Default(false) bool isAnywhereInText,
+
+    /// Proximity distance for multi-word separate-word queries.
+    /// Only applies when [isPhraseSearch] is false and [isAnywhereInText] is false.
     /// Default 10 = words within 10 tokens (NEAR/10).
-    /// null = phrase matching (consecutive words only).
-    /// 1-30 = NEAR/n proximity search.
-    @Default(10) int? proximityDistance,
+    /// Range: 1-100.
+    @Default(10) int proximityDistance,
 
     /// Maximum number of results to return
     @Default(50) int limit,

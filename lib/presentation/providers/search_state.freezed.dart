@@ -61,11 +61,22 @@ mixin _$SearchState {
   /// - Refine dialog tree selection (e.g., {'dn', 'mn'})
   Set<String> get scope => throw _privateConstructorUsedError;
 
-  /// Proximity distance for multi-word queries.
-  /// Default 10 = words within 10 tokens (current behavior).
-  /// null = phrase matching (consecutive words only).
-  /// 1-30 = NEAR/n proximity search.
-  int? get proximityDistance => throw _privateConstructorUsedError;
+  /// Whether to search as a phrase (consecutive words) or separate words.
+  /// - true (DEFAULT) = phrase search (words must be adjacent)
+  /// - false = separate-word search (words within proximity distance)
+  bool get isPhraseSearch => throw _privateConstructorUsedError;
+
+  /// Whether to ignore proximity and search anywhere in the same text unit.
+  /// Only applies when [isPhraseSearch] is false.
+  /// - true = search for words anywhere in the text (uses very large proximity)
+  /// - false (DEFAULT) = use [proximityDistance] for proximity constraint
+  bool get isAnywhereInText => throw _privateConstructorUsedError;
+
+  /// Proximity distance for multi-word separate-word queries.
+  /// Only applies when [isPhraseSearch] is false and [isAnywhereInText] is false.
+  /// Default 10 = words within 10 tokens (NEAR/10).
+  /// Range: 1-100.
+  int get proximityDistance => throw _privateConstructorUsedError;
 
   /// Whether the panel was dismissed (user clicked result or close button)
   /// Panel reopens when user focuses the search bar again
@@ -106,7 +117,9 @@ abstract class $SearchStateCopyWith<$Res> {
       bool searchInPali,
       bool searchInSinhala,
       Set<String> scope,
-      int? proximityDistance,
+      bool isPhraseSearch,
+      bool isAnywhereInText,
+      int proximityDistance,
       bool isPanelDismissed,
       bool isExactMatch,
       Map<SearchResultType, int> countByResultType});
@@ -140,7 +153,9 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
     Object? searchInPali = null,
     Object? searchInSinhala = null,
     Object? scope = null,
-    Object? proximityDistance = freezed,
+    Object? isPhraseSearch = null,
+    Object? isAnywhereInText = null,
+    Object? proximityDistance = null,
     Object? isPanelDismissed = null,
     Object? isExactMatch = null,
     Object? countByResultType = null,
@@ -190,10 +205,18 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
           ? _value.scope
           : scope // ignore: cast_nullable_to_non_nullable
               as Set<String>,
-      proximityDistance: freezed == proximityDistance
+      isPhraseSearch: null == isPhraseSearch
+          ? _value.isPhraseSearch
+          : isPhraseSearch // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isAnywhereInText: null == isAnywhereInText
+          ? _value.isAnywhereInText
+          : isAnywhereInText // ignore: cast_nullable_to_non_nullable
+              as bool,
+      proximityDistance: null == proximityDistance
           ? _value.proximityDistance
           : proximityDistance // ignore: cast_nullable_to_non_nullable
-              as int?,
+              as int,
       isPanelDismissed: null == isPanelDismissed
           ? _value.isPanelDismissed
           : isPanelDismissed // ignore: cast_nullable_to_non_nullable
@@ -244,7 +267,9 @@ abstract class _$$SearchStateImplCopyWith<$Res>
       bool searchInPali,
       bool searchInSinhala,
       Set<String> scope,
-      int? proximityDistance,
+      bool isPhraseSearch,
+      bool isAnywhereInText,
+      int proximityDistance,
       bool isPanelDismissed,
       bool isExactMatch,
       Map<SearchResultType, int> countByResultType});
@@ -277,7 +302,9 @@ class __$$SearchStateImplCopyWithImpl<$Res>
     Object? searchInPali = null,
     Object? searchInSinhala = null,
     Object? scope = null,
-    Object? proximityDistance = freezed,
+    Object? isPhraseSearch = null,
+    Object? isAnywhereInText = null,
+    Object? proximityDistance = null,
     Object? isPanelDismissed = null,
     Object? isExactMatch = null,
     Object? countByResultType = null,
@@ -327,10 +354,18 @@ class __$$SearchStateImplCopyWithImpl<$Res>
           ? _value._scope
           : scope // ignore: cast_nullable_to_non_nullable
               as Set<String>,
-      proximityDistance: freezed == proximityDistance
+      isPhraseSearch: null == isPhraseSearch
+          ? _value.isPhraseSearch
+          : isPhraseSearch // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isAnywhereInText: null == isAnywhereInText
+          ? _value.isAnywhereInText
+          : isAnywhereInText // ignore: cast_nullable_to_non_nullable
+              as bool,
+      proximityDistance: null == proximityDistance
           ? _value.proximityDistance
           : proximityDistance // ignore: cast_nullable_to_non_nullable
-              as int?,
+              as int,
       isPanelDismissed: null == isPanelDismissed
           ? _value.isPanelDismissed
           : isPanelDismissed // ignore: cast_nullable_to_non_nullable
@@ -362,6 +397,8 @@ class _$SearchStateImpl extends _SearchState {
       this.searchInPali = true,
       this.searchInSinhala = true,
       final Set<String> scope = const {},
+      this.isPhraseSearch = true,
+      this.isAnywhereInText = false,
       this.proximityDistance = 10,
       this.isPanelDismissed = false,
       this.isExactMatch = false,
@@ -465,13 +502,28 @@ class _$SearchStateImpl extends _SearchState {
     return EqualUnmodifiableSetView(_scope);
   }
 
-  /// Proximity distance for multi-word queries.
-  /// Default 10 = words within 10 tokens (current behavior).
-  /// null = phrase matching (consecutive words only).
-  /// 1-30 = NEAR/n proximity search.
+  /// Whether to search as a phrase (consecutive words) or separate words.
+  /// - true (DEFAULT) = phrase search (words must be adjacent)
+  /// - false = separate-word search (words within proximity distance)
   @override
   @JsonKey()
-  final int? proximityDistance;
+  final bool isPhraseSearch;
+
+  /// Whether to ignore proximity and search anywhere in the same text unit.
+  /// Only applies when [isPhraseSearch] is false.
+  /// - true = search for words anywhere in the text (uses very large proximity)
+  /// - false (DEFAULT) = use [proximityDistance] for proximity constraint
+  @override
+  @JsonKey()
+  final bool isAnywhereInText;
+
+  /// Proximity distance for multi-word separate-word queries.
+  /// Only applies when [isPhraseSearch] is false and [isAnywhereInText] is false.
+  /// Default 10 = words within 10 tokens (NEAR/10).
+  /// Range: 1-100.
+  @override
+  @JsonKey()
+  final int proximityDistance;
 
   /// Whether the panel was dismissed (user clicked result or close button)
   /// Panel reopens when user focuses the search bar again
@@ -503,7 +555,7 @@ class _$SearchStateImpl extends _SearchState {
 
   @override
   String toString() {
-    return 'SearchState(rawQueryText: $rawQueryText, effectiveQueryText: $effectiveQueryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, proximityDistance: $proximityDistance, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType)';
+    return 'SearchState(rawQueryText: $rawQueryText, effectiveQueryText: $effectiveQueryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, isPhraseSearch: $isPhraseSearch, isAnywhereInText: $isAnywhereInText, proximityDistance: $proximityDistance, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType)';
   }
 
   @override
@@ -532,6 +584,10 @@ class _$SearchStateImpl extends _SearchState {
             (identical(other.searchInSinhala, searchInSinhala) ||
                 other.searchInSinhala == searchInSinhala) &&
             const DeepCollectionEquality().equals(other._scope, _scope) &&
+            (identical(other.isPhraseSearch, isPhraseSearch) ||
+                other.isPhraseSearch == isPhraseSearch) &&
+            (identical(other.isAnywhereInText, isAnywhereInText) ||
+                other.isAnywhereInText == isAnywhereInText) &&
             (identical(other.proximityDistance, proximityDistance) ||
                 other.proximityDistance == proximityDistance) &&
             (identical(other.isPanelDismissed, isPanelDismissed) ||
@@ -556,6 +612,8 @@ class _$SearchStateImpl extends _SearchState {
       searchInPali,
       searchInSinhala,
       const DeepCollectionEquality().hash(_scope),
+      isPhraseSearch,
+      isAnywhereInText,
       proximityDistance,
       isPanelDismissed,
       isExactMatch,
@@ -583,7 +641,9 @@ abstract class _SearchState extends SearchState {
       final bool searchInPali,
       final bool searchInSinhala,
       final Set<String> scope,
-      final int? proximityDistance,
+      final bool isPhraseSearch,
+      final bool isAnywhereInText,
+      final int proximityDistance,
       final bool isPanelDismissed,
       final bool isExactMatch,
       final Map<SearchResultType, int> countByResultType}) = _$SearchStateImpl;
@@ -644,12 +704,25 @@ abstract class _SearchState extends SearchState {
   @override
   Set<String> get scope;
 
-  /// Proximity distance for multi-word queries.
-  /// Default 10 = words within 10 tokens (current behavior).
-  /// null = phrase matching (consecutive words only).
-  /// 1-30 = NEAR/n proximity search.
+  /// Whether to search as a phrase (consecutive words) or separate words.
+  /// - true (DEFAULT) = phrase search (words must be adjacent)
+  /// - false = separate-word search (words within proximity distance)
   @override
-  int? get proximityDistance;
+  bool get isPhraseSearch;
+
+  /// Whether to ignore proximity and search anywhere in the same text unit.
+  /// Only applies when [isPhraseSearch] is false.
+  /// - true = search for words anywhere in the text (uses very large proximity)
+  /// - false (DEFAULT) = use [proximityDistance] for proximity constraint
+  @override
+  bool get isAnywhereInText;
+
+  /// Proximity distance for multi-word separate-word queries.
+  /// Only applies when [isPhraseSearch] is false and [isAnywhereInText] is false.
+  /// Default 10 = words within 10 tokens (NEAR/10).
+  /// Range: 1-100.
+  @override
+  int get proximityDistance;
 
   /// Whether the panel was dismissed (user clicked result or close button)
   /// Panel reopens when user focuses the search bar again

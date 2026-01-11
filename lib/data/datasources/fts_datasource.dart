@@ -76,17 +76,22 @@ abstract class FTSDataSource {
   /// [scope] - Tree node keys (e.g., 'sp', 'dn', 'dn-1') for filtering.
   /// Empty set = search all content.
   ///
-  /// [proximity] controls multi-word matching:
-  /// - null = phrase matching (consecutive words)
-  /// - 1-30 = NEAR/n proximity (words within n tokens)
-  /// - Default 10 = current behavior
+  /// [isPhraseSearch] - true for phrase matching (consecutive/adjacent words),
+  /// false for separate-word search (words within proximity).
+  ///
+  /// [isAnywhereInText] - When true and isPhraseSearch is false, ignores
+  /// proximity distance and searches anywhere in the text.
+  ///
+  /// [proximityDistance] - Distance for NEAR/n proximity (1-100).
+  /// Only used when isPhraseSearch is false and isAnywhereInText is false.
   Future<List<FTSMatch>> searchFullText(
     String query, {
     required Set<String> editionIds,
-    String? language,
     Set<String> scope = const {},
     bool isExactMatch = false,
-    int? proximity = 10,
+    bool isPhraseSearch = true,
+    bool isAnywhereInText = false,
+    int proximityDistance = 10,
     int limit = 50,
     int offset = 0,
   });
@@ -96,16 +101,22 @@ abstract class FTSDataSource {
   /// [scope] - Tree node keys (e.g., 'sp', 'dn', 'dn-1') for filtering.
   /// Empty set = count all content.
   ///
-  /// [proximity] controls multi-word matching:
-  /// - null = phrase matching (consecutive words)
-  /// - 1-30 = NEAR/n proximity (words within n tokens)
-  /// - Default 10 = current behavior
+  /// [isPhraseSearch] - true for phrase matching (consecutive/adjacent words),
+  /// false for separate-word search (words within proximity).
+  ///
+  /// [isAnywhereInText] - When true and isPhraseSearch is false, ignores
+  /// proximity distance and searches anywhere in the text.
+  ///
+  /// [proximityDistance] - Distance for NEAR/n proximity (1-100).
+  /// Only used when isPhraseSearch is false and isAnywhereInText is false.
   Future<int> countFullTextMatches(
     String query, {
     required String editionId,
     Set<String> scope = const {},
     bool isExactMatch = false,
-    int? proximity = 10,
+    bool isPhraseSearch = true,
+    bool isAnywhereInText = false,
+    int proximityDistance = 10,
   });
 
   /// Get search suggestions from one or more editions
@@ -134,51 +145,90 @@ class FTSDataSourceImpl implements FTSDataSource {
 
   /// Builds FTS query syntax for single or multi-word queries.
   ///
-  /// Single word:
+  /// ## Single word:
   /// - `word*` (prefix matching) when [isExactMatch] is false
   /// - `word` (exact token) when [isExactMatch] is true
   ///
-  /// Multi-word:
-  /// - When [proximity] is null: `"word1 word2"` (phrase matching - consecutive words)
-  /// - When [proximity] is set: `word1* NEAR/n word2*` (proximity matching)
+  /// ## Multi-word with [isPhraseSearch] = true (phrase search):
+  /// - [isExactMatch] = true: `"word1 word2"` (exact phrase, consecutive)
+  /// - [isExactMatch] = false: `"word1* word2*"` (phrase with prefix matching)
+  ///   Note: SQLite FTS4 supports term prefixes inside quoted phrases.
   ///
-  /// [proximity] = null for phrase matching, 1-30 for NEAR/n proximity.
-  /// Default proximity of 10 preserves current behavior.
+  /// ## Multi-word with [isPhraseSearch] = false (separate-word search):
+  /// - [isAnywhereInText] = true: Implicit AND (space-separated words)
+  /// - [isAnywhereInText] = false: Use [proximityDistance] for NEAR/n
+  /// - [isExactMatch] affects whether wildcards are added to each word
+  ///
+  /// ## Search Flows Summary:
+  /// | isPhraseSearch | isAnywhereInText | isExactMatch | FTS Query |
+  /// |---------------|------------------|--------------|-----------|
+  /// | true | - | true | `"word1 word2"` (exact phrase) |
+  /// | true | - | false | `"word1* word2*"` (phrase with prefix) |
+  /// | false | true | true | `word1 word2` (AND, exact tokens) |
+  /// | false | true | false | `word1* word2*` (AND, prefix match) |
+  /// | false | false | true | `word1 NEAR/n word2` (proximity, exact) |
+  /// | false | false | false | `word1* NEAR/n word2*` (proximity, prefix) |
   String _buildFtsQuery(
     String queryText, {
     bool isExactMatch = false,
-    int? proximity = 10,
+    bool isPhraseSearch = true,
+    bool isAnywhereInText = false,
+    int proximityDistance = 10,
   }) {
     if (queryText.isEmpty) {
       return '""';
     }
 
-    // Handle multi-word queries
-    final words = queryText.split(' ');
+    // Split into words (handles multi-word queries)
+    final words = queryText.split(' ').where((w) => w.isNotEmpty).toList();
 
     if (words.length == 1) {
       // Single word: simple token matching (no quotes)
       // isExactMatch=false: අනාථ* (prefix token matching)
       // isExactMatch=true: අනාථ (exact token matching)
-      return isExactMatch ? queryText : '$queryText*';
-    } else {
-      // Multi-word handling
-      if (proximity == null) {
-        // Phrase matching: words must appear consecutively
-        // Use double quotes for FTS phrase query
-        final phrase = words.join(' ');
-        return '"$phrase"';
+      final singleWordQuery = isExactMatch ? words[0] : '${words[0]}*';
+      return singleWordQuery;
+    }
+
+    // Multi-word handling
+    String result;
+    if (isPhraseSearch) {
+      // Phrase search: words must be adjacent (consecutive)
+      if (isExactMatch) {
+        // Exact phrase: use double quotes for FTS phrase query
+        // FTS query: "word1 word2" (exact consecutive match)
+        result = '"${words.join(' ')}"';
       } else {
-        // Proximity matching: words within N tokens of each other
+        // Phrase with prefix: SQLite FTS4 supports term prefixes inside quotes
+        // FTS query: "word1* word2*" (phrase with prefix matching)
+        // This matches tipitaka.lk's implementation
+        result = '"${words.map((w) => '$w*').join(' ')}"';
+      }
+    } else {
+      // Separate-word search
+      if (isAnywhereInText) {
+        // Anywhere in text: use implicit AND (no NEAR operator)
+        // Simply listing terms with spaces = AND query (both must exist)
         if (isExactMatch) {
-          // Exact match for each word with NEAR proximity
-          return words.join(' NEAR/$proximity ');
+          // FTS query: word1 word2 (exact tokens, both must exist)
+          result = words.join(' ');
         } else {
-          // Prefix match for each word with NEAR proximity
-          return words.map((w) => '$w*').join(' NEAR/$proximity ');
+          // FTS query: word1* word2* (prefix matching, both must exist)
+          result = words.map((w) => '$w*').join(' ');
+        }
+      } else {
+        // Proximity search: words within specific distance
+        if (isExactMatch) {
+          // FTS query: word1 NEAR/n word2 (exact tokens within distance)
+          result = words.join(' NEAR/$proximityDistance ');
+        } else {
+          // FTS query: word1* NEAR/n word2* (prefix matching within distance)
+          result = words.map((w) => '$w*').join(' NEAR/$proximityDistance ');
         }
       }
     }
+    
+    return result;
   }
 
   /// Track which editions are initialized
@@ -245,10 +295,11 @@ class FTSDataSourceImpl implements FTSDataSource {
   Future<List<FTSMatch>> searchFullText(
     String query, {
     required Set<String> editionIds,
-    String? language,
     Set<String> scope = const {},
     bool isExactMatch = false,
-    int? proximity = 10,
+    bool isPhraseSearch = true,
+    bool isAnywhereInText = false,
+    int proximityDistance = 10,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -260,10 +311,11 @@ class FTSDataSourceImpl implements FTSDataSource {
       return _searchInEdition(
         editionId,
         query,
-        language: language,
         scope: scope,
         isExactMatch: isExactMatch,
-        proximity: proximity,
+        isPhraseSearch: isPhraseSearch,
+        isAnywhereInText: isAnywhereInText,
+        proximityDistance: proximityDistance,
         limit: limit,
         offset: offset,
       );
@@ -279,10 +331,11 @@ class FTSDataSourceImpl implements FTSDataSource {
   Future<List<FTSMatch>> _searchInEdition(
     String editionId,
     String query, {
-    String? language,
     Set<String> scope = const {},
     bool isExactMatch = false,
-    int? proximity = 10,
+    bool isPhraseSearch = true,
+    bool isAnywhereInText = false,
+    int proximityDistance = 10,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -300,7 +353,9 @@ class FTSDataSourceImpl implements FTSDataSource {
       final ftsQuery = _buildFtsQuery(
         query,
         isExactMatch: isExactMatch,
-        proximity: proximity,
+        isPhraseSearch: isPhraseSearch,
+        isAnywhereInText: isAnywhereInText,
+        proximityDistance: proximityDistance,
       );
 
       // Build the SQL query using parameterized query for MATCH clause
@@ -316,12 +371,6 @@ class FTSDataSourceImpl implements FTSDataSource {
       // Start args with the FTS query
       final args = <Object>[ftsQuery];
 
-      // Add language filter
-      if (language != null) {
-        buffer.write(' AND m.language = ?');
-        args.add(language);
-      }
-
       // Add scope filter
       final scopeWhereClause = ScopeFilterService.buildWhereClause(scope);
       if (scopeWhereClause != null) {
@@ -333,7 +382,7 @@ class FTSDataSourceImpl implements FTSDataSource {
       buffer.write(' LIMIT ? OFFSET ?');
       args.addAll([limit, offset]);
 
-      _log('FTS query: "$ftsQuery" (isExactMatch: $isExactMatch, proximity: $proximity)');
+      _log('FTS query: "$ftsQuery" (isExactMatch: $isExactMatch, isPhraseSearch: $isPhraseSearch, isAnywhereInText: $isAnywhereInText, proximityDistance: $proximityDistance)');
       _log('SQL: ${buffer.toString().trim()}');
       // Execute query
       final List<Map<String, dynamic>> results = await db.rawQuery(
@@ -355,7 +404,9 @@ class FTSDataSourceImpl implements FTSDataSource {
     required String editionId,
     Set<String> scope = const {},
     bool isExactMatch = false,
-    int? proximity = 10,
+    bool isPhraseSearch = true,
+    bool isAnywhereInText = false,
+    int proximityDistance = 10,
   }) async {
     await initializeEditions({editionId});
 
@@ -372,7 +423,9 @@ class FTSDataSourceImpl implements FTSDataSource {
       final ftsQuery = _buildFtsQuery(
         query,
         isExactMatch: isExactMatch,
-        proximity: proximity,
+        isPhraseSearch: isPhraseSearch,
+        isAnywhereInText: isAnywhereInText,
+        proximityDistance: proximityDistance,
       );
 
       // Build query with optional scope filter
@@ -508,10 +561,25 @@ class FTSDataSourceImpl implements FTSDataSource {
 
   @override
   Future<void> close() async {
-    for (final db in _databases.values) {
-      await db.close();
+    // Close all databases, collecting any errors
+    final errors = <String, Object>{};
+
+    for (final entry in _databases.entries) {
+      try {
+        await entry.value.close();
+      } catch (e) {
+        errors[entry.key] = e;
+        _log('Error closing database ${entry.key}: $e');
+      }
     }
+
+    // Always clear state, even if some closes failed
     _databases.clear();
     _initializedEditions.clear();
+
+    // Report if any errors occurred
+    if (errors.isNotEmpty) {
+      _log('Failed to close ${errors.length} database(s): ${errors.keys.join(', ')}');
+    }
   }
 }

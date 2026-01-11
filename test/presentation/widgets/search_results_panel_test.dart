@@ -32,7 +32,7 @@ void main() {
         (tester) async {
       // ARRANGE
       final notifier = FakeSearchStateNotifier(
-        const SearchState(rawQueryText: 'metta'),
+        const SearchState(rawQueryText: 'metta', effectiveQueryText: 'metta'),
       );
 
       await tester.pumpWidget(
@@ -64,6 +64,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           rawQueryText: 'test',
+          effectiveQueryText: 'test',
           isLoading: true,
           selectedResultType: SearchResultType.topResults,
         ),
@@ -97,6 +98,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           rawQueryText: 'test',
+          effectiveQueryText: 'test',
           selectedResultType: SearchResultType.title,
           fullResults: AsyncValue.loading(),
         ),
@@ -128,6 +130,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         SearchState(
           rawQueryText: 'test',
+          effectiveQueryText: 'test',
           selectedResultType: SearchResultType.title,
           fullResults: AsyncValue.error(
             Exception('Test error'),
@@ -165,6 +168,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           rawQueryText: 'test',
+          effectiveQueryText: 'test',
           selectedResultType: SearchResultType.topResults,
           groupedResults: GroupedSearchResult(
             resultsByType: {},
@@ -200,6 +204,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           rawQueryText: 'test',
+          effectiveQueryText: 'test',
           fullResults: AsyncValue.data([]),
           selectedResultType: SearchResultType.title,
         ),
@@ -230,7 +235,7 @@ void main() {
     testWidgets('should render category tab bar with 4 tabs', (tester) async {
       // ARRANGE
       final notifier = FakeSearchStateNotifier(
-        const SearchState(rawQueryText: 'test'),
+        const SearchState(rawQueryText: 'test', effectiveQueryText: 'test'),
       );
 
       await tester.pumpWidget(
@@ -262,6 +267,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           rawQueryText: 'test',
+          effectiveQueryText: 'test',
           countByResultType: {
             SearchResultType.topResults: 15, // Top Results doesn't show badge
             SearchResultType.title: 42,
@@ -302,6 +308,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           rawQueryText: 'test',
+          effectiveQueryText: 'test',
           countByResultType: {
             SearchResultType.topResults: 0, // Top Results doesn't show badge
             SearchResultType.title: 0,
@@ -343,6 +350,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           rawQueryText: 'test',
+          effectiveQueryText: 'test',
           countByResultType: {
             SearchResultType.title: 100,
           },
@@ -377,6 +385,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           rawQueryText: 'test',
+          effectiveQueryText: 'test',
           selectedResultType: SearchResultType.topResults,
         ),
       );
@@ -411,7 +420,7 @@ void main() {
       // ARRANGE
       bool closeCalled = false;
       final notifier = FakeSearchStateNotifier(
-        const SearchState(rawQueryText: 'test'),
+        const SearchState(rawQueryText: 'test', effectiveQueryText: 'test'),
       );
 
       await tester.pumpWidget(
@@ -460,6 +469,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           rawQueryText: 'metta',
+          effectiveQueryText: 'metta',
           fullResults: AsyncValue.data([result]),
           selectedResultType: SearchResultType.title,
         ),
@@ -501,7 +511,7 @@ void main() {
         resultType: SearchResultType.fullText,
         title: 'Brahmajālasutta',
         subtitle: 'Dīgha Nikāya',
-        matchedText: 'This is matched text',
+        matchedText: 'This is matched test content',
         contentFileId: 'dn-1',
         pageIndex: 0,
         entryIndex: 5,
@@ -512,6 +522,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           rawQueryText: 'test',
+          effectiveQueryText: 'test',
           fullResults: AsyncValue.data([result]),
           selectedResultType: SearchResultType.fullText,
         ),
@@ -576,6 +587,7 @@ void main() {
       final notifier = FakeSearchStateNotifier(
         const SearchState(
           rawQueryText: 'metta',
+          effectiveQueryText: 'metta',
           selectedResultType: SearchResultType.topResults,
           groupedResults: GroupedSearchResult(
             resultsByType: {
@@ -632,6 +644,7 @@ void main() {
         final notifier = FakeSearchStateNotifier(
           SearchState(
             rawQueryText: 'test',
+            effectiveQueryText: 'test',
             selectedResultType: SearchResultType.fullText,
             fullResults: AsyncValue.data(List.generate(2, (_) => result)),
             countByResultType: const {
@@ -682,6 +695,7 @@ void main() {
         final notifier = FakeSearchStateNotifier(
           SearchState(
             rawQueryText: 'test',
+            effectiveQueryText: 'test',
             selectedResultType: SearchResultType.fullText,
             fullResults: AsyncValue.data(List.generate(3, (_) => result)),
             countByResultType: const {

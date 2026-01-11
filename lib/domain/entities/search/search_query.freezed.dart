@@ -45,11 +45,22 @@ mixin _$SearchQuery {
   /// - {'atta-vp', 'atta-sp', 'atta-ap'} = search all Commentaries
   Set<String> get scope => throw _privateConstructorUsedError;
 
-  /// Proximity distance for multi-word queries.
+  /// Whether to search as a phrase (consecutive words) or separate words.
+  /// - true (DEFAULT) = phrase search (words must be adjacent)
+  /// - false = separate-word search (words within proximity distance)
+  bool get isPhraseSearch => throw _privateConstructorUsedError;
+
+  /// Whether to ignore proximity and search anywhere in the same text unit.
+  /// Only applies when [isPhraseSearch] is false.
+  /// - true = search for words anywhere in the text (uses very large proximity)
+  /// - false (DEFAULT) = use [proximityDistance] for proximity constraint
+  bool get isAnywhereInText => throw _privateConstructorUsedError;
+
+  /// Proximity distance for multi-word separate-word queries.
+  /// Only applies when [isPhraseSearch] is false and [isAnywhereInText] is false.
   /// Default 10 = words within 10 tokens (NEAR/10).
-  /// null = phrase matching (consecutive words only).
-  /// 1-30 = NEAR/n proximity search.
-  int? get proximityDistance => throw _privateConstructorUsedError;
+  /// Range: 1-100.
+  int get proximityDistance => throw _privateConstructorUsedError;
 
   /// Maximum number of results to return
   int get limit => throw _privateConstructorUsedError;
@@ -77,7 +88,9 @@ abstract class $SearchQueryCopyWith<$Res> {
       bool searchInPali,
       bool searchInSinhala,
       Set<String> scope,
-      int? proximityDistance,
+      bool isPhraseSearch,
+      bool isAnywhereInText,
+      int proximityDistance,
       int limit,
       int offset});
 }
@@ -103,7 +116,9 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
     Object? searchInPali = null,
     Object? searchInSinhala = null,
     Object? scope = null,
-    Object? proximityDistance = freezed,
+    Object? isPhraseSearch = null,
+    Object? isAnywhereInText = null,
+    Object? proximityDistance = null,
     Object? limit = null,
     Object? offset = null,
   }) {
@@ -132,10 +147,18 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
           ? _value.scope
           : scope // ignore: cast_nullable_to_non_nullable
               as Set<String>,
-      proximityDistance: freezed == proximityDistance
+      isPhraseSearch: null == isPhraseSearch
+          ? _value.isPhraseSearch
+          : isPhraseSearch // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isAnywhereInText: null == isAnywhereInText
+          ? _value.isAnywhereInText
+          : isAnywhereInText // ignore: cast_nullable_to_non_nullable
+              as bool,
+      proximityDistance: null == proximityDistance
           ? _value.proximityDistance
           : proximityDistance // ignore: cast_nullable_to_non_nullable
-              as int?,
+              as int,
       limit: null == limit
           ? _value.limit
           : limit // ignore: cast_nullable_to_non_nullable
@@ -163,7 +186,9 @@ abstract class _$$SearchQueryImplCopyWith<$Res>
       bool searchInPali,
       bool searchInSinhala,
       Set<String> scope,
-      int? proximityDistance,
+      bool isPhraseSearch,
+      bool isAnywhereInText,
+      int proximityDistance,
       int limit,
       int offset});
 }
@@ -187,7 +212,9 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
     Object? searchInPali = null,
     Object? searchInSinhala = null,
     Object? scope = null,
-    Object? proximityDistance = freezed,
+    Object? isPhraseSearch = null,
+    Object? isAnywhereInText = null,
+    Object? proximityDistance = null,
     Object? limit = null,
     Object? offset = null,
   }) {
@@ -216,10 +243,18 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
           ? _value._scope
           : scope // ignore: cast_nullable_to_non_nullable
               as Set<String>,
-      proximityDistance: freezed == proximityDistance
+      isPhraseSearch: null == isPhraseSearch
+          ? _value.isPhraseSearch
+          : isPhraseSearch // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isAnywhereInText: null == isAnywhereInText
+          ? _value.isAnywhereInText
+          : isAnywhereInText // ignore: cast_nullable_to_non_nullable
+              as bool,
+      proximityDistance: null == proximityDistance
           ? _value.proximityDistance
           : proximityDistance // ignore: cast_nullable_to_non_nullable
-              as int?,
+              as int,
       limit: null == limit
           ? _value.limit
           : limit // ignore: cast_nullable_to_non_nullable
@@ -242,6 +277,8 @@ class _$SearchQueryImpl implements _SearchQuery {
       this.searchInPali = true,
       this.searchInSinhala = true,
       final Set<String> scope = const {},
+      this.isPhraseSearch = true,
+      this.isAnywhereInText = false,
       this.proximityDistance = 10,
       this.limit = 50,
       this.offset = 0})
@@ -312,13 +349,28 @@ class _$SearchQueryImpl implements _SearchQuery {
     return EqualUnmodifiableSetView(_scope);
   }
 
-  /// Proximity distance for multi-word queries.
-  /// Default 10 = words within 10 tokens (NEAR/10).
-  /// null = phrase matching (consecutive words only).
-  /// 1-30 = NEAR/n proximity search.
+  /// Whether to search as a phrase (consecutive words) or separate words.
+  /// - true (DEFAULT) = phrase search (words must be adjacent)
+  /// - false = separate-word search (words within proximity distance)
   @override
   @JsonKey()
-  final int? proximityDistance;
+  final bool isPhraseSearch;
+
+  /// Whether to ignore proximity and search anywhere in the same text unit.
+  /// Only applies when [isPhraseSearch] is false.
+  /// - true = search for words anywhere in the text (uses very large proximity)
+  /// - false (DEFAULT) = use [proximityDistance] for proximity constraint
+  @override
+  @JsonKey()
+  final bool isAnywhereInText;
+
+  /// Proximity distance for multi-word separate-word queries.
+  /// Only applies when [isPhraseSearch] is false and [isAnywhereInText] is false.
+  /// Default 10 = words within 10 tokens (NEAR/10).
+  /// Range: 1-100.
+  @override
+  @JsonKey()
+  final int proximityDistance;
 
   /// Maximum number of results to return
   @override
@@ -332,7 +384,7 @@ class _$SearchQueryImpl implements _SearchQuery {
 
   @override
   String toString() {
-    return 'SearchQuery(queryText: $queryText, isExactMatch: $isExactMatch, editionIds: $editionIds, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, proximityDistance: $proximityDistance, limit: $limit, offset: $offset)';
+    return 'SearchQuery(queryText: $queryText, isExactMatch: $isExactMatch, editionIds: $editionIds, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, isPhraseSearch: $isPhraseSearch, isAnywhereInText: $isAnywhereInText, proximityDistance: $proximityDistance, limit: $limit, offset: $offset)';
   }
 
   @override
@@ -351,6 +403,10 @@ class _$SearchQueryImpl implements _SearchQuery {
             (identical(other.searchInSinhala, searchInSinhala) ||
                 other.searchInSinhala == searchInSinhala) &&
             const DeepCollectionEquality().equals(other._scope, _scope) &&
+            (identical(other.isPhraseSearch, isPhraseSearch) ||
+                other.isPhraseSearch == isPhraseSearch) &&
+            (identical(other.isAnywhereInText, isAnywhereInText) ||
+                other.isAnywhereInText == isAnywhereInText) &&
             (identical(other.proximityDistance, proximityDistance) ||
                 other.proximityDistance == proximityDistance) &&
             (identical(other.limit, limit) || other.limit == limit) &&
@@ -366,6 +422,8 @@ class _$SearchQueryImpl implements _SearchQuery {
       searchInPali,
       searchInSinhala,
       const DeepCollectionEquality().hash(_scope),
+      isPhraseSearch,
+      isAnywhereInText,
       proximityDistance,
       limit,
       offset);
@@ -387,7 +445,9 @@ abstract class _SearchQuery implements SearchQuery {
       final bool searchInPali,
       final bool searchInSinhala,
       final Set<String> scope,
-      final int? proximityDistance,
+      final bool isPhraseSearch,
+      final bool isAnywhereInText,
+      final int proximityDistance,
       final int limit,
       final int offset}) = _$SearchQueryImpl;
 
@@ -426,12 +486,25 @@ abstract class _SearchQuery implements SearchQuery {
   @override
   Set<String> get scope;
 
-  /// Proximity distance for multi-word queries.
-  /// Default 10 = words within 10 tokens (NEAR/10).
-  /// null = phrase matching (consecutive words only).
-  /// 1-30 = NEAR/n proximity search.
+  /// Whether to search as a phrase (consecutive words) or separate words.
+  /// - true (DEFAULT) = phrase search (words must be adjacent)
+  /// - false = separate-word search (words within proximity distance)
   @override
-  int? get proximityDistance;
+  bool get isPhraseSearch;
+
+  /// Whether to ignore proximity and search anywhere in the same text unit.
+  /// Only applies when [isPhraseSearch] is false.
+  /// - true = search for words anywhere in the text (uses very large proximity)
+  /// - false (DEFAULT) = use [proximityDistance] for proximity constraint
+  @override
+  bool get isAnywhereInText;
+
+  /// Proximity distance for multi-word separate-word queries.
+  /// Only applies when [isPhraseSearch] is false and [isAnywhereInText] is false.
+  /// Default 10 = words within 10 tokens (NEAR/10).
+  /// Range: 1-100.
+  @override
+  int get proximityDistance;
 
   /// Maximum number of results to return
   @override

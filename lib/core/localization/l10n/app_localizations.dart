@@ -355,6 +355,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Treatises'**
   String get scopeTreatises;
+
+  /// Radio button label for phrase search mode (words must be adjacent)
+  ///
+  /// In en, this message translates to:
+  /// **'Search as complete phrase'**
+  String get searchAsPhrase;
+
+  /// Radio button label for separate-word search mode (words within proximity)
+  ///
+  /// In en, this message translates to:
+  /// **'Search as separate words'**
+  String get searchAsSeparateWords;
+
+  /// Checkbox label to search words anywhere in the text without proximity constraint
+  ///
+  /// In en, this message translates to:
+  /// **'Anywhere in the same text'**
+  String get anywhereInText;
 }
 
 class _AppLocalizationsDelegate

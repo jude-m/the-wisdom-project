@@ -139,4 +139,13 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get scopeTreatises => 'ග්‍රන්ථ';
+
+  @override
+  String get searchAsPhrase => 'සම්පුර්ණ වාක්‍යක් ලෙස';
+
+  @override
+  String get searchAsSeparateWords => 'වෙන්වූ වචන සමූහයක් ලෙස';
+
+  @override
+  String get anywhereInText => 'එකම පෙළෙහි ඕනෑම තැනක';
 }

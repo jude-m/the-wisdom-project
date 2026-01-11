@@ -219,5 +219,20 @@
   "scopeTreatises": "Treatises",
   "@scopeTreatises": {
     "description": "Label for Treatises scope chip"
+  },
+
+  "searchAsPhrase": "Search as complete phrase",
+  "@searchAsPhrase": {
+    "description": "Radio button label for phrase search mode (words must be adjacent)"
+  },
+
+  "searchAsSeparateWords": "Search as separate words",
+  "@searchAsSeparateWords": {
+    "description": "Radio button label for separate-word search mode (words within proximity)"
+  },
+
+  "anywhereInText": "Anywhere in the same text",
+  "@anywhereInText": {
+    "description": "Checkbox label to search words anywhere in the text without proximity constraint"
   }
 }

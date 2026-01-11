@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/localization/l10n/app_localizations.dart';
 import '../providers/search_provider.dart';
 
-/// Simple dialog for configuring word proximity in multi-word searches.
+/// Dialog for configuring word proximity and phrase/separate-word search mode.
 ///
 /// Features:
-/// - Slider (1-30 words) for proximity distance
-/// - Phrase search checkbox (disables slider when checked)
+/// - Radio buttons for phrase search vs separate-word search (default: phrase)
+/// - Slider (1-100 words) for proximity distance (only when separate-word mode)
+/// - "Anywhere in text" checkbox (only when separate-word mode)
 /// - Apply button to save changes
 ///
 /// Opened from the proximity button in the search bar.
@@ -28,8 +29,9 @@ class ProximityDialog extends ConsumerStatefulWidget {
 
 class _ProximityDialogState extends ConsumerState<ProximityDialog> {
   // Local state (applied on "Apply" button)
-  late int _proximityDistance;
   late bool _isPhraseSearch;
+  late bool _isAnywhereInText;
+  late int _proximityDistance;
 
   @override
   void initState() {
@@ -39,22 +41,34 @@ class _ProximityDialogState extends ConsumerState<ProximityDialog> {
 
   void _initializeFromSearchState() {
     final searchState = ref.read(searchStateProvider);
-    _proximityDistance = searchState.proximityDistance ?? 10;
-    _isPhraseSearch = searchState.proximityDistance == null;
+    _isPhraseSearch = searchState.isPhraseSearch;
+    _isAnywhereInText = searchState.isAnywhereInText;
+    _proximityDistance = searchState.proximityDistance;
   }
 
   void _resetToDefaults() {
     setState(() {
+      _isPhraseSearch = true; // Default is phrase search
+      _isAnywhereInText = false;
       _proximityDistance = 10;
-      _isPhraseSearch = false;
     });
   }
 
   void _applyChanges() {
     final notifier = ref.read(searchStateProvider.notifier);
-    notifier.setProximityDistance(_isPhraseSearch ? null : _proximityDistance);
+    notifier.setPhraseSearch(_isPhraseSearch);
+    notifier.setAnywhereInText(_isAnywhereInText);
+    notifier.setProximityDistance(_proximityDistance);
     Navigator.of(context).pop(true);
   }
+
+  /// Whether the proximity controls (slider and anywhere checkbox) should be enabled.
+  /// Only enabled when separate-word search mode is selected.
+  bool get _isProximityControlsEnabled => !_isPhraseSearch;
+
+  /// Whether the slider should be enabled.
+  /// Only enabled when separate-word mode and "anywhere" is not checked.
+  bool get _isSliderEnabled => _isProximityControlsEnabled && !_isAnywhereInText;
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +78,7 @@ class _ProximityDialogState extends ConsumerState<ProximityDialog> {
     return Dialog(
       child: ConstrainedBox(
         constraints: const BoxConstraints(
-          maxWidth: 320,
+          maxWidth: 340,
         ),
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -97,88 +111,106 @@ class _ProximityDialogState extends ConsumerState<ProximityDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // Proximity slider
-              Row(
-                children: [
-                  Text(
-                    '1',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: _isPhraseSearch
-                          ? theme.colorScheme.onSurface.withValues(alpha: 0.38)
-                          : theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  Expanded(
-                    child: Slider(
-                      value: _proximityDistance.toDouble(),
-                      min: 1,
-                      max: 30,
-                      divisions: 29,
-                      label: '$_proximityDistance',
-                      onChanged: _isPhraseSearch
-                          ? null
-                          : (value) => setState(() {
-                                _proximityDistance = value.round();
-                              }),
-                    ),
-                  ),
-                  Text(
-                    '30',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: _isPhraseSearch
-                          ? theme.colorScheme.onSurface.withValues(alpha: 0.38)
-                          : theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-
-              // Current value display
-              Center(
-                child: Text(
-                  _isPhraseSearch
-                      ? l10n.exactConsecutiveWords
-                      : l10n.wordsApart(_proximityDistance),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Phrase search checkbox
-              InkWell(
-                onTap: () => setState(() {
-                  _isPhraseSearch = !_isPhraseSearch;
+              // Phrase search radio
+              _buildRadioOption(
+                theme: theme,
+                value: true,
+                groupValue: _isPhraseSearch,
+                label: l10n.searchAsPhrase,
+                onChanged: (value) => setState(() {
+                  _isPhraseSearch = value!;
                 }),
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: Checkbox(
-                          value: _isPhraseSearch,
-                          onChanged: (value) => setState(() {
-                            _isPhraseSearch = value ?? false;
-                          }),
+              ),
+
+              // Separate-word search radio
+              _buildRadioOption(
+                theme: theme,
+                value: false,
+                groupValue: _isPhraseSearch,
+                label: l10n.searchAsSeparateWords,
+                onChanged: (value) => setState(() {
+                  _isPhraseSearch = value!;
+                }),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Proximity controls section (only enabled for separate-word mode)
+              AnimatedOpacity(
+                opacity: _isProximityControlsEnabled ? 1.0 : 0.5,
+                duration: const Duration(milliseconds: 200),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Proximity slider
+                    Row(
+                      children: [
+                        Text(
+                          '1',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: _isSliderEnabled
+                                ? theme.colorScheme.onSurfaceVariant
+                                : theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.38),
+                          ),
+                        ),
+                        Expanded(
+                          child: Slider(
+                            value: _proximityDistance.toDouble(),
+                            min: 1,
+                            max: 100,
+                            divisions: 99,
+                            label: '$_proximityDistance',
+                            onChanged: _isSliderEnabled
+                                ? (value) => setState(() {
+                                      _proximityDistance = value.round();
+                                    })
+                                : null,
+                          ),
+                        ),
+                        Text(
+                          '100',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: _isSliderEnabled
+                                ? theme.colorScheme.onSurfaceVariant
+                                : theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.38),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Current value display
+                    Center(
+                      child: Text(
+                        _isAnywhereInText
+                            ? l10n.anywhereInText
+                            : l10n.wordsApart(_proximityDistance),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: _isProximityControlsEnabled
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.38),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          l10n.phraseSearch,
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Anywhere in text checkbox
+                    _buildCheckboxOption(
+                      theme: theme,
+                      value: _isAnywhereInText,
+                      label: l10n.anywhereInText,
+                      enabled: _isProximityControlsEnabled,
+                      onChanged: (value) => setState(() {
+                        _isAnywhereInText = value ?? false;
+                      }),
+                    ),
+                  ],
                 ),
               ),
 
@@ -201,6 +233,83 @@ class _ProximityDialogState extends ConsumerState<ProximityDialog> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Builds a radio option row.
+  Widget _buildRadioOption({
+    required ThemeData theme,
+    required bool value,
+    required bool groupValue,
+    required String label,
+    required ValueChanged<bool?> onChanged,
+  }) {
+    return InkWell(
+      onTap: () => onChanged(value),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: Radio<bool>(
+                value: value,
+                groupValue: groupValue,
+                onChanged: onChanged,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Builds a checkbox option row.
+  Widget _buildCheckboxOption({
+    required ThemeData theme,
+    required bool value,
+    required String label,
+    required bool enabled,
+    required ValueChanged<bool?> onChanged,
+  }) {
+    return InkWell(
+      onTap: enabled ? () => onChanged(!value) : null,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: Checkbox(
+                value: value,
+                onChanged: enabled ? onChanged : null,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: enabled
+                      ? theme.colorScheme.onSurface
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.38),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
