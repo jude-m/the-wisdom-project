@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
-import '../../domain/entities/search/scope_filter_config.dart';
-import '../../domain/entities/search/scope_utils.dart';
+import '../../domain/entities/search/scope_operations.dart';
 import '../providers/navigation_tree_provider.dart';
 import '../providers/search_provider.dart';
 
@@ -49,32 +48,8 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
 
     // Smart expansion: if specific scopes are selected, expand their parent nodes
     if (scope.isNotEmpty) {
-      _expandedNodes.addAll(_getNodesNeedingExpansion(scope));
+      _expandedNodes.addAll(ScopeOperations.getNodesNeedingExpansion(scope));
     }
-  }
-
-  /// Determine which nodes should be expanded to show currently selected nodes.
-  Set<String> _getNodesNeedingExpansion(Set<String> selectedKeys) {
-    final rootNodes = ScopeUtils.getAllChipNodeKeys();
-    final nodesToExpand = <String>{};
-
-    for (final selectedKey in selectedKeys) {
-      // If it's a root node itself, expand it to show children
-      if (rootNodes.contains(selectedKey)) {
-        nodesToExpand.add(selectedKey);
-        continue;
-      }
-
-      // Find which root node covers this selected key
-      for (final rootKey in rootNodes) {
-        if (ScopeFilterConfig.isNodeCoveredBy(selectedKey, rootKey)) {
-          nodesToExpand.add(rootKey);
-          break;
-        }
-      }
-    }
-
-    return nodesToExpand;
   }
 
   void _resetToDefaults() {
@@ -198,7 +173,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
               child: SingleChildScrollView(
                 child: Column(
                   children: tree
-                      .map((node) => _buildTreeNode(theme, node, 0, scope))
+                      .map((node) => _buildTreeNode(theme, node, 0, scope, tree))
                       .toList(),
                 ),
               ),
@@ -214,33 +189,17 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
     TipitakaTreeNode node,
     int depth,
     Set<String> scope,
+    List<TipitakaTreeNode> tree,
   ) {
     // Only show first 3 levels (Pitaka, Nikaya, Vagga)
     if (depth > 2) return const SizedBox.shrink();
 
     final hasChildren = node.childNodes.isNotEmpty && depth < 2;
     final isExpanded = _expandedNodes.contains(node.nodeKey);
-    final isDirectlySelected = scope.contains(node.nodeKey);
 
-    // "All" means empty scope - everything is selected
-    final isAllSelected = scope.isEmpty;
-
-    // Check if implicitly selected (an ancestor is selected)
-    final isImplicitlySelected =
-        ScopeFilterConfig.findCoveringAncestors(node.nodeKey, scope).isNotEmpty;
-
-    // Check if any descendants are selected
-    final hasSelectedDescendant = _hasSelectedDescendant(node, scope);
-
-    // Determine checkbox state (tristate)
-    final bool? checkboxValue;
-    if (isAllSelected || isDirectlySelected || isImplicitlySelected) {
-      checkboxValue = true;
-    } else if (hasSelectedDescendant) {
-      checkboxValue = null; // Partial selection
-    } else {
-      checkboxValue = false;
-    }
+    // Use ScopeOperations to determine checkbox state (tristate)
+    final checkboxValue = ScopeOperations.getCheckboxState(node, scope);
+    final isSelected = checkboxValue == true;
 
     return Column(
       children: [
@@ -275,7 +234,15 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
                 Checkbox(
                   value: checkboxValue,
                   tristate: true,
-                  onChanged: (value) => _toggleNodeSelection(node, scope),
+                  onChanged: (_) {
+                    // Use ScopeOperations for toggle logic with tree for auto-collapse
+                    final newScope = ScopeOperations.toggleNodeSelection(
+                      node,
+                      scope,
+                      treeRoots: tree,
+                    );
+                    ref.read(searchStateProvider.notifier).setScope(newScope);
+                  },
                 ),
 
                 // Node name
@@ -285,10 +252,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
                         ? node.sinhalaName
                         : node.paliName,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight:
-                          (isAllSelected || isDirectlySelected || isImplicitlySelected)
-                              ? FontWeight.w600
-                              : FontWeight.normal,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -301,62 +265,9 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
         // Children
         if (hasChildren && isExpanded)
           ...node.childNodes
-              .map((child) => _buildTreeNode(theme, child, depth + 1, scope)),
+              .map((child) => _buildTreeNode(theme, child, depth + 1, scope, tree)),
       ],
     );
-  }
-
-  bool _hasSelectedDescendant(TipitakaTreeNode node, Set<String> scope) {
-    for (final child in node.childNodes) {
-      if (scope.contains(child.nodeKey)) {
-        return true;
-      }
-      if (_hasSelectedDescendant(child, scope)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  void _toggleNodeSelection(TipitakaTreeNode node, Set<String> currentScope) {
-    final newScope = Set<String>.from(currentScope);
-
-    // Special case: "All" is selected (empty set means everything is included)
-    // Clicking any node means "focus on this" = select ONLY this node
-    if (newScope.isEmpty) {
-      ref.read(searchStateProvider.notifier).setScope({node.nodeKey});
-      return;
-    }
-
-    if (newScope.contains(node.nodeKey)) {
-      // Deselect this node and all descendants
-      newScope.remove(node.nodeKey);
-      _removeDescendantsFromScope(node, newScope);
-    } else {
-      // Check if this node is already covered by an ancestor selection
-      // If so, remove the ancestor (user wants to narrow down)
-      final coveringAncestors =
-          ScopeFilterConfig.findCoveringAncestors(node.nodeKey, newScope);
-      if (coveringAncestors.isNotEmpty) {
-        newScope.removeAll(coveringAncestors);
-      }
-
-      // Select this node
-      newScope.add(node.nodeKey);
-
-      // Remove any selected descendants (parent selection supersedes)
-      _removeDescendantsFromScope(node, newScope);
-    }
-
-    // Update provider - UI will rebuild automatically via ref.watch()
-    ref.read(searchStateProvider.notifier).setScope(newScope);
-  }
-
-  void _removeDescendantsFromScope(TipitakaTreeNode node, Set<String> scope) {
-    for (final child in node.childNodes) {
-      scope.remove(child.nodeKey);
-      _removeDescendantsFromScope(child, scope);
-    }
   }
 
   Widget _buildActionButtons(ThemeData theme) {

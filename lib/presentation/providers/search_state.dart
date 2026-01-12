@@ -8,8 +8,7 @@ import '../../domain/entities/search/recent_search.dart';
 import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_query.dart';
 import '../../domain/entities/search/search_result.dart';
-import '../../domain/entities/search/search_scope_chip.dart';
-import '../../domain/entities/search/scope_utils.dart';
+import '../../domain/entities/search/scope_operations.dart';
 import '../../domain/repositories/recent_searches_repository.dart';
 import '../../domain/repositories/text_search_repository.dart';
 
@@ -110,16 +109,6 @@ class SearchState with _$SearchState {
 
   /// True if "All" is effectively selected (no specific scope chosen)
   bool get isAllSelected => scope.isEmpty;
-
-  /// Check if a chip is selected (all its nodeKeys are in current scope).
-  ///
-  /// For multi-select: a chip is "selected" if all of its nodeKeys are
-  /// contained within the current scope. This allows multiple chips to
-  /// be selected simultaneously.
-  bool matchesChip(SearchScopeChip chip) {
-    if (scope.isEmpty) return false; // "All" selected, no individual chip matches
-    return scope.containsAll(chip.nodeKeys);
-  }
 }
 
 /// Manages search state with simplified UX flow
@@ -418,29 +407,23 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   ///
   /// Automatically normalizes: if all chip scopes are selected, collapses to "All".
   void setScope(Set<String> nodeKeys) {
-    final normalizedScope = ScopeUtils.normalize(nodeKeys);
+    final normalizedScope = ScopeOperations.normalize(nodeKeys);
     state = state.copyWith(scope: normalizedScope);
     _refreshSearchIfNeeded();
   }
 
-  /// Toggle a chip's scope on/off (multi-select behavior).
+  /// Toggle scope keys on/off (multi-select behavior).
   ///
-  /// - If chip is selected (all its nodeKeys in scope): removes its nodeKeys
-  /// - If chip is not selected: adds its nodeKeys to current scope
+  /// This is a UI-agnostic method that only accepts `Set<String>` keys.
+  /// The widget is responsible for extracting keys from chip entities.
+  ///
+  /// - If all [keys] are in scope: removes them
+  /// - If any [keys] are missing: adds them all
   /// - Auto-collapse: if all chips are selected, reverts to "All" (empty set)
-  void toggleChipScope(SearchScopeChip chip) {
-    final currentScope = Set<String>.from(state.scope);
-
-    if (state.matchesChip(chip)) {
-      // Chip is selected - remove its nodeKeys
-      currentScope.removeAll(chip.nodeKeys);
-    } else {
-      // Chip not selected - add its nodeKeys
-      currentScope.addAll(chip.nodeKeys);
-    }
-
-    // Delegate to setScope which handles normalization (auto-collapse)
-    setScope(currentScope);
+  void toggleScopeKeys(Set<String> keys) {
+    final newScope = ScopeOperations.toggleKeys(state.scope, keys);
+    state = state.copyWith(scope: newScope);
+    _refreshSearchIfNeeded();
   }
 
   /// Select "All" - clears scope filter.

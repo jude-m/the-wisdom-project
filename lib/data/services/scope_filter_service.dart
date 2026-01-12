@@ -1,4 +1,4 @@
-import '../../domain/entities/search/scope_filter_config.dart';
+import '../../domain/entities/search/scope_operations.dart';
 
 /// Service that converts search scope (tree node keys) into SQL WHERE clauses.
 ///
@@ -48,7 +48,7 @@ class ScopeFilterService {
   }) {
     if (searchScope.isEmpty) return null; // No filter = search all
 
-    final patterns = ScopeFilterConfig.getPatternsForScope(searchScope);
+    final patterns = ScopeOperations.getPatternsForScope(searchScope);
     if (patterns.isEmpty) return null;
 
     final conditions = patterns
@@ -76,7 +76,7 @@ class ScopeFilterService {
   static List<String> getWhereParams(Set<String> scope) {
     if (scope.isEmpty) return [];
     // Add SQL LIKE wildcard (%)
-    return ScopeFilterConfig.getPatternsForScope(scope)
+    return ScopeOperations.getPatternsForScope(scope)
         .map((pattern) => '$pattern%')
         .toList();
   }

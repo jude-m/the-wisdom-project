@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/localization/l10n/app_localizations.dart';
-import '../../domain/entities/search/scope_utils.dart';
+import '../../domain/entities/search/scope_operations.dart';
 import '../../domain/entities/search/search_scope_chip.dart';
 import '../providers/search_provider.dart';
 import 'refine_search_dialog.dart';
@@ -44,68 +44,74 @@ class _ScopeFilterChipsState extends ConsumerState<ScopeFilterChips> {
 
     // Check if scope contains custom selections (not covered by predefined chips)
     // This is true only when the refine dialog was used to select sub-nodes
-    final hasCustomScope = ScopeUtils.hasCustomSelections(searchState.scope);
+    final hasCustomScope =
+        ScopeOperations.hasCustomSelections(searchState.scope);
     final isAllSelected = searchState.isAllSelected;
 
     return SizedBox(
       height: 48,
       child: ScrollConfiguration(
-          behavior: ScrollConfiguration.of(context).copyWith(
-            dragDevices: {
-              PointerDeviceKind.touch,
-              PointerDeviceKind.mouse,
-              PointerDeviceKind.trackpad,
-              PointerDeviceKind.stylus,
-            },
-            scrollbars: false,
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: {
+            PointerDeviceKind.touch,
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.trackpad,
+            PointerDeviceKind.stylus,
+          },
+          scrollbars: false,
+        ),
+        child: ListView(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
           ),
-          child: ListView(
-            controller: _scrollController,
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
+          children: [
+            // "All" chip - always first
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: _ScopeChip(
+                label: l10n.scopeAll,
+                isSelected: isAllSelected,
+                theme: theme,
+                onTap: () => ref.read(searchStateProvider.notifier).selectAll(),
+              ),
             ),
-            children: [
-              // "All" chip - always first
-              Padding(
+
+            // Scope chips from predefined list
+            ...searchScopeChips.map((chip) {
+              // Use ScopeOperations to check if chip is selected
+              final isSelected = ScopeOperations.containsAllKeys(
+                searchState.scope,
+                chip.nodeKeys,
+              );
+              return Padding(
                 padding: const EdgeInsets.only(right: 6),
                 child: _ScopeChip(
-                  label: l10n.scopeAll,
-                  isSelected: isAllSelected,
+                  label: chip.label(context),
+                  isSelected: isSelected,
                   theme: theme,
-                  onTap: () => ref.read(searchStateProvider.notifier).selectAll(),
+                  // Use toggleScopeKeys with extracted nodeKeys
+                  onTap: () => ref
+                      .read(searchStateProvider.notifier)
+                      .toggleScopeKeys(chip.nodeKeys),
                 ),
-              ),
+              );
+            }),
 
-              // Scope chips from predefined list
-              ...searchScopeChips.map((chip) {
-                final isSelected = searchState.matchesChip(chip);
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: _ScopeChip(
-                    label: chip.label(context),
-                    isSelected: isSelected,
-                    theme: theme,
-                    onTap: () => ref
-                        .read(searchStateProvider.notifier)
-                        .toggleChipScope(chip),
-                  ),
-                );
-              }),
-
-              // Refine chip - opens advanced search dialog
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: _RefineChip(
-                  hasActiveFilters: hasCustomScope,
-                  theme: theme,
-                  onTap: () => RefineSearchDialog.show(context),
-                ),
+            // Refine chip - opens advanced search dialog
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: _RefineChip(
+                hasActiveFilters: hasCustomScope,
+                theme: theme,
+                onTap: () => RefineSearchDialog.show(context),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
     );
   }
 }

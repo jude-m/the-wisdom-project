@@ -9,7 +9,6 @@ import 'package:the_wisdom_project/domain/entities/search/grouped_search_result.
 import 'package:the_wisdom_project/domain/entities/search/recent_search.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
-import 'package:the_wisdom_project/domain/entities/search/search_scope_chip.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 
 import '../../helpers/mocks.mocks.dart';
@@ -1035,44 +1034,44 @@ void main() {
       });
     });
 
-    group('toggleChipScope', () {
-      test('should add chip nodeKeys when chip is not selected', () {
+    group('toggleScopeKeys', () {
+      test('should add keys when not all are selected', () {
         // ARRANGE
         expect(notifier.state.scope, isEmpty);
-        final suttaChip = searchScopeChips.firstWhere((c) => c.id == 'sutta');
+        final suttaKeys = {TipitakaNodeKeys.suttaPitaka};
 
         // ACT
-        notifier.toggleChipScope(suttaChip);
+        notifier.toggleScopeKeys(suttaKeys);
 
         // ASSERT
-        expect(notifier.state.scope, containsAll(suttaChip.nodeKeys));
+        expect(notifier.state.scope, containsAll(suttaKeys));
       });
 
-      test('should remove chip nodeKeys when chip is already selected', () {
+      test('should remove keys when all are already selected', () {
         // ARRANGE
-        final suttaChip = searchScopeChips.firstWhere((c) => c.id == 'sutta');
-        notifier.toggleChipScope(suttaChip);
+        final suttaKeys = {TipitakaNodeKeys.suttaPitaka};
+        notifier.toggleScopeKeys(suttaKeys);
         expect(notifier.state.scope, isNotEmpty);
 
         // ACT
-        notifier.toggleChipScope(suttaChip);
+        notifier.toggleScopeKeys(suttaKeys);
 
         // ASSERT
         expect(notifier.state.scope, isEmpty);
       });
 
-      test('should allow multi-select of chips', () {
+      test('should allow multi-select of different key sets', () {
         // ARRANGE
-        final suttaChip = searchScopeChips.firstWhere((c) => c.id == 'sutta');
-        final vinayaChip = searchScopeChips.firstWhere((c) => c.id == 'vinaya');
+        final suttaKeys = {TipitakaNodeKeys.suttaPitaka};
+        final vinayaKeys = {TipitakaNodeKeys.vinayaPitaka};
 
         // ACT
-        notifier.toggleChipScope(suttaChip);
-        notifier.toggleChipScope(vinayaChip);
+        notifier.toggleScopeKeys(suttaKeys);
+        notifier.toggleScopeKeys(vinayaKeys);
 
-        // ASSERT - Both chips should be selected
-        expect(notifier.state.scope, containsAll(suttaChip.nodeKeys));
-        expect(notifier.state.scope, containsAll(vinayaChip.nodeKeys));
+        // ASSERT - Both should be selected
+        expect(notifier.state.scope, containsAll(suttaKeys));
+        expect(notifier.state.scope, containsAll(vinayaKeys));
       });
     });
   });

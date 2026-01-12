@@ -7,7 +7,7 @@ import '../../domain/entities/search/grouped_search_result.dart';
 import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_query.dart';
 import '../../domain/entities/search/search_result.dart';
-import '../../domain/entities/search/scope_filter_config.dart';
+import '../../domain/entities/search/scope_operations.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../../domain/repositories/navigation_tree_repository.dart';
 import '../../core/utils/text_utils.dart';
@@ -283,7 +283,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     final searchQuery = normalizeText(queryText, toLowerCase: true);
 
     // Get scope patterns for filtering
-    final scopePatterns = ScopeFilterConfig.getPatternsForScope(scope);
+    final scopePatterns = ScopeOperations.getPatternsForScope(scope);
 
     // Helper function to check if a name matches the query
     // isExactMatch=false: contains matching (includes startsWith)
