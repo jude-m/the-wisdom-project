@@ -6,7 +6,7 @@ import 'package:the_wisdom_project/core/constants/constants.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_scope_chip.dart';
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
-import 'package:the_wisdom_project/presentation/widgets/scope_filter_chips.dart';
+import 'package:the_wisdom_project/presentation/widgets/search/scope_filter_chips.dart';
 
 import '../../helpers/mocks.mocks.dart';
 import '../../helpers/pump_app.dart';

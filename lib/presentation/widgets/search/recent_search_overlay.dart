@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/search_provider.dart';
-import '../../domain/entities/search/recent_search.dart';
+import '../../providers/search_provider.dart';
+import '../../../domain/entities/search/recent_search.dart';
 
 /// Simplified overlay that only shows recent searches
 /// Displayed when search bar is focused with empty or short query

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
-import '../providers/search_provider.dart';
+import '../../providers/search_provider.dart';
 import 'proximity_dialog.dart';
 import 'recent_search_overlay.dart';
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/localization/l10n/app_localizations.dart';
-import '../providers/search_provider.dart';
+import '../../../core/localization/l10n/app_localizations.dart';
+import '../../providers/search_provider.dart';
 
 /// Dialog for configuring word proximity and phrase/separate-word search mode.
 ///

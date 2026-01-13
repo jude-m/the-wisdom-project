@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/search/grouped_search_result.dart';
-import '../../domain/entities/search/search_result_type.dart';
-import '../../domain/entities/search/search_result.dart';
-import '../providers/search_provider.dart';
+import '../../../domain/entities/search/grouped_search_result.dart';
+import '../../../domain/entities/search/search_result_type.dart';
+import '../../../domain/entities/search/search_result.dart';
+import '../../providers/search_provider.dart';
 import 'highlighted_search_text.dart';
 import 'scope_filter_chips.dart';
 

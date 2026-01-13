@@ -1,10 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/localization/l10n/app_localizations.dart';
-import '../../domain/entities/search/scope_operations.dart';
-import '../../domain/entities/search/search_scope_chip.dart';
-import '../providers/search_provider.dart';
+import '../../../core/localization/l10n/app_localizations.dart';
+import '../../../domain/entities/search/scope_operations.dart';
+import '../../../domain/entities/search/search_scope_chip.dart';
+import '../../providers/search_provider.dart';
 import 'refine_search_dialog.dart';
 
 /// Horizontally scrollable scope filter chips for search results.

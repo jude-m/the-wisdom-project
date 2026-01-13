@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/utils/text_utils.dart';
+import '../../../core/utils/text_utils.dart';
 
 /// Displays text with search query matches highlighted.
 ///

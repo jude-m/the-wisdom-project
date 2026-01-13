@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/navigation/tipitaka_tree_node.dart';
-import '../../domain/entities/search/scope_operations.dart';
-import '../providers/navigation_tree_provider.dart';
-import '../providers/search_provider.dart';
+import '../../../domain/entities/navigation/tipitaka_tree_node.dart';
+import '../../../domain/entities/search/scope_operations.dart';
+import '../../providers/navigation_tree_provider.dart';
+import '../../providers/search_provider.dart';
 
 /// Dialog for refining search with hierarchical scope selection.
 ///

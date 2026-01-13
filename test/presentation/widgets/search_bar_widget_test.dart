@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:the_wisdom_project/domain/entities/search/recent_search.dart';
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
-import 'package:the_wisdom_project/presentation/widgets/search_bar.dart'
+import 'package:the_wisdom_project/presentation/widgets/search/search_bar.dart'
     as app_search;
 
 import '../../helpers/mocks.mocks.dart';

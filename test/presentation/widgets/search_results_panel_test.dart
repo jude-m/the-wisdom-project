@@ -7,7 +7,7 @@ import 'package:the_wisdom_project/domain/entities/search/search_result_type.dar
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
-import 'package:the_wisdom_project/presentation/widgets/search_results_panel.dart';
+import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
 
 /// Fake implementation for testing
 class FakeSearchStateNotifier extends StateNotifier<SearchState>
