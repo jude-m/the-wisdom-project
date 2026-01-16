@@ -1,20 +1,25 @@
 /**
  * BJT Full-Text Search Database Generator
  *
- * Creates an optimized FTS4 database for the Buddha Jayanti Tripitaka (BJT) edition.
+ * Creates an optimized FTS5 database for the Buddha Jayanti Tripitaka (BJT) edition.
  * This uses a contentless approach that reduces database size by ~75% by storing
  * only the search index (not the actual text, which is already in JSON files).
  *
  * Size comparison:
- *   - Regular FTS4:     ~455 MB (stores text redundantly)
- *   - Contentless FTS4: ~114 MB (index only)
+ *   - Regular FTS5:     ~455 MB (stores text redundantly)
+ *   - Contentless FTS5: ~110-120 MB (index only)
+ *
+ * FTS5 Benefits over FTS4:
+ *   - bm25() ranking function for relevance-sorted results
+ *   - Better query syntax (NEAR, column filters, boolean operators)
+ *   - Actively maintained (FTS4 is legacy)
  *
  * Trade-off:
- *   - snippet() function not available - context fetched from JSON files
+ *   - snippet() function not available in contentless mode - context fetched from JSON files
  *   - Queries require JOIN with metadata table
  *
  * Database structure:
- *   - bjt_fts: Contentless FTS4 index (text search)
+ *   - bjt_fts: Contentless FTS5 index (text search with bm25 ranking)
  *   - bjt_meta: Metadata table (filename, eind, language, type, level)
  *   - bjt_suggestions: Word frequency for auto-complete (95K+ words)
  *
@@ -24,7 +29,7 @@
  *   node bjt-fts-populate.js
  *
  * Input:  ../assets/text/*.json (BJT text files)
- * Output: bjt-fts.db (114 MB)
+ * Output: bjt-fts.db (~110-120 MB)
  *
  * Based on: tipitaka.lk/dev/fts-populate.js
  * Modified for: The Wisdom Project - Multi-edition architecture
@@ -61,7 +66,7 @@ const CONFIG = {
     POPULATE_DATA: true,
 
     // Generate word frequency for auto-suggestions
-    GENERATE_SUGGESTIONS: true,
+    GENERATE_SUGGESTIONS: false,
 
     // Minimum word frequency to include in suggestions (filters out rare words)
     MIN_WORD_FREQUENCY: 3,
@@ -73,8 +78,11 @@ const CONFIG = {
     // Path is relative to this script (tools/)
     INPUT_FOLDER: path.join(__dirname, '../assets/text/'),
 
+    // Tree JSON file (for nodeKey computation)
+    TREE_JSON: path.join(__dirname, '../assets/data/tree.json'),
+
     // Output database file
-    OUTPUT_DB: path.join(__dirname, 'bjt-fts.db'),
+    OUTPUT_DB: path.join(__dirname, '../assets/databases/bjt-fts.db'),
 };
 
 // =============================================================================
@@ -134,11 +142,101 @@ function extractWords(text) {
 }
 
 // =============================================================================
+// TREE LOADING AND NODEKEY COMPUTATION
+// =============================================================================
+
+/**
+ * Loads tree.json and builds a map of filename -> sorted nodes
+ * Each node has { key, eInd: [pageIndex, entryIndex] }
+ * Nodes are sorted by eInd for efficient lookup
+ *
+ * @returns {Map<string, Array<{key: string, eInd: number[]}>>}
+ */
+function loadTreeIndex() {
+    console.log('Loading tree.json for nodeKey computation...');
+
+    if (!fs.existsSync(CONFIG.TREE_JSON)) {
+        console.error(`ERROR: Tree file not found: ${CONFIG.TREE_JSON}`);
+        process.exit(1);
+    }
+
+    const treeJson = JSON.parse(fs.readFileSync(CONFIG.TREE_JSON, 'utf-8'));
+
+    // Group nodes by filename (contentFileId)
+    // tree.json format: { nodeKey: [pali, sinh, level, [pageIdx, entryIdx], parent, filename], ... }
+    const nodesByFile = new Map();
+
+    for (const [nodeKey, nodeData] of Object.entries(treeJson)) {
+        // nodeData format: [pali, sinh, level, [pageIdx, entryIdx], parent, filename]
+        const filename = nodeData[5];
+        const eInd = nodeData[3]; // [pageIndex, entryIndex]
+
+        if (!filename) continue; // Skip nodes without content file
+
+        if (!nodesByFile.has(filename)) {
+            nodesByFile.set(filename, []);
+        }
+
+        nodesByFile.get(filename).push({
+            key: nodeKey,
+            eInd: eInd
+        });
+    }
+
+    // Sort each file's nodes by eInd (pageIndex first, then entryIndex)
+    for (const nodes of nodesByFile.values()) {
+        nodes.sort((a, b) => {
+            if (a.eInd[0] !== b.eInd[0]) return a.eInd[0] - b.eInd[0];
+            return a.eInd[1] - b.eInd[1];
+        });
+    }
+
+    console.log(`  ✓ Loaded ${nodesByFile.size} content files from tree.json`);
+    return nodesByFile;
+}
+
+/**
+ * Finds the nodeKey for a given entry position within a file.
+ * Uses the same algorithm as tipitaka.lk's getKeyForEInd:
+ * - Iterate sorted nodes in reverse order
+ * - Return the first (last in order) node whose eInd <= entry position
+ *
+ * This finds the "containing" sutta/section for an entry.
+ *
+ * @param {Array<{key: string, eInd: number[]}>} sortedNodes - Nodes sorted by eInd
+ * @param {number} pageIndex - Entry's page index
+ * @param {number} entryIndex - Entry's index within page
+ * @returns {string} The nodeKey that contains this entry
+ */
+function findNodeKeyForEntry(sortedNodes, pageIndex, entryIndex) {
+    if (!sortedNodes || sortedNodes.length === 0) {
+        return '';
+    }
+
+    // Iterate in reverse to find the last node where eInd <= [pageIndex, entryIndex]
+    // This is equivalent to tipitaka.lk's getKeyForEInd logic
+    for (let i = sortedNodes.length - 1; i >= 0; i--) {
+        const node = sortedNodes[i];
+        const [nodePageIdx, nodeEntryIdx] = node.eInd;
+
+        // Check if node's eInd <= entry position
+        // (same as isEIndLessEqual in old app)
+        if (nodePageIdx < pageIndex ||
+            (nodePageIdx === pageIndex && nodeEntryIdx <= entryIndex)) {
+            return node.key;
+        }
+    }
+
+    // Fallback to first node if no match found (shouldn't happen normally)
+    return sortedNodes[0].key;
+}
+
+// =============================================================================
 // DATABASE OPERATIONS
 // =============================================================================
 
 /**
- * Creates the FTS4 tables for the BJT edition
+ * Creates the FTS5 tables for the BJT edition
  * @param {Database} db - SQLite database instance
  */
 function createFTSTables(db) {
@@ -160,7 +258,8 @@ function createFTSTables(db) {
             eind TEXT NOT NULL,
             language TEXT NOT NULL,
             type TEXT NOT NULL,
-            level INTEGER NOT NULL
+            level INTEGER NOT NULL,
+            nodeKey TEXT NOT NULL
         )
     `;
     db.exec(createMetaSQL);
@@ -168,20 +267,28 @@ function createFTSTables(db) {
     // Create indexes on metadata table for fast lookups
     db.exec(`CREATE INDEX idx_${editionPrefix}_meta_filename ON ${editionPrefix}_meta(filename)`);
     db.exec(`CREATE INDEX idx_${editionPrefix}_meta_language ON ${editionPrefix}_meta(language)`);
+    // Note: No index on nodeKey - it's only read from results, never queried by SQL
 
-    // Create contentless FTS4 table (stores only search index)
-    // The content='' directive tells SQLite not to store the text
+    // Create contentless FTS5 table (stores only search index)
+    // FTS5 syntax: columns come before options
+    // content='' tells SQLite not to store the text (contentless mode)
+    // bm25() ranking function is available even in contentless mode
+    //
+    // OPTIONAL: Add prefix='2 3' for faster prefix queries (adds ~10-20% to DB size)
+    // Example: tokenize="unicode61 tokenchars '...'", prefix='2 3'
+    //
+    // Note: FTS5 tokenize directive requires double quotes outside, single quotes inside
     const createFTSSQL = `
-        CREATE VIRTUAL TABLE ${editionPrefix}_fts USING fts4(
-            content='',
+        CREATE VIRTUAL TABLE ${editionPrefix}_fts USING fts5(
             text,
-            tokenize=unicode61 "tokenchars='${sinhalaChars}'"
+            content='',
+            tokenize="unicode61 tokenchars '${sinhalaChars}'"
         )
     `;
 
     db.exec(createFTSSQL);
-    console.log(`  ✓ ${editionPrefix}_fts: Search index (contentless FTS4)`);
-    console.log(`  ✓ ${editionPrefix}_meta: Metadata (filename, eind, language, type, level)`);
+    console.log(`  ✓ ${editionPrefix}_fts: Search index (contentless FTS5 with bm25 ranking)`);
+    console.log(`  ✓ ${editionPrefix}_meta: Metadata (filename, eind, language, type, level, nodeKey)`);
 }
 
 /**
@@ -300,6 +407,10 @@ function populateData(db) {
     console.log('Populating FTS index...');
     console.log(`Input folder: ${CONFIG.INPUT_FOLDER}`);
 
+    // Load tree index for nodeKey computation
+    const nodesByFile = loadTreeIndex();
+    console.log('');
+
     // Get list of JSON files
     const jsonFiles = fs.readdirSync(CONFIG.INPUT_FOLDER)
         .filter(name => name.endsWith('.json'))
@@ -309,10 +420,10 @@ function populateData(db) {
     console.log('');
 
     // Prepare insert statements
-    // 1. Insert metadata (filename, eind, language, etc.)
+    // 1. Insert metadata (filename, eind, language, nodeKey, etc.)
     const insertMeta = db.prepare(`
-        INSERT INTO ${editionPrefix}_meta(id, filename, eind, language, type, level)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO ${editionPrefix}_meta(id, filename, eind, language, type, level, nodeKey)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
     // 2. Insert into FTS index (text only, with matching rowid)
@@ -333,14 +444,15 @@ function populateData(db) {
     // Begin transaction for bulk insert (much faster)
     const insertMany = db.transaction((entries) => {
         for (const entry of entries) {
-            // Insert metadata
+            // Insert metadata (including nodeKey)
             insertMeta.run(
                 entry.rowid,
                 entry.filename,
                 entry.eind,
                 entry.language,
                 entry.type,
-                entry.level
+                entry.level,
+                entry.nodeKey
             );
             // Insert into FTS index
             insertFTS.run(
@@ -366,6 +478,9 @@ function populateData(db) {
 
             const entries = [];
 
+            // Get sorted nodes for this file (for nodeKey computation)
+            const sortedNodes = nodesByFile.get(fileKey) || [];
+
             // Process each page
             data.pages.forEach((page, pageIndex) => {
                 // Process Pali entries
@@ -373,6 +488,9 @@ function populateData(db) {
                     page.pali.entries.forEach((entry, entryIndex) => {
                         const text = cleanTextForIndexing(entry.text);
                         if (text) {
+                            // Compute nodeKey for this entry
+                            const nodeKey = findNodeKeyForEntry(sortedNodes, pageIndex, entryIndex);
+
                             entries.push({
                                 rowid: docId++,
                                 filename: fileKey,
@@ -380,6 +498,7 @@ function populateData(db) {
                                 language: 'pali',
                                 type: entry.type || 'paragraph',
                                 level: entry.level || 0,
+                                nodeKey: nodeKey,
                                 text: text
                             });
 
@@ -401,6 +520,9 @@ function populateData(db) {
                     page.sinh.entries.forEach((entry, entryIndex) => {
                         const text = cleanTextForIndexing(entry.text);
                         if (text) {
+                            // Compute nodeKey for this entry
+                            const nodeKey = findNodeKeyForEntry(sortedNodes, pageIndex, entryIndex);
+
                             entries.push({
                                 rowid: docId++,
                                 filename: fileKey,
@@ -408,6 +530,7 @@ function populateData(db) {
                                 language: 'sinh',
                                 type: entry.type || 'paragraph',
                                 level: entry.level || 0,
+                                nodeKey: nodeKey,
                                 text: text
                             });
 

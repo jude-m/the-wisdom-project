@@ -19,6 +19,15 @@ class FTSMatch {
   final String type;
   final int level;
 
+  /// The tree node key for this entry (e.g., 'dn-1-1' for Brahmajala Sutta).
+  /// Enables direct O(1) lookup of the containing sutta/section.
+  final String nodeKey;
+
+  /// BM25 relevance score from FTS5.
+  /// Lower values (more negative) indicate better matches.
+  /// null if ranking not available.
+  final double? relevanceScore;
+
   FTSMatch({
     required this.editionId,
     required this.rowid,
@@ -27,6 +36,8 @@ class FTSMatch {
     required this.language,
     required this.type,
     required this.level,
+    required this.nodeKey,
+    this.relevanceScore,
   });
 
   factory FTSMatch.fromMap(Map<String, dynamic> map, String editionId) {
@@ -38,6 +49,8 @@ class FTSMatch {
       language: map['language'] as String,
       type: map['type'] as String,
       level: map['level'] as int,
+      nodeKey: map['nodeKey'] as String,
+      relevanceScore: map['score'] as double?,
     );
   }
 }
@@ -143,7 +156,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     developer.log(message, name: 'FTSDataSource');
   }
 
-  /// Builds FTS query syntax for single or multi-word queries.
+  /// Builds FTS5 query syntax for single or multi-word queries.
   ///
   /// ## Single word:
   /// - `word*` (prefix matching) when [isExactMatch] is false
@@ -151,23 +164,24 @@ class FTSDataSourceImpl implements FTSDataSource {
   ///
   /// ## Multi-word with [isPhraseSearch] = true (phrase search):
   /// - [isExactMatch] = true: `"word1 word2"` (exact phrase, consecutive)
-  /// - [isExactMatch] = false: `"word1* word2*"` (phrase with prefix matching)
-  ///   Note: SQLite FTS4 supports term prefixes inside quoted phrases.
+  /// - [isExactMatch] = false: `NEAR(word1* word2*, 1)` (adjacent with prefix)
+  ///   Note: FTS5 doesn't support wildcards inside phrase quotes, so we use
+  ///   NEAR with distance 1 as a workaround for phrase+prefix matching.
   ///
   /// ## Multi-word with [isPhraseSearch] = false (separate-word search):
   /// - [isAnywhereInText] = true: Implicit AND (space-separated words)
-  /// - [isAnywhereInText] = false: Use [proximityDistance] for NEAR/n
+  /// - [isAnywhereInText] = false: Use NEAR(terms, n) for proximity
   /// - [isExactMatch] affects whether wildcards are added to each word
   ///
-  /// ## Search Flows Summary:
-  /// | isPhraseSearch | isAnywhereInText | isExactMatch | FTS Query |
-  /// |---------------|------------------|--------------|-----------|
+  /// ## Search Flows Summary (FTS5):
+  /// | isPhraseSearch | isAnywhereInText | isExactMatch | FTS5 Query |
+  /// |---------------|------------------|--------------|------------|
   /// | true | - | true | `"word1 word2"` (exact phrase) |
-  /// | true | - | false | `"word1* word2*"` (phrase with prefix) |
+  /// | true | - | false | `NEAR(word1* word2*, 1)` (phrase with/adjacent prefix) |
   /// | false | true | true | `word1 word2` (AND, exact tokens) |
   /// | false | true | false | `word1* word2*` (AND, prefix match) |
-  /// | false | false | true | `word1 NEAR/n word2` (proximity, exact) |
-  /// | false | false | false | `word1* NEAR/n word2*` (proximity, prefix) |
+  /// | false | false | true | `NEAR(word1 word2, n)` (proximity, exact) |
+  /// | false | false | false | `NEAR(word1* word2*, n)` (proximity, prefix) |
   String _buildFtsQuery(
     String queryText, {
     bool isExactMatch = false,
@@ -196,13 +210,13 @@ class FTSDataSourceImpl implements FTSDataSource {
       // Phrase search: words must be adjacent (consecutive)
       if (isExactMatch) {
         // Exact phrase: use double quotes for FTS phrase query
-        // FTS query: "word1 word2" (exact consecutive match)
+        // FTS5 query: "word1 word2" (exact consecutive match)
         result = '"${words.join(' ')}"';
       } else {
-        // Phrase with prefix: SQLite FTS4 supports term prefixes inside quotes
-        // FTS query: "word1* word2*" (phrase with prefix matching)
-        // This matches tipitaka.lk's implementation
-        result = '"${words.map((w) => '$w*').join(' ')}"';
+        // FTS5 workaround: wildcards not supported inside phrase quotes
+        // Use NEAR with distance 1 to approximate phrase+prefix behavior
+        // FTS5 query: NEAR(word1* word2*, 1) (adjacent with prefix matching)
+        result = 'NEAR(${words.map((w) => '$w*').join(' ')}, 1)';
       }
     } else {
       // Separate-word search
@@ -210,20 +224,21 @@ class FTSDataSourceImpl implements FTSDataSource {
         // Anywhere in text: use implicit AND (no NEAR operator)
         // Simply listing terms with spaces = AND query (both must exist)
         if (isExactMatch) {
-          // FTS query: word1 word2 (exact tokens, both must exist)
+          // FTS5 query: word1 word2 (exact tokens, both must exist)
           result = words.join(' ');
         } else {
-          // FTS query: word1* word2* (prefix matching, both must exist)
+          // FTS5 query: word1* word2* (prefix matching, both must exist)
           result = words.map((w) => '$w*').join(' ');
         }
       } else {
         // Proximity search: words within specific distance
+        // FTS5 uses NEAR(terms, distance) syntax instead of NEAR/n
         if (isExactMatch) {
-          // FTS query: word1 NEAR/n word2 (exact tokens within distance)
-          result = words.join(' NEAR/$proximityDistance ');
+          // FTS5 query: NEAR(word1 word2, n) (exact tokens within distance)
+          result = 'NEAR(${words.join(' ')}, $proximityDistance)';
         } else {
-          // FTS query: word1* NEAR/n word2* (prefix matching within distance)
-          result = words.map((w) => '$w*').join(' NEAR/$proximityDistance ');
+          // FTS5 query: NEAR(word1* word2*, n) (prefix matching within distance)
+          result = 'NEAR(${words.map((w) => '$w*').join(' ')}, $proximityDistance)';
         }
       }
     }
@@ -278,7 +293,6 @@ class FTSDataSourceImpl implements FTSDataSource {
       }
 
       // Open the database
-      // Note: Don't use readOnly mode - FTS4 queries may need temp file access
       _log('Opening database...');
       final db = await openDatabase(dbPath);
       _log('Database opened successfully');
@@ -358,32 +372,43 @@ class FTSDataSourceImpl implements FTSDataSource {
         proximityDistance: proximityDistance,
       );
 
-      // Build the SQL query using parameterized query for MATCH clause
-      // Note: For contentless FTS4, use table name in MATCH, not column name
+      // Build the SQL query using CTE for proper bm25() usage
+      // The CTE approach ensures bm25() is called in the correct context
+      // with the FTS table directly referenced (not aliased)
+
+      // Build scope filter clause
+      final scopeWhereClause = ScopeFilterService.buildWhereClause(scope);
+      final scopeArgs = ScopeFilterService.getWhereParams(scope);
+
+      // Build query with BM25 ranking using CTE
+      // The CTE computes bm25() in the correct FTS context (direct table reference)
+      // ORDER BY and LIMIT are in the outer query for proper pagination
       final buffer = StringBuffer();
       buffer.write('''
-        SELECT m.id, m.filename, m.eind, m.language, m.type, m.level
-        FROM $ftsTable t
-        JOIN $metaTable m ON t.rowid = m.id
-        WHERE $ftsTable MATCH ?
+        WITH ranked AS (
+          SELECT
+            m.id, m.filename, m.eind, m.language, m.type, m.level, m.nodeKey,
+            bm25($ftsTable) AS score
+          FROM $ftsTable
+          JOIN $metaTable m ON $ftsTable.rowid = m.id
+          WHERE $ftsTable MATCH ?
       ''');
-
-      // Start args with the FTS query
-      final args = <Object>[ftsQuery];
-
-      // Add scope filter
-      final scopeWhereClause = ScopeFilterService.buildWhereClause(scope);
       if (scopeWhereClause != null) {
         buffer.write(' AND $scopeWhereClause');
-        args.addAll(ScopeFilterService.getWhereParams(scope));
       }
+      buffer.write('''
+        )
+        SELECT * FROM ranked ORDER BY score LIMIT ? OFFSET ?
+      ''');
 
-      // Add pagination
-      buffer.write(' LIMIT ? OFFSET ?');
-      args.addAll([limit, offset]);
+      // Build args
+      final args = <Object>[
+        ftsQuery,
+        if (scopeWhereClause != null) ...scopeArgs,
+        limit,
+        offset,
+      ];
 
-      _log('FTS query: "$ftsQuery" (isExactMatch: $isExactMatch, isPhraseSearch: $isPhraseSearch, isAnywhereInText: $isAnywhereInText, proximityDistance: $proximityDistance)');
-      _log('SQL: ${buffer.toString().trim()}');
       // Execute query
       final List<Map<String, dynamic>> results = await db.rawQuery(
         buffer.toString(),

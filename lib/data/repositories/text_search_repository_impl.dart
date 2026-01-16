@@ -415,16 +415,16 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     final results = <SearchResult>[];
 
     for (final match in ftsMatches) {
-      // Find the node by contentFileId
-      final node = nodeMap.values
-          .where((n) => n.contentFileId == match.filename)
-          .firstOrNull;
+      // Parse match position from eind (format: "pageIndex-entryIndex")
+      final eindParts = match.eind.split('-');
+      final pageIndex = int.parse(eindParts[0]);
+      final entryIndex = int.parse(eindParts[1]);
+
+      // Direct O(1) lookup using nodeKey stored in database
+      // nodeKey was computed at FTS build time to identify the containing sutta
+      final node = nodeMap[match.nodeKey];
 
       if (node != null) {
-        final eindParts = match.eind.split('-');
-        final pageIndex = int.parse(eindParts[0]);
-        final entryIndex = int.parse(eindParts[1]);
-
         // Load text content for display
         final matchedText = await _loadTextForMatch(
               match.filename,
@@ -451,6 +451,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             entryIndex: entryIndex,
             nodeKey: node.nodeKey,
             language: match.language,
+            relevanceScore: match.relevanceScore,
           ),
         );
       }
