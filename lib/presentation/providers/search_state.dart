@@ -100,6 +100,10 @@ class SearchState with _$SearchState {
     /// Result counts per category (for tab badges)
     /// Updated independently from categorized results
     @Default({}) Map<SearchResultType, int> countByResultType,
+
+    /// Tracks which FTS result groups are expanded (by nodeKey)
+    /// Used to show/hide secondary matches in grouped FTS results
+    @Default({}) Set<String> expandedFTSGroups,
   }) = _SearchState;
 
   /// Computed property: Results panel is visible when query is not empty
@@ -473,6 +477,25 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   void setProximityDistance(int distance) {
     state = state.copyWith(proximityDistance: distance);
     _refreshSearchIfNeeded();
+  }
+
+  // ============================================================================
+  // FTS GROUP EXPANSION
+  // ============================================================================
+
+  /// Toggle expansion state of an FTS result group.
+  /// Used to show/hide secondary matches in grouped FTS results.
+  void toggleFTSGroupExpansion(String nodeKey) {
+    final current = state.expandedFTSGroups;
+    final updated = current.contains(nodeKey)
+        ? ({...current}..remove(nodeKey))
+        : {...current, nodeKey};
+    state = state.copyWith(expandedFTSGroups: updated);
+  }
+
+  /// Collapse all expanded FTS groups.
+  void collapseAllFTSGroups() {
+    state = state.copyWith(expandedFTSGroups: {});
   }
 
   /// Refresh search if query is active

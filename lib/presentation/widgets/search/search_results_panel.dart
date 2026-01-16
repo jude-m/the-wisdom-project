@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/grouped_search_result.dart';
 import '../../../domain/entities/search/search_result_type.dart';
 import '../../../domain/entities/search/search_result.dart';
 import '../../providers/search_provider.dart';
+import 'grouped_fts_tile.dart';
 import 'highlighted_search_text.dart';
 import 'scope_filter_chips.dart';
 
@@ -98,7 +100,7 @@ class SearchResultsPanel extends ConsumerWidget {
       return _buildEmptyState(theme, isInvalidQuery: false);
     }
 
-    // Build categorized results with _SearchResultTile
+    // Build categorized results - use grouped tiles for fullText, regular for others
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,22 +114,50 @@ class SearchResultsPanel extends ConsumerWidget {
                     children: [
                       // Section header
                       _sectionHeader(theme, resultType.displayName.toUpperCase()),
-                      // Results using _SearchResultTile
-                      ...categorizedResults
-                          .getResultsByType(resultType)
-                          .map((result) => _SearchResultTile(
-                                searchResult: result,
-                                effectiveQuery: effectiveQuery,
-                                isPhraseSearch: isPhraseSearch,
-                                isExactMatch: isExactMatch,
-                                onTap: () => onResultTap?.call(result),
-                              )),
+                      // Use grouped tiles for fullText, regular tiles for others
+                      if (resultType == SearchResultType.fullText)
+                        ..._buildGroupedFTSResults(
+                          categorizedResults.getResultsByType(resultType),
+                          effectiveQuery,
+                          isPhraseSearch,
+                          isExactMatch,
+                        )
+                      else
+                        ...categorizedResults
+                            .getResultsByType(resultType)
+                            .map((result) => _SearchResultTile(
+                                  searchResult: result,
+                                  effectiveQuery: effectiveQuery,
+                                  isPhraseSearch: isPhraseSearch,
+                                  isExactMatch: isExactMatch,
+                                  onTap: () => onResultTap?.call(result),
+                                )),
                     ],
                   )),
           const SizedBox(height: 16),
         ],
       ),
     );
+  }
+
+  /// Builds grouped FTS result tiles from a list of search results
+  List<Widget> _buildGroupedFTSResults(
+    List<SearchResult> results,
+    String effectiveQuery,
+    bool isPhraseSearch,
+    bool isExactMatch,
+  ) {
+    final groupedResults = GroupedFTSMatch.fromSearchResults(results);
+    return groupedResults
+        .map((group) => GroupedFTSTile(
+              group: group,
+              effectiveQuery: effectiveQuery,
+              isPhraseSearch: isPhraseSearch,
+              isExactMatch: isExactMatch,
+              onPrimaryTap: (result) => onResultTap?.call(result),
+              onSecondaryTap: (result) => onResultTap?.call(result),
+            ))
+        .toList();
   }
 
   /// Builds the content for specific category tabs (Title, Content, Definition)
@@ -194,6 +224,37 @@ class SearchResultsPanel extends ConsumerWidget {
         final hasMoreResults =
             totalCount != null && totalCount > results.length;
 
+        // Use grouped tiles for fullText tab
+        if (selectedResultType == SearchResultType.fullText) {
+          final groupedResults = GroupedFTSMatch.fromSearchResults(results);
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount:
+                hasMoreResults ? groupedResults.length + 1 : groupedResults.length,
+            separatorBuilder: (context, index) => Divider(
+              height: 1,
+              indent: 72,
+              color: theme.colorScheme.outlineVariant,
+            ),
+            itemBuilder: (context, index) {
+              // Render footer as the last item when results are truncated
+              if (hasMoreResults && index == groupedResults.length) {
+                return _footer(theme, results.length, totalCount);
+              }
+
+              return GroupedFTSTile(
+                group: groupedResults[index],
+                effectiveQuery: effectiveQuery,
+                isPhraseSearch: isPhraseSearch,
+                isExactMatch: isExactMatch,
+                onPrimaryTap: (result) => onResultTap?.call(result),
+                onSecondaryTap: (result) => onResultTap?.call(result),
+              );
+            },
+          );
+        }
+
+        // Regular tiles for other result types (title, definition)
         return ListView.separated(
           padding: const EdgeInsets.symmetric(vertical: 8),
           // Add +1 for footer row when results are truncated

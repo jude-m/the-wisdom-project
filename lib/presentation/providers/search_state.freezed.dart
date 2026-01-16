@@ -92,6 +92,10 @@ mixin _$SearchState {
   Map<SearchResultType, int> get countByResultType =>
       throw _privateConstructorUsedError;
 
+  /// Tracks which FTS result groups are expanded (by nodeKey)
+  /// Used to show/hide secondary matches in grouped FTS results
+  Set<String> get expandedFTSGroups => throw _privateConstructorUsedError;
+
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -122,7 +126,8 @@ abstract class $SearchStateCopyWith<$Res> {
       int proximityDistance,
       bool isPanelDismissed,
       bool isExactMatch,
-      Map<SearchResultType, int> countByResultType});
+      Map<SearchResultType, int> countByResultType,
+      Set<String> expandedFTSGroups});
 
   $GroupedSearchResultCopyWith<$Res>? get groupedResults;
 }
@@ -159,6 +164,7 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
     Object? isPanelDismissed = null,
     Object? isExactMatch = null,
     Object? countByResultType = null,
+    Object? expandedFTSGroups = null,
   }) {
     return _then(_value.copyWith(
       rawQueryText: null == rawQueryText
@@ -229,6 +235,10 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
           ? _value.countByResultType
           : countByResultType // ignore: cast_nullable_to_non_nullable
               as Map<SearchResultType, int>,
+      expandedFTSGroups: null == expandedFTSGroups
+          ? _value.expandedFTSGroups
+          : expandedFTSGroups // ignore: cast_nullable_to_non_nullable
+              as Set<String>,
     ) as $Val);
   }
 
@@ -272,7 +282,8 @@ abstract class _$$SearchStateImplCopyWith<$Res>
       int proximityDistance,
       bool isPanelDismissed,
       bool isExactMatch,
-      Map<SearchResultType, int> countByResultType});
+      Map<SearchResultType, int> countByResultType,
+      Set<String> expandedFTSGroups});
 
   @override
   $GroupedSearchResultCopyWith<$Res>? get groupedResults;
@@ -308,6 +319,7 @@ class __$$SearchStateImplCopyWithImpl<$Res>
     Object? isPanelDismissed = null,
     Object? isExactMatch = null,
     Object? countByResultType = null,
+    Object? expandedFTSGroups = null,
   }) {
     return _then(_$SearchStateImpl(
       rawQueryText: null == rawQueryText
@@ -378,6 +390,10 @@ class __$$SearchStateImplCopyWithImpl<$Res>
           ? _value._countByResultType
           : countByResultType // ignore: cast_nullable_to_non_nullable
               as Map<SearchResultType, int>,
+      expandedFTSGroups: null == expandedFTSGroups
+          ? _value._expandedFTSGroups
+          : expandedFTSGroups // ignore: cast_nullable_to_non_nullable
+              as Set<String>,
     ));
   }
 }
@@ -402,11 +418,13 @@ class _$SearchStateImpl extends _SearchState {
       this.proximityDistance = 10,
       this.isPanelDismissed = false,
       this.isExactMatch = false,
-      final Map<SearchResultType, int> countByResultType = const {}})
+      final Map<SearchResultType, int> countByResultType = const {},
+      final Set<String> expandedFTSGroups = const {}})
       : _recentSearches = recentSearches,
         _selectedEditions = selectedEditions,
         _scope = scope,
         _countByResultType = countByResultType,
+        _expandedFTSGroups = expandedFTSGroups,
         super._();
 
   /// Current search query text (raw user input)
@@ -553,9 +571,24 @@ class _$SearchStateImpl extends _SearchState {
     return EqualUnmodifiableMapView(_countByResultType);
   }
 
+  /// Tracks which FTS result groups are expanded (by nodeKey)
+  /// Used to show/hide secondary matches in grouped FTS results
+  final Set<String> _expandedFTSGroups;
+
+  /// Tracks which FTS result groups are expanded (by nodeKey)
+  /// Used to show/hide secondary matches in grouped FTS results
+  @override
+  @JsonKey()
+  Set<String> get expandedFTSGroups {
+    if (_expandedFTSGroups is EqualUnmodifiableSetView)
+      return _expandedFTSGroups;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableSetView(_expandedFTSGroups);
+  }
+
   @override
   String toString() {
-    return 'SearchState(rawQueryText: $rawQueryText, effectiveQueryText: $effectiveQueryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, isPhraseSearch: $isPhraseSearch, isAnywhereInText: $isAnywhereInText, proximityDistance: $proximityDistance, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType)';
+    return 'SearchState(rawQueryText: $rawQueryText, effectiveQueryText: $effectiveQueryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, isPhraseSearch: $isPhraseSearch, isAnywhereInText: $isAnywhereInText, proximityDistance: $proximityDistance, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType, expandedFTSGroups: $expandedFTSGroups)';
   }
 
   @override
@@ -595,7 +628,9 @@ class _$SearchStateImpl extends _SearchState {
             (identical(other.isExactMatch, isExactMatch) ||
                 other.isExactMatch == isExactMatch) &&
             const DeepCollectionEquality()
-                .equals(other._countByResultType, _countByResultType));
+                .equals(other._countByResultType, _countByResultType) &&
+            const DeepCollectionEquality()
+                .equals(other._expandedFTSGroups, _expandedFTSGroups));
   }
 
   @override
@@ -617,7 +652,8 @@ class _$SearchStateImpl extends _SearchState {
       proximityDistance,
       isPanelDismissed,
       isExactMatch,
-      const DeepCollectionEquality().hash(_countByResultType));
+      const DeepCollectionEquality().hash(_countByResultType),
+      const DeepCollectionEquality().hash(_expandedFTSGroups));
 
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
@@ -646,7 +682,8 @@ abstract class _SearchState extends SearchState {
       final int proximityDistance,
       final bool isPanelDismissed,
       final bool isExactMatch,
-      final Map<SearchResultType, int> countByResultType}) = _$SearchStateImpl;
+      final Map<SearchResultType, int> countByResultType,
+      final Set<String> expandedFTSGroups}) = _$SearchStateImpl;
   const _SearchState._() : super._();
 
   /// Current search query text (raw user input)
@@ -739,6 +776,11 @@ abstract class _SearchState extends SearchState {
   /// Updated independently from categorized results
   @override
   Map<SearchResultType, int> get countByResultType;
+
+  /// Tracks which FTS result groups are expanded (by nodeKey)
+  /// Used to show/hide secondary matches in grouped FTS results
+  @override
+  Set<String> get expandedFTSGroups;
 
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
