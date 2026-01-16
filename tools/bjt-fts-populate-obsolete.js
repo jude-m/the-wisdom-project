@@ -76,7 +76,7 @@ const CONFIG = {
     INPUT_FOLDER: path.join(__dirname, '../assets/text/'),
 
     // Output database file
-    OUTPUT_DB: path.join(__dirname, 'bjt-fts4.db'),
+    OUTPUT_DB: path.join(__dirname, '../assets/databases/bjt-fts4.db'),
 };
 
 // =============================================================================
