@@ -176,10 +176,14 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     }
 
     // Path 2: Valid query - single atomic update
+    // IMPORTANT: Must also reset fullResults to loading state!
+    // The Full Text tab uses fullResults.when() which doesn't check isLoading.
+    // Without this, old results render with new effectiveQueryText → RangeError
     state = state.copyWith(
       rawQueryText: query,
       effectiveQueryText: effectiveQuery,
       isLoading: true,
+      fullResults: const AsyncValue.loading(),
     );
 
     _debounceTimer = Timer(
@@ -314,9 +318,11 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
     _searchRequestId++; // Invalidate any in-flight searches
 
+    // Reset fullResults to loading to prevent stale data rendering
     state = state.copyWith(
       selectedResultType: resultType,
       isLoading: true,
+      fullResults: const AsyncValue.loading(),
     );
 
     // Trigger search for new category
@@ -330,10 +336,12 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     // Compute effective query (sanitized + Singlish→Sinhala)
     final effectiveQuery = _computeEffectiveQuery(query);
 
+    // Reset fullResults to loading to prevent stale data rendering
     state = state.copyWith(
       rawQueryText: query,
       effectiveQueryText: effectiveQuery,
       isLoading: true,
+      fullResults: const AsyncValue.loading(),
     );
 
     // Debounce not needed for direct selection
@@ -522,7 +530,11 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     if (state.rawQueryText.trim().isEmpty) return;
 
     _searchRequestId++; // Invalidate any in-flight searches
-    state = state.copyWith(isLoading: true);
+    // Reset fullResults to loading to prevent stale data rendering
+    state = state.copyWith(
+      isLoading: true,
+      fullResults: const AsyncValue.loading(),
+    );
     _performSearch();
   }
 
