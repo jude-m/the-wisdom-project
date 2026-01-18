@@ -158,7 +158,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -262,7 +261,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -300,6 +298,7 @@ void main() {
             language: 'pali',
             type: 'paragraph',
             level: 0,
+            nodeKey: 'dn-1',
           ),
         ];
 
@@ -309,7 +308,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -347,7 +345,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -361,7 +358,6 @@ void main() {
         verify(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: true, // Should pass isExactMatch from query
           limit: anyNamed('limit'),
@@ -380,7 +376,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -394,7 +389,6 @@ void main() {
         verify(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: false, // Default value
           limit: anyNamed('limit'),
@@ -436,7 +430,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -469,7 +462,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -517,7 +509,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -565,7 +556,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -615,7 +605,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -665,7 +654,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -720,7 +708,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -766,7 +753,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -812,7 +798,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -910,7 +895,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -1009,7 +993,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -1081,7 +1064,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -1193,7 +1175,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -1272,7 +1253,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -1344,7 +1324,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -1396,7 +1375,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -1410,7 +1388,6 @@ void main() {
         verify(mockFTSDataSource.searchFullText(
           'dhamma',
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: {
             TipitakaNodeKeys.vinayaPitaka
           }, // Scope should be passed through
@@ -1463,7 +1440,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -1511,7 +1487,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -1558,7 +1533,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -1645,6 +1619,7 @@ void main() {
             language: 'pali',
             type: 'paragraph',
             level: 0,
+            nodeKey: 'dn-1',
           ),
         ];
 
@@ -1654,7 +1629,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -1680,7 +1654,6 @@ void main() {
         verify(mockFTSDataSource.searchFullText(
           'ධම්ම',
           editionIds: {'bjt'},
-          language: null,
           scope: {},
           isExactMatch: false,
           limit: 50,
@@ -1702,6 +1675,7 @@ void main() {
             language: 'pali',
             type: 'paragraph',
             level: 0,
+            nodeKey: 'dn-1',
           ),
         ];
 
@@ -1715,6 +1689,7 @@ void main() {
             language: 'pali',
             type: 'paragraph',
             level: 0,
+            nodeKey: 'dn-2',
           ),
         ];
 
@@ -1725,7 +1700,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: 50,
@@ -1736,7 +1710,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: 50,
@@ -1761,7 +1734,6 @@ void main() {
         verify(mockFTSDataSource.searchFullText(
           'ධම්ම',
           editionIds: {'bjt'},
-          language: null,
           scope: {},
           isExactMatch: false,
           limit: 50,
@@ -1784,7 +1756,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
@@ -1798,7 +1769,6 @@ void main() {
         verify(mockFTSDataSource.searchFullText(
           'ධම්ම',
           editionIds: {'bjt'},
-          language: null,
           scope: {},
           isExactMatch: false,
           limit: 20, // Custom limit from query
@@ -1889,7 +1859,6 @@ void main() {
         when(mockFTSDataSource.searchFullText(
           any,
           editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
           scope: anyNamed('scope'),
           isExactMatch: anyNamed('isExactMatch'),
           limit: anyNamed('limit'),
