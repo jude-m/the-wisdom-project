@@ -130,6 +130,15 @@ class HighlightedSearchText extends StatelessWidget {
       matchLength = words.isNotEmpty ? words.first.length : 0;
     }
 
+    // Defensive guard: if query not found in text, return start of text
+    // This handles edge cases like stale results during search-as-you-type
+    // if (matchIndex == -1) {
+    //   final snippetEnd = (contextBefore + contextAfter).clamp(0, text.length);
+    //   var snippet = text.substring(0, snippetEnd);
+    //   if (snippetEnd < text.length) snippet = '$snippet...';
+    //   return snippet;
+    // }
+
     // Map to original positions and extract snippet
     final range =
         textMatcher.mapToOriginal(matchIndex, matchIndex + matchLength);

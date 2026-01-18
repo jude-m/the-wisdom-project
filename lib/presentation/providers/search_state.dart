@@ -124,6 +124,10 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   final RecentSearchesRepository _recentSearchesRepository;
   Timer? _debounceTimer;
 
+  /// Request ID for tracking in-flight searches.
+  /// Incremented on each new search to invalidate stale async results.
+  int _searchRequestId = 0;
+
   SearchStateNotifier(
     this._searchRepository,
     this._recentSearchesRepository,
@@ -147,59 +151,75 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
   /// Update search query text (debounced search)
   /// Computes effectiveQueryText once here, avoiding per-row conversion later.
+  ///
+  /// Uses single atomic state update per path to minimize widget rebuilds:
+  /// - Path 1 (empty/invalid query): Update query text + clear results in one update
+  /// - Path 2 (valid query): Update query text + set loading in one update
   void updateQuery(String query) {
     _debounceTimer?.cancel();
+    _searchRequestId++; // Invalidate any in-flight searches
 
     // Compute effective query (sanitized + Singlish→Sinhala)
     final effectiveQuery = _computeEffectiveQuery(query);
 
-    // Update both rawQueryText and effectiveQueryText together
-    state = state.copyWith(
-      rawQueryText: query,
-      effectiveQueryText: effectiveQuery,
-    );
-
-    // If query is empty or invalid, clear results
+    // Path 1: Empty/invalid query - single atomic update
     if (query.trim().isEmpty || effectiveQuery.isEmpty) {
       state = state.copyWith(
+        rawQueryText: query,
+        effectiveQueryText: effectiveQuery,
         groupedResults: null,
-        fullResults: const AsyncValue.data([]),
+        fullResults: const AsyncValue.data(null), // null = didn't search
+        countByResultType: {},
         isLoading: false,
       );
       return;
     }
 
-    // Set loading state and debounce search (300ms)
-    state = state.copyWith(isLoading: true);
+    // Path 2: Valid query - single atomic update
+    state = state.copyWith(
+      rawQueryText: query,
+      effectiveQueryText: effectiveQuery,
+      isLoading: true,
+    );
+
     _debounceTimer = Timer(
       const Duration(milliseconds: 300),
       _performSearch,
     );
   }
 
-  /// Execute search based on selected category
-  /// Always loads counts for tab badges, then loads results for current tab
+  /// Execute search based on selected category.
+  /// Counts load in background (unawaited), results are awaited.
   Future<void> _performSearch() async {
-    // Always load counts for tab badges (runs in parallel with results)
-    unawaited(_loadCounts());
+    final currentRequestId = _searchRequestId;
 
+    // Fire-and-forget counts (UX feature, not critical path)
+    // _loadCounts only updates countByResultType - never touches loading/results
+    unawaited(_loadCounts(currentRequestId));
+
+    // Await the main results (owns isLoading lifecycle)
     if (state.selectedResultType == SearchResultType.topResults) {
-      await _loadTopResults();
+      await _loadTopResults(currentRequestId);
     } else {
-      await _loadResultsForType();
+      await _loadResultsForType(currentRequestId);
     }
   }
 
-  /// Load result counts for tab badges (independent of selected category)
-  Future<void> _loadCounts() async {
+  /// Load result counts for tab badges.
+  /// FIELD OWNERSHIP: Only updates [countByResultType]. Never touches isLoading/results.
+  Future<void> _loadCounts(int requestId) async {
     final query = _buildSearchQuery();
     if (query == null) {
-      // Invalid query - clear counts
-      state = state.copyWith(countByResultType: {});
+      if (_searchRequestId == requestId) {
+        state = state.copyWith(countByResultType: {});
+      }
       return;
     }
 
     final result = await _searchRepository.countByResultType(query);
+
+    // Validate: discard if newer search started
+    if (_searchRequestId != requestId) return;
 
     result.fold(
       (failure) {
@@ -211,68 +231,62 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     );
   }
 
-  /// Load categorized results for "All" tab
-  Future<void> _loadTopResults() async {
+  /// Load grouped results for "Top Results" tab.
+  /// FIELD OWNERSHIP: Only updates [isLoading] and [groupedResults].
+  Future<void> _loadTopResults(int requestId) async {
     final query = _buildSearchQuery();
     if (query == null) {
-      // Invalid query - set empty results, don't call repository
-      state = state.copyWith(
-        isLoading: false,
-        groupedResults: null,
-      );
+      if (_searchRequestId == requestId) {
+        state = state.copyWith(isLoading: false, groupedResults: null);
+      }
       return;
     }
 
     final result = await _searchRepository.searchTopResults(query);
 
+    // Validate: discard if newer search started
+    if (_searchRequestId != requestId) return;
+
     result.fold(
       (failure) {
-        state = state.copyWith(
-          isLoading: false,
-          groupedResults: null,
-        );
+        state = state.copyWith(isLoading: false, groupedResults: null);
       },
-      (categorizedResult) {
-        state = state.copyWith(
-          isLoading: false,
-          groupedResults: categorizedResult,
-        );
+      (groupedResult) {
+        state = state.copyWith(isLoading: false, groupedResults: groupedResult);
       },
     );
   }
 
-  /// Load full results for the selected result type
-  Future<void> _loadResultsForType() async {
+  /// Load full results for the selected result type.
+  /// FIELD OWNERSHIP: Only updates [isLoading] and [fullResults].
+  Future<void> _loadResultsForType(int requestId) async {
     final query = _buildSearchQuery();
     if (query == null) {
-      state = state.copyWith(
-        fullResults: const AsyncValue.data(null),
-        isLoading: false,
-      );
+      if (_searchRequestId == requestId) {
+        state = state.copyWith(isLoading: false, fullResults: const AsyncValue.data(null));
+      }
       return;
     }
-
-    state = state.copyWith(
-      fullResults: const AsyncValue.loading(),
-      isLoading: true,
-    );
 
     final result = await _searchRepository.searchByResultType(
       query,
       state.selectedResultType,
     );
 
+    // Validate: discard if newer search started
+    if (_searchRequestId != requestId) return;
+
     result.fold(
       (failure) {
         state = state.copyWith(
-          fullResults: AsyncValue.error(failure, StackTrace.current),
           isLoading: false,
+          fullResults: AsyncValue.error(failure, StackTrace.current),
         );
       },
       (results) {
         state = state.copyWith(
-          fullResults: AsyncValue.data(results),
           isLoading: false,
+          fullResults: AsyncValue.data(results),
         );
       },
     );
@@ -298,6 +312,8 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   Future<void> selectResultType(SearchResultType resultType) async {
     if (state.selectedResultType == resultType) return;
 
+    _searchRequestId++; // Invalidate any in-flight searches
+
     state = state.copyWith(
       selectedResultType: resultType,
       isLoading: true,
@@ -309,6 +325,8 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
   /// Handle clicking on a recent search
   Future<void> selectRecentSearch(String query) async {
+    _searchRequestId++; // Invalidate any in-flight searches
+
     // Compute effective query (sanitized + Singlish→Sinhala)
     final effectiveQuery = _computeEffectiveQuery(query);
 
@@ -499,14 +517,19 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   }
 
   /// Refresh search if query is active
+  /// Used when filters change (scope, language, etc.)
   void _refreshSearchIfNeeded() {
     if (state.rawQueryText.trim().isEmpty) return;
+
+    _searchRequestId++; // Invalidate any in-flight searches
+    state = state.copyWith(isLoading: true);
     _performSearch();
   }
 
   /// Clear search and reset state
   void clearSearch() {
     _debounceTimer?.cancel();
+    _searchRequestId++; // Invalidate any in-flight searches
     state = const SearchState();
   }
 
