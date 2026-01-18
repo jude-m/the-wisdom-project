@@ -25,6 +25,23 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     this._treeRepository,
   );
 
+  /// Overfetch multiplier for grouped results.
+  /// We fetch more records than needed to ensure enough unique groups (nodeKeys).
+  /// Example: For 3 groups, fetch 21 records (7x multiplier).
+  ///
+  /// Alternative considered: DB-level grouping using window functions:
+  /// ```sql
+  /// WITH ranked AS (
+  ///   SELECT m.nodeKey, bm25(bjt_fts) AS score,
+  ///     ROW_NUMBER() OVER (PARTITION BY m.nodeKey ORDER BY bm25(bjt_fts)) AS rn
+  ///   FROM bjt_fts JOIN bjt_meta m ON bjt_fts.rowid = m.id
+  ///   WHERE bjt_fts MATCH ?
+  /// )
+  /// SELECT nodeKey FROM ranked WHERE rn = 1 ORDER BY score LIMIT ?
+  /// ```
+  /// Overfetching chosen for better performance (single query, no window functions).
+  static const int _groupedSearchOverfetchMultiplier = 7;
+
   // ============================================================================
   // PUBLIC API
   // ============================================================================
@@ -66,7 +83,10 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           );
 
           // 2. Content matches (from FTS)
-          resultsByType[SearchResultType.fullText] = await _searchFullText(
+          // Overfetch to ensure enough unique groups (suttas) after grouping
+          final overfetchLimit =
+              maxPerCategory * _groupedSearchOverfetchMultiplier;
+          final ftsResults = await _searchFullText(
             nodeMap: nodeMap,
             queryText: query.queryText,
             editionIds: editionsToSearch,
@@ -75,8 +95,14 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             isPhraseSearch: query.isPhraseSearch,
             isAnywhereInText: query.isAnywhereInText,
             proximityDistance: query.proximityDistance,
-            limit: maxPerCategory,
+            limit: overfetchLimit,
             offset: 0,
+          );
+
+          // Group by nodeKey and limit to maxPerCategory groups
+          resultsByType[SearchResultType.fullText] = _limitToGroups(
+            ftsResults,
+            maxGroups: maxPerCategory,
           );
 
           // 3. Definition matches (future - placeholder)
@@ -463,6 +489,32 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   // ============================================================================
   // PRIVATE HELPER METHODS - Utilities
   // ============================================================================
+
+  /// Limits results to maxGroups unique nodeKeys (suttas).
+  /// Returns all results belonging to the first maxGroups groups.
+  ///
+  /// Used by Top Results tab to ensure we show 3 distinct suttas,
+  /// even when multiple FTS matches come from the same sutta.
+  List<SearchResult> _limitToGroups(
+    List<SearchResult> results, {
+    required int maxGroups,
+  }) {
+    final seenNodeKeys = <String>{};
+    final limitedResults = <SearchResult>[];
+
+    for (final result in results) {
+      // Include result if:
+      // 1. We haven't reached maxGroups yet, OR
+      // 2. This result belongs to a nodeKey we've already seen
+      if (seenNodeKeys.length < maxGroups ||
+          seenNodeKeys.contains(result.nodeKey)) {
+        limitedResults.add(result);
+        seenNodeKeys.add(result.nodeKey);
+      }
+    }
+
+    return limitedResults;
+  }
 
   /// Build a flat map of nodeKey -> node from tree hierarchy
   /// Allows O(1) lookup of nodes by their key
