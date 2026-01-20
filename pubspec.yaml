@@ -97,6 +97,8 @@ flutter:
     - assets/text/
     # Full-text search database (BJT edition)
     - assets/databases/bjt-fts.db
+    # Dictionary database (Pali-English/Sinhala definitions)
+    - assets/databases/dict.db
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

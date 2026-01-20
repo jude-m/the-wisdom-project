@@ -245,9 +245,11 @@ function createFTSTables(db) {
 
     const sinhalaChars = getSinhalaTokenChars();
 
-    // Drop existing tables if they exist
+    // Drop existing tables and indexes if they exist
     db.exec(`DROP TABLE IF EXISTS ${editionPrefix}_fts`);
     db.exec(`DROP TABLE IF EXISTS ${editionPrefix}_meta`);
+    db.exec(`DROP INDEX IF EXISTS idx_${editionPrefix}_meta_filename`);
+    db.exec(`DROP INDEX IF EXISTS idx_${editionPrefix}_meta_language`);
 
     // Create metadata table (stores location info, NOT the text)
     // This is much smaller than storing full text
@@ -300,6 +302,8 @@ function createSuggestionsTable(db) {
     console.log('Creating suggestions table...');
 
     db.exec(`DROP TABLE IF EXISTS ${editionPrefix}_suggestions`);
+    db.exec(`DROP INDEX IF EXISTS idx_${editionPrefix}_suggestions_word`);
+    db.exec(`DROP INDEX IF EXISTS idx_${editionPrefix}_suggestions_lang`);
 
     const createSQL = `
         CREATE TABLE ${editionPrefix}_suggestions (
@@ -363,9 +367,24 @@ function main() {
         // Optimize database
         console.log('');
         console.log('Optimizing database...');
+
+        // Step 1: Optimize FTS5 index (merge internal b-tree segments)
+        // This merges FTS5's internal index segments into one large segment,
+        // which significantly improves MATCH query performance.
+        // VACUUM alone doesn't optimize FTS5's internal structures.
+        console.log('  Optimizing FTS5 index...');
+        db.exec(`INSERT INTO ${CONFIG.EDITION_ID}_fts(${CONFIG.EDITION_ID}_fts) VALUES('optimize')`);
+        console.log('  ✓ FTS5 index optimized');
+
+        // Step 2: VACUUM to reclaim disk space
+        // After FTS5 optimization, VACUUM reclaims actual disk space
+        // and defragments the database file.
+        console.log('  Running VACUUM...');
         db.exec('VACUUM');
+        console.log('  ✓ Database vacuumed');
 
         // Report final size
+        console.log('');
         const stats = fs.statSync(CONFIG.OUTPUT_DB);
         const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
         console.log(`Final database size: ${sizeMB} MB`);
