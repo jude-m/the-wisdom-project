@@ -116,4 +116,26 @@ class PaneWidthConstants {
 
   // Resizable divider
   static const double dividerWidth = 8.0;
+
+  // Dictionary bottom sheet (for tablets/desktops)
+  static const double dictionarySheetMaxWidth = 800.0;
+}
+
+/// Constants for dictionary bottom sheet sizing and behavior.
+/// Controls the draggable sheet dimensions and snap points.
+class DictionarySheetConstants {
+  // Private constructor prevents instantiation
+  DictionarySheetConstants._();
+
+  // Sheet size constraints (as fractions of available height)
+  // Note: Available height is 90% of screen, so 0.28 * 0.9 = ~25% of screen
+  static const double initialChildSize = 0.28; // Opens at minimum height (~25% of screen)
+  static const double minChildSize = 0.28; // 28% of 90% = ~25% of screen
+  static const double maxChildSize = 1.0; // Full 90%
+
+  // Maximum height as fraction of screen
+  static const double maxHeightFraction = 0.9; // 90% of screen
+
+  // Snap positions for dragging behavior
+  static const List<double> snapSizes = [0.28, 0.55, 1.0];
 }

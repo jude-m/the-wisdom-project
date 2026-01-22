@@ -148,4 +148,13 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get anywhereInText => 'එකම පෙළෙහි ඕනෑම තැනක';
+
+  @override
+  String get noDefinitionsFound => 'අර්ථ දැක්වීම් හමු නොවීය';
+
+  @override
+  String get dictionaryLookup => 'ශබ්දකෝෂය';
+
+  @override
+  String get errorLoadingDefinitions => 'අර්ථ දැක්වීම් පූරණය කිරීමේ දෝෂයකි';
 }

@@ -1,0 +1,121 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/datasources/dictionary_datasource.dart';
+import '../../data/repositories/dictionary_repository_impl.dart';
+import '../../domain/entities/dictionary/dictionary_entry.dart';
+import '../../domain/entities/dictionary/dictionary_params.dart';
+import '../../domain/repositories/dictionary_repository.dart';
+
+// ============================================================================
+// UI STATE PROVIDERS
+// ============================================================================
+
+/// Holds the currently selected word for dictionary lookup.
+/// When non-null, the dictionary bottom sheet is shown.
+/// Set to null to hide the bottom sheet.
+final selectedDictionaryWordProvider = StateProvider<String?>((ref) => null);
+
+/// Tracks which specific word is currently highlighted across all text widgets.
+/// Stores (widgetHashCode, wordPosition) to uniquely identify a tapped word.
+/// When null, no word is highlighted.
+/// This ensures only one word is highlighted at a time across all paragraphs.
+///
+/// Note: This is cleared when the dictionary sheet closes.
+final highlightStateProvider = StateProvider<({int widgetId, int position})?>((ref) => null);
+
+// ============================================================================
+// DATASOURCE & REPOSITORY PROVIDERS
+// ============================================================================
+
+/// Provides the DictionaryDataSource singleton
+final dictionaryDataSourceProvider = Provider<DictionaryDataSource>((ref) {
+  return DictionaryDataSourceImpl();
+});
+
+/// Provides the DictionaryRepository
+final dictionaryRepositoryProvider = Provider<DictionaryRepository>((ref) {
+  final dataSource = ref.watch(dictionaryDataSourceProvider);
+  return DictionaryRepositoryImpl(dataSource);
+});
+
+// ============================================================================
+// LOOKUP PROVIDERS
+// ============================================================================
+
+/// Lookup a word in the dictionary
+/// Returns a list of dictionary entries ordered by relevance
+final dictionaryLookupProvider =
+    FutureProvider.family<List<DictionaryEntry>, DictionaryLookupParams>(
+        (ref, params) async {
+  final repository = ref.watch(dictionaryRepositoryProvider);
+
+  final result = await repository.lookupWord(
+    params.word,
+    exactMatch: params.exactMatch,
+    targetLanguage: params.targetLanguage,
+    limit: params.limit,
+  );
+
+  return result.fold(
+    (failure) => throw Exception(failure.userMessage),
+    (entries) => entries,
+  );
+});
+
+/// Simple lookup provider for tap-on-word feature
+/// Uses default parameters (prefix match, all languages, limit 50)
+final wordLookupProvider =
+    FutureProvider.family<List<DictionaryEntry>, String>((ref, word) async {
+  final repository = ref.watch(dictionaryRepositoryProvider);
+
+  final result = await repository.lookupWord(
+    word,
+    exactMatch: false,
+    limit: 50,
+  );
+
+  return result.fold(
+    (failure) => throw Exception(failure.userMessage),
+    (entries) => entries,
+  );
+});
+
+// ============================================================================
+// SEARCH PROVIDERS (for search tab integration)
+// ============================================================================
+
+/// Search definitions for a query (used in search tab)
+final dictionarySearchProvider =
+    FutureProvider.family<List<DictionaryEntry>, DictionarySearchParams>(
+        (ref, params) async {
+  final repository = ref.watch(dictionaryRepositoryProvider);
+
+  final result = await repository.searchDefinitions(
+    params.query,
+    isExactMatch: params.isExactMatch,
+    targetLanguage: params.targetLanguage,
+    limit: params.limit,
+  );
+
+  return result.fold(
+    (failure) => throw Exception(failure.userMessage),
+    (entries) => entries,
+  );
+});
+
+/// Count definitions for a query (for tab badge)
+final dictionaryCountProvider =
+    FutureProvider.family<int, DictionarySearchParams>((ref, params) async {
+  final repository = ref.watch(dictionaryRepositoryProvider);
+
+  final result = await repository.countDefinitions(
+    params.query,
+    isExactMatch: params.isExactMatch,
+    targetLanguage: params.targetLanguage,
+  );
+
+  return result.fold(
+    (failure) => throw Exception(failure.userMessage),
+    (count) => count,
+  );
+});

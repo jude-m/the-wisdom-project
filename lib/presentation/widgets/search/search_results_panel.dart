@@ -4,7 +4,9 @@ import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/grouped_search_result.dart';
 import '../../../domain/entities/search/search_result_type.dart';
 import '../../../domain/entities/search/search_result.dart';
+import '../../providers/dictionary_provider.dart' show selectedDictionaryWordProvider;
 import '../../providers/search_provider.dart';
+import 'dictionary_search_result_tile.dart';
 import 'grouped_fts_tile.dart';
 import 'highlighted_search_text.dart';
 import 'scope_filter_chips.dart';
@@ -50,6 +52,7 @@ class SearchResultsPanel extends ConsumerWidget {
             child: searchState.selectedResultType == SearchResultType.topResults
                 ? _buildTopResultsTabContent(
                     context,
+                    ref,
                     theme,
                     searchState.isLoading,
                     searchState.groupedResults,
@@ -78,6 +81,7 @@ class SearchResultsPanel extends ConsumerWidget {
   /// Builds the content for the "All" tab showing categorized results
   Widget _buildTopResultsTabContent(
     BuildContext context,
+    WidgetRef ref,
     ThemeData theme,
     bool isLoading,
     GroupedSearchResult? categorizedResults,
@@ -100,21 +104,19 @@ class SearchResultsPanel extends ConsumerWidget {
       return _buildEmptyState(theme, isInvalidQuery: false);
     }
 
-    // Build categorized results - use grouped tiles for fullText, regular for others
+    // Build categorized results - use grouped tiles for fullText, dictionary tiles for definitions
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ...categorizedResults.categoriesWithResults
-              .where((resultType) =>
-                  resultType != SearchResultType.definition &&
-                  resultType != SearchResultType.topResults)
+              .where((resultType) => resultType != SearchResultType.topResults)
               .map((resultType) => Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Section header
                       _sectionHeader(theme, resultType.displayName.toUpperCase()),
-                      // Use grouped tiles for fullText, regular tiles for others
+                      // Use appropriate tile type for each result type
                       if (resultType == SearchResultType.fullText)
                         ..._buildGroupedFTSResults(
                           categorizedResults.getResultsByType(resultType),
@@ -122,6 +124,13 @@ class SearchResultsPanel extends ConsumerWidget {
                           isPhraseSearch,
                           isExactMatch,
                         )
+                      else if (resultType == SearchResultType.definition)
+                        ...categorizedResults
+                            .getResultsByType(resultType)
+                            .map((result) => DictionarySearchResultTile(
+                                  result: result,
+                                  onTap: () => _showDictionaryBottomSheet(ref, result),
+                                ))
                       else
                         ...categorizedResults
                             .getResultsByType(resultType)
@@ -138,6 +147,11 @@ class SearchResultsPanel extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// Shows a dictionary bottom sheet with the word from a definition result
+  void _showDictionaryBottomSheet(WidgetRef ref, SearchResult result) {
+    ref.read(selectedDictionaryWordProvider.notifier).state = result.title;
   }
 
   /// Builds grouped FTS result tiles from a list of search results
@@ -254,7 +268,30 @@ class SearchResultsPanel extends ConsumerWidget {
           );
         }
 
-        // Regular tiles for other result types (title, definition)
+        // Use DictionarySearchResultTile for definition results
+        if (selectedResultType == SearchResultType.definition) {
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: hasMoreResults ? results.length + 1 : results.length,
+            separatorBuilder: (context, index) => Divider(
+              height: 1,
+              indent: 72,
+              color: theme.colorScheme.outlineVariant,
+            ),
+            itemBuilder: (context, index) {
+              if (hasMoreResults && index == results.length) {
+                return _footer(theme, results.length, totalCount);
+              }
+
+              return DictionarySearchResultTile(
+                result: results[index],
+                onTap: () => _showDictionaryBottomSheet(ref, results[index]),
+              );
+            },
+          );
+        }
+
+        // Regular tiles for other result types (title)
         return ListView.separated(
           padding: const EdgeInsets.symmetric(vertical: 8),
           // Add +1 for footer row when results are truncated

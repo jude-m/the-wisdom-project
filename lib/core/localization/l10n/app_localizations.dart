@@ -373,6 +373,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Anywhere in the same text'**
   String get anywhereInText;
+
+  /// Message shown when dictionary lookup returns no results
+  ///
+  /// In en, this message translates to:
+  /// **'No definitions found'**
+  String get noDefinitionsFound;
+
+  /// Title for dictionary lookup feature
+  ///
+  /// In en, this message translates to:
+  /// **'Dictionary'**
+  String get dictionaryLookup;
+
+  /// Error message when dictionary lookup fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading definitions'**
+  String get errorLoadingDefinitions;
 }
 
 class _AppLocalizationsDelegate

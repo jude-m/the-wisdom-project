@@ -4,6 +4,7 @@ import '../models/column_display_mode.dart';
 import '../../domain/entities/content/entry.dart';
 import '../../domain/entities/content/entry_type.dart';
 import '../providers/document_provider.dart';
+import '../providers/dictionary_provider.dart' show selectedDictionaryWordProvider;
 import '../providers/tab_provider.dart'
     show
         activeTabIndexProvider,
@@ -12,6 +13,8 @@ import '../providers/tab_provider.dart'
         activePageStartProvider,
         activePageEndProvider,
         activeEntryStartProvider;
+import 'reader/text_entry_widget.dart';
+import 'dictionary/dictionary_bottom_sheet.dart';
 
 class MultiPaneReaderWidget extends ConsumerStatefulWidget {
   const MultiPaneReaderWidget({super.key});
@@ -173,102 +176,109 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
 
     final contentAsync = ref.watch(currentBJTDocumentProvider);
     final columnMode = ref.watch(columnDisplayModeProvider);
+    // Watch selected word to conditionally mount the dictionary sheet
+    final selectedWord = ref.watch(selectedDictionaryWordProvider);
 
-    return Column(
+    return Stack(
       children: [
-        // Content area
-        Expanded(
-          child: contentAsync.when(
-            data: (content) {
-              if (content == null) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.menu_book_outlined,
-                        size: 64,
-                        color: Theme.of(context).colorScheme.outline,
+        // Main content area
+        Column(
+          children: [
+            Expanded(
+              child: contentAsync.when(
+                data: (content) {
+                  if (content == null) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.menu_book_outlined,
+                            size: 64,
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Select a sutta from the tree to begin reading',
+                            style:
+                                Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.6),
+                                    ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Select a sutta from the tree to begin reading',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withValues(alpha: 0.6),
-                                ),
-                      ),
-                    ],
+                    );
+                  }
+
+                  // Get pagination state from derived providers (read from active tab)
+                  final pageStart = ref.watch(activePageStartProvider);
+                  final pageEnd = ref.watch(activePageEndProvider);
+
+                  // Show only the loaded page slice
+                  final pagesToShow = content.pages.sublist(
+                    pageStart.clamp(0, content.pageCount),
+                    pageEnd.clamp(0, content.pageCount),
+                  );
+
+                  if (pagesToShow.isEmpty) {
+                    return const Center(
+                      child: Text('No content to display'),
+                    );
+                  }
+
+                  // Get entry start (which entry to start from on the first page)
+                  final entryStart = ref.watch(activeEntryStartProvider);
+
+                  // Build the layout based on column mode
+                  return _buildContentLayout(
+                    context,
+                    pagesToShow,
+                    columnMode,
+                    entryStart,
+                  );
+                },
+                loading: () => const Center(
+                  child: CircularProgressIndicator(),
+                ),
+                error: (error, stack) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 48, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading content',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          error.toString(),
+                          style: Theme.of(context).textTheme.bodySmall,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
-                );
-              }
-
-              // Get pagination state from derived providers (read from active tab)
-              final pageStart = ref.watch(activePageStartProvider);
-              final pageEnd = ref.watch(activePageEndProvider);
-
-              // Show only the loaded page slice
-              final pagesToShow = content.pages.sublist(
-                pageStart.clamp(0, content.pageCount),
-                pageEnd.clamp(0, content.pageCount),
-              );
-
-              if (pagesToShow.isEmpty) {
-                return const Center(
-                  child: Text('No content to display'),
-                );
-              }
-
-              // Get entry start (which entry to start from on the first page)
-              final entryStart = ref.watch(activeEntryStartProvider);
-
-              // Build the layout based on column mode
-              return _buildContentLayout(
-                context,
-                ref,
-                pagesToShow,
-                columnMode,
-                entryStart,
-              );
-            },
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
-            error: (error, stack) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        size: 48, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Error loading content',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      error.toString(),
-                      style: Theme.of(context).textTheme.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
                 ),
               ),
             ),
-          ),
+          ],
         ),
+        // Non-modal dictionary bottom sheet overlay
+        // Only mounted when a word is selected (conditional mounting for performance)
+        if (selectedWord != null) const DictionaryBottomSheet(),
       ],
     );
   }
 
   Widget _buildContentLayout(
     BuildContext context,
-    WidgetRef ref,
     List<dynamic> pages,
     ColumnDisplayMode columnMode,
     int entryStart,
@@ -290,7 +300,12 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
               children: [
                 _buildPageNumber(context, page.pageNumber),
                 const SizedBox(height: 16),
-                ..._buildEntries(context, entries),
+                // Enable dictionary lookup for Pali text
+                ..._buildEntries(
+                  context,
+                  entries,
+                  enableDictionaryLookup: true,
+                ),
                 const SizedBox(height: 32), // Space between pages
               ],
             );
@@ -313,7 +328,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
               children: [
                 _buildPageNumber(context, page.pageNumber),
                 const SizedBox(height: 16),
-                ..._buildEntries(context, entries),
+                // Disable dictionary lookup for Sinhala translation text
+                ..._buildEntries(context, entries, enableDictionaryLookup: false),
                 const SizedBox(height: 32), // Space between pages
               ],
             );
@@ -392,20 +408,24 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Pali entry (left)
+                // Pali entry (left) - enable dictionary lookup
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(right: 12.0),
-                    child: _buildEntry(context, paliEntry),
+                    child: _buildEntry(
+                      context,
+                      paliEntry,
+                      enableDictionaryLookup: true,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 24),
-                // Sinhala entry (right)
+                // Sinhala entry (right) - disable dictionary lookup
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(left: 12.0),
                     child: sinhalaEntry != null
-                        ? _buildEntry(context, sinhalaEntry)
+                        ? _buildEntry(context, sinhalaEntry, enableDictionaryLookup: false)
                         : const SizedBox.shrink(),
                   ),
                 ),
@@ -435,16 +455,28 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     );
   }
 
-  List<Widget> _buildEntries(BuildContext context, List<Entry> entries) {
+  List<Widget> _buildEntries(
+    BuildContext context,
+    List<Entry> entries, {
+    bool enableDictionaryLookup = false,
+  }) {
     return entries.map((entry) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 12.0),
-        child: _buildEntry(context, entry),
+        child: _buildEntry(
+          context,
+          entry,
+          enableDictionaryLookup: enableDictionaryLookup,
+        ),
       );
     }).toList();
   }
 
-  Widget _buildEntry(BuildContext context, Entry entry) {
+  Widget _buildEntry(
+    BuildContext context,
+    Entry entry, {
+    bool enableDictionaryLookup = false,
+  }) {
     TextStyle? textStyle;
 
     switch (entry.entryType) {
@@ -458,11 +490,14 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         textStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             );
+        // Use TextEntryWidget for dictionary lookup on centered text too
         return Center(
-          child: Text(
-            entry.plainText,
+          child: TextEntryWidget(
+            text: entry.plainText,
             style: textStyle,
             textAlign: TextAlign.center,
+            enableTap: enableDictionaryLookup,
+            onWordTap: (word, _) => ref.read(selectedDictionaryWordProvider.notifier).state = word,
           ),
         );
       case EntryType.gatha:
@@ -479,14 +514,18 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         break;
     }
 
-    return Text(
-      entry.plainText,
+    final textAlign = switch (entry.entryType) {
+      EntryType.heading => TextAlign.center,
+      EntryType.paragraph || EntryType.unindented => TextAlign.justify,
+      _ => TextAlign.left, // gatha
+    };
+
+    return TextEntryWidget(
+      text: entry.plainText,
       style: textStyle,
-      textAlign: switch (entry.entryType) {
-        EntryType.heading => TextAlign.center,
-        EntryType.paragraph || EntryType.unindented => TextAlign.justify,
-        _ => TextAlign.left, // gatha
-      },
+      textAlign: textAlign,
+      enableTap: enableDictionaryLookup,
+      onWordTap: (word, _) => ref.read(selectedDictionaryWordProvider.notifier).state = word,
     );
   }
 }

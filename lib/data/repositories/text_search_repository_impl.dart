@@ -9,7 +9,10 @@ import '../../domain/entities/search/search_query.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../../domain/entities/search/scope_operations.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
+import '../../domain/entities/dictionary/dictionary_entry.dart';
+import '../../domain/entities/dictionary/dictionary_info.dart';
 import '../../domain/repositories/navigation_tree_repository.dart';
+import '../../domain/repositories/dictionary_repository.dart';
 import '../../core/utils/text_utils.dart';
 import '../../domain/repositories/text_search_repository.dart';
 import '../datasources/fts_datasource.dart';
@@ -19,11 +22,13 @@ import '../datasources/fts_datasource.dart';
 class TextSearchRepositoryImpl implements TextSearchRepository {
   final FTSDataSource _ftsDataSource;
   final NavigationTreeRepository _treeRepository;
+  final DictionaryRepository? _dictionaryRepository;
 
   TextSearchRepositoryImpl(
     this._ftsDataSource,
-    this._treeRepository,
-  );
+    this._treeRepository, [
+    this._dictionaryRepository,
+  ]);
 
   /// Overfetch multiplier for grouped results.
   /// We fetch more records than needed to ensure enough unique groups (nodeKeys).
@@ -105,8 +110,12 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             maxGroups: maxPerCategory,
           );
 
-          // 3. Definition matches (future - placeholder)
-          resultsByType[SearchResultType.definition] = [];
+          // 3. Definition matches (from dictionary)
+          resultsByType[SearchResultType.definition] = await _searchDefinitions(
+            query.queryText,
+            isExactMatch: query.isExactMatch,
+            limit: maxPerCategory,
+          );
 
           return Right(GroupedSearchResult(
             resultsByType: resultsByType,
@@ -177,10 +186,14 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
               return Right(results);
 
             case SearchResultType.definition:
-              // Future: Dictionary search
-              throw StateError(
-                'Definitions not implemented',
+              // Dictionary search
+              final results = await _searchDefinitions(
+                query.queryText,
+                isExactMatch: query.isExactMatch,
+                limit: query.limit,
+                offset: query.offset,
               );
+              return Right(results);
           }
         },
       );
@@ -240,8 +253,11 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             proximityDistance: query.proximityDistance,
           );
 
-          // Definition count (future - placeholder)
-          count[SearchResultType.definition] = 0;
+          // Definition count (from dictionary)
+          count[SearchResultType.definition] = await _countDefinitions(
+            query.queryText,
+            isExactMatch: query.isExactMatch,
+          );
 
           return Right(count);
         },
@@ -608,5 +624,84 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       );
     }
     return null;
+  }
+
+  // ============================================================================
+  // PRIVATE HELPER METHODS - Dictionary Search
+  // ============================================================================
+
+  /// Search definitions from dictionary
+  /// Returns SearchResult objects for integration with the search UI
+  Future<List<SearchResult>> _searchDefinitions(
+    String queryText, {
+    bool isExactMatch = false,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    if (_dictionaryRepository == null) {
+      return [];
+    }
+
+    final result = await _dictionaryRepository.searchDefinitions(
+      queryText,
+      isExactMatch: isExactMatch,
+      limit: limit,
+      offset: offset,
+    );
+
+    return result.fold(
+      (failure) {
+        developer.log(
+          'Dictionary search failed: ${failure.userMessage}',
+          name: 'TextSearchRepository',
+        );
+        return <SearchResult>[];
+      },
+      (entries) => entries.map(_mapDictionaryEntryToSearchResult).toList(),
+    );
+  }
+
+  /// Count definition matches from dictionary
+  Future<int> _countDefinitions(
+    String queryText, {
+    bool isExactMatch = false,
+  }) async {
+    if (_dictionaryRepository == null) {
+      return 0;
+    }
+
+    final result = await _dictionaryRepository.countDefinitions(
+      queryText,
+      isExactMatch: isExactMatch,
+    );
+
+    return result.fold(
+      (failure) {
+        developer.log(
+          'Dictionary count failed: ${failure.userMessage}',
+          name: 'TextSearchRepository',
+        );
+        return 0;
+      },
+      (count) => count,
+    );
+  }
+
+  /// Maps a DictionaryEntry to SearchResult for UI integration
+  SearchResult _mapDictionaryEntryToSearchResult(DictionaryEntry entry) {
+    return SearchResult(
+      id: 'dict_${entry.id}',
+      editionId: entry.dictionaryId,
+      resultType: SearchResultType.definition,
+      title: entry.word,
+      subtitle: DictionaryInfo.getDisplayName(entry.dictionaryId),
+      matchedText: entry.meaning,
+      contentFileId: '', // Dictionary entries don't have content files
+      pageIndex: 0,
+      entryIndex: 0,
+      nodeKey: '', // Dictionary entries don't have node keys
+      language: entry.sourceLanguage,
+      relevanceScore: entry.relevanceScore,
+    );
   }
 }

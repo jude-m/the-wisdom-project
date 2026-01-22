@@ -5,6 +5,7 @@ import '../../data/repositories/recent_searches_repository_impl.dart';
 import '../../data/repositories/text_search_repository_impl.dart';
 import '../../domain/repositories/recent_searches_repository.dart';
 import '../../domain/repositories/text_search_repository.dart';
+import 'dictionary_provider.dart';
 import 'navigation_tree_provider.dart';
 import 'search_state.dart';
 
@@ -23,10 +24,12 @@ final ftsDataSourceProvider = Provider<FTSDataSource>((ref) {
 });
 
 /// Provider for the text search repository
+/// Now includes dictionary repository for definition search
 final textSearchRepositoryProvider = Provider<TextSearchRepository>((ref) {
   return TextSearchRepositoryImpl(
     ref.watch(ftsDataSourceProvider),
     ref.watch(navigationTreeRepositoryProvider),
+    ref.watch(dictionaryRepositoryProvider),
   );
 });
 

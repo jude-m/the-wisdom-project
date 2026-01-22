@@ -91,5 +91,11 @@
 
   "searchAsSeparateWords": "වෙන්වූ වචන සමූහයක් ලෙස",
 
-  "anywhereInText": "එකම පෙළෙහි ඕනෑම තැනක"
+  "anywhereInText": "එකම පෙළෙහි ඕනෑම තැනක",
+
+  "noDefinitionsFound": "අර්ථ දැක්වීම් හමු නොවීය",
+
+  "dictionaryLookup": "ශබ්දකෝෂය",
+
+  "errorLoadingDefinitions": "අර්ථ දැක්වීම් පූරණය කිරීමේ දෝෂයකි"
 }

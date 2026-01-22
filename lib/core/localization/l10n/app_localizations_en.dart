@@ -148,4 +148,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get anywhereInText => 'Anywhere in the same text';
+
+  @override
+  String get noDefinitionsFound => 'No definitions found';
+
+  @override
+  String get dictionaryLookup => 'Dictionary';
+
+  @override
+  String get errorLoadingDefinitions => 'Error loading definitions';
 }
