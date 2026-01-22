@@ -1776,7 +1776,7 @@ void main() {
         )).called(1);
       });
 
-      test('should return failure when definition search is attempted',
+      test('should return empty results when definition search without dictionary repository',
           () async {
         // ARRANGE
         const query = SearchQuery(queryText: 'dhamma');
@@ -1788,14 +1788,13 @@ void main() {
         final result = await repository.searchByResultType(
             query, SearchResultType.definition);
 
-        // ASSERT - StateError is caught and wrapped in Failure
-        expect(result.isLeft(), true);
+        // ASSERT - Returns success with empty results when no dictionary repository
+        expect(result.isRight(), true);
         result.fold(
-          (failure) {
-            expect(failure, isA<DataLoadFailure>());
-            expect(failure.userMessage, contains('Failed to search by type'));
+          (failure) => fail('Expected success but got failure'),
+          (results) {
+            expect(results, isEmpty);
           },
-          (_) => fail('Expected failure but got success'),
         );
       });
 
