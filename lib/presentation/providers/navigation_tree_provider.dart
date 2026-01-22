@@ -55,8 +55,9 @@ final navigationLanguageProvider = StateProvider<NavigationLanguage>((ref) {
 });
 
 // Helper provider to get a node by key
+// Uses autoDispose to clean up when no listeners remain (prevents memory leaks).
 final nodeByKeyProvider =
-    Provider.family<TipitakaTreeNode?, String>((ref, nodeKey) {
+    Provider.autoDispose.family<TipitakaTreeNode?, String>((ref, nodeKey) {
   final treeAsync = ref.watch(navigationTreeProvider);
 
   return treeAsync.when(

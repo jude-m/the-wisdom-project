@@ -26,14 +26,19 @@ final loadBJTDocumentUseCaseProvider = Provider<LoadBJTDocumentUseCase>((ref) {
 });
 
 // BJT document provider (loads document by file ID)
+// Uses autoDispose to clean up when no listeners remain.
+// keepAlive() caches successful loads; failed loads can be retried.
 final bjtDocumentProvider =
-    FutureProvider.family<BJTDocument, String>((ref, fileId) async {
+    FutureProvider.autoDispose.family<BJTDocument, String>((ref, fileId) async {
   final useCase = ref.watch(loadBJTDocumentUseCaseProvider);
   final result = await useCase.execute(fileId);
 
   return result.fold(
     (failure) => throw Exception(failure.userMessage),
-    (document) => document,
+    (document) {
+      ref.keepAlive(); // Cache successful loads
+      return document;
+    },
   );
 });
 

@@ -44,8 +44,9 @@ final dictionaryRepositoryProvider = Provider<DictionaryRepository>((ref) {
 
 /// Lookup a word in the dictionary
 /// Returns a list of dictionary entries ordered by relevance
+/// Uses autoDispose to clean up when no listeners remain (prevents memory leaks).
 final dictionaryLookupProvider =
-    FutureProvider.family<List<DictionaryEntry>, DictionaryLookupParams>(
+    FutureProvider.autoDispose.family<List<DictionaryEntry>, DictionaryLookupParams>(
         (ref, params) async {
   final repository = ref.watch(dictionaryRepositoryProvider);
 
@@ -64,8 +65,9 @@ final dictionaryLookupProvider =
 
 /// Simple lookup provider for tap-on-word feature
 /// Uses default parameters (prefix match, all languages, limit 50)
+/// Uses autoDispose to clean up when no listeners remain (prevents memory leaks).
 final wordLookupProvider =
-    FutureProvider.family<List<DictionaryEntry>, String>((ref, word) async {
+    FutureProvider.autoDispose.family<List<DictionaryEntry>, String>((ref, word) async {
   final repository = ref.watch(dictionaryRepositoryProvider);
 
   final result = await repository.lookupWord(
@@ -85,8 +87,9 @@ final wordLookupProvider =
 // ============================================================================
 
 /// Search definitions for a query (used in search tab)
+/// Uses autoDispose to clean up when no listeners remain (prevents memory leaks).
 final dictionarySearchProvider =
-    FutureProvider.family<List<DictionaryEntry>, DictionarySearchParams>(
+    FutureProvider.autoDispose.family<List<DictionaryEntry>, DictionarySearchParams>(
         (ref, params) async {
   final repository = ref.watch(dictionaryRepositoryProvider);
 
@@ -104,8 +107,9 @@ final dictionarySearchProvider =
 });
 
 /// Count definitions for a query (for tab badge)
+/// Uses autoDispose to clean up when no listeners remain (prevents memory leaks).
 final dictionaryCountProvider =
-    FutureProvider.family<int, DictionarySearchParams>((ref, params) async {
+    FutureProvider.autoDispose.family<int, DictionarySearchParams>((ref, params) async {
   final repository = ref.watch(dictionaryRepositoryProvider);
 
   final result = await repository.countDefinitions(
