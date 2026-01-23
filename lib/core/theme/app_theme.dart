@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
+import 'app_fonts.dart';
 import 'text_entry_theme.dart';
 
 /// Application theme builder
@@ -11,7 +12,8 @@ class AppTheme {
     return ThemeData(
       brightness: Brightness.light,
       useMaterial3: true,
-      fontFamily: 'Roboto',
+      fontFamily: AppFonts.sinhala,
+      fontFamilyFallback: AppFonts.sinhalaFallback,
 
       // Background colors
       scaffoldBackgroundColor: LightThemeColors.background,
@@ -62,7 +64,8 @@ class AppTheme {
     return ThemeData(
       brightness: Brightness.dark,
       useMaterial3: true,
-      fontFamily: 'Roboto',
+      fontFamily: AppFonts.sinhala,
+      fontFamilyFallback: AppFonts.sinhalaFallback,
 
       // Background colors
       scaffoldBackgroundColor: DarkThemeColors.background,
@@ -108,7 +111,8 @@ class AppTheme {
     return ThemeData(
       brightness: Brightness.dark, // Warm is a dark theme variant
       useMaterial3: true,
-      fontFamily: 'Roboto',
+      fontFamily: AppFonts.sinhala,
+      fontFamilyFallback: AppFonts.sinhalaFallback,
 
       // Background colors
       scaffoldBackgroundColor: WarmThemeColors.background,

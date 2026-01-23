@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_fonts.dart';
 
 /// Theme extension for text entry styles
 /// Centralizes all text rendering styles in one place
@@ -41,102 +42,134 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
   factory TextEntryTheme.standard({
     required Color headingColor,
     required Color bodyColor,
-    double baseFontSize = 16.0,
   }) {
     return TextEntryTheme(
       // Heading styles by level (1-5)
+      // Uses Sinhala font for Pali headings rendered in Sinhala script
       headingStyles: {
         5: TextStyle(
-          fontSize: baseFontSize * 1.8,
+          fontFamily: AppFonts.sinhala,
+          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontSize: AppFonts.baseFontSize * 1.8,
           fontWeight: FontWeight.bold,
           color: headingColor,
-          height: 1.3,
+          height: AppFonts.headingLineHeight,
         ),
         4: TextStyle(
-          fontSize: baseFontSize * 1.7,
+          fontFamily: AppFonts.sinhala,
+          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontSize: AppFonts.baseFontSize * 1.7,
           fontWeight: FontWeight.bold,
           color: headingColor,
-          height: 1.3,
+          height: AppFonts.headingLineHeight,
         ),
         3: TextStyle(
-          fontSize: baseFontSize * 1.6,
+          fontFamily: AppFonts.sinhala,
+          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontSize: AppFonts.baseFontSize * 1.6,
           fontWeight: FontWeight.bold,
           color: headingColor,
-          height: 1.3,
+          height: AppFonts.headingLineHeight,
         ),
         2: TextStyle(
-          fontSize: baseFontSize * 1.4,
+          fontFamily: AppFonts.sinhala,
+          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontSize: AppFonts.baseFontSize * 1.4,
           fontWeight: FontWeight.bold,
           color: headingColor,
-          height: 1.3,
+          height: AppFonts.headingLineHeight,
         ),
         1: TextStyle(
-          fontSize: baseFontSize * 1.3,
+          fontFamily: AppFonts.sinhala,
+          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontSize: AppFonts.baseFontSize * 1.3,
           fontWeight: FontWeight.bold,
           color: headingColor,
-          height: 1.3,
+          height: AppFonts.headingLineHeight,
         ),
       },
 
       // Centered styles by level (0-5)
+      // Uses Sinhala font for centered Pali content
       centeredStyles: {
         5: TextStyle(
-          fontSize: baseFontSize * 2.1,
+          fontFamily: AppFonts.sinhala,
+          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontSize: AppFonts.baseFontSize * 2.1,
           fontWeight: FontWeight.w600,
           color: bodyColor,
-          height: 1.3,
+          height: AppFonts.headingLineHeight,
         ),
         4: TextStyle(
-          fontSize: baseFontSize * 1.8,
+          fontFamily: AppFonts.sinhala,
+          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontSize: AppFonts.baseFontSize * 1.8,
           fontWeight: FontWeight.w600,
           color: bodyColor,
-          height: 1.3,
+          height: AppFonts.headingLineHeight,
         ),
         3: TextStyle(
-          fontSize: baseFontSize * 1.5,
+          fontFamily: AppFonts.sinhala,
+          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontSize: AppFonts.baseFontSize * 1.5,
           fontWeight: FontWeight.w600,
           color: bodyColor,
-          height: 1.3,
+          height: AppFonts.headingLineHeight,
         ),
         2: TextStyle(
-          fontSize: baseFontSize * 1.25,
+          fontFamily: AppFonts.sinhala,
+          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontSize: AppFonts.baseFontSize * 1.25,
           fontWeight: FontWeight.w600,
           color: bodyColor,
-          height: 1.3,
+          height: AppFonts.headingLineHeight,
         ),
         1: TextStyle(
-          fontSize: baseFontSize * 1.1,
+          fontFamily: AppFonts.sinhala,
+          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontSize: AppFonts.baseFontSize * 1.1,
           fontWeight: FontWeight.w600,
           color: bodyColor,
-          height: 1.3,
+          height: AppFonts.headingLineHeight,
         ),
         0: TextStyle(
-          fontSize: baseFontSize,
+          fontFamily: AppFonts.sinhala,
+          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontSize: AppFonts.baseFontSize,
           fontWeight: FontWeight.normal, // Non-bold for level 0
           color: bodyColor,
-          height: 1.3,
+          height: AppFonts.headingLineHeight,
         ),
       },
 
       // Paragraph: normal text with first-line indent
+      // Uses Sinhala font for Pali content rendered in Sinhala script
       paragraphStyle: TextStyle(
-        fontSize: baseFontSize * 1.1,
-        height: 1.8,
+        fontFamily: AppFonts.sinhala,
+        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontSize: AppFonts.baseFontSize * 1.1,
+        height: AppFonts.paragraphLineHeight,
         color: bodyColor,
       ),
 
       // Gatha (verse): italic, left-padded
+      // Uses Sinhala font with tighter line height for verse grouping
       gathaStyle: TextStyle(
-        fontSize: baseFontSize * 1.1,
+        fontFamily: AppFonts.sinhala,
+        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontSize: AppFonts.baseFontSize * 1.1,
         fontStyle: FontStyle.italic,
-        height: 1.6,
+        height: AppFonts.gathaLineHeight,
         color: bodyColor,
       ),
 
       // Unindented: same as paragraph but NO indent/padding
+      // Uses Sinhala font, same line height as paragraph
       unindentedStyle: TextStyle(
-        fontSize: baseFontSize * 1.1,
-        height: 1.8,
+        fontFamily: AppFonts.sinhala,
+        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontSize: AppFonts.baseFontSize * 1.1,
+        height: AppFonts.paragraphLineHeight,
         color: bodyColor,
       ),
     );

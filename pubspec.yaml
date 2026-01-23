@@ -106,22 +106,35 @@ flutter:
   # For details regarding adding assets from package dependencies, see
   # https://flutter.dev/to/asset-from-package
 
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
-  #
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
+  # Custom fonts for Sinhala script and cross-platform consistency
+  # See docs/font_system_plan.md for font selection rationale
+  fonts:
+    # Sinhala script for Pali content (primary reading font)
+    - family: NotoSansSinhala
+      fonts:
+        - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-Regular.ttf
+        - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-SemiBold.ttf
+          weight: 600
+
+    # Serif font for romanized Pali with diacritics and English
+    - family: NotoSerif
+      fonts:
+        - asset: assets/fonts/noto-serif/NotoSerif-Regular.ttf
+        - asset: assets/fonts/noto-serif/NotoSerif-Italic.ttf
+          style: italic
+        - asset: assets/fonts/noto-serif/NotoSerif-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/noto-serif/NotoSerif-SemiBold.ttf
+          weight: 600
+
+    # Noto Sans for Latin/English characters - FALLBACK for Sinhala fonts
+    # Same Noto design language ensures visual harmony
+    - family: NotoSans
+      fonts:
+        - asset: assets/fonts/noto-sans/NotoSans-Regular.ttf
+        - asset: assets/fonts/noto-sans/NotoSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/noto-sans/NotoSans-SemiBold.ttf
+          weight: 600
