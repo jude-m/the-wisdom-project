@@ -2,6 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/pali_conjunct_transformer.dart';
+import '../../../core/utils/text_utils.dart';
 import '../../providers/dictionary_provider.dart';
 
 /// Callback type for word tap events
@@ -58,15 +60,32 @@ class TextEntryWidget extends ConsumerStatefulWidget {
 }
 
 class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
-  /// Regex pattern for matching Unicode words (letters + marks)
-  static final _wordPattern = RegExp(r'[\p{L}\p{M}]+', unicode: true);
-
   /// Map of word position to gesture recognizer
   /// Using a map allows us to reuse recognizers across rebuilds
   final Map<int, TapGestureRecognizer> _recognizers = {};
 
   /// Cached word matches for the current text
   List<RegExpMatch> _wordMatches = [];
+
+  /// Cached display text (computed once per text change)
+  String? _cachedDisplayText;
+  String? _lastText;
+
+  /// Get display text with conjunct transformation applied for Pali text.
+  /// Uses caching to avoid recomputing on every access.
+  String get _displayText {
+    // Return cached if text unchanged
+    if (_lastText == widget.text && _cachedDisplayText != null) {
+      return _cachedDisplayText!;
+    }
+
+    // Compute and cache
+    _lastText = widget.text;
+    _cachedDisplayText = widget.enableTap
+        ? applyConjunctConsonants(widget.text)
+        : widget.text;
+    return _cachedDisplayText!;
+  }
 
   @override
   void initState() {
@@ -107,8 +126,8 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
       return;
     }
 
-    // Find all words and create recognizers for each
-    _wordMatches = _wordPattern.allMatches(widget.text).toList();
+    // Find all words in the display text (getter handles conjunct transformation)
+    _wordMatches = sinhalaWordPattern.allMatches(_displayText).toList();
     final myWidgetId = identityHashCode(this);
 
     for (final match in _wordMatches) {
@@ -176,7 +195,7 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
       // Add spaces and punctuation between words
       if (match.start > lastEnd) {
         spans.add(TextSpan(
-          text: widget.text.substring(lastEnd, match.start),
+          text: _displayText.substring(lastEnd, match.start),
           style: widget.style,
         ));
       }
@@ -201,9 +220,9 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
     }
 
     // Add remaining text after the last word
-    if (lastEnd < widget.text.length) {
+    if (lastEnd < _displayText.length) {
       spans.add(TextSpan(
-        text: widget.text.substring(lastEnd),
+        text: _displayText.substring(lastEnd),
         style: widget.style,
       ));
     }

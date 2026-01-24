@@ -18,6 +18,14 @@ String normalizeQueryText(String query) => normalizeText(query);
 /// Zero-width characters removed during normalization.
 const _zeroWidthChars = {'\u200D', '\u200C', '\u200B', '\uFEFF'};
 
+/// Sinhala Unicode block range (U+0D80-U+0DFF).
+/// Includes signs, independent vowels, consonants, virama, and dependent vowel signs.
+const sinhalaUnicodeRange = r'\u0D80-\u0DFF';
+
+/// Pattern for matching Sinhala words.
+/// Includes Zero-Width Joiner (U+200D) for conjunct consonants.
+final sinhalaWordPattern = RegExp('[$sinhalaUnicodeRange\\u200D]+');
+
 /// Maps normalized text positions back to original positions.
 /// Returns list where `map[i]` = original position for normalized index `i`.
 List<int> createNormalizedToOriginalPositionMap(String originalText) {
