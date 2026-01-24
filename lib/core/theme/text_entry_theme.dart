@@ -64,9 +64,10 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
   }) {
     return TextEntryTheme(
       // Heading styles by level (1-5)
+      // Level 5 = largest (book titles), Level 1 = smallest (sub-sections)
       // Uses serif reader font for Pali headings rendered in Sinhala script
       headingStyles: {
-        4: TextStyle(
+        5: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.8,
@@ -74,7 +75,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           color: headingColor,
           height: _headingLineHeight,
         ),
-        3: TextStyle(
+        4: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.7,
@@ -82,7 +83,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           color: headingColor,
           height: _headingLineHeight,
         ),
-        2: TextStyle(
+        3: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.6,
@@ -90,7 +91,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           color: headingColor,
           height: _headingLineHeight,
         ),
-        1: TextStyle(
+        2: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.4,
@@ -98,7 +99,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           color: headingColor,
           height: _headingLineHeight,
         ),
-        0: TextStyle(
+        1: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.3,
@@ -147,7 +148,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.1,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w500,
           color: bodyColor,
           height: _headingLineHeight,
         ),

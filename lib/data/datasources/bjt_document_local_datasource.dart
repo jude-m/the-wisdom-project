@@ -127,6 +127,7 @@ class BJTDocumentLocalDataSourceImpl implements BJTDocumentDataSource {
   ) {
     final String typeString = entryJson['type'] as String;
     final String text = entryJson['text'] as String;
+    final int? level = entryJson['level'] as int?;
 
     // Parse entry type
     final EntryType entryType = _parseEntryType(typeString);
@@ -135,6 +136,7 @@ class BJTDocumentLocalDataSourceImpl implements BJTDocumentDataSource {
       entryType: entryType,
       rawText: text,
       segmentId: segmentId, // Assign generated segment ID
+      level: level, // Pass through hierarchy level from JSON
     );
   }
 

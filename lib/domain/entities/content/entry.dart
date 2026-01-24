@@ -25,6 +25,10 @@ class Entry with _$Entry {
 
     /// Optional reference to a footnote
     String? footnoteReference,
+
+    /// Hierarchy level for this entry (1-5 for heading/centered, 1-2 for gatha)
+    /// Higher numbers = higher in hierarchy (level 5 = book title, level 1 = sub-section)
+    int? level,
   }) = _Entry;
 
   /// Checks if this entry contains formatting markers

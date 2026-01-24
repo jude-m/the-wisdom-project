@@ -475,12 +475,16 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
 
     switch (entry.entryType) {
       case EntryType.heading:
-        // Use level 1 heading style (default for entries without level info)
-        textStyle = textEntryTheme.headingStyles[1];
+        // Direct 1:1 mapping from JSON level, fallback to level 1
+        final level = (entry.level ?? 1).clamp(1, 5);
+        textStyle = textEntryTheme.headingStyles[level] ??
+            textEntryTheme.headingStyles[1];
         break;
       case EntryType.centered:
-        // Use level 0 centered style (normal weight, appropriate for most centered text)
-        textStyle = textEntryTheme.centeredStyles[0];
+        // Direct 1:1 mapping from JSON level, fallback to level 1
+        final level = (entry.level ?? 1).clamp(1, 5);
+        textStyle = textEntryTheme.centeredStyles[level] ??
+            textEntryTheme.centeredStyles[1];
         // Use TextEntryWidget for dictionary lookup on centered text too
         return Center(
           child: TextEntryWidget(
@@ -493,7 +497,21 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         );
       case EntryType.gatha:
         textStyle = textEntryTheme.gathaStyle;
-        break;
+        // Use level to determine padding (level 2 = deeper indent)
+        final gathaLevel = entry.level ?? 1;
+        final leftPadding = gathaLevel >= 2
+            ? textEntryTheme.gathaLevel2LeftPadding
+            : textEntryTheme.gathaLeftPadding;
+        return Padding(
+          padding: EdgeInsets.only(left: leftPadding),
+          child: TextEntryWidget(
+            text: entry.plainText,
+            style: textStyle,
+            textAlign: TextAlign.left,
+            enableTap: enableDictionaryLookup,
+            onWordTap: (word, _) => ref.read(selectedDictionaryWordProvider.notifier).state = removeConjunctFormatting(word),
+          ),
+        );
       case EntryType.unindented:
         textStyle = textEntryTheme.unindentedStyle;
         break;
@@ -505,7 +523,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     final textAlign = switch (entry.entryType) {
       EntryType.heading => TextAlign.center,
       EntryType.paragraph || EntryType.unindented => TextAlign.justify,
-      _ => TextAlign.left, // gatha
+      _ => TextAlign.left, // gatha (already returned above, but kept for safety)
     };
 
     return TextEntryWidget(

@@ -31,6 +31,10 @@ mixin _$Entry {
   /// Optional reference to a footnote
   String? get footnoteReference => throw _privateConstructorUsedError;
 
+  /// Hierarchy level for this entry (1-5 for heading/centered, 1-2 for gatha)
+  /// Higher numbers = higher in hierarchy (level 5 = book title, level 1 = sub-section)
+  int? get level => throw _privateConstructorUsedError;
+
   /// Create a copy of Entry
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -46,7 +50,8 @@ abstract class $EntryCopyWith<$Res> {
       {EntryType entryType,
       String rawText,
       String? segmentId,
-      String? footnoteReference});
+      String? footnoteReference,
+      int? level});
 }
 
 /// @nodoc
@@ -68,6 +73,7 @@ class _$EntryCopyWithImpl<$Res, $Val extends Entry>
     Object? rawText = null,
     Object? segmentId = freezed,
     Object? footnoteReference = freezed,
+    Object? level = freezed,
   }) {
     return _then(_value.copyWith(
       entryType: null == entryType
@@ -86,6 +92,10 @@ class _$EntryCopyWithImpl<$Res, $Val extends Entry>
           ? _value.footnoteReference
           : footnoteReference // ignore: cast_nullable_to_non_nullable
               as String?,
+      level: freezed == level
+          ? _value.level
+          : level // ignore: cast_nullable_to_non_nullable
+              as int?,
     ) as $Val);
   }
 }
@@ -101,7 +111,8 @@ abstract class _$$EntryImplCopyWith<$Res> implements $EntryCopyWith<$Res> {
       {EntryType entryType,
       String rawText,
       String? segmentId,
-      String? footnoteReference});
+      String? footnoteReference,
+      int? level});
 }
 
 /// @nodoc
@@ -121,6 +132,7 @@ class __$$EntryImplCopyWithImpl<$Res>
     Object? rawText = null,
     Object? segmentId = freezed,
     Object? footnoteReference = freezed,
+    Object? level = freezed,
   }) {
     return _then(_$EntryImpl(
       entryType: null == entryType
@@ -139,6 +151,10 @@ class __$$EntryImplCopyWithImpl<$Res>
           ? _value.footnoteReference
           : footnoteReference // ignore: cast_nullable_to_non_nullable
               as String?,
+      level: freezed == level
+          ? _value.level
+          : level // ignore: cast_nullable_to_non_nullable
+              as int?,
     ));
   }
 }
@@ -150,7 +166,8 @@ class _$EntryImpl extends _Entry {
       {required this.entryType,
       required this.rawText,
       this.segmentId,
-      this.footnoteReference})
+      this.footnoteReference,
+      this.level})
       : super._();
 
   /// The type of this entry (paragraph, heading, centered, etc.)
@@ -172,9 +189,14 @@ class _$EntryImpl extends _Entry {
   @override
   final String? footnoteReference;
 
+  /// Hierarchy level for this entry (1-5 for heading/centered, 1-2 for gatha)
+  /// Higher numbers = higher in hierarchy (level 5 = book title, level 1 = sub-section)
+  @override
+  final int? level;
+
   @override
   String toString() {
-    return 'Entry(entryType: $entryType, rawText: $rawText, segmentId: $segmentId, footnoteReference: $footnoteReference)';
+    return 'Entry(entryType: $entryType, rawText: $rawText, segmentId: $segmentId, footnoteReference: $footnoteReference, level: $level)';
   }
 
   @override
@@ -188,12 +210,13 @@ class _$EntryImpl extends _Entry {
             (identical(other.segmentId, segmentId) ||
                 other.segmentId == segmentId) &&
             (identical(other.footnoteReference, footnoteReference) ||
-                other.footnoteReference == footnoteReference));
+                other.footnoteReference == footnoteReference) &&
+            (identical(other.level, level) || other.level == level));
   }
 
   @override
   int get hashCode => Object.hash(
-      runtimeType, entryType, rawText, segmentId, footnoteReference);
+      runtimeType, entryType, rawText, segmentId, footnoteReference, level);
 
   /// Create a copy of Entry
   /// with the given fields replaced by the non-null parameter values.
@@ -209,7 +232,8 @@ abstract class _Entry extends Entry {
       {required final EntryType entryType,
       required final String rawText,
       final String? segmentId,
-      final String? footnoteReference}) = _$EntryImpl;
+      final String? footnoteReference,
+      final int? level}) = _$EntryImpl;
   const _Entry._() : super._();
 
   /// The type of this entry (paragraph, heading, centered, etc.)
@@ -230,6 +254,11 @@ abstract class _Entry extends Entry {
   /// Optional reference to a footnote
   @override
   String? get footnoteReference;
+
+  /// Hierarchy level for this entry (1-5 for heading/centered, 1-2 for gatha)
+  /// Higher numbers = higher in hierarchy (level 5 = book title, level 1 = sub-section)
+  @override
+  int? get level;
 
   /// Create a copy of Entry
   /// with the given fields replaced by the non-null parameter values.
