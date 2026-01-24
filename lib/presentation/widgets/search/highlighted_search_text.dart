@@ -30,7 +30,7 @@ class HighlightedSearchText extends StatelessWidget {
     required this.effectiveQuery,
     required this.isPhraseSearch,
     required this.isExactMatch,
-    this.maxLines = 3,
+    this.maxLines = 2,
   });
 
   @override
@@ -55,7 +55,6 @@ class HighlightedSearchText extends StatelessWidget {
 
     final highlightStyle = TextStyle(
       backgroundColor: theme.colorScheme.primaryContainer,
-      fontWeight: FontWeight.bold,
       color: theme.colorScheme.onPrimaryContainer,
     );
 
