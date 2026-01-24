@@ -2,39 +2,64 @@
 ///
 /// This file contains all font-related constants used throughout the app.
 /// Font families must match the names declared in pubspec.yaml.
+///
+/// The font system separates:
+/// - **Reader fonts** (serif): For reading content (Pali text, paragraphs)
+/// - **UI fonts** (sans-serif): For interface elements (buttons, labels, nav)
 abstract class AppFonts {
   // ============================================
   // Font Family Names (must match pubspec.yaml)
   // ============================================
 
+  // --- Reader Fonts (serif - for reading content) ---
+
   /// Serif font for Sinhala script content (Pali text)
   /// Better conjunct consonant rendering with ZWJ
-  static const String sinhala = 'NotoSerifSinhala';
-
-  /// Sans-serif font for Sinhala UI elements (buttons, labels, etc.)
-  static const String sinhalaUi = 'NotoSansSinhala';
+  static const String readerSinhala = 'NotoSerifSinhala';
 
   /// Serif font for romanized Pali with diacritics and English prose
-  static const String serif = 'NotoSerif';
+  static const String readerEnglish = 'NotoSerif';
+
+  // --- UI Fonts (sans-serif - for interface elements) ---
+
+  /// Sans-serif font for Sinhala UI elements (buttons, labels, etc.)
+  static const String uiSinhala = 'NotoSansSinhala';
+
+  /// Sans-serif font for English UI elements
+  static const String uiEnglish = 'NotoSans';
+
+  // --- Current App Fonts (easy to switch for locale later) ---
+
+  /// Current reader font - used for text content display
+  /// Change this to `readerEnglish` for English locale
+  static const String reader = readerSinhala;
+
+  /// Current UI font - used for buttons, labels, navigation
+  /// Change this to `uiEnglish` for English locale
+  static const String ui = uiSinhala;
 
   // ============================================
   // Fallback Font Stacks
   // ============================================
 
-  /// Fallback fonts for Sinhala content and UI
-  /// NotoSans provides Latin characters with matching Noto design language
-  /// Iskoola Pota is Windows default Sinhala font
-  static const List<String> sinhalaFallback = [
+  /// Fallback fonts for reader content (serif-based)
+  /// Georgia has good diacritics support for romanized Pali
+  static const List<String> readerFallback = [
+    'NotoSans', // Noto design language consistency
+    'Georgia', // Good diacritics
+    'Iskoola Pota', // Windows Sinhala fallback
+    'serif',
+  ];
+
+  /// Fallback fonts for UI elements (sans-serif based)
+  /// Prioritizes clean, readable interface fonts
+  static const List<String> uiFallback = [
     'NotoSans',
     'Iskoola Pota',
     'Roboto',
     'system-ui',
     'sans-serif',
   ];
-
-  /// Fallback fonts for serif content
-  /// Georgia has good diacritics support
-  static const List<String> serifFallback = ['Georgia', 'serif'];
 
   // ============================================
   // Line Heights (UI only)

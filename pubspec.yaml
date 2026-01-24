@@ -109,13 +109,22 @@ flutter:
   # Custom fonts for Sinhala script and cross-platform consistency
   # See docs/font_system_plan.md for font selection rationale
   fonts:
-    # Sinhala script for Pali content (primary reading font)
+    # Sinhala script for UI elements (sans-serif)
     - family: NotoSansSinhala
       fonts:
         - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-Regular.ttf
         - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-Medium.ttf
           weight: 500
         - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-SemiBold.ttf
+          weight: 600
+
+    # Sinhala script for Pali content (serif - better conjunct rendering)
+    - family: NotoSerifSinhala
+      fonts:
+        - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-Regular.ttf
+        - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-SemiBold.ttf
           weight: 600
 
     # Serif font for romanized Pali with diacritics and English

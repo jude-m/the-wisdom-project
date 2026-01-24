@@ -13,8 +13,9 @@ class AppTheme {
     return ThemeData(
       brightness: Brightness.light,
       useMaterial3: true,
-      fontFamily: AppFonts.sinhala,
-      fontFamilyFallback: AppFonts.sinhalaFallback,
+      // Global UI font (sans-serif) - reader content uses serif via TextEntryTheme
+      fontFamily: AppFonts.ui,
+      fontFamilyFallback: AppFonts.uiFallback,
 
       // Background colors
       scaffoldBackgroundColor: LightThemeColors.background,
@@ -81,8 +82,9 @@ class AppTheme {
     return ThemeData(
       brightness: Brightness.dark,
       useMaterial3: true,
-      fontFamily: AppFonts.sinhala,
-      fontFamilyFallback: AppFonts.sinhalaFallback,
+      // Global UI font (sans-serif) - reader content uses serif via TextEntryTheme
+      fontFamily: AppFonts.ui,
+      fontFamilyFallback: AppFonts.uiFallback,
 
       // Background colors
       scaffoldBackgroundColor: DarkThemeColors.background,
@@ -142,8 +144,9 @@ class AppTheme {
     return ThemeData(
       brightness: Brightness.dark, // Warm is a dark theme variant
       useMaterial3: true,
-      fontFamily: AppFonts.sinhala,
-      fontFamilyFallback: AppFonts.sinhalaFallback,
+      // Global UI font (sans-serif) - reader content uses serif via TextEntryTheme
+      fontFamily: AppFonts.ui,
+      fontFamilyFallback: AppFonts.uiFallback,
 
       // Background colors
       scaffoldBackgroundColor: WarmThemeColors.background,

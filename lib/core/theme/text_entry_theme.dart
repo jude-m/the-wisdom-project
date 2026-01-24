@@ -57,49 +57,50 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
 
   /// Standard typography configuration (color-independent)
   /// Colors should be provided by the theme's ColorScheme
+  /// Uses serif reader font (AppFonts.reader) for all reading content.
   factory TextEntryTheme.standard({
     required Color headingColor,
     required Color bodyColor,
   }) {
     return TextEntryTheme(
       // Heading styles by level (1-5)
-      // Uses Sinhala font for Pali headings rendered in Sinhala script
+      // Uses serif reader font for Pali headings rendered in Sinhala script
       headingStyles: {
-        5: TextStyle(
-          fontFamily: AppFonts.sinhala,
-          fontFamilyFallback: AppFonts.sinhalaFallback,
+        4: TextStyle(
+          fontFamily: AppFonts.reader,
+          fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.8,
           fontWeight: FontWeight.bold,
           color: headingColor,
           height: _headingLineHeight,
         ),
-        4: TextStyle(
-          fontFamily: AppFonts.sinhala,
-          fontFamilyFallback: AppFonts.sinhalaFallback,
+        3: TextStyle(
+          fontFamily: AppFonts.reader,
+          fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.7,
           fontWeight: FontWeight.bold,
           color: headingColor,
           height: _headingLineHeight,
         ),
-        3: TextStyle(
-          fontFamily: AppFonts.sinhala,
-          fontFamilyFallback: AppFonts.sinhalaFallback,
+        2: TextStyle(
+          fontFamily: AppFonts.reader,
+          fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.6,
           fontWeight: FontWeight.bold,
           color: headingColor,
           height: _headingLineHeight,
         ),
-        2: TextStyle(
-          fontFamily: AppFonts.sinhala,
-          fontFamilyFallback: AppFonts.sinhalaFallback,
+        1: TextStyle(
+          fontFamily: AppFonts.reader,
+          fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.4,
           fontWeight: FontWeight.bold,
           color: headingColor,
           height: _headingLineHeight,
         ),
-        1: TextStyle(
-          fontFamily: AppFonts.sinhala,
-          fontFamilyFallback: AppFonts.sinhalaFallback,
+        0: TextStyle(
+          fontFamily: AppFonts.reader,
+          fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.3,
           fontWeight: FontWeight.bold,
           color: headingColor,
@@ -108,51 +109,51 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
       },
 
       // Centered styles by level (0-5)
-      // Uses Sinhala font for centered Pali content
+      // Uses serif reader font for centered Pali content
       centeredStyles: {
         5: TextStyle(
-          fontFamily: AppFonts.sinhala,
-          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontFamily: AppFonts.reader,
+          fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 2.1,
           fontWeight: FontWeight.w600,
           color: bodyColor,
           height: _headingLineHeight,
         ),
         4: TextStyle(
-          fontFamily: AppFonts.sinhala,
-          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontFamily: AppFonts.reader,
+          fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.8,
           fontWeight: FontWeight.w600,
           color: bodyColor,
           height: _headingLineHeight,
         ),
         3: TextStyle(
-          fontFamily: AppFonts.sinhala,
-          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontFamily: AppFonts.reader,
+          fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.5,
           fontWeight: FontWeight.w600,
           color: bodyColor,
           height: _headingLineHeight,
         ),
         2: TextStyle(
-          fontFamily: AppFonts.sinhala,
-          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontFamily: AppFonts.reader,
+          fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.25,
           fontWeight: FontWeight.w600,
           color: bodyColor,
           height: _headingLineHeight,
         ),
         1: TextStyle(
-          fontFamily: AppFonts.sinhala,
-          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontFamily: AppFonts.reader,
+          fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize * 1.1,
           fontWeight: FontWeight.w600,
           color: bodyColor,
           height: _headingLineHeight,
         ),
         0: TextStyle(
-          fontFamily: AppFonts.sinhala,
-          fontFamilyFallback: AppFonts.sinhalaFallback,
+          fontFamily: AppFonts.reader,
+          fontFamilyFallback: AppFonts.readerFallback,
           fontSize: AppFonts.baseFontSize,
           fontWeight: FontWeight.normal, // Non-bold for level 0
           color: bodyColor,
@@ -161,20 +162,20 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
       },
 
       // Paragraph: normal text with first-line indent
-      // Uses Sinhala font for Pali content rendered in Sinhala script
+      // Uses serif reader font for Pali content rendered in Sinhala script
       paragraphStyle: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.reader,
+        fontFamilyFallback: AppFonts.readerFallback,
         fontSize: AppFonts.baseFontSize * 1.1,
         height: _paragraphLineHeight,
         color: bodyColor,
       ),
 
       // Gatha (verse): italic, left-padded
-      // Uses Sinhala font with tighter line height for verse grouping
+      // Uses serif reader font with tighter line height for verse grouping
       gathaStyle: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.reader,
+        fontFamilyFallback: AppFonts.readerFallback,
         fontSize: AppFonts.baseFontSize * 1.1,
         fontStyle: FontStyle.italic,
         height: _gathaLineHeight,
@@ -182,10 +183,10 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
       ),
 
       // Unindented: same as paragraph but NO indent/padding
-      // Uses Sinhala font, same line height as paragraph
+      // Uses serif reader font, same line height as paragraph
       unindentedStyle: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.reader,
+        fontFamilyFallback: AppFonts.readerFallback,
         fontSize: AppFonts.baseFontSize * 1.1,
         height: _paragraphLineHeight,
         color: bodyColor,

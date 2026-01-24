@@ -124,20 +124,21 @@ class AppTypography extends ThemeExtension<AppTypography> {
 
   /// Standard typography configuration.
   /// Colors are derived from the provided ColorScheme.
+  /// Uses sans-serif UI font (AppFonts.ui) for all interface elements.
   factory AppTypography.fromColorScheme(ColorScheme colorScheme) {
     return AppTypography(
       // Labels & Badges
       badgeLabel: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.badgeFontSize,
         fontWeight: FontWeight.w600,
         color: colorScheme.onPrimaryContainer,
         height: AppFonts.uiLineHeight,
       ),
       sectionHeader: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.labelFontSize,
         fontWeight: FontWeight.w600,
         color: colorScheme.primary,
@@ -145,8 +146,8 @@ class AppTypography extends ThemeExtension<AppTypography> {
         height: AppFonts.uiLineHeight,
       ),
       countBadge: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.badgeFontSize,
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurfaceVariant,
@@ -155,16 +156,16 @@ class AppTypography extends ThemeExtension<AppTypography> {
 
       // Chips
       chipLabel: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.labelFontSize,
         fontWeight: FontWeight.w400,
         color: colorScheme.onSurfaceVariant,
         height: AppFonts.uiLineHeight,
       ),
       chipLabelSelected: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.labelFontSize,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSecondaryContainer,
@@ -173,24 +174,24 @@ class AppTypography extends ThemeExtension<AppTypography> {
 
       // List Items
       resultTitle: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.baseFontSize,
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurface,
         height: AppFonts.uiLineHeight,
       ),
       resultSubtitle: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.treeFontSize,
         fontWeight: FontWeight.normal,
         color: colorScheme.onSurfaceVariant,
         height: AppFonts.uiLineHeight,
       ),
       resultMatchedText: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.treeFontSize,
         fontWeight: FontWeight.normal,
         color: colorScheme.onSurface,
@@ -199,32 +200,32 @@ class AppTypography extends ThemeExtension<AppTypography> {
 
       // Navigation
       tabLabelActive: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.tabFontSize,
         fontWeight: FontWeight.w600,
         color: colorScheme.primary,
         height: AppFonts.uiLineHeight,
       ),
       tabLabelInactive: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.tabFontSize,
         fontWeight: FontWeight.normal,
         color: colorScheme.onSurface,
         height: AppFonts.uiLineHeight,
       ),
       treeNodeLabel: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.treeFontSize,
         fontWeight: FontWeight.normal,
         color: colorScheme.onSurface,
         height: AppFonts.uiLineHeight,
       ),
       treeNodeLabelSelected: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.treeFontSize,
         fontWeight: FontWeight.w600,
         color: colorScheme.onPrimaryContainer,
@@ -233,24 +234,24 @@ class AppTypography extends ThemeExtension<AppTypography> {
 
       // Dialogs & Menus
       dialogTitle: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.baseFontSize * 1.25,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSurface,
         height: AppFonts.uiLineHeight,
       ),
       menuSectionLabel: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.labelFontSize,
         fontWeight: FontWeight.normal,
         color: colorScheme.onSurfaceVariant,
         height: AppFonts.uiLineHeight,
       ),
       segmentedButtonLabel: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.badgeFontSize,
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurface,
@@ -259,8 +260,8 @@ class AppTypography extends ThemeExtension<AppTypography> {
 
       // Input
       searchHint: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.baseFontSize,
         fontWeight: FontWeight.normal,
         color: colorScheme.onSurfaceVariant,
@@ -269,24 +270,24 @@ class AppTypography extends ThemeExtension<AppTypography> {
 
       // States & Feedback
       emptyStateMessage: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.baseFontSize,
         fontWeight: FontWeight.normal,
         color: colorScheme.onSurface.withValues(alpha: 0.6),
         height: AppFonts.uiLineHeight,
       ),
       errorMessage: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.treeFontSize,
         fontWeight: FontWeight.normal,
         color: colorScheme.error,
         height: AppFonts.uiLineHeight,
       ),
       pageNumber: TextStyle(
-        fontFamily: AppFonts.sinhala,
-        fontFamilyFallback: AppFonts.sinhalaFallback,
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.pageNumberFontSize,
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurface.withValues(alpha: 0.6),
