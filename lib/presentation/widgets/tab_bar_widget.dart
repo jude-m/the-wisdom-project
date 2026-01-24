@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/app_typography.dart';
 import '../providers/tab_provider.dart';
 
 class TabBarWidget extends ConsumerStatefulWidget {
@@ -270,13 +271,9 @@ class _TabItem extends StatelessWidget {
                 message: tab.fullName,
                 child: Text(
                   tab.label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                    color: isActive
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.onSurface,
-                  ),
+                  style: isActive
+                      ? context.typography.tabLabelActive
+                      : context.typography.tabLabelInactive,
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),

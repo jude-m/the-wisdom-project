@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/search_result.dart';
 import '../../../domain/entities/search/search_result_type.dart';
@@ -70,6 +71,7 @@ class GroupedFTSTile extends ConsumerWidget {
   /// Builds the primary result tile (identical to _SearchResultTile appearance)
   Widget _buildPrimaryTile(BuildContext context, ThemeData theme) {
     final result = group.primaryMatch;
+    final typography = context.typography;
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -83,16 +85,13 @@ class GroupedFTSTile extends ConsumerWidget {
         child: Center(
           child: Text(
             result.editionId.toUpperCase(),
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onPrimaryContainer,
-              fontWeight: FontWeight.w600,
-            ),
+            style: typography.badgeLabel,
           ),
         ),
       ),
       title: Text(
         result.title,
-        style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+        style: typography.resultTitle,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
@@ -102,9 +101,7 @@ class GroupedFTSTile extends ConsumerWidget {
           const SizedBox(height: 4),
           Text(
             result.subtitle,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            style: typography.resultSubtitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

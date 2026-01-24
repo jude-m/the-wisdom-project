@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/grouped_search_result.dart';
 import '../../../domain/entities/search/search_result_type.dart';
@@ -96,12 +97,12 @@ class SearchResultsPanel extends ConsumerWidget {
 
     // Invalid query - didn't search
     if (categorizedResults == null) {
-      return _buildEmptyState(theme, isInvalidQuery: true);
+      return _buildEmptyState(context, isInvalidQuery: true);
     }
 
     // Valid query - searched but no results
     if (categorizedResults.isEmpty) {
-      return _buildEmptyState(theme, isInvalidQuery: false);
+      return _buildEmptyState(context, isInvalidQuery: false);
     }
 
     // Build categorized results - use grouped tiles for fullText, dictionary tiles for definitions
@@ -115,7 +116,7 @@ class SearchResultsPanel extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Section header
-                      _sectionHeader(theme, resultType.displayName.toUpperCase()),
+                      _sectionHeader(context, resultType.displayName.toUpperCase()),
                       // Use appropriate tile type for each result type
                       if (resultType == SearchResultType.fullText)
                         ..._buildGroupedFTSResults(
@@ -222,12 +223,12 @@ class SearchResultsPanel extends ConsumerWidget {
       data: (results) {
         // Invalid query - didn't search
         if (results == null) {
-          return _buildEmptyState(theme, isInvalidQuery: true);
+          return _buildEmptyState(context, isInvalidQuery: true);
         }
         // Valid query - no results
         if (results.isEmpty) {
           return _buildEmptyState(
-            theme,
+            context,
             isInvalidQuery: false,
             resultTypeName: selectedResultType.displayName.toLowerCase(),
           );
@@ -356,26 +357,23 @@ class SearchResultsPanel extends ConsumerWidget {
   }
 
   /// Section header widget
-  Widget _sectionHeader(ThemeData theme, String title) {
+  Widget _sectionHeader(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Text(
         title,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 1.2,
-        ),
+        style: context.typography.sectionHeader,
       ),
     );
   }
 
   /// Builds empty state widget for invalid query or no results
   Widget _buildEmptyState(
-    ThemeData theme, {
+    BuildContext context, {
     required bool isInvalidQuery,
     String? resultTypeName,
   }) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -394,9 +392,7 @@ class SearchResultsPanel extends ConsumerWidget {
                   : resultTypeName != null
                       ? 'No $resultTypeName found'
                       : 'No results found',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: context.typography.emptyStateMessage,
               textAlign: TextAlign.center,
             ),
           ],
@@ -549,9 +545,7 @@ class _CountBadge extends StatelessWidget {
       ),
       child: Text(
         displayText,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
+        style: context.typography.countBadge,
       ),
     );
   }
@@ -586,6 +580,7 @@ class _SearchResultTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final typography = context.typography;
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -599,17 +594,14 @@ class _SearchResultTile extends StatelessWidget {
         child: Center(
           child: Text(
             searchResult.editionId.toUpperCase(),
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onPrimaryContainer,
-              fontWeight: FontWeight.w600,
-            ),
+            style: typography.badgeLabel,
           ),
         ),
       ),
       // Title is never highlighted - just plain text
       title: Text(
         searchResult.title,
-        style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+        style: typography.resultTitle,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
@@ -619,9 +611,7 @@ class _SearchResultTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             searchResult.subtitle,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            style: typography.resultSubtitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

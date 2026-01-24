@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/app_typography.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../models/reader_tab.dart';
 import '../providers/navigation_tree_provider.dart';
@@ -229,17 +230,9 @@ class TreeNodeWidget extends ConsumerWidget {
                       Expanded(
                         child: Text(
                           displayName,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                            color: isSelected
-                                ? Theme.of(context)
-                                    .colorScheme
-                                    .onPrimaryContainer
-                                : null,
-                          ),
+                          style: isSelected
+                              ? context.typography.treeNodeLabelSelected
+                              : context.typography.treeNodeLabel,
                         ),
                       ),
                     ],

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/app_typography.dart';
+import '../../core/theme/text_entry_theme.dart';
 import '../models/column_display_mode.dart';
 import '../../domain/entities/content/entry.dart';
 import '../../domain/entities/content/entry_type.dart';
@@ -200,13 +202,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                           const SizedBox(height: 16),
                           Text(
                             'Select a sutta from the tree to begin reading',
-                            style:
-                                Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withValues(alpha: 0.6),
-                                    ),
+                            style: context.typography.emptyStateMessage,
                           ),
                         ],
                       ),
@@ -446,11 +442,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       height: 20, // Fixed height to ensure alignment
       child: Text(
         '$pageNumber',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-              fontWeight: FontWeight.w500,
-              height: 1.0, // Set line height to prevent extra spacing
-            ),
+        style: context.typography.pageNumber,
       ),
     );
   }
@@ -477,19 +469,17 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     Entry entry, {
     bool enableDictionaryLookup = false,
   }) {
+    final textEntryTheme = context.textEntryTheme;
     TextStyle? textStyle;
 
     switch (entry.entryType) {
       case EntryType.heading:
-        textStyle = Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.secondary,
-            );
+        // Use level 1 heading style (default for entries without level info)
+        textStyle = textEntryTheme.headingStyles[1];
         break;
       case EntryType.centered:
-        textStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            );
+        // Use level 0 centered style (normal weight, appropriate for most centered text)
+        textStyle = textEntryTheme.centeredStyles[0];
         // Use TextEntryWidget for dictionary lookup on centered text too
         return Center(
           child: TextEntryWidget(
@@ -501,16 +491,13 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
           ),
         );
       case EntryType.gatha:
-        textStyle = Theme.of(context).textTheme.bodyLarge?.copyWith(
-              fontStyle: FontStyle.italic,
-              height: 1.6,
-            );
+        textStyle = textEntryTheme.gathaStyle;
         break;
       case EntryType.unindented:
+        textStyle = textEntryTheme.unindentedStyle;
+        break;
       case EntryType.paragraph:
-        textStyle = Theme.of(context).textTheme.bodyLarge?.copyWith(
-              height: 1.8,
-            );
+        textStyle = textEntryTheme.paragraphStyle;
         break;
     }
 

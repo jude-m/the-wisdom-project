@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_fonts.dart';
+import 'app_typography.dart';
 import 'text_entry_theme.dart';
 
 /// Application theme builder
@@ -48,11 +49,27 @@ class AppTheme {
 
       ),
 
-      // Text entry typography
+      // Typography extensions
       extensions: [
         TextEntryTheme.standard(
           headingColor: LightThemeColors.primary,
           bodyColor: LightThemeColors.onBackground,
+        ),
+        AppTypography.fromColorScheme(
+          ColorScheme.light(
+            primary: LightThemeColors.primary,
+            onPrimary: LightThemeColors.onPrimary,
+            secondary: LightThemeColors.accent,
+            onSecondary: LightThemeColors.onPrimary,
+            surface: LightThemeColors.surface,
+            onSurface: LightThemeColors.onBackground,
+            onSurfaceVariant: LightThemeColors.onBackground.withValues(alpha: 0.7),
+            primaryContainer: LightThemeColors.accent.withValues(alpha: 0.2),
+            onPrimaryContainer: LightThemeColors.primary,
+            secondaryContainer: LightThemeColors.secondaryContainer,
+            onSecondaryContainer: LightThemeColors.onSecondaryContainer,
+            error: LightThemeColors.error,
+          ),
         ),
       ],
     );
@@ -95,11 +112,25 @@ class AppTheme {
         outlineVariant: DarkThemeColors.divider.withValues(alpha: 0.5),
       ),
 
-      // Text entry typography
+      // Typography extensions
       extensions: [
         TextEntryTheme.standard(
           headingColor: DarkThemeColors.primary,
           bodyColor: DarkThemeColors.onBackground,
+        ),
+        AppTypography.fromColorScheme(
+          ColorScheme.dark(
+            primary: DarkThemeColors.primary,
+            onPrimary: DarkThemeColors.onPrimary,
+            secondary: DarkThemeColors.accent,
+            onSecondary: DarkThemeColors.onPrimary,
+            surface: DarkThemeColors.surface,
+            onSurface: DarkThemeColors.onBackground,
+            onSurfaceVariant: DarkThemeColors.onBackground.withValues(alpha: 0.7),
+            primaryContainer: DarkThemeColors.accent.withValues(alpha: 0.2),
+            onPrimaryContainer: DarkThemeColors.primary,
+            error: DarkThemeColors.error,
+          ),
         ),
       ],
     );
@@ -142,11 +173,25 @@ class AppTheme {
         outlineVariant: WarmThemeColors.divider.withValues(alpha: 0.5),
       ),
 
-      // Text entry typography
+      // Typography extensions
       extensions: [
         TextEntryTheme.standard(
           headingColor: WarmThemeColors.primary,
           bodyColor: WarmThemeColors.onBackground,
+        ),
+        AppTypography.fromColorScheme(
+          ColorScheme.dark(
+            primary: WarmThemeColors.primary,
+            onPrimary: WarmThemeColors.onPrimary,
+            secondary: WarmThemeColors.accent,
+            onSecondary: WarmThemeColors.onPrimary,
+            surface: WarmThemeColors.surface,
+            onSurface: WarmThemeColors.onBackground,
+            onSurfaceVariant: WarmThemeColors.onBackground.withValues(alpha: 0.7),
+            primaryContainer: WarmThemeColors.accent.withValues(alpha: 0.25),
+            onPrimaryContainer: WarmThemeColors.primary,
+            error: WarmThemeColors.error,
+          ),
         ),
       ],
     );

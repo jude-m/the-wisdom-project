@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/search/scope_operations.dart';
 import '../../../domain/entities/search/search_scope_chip.dart';
 import '../../providers/search_provider.dart';
@@ -132,6 +133,7 @@ class _ScopeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final typography = context.typography;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -152,12 +154,9 @@ class _ScopeChip extends StatelessWidget {
         child: Center(
           child: Text(
             label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: isSelected
-                  ? theme.colorScheme.onSecondaryContainer
-                  : theme.colorScheme.onSurfaceVariant,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-            ),
+            style: isSelected
+                ? typography.chipLabelSelected
+                : typography.chipLabel,
           ),
         ),
       ),
@@ -180,6 +179,7 @@ class _RefineChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final typography = context.typography;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -211,12 +211,11 @@ class _RefineChip extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               'Refine',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: hasActiveFilters
-                    ? theme.colorScheme.onPrimaryContainer
-                    : theme.colorScheme.onSurfaceVariant,
-                fontWeight: hasActiveFilters ? FontWeight.w600 : FontWeight.w400,
-              ),
+              style: hasActiveFilters
+                  ? typography.chipLabelSelected.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                    )
+                  : typography.chipLabel,
             ),
             // Active indicator dot
             if (hasActiveFilters) ...[

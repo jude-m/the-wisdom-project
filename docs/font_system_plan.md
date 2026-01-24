@@ -8,6 +8,70 @@ This document analyzes the current typography system in The Wisdom Project and p
 
 ---
 
+## Typography Centralization (January 2025)
+
+Created a single source of truth for ALL text styling using Flutter's ThemeExtension pattern.
+
+### Architecture
+
+```
+AppFonts (constants)
+    ├── Font families (sinhala, serif)
+    ├── Fallback stacks
+    ├── Base font size
+    ├── UI font sizes (badge, label, tab, tree, pageNumber)
+    └── UI line height
+
+TextEntryTheme (content styles) ← Uses AppFonts
+    ├── Content line heights (paragraph, gatha, heading)
+    ├── headingStyles[1-5]
+    ├── centeredStyles[0-5]
+    ├── paragraphStyle
+    ├── gathaStyle
+    └── unindentedStyle
+
+AppTypography (UI styles) ← Uses AppFonts
+    ├── Labels: badgeLabel, sectionHeader, countBadge
+    ├── Chips: chipLabel, chipLabelSelected
+    ├── List items: resultTitle, resultSubtitle, resultMatchedText
+    ├── Navigation: tabLabelActive/Inactive, treeNodeLabel/Selected
+    ├── Dialogs: dialogTitle, menuSectionLabel, segmentedButtonLabel
+    ├── Input: searchHint
+    └── States: emptyStateMessage, errorMessage, pageNumber
+```
+
+### Usage
+
+```dart
+// Content styles (reader text)
+Text(paragraph, style: context.textEntryTheme.paragraphStyle);
+Text(heading, style: context.textEntryTheme.headingStyles[1]);
+
+// UI styles (buttons, badges, tabs)
+Text('BJT', style: context.typography.badgeLabel);
+Text('Results', style: context.typography.sectionHeader);
+Text(label, style: isActive ? context.typography.tabLabelActive : context.typography.tabLabelInactive);
+```
+
+### Files Changed
+
+| File | Purpose |
+|------|---------|
+| `lib/core/theme/app_fonts.dart` | Added UI font size constants |
+| `lib/core/theme/app_typography.dart` | **NEW** - 19 UI text styles |
+| `lib/core/theme/text_entry_theme.dart` | Content line heights moved here |
+| `lib/core/theme/app_theme.dart` | Registered AppTypography for all themes |
+| `lib/presentation/widgets/...` | Migrated 14 files to use extensions |
+
+### Benefits
+
+- **Single source of truth**: Change font in one place, affects entire app
+- **Separation of concerns**: Content vs UI typography clearly separated
+- **Theme support**: All styles adapt to light/dark/warm themes automatically
+- **Type-safe access**: `context.typography.badgeLabel` instead of manual `copyWith()`
+
+---
+
 ## Part 1: Current Situation Analysis
 
 ### What's Currently in Place

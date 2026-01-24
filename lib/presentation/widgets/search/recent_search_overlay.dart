@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../providers/search_provider.dart';
 import '../../../domain/entities/search/recent_search.dart';
 
@@ -81,7 +82,7 @@ class RecentSearchOverlay extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(theme, 'RECENT SEARCHES'),
+        _sectionHeader(context, 'RECENT SEARCHES'),
         ...recentSearches.map((search) => ListTile(
               dense: true,
               leading: Icon(
@@ -118,16 +119,12 @@ class RecentSearchOverlay extends ConsumerWidget {
     );
   }
 
-  Widget _sectionHeader(ThemeData theme, String title) {
+  Widget _sectionHeader(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Text(
         title,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 1.2,
-        ),
+        style: context.typography.sectionHeader,
       ),
     );
   }

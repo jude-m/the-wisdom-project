@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/constants.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../domain/entities/dictionary/dictionary_entry.dart';
 import '../../../domain/entities/dictionary/dictionary_info.dart';
@@ -196,12 +197,7 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
             const SizedBox(height: 16),
             Text(
               AppLocalizations.of(context).noDefinitionsFound,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.7),
-                  ),
+              style: context.typography.emptyStateMessage,
             ),
           ],
         ),
@@ -224,9 +220,7 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
             const SizedBox(height: 16),
             Text(
               AppLocalizations.of(context).errorLoadingDefinitions,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
+              style: context.typography.errorMessage,
             ),
           ],
         ),
@@ -262,6 +256,8 @@ class _DictionaryEntryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final dictInfo = DictionaryInfo.getById(entry.dictionaryId);
     final theme = Theme.of(context);
+    final typography = context.typography;
+    final dictColor = DictionaryInfo.getColor(entry.dictionaryId, theme);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -275,15 +271,12 @@ class _DictionaryEntryTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: DictionaryInfo.getColor(entry.dictionaryId, theme).withValues(alpha: 0.15),
+                  color: dictColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   dictInfo?.abbreviation ?? entry.dictionaryId,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: DictionaryInfo.getColor(entry.dictionaryId, theme),
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: typography.badgeLabel.copyWith(color: dictColor),
                 ),
               ),
               const SizedBox(width: 8),
@@ -291,9 +284,7 @@ class _DictionaryEntryTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   entry.word,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: typography.resultTitle.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
             ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/app_typography.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../domain/entities/navigation/navigation_language.dart';
 import '../models/column_display_mode.dart';
@@ -27,9 +28,7 @@ class SettingsMenuButton extends ConsumerWidget {
             children: [
               Text(
                 'Theme',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                style: context.typography.menuSectionLabel,
               ),
               const SizedBox(height: 8),
               _ThemeSelector(),
@@ -47,9 +46,7 @@ class SettingsMenuButton extends ConsumerWidget {
             children: [
               Text(
                 'Navigation Language',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                style: context.typography.menuSectionLabel,
               ),
               const SizedBox(height: 8),
               _LanguageSelector(),
@@ -67,9 +64,7 @@ class SettingsMenuButton extends ConsumerWidget {
             children: [
               Text(
                 'Sutta Language',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                style: context.typography.menuSectionLabel,
               ),
               const SizedBox(height: 8),
               _SuttaLanguageSelector(),
@@ -150,20 +145,21 @@ class _SuttaLanguageSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentMode = ref.watch(columnDisplayModeProvider);
+    final segmentStyle = context.typography.segmentedButtonLabel;
 
     return SegmentedButton<ColumnDisplayMode>(
-      segments: const [
+      segments: [
         ButtonSegment(
           value: ColumnDisplayMode.paliOnly,
-          label: Text('P', style: TextStyle(fontSize: 11)),
+          label: Text('P', style: segmentStyle),
         ),
         ButtonSegment(
           value: ColumnDisplayMode.both,
-          label: Text('P+S', style: TextStyle(fontSize: 11)),
+          label: Text('P+S', style: segmentStyle),
         ),
         ButtonSegment(
           value: ColumnDisplayMode.sinhalaOnly,
-          label: Text('S', style: TextStyle(fontSize: 11)),
+          label: Text('S', style: segmentStyle),
         ),
       ],
       selected: {currentMode},

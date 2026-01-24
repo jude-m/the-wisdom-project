@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/string_extensions.dart';
 import '../../../domain/entities/dictionary/dictionary_info.dart';
 import '../../../domain/entities/search/search_result.dart';
@@ -23,7 +24,9 @@ class DictionarySearchResultTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final typography = context.typography;
     final dictInfo = DictionaryInfo.getById(result.editionId);
+    final dictColor = DictionaryInfo.getColor(result.editionId, theme);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -31,22 +34,19 @@ class DictionarySearchResultTile extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: DictionaryInfo.getColor(result.editionId, theme).withValues(alpha: 0.15),
+          color: dictColor.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Center(
           child: Text(
             dictInfo?.abbreviation ?? result.editionId,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: DictionaryInfo.getColor(result.editionId, theme),
-              fontWeight: FontWeight.w600,
-            ),
+            style: typography.badgeLabel.copyWith(color: dictColor),
           ),
         ),
       ),
       title: Text(
         result.title, // The word
-        style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+        style: typography.resultTitle.copyWith(fontWeight: FontWeight.w600),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -56,9 +56,7 @@ class DictionarySearchResultTile extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             result.subtitle, // Dictionary name
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            style: typography.resultSubtitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -66,9 +64,7 @@ class DictionarySearchResultTile extends StatelessWidget {
           // Truncated meaning (strip HTML using extension method)
           Text(
             result.matchedText.stripHtml(),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
-            ),
+            style: typography.resultMatchedText,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),

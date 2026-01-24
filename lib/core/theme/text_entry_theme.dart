@@ -1,6 +1,24 @@
 import 'package:flutter/material.dart';
 import 'app_fonts.dart';
 
+// ============================================
+// Content-Specific Line Heights
+// ============================================
+// These are only used by TextEntryTheme, so they live here
+// rather than in AppFonts (which holds shared UI constants).
+
+/// Line height for paragraph text (body content)
+/// Optimized for Sinhala readability - slightly generous spacing
+const double _paragraphLineHeight = 1.5;
+
+/// Line height for gatha (verse) entries
+/// Tighter than paragraphs to visually group verse lines
+const double _gathaLineHeight = 1.4;
+
+/// Line height for headings
+/// Tight spacing for visual hierarchy
+const double _headingLineHeight = 1.2;
+
 /// Theme extension for text entry styles
 /// Centralizes all text rendering styles in one place
 /// Based on the original Vue.js app CSS styles (TextEntry.vue)
@@ -53,7 +71,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           fontSize: AppFonts.baseFontSize * 1.8,
           fontWeight: FontWeight.bold,
           color: headingColor,
-          height: AppFonts.headingLineHeight,
+          height: _headingLineHeight,
         ),
         4: TextStyle(
           fontFamily: AppFonts.sinhala,
@@ -61,7 +79,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           fontSize: AppFonts.baseFontSize * 1.7,
           fontWeight: FontWeight.bold,
           color: headingColor,
-          height: AppFonts.headingLineHeight,
+          height: _headingLineHeight,
         ),
         3: TextStyle(
           fontFamily: AppFonts.sinhala,
@@ -69,7 +87,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           fontSize: AppFonts.baseFontSize * 1.6,
           fontWeight: FontWeight.bold,
           color: headingColor,
-          height: AppFonts.headingLineHeight,
+          height: _headingLineHeight,
         ),
         2: TextStyle(
           fontFamily: AppFonts.sinhala,
@@ -77,7 +95,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           fontSize: AppFonts.baseFontSize * 1.4,
           fontWeight: FontWeight.bold,
           color: headingColor,
-          height: AppFonts.headingLineHeight,
+          height: _headingLineHeight,
         ),
         1: TextStyle(
           fontFamily: AppFonts.sinhala,
@@ -85,7 +103,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           fontSize: AppFonts.baseFontSize * 1.3,
           fontWeight: FontWeight.bold,
           color: headingColor,
-          height: AppFonts.headingLineHeight,
+          height: _headingLineHeight,
         ),
       },
 
@@ -98,7 +116,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           fontSize: AppFonts.baseFontSize * 2.1,
           fontWeight: FontWeight.w600,
           color: bodyColor,
-          height: AppFonts.headingLineHeight,
+          height: _headingLineHeight,
         ),
         4: TextStyle(
           fontFamily: AppFonts.sinhala,
@@ -106,7 +124,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           fontSize: AppFonts.baseFontSize * 1.8,
           fontWeight: FontWeight.w600,
           color: bodyColor,
-          height: AppFonts.headingLineHeight,
+          height: _headingLineHeight,
         ),
         3: TextStyle(
           fontFamily: AppFonts.sinhala,
@@ -114,7 +132,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           fontSize: AppFonts.baseFontSize * 1.5,
           fontWeight: FontWeight.w600,
           color: bodyColor,
-          height: AppFonts.headingLineHeight,
+          height: _headingLineHeight,
         ),
         2: TextStyle(
           fontFamily: AppFonts.sinhala,
@@ -122,7 +140,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           fontSize: AppFonts.baseFontSize * 1.25,
           fontWeight: FontWeight.w600,
           color: bodyColor,
-          height: AppFonts.headingLineHeight,
+          height: _headingLineHeight,
         ),
         1: TextStyle(
           fontFamily: AppFonts.sinhala,
@@ -130,7 +148,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           fontSize: AppFonts.baseFontSize * 1.1,
           fontWeight: FontWeight.w600,
           color: bodyColor,
-          height: AppFonts.headingLineHeight,
+          height: _headingLineHeight,
         ),
         0: TextStyle(
           fontFamily: AppFonts.sinhala,
@@ -138,7 +156,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           fontSize: AppFonts.baseFontSize,
           fontWeight: FontWeight.normal, // Non-bold for level 0
           color: bodyColor,
-          height: AppFonts.headingLineHeight,
+          height: _headingLineHeight,
         ),
       },
 
@@ -148,7 +166,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         fontFamily: AppFonts.sinhala,
         fontFamilyFallback: AppFonts.sinhalaFallback,
         fontSize: AppFonts.baseFontSize * 1.1,
-        height: AppFonts.paragraphLineHeight,
+        height: _paragraphLineHeight,
         color: bodyColor,
       ),
 
@@ -159,7 +177,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         fontFamilyFallback: AppFonts.sinhalaFallback,
         fontSize: AppFonts.baseFontSize * 1.1,
         fontStyle: FontStyle.italic,
-        height: AppFonts.gathaLineHeight,
+        height: _gathaLineHeight,
         color: bodyColor,
       ),
 
@@ -169,7 +187,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         fontFamily: AppFonts.sinhala,
         fontFamilyFallback: AppFonts.sinhalaFallback,
         fontSize: AppFonts.baseFontSize * 1.1,
-        height: AppFonts.paragraphLineHeight,
+        height: _paragraphLineHeight,
         color: bodyColor,
       ),
     );

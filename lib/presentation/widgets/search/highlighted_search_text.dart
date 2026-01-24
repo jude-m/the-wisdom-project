@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/text_utils.dart';
 
 /// Displays text with search query matches highlighted.
@@ -35,14 +36,16 @@ class HighlightedSearchText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return _buildHighlightedText(matchedText, theme);
+    return _buildHighlightedText(context, matchedText, theme);
   }
 
   /// Main entry point for building highlighted text.
-  Widget _buildHighlightedText(String matchedText, ThemeData theme) {
-    final baseStyle = theme.textTheme.bodySmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-    );
+  Widget _buildHighlightedText(
+    BuildContext context,
+    String matchedText,
+    ThemeData theme,
+  ) {
+    final baseStyle = context.typography.resultMatchedText;
 
     final queryWords = _splitWords(effectiveQuery);
     final normalizedQuery = normalizeText(effectiveQuery, toLowerCase: true);

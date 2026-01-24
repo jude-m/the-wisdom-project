@@ -7,9 +7,12 @@ abstract class AppFonts {
   // Font Family Names (must match pubspec.yaml)
   // ============================================
 
-  /// Primary font for Sinhala script (used for both content and UI)
-  /// Handles Pali text rendered in Sinhala script
-  static const String sinhala = 'NotoSansSinhala';
+  /// Serif font for Sinhala script content (Pali text)
+  /// Better conjunct consonant rendering with ZWJ
+  static const String sinhala = 'NotoSerifSinhala';
+
+  /// Sans-serif font for Sinhala UI elements (buttons, labels, etc.)
+  static const String sinhalaUi = 'NotoSansSinhala';
 
   /// Serif font for romanized Pali with diacritics and English prose
   static const String serif = 'NotoSerif';
@@ -34,22 +37,12 @@ abstract class AppFonts {
   static const List<String> serifFallback = ['Georgia', 'serif'];
 
   // ============================================
-  // Line Heights
+  // Line Heights (UI only)
   // ============================================
+  // Note: Content-specific line heights (paragraph, gatha, heading)
+  // are defined in TextEntryTheme for better separation of concerns.
 
-  /// Line height for paragraph text (body content)
-  /// Optimized for Sinhala readability - slightly generous spacing
-  static const double paragraphLineHeight = 1.5;
-
-  /// Line height for gatha (verse) entries
-  /// Tighter than paragraphs to visually group verse lines
-  static const double gathaLineHeight = 1.4;
-
-  /// Line height for headings
-  /// Tight spacing for visual hierarchy
-  static const double headingLineHeight = 1.2;
-
-  /// Line height for UI elements (buttons, labels)
+  /// Line height for UI elements (buttons, labels, badges)
   /// Standard tight spacing for interface text
   static const double uiLineHeight = 1.4;
 
@@ -60,4 +53,23 @@ abstract class AppFonts {
   /// Base font size used for scaling calculations
   /// All other sizes are multipliers of this value
   static const double baseFontSize = 16.0;
+
+  // ============================================
+  // UI Font Sizes
+  // ============================================
+
+  /// Font size for small badges and edition IDs (BJT, SC)
+  static const double badgeFontSize = 11.0;
+
+  /// Font size for small labels and chip text
+  static const double labelFontSize = 12.0;
+
+  /// Font size for tabs and secondary UI elements
+  static const double tabFontSize = 13.0;
+
+  /// Font size for tree nodes and primary UI text
+  static const double treeFontSize = 14.0;
+
+  /// Font size for page numbers and counts
+  static const double pageNumberFontSize = 12.0;
 }
