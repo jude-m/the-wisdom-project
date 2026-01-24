@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/text_entry_theme.dart';
+import '../../core/utils/pali_conjunct_transformer.dart';
 import '../models/column_display_mode.dart';
 import '../../domain/entities/content/entry.dart';
 import '../../domain/entities/content/entry_type.dart';
@@ -487,7 +488,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             style: textStyle,
             textAlign: TextAlign.center,
             enableTap: enableDictionaryLookup,
-            onWordTap: (word, _) => ref.read(selectedDictionaryWordProvider.notifier).state = word,
+            onWordTap: (word, _) => ref.read(selectedDictionaryWordProvider.notifier).state = removeConjunctFormatting(word),
           ),
         );
       case EntryType.gatha:
@@ -512,7 +513,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       style: textStyle,
       textAlign: textAlign,
       enableTap: enableDictionaryLookup,
-      onWordTap: (word, _) => ref.read(selectedDictionaryWordProvider.notifier).state = word,
+      onWordTap: (word, _) => ref.read(selectedDictionaryWordProvider.notifier).state = removeConjunctFormatting(word),
     );
   }
 }

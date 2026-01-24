@@ -106,3 +106,27 @@ String applyConjunctConsonants(String text) {
 
   return result;
 }
+
+/// Removes ZWJ/ZWNJ formatting from text for dictionary lookup.
+///
+/// When text is transformed by [applyConjunctConsonants], it contains ZWJ
+/// characters that create visual conjuncts. However, dictionary databases
+/// store text without these formatting characters.
+///
+/// This function strips ZWJ (U+200D) and ZWNJ (U+200C) to enable proper
+/// dictionary lookups.
+///
+/// Example:
+/// ```dart
+/// final transformed = 'පරිබ‍්බාජකො'; // contains ZWJ
+/// final clean = removeConjunctFormatting(transformed);
+/// // Returns 'පරිබ්බාජකො' (without ZWJ) - ready for dictionary lookup
+/// ```
+///
+/// Note: This does NOT reverse vowel conversion (ෙ→ේ, ො→ෝ).
+/// If the dictionary stores long vowels, additional handling would be needed.
+String removeConjunctFormatting(String text) {
+  return text
+      .replaceAll(_zwj, '') // Remove Zero-Width Joiner
+      .replaceAll(_zwnj, ''); // Remove Zero-Width Non-Joiner
+}
