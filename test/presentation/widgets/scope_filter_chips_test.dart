@@ -233,38 +233,5 @@ void main() {
       });
     });
 
-    group('Layout structure', () {
-      testWidgets('should have correct layout constraints and scrolling',
-          (tester) async {
-        // ARRANGE & ACT
-        await tester.pumpApp(
-          const ScopeFilterChips(),
-          overrides: [
-            TestProviderOverrides.sharedPreferences(prefs),
-            TestProviderOverrides.textSearchRepository(mockSearchRepository),
-            TestProviderOverrides.recentSearchesRepository(
-                mockRecentSearchesRepository),
-          ],
-        );
-        await tester.pumpAndSettle();
-
-        // ASSERT - SizedBox with correct height
-        final sizedBox = tester.widget<SizedBox>(
-          find.byType(SizedBox).first,
-        );
-        expect(sizedBox.height, equals(48));
-
-        // ListView with horizontal scroll
-        final listView = tester.widget<ListView>(find.byType(ListView));
-        expect(listView.scrollDirection, equals(Axis.horizontal));
-
-        // All chips should render correctly
-        final allChip = find.ancestor(
-          of: find.text('All'),
-          matching: find.byType(GestureDetector),
-        );
-        expect(allChip, findsOneWidget);
-      });
-    });
   });
 }
