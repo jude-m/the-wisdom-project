@@ -249,5 +249,15 @@
   "errorLoadingDefinitions": "Error loading definitions",
   "@errorLoadingDefinitions": {
     "description": "Error message when dictionary lookup fails"
+  },
+
+  "commentary": "Commentary",
+  "@commentary": {
+    "description": "Label for button to navigate to commentary (atthakatha) of current text"
+  },
+
+  "rootText": "Root Text",
+  "@rootText": {
+    "description": "Label for button to navigate to root text (sutta) from commentary"
   }
 }

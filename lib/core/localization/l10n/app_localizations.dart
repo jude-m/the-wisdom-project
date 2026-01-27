@@ -391,6 +391,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Error loading definitions'**
   String get errorLoadingDefinitions;
+
+  /// Label for button to navigate to commentary (atthakatha) of current text
+  ///
+  /// In en, this message translates to:
+  /// **'Commentary'**
+  String get commentary;
+
+  /// Label for button to navigate to root text (sutta) from commentary
+  ///
+  /// In en, this message translates to:
+  /// **'Root Text'**
+  String get rootText;
 }
 
 class _AppLocalizationsDelegate

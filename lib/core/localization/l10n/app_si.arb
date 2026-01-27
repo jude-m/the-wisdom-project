@@ -97,5 +97,9 @@
 
   "dictionaryLookup": "ශබ්දකෝෂය",
 
-  "errorLoadingDefinitions": "අර්ථ දැක්වීම් පූරණය කිරීමේ දෝෂයකි"
+  "errorLoadingDefinitions": "අර්ථ දැක්වීම් පූරණය කිරීමේ දෝෂයකි",
+
+  "commentary": "අටුවාව",
+
+  "rootText": "මූල පාඨය"
 }

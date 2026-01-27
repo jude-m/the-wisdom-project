@@ -157,4 +157,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorLoadingDefinitions => 'Error loading definitions';
+
+  @override
+  String get commentary => 'Commentary';
+
+  @override
+  String get rootText => 'Root Text';
 }

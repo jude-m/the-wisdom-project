@@ -157,4 +157,10 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get errorLoadingDefinitions => 'අර්ථ දැක්වීම් පූරණය කිරීමේ දෝෂයකි';
+
+  @override
+  String get commentary => 'අටුවාව';
+
+  @override
+  String get rootText => 'මූල පාඨය';
 }

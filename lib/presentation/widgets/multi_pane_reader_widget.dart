@@ -17,6 +17,7 @@ import '../providers/tab_provider.dart'
         activePageEndProvider,
         activeEntryStartProvider;
 import 'reader/text_entry_widget.dart';
+import 'reader/parallel_text_button.dart';
 import 'dictionary/dictionary_bottom_sheet.dart';
 
 class MultiPaneReaderWidget extends ConsumerStatefulWidget {
@@ -285,11 +286,17 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         return ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.all(24.0),
-          itemCount: pages.length,
+          itemCount: pages.length + 1, // +1 for commentary link button
           itemBuilder: (context, index) {
-            final page = pages[index];
+            // First item is the commentary link button
+            if (index == 0) {
+              return const ParallelTextButton();
+            }
+            // Adjust index for pages (index-1 since button is at 0)
+            final pageIndex = index - 1;
+            final page = pages[pageIndex];
             // On first page, skip entries before entryStart
-            final entries = index == 0
+            final entries = pageIndex == 0
                 ? page.paliSection.entries.skip(entryStart).toList()
                 : page.paliSection.entries;
             return Column(
@@ -313,11 +320,17 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         return ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.all(24.0),
-          itemCount: pages.length,
+          itemCount: pages.length + 1, // +1 for commentary link button
           itemBuilder: (context, index) {
-            final page = pages[index];
+            // First item is the commentary link button
+            if (index == 0) {
+              return const ParallelTextButton();
+            }
+            // Adjust index for pages (index-1 since button is at 0)
+            final pageIndex = index - 1;
+            final page = pages[pageIndex];
             // On first page, skip entries before entryStart
-            final entries = index == 0
+            final entries = pageIndex == 0
                 ? page.sinhalaSection.entries.skip(entryStart).toList()
                 : page.sinhalaSection.entries;
             return Column(
@@ -343,7 +356,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 16),
+                // Commentary link button at the top
+                const ParallelTextButton(),
                 // Content rows - each page with paired entries
                 ..._buildBothModePages(context, pages, entryStart),
               ],

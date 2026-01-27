@@ -108,6 +108,19 @@ final activeContentFileIdProvider = Provider<String?>((ref) {
   return null;
 });
 
+/// Derived provider for active tab's node key
+/// Returns null if no tab is selected or tab has no nodeKey
+/// Use this when you need the specific node (e.g., 'mn-2-3-6' for a sutta)
+/// rather than the content file (e.g., 'mn-2-3' shared by multiple suttas)
+final activeNodeKeyProvider = Provider<String?>((ref) {
+  final activeIndex = ref.watch(activeTabIndexProvider);
+  final tabs = ref.watch(tabsProvider);
+  if (activeIndex >= 0 && activeIndex < tabs.length) {
+    return tabs[activeIndex].nodeKey;
+  }
+  return null;
+});
+
 /// Derived provider for active tab's page index
 /// Returns 0 if no tab is selected
 final activePageIndexProvider = Provider<int>((ref) {
