@@ -6,7 +6,7 @@ import 'package:the_wisdom_project/presentation/widgets/search/dictionary_search
 
 void main() {
   // Test data - a dictionary search result
-  final testResult = SearchResult(
+  const testResult = SearchResult(
     id: 'dict-1',
     editionId: 'DPD',
     resultType: SearchResultType.definition,

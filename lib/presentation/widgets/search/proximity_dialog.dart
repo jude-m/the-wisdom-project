@@ -246,30 +246,36 @@ class _ProximityDialogState extends ConsumerState<ProximityDialog> {
     required String label,
     required ValueChanged<bool?> onChanged,
   }) {
-    return InkWell(
-      onTap: () => onChanged(value),
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: Radio<bool>(
-                value: value,
-                groupValue: groupValue,
-                onChanged: onChanged,
+    return RadioGroup<bool>(
+      groupValue: groupValue,
+      onChanged: (bool? newValue) {
+        if (newValue != null) {
+          onChanged(newValue);
+        }
+      },
+      child: InkWell(
+        onTap: () => onChanged(value),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: Radio<bool>(
+                  value: value,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                style: theme.textTheme.bodyMedium,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodyMedium,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
