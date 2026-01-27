@@ -372,9 +372,14 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     if (sanitized == null) return '';
 
     final transliterator = SinglishTransliterator.instance;
-    return transliterator.isSinglishQuery(sanitized)
+    final converted = transliterator.isSinglishQuery(sanitized)
         ? transliterator.convert(sanitized)
         : sanitized;
+
+    // Remove any remaining ~ characters that didn't match special patterns
+    // (e.g., incomplete "aaka~" should become "ආක" not "ආක~")
+    // This prevents FTS errors
+    return converted.replaceAll('~', '');
   }
 
   /// Builds validated [SearchQuery] from current state, or `null` if invalid.

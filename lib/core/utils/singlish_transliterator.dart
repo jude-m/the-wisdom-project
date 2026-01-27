@@ -106,7 +106,7 @@ class SinglishTransliterator {
   static const List<List<String>> _specialChars = [
     ['~n', 'ං'], // Anusvara - used in: sanghang, dhammang
     ['~h', 'ඃ'], // Visarga - used in: duhkha
-    ['~N', 'ඞ'], // Retroflex nasal (rare)
+    ['~N', 'ඞ්'], // Velar nasal (ṅ) – always conjunct in Pali Sinhala
     ['~R', 'ඍ'], // Vocalic R (Pali/Sanskrit)
   ];
 
