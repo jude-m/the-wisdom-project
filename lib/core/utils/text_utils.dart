@@ -47,7 +47,7 @@ List<int> createNormalizedToOriginalPositionMap(String originalText) {
 
 /// Chars stripped from queries. 
 /// Periods/commas/hyphens are also removed to avoid FTS complexity although they appear in titles.
-const _invalidSearchChars = r'"()*{}\[\]@#$%&=+<>~\\`|/;\^!.,-';
+const _invalidSearchChars = r'"()*{}\[\]@#$%&=+<>\\`|/;\^!.,-';
 final _invalidCharsPattern = RegExp('[$_invalidSearchChars]');
 
 /// Matches valid content: Sinhala, English, or digits.
