@@ -23,6 +23,11 @@ final selectedDictionaryWordProvider = StateProvider<String?>((ref) => null);
 /// Note: This is cleared when the dictionary sheet closes.
 final highlightStateProvider = StateProvider<({int widgetId, int position})?>((ref) => null);
 
+/// Tracks whether there's an active text selection.
+/// When true, word taps should be ignored to prevent dictionary from
+/// interfering with selection gestures (drag-to-select or clearing selection).
+final hasActiveSelectionProvider = StateProvider<bool>((ref) => false);
+
 // ============================================================================
 // DATASOURCE & REPOSITORY PROVIDERS
 // ============================================================================

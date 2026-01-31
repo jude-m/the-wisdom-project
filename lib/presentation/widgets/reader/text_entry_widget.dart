@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../core/utils/text_utils.dart';
-import '../../providers/dictionary_provider.dart';
+import '../../providers/dictionary_provider.dart' show highlightStateProvider;
 
 /// Callback type for word tap events
 /// [word] - The tapped word
@@ -81,9 +81,8 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
 
     // Compute and cache
     _lastText = widget.text;
-    _cachedDisplayText = widget.enableTap
-        ? applyConjunctConsonants(widget.text)
-        : widget.text;
+    _cachedDisplayText =
+        widget.enableTap ? applyConjunctConsonants(widget.text) : widget.text;
     return _cachedDisplayText!;
   }
 
@@ -98,7 +97,8 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
   void didUpdateWidget(TextEntryWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Only recreate recognizers if text or enableTap changed
-    if (oldWidget.text != widget.text || oldWidget.enableTap != widget.enableTap) {
+    if (oldWidget.text != widget.text ||
+        oldWidget.enableTap != widget.enableTap) {
       _disposeRecognizers();
       _createRecognizers();
     }
@@ -135,7 +135,11 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
       final wordPosition = match.start;
 
       final recognizer = TapGestureRecognizer()
-        ..onTapDown = (details) {
+        // Use onTap (not onTapDown) to prevent triggering during long-press.
+        // onTapDown fires immediately on touch, but onTap only fires after
+        // a complete tap gesture (down + up), so long-press for text selection
+        // won't accidentally open the dictionary sheet.
+        ..onTap = () {
           // Update global highlight state with this widget and position
           ref.read(highlightStateProvider.notifier).state = (
             widgetId: myWidgetId,
@@ -143,7 +147,7 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
           );
 
           // Call the word tap callback
-          widget.onWordTap?.call(word, details.globalPosition);
+          widget.onWordTap?.call(word, Offset.zero);
         };
 
       _recognizers[wordPosition] = recognizer;

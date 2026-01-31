@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SelectedContent;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/text_entry_theme.dart';
@@ -7,7 +9,11 @@ import '../models/column_display_mode.dart';
 import '../../domain/entities/content/entry.dart';
 import '../../domain/entities/content/entry_type.dart';
 import '../providers/document_provider.dart';
-import '../providers/dictionary_provider.dart' show selectedDictionaryWordProvider;
+import '../providers/dictionary_provider.dart'
+    show
+        selectedDictionaryWordProvider,
+        highlightStateProvider,
+        hasActiveSelectionProvider;
 import '../providers/tab_provider.dart'
     show
         activeTabIndexProvider,
@@ -275,6 +281,85 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     );
   }
 
+  /// Handles text selection changes.
+  /// - Stores selected text for copy functionality
+  /// - Clears dictionary highlight and hides bottom sheet to prevent visual conflict
+  /// - Tracks selection state to prevent dictionary from opening during selection gestures
+  void _onSelectionChanged(SelectedContent? selection) {
+    if (selection != null && selection.plainText.isNotEmpty) {
+      // Store selected text for the copy action
+      _currentSelectedText = selection.plainText;
+      // Mark that selection is active - prevents dictionary from opening on taps
+      ref.read(hasActiveSelectionProvider.notifier).state = true;
+      // Clear dictionary highlight when user starts selecting text
+      ref.read(highlightStateProvider.notifier).state = null;
+      // Hide dictionary bottom sheet when selection starts
+      ref.read(selectedDictionaryWordProvider.notifier).state = null;
+    } else {
+      _currentSelectedText = null;
+      // Use post-frame callback to clear selection state AFTER tap handlers run.
+      // This allows tap handler to see hasActiveSelection=true and skip dictionary,
+      // then this callback clears it for subsequent taps.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(hasActiveSelectionProvider.notifier).state = false;
+      });
+    }
+  }
+
+  /// Tracks the currently selected text for the context menu.
+  /// Updated via onSelectionChanged callback.
+  String? _currentSelectedText;
+
+  /// Builds the custom context menu for text selection.
+  /// Provides "Copy" (functional) and "More" (UI placeholder) actions.
+  /// Returns empty widget if no text is selected (e.g., long-press on empty space).
+  Widget _buildSelectionContextMenu(
+    BuildContext context,
+    SelectableRegionState selectableRegionState,
+  ) {
+    // Don't show context menu if nothing is selected
+    if (_currentSelectedText == null || _currentSelectedText!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final List<ContextMenuButtonItem> buttonItems = [
+      // Copy button - copies selected text to clipboard
+      ContextMenuButtonItem(
+        label: 'Copy',
+        onPressed: () {
+          // Copy the currently selected text to clipboard
+          if (_currentSelectedText != null &&
+              _currentSelectedText!.isNotEmpty) {
+            Clipboard.setData(ClipboardData(text: _currentSelectedText!));
+          }
+          // Hide the context menu and clear selection
+          selectableRegionState.hideToolbar();
+        },
+      ),
+      // More button - UI placeholder for future features (Highlight, Share, etc.)
+      ContextMenuButtonItem(
+        label: 'More',
+        onPressed: () {
+          // TODO: Implement more options (Highlight, Share, etc.)
+          // For now, just hide the menu
+          selectableRegionState.hideToolbar();
+          // Show a snackbar as placeholder feedback
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('More options coming soon'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        },
+      ),
+    ];
+
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: selectableRegionState.contextMenuAnchors,
+      buttonItems: buttonItems,
+    );
+  }
+
   Widget _buildContentLayout(
     BuildContext context,
     List<dynamic> pages,
@@ -283,88 +368,138 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
   ) {
     switch (columnMode) {
       case ColumnDisplayMode.paliOnly:
-        return ListView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.all(24.0),
-          itemCount: pages.length + 1, // +1 for commentary link button
-          itemBuilder: (context, index) {
-            // First item is the commentary link button
-            if (index == 0) {
-              return const ParallelTextButton();
-            }
-            // Adjust index for pages (index-1 since button is at 0)
-            final pageIndex = index - 1;
-            final page = pages[pageIndex];
-            // On first page, skip entries before entryStart
-            final entries = pageIndex == 0
-                ? page.paliSection.entries.skip(entryStart).toList()
-                : page.paliSection.entries;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildPageNumber(context, page.pageNumber),
-                const SizedBox(height: 16),
-                // Enable dictionary lookup for Pali text
-                ..._buildEntries(
-                  context,
-                  entries,
-                  enableDictionaryLookup: true,
-                ),
-                const SizedBox(height: 32), // Space between pages
-              ],
-            );
-          },
+        return GestureDetector(
+          // Clear dictionary highlight when tapping empty space
+          onTap: _clearDictionarySelection,
+          behavior: HitTestBehavior.translucent,
+          child: SelectionArea(
+            onSelectionChanged: _onSelectionChanged,
+            contextMenuBuilder: (context, selectableRegionState) =>
+                _buildSelectionContextMenu(context, selectableRegionState),
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(24.0),
+              itemCount: pages.length + 1, // +1 for commentary link button
+              itemBuilder: (context, index) {
+                // First item is the commentary link button
+                if (index == 0) {
+                  return const ParallelTextButton();
+                }
+                // Adjust index for pages (index-1 since button is at 0)
+                final pageIndex = index - 1;
+                final page = pages[pageIndex];
+                // On first page, skip entries before entryStart
+                final entries = pageIndex == 0
+                    ? page.paliSection.entries.skip(entryStart).toList()
+                    : page.paliSection.entries;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildPageNumber(context, page.pageNumber),
+                    const SizedBox(height: 16),
+                    // Enable dictionary lookup for Pali text
+                    ..._buildEntries(
+                      context,
+                      entries,
+                      enableDictionaryLookup: true,
+                    ),
+                    const SizedBox(height: 32), // Space between pages
+                  ],
+                );
+              },
+            ),
+          ),
         );
 
       case ColumnDisplayMode.sinhalaOnly:
-        return ListView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.all(24.0),
-          itemCount: pages.length + 1, // +1 for commentary link button
-          itemBuilder: (context, index) {
-            // First item is the commentary link button
-            if (index == 0) {
-              return const ParallelTextButton();
-            }
-            // Adjust index for pages (index-1 since button is at 0)
-            final pageIndex = index - 1;
-            final page = pages[pageIndex];
-            // On first page, skip entries before entryStart
-            final entries = pageIndex == 0
-                ? page.sinhalaSection.entries.skip(entryStart).toList()
-                : page.sinhalaSection.entries;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildPageNumber(context, page.pageNumber),
-                const SizedBox(height: 16),
-                // Disable dictionary lookup for Sinhala translation text
-                ..._buildEntries(context, entries, enableDictionaryLookup: false),
-                const SizedBox(height: 32), // Space between pages
-              ],
-            );
-          },
+        return GestureDetector(
+          onTap: _clearDictionarySelection,
+          behavior: HitTestBehavior.translucent,
+          child: SelectionArea(
+            onSelectionChanged: _onSelectionChanged,
+            contextMenuBuilder: (context, selectableRegionState) =>
+                _buildSelectionContextMenu(context, selectableRegionState),
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(24.0),
+              itemCount: pages.length + 1, // +1 for commentary link button
+              itemBuilder: (context, index) {
+                // First item is the commentary link button
+                if (index == 0) {
+                  return const ParallelTextButton();
+                }
+                // Adjust index for pages (index-1 since button is at 0)
+                final pageIndex = index - 1;
+                final page = pages[pageIndex];
+                // On first page, skip entries before entryStart
+                final entries = pageIndex == 0
+                    ? page.sinhalaSection.entries.skip(entryStart).toList()
+                    : page.sinhalaSection.entries;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildPageNumber(context, page.pageNumber),
+                    const SizedBox(height: 16),
+                    // Disable dictionary lookup for Sinhala translation text
+                    ..._buildEntries(context, entries,
+                        enableDictionaryLookup: false),
+                    const SizedBox(height: 32), // Space between pages
+                  ],
+                );
+              },
+            ),
+          ),
         );
 
       case ColumnDisplayMode.both:
         // Row-based layout for proper vertical alignment
         // Each row contains both Pali and Sinhala entries side-by-side
-        return SingleChildScrollView(
-          controller: _scrollController,
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Commentary link button at the top
-                const ParallelTextButton(),
-                // Content rows - each page with paired entries
-                ..._buildBothModePages(context, pages, entryStart),
-              ],
+        return GestureDetector(
+          onTap: _clearDictionarySelection,
+          behavior: HitTestBehavior.translucent,
+          child: SelectionArea(
+            onSelectionChanged: _onSelectionChanged,
+            contextMenuBuilder: (context, selectableRegionState) =>
+                _buildSelectionContextMenu(context, selectableRegionState),
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Commentary link button at the top
+                    const ParallelTextButton(),
+                    // Content rows - each page with paired entries
+                    ..._buildBothModePages(context, pages, entryStart),
+                  ],
+                ),
+              ),
             ),
           ),
         );
     }
+  }
+
+  /// Clears dictionary highlight and bottom sheet when tapping empty space.
+  void _clearDictionarySelection() {
+    ref.read(highlightStateProvider.notifier).state = null;
+    ref.read(selectedDictionaryWordProvider.notifier).state = null;
+  }
+
+  /// Handles word tap for dictionary lookup.
+  /// If there's an active text selection, clears it instead of opening dictionary.
+  void _handleWordTap(String word) {
+    // If there's an active text selection, clear it and don't open dictionary
+    if (ref.read(hasActiveSelectionProvider)) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      // Clear the highlight that was set by TextEntryWidget before this callback
+      ref.read(highlightStateProvider.notifier).state = null;
+      return;
+    }
+    // Open dictionary lookup
+    ref.read(selectedDictionaryWordProvider.notifier).state =
+        removeConjunctFormatting(word);
   }
 
   /// Builds the page content for "both" column mode (side-by-side Pali/Sinhala)
@@ -436,7 +571,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 12.0),
                     child: sinhalaEntry != null
-                        ? _buildEntry(context, sinhalaEntry, enableDictionaryLookup: false)
+                        ? _buildEntry(context, sinhalaEntry,
+                            enableDictionaryLookup: false)
                         : const SizedBox.shrink(),
                   ),
                 ),
@@ -506,7 +642,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             style: textStyle,
             textAlign: TextAlign.center,
             enableTap: enableDictionaryLookup,
-            onWordTap: (word, _) => ref.read(selectedDictionaryWordProvider.notifier).state = removeConjunctFormatting(word),
+            onWordTap: (word, _) => _handleWordTap(word),
           ),
         );
       case EntryType.gatha:
@@ -523,7 +659,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             style: textStyle,
             textAlign: TextAlign.left,
             enableTap: enableDictionaryLookup,
-            onWordTap: (word, _) => ref.read(selectedDictionaryWordProvider.notifier).state = removeConjunctFormatting(word),
+            onWordTap: (word, _) => _handleWordTap(word),
           ),
         );
       case EntryType.unindented:
@@ -537,7 +673,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     final textAlign = switch (entry.entryType) {
       EntryType.heading => TextAlign.center,
       EntryType.paragraph || EntryType.unindented => TextAlign.justify,
-      _ => TextAlign.left, // gatha (already returned above, but kept for safety)
+      _ =>
+        TextAlign.left, // gatha (already returned above, but kept for safety)
     };
 
     return TextEntryWidget(
@@ -545,7 +682,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       style: textStyle,
       textAlign: textAlign,
       enableTap: enableDictionaryLookup,
-      onWordTap: (word, _) => ref.read(selectedDictionaryWordProvider.notifier).state = removeConjunctFormatting(word),
+      onWordTap: (word, _) => _handleWordTap(word),
     );
   }
 }
