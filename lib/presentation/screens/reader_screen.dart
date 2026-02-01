@@ -13,8 +13,10 @@ import '../providers/navigator_visibility_provider.dart';
 import '../providers/tab_provider.dart';
 import '../providers/search_provider.dart';
 import '../providers/pane_width_provider.dart';
+import '../providers/search_highlight_provider.dart';
 import '../../core/constants/constants.dart';
 import '../../domain/entities/search/search_result.dart';
+import '../../domain/entities/search/search_result_type.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({super.key});
@@ -34,6 +36,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   }
 
   void _handleSearchResultTap(SearchResult result) {
+    // Only highlight search terms when navigating from FTS results
+    // (Title search doesn't need content highlighting since it matches titles, not content)
+    if (result.resultType == SearchResultType.fullText) {
+      final searchState = ref.read(searchStateProvider);
+      ref.read(searchHighlightProvider.notifier).state = SearchHighlightState(
+        queryText: searchState.effectiveQueryText,
+        isPhraseSearch: searchState.isPhraseSearch,
+        isExactMatch: searchState.isExactMatch,
+      );
+    }
+
     // Use centralized provider for consistent tab creation and navigation
     ref.read(openTabFromSearchResultProvider)(result);
 

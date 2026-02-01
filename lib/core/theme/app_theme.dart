@@ -10,6 +10,35 @@ class AppTheme {
   /// Light theme - Warm cream background with dark brown text
   /// Best for daytime reading, default theme
   static ThemeData light() {
+    // Create ColorScheme once and reuse
+    final colorScheme = ColorScheme.light(
+      primary: LightThemeColors.primary,
+      onPrimary: LightThemeColors.onPrimary,
+      primaryContainer: LightThemeColors.accent.withValues(alpha: 0.2),
+      onPrimaryContainer: LightThemeColors.primary,
+      secondary: LightThemeColors.accent,
+      onSecondary: LightThemeColors.onPrimary,
+      surface: LightThemeColors.surface,
+      onSurface: LightThemeColors.onBackground,
+      onSurfaceVariant: LightThemeColors.onBackground.withValues(alpha: 0.7),
+      // Surface Container hierarchy (Flutter 3.22+)
+      surfaceContainerLowest: LightThemeColors.surfaceContainerLowest,
+      surfaceContainerLow: LightThemeColors.surfaceContainerLow,
+      surfaceContainer: LightThemeColors.surface,
+      surfaceContainerHigh: LightThemeColors.surfaceContainerHigh,
+      surfaceContainerHighest: LightThemeColors.surfaceContainerHighest,
+      // Utility
+      error: LightThemeColors.error,
+      onError: LightThemeColors.onError,
+      outline: LightThemeColors.divider,
+      outlineVariant: LightThemeColors.divider.withValues(alpha: 0.5),
+      // Selection colors
+      secondaryContainer: LightThemeColors.secondaryContainer,
+      onSecondaryContainer: LightThemeColors.onSecondaryContainer,
+      tertiaryContainer: LightThemeColors.tertiaryContainer,
+      onTertiaryContainer: LightThemeColors.onTertiaryContainer,
+    );
+
     return ThemeData(
       brightness: Brightness.light,
       useMaterial3: true,
@@ -22,33 +51,7 @@ class AppTheme {
       cardColor: LightThemeColors.surface,
       dividerColor: LightThemeColors.divider,
 
-      // Color scheme with full Surface Container hierarchy
-      colorScheme: ColorScheme.light(
-        primary: LightThemeColors.primary,
-        onPrimary: LightThemeColors.onPrimary,
-        primaryContainer: LightThemeColors.accent.withValues(alpha: 0.2),
-        onPrimaryContainer: LightThemeColors.primary,
-        secondary: LightThemeColors.accent,
-        onSecondary: LightThemeColors.onPrimary,
-        surface: LightThemeColors.surface,
-        onSurface: LightThemeColors.onBackground,
-        // Surface Container hierarchy (Flutter 3.22+)
-        surfaceContainerLowest: LightThemeColors.surfaceContainerLowest,
-        surfaceContainerLow: LightThemeColors.surfaceContainerLow,
-        surfaceContainer: LightThemeColors.surface,
-        surfaceContainerHigh: LightThemeColors.surfaceContainerHigh,
-        surfaceContainerHighest: LightThemeColors.surfaceContainerHighest,
-        // Utility
-        error: LightThemeColors.error,
-        onError: LightThemeColors.onError,
-        outline: LightThemeColors.divider,
-        outlineVariant: LightThemeColors.divider.withValues(alpha: 0.5),
-
-        secondaryContainer: LightThemeColors.secondaryContainer,
-        onSecondaryContainer: LightThemeColors.onSecondaryContainer
-
-
-      ),
+      colorScheme: colorScheme,
 
       // Typography extensions
       extensions: [
@@ -56,22 +59,7 @@ class AppTheme {
           headingColor: LightThemeColors.primary,
           bodyColor: LightThemeColors.onBackground,
         ),
-        AppTypography.fromColorScheme(
-          ColorScheme.light(
-            primary: LightThemeColors.primary,
-            onPrimary: LightThemeColors.onPrimary,
-            secondary: LightThemeColors.accent,
-            onSecondary: LightThemeColors.onPrimary,
-            surface: LightThemeColors.surface,
-            onSurface: LightThemeColors.onBackground,
-            onSurfaceVariant: LightThemeColors.onBackground.withValues(alpha: 0.7),
-            primaryContainer: LightThemeColors.accent.withValues(alpha: 0.2),
-            onPrimaryContainer: LightThemeColors.primary,
-            secondaryContainer: LightThemeColors.secondaryContainer,
-            onSecondaryContainer: LightThemeColors.onSecondaryContainer,
-            error: LightThemeColors.error,
-          ),
-        ),
+        AppTypography.fromColorScheme(colorScheme),
       ],
     );
   }
@@ -79,6 +67,33 @@ class AppTheme {
   /// Dark theme - High contrast black with white text
   /// WCAG AAA compliant for accessibility, night reading
   static ThemeData dark() {
+    // Create ColorScheme once and reuse
+    final colorScheme = ColorScheme.dark(
+      primary: DarkThemeColors.primary,
+      onPrimary: DarkThemeColors.onPrimary,
+      primaryContainer: DarkThemeColors.accent.withValues(alpha: 0.2),
+      onPrimaryContainer: DarkThemeColors.primary,
+      secondary: DarkThemeColors.accent,
+      onSecondary: DarkThemeColors.onPrimary,
+      surface: DarkThemeColors.surface,
+      onSurface: DarkThemeColors.onBackground,
+      onSurfaceVariant: DarkThemeColors.onBackground.withValues(alpha: 0.7),
+      // Surface Container hierarchy (Flutter 3.22+)
+      surfaceContainerLowest: DarkThemeColors.surfaceContainerLowest,
+      surfaceContainerLow: DarkThemeColors.surfaceContainerLow,
+      surfaceContainer: DarkThemeColors.surface,
+      surfaceContainerHigh: DarkThemeColors.surfaceContainerHigh,
+      surfaceContainerHighest: DarkThemeColors.surfaceContainerHighest,
+      // Utility
+      error: DarkThemeColors.error,
+      onError: DarkThemeColors.onError,
+      outline: DarkThemeColors.divider,
+      outlineVariant: DarkThemeColors.divider.withValues(alpha: 0.5),
+      // Search highlight
+      tertiaryContainer: DarkThemeColors.tertiaryContainer,
+      onTertiaryContainer: DarkThemeColors.onTertiaryContainer,
+    );
+
     return ThemeData(
       brightness: Brightness.dark,
       useMaterial3: true,
@@ -91,28 +106,7 @@ class AppTheme {
       cardColor: DarkThemeColors.surface,
       dividerColor: DarkThemeColors.divider,
 
-      // Color scheme with full Surface Container hierarchy
-      colorScheme: ColorScheme.dark(
-        primary: DarkThemeColors.primary,
-        onPrimary: DarkThemeColors.onPrimary,
-        primaryContainer: DarkThemeColors.accent.withValues(alpha: 0.2),
-        onPrimaryContainer: DarkThemeColors.primary,
-        secondary: DarkThemeColors.accent,
-        onSecondary: DarkThemeColors.onPrimary,
-        surface: DarkThemeColors.surface,
-        onSurface: DarkThemeColors.onBackground,
-        // Surface Container hierarchy (Flutter 3.22+)
-        surfaceContainerLowest: DarkThemeColors.surfaceContainerLowest,
-        surfaceContainerLow: DarkThemeColors.surfaceContainerLow,
-        surfaceContainer: DarkThemeColors.surface,
-        surfaceContainerHigh: DarkThemeColors.surfaceContainerHigh,
-        surfaceContainerHighest: DarkThemeColors.surfaceContainerHighest,
-        // Utility
-        error: DarkThemeColors.error,
-        onError: DarkThemeColors.onError,
-        outline: DarkThemeColors.divider,
-        outlineVariant: DarkThemeColors.divider.withValues(alpha: 0.5),
-      ),
+      colorScheme: colorScheme,
 
       // Typography extensions
       extensions: [
@@ -120,20 +114,7 @@ class AppTheme {
           headingColor: DarkThemeColors.primary,
           bodyColor: DarkThemeColors.onBackground,
         ),
-        AppTypography.fromColorScheme(
-          ColorScheme.dark(
-            primary: DarkThemeColors.primary,
-            onPrimary: DarkThemeColors.onPrimary,
-            secondary: DarkThemeColors.accent,
-            onSecondary: DarkThemeColors.onPrimary,
-            surface: DarkThemeColors.surface,
-            onSurface: DarkThemeColors.onBackground,
-            onSurfaceVariant: DarkThemeColors.onBackground.withValues(alpha: 0.7),
-            primaryContainer: DarkThemeColors.accent.withValues(alpha: 0.2),
-            onPrimaryContainer: DarkThemeColors.primary,
-            error: DarkThemeColors.error,
-          ),
-        ),
+        AppTypography.fromColorScheme(colorScheme),
       ],
     );
   }
@@ -141,6 +122,33 @@ class AppTheme {
   /// Warm theme - Earthy dark browns with warm text
   /// Signature Buddhist aesthetic, evening reading
   static ThemeData warm() {
+    // Create ColorScheme once and reuse
+    final colorScheme = ColorScheme.dark(
+      primary: WarmThemeColors.primary,
+      onPrimary: WarmThemeColors.onPrimary,
+      primaryContainer: WarmThemeColors.accent.withValues(alpha: 0.25),
+      onPrimaryContainer: WarmThemeColors.primary,
+      secondary: WarmThemeColors.accent,
+      onSecondary: WarmThemeColors.onPrimary,
+      surface: WarmThemeColors.surface,
+      onSurface: WarmThemeColors.onBackground,
+      onSurfaceVariant: WarmThemeColors.onBackground.withValues(alpha: 0.7),
+      // Surface Container hierarchy (Flutter 3.22+)
+      surfaceContainerLowest: WarmThemeColors.surfaceContainerLowest,
+      surfaceContainerLow: WarmThemeColors.surfaceContainerLow,
+      surfaceContainer: WarmThemeColors.surface,
+      surfaceContainerHigh: WarmThemeColors.surfaceContainerHigh,
+      surfaceContainerHighest: WarmThemeColors.surfaceContainerHighest,
+      // Utility
+      error: WarmThemeColors.error,
+      onError: WarmThemeColors.onError,
+      outline: WarmThemeColors.divider,
+      outlineVariant: WarmThemeColors.divider.withValues(alpha: 0.5),
+      // Search highlight
+      tertiaryContainer: WarmThemeColors.tertiaryContainer,
+      onTertiaryContainer: WarmThemeColors.onTertiaryContainer,
+    );
+
     return ThemeData(
       brightness: Brightness.dark, // Warm is a dark theme variant
       useMaterial3: true,
@@ -153,28 +161,7 @@ class AppTheme {
       cardColor: WarmThemeColors.surface,
       dividerColor: WarmThemeColors.divider,
 
-      // Color scheme with full Surface Container hierarchy
-      colorScheme: ColorScheme.dark(
-        primary: WarmThemeColors.primary,
-        onPrimary: WarmThemeColors.onPrimary,
-        primaryContainer: WarmThemeColors.accent.withValues(alpha: 0.25),
-        onPrimaryContainer: WarmThemeColors.primary,
-        secondary: WarmThemeColors.accent,
-        onSecondary: WarmThemeColors.onPrimary,
-        surface: WarmThemeColors.surface,
-        onSurface: WarmThemeColors.onBackground,
-        // Surface Container hierarchy (Flutter 3.22+)
-        surfaceContainerLowest: WarmThemeColors.surfaceContainerLowest,
-        surfaceContainerLow: WarmThemeColors.surfaceContainerLow,
-        surfaceContainer: WarmThemeColors.surface,
-        surfaceContainerHigh: WarmThemeColors.surfaceContainerHigh,
-        surfaceContainerHighest: WarmThemeColors.surfaceContainerHighest,
-        // Utility
-        error: WarmThemeColors.error,
-        onError: WarmThemeColors.onError,
-        outline: WarmThemeColors.divider,
-        outlineVariant: WarmThemeColors.divider.withValues(alpha: 0.5),
-      ),
+      colorScheme: colorScheme,
 
       // Typography extensions
       extensions: [
@@ -182,20 +169,7 @@ class AppTheme {
           headingColor: WarmThemeColors.primary,
           bodyColor: WarmThemeColors.onBackground,
         ),
-        AppTypography.fromColorScheme(
-          ColorScheme.dark(
-            primary: WarmThemeColors.primary,
-            onPrimary: WarmThemeColors.onPrimary,
-            secondary: WarmThemeColors.accent,
-            onSecondary: WarmThemeColors.onPrimary,
-            surface: WarmThemeColors.surface,
-            onSurface: WarmThemeColors.onBackground,
-            onSurfaceVariant: WarmThemeColors.onBackground.withValues(alpha: 0.7),
-            primaryContainer: WarmThemeColors.accent.withValues(alpha: 0.25),
-            onPrimaryContainer: WarmThemeColors.primary,
-            error: WarmThemeColors.error,
-          ),
-        ),
+        AppTypography.fromColorScheme(colorScheme),
       ],
     );
   }

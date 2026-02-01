@@ -65,13 +65,7 @@ class DictionaryBottomSheet extends ConsumerWidget {
             );
           }
 
-          // Column with IgnorePointer allows touch pass-through above the sheet
-          return Column(
-            children: [
-              const Expanded(child: IgnorePointer()),
-              sheet,
-            ],
-          );
+          return sheet;
         },
       ),
     );
@@ -109,6 +103,7 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
   @override
   Widget build(BuildContext context) {
     final entriesAsync = ref.watch(wordLookupProvider(widget.word));
+    final theme = Theme.of(context);
 
     // Use the actual Stack height from LayoutBuilder (always provided now).
     // This ensures the sheet expands to exactly fill the available space,
@@ -126,7 +121,7 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
         snapSizes: DictionarySheetConstants.snapSizes,
         builder: (context, scrollController) => Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
+            color: theme.colorScheme.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             boxShadow: [
               BoxShadow(
@@ -136,57 +131,65 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
               ),
             ],
           ),
-          child: Column(
-            children: [
-              // Drag handle
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // Header with word and close button
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        widget.word,
-                        style:
-                            Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                      ),
+          // Clip content to rounded corners
+          clipBehavior: Clip.antiAlias,
+          // Use CustomScrollView so the entire sheet (handle + header + content)
+          // responds to drag gestures, not just the results list.
+          child: CustomScrollView(
+            controller: scrollController,
+            slivers: [
+              // Drag handle - now draggable!
+              SliverToBoxAdapter(
+                child: Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: widget.onClose,
-                      tooltip: 'Close',
-                    ),
-                  ],
-                ),
-              ),
-              // Results list
-              Expanded(
-                child: entriesAsync.when(
-                  data: (entries) {
-                    if (entries.isEmpty) {
-                      return _buildNoResults(context);
-                    }
-                    return _buildResultsList(context, entries, scrollController);
-                  },
-                  loading: () => const Center(
-                    child: CircularProgressIndicator(),
                   ),
-                  error: (error, stack) => _buildError(context, error),
                 ),
+              ),
+              // Header with word and close button - now draggable!
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.word,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: widget.onClose,
+                        tooltip: 'Close',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Results content
+              ...entriesAsync.when(
+                data: (entries) {
+                  if (entries.isEmpty) {
+                    return [_buildNoResultsSliver(context)];
+                  }
+                  return _buildResultsSlivers(context, entries);
+                },
+                loading: () => [
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ],
+                error: (error, stack) => [_buildErrorSliver(context, error)],
               ),
             ],
           ),
@@ -195,8 +198,9 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
     );
   }
 
-  Widget _buildNoResults(BuildContext context) {
-    return SingleChildScrollView(
+  Widget _buildNoResultsSliver(BuildContext context) {
+    return SliverFillRemaining(
+      hasScrollBody: false,
       child: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
@@ -221,8 +225,9 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
     );
   }
 
-  Widget _buildError(BuildContext context, Object error) {
-    return SingleChildScrollView(
+  Widget _buildErrorSliver(BuildContext context, Object error) {
+    return SliverFillRemaining(
+      hasScrollBody: false,
       child: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
@@ -246,21 +251,24 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
     );
   }
 
-  Widget _buildResultsList(
+  /// Builds slivers for the results list with separators
+  List<Widget> _buildResultsSlivers(
     BuildContext context,
     List<DictionaryEntry> entries,
-    ScrollController scrollController,
   ) {
-    return ListView.separated(
-      controller: scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: entries.length,
-      separatorBuilder: (context, index) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        return _DictionaryEntryTile(entry: entry);
-      },
-    );
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        sliver: SliverList.separated(
+          itemCount: entries.length,
+          separatorBuilder: (context, index) => const Divider(height: 1),
+          itemBuilder: (context, index) {
+            final entry = entries[index];
+            return _DictionaryEntryTile(entry: entry);
+          },
+        ),
+      ),
+    ];
   }
 }
 
@@ -347,7 +355,7 @@ class _DictionaryEntryTile extends StatelessWidget {
       if (text[i] == '<') {
         // Found a tag - flush buffer first
         if (buffer.isNotEmpty) {
-          spans.add(_createTextSpan(buffer.toString(), isBold, isItalic, theme));
+          spans.add(_createTextSpan(buffer.toString(), isBold, isItalic));
           buffer.clear();
         }
 
@@ -388,13 +396,13 @@ class _DictionaryEntryTile extends StatelessWidget {
 
     // Flush remaining buffer
     if (buffer.isNotEmpty) {
-      spans.add(_createTextSpan(buffer.toString(), isBold, isItalic, theme));
+      spans.add(_createTextSpan(buffer.toString(), isBold, isItalic));
     }
 
     return spans.isEmpty ? [const TextSpan(text: '')] : spans;
   }
 
-  TextSpan _createTextSpan(String text, bool isBold, bool isItalic, ThemeData theme) {
+  TextSpan _createTextSpan(String text, bool isBold, bool isItalic) {
     return TextSpan(
       text: text,
       style: TextStyle(

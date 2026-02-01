@@ -31,6 +31,9 @@ class LightThemeColors {
   static const secondaryContainer = Color(0xFF705E46); // Warm Taupe (Selected)
   static const onSecondaryContainer = Color(0xFFFFFFFF); // Dark Brown (Text)
 
+  static const tertiaryContainer = Color(0xFFB8C7AB); // Sage green (Search highlight)
+  static const onTertiaryContainer = Color(0xFF2F3E28); // Dark green (Text)
+
   // Other options:
   // Option 2 - Deeper Sage: secondaryContainer = 0xFFB8C7AB, onSecondaryContainer = 0xFF2F3E28
   // Option 3 - Dusty Clay: secondaryContainer = 0xFFD4BEB0, onSecondaryContainer = 0xFF4A3830
@@ -72,6 +75,10 @@ class DarkThemeColors {
   static const divider = Color(0xFF424242); // Dark gray divider
   static const error = Color(0xFFFF6B6B); // Bright red
   static const onError = Color(0xFF000000); // Black text on error
+
+  // Search highlight
+  static const tertiaryContainer = Color(0xFF3D5A3D); // Dark sage green
+  static const onTertiaryContainer = Color(0xFFD0E8D0); // Light green text
 }
 
 /// Color palette for Warm theme
@@ -100,4 +107,8 @@ class WarmThemeColors {
   static const divider = Color(0xFF524535); // Dark brown divider
   static const error = Color(0xFFFF8A65); // Soft orange-red
   static const onError = Color(0xFF1A1408); // Dark text on error
+
+  // Search highlight
+  static const tertiaryContainer = Color(0xFF4A4030); // Warm dark brown
+  static const onTertiaryContainer = Color(0xFFE8DFD0); // Warm off-white
 }

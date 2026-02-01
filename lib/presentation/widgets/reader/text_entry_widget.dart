@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/pali_conjunct_transformer.dart';
+import '../../../core/utils/search_match_finder.dart';
 import '../../../core/utils/text_utils.dart';
 import '../../providers/dictionary_provider.dart' show highlightStateProvider;
+import '../../providers/search_highlight_provider.dart';
 
 /// Callback type for word tap events
 /// [word] - The tapped word
@@ -140,6 +142,9 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
         // a complete tap gesture (down + up), so long-press for text selection
         // won't accidentally open the dictionary sheet.
         ..onTap = () {
+          // Clear search highlight on any tap (user found what they were looking for)
+          ref.read(searchHighlightProvider.notifier).state = null;
+
           // Update global highlight state with this widget and position
           ref.read(highlightStateProvider.notifier).state = (
             widgetId: myWidgetId,
@@ -160,6 +165,12 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
     // Store the result to use in _buildTextSpan
     final highlightState = ref.watch(highlightStateProvider);
 
+    // Watch search highlight state for FTS result highlighting
+    final searchHighlight = ref.watch(searchHighlightProvider);
+
+    // Compute search highlight ranges if active
+    final searchRanges = _computeSearchRanges(searchHighlight);
+
     // For non-Pali text (e.g., Sinhala translations), render as simple Text
     // to avoid unnecessary gesture recognizer overhead
     if (!widget.enableTap || widget.onWordTap == null) {
@@ -174,19 +185,44 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
 
     // Build rich text with tappable word spans
     return Text.rich(
-      _buildTextSpan(context, highlightState),
+      _buildTextSpan(context, highlightState, searchRanges),
       textAlign: widget.textAlign,
       maxLines: widget.maxLines,
       overflow: widget.overflow,
     );
   }
 
-  /// Builds a TextSpan with tappable words and optional highlighting
+  /// Computes search highlight ranges for the current text.
+  /// Returns empty list if no search highlight is active.
+  List<({int start, int end})> _computeSearchRanges(
+    SearchHighlightState? searchHighlight,
+  ) {
+    if (searchHighlight == null || searchHighlight.queryText.isEmpty) {
+      return [];
+    }
+
+    final finder = SearchMatchFinder(
+      queryText: searchHighlight.queryText,
+      isPhraseSearch: searchHighlight.isPhraseSearch,
+      isExactMatch: searchHighlight.isExactMatch,
+    );
+
+    return finder.findMatchRanges(_displayText);
+  }
+
+  /// Builds a TextSpan with tappable words and optional highlighting.
+  ///
+  /// Supports two types of highlighting:
+  /// - Dictionary highlight (primaryContainer) - single tapped word
+  /// - Search highlight (tertiaryContainer) - matched search terms
   TextSpan _buildTextSpan(
     BuildContext context,
     ({int widgetId, int position})? highlightState,
+    List<({int start, int end})> searchRanges,
   ) {
-    final highlightColor = Theme.of(context).colorScheme.primaryContainer;
+    final colorScheme = Theme.of(context).colorScheme;
+    final dictHighlightColor = colorScheme.primaryContainer;
+    final searchHighlightColor = colorScheme.tertiaryContainer;
     final myWidgetId = identityHashCode(this);
 
     final spans = <InlineSpan>[];
@@ -195,42 +231,143 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
     for (final match in _wordMatches) {
       final word = match.group(0)!;
       final wordPosition = match.start;
+      final wordEnd = match.end;
 
       // Add spaces and punctuation between words
       if (match.start > lastEnd) {
-        spans.add(TextSpan(
-          text: _displayText.substring(lastEnd, match.start),
-          style: widget.style,
-        ));
+        final betweenText = _displayText.substring(lastEnd, match.start);
+        // Check if this "between" text contains search matches
+        final betweenSpans = _buildSpansWithSearchHighlight(
+          text: betweenText,
+          textStart: lastEnd,
+          searchRanges: searchRanges,
+          searchHighlightColor: searchHighlightColor,
+          baseStyle: widget.style,
+          recognizer: null,
+        );
+        spans.addAll(betweenSpans);
       }
 
       // Get the pre-created recognizer for this word
       final recognizer = _recognizers[wordPosition];
 
-      // Highlight this word only if the global state matches this widget and position
-      final shouldHighlight = highlightState?.widgetId == myWidgetId &&
+      // Dictionary highlight takes priority over search highlight
+      final isDictHighlight = highlightState?.widgetId == myWidgetId &&
           highlightState?.position == wordPosition;
 
-      spans.add(TextSpan(
-        text: word,
-        style: shouldHighlight
-            ? widget.style?.copyWith(backgroundColor: highlightColor) ??
-                TextStyle(backgroundColor: highlightColor)
-            : widget.style,
-        recognizer: recognizer,
-      ));
+      if (isDictHighlight) {
+        // Dictionary highlight - single color for entire word
+        spans.add(TextSpan(
+          text: word,
+          style: widget.style?.copyWith(backgroundColor: dictHighlightColor) ??
+              TextStyle(backgroundColor: dictHighlightColor),
+          recognizer: recognizer,
+        ));
+      } else {
+        // Check for search highlight - may highlight partial word
+        final wordSpans = _buildSpansWithSearchHighlight(
+          text: word,
+          textStart: wordPosition,
+          searchRanges: searchRanges,
+          searchHighlightColor: searchHighlightColor,
+          baseStyle: widget.style,
+          recognizer: recognizer,
+        );
+        spans.addAll(wordSpans);
+      }
 
-      lastEnd = match.end;
+      lastEnd = wordEnd;
     }
 
     // Add remaining text after the last word
     if (lastEnd < _displayText.length) {
-      spans.add(TextSpan(
-        text: _displayText.substring(lastEnd),
-        style: widget.style,
-      ));
+      final remainingText = _displayText.substring(lastEnd);
+      final remainingSpans = _buildSpansWithSearchHighlight(
+        text: remainingText,
+        textStart: lastEnd,
+        searchRanges: searchRanges,
+        searchHighlightColor: searchHighlightColor,
+        baseStyle: widget.style,
+        recognizer: null,
+      );
+      spans.addAll(remainingSpans);
     }
 
     return TextSpan(children: spans);
+  }
+
+  /// Builds TextSpans for a text segment, applying search highlight where needed.
+  ///
+  /// [textStart] is the position of [text] within [_displayText].
+  /// [searchRanges] are the global highlight ranges in [_displayText].
+  List<InlineSpan> _buildSpansWithSearchHighlight({
+    required String text,
+    required int textStart,
+    required List<({int start, int end})> searchRanges,
+    required Color searchHighlightColor,
+    required TextStyle? baseStyle,
+    required TapGestureRecognizer? recognizer,
+  }) {
+    if (searchRanges.isEmpty || text.isEmpty) {
+      return [
+        TextSpan(text: text, style: baseStyle, recognizer: recognizer),
+      ];
+    }
+
+    final textEnd = textStart + text.length;
+
+    // Find ranges that overlap with this text segment
+    final overlappingRanges = <({int start, int end})>[];
+    for (final range in searchRanges) {
+      if (range.start < textEnd && range.end > textStart) {
+        // Clamp range to this text segment
+        overlappingRanges.add((
+          start: (range.start - textStart).clamp(0, text.length),
+          end: (range.end - textStart).clamp(0, text.length),
+        ));
+      }
+    }
+
+    if (overlappingRanges.isEmpty) {
+      return [
+        TextSpan(text: text, style: baseStyle, recognizer: recognizer),
+      ];
+    }
+
+    // Build spans with highlights
+    final spans = <InlineSpan>[];
+    int pos = 0;
+
+    for (final range in overlappingRanges) {
+      // Add non-highlighted text before this range
+      if (range.start > pos) {
+        spans.add(TextSpan(
+          text: text.substring(pos, range.start),
+          style: baseStyle,
+          recognizer: recognizer,
+        ));
+      }
+
+      // Add highlighted text
+      spans.add(TextSpan(
+        text: text.substring(range.start, range.end),
+        style: baseStyle?.copyWith(backgroundColor: searchHighlightColor) ??
+            TextStyle(backgroundColor: searchHighlightColor),
+        recognizer: recognizer,
+      ));
+
+      pos = range.end;
+    }
+
+    // Add remaining non-highlighted text
+    if (pos < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(pos),
+        style: baseStyle,
+        recognizer: recognizer,
+      ));
+    }
+
+    return spans;
   }
 }
