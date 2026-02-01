@@ -23,6 +23,7 @@ import '../providers/tab_provider.dart'
         activePageStartProvider,
         activePageEndProvider,
         activeEntryStartProvider;
+import '../providers/fts_highlight_provider.dart';
 import 'reader/text_entry_widget.dart';
 import 'reader/parallel_text_button.dart';
 import 'dictionary/dictionary_bottom_sheet.dart';
@@ -379,14 +380,14 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
   ) {
     switch (columnMode) {
       case ColumnDisplayMode.paliOnly:
-        return GestureDetector(
-          // Clear dictionary highlight when tapping empty space
-          onTap: _clearDictionarySelection,
-          behavior: HitTestBehavior.translucent,
-          child: SelectionArea(
-            onSelectionChanged: _onSelectionChanged,
-            contextMenuBuilder: (context, selectableRegionState) =>
-                _buildSelectionContextMenu(context, selectableRegionState),
+        return SelectionArea(
+          onSelectionChanged: _onSelectionChanged,
+          contextMenuBuilder: (context, selectableRegionState) =>
+              _buildSelectionContextMenu(context, selectableRegionState),
+          child: GestureDetector(
+            // Clear all highlights when tapping empty space
+            onTap: _clearAllHighlights,
+            behavior: HitTestBehavior.translucent,
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.all(24.0),
@@ -423,13 +424,13 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         );
 
       case ColumnDisplayMode.sinhalaOnly:
-        return GestureDetector(
-          onTap: _clearDictionarySelection,
-          behavior: HitTestBehavior.translucent,
-          child: SelectionArea(
-            onSelectionChanged: _onSelectionChanged,
-            contextMenuBuilder: (context, selectableRegionState) =>
-                _buildSelectionContextMenu(context, selectableRegionState),
+        return SelectionArea(
+          onSelectionChanged: _onSelectionChanged,
+          contextMenuBuilder: (context, selectableRegionState) =>
+              _buildSelectionContextMenu(context, selectableRegionState),
+          child: GestureDetector(
+            onTap: _clearAllHighlights,
+            behavior: HitTestBehavior.translucent,
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.all(24.0),
@@ -465,13 +466,13 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       case ColumnDisplayMode.both:
         // Row-based layout for proper vertical alignment
         // Each row contains both Pali and Sinhala entries side-by-side
-        return GestureDetector(
-          onTap: _clearDictionarySelection,
-          behavior: HitTestBehavior.translucent,
-          child: SelectionArea(
-            onSelectionChanged: _onSelectionChanged,
-            contextMenuBuilder: (context, selectableRegionState) =>
-                _buildSelectionContextMenu(context, selectableRegionState),
+        return SelectionArea(
+          onSelectionChanged: _onSelectionChanged,
+          contextMenuBuilder: (context, selectableRegionState) =>
+              _buildSelectionContextMenu(context, selectableRegionState),
+          child: GestureDetector(
+            onTap: _clearAllHighlights,
+            behavior: HitTestBehavior.translucent,
             child: SingleChildScrollView(
               controller: _scrollController,
               child: Padding(
@@ -492,10 +493,16 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     }
   }
 
-  /// Clears dictionary highlight and bottom sheet when tapping empty space.
-  void _clearDictionarySelection() {
+  /// Clears all highlights and bottom sheet when tapping empty space.
+  void _clearAllHighlights() {
+    // Clear text selection if active
+    if (ref.read(hasActiveSelectionProvider)) {
+      FocusManager.instance.primaryFocus?.unfocus();
+    }
+    // Clear dictionary and FTS highlights
     ref.read(dictionaryHighlightProvider.notifier).state = null;
     ref.read(selectedDictionaryWordProvider.notifier).state = null;
+    ref.read(ftsHighlightProvider.notifier).state = null;
   }
 
   /// Handles word tap for dictionary lookup.

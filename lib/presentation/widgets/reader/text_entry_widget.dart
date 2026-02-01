@@ -172,8 +172,9 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
     final searchRanges = _computeSearchRanges(searchHighlight);
 
     // For non-Pali text (e.g., Sinhala translations), render as simple Text
-    // to avoid unnecessary gesture recognizer overhead
-    if (!widget.enableTap || widget.onWordTap == null) {
+    // to avoid unnecessary gesture recognizer overhead.
+    // BUT: still use Text.rich if there are search highlights to display.
+    if ((!widget.enableTap || widget.onWordTap == null) && searchRanges.isEmpty) {
       return Text(
         widget.text,
         style: widget.style,
