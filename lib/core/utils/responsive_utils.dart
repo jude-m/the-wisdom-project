@@ -44,4 +44,20 @@ class ResponsiveUtils {
   static double screenHeight(BuildContext context) {
     return MediaQuery.of(context).size.height;
   }
+
+  /// Check if device is in portrait orientation
+  static bool isPortrait(BuildContext context) {
+    return MediaQuery.of(context).orientation == Orientation.portrait;
+  }
+
+  /// Check if device is in landscape orientation
+  static bool isLandscape(BuildContext context) {
+    return MediaQuery.of(context).orientation == Orientation.landscape;
+  }
+
+  /// Check if we should show single-column (Pali only) by default
+  /// Returns true for mobile devices in portrait mode
+  static bool shouldDefaultToSingleColumn(BuildContext context) {
+    return isMobile(context) && isPortrait(context);
+  }
 }

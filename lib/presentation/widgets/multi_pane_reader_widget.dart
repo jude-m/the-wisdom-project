@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/text_entry_theme.dart';
 import '../../core/utils/pali_conjunct_transformer.dart';
+import '../../core/utils/responsive_utils.dart';
 import '../models/column_display_mode.dart';
 import '../../domain/entities/content/entry.dart';
 import '../../domain/entities/content/entry_type.dart';
@@ -154,6 +155,16 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         // Reset scroll to 0 (always reset when tab changes)
         if (_scrollController.hasClients) {
           _scrollController.jumpTo(0);
+        }
+
+        // Apply orientation-based default display mode for the new tab
+        if (next >= 0) {
+          final shouldUseSingleColumn =
+              ResponsiveUtils.shouldDefaultToSingleColumn(context);
+          ref.read(columnDisplayModeProvider.notifier).state =
+              shouldUseSingleColumn
+                  ? ColumnDisplayMode.paliOnly
+                  : ColumnDisplayMode.both;
         }
 
         // Then restore the actual saved position for the new tab after content renders

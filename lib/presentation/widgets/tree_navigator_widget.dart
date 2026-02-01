@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/responsive_utils.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../models/reader_tab.dart';
 import '../providers/navigation_tree_provider.dart';
+import '../providers/navigator_visibility_provider.dart';
 import '../providers/tab_provider.dart';
 
 class TreeNavigatorWidget extends ConsumerStatefulWidget {
@@ -208,6 +210,14 @@ class TreeNodeWidget extends ConsumerWidget {
                     final newIndex =
                         ref.read(tabsProvider.notifier).addTab(newTab);
                     ref.read(activeTabIndexProvider.notifier).state = newIndex;
+
+                    // Close navigator on mobile portrait so user can see the content
+                    // In landscape mode, keep navigator open as there's more screen space
+                    final isPortrait =
+                        MediaQuery.of(context).orientation == Orientation.portrait;
+                    if (ResponsiveUtils.isMobile(context) && isPortrait) {
+                      ref.read(navigatorVisibleProvider.notifier).state = false;
+                    }
                   },
                   child: Row(
                     children: [

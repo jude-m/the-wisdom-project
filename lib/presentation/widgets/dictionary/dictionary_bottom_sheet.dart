@@ -35,39 +35,44 @@ class DictionaryBottomSheet extends ConsumerWidget {
     }
 
     final isMobile = ResponsiveUtils.isMobile(context);
-    final sheetContent = _DictionarySheet(
-      word: word,
-      onClose: () {
-        // Clear the selected word (closes the sheet)
-        ref.read(selectedDictionaryWordProvider.notifier).state = null;
-        // Clear all highlights
-        ref.read(highlightStateProvider.notifier).state = null;
-        onClose?.call();
-      },
-    );
 
-    // On mobile: full width
-    // On tablets/desktops: centered with max width
-    if (isMobile) {
-      return Positioned(
-        left: 0,
-        right: 0,
-        bottom: 0,
-        child: sheetContent,
-      );
-    }
+    // Use LayoutBuilder to get the actual available height from the parent Stack,
+    // not the full screen height. This prevents the sheet from expanding beyond
+    // the Stack's bounds and going behind the tab bar.
+    return Positioned.fill(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Create the sheet with the actual Stack height
+          Widget sheet = _DictionarySheet(
+            word: word,
+            availableHeight: constraints.maxHeight,
+            onClose: () {
+              ref.read(selectedDictionaryWordProvider.notifier).state = null;
+              ref.read(highlightStateProvider.notifier).state = null;
+              onClose?.call();
+            },
+          );
 
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: PaneWidthConstants.dictionarySheetMaxWidth,
-          ),
-          child: sheetContent,
-        ),
+          // Desktop/Tablet: wrap with centering and max-width constraint
+          if (!isMobile) {
+            sheet = Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: PaneWidthConstants.dictionarySheetMaxWidth,
+                ),
+                child: sheet,
+              ),
+            );
+          }
+
+          // Column with IgnorePointer allows touch pass-through above the sheet
+          return Column(
+            children: [
+              const Expanded(child: IgnorePointer()),
+              sheet,
+            ],
+          );
+        },
       ),
     );
   }
@@ -78,9 +83,13 @@ class _DictionarySheet extends ConsumerStatefulWidget {
   final String word;
   final VoidCallback onClose;
 
+  /// The available height from the parent Stack (always provided via LayoutBuilder).
+  final double availableHeight;
+
   const _DictionarySheet({
     required this.word,
     required this.onClose,
+    required this.availableHeight,
   });
 
   @override
@@ -100,10 +109,14 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
   @override
   Widget build(BuildContext context) {
     final entriesAsync = ref.watch(wordLookupProvider(widget.word));
-    final screenHeight = MediaQuery.of(context).size.height;
+
+    // Use the actual Stack height from LayoutBuilder (always provided now).
+    // This ensures the sheet expands to exactly fill the available space,
+    // with the drag handle right below the tab bar when fully expanded.
+    final sheetHeight = widget.availableHeight;
 
     return SizedBox(
-      height: screenHeight * DictionarySheetConstants.maxHeightFraction,
+      height: sheetHeight,
       child: DraggableScrollableSheet(
         controller: _sheetController,
         initialChildSize: DictionarySheetConstants.initialChildSize,
@@ -183,46 +196,51 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
   }
 
   Widget _buildNoResults(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.search_off,
-              size: 48,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              AppLocalizations.of(context).noDefinitionsFound,
-              style: context.typography.emptyStateMessage,
-            ),
-          ],
+    return SingleChildScrollView(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.search_off,
+                size: 40,
+                color:
+                    Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                AppLocalizations.of(context).noDefinitionsFound,
+                style: context.typography.emptyStateMessage,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildError(BuildContext context, Object error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              AppLocalizations.of(context).errorLoadingDefinitions,
-              style: context.typography.errorMessage,
-            ),
-          ],
+    return SingleChildScrollView(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 40,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                AppLocalizations.of(context).errorLoadingDefinitions,
+                style: context.typography.errorMessage,
+              ),
+            ],
+          ),
         ),
       ),
     );
