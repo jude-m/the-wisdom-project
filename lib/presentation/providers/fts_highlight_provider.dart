@@ -6,8 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// - Set when opening a tab from a search result
 /// - Cleared when the user taps anywhere in the reader
 ///
-/// Separate from dictionary highlight (which uses `highlightStateProvider`).
-class SearchHighlightState {
+/// Separate from dictionary highlight (which uses `dictionaryHighlightProvider`).
+class FtsHighlightState {
   /// The search query text (already sanitized + Singlish converted).
   final String queryText;
 
@@ -17,7 +17,7 @@ class SearchHighlightState {
   /// Exact mode: exact token match. Otherwise prefix matching.
   final bool isExactMatch;
 
-  const SearchHighlightState({
+  const FtsHighlightState({
     required this.queryText,
     required this.isPhraseSearch,
     required this.isExactMatch,
@@ -28,4 +28,4 @@ class SearchHighlightState {
 ///
 /// When non-null, search terms should be highlighted in the reader.
 /// Set to null to clear highlighting (e.g., on tap).
-final searchHighlightProvider = StateProvider<SearchHighlightState?>((ref) => null);
+final ftsHighlightProvider = StateProvider<FtsHighlightState?>((ref) => null);

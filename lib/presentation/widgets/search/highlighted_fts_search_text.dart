@@ -9,7 +9,7 @@ import '../../../core/utils/text_utils.dart';
 /// - **Exact phrase**: Entire query as single match
 /// - **Phrase with prefix**: Adjacent words with prefix matching
 /// - **Separate words**: Each word highlighted independently
-class HighlightedSearchText extends StatelessWidget {
+class HighlightedFtsSearchText extends StatelessWidget {
   /// The text content to display and highlight matches within.
   final String matchedText;
 
@@ -25,7 +25,7 @@ class HighlightedSearchText extends StatelessWidget {
   /// Maximum display lines. Defaults to 3.
   final int maxLines;
 
-  const HighlightedSearchText({
+  const HighlightedFtsSearchText({
     super.key,
     required this.matchedText,
     required this.effectiveQuery,

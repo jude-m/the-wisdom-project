@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/entities/search/search_result.dart';
 import '../../../domain/entities/search/search_result_type.dart';
-import 'highlighted_search_text.dart';
+import 'highlighted_fts_search_text.dart';
 
 /// A compact, muted tile for displaying secondary FTS matches.
 ///
@@ -49,7 +49,7 @@ class SecondaryMatchTile extends StatelessWidget {
             // Show highlighted text for fullText results
             if (result.resultType == SearchResultType.fullText &&
                 result.matchedText.isNotEmpty)
-              HighlightedSearchText(
+              HighlightedFtsSearchText(
                 matchedText: result.matchedText,
                 effectiveQuery: effectiveQuery,
                 isPhraseSearch: isPhraseSearch,

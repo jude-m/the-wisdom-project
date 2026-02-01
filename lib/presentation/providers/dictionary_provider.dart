@@ -21,7 +21,7 @@ final selectedDictionaryWordProvider = StateProvider<String?>((ref) => null);
 /// This ensures only one word is highlighted at a time across all paragraphs.
 ///
 /// Note: This is cleared when the dictionary sheet closes.
-final highlightStateProvider = StateProvider<({int widgetId, int position})?>((ref) => null);
+final dictionaryHighlightProvider = StateProvider<({int widgetId, int position})?>((ref) => null);
 
 /// Tracks whether there's an active text selection.
 /// When true, word taps should be ignored to prevent dictionary from

@@ -13,7 +13,7 @@ import '../providers/navigator_visibility_provider.dart';
 import '../providers/tab_provider.dart';
 import '../providers/search_provider.dart';
 import '../providers/pane_width_provider.dart';
-import '../providers/search_highlight_provider.dart';
+import '../providers/fts_highlight_provider.dart';
 import '../../core/constants/constants.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../../domain/entities/search/search_result_type.dart';
@@ -40,7 +40,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     // (Title search doesn't need content highlighting since it matches titles, not content)
     if (result.resultType == SearchResultType.fullText) {
       final searchState = ref.read(searchStateProvider);
-      ref.read(searchHighlightProvider.notifier).state = SearchHighlightState(
+      ref.read(ftsHighlightProvider.notifier).state = FtsHighlightState(
         queryText: searchState.effectiveQueryText,
         isPhraseSearch: searchState.isPhraseSearch,
         isExactMatch: searchState.isExactMatch,

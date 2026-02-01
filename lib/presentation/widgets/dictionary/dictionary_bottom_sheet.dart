@@ -48,7 +48,7 @@ class DictionaryBottomSheet extends ConsumerWidget {
             availableHeight: constraints.maxHeight,
             onClose: () {
               ref.read(selectedDictionaryWordProvider.notifier).state = null;
-              ref.read(highlightStateProvider.notifier).state = null;
+              ref.read(dictionaryHighlightProvider.notifier).state = null;
               onClose?.call();
             },
           );

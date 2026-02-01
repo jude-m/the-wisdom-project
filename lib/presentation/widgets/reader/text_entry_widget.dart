@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../core/utils/search_match_finder.dart';
 import '../../../core/utils/text_utils.dart';
-import '../../providers/dictionary_provider.dart' show highlightStateProvider;
-import '../../providers/search_highlight_provider.dart';
+import '../../providers/dictionary_provider.dart' show dictionaryHighlightProvider;
+import '../../providers/fts_highlight_provider.dart';
 
 /// Callback type for word tap events
 /// [word] - The tapped word
@@ -143,10 +143,10 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
         // won't accidentally open the dictionary sheet.
         ..onTap = () {
           // Clear search highlight on any tap (user found what they were looking for)
-          ref.read(searchHighlightProvider.notifier).state = null;
+          ref.read(ftsHighlightProvider.notifier).state = null;
 
           // Update global highlight state with this widget and position
-          ref.read(highlightStateProvider.notifier).state = (
+          ref.read(dictionaryHighlightProvider.notifier).state = (
             widgetId: myWidgetId,
             position: wordPosition,
           );
@@ -163,10 +163,10 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
   Widget build(BuildContext context) {
     // Watch the global highlight state to rebuild when highlighting changes
     // Store the result to use in _buildTextSpan
-    final highlightState = ref.watch(highlightStateProvider);
+    final highlightState = ref.watch(dictionaryHighlightProvider);
 
     // Watch search highlight state for FTS result highlighting
-    final searchHighlight = ref.watch(searchHighlightProvider);
+    final searchHighlight = ref.watch(ftsHighlightProvider);
 
     // Compute search highlight ranges if active
     final searchRanges = _computeSearchRanges(searchHighlight);
@@ -195,7 +195,7 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
   /// Computes search highlight ranges for the current text.
   /// Returns empty list if no search highlight is active.
   List<({int start, int end})> _computeSearchRanges(
-    SearchHighlightState? searchHighlight,
+    FtsHighlightState? searchHighlight,
   ) {
     if (searchHighlight == null || searchHighlight.queryText.isEmpty) {
       return [];

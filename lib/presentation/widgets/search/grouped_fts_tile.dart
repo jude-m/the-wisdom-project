@@ -6,7 +6,7 @@ import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/search_result.dart';
 import '../../../domain/entities/search/search_result_type.dart';
 import '../../providers/search_provider.dart';
-import 'highlighted_search_text.dart';
+import 'highlighted_fts_search_text.dart';
 import 'secondary_match_tile.dart';
 
 /// A search result tile that groups multiple FTS matches from the same text.
@@ -109,7 +109,7 @@ class GroupedFTSTile extends ConsumerWidget {
           if (result.resultType == SearchResultType.fullText &&
               result.matchedText.isNotEmpty) ...[
             const SizedBox(height: 4),
-            HighlightedSearchText(
+            HighlightedFtsSearchText(
               matchedText: result.matchedText,
               effectiveQuery: effectiveQuery,
               isPhraseSearch: isPhraseSearch,

@@ -3,7 +3,7 @@ import 'text_utils.dart';
 /// Utility for finding search matches in text with ZWJ normalization.
 ///
 /// This is a shared utility used by:
-/// - `HighlightedSearchText` (search panel snippets)
+/// - `HighlightedFtsSearchText` (search panel snippets)
 /// - `TextEntryWidget` (reader search highlighting)
 ///
 /// Supports three search modes:

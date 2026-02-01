@@ -13,7 +13,7 @@ import '../providers/document_provider.dart';
 import '../providers/dictionary_provider.dart'
     show
         selectedDictionaryWordProvider,
-        highlightStateProvider,
+        dictionaryHighlightProvider,
         hasActiveSelectionProvider;
 import '../providers/tab_provider.dart'
     show
@@ -303,7 +303,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       // Mark that selection is active - prevents dictionary from opening on taps
       ref.read(hasActiveSelectionProvider.notifier).state = true;
       // Clear dictionary highlight when user starts selecting text
-      ref.read(highlightStateProvider.notifier).state = null;
+      ref.read(dictionaryHighlightProvider.notifier).state = null;
       // Hide dictionary bottom sheet when selection starts
       ref.read(selectedDictionaryWordProvider.notifier).state = null;
     } else {
@@ -494,7 +494,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
 
   /// Clears dictionary highlight and bottom sheet when tapping empty space.
   void _clearDictionarySelection() {
-    ref.read(highlightStateProvider.notifier).state = null;
+    ref.read(dictionaryHighlightProvider.notifier).state = null;
     ref.read(selectedDictionaryWordProvider.notifier).state = null;
   }
 
@@ -505,7 +505,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     if (ref.read(hasActiveSelectionProvider)) {
       FocusManager.instance.primaryFocus?.unfocus();
       // Clear the highlight that was set by TextEntryWidget before this callback
-      ref.read(highlightStateProvider.notifier).state = null;
+      ref.read(dictionaryHighlightProvider.notifier).state = null;
       return;
     }
     // Open dictionary lookup

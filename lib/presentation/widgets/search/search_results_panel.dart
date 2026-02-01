@@ -9,7 +9,7 @@ import '../../providers/dictionary_provider.dart' show selectedDictionaryWordPro
 import '../../providers/search_provider.dart';
 import 'dictionary_search_result_tile.dart';
 import 'grouped_fts_tile.dart';
-import 'highlighted_search_text.dart';
+import 'highlighted_fts_search_text.dart';
 import 'scope_filter_chips.dart';
 
 /// Slide-out panel for displaying full search results
@@ -619,7 +619,7 @@ class _SearchResultTile extends StatelessWidget {
           if (searchResult.resultType == SearchResultType.fullText &&
               searchResult.matchedText.isNotEmpty) ...[
             const SizedBox(height: 4),
-            HighlightedSearchText(
+            HighlightedFtsSearchText(
               matchedText: searchResult.matchedText,
               effectiveQuery: effectiveQuery,
               isPhraseSearch: isPhraseSearch,
