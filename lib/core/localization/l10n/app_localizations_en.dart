@@ -163,4 +163,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rootText => 'Root Text';
+
+  @override
+  String get scrollToBeginning => 'Go to beginning';
+
+  @override
+  String get scrollUpGradually => 'Show more above';
 }

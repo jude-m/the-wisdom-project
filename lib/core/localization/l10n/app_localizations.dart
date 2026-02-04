@@ -403,6 +403,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Root Text'**
   String get rootText;
+
+  /// Tooltip for button to scroll to the beginning of the sutta when opened mid-document from FTS
+  ///
+  /// In en, this message translates to:
+  /// **'Go to beginning'**
+  String get scrollToBeginning;
+
+  /// Tooltip for button to reveal more content above the current position
+  ///
+  /// In en, this message translates to:
+  /// **'Show more above'**
+  String get scrollUpGradually;
 }
 
 class _AppLocalizationsDelegate

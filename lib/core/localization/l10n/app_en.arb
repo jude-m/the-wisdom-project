@@ -259,5 +259,15 @@
   "rootText": "Root Text",
   "@rootText": {
     "description": "Label for button to navigate to root text (sutta) from commentary"
+  },
+
+  "scrollToBeginning": "Go to beginning",
+  "@scrollToBeginning": {
+    "description": "Tooltip for button to scroll to the beginning of the sutta when opened mid-document from FTS"
+  },
+
+  "scrollUpGradually": "Show more above",
+  "@scrollUpGradually": {
+    "description": "Tooltip for button to reveal more content above the current position"
   }
 }

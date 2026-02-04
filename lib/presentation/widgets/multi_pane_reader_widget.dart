@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show SelectedContent;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/localization/l10n/app_localizations.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/text_entry_theme.dart';
 import '../../core/utils/pali_conjunct_transformer.dart';
@@ -22,11 +23,17 @@ import '../providers/tab_provider.dart'
         activePageStartProvider,
         activePageEndProvider,
         activeEntryStartProvider,
-        activeColumnModeProvider;
+        activeColumnModeProvider,
+        activeNodeKeyProvider,
+        updateActiveTabPaginationProvider;
+import '../providers/navigation_tree_provider.dart' show nodeByKeyProvider;
 import '../providers/fts_highlight_provider.dart';
 import 'reader/text_entry_widget.dart';
 import 'reader/parallel_text_button.dart';
 import 'dictionary/dictionary_bottom_sheet.dart';
+
+/// Number of entries to reveal per "scroll up gradually" click
+const int kScrollUpEntryStep = 5;
 
 class MultiPaneReaderWidget extends ConsumerStatefulWidget {
   const MultiPaneReaderWidget({super.key});
@@ -120,6 +127,79 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     }
   }
 
+  /// Scrolls to the beginning of the current sutta.
+  /// Behaves the same as loading from the navigation tree.
+  void _scrollToBeginning() {
+    final nodeKey = ref.read(activeNodeKeyProvider);
+    if (nodeKey == null) return;
+
+    final node = ref.read(nodeByKeyProvider(nodeKey));
+    if (node == null) return;
+
+    // Reset pagination to the sutta's beginning
+    ref.read(updateActiveTabPaginationProvider)(
+      pageStart: node.entryPageIndex,
+      pageEnd: node.entryPageIndex + 1,
+      entryStart: node.entryIndexInPage,
+    );
+
+    // Reset scroll to top - same as loading from navigator
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+
+    // After resetting pagination, ensure enough pages are loaded to fill the screen.
+    // This is necessary because the single page might not have enough content to
+    // enable scrolling (e.g., if the sutta starts near the end of a page).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMorePagesIfNeeded(scheduleNextCheck: true);
+    });
+  }
+
+  /// Reveals more content above by decreasing entryStart by kScrollUpEntryStep.
+  /// Respects the sutta's beginning position (won't go to a previous sutta).
+  /// User's scroll position is preserved so they can scroll up to see new content.
+  void _scrollUpGradually() {
+    // Get the nodeKey of the current sutta
+    final nodeKey = ref.read(activeNodeKeyProvider);
+    if (nodeKey == null) return;
+
+    // Look up the node to find the sutta's actual start position
+    final node = ref.read(nodeByKeyProvider(nodeKey));
+    if (node == null) return;
+
+    final currentPageStart = ref.read(activePageStartProvider);
+    final currentEntryStart = ref.read(activeEntryStartProvider);
+
+    // Determine the minimum entry we can scroll to on the current page
+    // On the sutta's start page, don't go below the sutta's start entry
+    // On later pages, we can go down to entry 0
+    final minEntryOnCurrentPage =
+        currentPageStart == node.entryPageIndex ? node.entryIndexInPage : 0;
+
+    if (currentEntryStart > minEntryOnCurrentPage) {
+      // Still have room to scroll up on current page - decrease entryStart by step
+      final newEntryStart = (currentEntryStart - kScrollUpEntryStep)
+          .clamp(minEntryOnCurrentPage, currentEntryStart);
+      ref.read(updateActiveTabPaginationProvider)(entryStart: newEntryStart);
+      // Don't reset scroll - user can scroll up to see new content
+    } else if (currentPageStart > node.entryPageIndex) {
+      // At entry 0 on current page, but not yet at sutta's start page
+      // Go to previous page
+      // Don't reset scroll - new page content appears above
+      final newPageStart = currentPageStart - 1;
+      // If moving to the sutta's start page, stop at the sutta heading entry
+      // Otherwise, start from entry 0 (will be clamped on next tap)
+      final newEntryStart =
+          newPageStart == node.entryPageIndex ? node.entryIndexInPage : 0;
+      ref.read(updateActiveTabPaginationProvider)(
+        pageStart: newPageStart,
+        entryStart: newEntryStart,
+      );
+    }
+    // If we're already at the sutta's beginning, do nothing
+  }
+
   void _restoreScrollPosition() {
     final activeTabIndex = ref.read(activeTabIndexProvider);
     if (activeTabIndex >= 0) {
@@ -194,6 +274,17 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     final columnMode = ref.watch(activeColumnModeProvider);
     // Watch selected word to conditionally mount the dictionary sheet
     final selectedWord = ref.watch(selectedDictionaryWordProvider);
+    // Watch pagination state to determine if scroll up buttons should show
+    final pageStart = ref.watch(activePageStartProvider);
+    final entryStart = ref.watch(activeEntryStartProvider);
+
+    // Determine if we're past the sutta's beginning (to show scroll up buttons)
+    final nodeKey = ref.watch(activeNodeKeyProvider);
+    final node = nodeKey != null ? ref.watch(nodeByKeyProvider(nodeKey)) : null;
+    final isAfterSuttaBeginning = node != null &&
+        (pageStart > node.entryPageIndex ||
+            (pageStart == node.entryPageIndex &&
+                entryStart > node.entryIndexInPage));
 
     return Stack(
       children: [
@@ -223,8 +314,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                     );
                   }
 
-                  // Get pagination state from derived providers (read from active tab)
-                  final pageStart = ref.watch(activePageStartProvider);
+                  // Get page end from derived provider (pageStart already watched above)
                   final pageEnd = ref.watch(activePageEndProvider);
 
                   // Show only the loaded page slice
@@ -239,10 +329,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                     );
                   }
 
-                  // Get entry start (which entry to start from on the first page)
-                  final entryStart = ref.watch(activeEntryStartProvider);
-
                   // Build the layout based on column mode
+                  // (entryStart already watched above for isAfterSuttaBeginning check)
                   return _buildContentLayout(
                     context,
                     pagesToShow,
@@ -280,6 +368,17 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             ),
           ],
         ),
+        // Scroll up buttons (only when current position is after sutta's beginning)
+        // Allows user to see content before the search result position
+        if (isAfterSuttaBeginning)
+          Positioned(
+            top: 16,
+            right: 16,
+            child: _ScrollUpButtons(
+              onScrollToBeginning: _scrollToBeginning,
+              onScrollUpGradually: _scrollUpGradually,
+            ),
+          ),
         // Non-modal dictionary bottom sheet overlay
         // Only mounted when a word is selected (conditional mounting for performance)
         if (selectedWord != null) const DictionaryBottomSheet(),
@@ -695,6 +794,80 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       textAlign: textAlign,
       enableTap: enableDictionaryLookup,
       onWordTap: (word, _) => _handleWordTap(word),
+    );
+  }
+}
+
+/// Floating buttons to unlock scrolling up when content was opened mid-document.
+/// Only visible when entryStart > 0 (i.e., opened from FTS results).
+///
+/// Provides two buttons:
+/// - Go to beginning (vertical_align_top icon): Resets entryStart to 0
+/// - Scroll up gradually (arrow_upward icon): Decreases entryStart by kScrollUpEntryStep
+class _ScrollUpButtons extends StatelessWidget {
+  final VoidCallback onScrollToBeginning;
+  final VoidCallback onScrollUpGradually;
+
+  const _ScrollUpButtons({
+    required this.onScrollToBeginning,
+    required this.onScrollUpGradually,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      elevation: 2,
+      borderRadius: BorderRadius.circular(20),
+      color: colorScheme.surfaceContainerHigh,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Go to beginning button
+          _buildButton(
+            context,
+            icon: Icons.vertical_align_top,
+            tooltip: AppLocalizations.of(context).scrollToBeginning,
+            onTap: onScrollToBeginning,
+          ),
+          // Divider between buttons
+          Container(
+            width: 1,
+            height: 24,
+            color: colorScheme.outlineVariant,
+          ),
+          // Scroll up gradually button
+          _buildButton(
+            context,
+            icon: Icons.arrow_upward,
+            tooltip: AppLocalizations.of(context).scrollUpGradually,
+            onTap: onScrollUpGradually,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildButton(
+    BuildContext context, {
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Icon(
+            icon,
+            size: 20,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ),
     );
   }
 }

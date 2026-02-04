@@ -163,4 +163,10 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get rootText => 'මූල පාඨය';
+
+  @override
+  String get scrollToBeginning => 'ආරම්භයට යන්න';
+
+  @override
+  String get scrollUpGradually => 'තවත් ඉහළින් පෙන්වන්න';
 }
