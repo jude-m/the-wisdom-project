@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/presentation/widgets/settings_menu_button.dart';
-import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
+import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/models/column_display_mode.dart';
+import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/domain/entities/navigation/navigation_language.dart';
 
 import '../../helpers/pump_app.dart';
@@ -46,6 +47,15 @@ void main() {
       // We'll use a container to read providers
       final container = ProviderContainer();
 
+      // Create a tab so column mode has a target to update
+      container.read(tabsProvider.notifier).addTab(ReaderTab.fromNode(
+        nodeKey: 'test-node',
+        paliName: 'Test Sutta',
+        sinhalaName: 'Test Sutta',
+        contentFileId: 'test-file',
+      ));
+      container.read(activeTabIndexProvider.notifier).state = 0;
+
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
@@ -73,16 +83,16 @@ void main() {
       expect(container.read(navigationLanguageProvider),
           NavigationLanguage.sinhala);
 
-      // Change Sutta Language (Column Mode)
+      // Change Sutta Language (Column Mode) - now per-tab
       // Note: 'P' text might be inside the SegmentedButton
       await tester.tap(find.text('S'));
       await tester.pumpAndSettle();
-      expect(container.read(columnDisplayModeProvider),
+      expect(container.read(activeColumnModeProvider),
           ColumnDisplayMode.sinhalaOnly);
 
       await tester.tap(find.text('P+S'));
       await tester.pumpAndSettle();
-      expect(container.read(columnDisplayModeProvider), ColumnDisplayMode.both);
+      expect(container.read(activeColumnModeProvider), ColumnDisplayMode.both);
     });
   });
 }

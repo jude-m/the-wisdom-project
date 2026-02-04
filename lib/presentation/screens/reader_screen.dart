@@ -48,7 +48,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
 
     // Use centralized provider for consistent tab creation and navigation
-    ref.read(openTabFromSearchResultProvider)(result);
+    // Column mode is now set per-tab based on result language (in tab_provider)
+    final isPortraitMode = ResponsiveUtils.shouldDefaultToSingleColumn(context);
+    ref.read(openTabFromSearchResultProvider)(result, isPortraitMode: isPortraitMode);
 
     // Save to recent searches and dismiss panel
     ref.read(searchStateProvider.notifier).saveRecentSearchAndDismiss();

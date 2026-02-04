@@ -58,6 +58,10 @@ mixin _$ReaderTab {
   /// Nullable for backward compatibility
   List<ReaderPane> get panes => throw _privateConstructorUsedError;
 
+  /// Column display mode for this tab (per-tab setting)
+  /// Defaults to paliOnly for portrait mode, can be changed by user
+  ColumnDisplayMode get columnMode => throw _privateConstructorUsedError;
+
   /// Create a copy of ReaderTab
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -82,7 +86,8 @@ abstract class $ReaderTabCopyWith<$Res> {
       String? paliName,
       String? sinhalaName,
       String? textId,
-      List<ReaderPane> panes});
+      List<ReaderPane> panes,
+      ColumnDisplayMode columnMode});
 }
 
 /// @nodoc
@@ -112,6 +117,7 @@ class _$ReaderTabCopyWithImpl<$Res, $Val extends ReaderTab>
     Object? sinhalaName = freezed,
     Object? textId = freezed,
     Object? panes = null,
+    Object? columnMode = null,
   }) {
     return _then(_value.copyWith(
       label: null == label
@@ -162,6 +168,10 @@ class _$ReaderTabCopyWithImpl<$Res, $Val extends ReaderTab>
           ? _value.panes
           : panes // ignore: cast_nullable_to_non_nullable
               as List<ReaderPane>,
+      columnMode: null == columnMode
+          ? _value.columnMode
+          : columnMode // ignore: cast_nullable_to_non_nullable
+              as ColumnDisplayMode,
     ) as $Val);
   }
 }
@@ -186,7 +196,8 @@ abstract class _$$ReaderTabImplCopyWith<$Res>
       String? paliName,
       String? sinhalaName,
       String? textId,
-      List<ReaderPane> panes});
+      List<ReaderPane> panes,
+      ColumnDisplayMode columnMode});
 }
 
 /// @nodoc
@@ -214,6 +225,7 @@ class __$$ReaderTabImplCopyWithImpl<$Res>
     Object? sinhalaName = freezed,
     Object? textId = freezed,
     Object? panes = null,
+    Object? columnMode = null,
   }) {
     return _then(_$ReaderTabImpl(
       label: null == label
@@ -264,6 +276,10 @@ class __$$ReaderTabImplCopyWithImpl<$Res>
           ? _value._panes
           : panes // ignore: cast_nullable_to_non_nullable
               as List<ReaderPane>,
+      columnMode: null == columnMode
+          ? _value.columnMode
+          : columnMode // ignore: cast_nullable_to_non_nullable
+              as ColumnDisplayMode,
     ));
   }
 }
@@ -283,7 +299,8 @@ class _$ReaderTabImpl extends _ReaderTab {
       this.paliName,
       this.sinhalaName,
       this.textId,
-      final List<ReaderPane> panes = const []})
+      final List<ReaderPane> panes = const [],
+      this.columnMode = ColumnDisplayMode.paliOnly})
       : _panes = panes,
         super._();
 
@@ -356,9 +373,15 @@ class _$ReaderTabImpl extends _ReaderTab {
     return EqualUnmodifiableListView(_panes);
   }
 
+  /// Column display mode for this tab (per-tab setting)
+  /// Defaults to paliOnly for portrait mode, can be changed by user
+  @override
+  @JsonKey()
+  final ColumnDisplayMode columnMode;
+
   @override
   String toString() {
-    return 'ReaderTab(label: $label, fullName: $fullName, contentFileId: $contentFileId, pageIndex: $pageIndex, pageStart: $pageStart, pageEnd: $pageEnd, entryStart: $entryStart, nodeKey: $nodeKey, paliName: $paliName, sinhalaName: $sinhalaName, textId: $textId, panes: $panes)';
+    return 'ReaderTab(label: $label, fullName: $fullName, contentFileId: $contentFileId, pageIndex: $pageIndex, pageStart: $pageStart, pageEnd: $pageEnd, entryStart: $entryStart, nodeKey: $nodeKey, paliName: $paliName, sinhalaName: $sinhalaName, textId: $textId, panes: $panes, columnMode: $columnMode)';
   }
 
   @override
@@ -384,7 +407,9 @@ class _$ReaderTabImpl extends _ReaderTab {
             (identical(other.sinhalaName, sinhalaName) ||
                 other.sinhalaName == sinhalaName) &&
             (identical(other.textId, textId) || other.textId == textId) &&
-            const DeepCollectionEquality().equals(other._panes, _panes));
+            const DeepCollectionEquality().equals(other._panes, _panes) &&
+            (identical(other.columnMode, columnMode) ||
+                other.columnMode == columnMode));
   }
 
   @override
@@ -401,7 +426,8 @@ class _$ReaderTabImpl extends _ReaderTab {
       paliName,
       sinhalaName,
       textId,
-      const DeepCollectionEquality().hash(_panes));
+      const DeepCollectionEquality().hash(_panes),
+      columnMode);
 
   /// Create a copy of ReaderTab
   /// with the given fields replaced by the non-null parameter values.
@@ -425,7 +451,8 @@ abstract class _ReaderTab extends ReaderTab {
       final String? paliName,
       final String? sinhalaName,
       final String? textId,
-      final List<ReaderPane> panes}) = _$ReaderTabImpl;
+      final List<ReaderPane> panes,
+      final ColumnDisplayMode columnMode}) = _$ReaderTabImpl;
   const _ReaderTab._() : super._();
 
   /// Short label for tab display (truncated if needed)
@@ -481,6 +508,11 @@ abstract class _ReaderTab extends ReaderTab {
   /// Nullable for backward compatibility
   @override
   List<ReaderPane> get panes;
+
+  /// Column display mode for this tab (per-tab setting)
+  /// Defaults to paliOnly for portrait mode, can be changed by user
+  @override
+  ColumnDisplayMode get columnMode;
 
   /// Create a copy of ReaderTab
   /// with the given fields replaced by the non-null parameter values.

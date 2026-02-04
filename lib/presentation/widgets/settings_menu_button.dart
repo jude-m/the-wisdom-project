@@ -5,7 +5,8 @@ import '../../core/theme/theme_notifier.dart';
 import '../../domain/entities/navigation/navigation_language.dart';
 import '../models/column_display_mode.dart';
 import '../providers/navigation_tree_provider.dart';
-import '../providers/document_provider.dart';
+import '../providers/tab_provider.dart'
+    show activeColumnModeProvider, updateActiveTabColumnModeProvider;
 
 /// Settings menu button for AppBar
 class SettingsMenuButton extends ConsumerWidget {
@@ -141,10 +142,12 @@ class _LanguageSelector extends ConsumerWidget {
 }
 
 /// Sutta language selection buttons
+/// Uses per-tab column mode - each tab remembers its own setting
 class _SuttaLanguageSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentMode = ref.watch(columnDisplayModeProvider);
+    // Watch per-tab column mode
+    final currentMode = ref.watch(activeColumnModeProvider);
     final segmentStyle = context.typography.segmentedButtonLabel;
 
     return SegmentedButton<ColumnDisplayMode>(
@@ -164,7 +167,8 @@ class _SuttaLanguageSelector extends ConsumerWidget {
       ],
       selected: {currentMode},
       onSelectionChanged: (Set<ColumnDisplayMode> newSelection) {
-        ref.read(columnDisplayModeProvider.notifier).state = newSelection.first;
+        // Update the active tab's column mode
+        ref.read(updateActiveTabColumnModeProvider)(newSelection.first);
       },
       style: const ButtonStyle(
         visualDensity: VisualDensity.compact,

@@ -123,14 +123,14 @@ void main() {
       await tester.pump();
 
       // Check highlight is set
-      expect(testRef.read(highlightStateProvider), isNotNull);
+      expect(testRef.read(dictionaryHighlightProvider), isNotNull);
 
       // Clear highlight by setting to null (simulating sheet close)
-      testRef.read(highlightStateProvider.notifier).state = null;
+      testRef.read(dictionaryHighlightProvider.notifier).state = null;
       await tester.pump();
 
       // Verify highlight is cleared
-      expect(testRef.read(highlightStateProvider), isNull);
+      expect(testRef.read(dictionaryHighlightProvider), isNull);
     });
 
     testWidgets('detects Unicode/Sinhala script words correctly',

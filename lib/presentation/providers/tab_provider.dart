@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/constants.dart';
+import '../models/column_display_mode.dart';
 import '../models/reader_tab.dart';
 import '../../domain/entities/search/search_result.dart';
 import 'navigation_tree_provider.dart';
@@ -165,6 +166,17 @@ final activeEntryStartProvider = Provider<int>((ref) {
   return 0;
 });
 
+/// Derived provider for active tab's column display mode
+/// Returns paliOnly if no tab is selected (default for portrait mode)
+final activeColumnModeProvider = Provider<ColumnDisplayMode>((ref) {
+  final activeIndex = ref.watch(activeTabIndexProvider);
+  final tabs = ref.watch(tabsProvider);
+  if (activeIndex >= 0 && activeIndex < tabs.length) {
+    return tabs[activeIndex].columnMode;
+  }
+  return ColumnDisplayMode.paliOnly;
+});
+
 /// Provider to update pagination state for the active tab
 /// Used when loading more pages during scrolling
 final updateActiveTabPaginationProvider =
@@ -191,6 +203,20 @@ final updateActiveTabPageIndexProvider = Provider<void Function(int)>((ref) {
   return (int pageIndex) {
     final activeIndex = ref.read(activeTabIndexProvider);
     ref.read(tabsProvider.notifier).updateTabPage(activeIndex, pageIndex);
+  };
+});
+
+/// Provider to update the column display mode of the active tab
+/// Used when user changes column mode in settings menu
+final updateActiveTabColumnModeProvider =
+    Provider<void Function(ColumnDisplayMode)>((ref) {
+  return (ColumnDisplayMode mode) {
+    final activeIndex = ref.read(activeTabIndexProvider);
+    final tabs = ref.read(tabsProvider);
+    if (activeIndex >= 0 && activeIndex < tabs.length) {
+      final updatedTab = tabs[activeIndex].copyWith(columnMode: mode);
+      ref.read(tabsProvider.notifier).updateTab(activeIndex, updatedTab);
+    }
   };
 });
 
@@ -273,10 +299,22 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
 
 /// Provider to open a new tab from a search result
 /// Centralizes the tab creation and navigation logic used across search widgets
-/// All state (contentFileId, pageIndex, pagination) is derived from the tab entity
+/// All state (contentFileId, pageIndex, pagination, columnMode) is derived from the tab entity
 final openTabFromSearchResultProvider =
-    Provider<void Function(SearchResult)>((ref) {
-  return (SearchResult result) {
+    Provider<void Function(SearchResult, {bool isPortraitMode})>((ref) {
+  return (SearchResult result, {bool isPortraitMode = false}) {
+    // Determine column mode based on result language
+    // In portrait mode: show the language matching the search result
+    // In landscape mode: show both columns
+    final ColumnDisplayMode columnMode;
+    if (isPortraitMode) {
+      columnMode = result.language == 'sinhala'
+          ? ColumnDisplayMode.sinhalaOnly
+          : ColumnDisplayMode.paliOnly;
+    } else {
+      columnMode = ColumnDisplayMode.both;
+    }
+
     // Create a new tab for the search result with entryStart for proper positioning
     // This ensures the sutta title appears at the top, not content from a previous
     // sutta that happens to share the same page
@@ -288,6 +326,7 @@ final openTabFromSearchResultProvider =
       contentFileId: result.contentFileId,
       pageIndex: result.pageIndex,
       entryStart: result.entryIndex,
+      columnMode: columnMode,
     );
 
     // Add tab and make it active
@@ -295,6 +334,7 @@ final openTabFromSearchResultProvider =
     // - activeContentFileIdProvider
     // - activePageIndexProvider
     // - activePageStartProvider, activePageEndProvider, activeEntryStartProvider
+    // - activeColumnModeProvider
     final newIndex = ref.read(tabsProvider.notifier).addTab(newTab);
     ref.read(activeTabIndexProvider.notifier).state = newIndex;
 

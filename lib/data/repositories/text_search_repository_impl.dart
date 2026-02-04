@@ -480,6 +480,10 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             ? (node.sinhalaName.isNotEmpty ? node.sinhalaName : node.paliName)
             : (node.paliName.isNotEmpty ? node.paliName : node.sinhalaName);
 
+        // Normalize language: FTS uses 'sinh' but app uses 'sinhala'
+        final normalizedLanguage =
+            match.language == 'sinh' ? 'sinhala' : match.language;
+
         results.add(
           SearchResult(
             id: '${match.editionId}_${match.filename}_${match.eind}',
@@ -492,7 +496,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             pageIndex: pageIndex,
             entryIndex: entryIndex,
             nodeKey: node.nodeKey,
-            language: match.language,
+            language: normalizedLanguage,
             relevanceScore: match.relevanceScore,
           ),
         );

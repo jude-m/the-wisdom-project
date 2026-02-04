@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/text_entry_theme.dart';
 import '../../core/utils/pali_conjunct_transformer.dart';
-import '../../core/utils/responsive_utils.dart';
 import '../models/column_display_mode.dart';
 import '../../domain/entities/content/entry.dart';
 import '../../domain/entities/content/entry_type.dart';
@@ -22,7 +21,8 @@ import '../providers/tab_provider.dart'
         getTabScrollPositionProvider,
         activePageStartProvider,
         activePageEndProvider,
-        activeEntryStartProvider;
+        activeEntryStartProvider,
+        activeColumnModeProvider;
 import '../providers/fts_highlight_provider.dart';
 import 'reader/text_entry_widget.dart';
 import 'reader/parallel_text_button.dart';
@@ -158,15 +158,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
           _scrollController.jumpTo(0);
         }
 
-        // Apply orientation-based default display mode for the new tab
-        if (next >= 0) {
-          final shouldUseSingleColumn =
-              ResponsiveUtils.shouldDefaultToSingleColumn(context);
-          ref.read(columnDisplayModeProvider.notifier).state =
-              shouldUseSingleColumn
-                  ? ColumnDisplayMode.paliOnly
-                  : ColumnDisplayMode.both;
-        }
+        // Column mode is now per-tab and derived from activeColumnModeProvider
+        // No need to override or reset - each tab remembers its own column mode
 
         // Then restore the actual saved position for the new tab after content renders
         // (only if transitioning to a valid tab, not to -1)
@@ -197,7 +190,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     });
 
     final contentAsync = ref.watch(currentBJTDocumentProvider);
-    final columnMode = ref.watch(columnDisplayModeProvider);
+    // Watch per-tab column mode (each tab remembers its own setting)
+    final columnMode = ref.watch(activeColumnModeProvider);
     // Watch selected word to conditionally mount the dictionary sheet
     final selectedWord = ref.watch(selectedDictionaryWordProvider);
 

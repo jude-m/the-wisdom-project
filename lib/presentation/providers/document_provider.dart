@@ -3,7 +3,6 @@ import '../../data/datasources/bjt_document_local_datasource.dart';
 import '../../data/repositories/bjt_document_repository_impl.dart';
 import '../../domain/entities/bjt/bjt_document.dart';
 import '../../domain/entities/content/text_layer.dart';
-import '../models/column_display_mode.dart';
 import '../../domain/repositories/bjt_document_repository.dart';
 import '../../domain/usecases/load_bjt_document_usecase.dart';
 import 'tab_provider.dart';
@@ -62,10 +61,9 @@ final currentBJTDocumentProvider = Provider<AsyncValue<BJTDocument?>>((ref) {
   return ref.watch(bjtDocumentProvider(fileId));
 });
 
-// Column display mode provider
-final columnDisplayModeProvider = StateProvider<ColumnDisplayMode>((ref) {
-  return ColumnDisplayMode.both;
-});
+// Note: Column display mode is now per-tab, stored in ReaderTab.columnMode
+// Access via activeColumnModeProvider in tab_provider.dart
+// Update via updateActiveTabColumnModeProvider in tab_provider.dart
 
 // Provider to load more pages
 // Updates only the active tab's pageEnd; widgets react via activePageEndProvider

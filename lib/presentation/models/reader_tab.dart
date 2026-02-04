@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'column_display_mode.dart';
 import 'reader_pane.dart';
 
 part 'reader_tab.freezed.dart';
@@ -51,6 +52,10 @@ class ReaderTab with _$ReaderTab {
     /// Empty list means using legacy dual-pane mode (Pali + Sinhala)
     /// Nullable for backward compatibility
     @Default([]) List<ReaderPane> panes,
+
+    /// Column display mode for this tab (per-tab setting)
+    /// Defaults to paliOnly for portrait mode, can be changed by user
+    @Default(ColumnDisplayMode.paliOnly) ColumnDisplayMode columnMode,
   }) = _ReaderTab;
 
   /// Creates a tab from a tree node
@@ -61,6 +66,7 @@ class ReaderTab with _$ReaderTab {
     String? contentFileId,
     int pageIndex = 0,
     int entryStart = 0,
+    ColumnDisplayMode columnMode = ColumnDisplayMode.paliOnly,
   }) {
     // Create a short label (max 20 characters)
     final displayName = paliName;
@@ -79,6 +85,7 @@ class ReaderTab with _$ReaderTab {
       nodeKey: nodeKey,
       paliName: paliName,
       sinhalaName: sinhalaName,
+      columnMode: columnMode,
     );
   }
 
