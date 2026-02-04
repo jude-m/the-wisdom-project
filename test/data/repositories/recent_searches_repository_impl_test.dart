@@ -98,16 +98,16 @@ void main() {
         expect(result[2].queryText, equals('buddha'));
       });
 
-      test('should trim list to max items (10)', () async {
-        for (int i = 0; i < 12; i++) {
+      test('should trim list to max items (5)', () async {
+        for (int i = 0; i < 7; i++) {
           await repository.addRecentSearch('search$i');
         }
 
         final result = await repository.getRecentSearches(limit: 20);
 
-        expect(result.length, equals(10));
-        expect(result[0].queryText, equals('search11'));
-        expect(result[9].queryText, equals('search2'));
+        expect(result.length, equals(5));
+        expect(result[0].queryText, equals('search6'));
+        expect(result[4].queryText, equals('search2'));
       });
 
       test('should sanitize input (trim whitespace, ignore empty)', () async {

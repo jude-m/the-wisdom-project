@@ -9,7 +9,7 @@ import '../../domain/repositories/recent_searches_repository.dart';
 /// Future: Will sync with Supabase for cross-device history.
 class RecentSearchesRepositoryImpl implements RecentSearchesRepository {
   static const _key = 'recent_searches';
-  static const _maxItems = 10;
+  static const _maxItems = 5;
 
   final SharedPreferences _prefs;
 

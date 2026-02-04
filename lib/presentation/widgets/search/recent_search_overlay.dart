@@ -82,7 +82,7 @@ class RecentSearchOverlay extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(context, 'RECENT SEARCHES'),
+        _sectionHeader(context, ref, 'RECENT SEARCHES'),
         ...recentSearches.map((search) => ListTile(
               dense: true,
               leading: Icon(
@@ -119,12 +119,38 @@ class RecentSearchOverlay extends ConsumerWidget {
     );
   }
 
-  Widget _sectionHeader(BuildContext context, String title) {
+  Widget _sectionHeader(BuildContext context, WidgetRef ref, String title) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Text(
-        title,
-        style: context.typography.sectionHeader,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: context.typography.sectionHeader,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(4),
+              onTap: () {
+                ref.read(searchStateProvider.notifier).clearRecentSearches();
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Text(
+                  'Clear All',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
