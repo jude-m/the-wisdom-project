@@ -10,6 +10,10 @@ part 'reader_tab.freezed.dart';
 class ReaderTab with _$ReaderTab {
   const ReaderTab._();
 
+  @Assert(
+    'splitRatio >= 0.0 && splitRatio <= 1.0',
+    'splitRatio must be between 0.0 and 1.0',
+  )
   const factory ReaderTab({
     /// Short label for tab display (truncated if needed)
     required String label,
@@ -56,6 +60,10 @@ class ReaderTab with _$ReaderTab {
     /// Column display mode for this tab (per-tab setting)
     /// Defaults to paliOnly for portrait mode, can be changed by user
     @Default(ColumnDisplayMode.paliOnly) ColumnDisplayMode columnMode,
+
+    /// Split ratio for "both" column mode (0.0 to 1.0)
+    /// Represents the proportion of width for the left (Pali) pane
+    @Default(0.5) double splitRatio,
   }) = _ReaderTab;
 
   /// Creates a tab from a tree node

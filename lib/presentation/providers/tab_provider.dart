@@ -220,6 +220,35 @@ final updateActiveTabColumnModeProvider =
   };
 });
 
+/// Derived provider for active tab's split ratio (for "both" column mode)
+/// Returns default ratio (0.5) if no tab is selected
+final activeSplitRatioProvider = Provider<double>((ref) {
+  final activeIndex = ref.watch(activeTabIndexProvider);
+  final tabs = ref.watch(tabsProvider);
+  if (activeIndex >= 0 && activeIndex < tabs.length) {
+    return tabs[activeIndex].splitRatio;
+  }
+  return PaneWidthConstants.readerSplitDefault;
+});
+
+/// Provider to update the split ratio of the active tab
+/// Used when user drags the resizable divider in "both" column mode
+final updateActiveTabSplitRatioProvider = Provider<void Function(double)>((ref) {
+  return (double ratio) {
+    final activeIndex = ref.read(activeTabIndexProvider);
+    final tabs = ref.read(tabsProvider);
+    if (activeIndex >= 0 && activeIndex < tabs.length) {
+      // Clamp ratio to allowed range
+      final clampedRatio = ratio.clamp(
+        PaneWidthConstants.readerSplitMin,
+        PaneWidthConstants.readerSplitMax,
+      );
+      final updatedTab = tabs[activeIndex].copyWith(splitRatio: clampedRatio);
+      ref.read(tabsProvider.notifier).updateTab(activeIndex, updatedTab);
+    }
+  };
+});
+
 /// Provider to handle tab switching
 /// Content and pagination state are derived automatically from the active tab via:
 /// - activeContentFileIdProvider

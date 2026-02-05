@@ -62,6 +62,10 @@ mixin _$ReaderTab {
   /// Defaults to paliOnly for portrait mode, can be changed by user
   ColumnDisplayMode get columnMode => throw _privateConstructorUsedError;
 
+  /// Split ratio for "both" column mode (0.0 to 1.0)
+  /// Represents the proportion of width for the left (Pali) pane
+  double get splitRatio => throw _privateConstructorUsedError;
+
   /// Create a copy of ReaderTab
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -87,7 +91,8 @@ abstract class $ReaderTabCopyWith<$Res> {
       String? sinhalaName,
       String? textId,
       List<ReaderPane> panes,
-      ColumnDisplayMode columnMode});
+      ColumnDisplayMode columnMode,
+      double splitRatio});
 }
 
 /// @nodoc
@@ -118,6 +123,7 @@ class _$ReaderTabCopyWithImpl<$Res, $Val extends ReaderTab>
     Object? textId = freezed,
     Object? panes = null,
     Object? columnMode = null,
+    Object? splitRatio = null,
   }) {
     return _then(_value.copyWith(
       label: null == label
@@ -172,6 +178,10 @@ class _$ReaderTabCopyWithImpl<$Res, $Val extends ReaderTab>
           ? _value.columnMode
           : columnMode // ignore: cast_nullable_to_non_nullable
               as ColumnDisplayMode,
+      splitRatio: null == splitRatio
+          ? _value.splitRatio
+          : splitRatio // ignore: cast_nullable_to_non_nullable
+              as double,
     ) as $Val);
   }
 }
@@ -197,7 +207,8 @@ abstract class _$$ReaderTabImplCopyWith<$Res>
       String? sinhalaName,
       String? textId,
       List<ReaderPane> panes,
-      ColumnDisplayMode columnMode});
+      ColumnDisplayMode columnMode,
+      double splitRatio});
 }
 
 /// @nodoc
@@ -226,6 +237,7 @@ class __$$ReaderTabImplCopyWithImpl<$Res>
     Object? textId = freezed,
     Object? panes = null,
     Object? columnMode = null,
+    Object? splitRatio = null,
   }) {
     return _then(_$ReaderTabImpl(
       label: null == label
@@ -280,6 +292,10 @@ class __$$ReaderTabImplCopyWithImpl<$Res>
           ? _value.columnMode
           : columnMode // ignore: cast_nullable_to_non_nullable
               as ColumnDisplayMode,
+      splitRatio: null == splitRatio
+          ? _value.splitRatio
+          : splitRatio // ignore: cast_nullable_to_non_nullable
+              as double,
     ));
   }
 }
@@ -300,8 +316,11 @@ class _$ReaderTabImpl extends _ReaderTab {
       this.sinhalaName,
       this.textId,
       final List<ReaderPane> panes = const [],
-      this.columnMode = ColumnDisplayMode.paliOnly})
-      : _panes = panes,
+      this.columnMode = ColumnDisplayMode.paliOnly,
+      this.splitRatio = 0.5})
+      : assert(splitRatio >= 0.0 && splitRatio <= 1.0,
+            'splitRatio must be between 0.0 and 1.0'),
+        _panes = panes,
         super._();
 
   /// Short label for tab display (truncated if needed)
@@ -379,9 +398,15 @@ class _$ReaderTabImpl extends _ReaderTab {
   @JsonKey()
   final ColumnDisplayMode columnMode;
 
+  /// Split ratio for "both" column mode (0.0 to 1.0)
+  /// Represents the proportion of width for the left (Pali) pane
+  @override
+  @JsonKey()
+  final double splitRatio;
+
   @override
   String toString() {
-    return 'ReaderTab(label: $label, fullName: $fullName, contentFileId: $contentFileId, pageIndex: $pageIndex, pageStart: $pageStart, pageEnd: $pageEnd, entryStart: $entryStart, nodeKey: $nodeKey, paliName: $paliName, sinhalaName: $sinhalaName, textId: $textId, panes: $panes, columnMode: $columnMode)';
+    return 'ReaderTab(label: $label, fullName: $fullName, contentFileId: $contentFileId, pageIndex: $pageIndex, pageStart: $pageStart, pageEnd: $pageEnd, entryStart: $entryStart, nodeKey: $nodeKey, paliName: $paliName, sinhalaName: $sinhalaName, textId: $textId, panes: $panes, columnMode: $columnMode, splitRatio: $splitRatio)';
   }
 
   @override
@@ -409,7 +434,9 @@ class _$ReaderTabImpl extends _ReaderTab {
             (identical(other.textId, textId) || other.textId == textId) &&
             const DeepCollectionEquality().equals(other._panes, _panes) &&
             (identical(other.columnMode, columnMode) ||
-                other.columnMode == columnMode));
+                other.columnMode == columnMode) &&
+            (identical(other.splitRatio, splitRatio) ||
+                other.splitRatio == splitRatio));
   }
 
   @override
@@ -427,7 +454,8 @@ class _$ReaderTabImpl extends _ReaderTab {
       sinhalaName,
       textId,
       const DeepCollectionEquality().hash(_panes),
-      columnMode);
+      columnMode,
+      splitRatio);
 
   /// Create a copy of ReaderTab
   /// with the given fields replaced by the non-null parameter values.
@@ -452,7 +480,8 @@ abstract class _ReaderTab extends ReaderTab {
       final String? sinhalaName,
       final String? textId,
       final List<ReaderPane> panes,
-      final ColumnDisplayMode columnMode}) = _$ReaderTabImpl;
+      final ColumnDisplayMode columnMode,
+      final double splitRatio}) = _$ReaderTabImpl;
   const _ReaderTab._() : super._();
 
   /// Short label for tab display (truncated if needed)
@@ -513,6 +542,11 @@ abstract class _ReaderTab extends ReaderTab {
   /// Defaults to paliOnly for portrait mode, can be changed by user
   @override
   ColumnDisplayMode get columnMode;
+
+  /// Split ratio for "both" column mode (0.0 to 1.0)
+  /// Represents the proportion of width for the left (Pali) pane
+  @override
+  double get splitRatio;
 
   /// Create a copy of ReaderTab
   /// with the given fields replaced by the non-null parameter values.

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show SelectedContent;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/constants.dart';
 import '../../core/localization/l10n/app_localizations.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/text_entry_theme.dart';
 import '../../core/utils/pali_conjunct_transformer.dart';
+import '../../core/utils/responsive_utils.dart';
 import '../models/column_display_mode.dart';
 import '../../domain/entities/content/entry.dart';
 import '../../domain/entities/content/entry_type.dart';
@@ -25,12 +27,15 @@ import '../providers/tab_provider.dart'
         activeEntryStartProvider,
         activeColumnModeProvider,
         activeNodeKeyProvider,
-        updateActiveTabPaginationProvider;
+        activeSplitRatioProvider,
+        updateActiveTabPaginationProvider,
+        updateActiveTabSplitRatioProvider;
 import '../providers/navigation_tree_provider.dart' show nodeByKeyProvider;
 import '../providers/fts_highlight_provider.dart';
 import 'reader/text_entry_widget.dart';
 import 'reader/parallel_text_button.dart';
 import 'dictionary/dictionary_bottom_sheet.dart';
+import 'resizable_divider.dart';
 
 /// Number of entries to reveal per "scroll up gradually" click
 const int kScrollUpEntryStep = 5;
@@ -559,6 +564,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       case ColumnDisplayMode.both:
         // Row-based layout for proper vertical alignment
         // Each row contains both Pali and Sinhala entries side-by-side
+        // On tablet/desktop: resizable split pane with draggable divider overlay
+        final isTabletOrDesktop = ResponsiveUtils.isTabletOrDesktop(context);
         return SelectionArea(
           onSelectionChanged: _onSelectionChanged,
           contextMenuBuilder: (context, selectableRegionState) =>
@@ -566,20 +573,27 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
           child: GestureDetector(
             onTap: _clearAllHighlights,
             behavior: HitTestBehavior.translucent,
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Commentary link button at the top
-                    const ParallelTextButton(),
-                    // Content rows - each page with paired entries
-                    ..._buildBothModePages(context, pages, entryStart),
-                  ],
+            child: Stack(
+              children: [
+                // Main scrollable content
+                SingleChildScrollView(
+                  controller: _scrollController,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Commentary link button at the top
+                        const ParallelTextButton(),
+                        // Content rows - each page with paired entries
+                        ..._buildBothModePages(context, pages, entryStart),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                // Single draggable divider overlay (tablet/desktop only)
+                if (isTabletOrDesktop) _buildDividerOverlay(context),
+              ],
             ),
           ),
         );
@@ -615,6 +629,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
 
   /// Builds the page content for "both" column mode (side-by-side Pali/Sinhala)
   /// On the first page, skips entries before [entryStart]
+  /// On tablet/desktop: uses resizable split pane with draggable divider
   List<Widget> _buildBothModePages(
     BuildContext context,
     List<dynamic> pages,
@@ -627,25 +642,12 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       // On first page, skip entries before entryStart
       final startEntry = pageIndex == 0 ? entryStart : 0;
 
-      // Page number row
+      // Page number row - uses split layout
       widgets.add(
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 12.0),
-                child: _buildPageNumber(context, page.pageNumber),
-              ),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 12.0),
-                child: _buildPageNumber(context, page.pageNumber),
-              ),
-            ),
-          ],
+        _buildSplitRow(
+          context,
+          leftChild: _buildPageNumber(context, page.pageNumber),
+          rightChild: _buildPageNumber(context, page.pageNumber),
         ),
       );
       widgets.add(const SizedBox(height: 16));
@@ -662,32 +664,19 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         widgets.add(
           Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Pali entry (left) - enable dictionary lookup
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 12.0),
-                    child: _buildEntry(
-                      context,
-                      paliEntry,
-                      enableDictionaryLookup: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 24),
-                // Sinhala entry (right) - disable dictionary lookup
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 12.0),
-                    child: sinhalaEntry != null
-                        ? _buildEntry(context, sinhalaEntry,
-                            enableDictionaryLookup: false)
-                        : const SizedBox.shrink(),
-                  ),
-                ),
-              ],
+            child: _buildSplitRow(
+              context,
+              // Pali entry (left) - enable dictionary lookup
+              leftChild: _buildEntry(
+                context,
+                paliEntry,
+                enableDictionaryLookup: true,
+              ),
+              // Sinhala entry (right) - disable dictionary lookup
+              rightChild: sinhalaEntry != null
+                  ? _buildEntry(context, sinhalaEntry,
+                      enableDictionaryLookup: false)
+                  : const SizedBox.shrink(),
             ),
           ),
         );
@@ -697,6 +686,97 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     }
 
     return widgets;
+  }
+
+  /// Builds a row with split layout for "both" column mode.
+  /// Uses a thin vertical line as separator (actual dragging handled by overlay)
+  Widget _buildSplitRow(
+    BuildContext context, {
+    required Widget leftChild,
+    required Widget rightChild,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final splitRatio = ref.watch(activeSplitRatioProvider);
+        final isTabletOrDesktop = ResponsiveUtils.isTabletOrDesktop(context);
+
+        // Divider width: thin line on tablet/desktop, gap on mobile
+        final dividerWidth =
+            isTabletOrDesktop ? PaneWidthConstants.dividerWidth : 24.0;
+
+        // Calculate pane widths based on split ratio
+        final availableWidth = constraints.maxWidth - dividerWidth;
+        final leftWidth = availableWidth * splitRatio;
+        final rightWidth = availableWidth * (1 - splitRatio);
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Left pane (Pali)
+            SizedBox(
+              width: leftWidth,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: leftChild,
+              ),
+            ),
+            // Thin vertical line separator (tablet/desktop) or simple gap (mobile)
+            // Note: The actual drag interaction is handled by _buildDividerOverlay
+            SizedBox(width: dividerWidth),
+            // Right pane (Sinhala)
+            SizedBox(
+              width: rightWidth,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 12.0),
+                child: rightChild,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Builds the draggable divider overlay positioned at the split ratio.
+  /// This single divider handles all drag interactions for resizing panes.
+  /// Only visible on hover (the pill handle appears on mouse hover).
+  Widget _buildDividerOverlay(BuildContext context) {
+    final splitRatio = ref.watch(activeSplitRatioProvider);
+
+    // Content area has 24px padding on each side (matches SingleChildScrollView padding)
+    const horizontalPadding = 24.0;
+
+    return Positioned.fill(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final contentWidth = constraints.maxWidth - (horizontalPadding * 2);
+
+          // Position divider at the split point within the content area
+          // Account for padding offset and center the divider on the split line
+          final dividerLeft = horizontalPadding +
+              (contentWidth * splitRatio) -
+              (PaneWidthConstants.dividerWidth / 2);
+
+          // Use Padding + Align instead of nested Stack for simpler structure
+          return Padding(
+            padding: EdgeInsets.only(left: dividerLeft),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ResizableDivider(
+                hideWhenIdle: true, // Only show pill on hover
+                onDragUpdate: (delta) {
+                  // Convert pixel delta to ratio change relative to content width
+                  final ratioChange = delta / contentWidth;
+                  final currentRatio = ref.read(activeSplitRatioProvider);
+                  ref.read(updateActiveTabSplitRatioProvider)(
+                      currentRatio + ratioChange);
+                },
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Widget _buildPageNumber(BuildContext context, int pageNumber) {

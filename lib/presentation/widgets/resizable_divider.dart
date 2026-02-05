@@ -23,12 +23,17 @@ class ResizableDivider extends StatefulWidget {
   /// on dark backgrounds.
   final bool showPillBorder;
 
+  /// When true, the pill handle is completely invisible until hover.
+  /// When false (default), the pill has subtle 0.4 opacity when idle.
+  final bool hideWhenIdle;
+
   const ResizableDivider({
     super.key,
     required this.onDragUpdate,
     this.onDragEnd,
     this.isEnabled = true,
     this.showPillBorder = false,
+    this.hideWhenIdle = false,
   });
 
   @override
@@ -41,20 +46,26 @@ class _ResizableDividerState extends State<ResizableDivider> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    // Background only changes on drag (not hover) to avoid double color flash
-    final backgroundColor = _isDragging
-        ? colorScheme.primaryContainer
-        : Colors.transparent;
-
-    final pillColor = _isDragging ? colorScheme.primary : colorScheme.onSurface;
-
-    final pillOpacity = (_isDragging || _isHovering) ? 1.0 : 0.4;
-
     // When disabled, just return an empty SizedBox (no visual divider on mobile)
     if (!widget.isEnabled) {
       return const SizedBox.shrink();
+    }
+
+    final colorScheme = Theme.of(context).colorScheme;
+
+    // Background only changes on drag (not hover) to avoid double color flash
+    final backgroundColor =
+        _isDragging ? colorScheme.primaryContainer : Colors.transparent;
+
+    final pillColor = _isDragging ? colorScheme.primary : colorScheme.onSurface;
+
+    // When hideWhenIdle is true, pill is invisible until hover/drag
+    // Otherwise, pill has subtle 0.4 opacity when idle
+    final double pillOpacity;
+    if (_isDragging || _isHovering) {
+      pillOpacity = 1.0;
+    } else {
+      pillOpacity = widget.hideWhenIdle ? 0.0 : 0.4;
     }
 
     return MouseRegion(
@@ -76,20 +87,24 @@ class _ResizableDividerState extends State<ResizableDivider> {
           width: 8,
           color: backgroundColor,
           child: Center(
-            // Pill-shaped handle indicator
-            child: Container(
-              width: 4,
-              height: 32,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(2),
-                color: pillColor.withValues(alpha: pillOpacity),
-                // Subtle border for visibility on dark backgrounds
-                border: widget.showPillBorder
-                    ? Border.all(
-                        color: colorScheme.surfaceContainerLowest,
-                        width: 2,
-                      )
-                    : null,
+            // Pill-shaped handle indicator with animated opacity
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 150),
+              opacity: pillOpacity,
+              child: Container(
+                width: 4,
+                height: 32,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(2),
+                  color: pillColor,
+                  // Subtle border for visibility on dark backgrounds
+                  border: widget.showPillBorder
+                      ? Border.all(
+                          color: colorScheme.surfaceContainerLowest,
+                          width: 2,
+                        )
+                      : null,
+                ),
               ),
             ),
           ),

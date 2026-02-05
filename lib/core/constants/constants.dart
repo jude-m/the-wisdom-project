@@ -125,6 +125,9 @@ class PaneWidthConstants {
   static const double readerSplitDefault = 0.5; // 50/50 ratio
   static const double readerSplitMin = 0.25; // Min 25% for left pane
   static const double readerSplitMax = 0.75; // Max 75% for left pane
+
+  // Reader content padding (used for scroll area and divider overlay alignment)
+  static const double readerContentPadding = 24.0;
 }
 
 /// Constants for dictionary bottom sheet sizing and behavior.
