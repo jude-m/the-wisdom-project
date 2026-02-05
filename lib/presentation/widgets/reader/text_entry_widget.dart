@@ -222,8 +222,8 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
     List<({int start, int end})> searchRanges,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
-    final dictHighlightColor = colorScheme.primaryContainer;
-    final searchHighlightColor = colorScheme.tertiaryContainer;
+    final dictHighlightColor = colorScheme.tertiaryContainer;
+    final searchHighlightColor = colorScheme.tertiaryContainer.withValues(alpha: 0.6);
     final myWidgetId = identityHashCode(this);
 
     final spans = <InlineSpan>[];

@@ -107,9 +107,9 @@ class PaneWidthConstants {
   static const double navigatorMax = 500.0;
 
   // Search panel (right overlay)
-  static const double searchDefault = 400.0;
+  static const double searchDefault = 450.0;
   static const double searchMin = 300.0;
-  static const double searchMaxAbsolute = 600.0;
+  static const double searchMaxAbsolute = 650.0;
 
   // Minimum reader content width to preserve
   static const double minReaderWidth = 400.0;
@@ -119,6 +119,12 @@ class PaneWidthConstants {
 
   // Dictionary bottom sheet (for tablets/desktops)
   static const double dictionarySheetMaxWidth = 800.0;
+
+  // Reader split pane (for "both" column mode)
+  // Ratio-based (0.0-1.0) for automatic adaptation to window resizing
+  static const double readerSplitDefault = 0.5; // 50/50 ratio
+  static const double readerSplitMin = 0.25; // Min 25% for left pane
+  static const double readerSplitMax = 0.75; // Max 75% for left pane
 }
 
 /// Constants for dictionary bottom sheet sizing and behavior.
