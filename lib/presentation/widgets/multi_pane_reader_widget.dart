@@ -251,9 +251,13 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         if (next >= 0) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _restoreScrollPosition();
-            // Cached content: When switching tabs, if the document is already cached,
-            // the content listener below won't fire. This ensures pages still load.
-            _loadMorePagesIfNeeded(scheduleNextCheck: true);
+            // Only load more pages if content doesn't fill the viewport yet.
+            // Returning to a tab that already has enough content should NOT grow
+            // pageEnd — that causes search results to inflate on every tab switch.
+            if (_scrollController.hasClients &&
+                _scrollController.position.maxScrollExtent <= 0) {
+              _loadMorePagesIfNeeded(scheduleNextCheck: true);
+            }
           });
         }
       }
