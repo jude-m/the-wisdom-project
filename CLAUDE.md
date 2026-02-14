@@ -39,3 +39,6 @@ The Wisdom Project - a Tipitaka and commentary browsing app with parallel Pali/S
     - Reuse existing classes and methods wherever possible.
     - Identify and suggest merging any duplicated or overlapping logic
     - Focus on correctness, clarity, and extensibility.
+
+## Misc
+- Pali text is in Sinhala script: එවං මෙ සුතං (not "Evam me sutam"); important when generating tests

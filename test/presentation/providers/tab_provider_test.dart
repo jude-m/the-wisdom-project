@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:the_wisdom_project/core/constants/constants.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
+import 'package:the_wisdom_project/presentation/providers/in_page_search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
@@ -544,6 +545,61 @@ void main() {
       expect(container.read(getTabScrollPositionProvider)(0), equals(100.0));
       expect(container.read(getTabScrollPositionProvider)(1), equals(300.0));
     });
+
+    // ==========================================================================
+    // In-page search state cleanup on tab close
+    // ==========================================================================
+
+    test('closing tab should re-index in-page search state', () {
+      // ARRANGE - Add 3 tabs with search state
+      final notifier = container.read(tabsProvider.notifier);
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
+
+      // Open search on each tab
+      final searchNotifier =
+          container.read(inPageSearchStatesProvider.notifier);
+      container.read(activeTabIndexProvider.notifier).state = 0;
+      searchNotifier.openSearch();
+      container.read(activeTabIndexProvider.notifier).state = 1;
+      searchNotifier.openSearch();
+      container.read(activeTabIndexProvider.notifier).state = 2;
+      searchNotifier.openSearch();
+
+      container.read(activeTabIndexProvider.notifier).state = 2;
+
+      // ACT - Close tab 1 (middle tab)
+      container.read(closeTabProvider)(1);
+
+      // ASSERT - Search state should be re-indexed
+      final states = container.read(inPageSearchStatesProvider);
+      // Tab 0 preserved at key 0
+      expect(states.containsKey(0), true);
+      // Tab 2's search state shifted to key 1
+      expect(states.containsKey(1), true);
+      // Key 2 no longer exists
+      expect(states.containsKey(2), false);
+    });
+
+    test('closing the only tab should clear all in-page search state', () {
+      // ARRANGE - Add 1 tab with search state
+      final notifier = container.read(tabsProvider.notifier);
+      notifier
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+      container.read(activeTabIndexProvider.notifier).state = 0;
+      container.read(inPageSearchStatesProvider.notifier).openSearch();
+
+      // ACT - Close the only tab
+      container.read(closeTabProvider)(0);
+
+      // ASSERT - All search state should be cleared
+      expect(container.read(inPageSearchStatesProvider), isEmpty);
+    });
+
   });
 }
 
