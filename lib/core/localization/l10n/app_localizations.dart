@@ -415,6 +415,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show more above'**
   String get scrollUpGradually;
+
+  /// Placeholder text for the in-page search text field
+  ///
+  /// In en, this message translates to:
+  /// **'Find in page'**
+  String get findInPage;
+
+  /// Shown when in-page search finds no matches
+  ///
+  /// In en, this message translates to:
+  /// **'0 / 0'**
+  String get noInPageMatches;
+
+  /// Tooltip for previous match button in in-page search
+  ///
+  /// In en, this message translates to:
+  /// **'Previous match'**
+  String get previousMatch;
+
+  /// Tooltip for next match button in in-page search
+  ///
+  /// In en, this message translates to:
+  /// **'Next match'**
+  String get nextMatch;
 }
 
 class _AppLocalizationsDelegate

@@ -46,6 +46,15 @@ class TextEntryWidget extends ConsumerStatefulWidget {
   /// How to handle text overflow
   final TextOverflow? overflow;
 
+  /// In-page search query (already sanitized + Singlish converted).
+  /// When non-null, highlights all occurrences in this entry.
+  /// Suppresses FTS highlighting when active.
+  final String? inPageSearchQuery;
+
+  /// Which match in this entry should get the "current match" highlight.
+  /// -1 or null means no match in this entry is current.
+  final int? currentMatchIndexInEntry;
+
   const TextEntryWidget({
     super.key,
     required this.text,
@@ -55,6 +64,8 @@ class TextEntryWidget extends ConsumerStatefulWidget {
     this.enableTap = true,
     this.maxLines,
     this.overflow,
+    this.inPageSearchQuery,
+    this.currentMatchIndexInEntry,
   });
 
   @override
@@ -72,6 +83,11 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
   /// Cached display text (computed once per text change)
   String? _cachedDisplayText;
   String? _lastText;
+
+  /// Cached in-page search ranges (avoids re-creating SearchMatchFinder on every build)
+  List<({int start, int end})>? _cachedInPageRanges;
+  String? _lastInPageQuery;
+  String? _lastInPageDisplayText;
 
   /// Get display text with conjunct transformation applied for Pali text.
   /// Uses caching to avoid recomputing on every access.
@@ -168,13 +184,25 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
     // Watch search highlight state for FTS result highlighting
     final searchHighlight = ref.watch(ftsHighlightProvider);
 
-    // Compute search highlight ranges if active
-    final searchRanges = _computeSearchRanges(searchHighlight);
+    // In-page search suppresses FTS highlight to avoid confusing dual highlights
+    final hasInPageSearch = widget.inPageSearchQuery != null &&
+        widget.inPageSearchQuery!.isNotEmpty;
+
+    // Compute in-page search ranges if active
+    final inPageRanges = hasInPageSearch
+        ? _computeInPageSearchRanges(widget.inPageSearchQuery!)
+        : <({int start, int end})>[];
+
+    // Compute FTS search highlight ranges only if in-page search is not active
+    final searchRanges =
+        hasInPageSearch ? <({int start, int end})>[] : _computeSearchRanges(searchHighlight);
 
     // For non-Pali text (e.g., Sinhala translations), render as simple Text
     // to avoid unnecessary gesture recognizer overhead.
-    // BUT: still use Text.rich if there are search highlights to display.
-    if ((!widget.enableTap || widget.onWordTap == null) && searchRanges.isEmpty) {
+    // BUT: still use Text.rich if there are search/in-page highlights to display.
+    if ((!widget.enableTap || widget.onWordTap == null) &&
+        searchRanges.isEmpty &&
+        inPageRanges.isEmpty) {
       return Text(
         widget.text,
         style: widget.style,
@@ -186,11 +214,32 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
 
     // Build rich text with tappable word spans
     return Text.rich(
-      _buildTextSpan(context, highlightState, searchRanges),
+      _buildTextSpan(context, highlightState, searchRanges, inPageRanges),
       textAlign: widget.textAlign,
       maxLines: widget.maxLines,
       overflow: widget.overflow,
     );
+  }
+
+  /// Computes in-page search highlight ranges for the current text.
+  /// Uses exact phrase matching (same as FTS with isPhraseSearch + isExactMatch).
+  /// Results are cached based on (query, displayText) to avoid re-creating
+  /// SearchMatchFinder on every rebuild.
+  List<({int start, int end})> _computeInPageSearchRanges(String query) {
+    if (query == _lastInPageQuery &&
+        _displayText == _lastInPageDisplayText &&
+        _cachedInPageRanges != null) {
+      return _cachedInPageRanges!;
+    }
+    _lastInPageQuery = query;
+    _lastInPageDisplayText = _displayText;
+    final finder = SearchMatchFinder(
+      queryText: query,
+      isPhraseSearch: true,
+      isExactMatch: true,
+    );
+    _cachedInPageRanges = finder.findMatchRanges(_displayText);
+    return _cachedInPageRanges!;
   }
 
   /// Computes search highlight ranges for the current text.
@@ -213,18 +262,33 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
 
   /// Builds a TextSpan with tappable words and optional highlighting.
   ///
-  /// Supports two types of highlighting:
+  /// Supports three types of highlighting:
   /// - Dictionary highlight (primaryContainer) - single tapped word
-  /// - Search highlight (tertiaryContainer) - matched search terms
+  /// - FTS search highlight (tertiaryContainer) - matched search terms from FTS
+  /// - In-page search highlight - Sage Green for all matches, Golden Amber for current
   TextSpan _buildTextSpan(
     BuildContext context,
     ({int widgetId, int position})? highlightState,
     List<({int start, int end})> searchRanges,
+    List<({int start, int end})> inPageRanges,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
     final dictHighlightColor = colorScheme.tertiaryContainer;
     final searchHighlightColor = colorScheme.tertiaryContainer.withValues(alpha: 0.6);
+    // In-page search colors: Sage Green for all matches, Golden Amber for current
+    final inPageMatchColor = colorScheme.tertiaryContainer;
+    final inPageCurrentMatchColor = colorScheme.tertiary;
     final myWidgetId = identityHashCode(this);
+
+    // Determine which in-page range is the "current" match
+    final currentInPageRangeIndex = widget.currentMatchIndexInEntry;
+
+    // Merge both search types into a unified highlight list
+    // (in-page ranges take priority when active)
+    final effectiveSearchRanges =
+        inPageRanges.isNotEmpty ? inPageRanges : searchRanges;
+    final effectiveHighlightColor =
+        inPageRanges.isNotEmpty ? inPageMatchColor : searchHighlightColor;
 
     final spans = <InlineSpan>[];
     int lastEnd = 0;
@@ -241,10 +305,13 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
         final betweenSpans = _buildSpansWithSearchHighlight(
           text: betweenText,
           textStart: lastEnd,
-          searchRanges: searchRanges,
-          searchHighlightColor: searchHighlightColor,
+          searchRanges: effectiveSearchRanges,
+          searchHighlightColor: effectiveHighlightColor,
           baseStyle: widget.style,
           recognizer: null,
+          inPageCurrentMatchColor: inPageRanges.isNotEmpty ? inPageCurrentMatchColor : null,
+          currentInPageRangeIndex: currentInPageRangeIndex,
+          allInPageRanges: inPageRanges.isNotEmpty ? inPageRanges : null,
         );
         spans.addAll(betweenSpans);
       }
@@ -269,10 +336,13 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
         final wordSpans = _buildSpansWithSearchHighlight(
           text: word,
           textStart: wordPosition,
-          searchRanges: searchRanges,
-          searchHighlightColor: searchHighlightColor,
+          searchRanges: effectiveSearchRanges,
+          searchHighlightColor: effectiveHighlightColor,
           baseStyle: widget.style,
           recognizer: recognizer,
+          inPageCurrentMatchColor: inPageRanges.isNotEmpty ? inPageCurrentMatchColor : null,
+          currentInPageRangeIndex: currentInPageRangeIndex,
+          allInPageRanges: inPageRanges.isNotEmpty ? inPageRanges : null,
         );
         spans.addAll(wordSpans);
       }
@@ -286,10 +356,13 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
       final remainingSpans = _buildSpansWithSearchHighlight(
         text: remainingText,
         textStart: lastEnd,
-        searchRanges: searchRanges,
-        searchHighlightColor: searchHighlightColor,
+        searchRanges: effectiveSearchRanges,
+        searchHighlightColor: effectiveHighlightColor,
         baseStyle: widget.style,
         recognizer: null,
+        inPageCurrentMatchColor: inPageRanges.isNotEmpty ? inPageCurrentMatchColor : null,
+        currentInPageRangeIndex: currentInPageRangeIndex,
+        allInPageRanges: inPageRanges.isNotEmpty ? inPageRanges : null,
       );
       spans.addAll(remainingSpans);
     }
@@ -301,6 +374,8 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
   ///
   /// [textStart] is the position of [text] within [_displayText].
   /// [searchRanges] are the global highlight ranges in [_displayText].
+  /// [inPageCurrentMatchColor] - if set, the range at [currentInPageRangeIndex]
+  ///   within [allInPageRanges] gets this color instead of [searchHighlightColor].
   List<InlineSpan> _buildSpansWithSearchHighlight({
     required String text,
     required int textStart,
@@ -308,6 +383,9 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
     required Color searchHighlightColor,
     required TextStyle? baseStyle,
     required TapGestureRecognizer? recognizer,
+    Color? inPageCurrentMatchColor,
+    int? currentInPageRangeIndex,
+    List<({int start, int end})>? allInPageRanges,
   }) {
     if (searchRanges.isEmpty || text.isEmpty) {
       return [
@@ -317,14 +395,17 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
 
     final textEnd = textStart + text.length;
 
-    // Find ranges that overlap with this text segment
-    final overlappingRanges = <({int start, int end})>[];
-    for (final range in searchRanges) {
+    // Find ranges that overlap with this text segment, tracking their global index
+    // for in-page current-match highlighting
+    final overlappingRanges = <({int start, int end, int globalIndex})>[];
+    for (var i = 0; i < searchRanges.length; i++) {
+      final range = searchRanges[i];
       if (range.start < textEnd && range.end > textStart) {
         // Clamp range to this text segment
         overlappingRanges.add((
           start: (range.start - textStart).clamp(0, text.length),
           end: (range.end - textStart).clamp(0, text.length),
+          globalIndex: i,
         ));
       }
     }
@@ -349,11 +430,22 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
         ));
       }
 
+      // Determine highlight color: Golden Amber for current in-page match,
+      // default color for all others
+      final isCurrentInPageMatch = inPageCurrentMatchColor != null &&
+          allInPageRanges != null &&
+          currentInPageRangeIndex != null &&
+          currentInPageRangeIndex >= 0 &&
+          range.globalIndex == currentInPageRangeIndex;
+
+      final highlightColor =
+          isCurrentInPageMatch ? inPageCurrentMatchColor : searchHighlightColor;
+
       // Add highlighted text
       spans.add(TextSpan(
         text: text.substring(range.start, range.end),
-        style: baseStyle?.copyWith(backgroundColor: searchHighlightColor) ??
-            TextStyle(backgroundColor: searchHighlightColor),
+        style: baseStyle?.copyWith(backgroundColor: highlightColor) ??
+            TextStyle(backgroundColor: highlightColor),
         recognizer: recognizer,
       ));
 

@@ -169,4 +169,16 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get scrollUpGradually => 'තවත් ඉහළින් පෙන්වන්න';
+
+  @override
+  String get findInPage => 'පිටුවේ සොයන්න';
+
+  @override
+  String get noInPageMatches => '0 / 0';
+
+  @override
+  String get previousMatch => 'පෙර ගැලපීම';
+
+  @override
+  String get nextMatch => 'ඊළඟ ගැලපීම';
 }

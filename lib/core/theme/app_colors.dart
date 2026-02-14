@@ -21,6 +21,7 @@ class LightThemeColors {
 
   // Interactive
   static const accent = Color(0xFFD47E30); // Cinnamon orange (links, buttons)
+  static const secondaryAccent = Color(0xFFFFD36A); // Golden amber (current match highlight)
 
   // Utility
   static const divider = Color(0xFFD6C9B8); // Light tan divider
@@ -70,6 +71,7 @@ class DarkThemeColors {
 
   // Interactive
   static const accent = Color(0xFFFF8C00); // Bright orange (links, buttons)
+  static const secondaryAccent = Color(0xFFFFD36A); // Golden amber (current match highlight)
 
   // Utility
   static const divider = Color(0xFF424242); // Dark gray divider
@@ -102,6 +104,7 @@ class WarmThemeColors {
 
   // Interactive
   static const accent = Color(0xFFD6B588); // Gold (links, buttons)
+  static const secondaryAccent = Color(0xFFFFD36A); // Golden amber (current match highlight)
 
   // Utility
   static const divider = Color(0xFF524535); // Dark brown divider

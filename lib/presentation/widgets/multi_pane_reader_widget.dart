@@ -9,6 +9,7 @@ import '../../core/theme/text_entry_theme.dart';
 import '../../core/utils/pali_conjunct_transformer.dart';
 import '../../core/utils/responsive_utils.dart';
 import '../models/column_display_mode.dart';
+import '../models/in_page_search_state.dart';
 import '../../domain/entities/content/entry.dart';
 import '../../domain/entities/content/entry_type.dart';
 import '../providers/document_provider.dart';
@@ -17,6 +18,7 @@ import '../providers/dictionary_provider.dart'
         selectedDictionaryWordProvider,
         dictionaryHighlightProvider,
         hasActiveSelectionProvider;
+import '../providers/in_page_search_provider.dart';
 import '../providers/tab_provider.dart'
     show
         activeTabIndexProvider,
@@ -33,6 +35,7 @@ import '../providers/tab_provider.dart'
 import '../providers/navigation_tree_provider.dart' show nodeByKeyProvider;
 import '../providers/fts_highlight_provider.dart';
 import 'reader/text_entry_widget.dart';
+import 'reader/in_page_search_bar.dart';
 import 'reader/parallel_text_button.dart';
 import 'dictionary/dictionary_bottom_sheet.dart';
 import 'resizable_divider.dart';
@@ -51,6 +54,9 @@ class MultiPaneReaderWidget extends ConsumerStatefulWidget {
 class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
   // Single scroll controller for all modes
   final ScrollController _scrollController = ScrollController();
+
+  // GlobalKey attached to the current match entry for scroll-to-match
+  final GlobalKey _currentMatchKey = GlobalKey();
 
   @override
   void initState() {
@@ -225,6 +231,46 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     }
   }
 
+  /// Scrolls to the current in-page search match.
+  ///
+  /// If the match is on a page outside the loaded range, expands pagination first.
+  /// Then uses Scrollable.ensureVisible on the GlobalKey attached to the match entry.
+  void _scrollToCurrentMatch(InPageSearchState searchState) {
+    final currentMatch = searchState.currentMatch;
+    if (currentMatch == null) return;
+
+    final pageStart = ref.read(activePageStartProvider);
+    final pageEnd = ref.read(activePageEndProvider);
+
+    // Check if the match page is within the loaded range
+    if (currentMatch.pageIndex < pageStart ||
+        currentMatch.pageIndex >= pageEnd) {
+      // Expand pagination to include the match page
+      final newPageStart =
+          currentMatch.pageIndex < pageStart ? currentMatch.pageIndex : pageStart;
+      final newPageEnd =
+          currentMatch.pageIndex >= pageEnd ? currentMatch.pageIndex + 1 : pageEnd;
+      ref.read(updateActiveTabPaginationProvider)(
+        pageStart: newPageStart,
+        pageEnd: newPageEnd,
+        entryStart: 0,
+      );
+    }
+
+    // Scroll to the match after the frame rebuilds with the new content
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final keyContext = _currentMatchKey.currentContext;
+      if (keyContext != null) {
+        Scrollable.ensureVisible(
+          keyContext,
+          alignment: 0.3, // Position match 30% from the top
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     // Listen to active tab changes
@@ -278,6 +324,15 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       });
     });
 
+    // Listen to in-page search state changes to trigger scroll-to-match
+    ref.listen<InPageSearchState>(activeInPageSearchStateProvider,
+        (previous, next) {
+      if (next.currentMatchIndex >= 0 &&
+          next.currentMatchIndex != (previous?.currentMatchIndex ?? -1)) {
+        _scrollToCurrentMatch(next);
+      }
+    });
+
     final contentAsync = ref.watch(currentBJTDocumentProvider);
     // Watch per-tab column mode (each tab remembers its own setting)
     final columnMode = ref.watch(activeColumnModeProvider);
@@ -286,6 +341,9 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     // Watch pagination state to determine if scroll up buttons should show
     final pageStart = ref.watch(activePageStartProvider);
     final entryStart = ref.watch(activeEntryStartProvider);
+
+    // Watch in-page search state for the active tab
+    final searchState = ref.watch(activeInPageSearchStateProvider);
 
     // Determine if we're past the sutta's beginning (to show scroll up buttons)
     final nodeKey = ref.watch(activeNodeKeyProvider);
@@ -345,6 +403,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                     pagesToShow,
                     columnMode,
                     entryStart,
+                    searchState,
+                    pageStart,
                   );
                 },
                 loading: () => const Center(
@@ -377,11 +437,32 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             ),
           ],
         ),
+        // In-page search bar (floating at top)
+        // ValueKey ensures a fresh widget instance per tab (resets controller text)
+        if (searchState.isVisible)
+          Positioned(
+            top: 8,
+            left: 16,
+            right: 16,
+            child: InPageSearchBar(
+              key: ValueKey('search_bar_${ref.watch(activeTabIndexProvider)}'),
+            ),
+          ),
+        // Search trigger button (top-left, below search bar if visible)
+        if (contentAsync.value != null && !searchState.isVisible)
+          Positioned(
+            top: 16,
+            left: 16,
+            child: _InPageSearchTriggerButton(
+              onTap: () =>
+                  ref.read(inPageSearchStatesProvider.notifier).openSearch(),
+            ),
+          ),
         // Scroll up buttons (only when current position is after sutta's beginning)
         // Allows user to see content before the search result position
         if (isAfterSuttaBeginning)
           Positioned(
-            top: 16,
+            top: searchState.isVisible ? 60 : 16,
             right: 16,
             child: _ScrollUpButtons(
               onScrollToBeginning: _scrollToBeginning,
@@ -479,6 +560,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     List<dynamic> pages,
     ColumnDisplayMode columnMode,
     int entryStart,
+    InPageSearchState searchState,
+    int absolutePageStart,
   ) {
     switch (columnMode) {
       case ColumnDisplayMode.paliOnly:
@@ -501,11 +584,11 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                 }
                 // Adjust index for pages (index-1 since button is at 0)
                 final pageIndex = index - 1;
+                final absolutePageIndex = absolutePageStart + pageIndex;
                 final page = pages[pageIndex];
                 // On first page, skip entries before entryStart
-                final entries = pageIndex == 0
-                    ? page.paliSection.entries.skip(entryStart).toList()
-                    : page.paliSection.entries;
+                final actualEntryStart = pageIndex == 0 ? entryStart : 0;
+                final entries = page.paliSection.entries.skip(actualEntryStart).toList();
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -516,6 +599,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                       context,
                       entries,
                       enableDictionaryLookup: true,
+                      searchState: searchState,
+                      absolutePageIndex: absolutePageIndex,
+                      entryStartOffset: actualEntryStart,
+                      languageCode: 'pi',
                     ),
                     const SizedBox(height: 32), // Space between pages
                   ],
@@ -544,19 +631,26 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                 }
                 // Adjust index for pages (index-1 since button is at 0)
                 final pageIndex = index - 1;
+                final absolutePageIndex = absolutePageStart + pageIndex;
                 final page = pages[pageIndex];
                 // On first page, skip entries before entryStart
-                final entries = pageIndex == 0
-                    ? page.sinhalaSection.entries.skip(entryStart).toList()
-                    : page.sinhalaSection.entries;
+                final actualEntryStart = pageIndex == 0 ? entryStart : 0;
+                final entries = page.sinhalaSection.entries.skip(actualEntryStart).toList();
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildPageNumber(context, page.pageNumber),
                     const SizedBox(height: 16),
                     // Disable dictionary lookup for Sinhala translation text
-                    ..._buildEntries(context, entries,
-                        enableDictionaryLookup: false),
+                    ..._buildEntries(
+                      context,
+                      entries,
+                      enableDictionaryLookup: false,
+                      searchState: searchState,
+                      absolutePageIndex: absolutePageIndex,
+                      entryStartOffset: actualEntryStart,
+                      languageCode: 'si',
+                    ),
                     const SizedBox(height: 32), // Space between pages
                   ],
                 );
@@ -570,6 +664,9 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         // Each row contains both Pali and Sinhala entries side-by-side
         // On tablet/desktop: resizable split pane with draggable divider overlay
         final isTabletOrDesktop = ResponsiveUtils.isTabletOrDesktop(context);
+        // Watch split ratio once here and pass down to _buildSplitRow,
+        // instead of each LayoutBuilder watching independently
+        final splitRatio = ref.watch(activeSplitRatioProvider);
         return SelectionArea(
           onSelectionChanged: _onSelectionChanged,
           contextMenuBuilder: (context, selectableRegionState) =>
@@ -590,7 +687,14 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                         // Commentary link button at the top
                         const ParallelTextButton(),
                         // Content rows - each page with paired entries
-                        ..._buildBothModePages(context, pages, entryStart),
+                        ..._buildBothModePages(
+                          context,
+                          pages,
+                          entryStart,
+                          searchState,
+                          absolutePageStart,
+                          splitRatio,
+                        ),
                       ],
                     ),
                   ),
@@ -638,11 +742,18 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     BuildContext context,
     List<dynamic> pages,
     int entryStart,
+    InPageSearchState searchState,
+    int absolutePageStart,
+    double splitRatio,
   ) {
     final widgets = <Widget>[];
+    final currentMatch = searchState.currentMatch;
+    final effectiveQuery = searchState.effectiveQuery;
+    final hasQuery = searchState.hasActiveQuery;
 
     for (var pageIndex = 0; pageIndex < pages.length; pageIndex++) {
       final page = pages[pageIndex];
+      final absolutePageIndex = absolutePageStart + pageIndex;
       // On first page, skip entries before entryStart
       final startEntry = pageIndex == 0 ? entryStart : 0;
 
@@ -650,6 +761,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       widgets.add(
         _buildSplitRow(
           context,
+          splitRatio: splitRatio,
           leftChild: _buildPageNumber(context, page.pageNumber),
           rightChild: _buildPageNumber(context, page.pageNumber),
         ),
@@ -665,22 +777,55 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             ? page.sinhalaSection.entries[entryIndex]
             : null;
 
+        // Determine if either entry is the current match
+        final isPaliCurrentMatch = currentMatch != null &&
+            currentMatch.pageIndex == absolutePageIndex &&
+            currentMatch.entryIndex == entryIndex &&
+            currentMatch.languageCode == 'pi';
+        final isSinhalaCurrentMatch = currentMatch != null &&
+            currentMatch.pageIndex == absolutePageIndex &&
+            currentMatch.entryIndex == entryIndex &&
+            currentMatch.languageCode == 'si';
+
+        // Pali entry widget — only highlight if this entry has matches
+        final paliHasMatch = hasQuery &&
+            searchState.hasMatchInEntry(absolutePageIndex, entryIndex, 'pi');
+        final paliWidget = _buildEntry(
+          context,
+          paliEntry,
+          enableDictionaryLookup: true,
+          inPageSearchQuery: paliHasMatch ? effectiveQuery : null,
+          currentMatchIndexInEntry:
+              isPaliCurrentMatch ? currentMatch.matchIndexInEntry : null,
+        );
+
+        // Sinhala entry widget — only highlight if this entry has matches
+        final sinhalaHasMatch = hasQuery &&
+            searchState.hasMatchInEntry(absolutePageIndex, entryIndex, 'si');
+        final sinhalaWidget = sinhalaEntry != null
+            ? _buildEntry(
+                context,
+                sinhalaEntry,
+                enableDictionaryLookup: false,
+                inPageSearchQuery: sinhalaHasMatch ? effectiveQuery : null,
+                currentMatchIndexInEntry: isSinhalaCurrentMatch
+                    ? currentMatch.matchIndexInEntry
+                    : null,
+              )
+            : const SizedBox.shrink();
+
+        // Wrap the current match entry with a GlobalKey for scroll-to-match
+        final isCurrentMatchRow = isPaliCurrentMatch || isSinhalaCurrentMatch;
+
         widgets.add(
           Padding(
+            key: isCurrentMatchRow ? _currentMatchKey : null,
             padding: const EdgeInsets.only(bottom: 12.0),
             child: _buildSplitRow(
               context,
-              // Pali entry (left) - enable dictionary lookup
-              leftChild: _buildEntry(
-                context,
-                paliEntry,
-                enableDictionaryLookup: true,
-              ),
-              // Sinhala entry (right) - disable dictionary lookup
-              rightChild: sinhalaEntry != null
-                  ? _buildEntry(context, sinhalaEntry,
-                      enableDictionaryLookup: false)
-                  : const SizedBox.shrink(),
+              splitRatio: splitRatio,
+              leftChild: paliWidget,
+              rightChild: sinhalaWidget,
             ),
           ),
         );
@@ -696,12 +841,12 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
   /// Uses a thin vertical line as separator (actual dragging handled by overlay)
   Widget _buildSplitRow(
     BuildContext context, {
+    required double splitRatio,
     required Widget leftChild,
     required Widget rightChild,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final splitRatio = ref.watch(activeSplitRatioProvider);
         final isTabletOrDesktop = ResponsiveUtils.isTabletOrDesktop(context);
 
         // Divider width: thin line on tablet/desktop, gap on mobile
@@ -793,18 +938,54 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     );
   }
 
+  /// Builds a list of entry widgets with search highlight support.
+  ///
+  /// [searchState] provides the current in-page search state.
+  /// [absolutePageIndex] is the page index in the full document (not the loaded slice).
+  /// [entryStartOffset] accounts for skipped entries on the first page.
+  /// [languageCode] is 'pi' for Pali or 'si' for Sinhala.
   List<Widget> _buildEntries(
     BuildContext context,
     List<Entry> entries, {
     bool enableDictionaryLookup = false,
+    required InPageSearchState searchState,
+    int absolutePageIndex = 0,
+    int entryStartOffset = 0,
+    String languageCode = 'pi',
   }) {
-    return entries.map((entry) {
+    final currentMatch = searchState.currentMatch;
+    final effectiveQuery = searchState.effectiveQuery;
+    final hasQuery = searchState.hasActiveQuery;
+
+    return entries.asMap().entries.map((mapEntry) {
+      final localIndex = mapEntry.key;
+      final entry = mapEntry.value;
+      // The actual entry index in the page (accounting for skipped entries)
+      final absoluteEntryIndex = localIndex + entryStartOffset;
+
+      // Determine if this entry contains the current match
+      final isCurrentMatchEntry = currentMatch != null &&
+          currentMatch.pageIndex == absolutePageIndex &&
+          currentMatch.entryIndex == absoluteEntryIndex &&
+          currentMatch.languageCode == languageCode;
+
+      // Only highlight entries that have matches (prevents highlighting
+      // entries in adjacent suttas that share the same document file)
+      final entryHasMatch = hasQuery &&
+          searchState.hasMatchInEntry(
+            absolutePageIndex, absoluteEntryIndex, languageCode,
+          );
+
       return Padding(
+        key: isCurrentMatchEntry ? _currentMatchKey : null,
         padding: const EdgeInsets.only(bottom: 12.0),
         child: _buildEntry(
           context,
           entry,
           enableDictionaryLookup: enableDictionaryLookup,
+          inPageSearchQuery: entryHasMatch ? effectiveQuery : null,
+          currentMatchIndexInEntry:
+              isCurrentMatchEntry ? currentMatch.matchIndexInEntry : null,
         ),
       );
     }).toList();
@@ -814,6 +995,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     BuildContext context,
     Entry entry, {
     bool enableDictionaryLookup = false,
+    String? inPageSearchQuery,
+    int? currentMatchIndexInEntry,
   }) {
     final textEntryTheme = context.textEntryTheme;
     TextStyle? textStyle;
@@ -838,6 +1021,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             textAlign: TextAlign.center,
             enableTap: enableDictionaryLookup,
             onWordTap: (word, _) => _handleWordTap(word),
+            inPageSearchQuery: inPageSearchQuery,
+            currentMatchIndexInEntry: currentMatchIndexInEntry,
           ),
         );
       case EntryType.gatha:
@@ -855,6 +1040,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             textAlign: TextAlign.left,
             enableTap: enableDictionaryLookup,
             onWordTap: (word, _) => _handleWordTap(word),
+            inPageSearchQuery: inPageSearchQuery,
+            currentMatchIndexInEntry: currentMatchIndexInEntry,
           ),
         );
       case EntryType.unindented:
@@ -878,6 +1065,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       textAlign: textAlign,
       enableTap: enableDictionaryLookup,
       onWordTap: (word, _) => _handleWordTap(word),
+      inPageSearchQuery: inPageSearchQuery,
+      currentMatchIndexInEntry: currentMatchIndexInEntry,
     );
   }
 }
@@ -949,6 +1138,38 @@ class _ScrollUpButtons extends StatelessWidget {
             icon,
             size: 20,
             color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Small floating button to open the in-page search bar.
+class _InPageSearchTriggerButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _InPageSearchTriggerButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      elevation: 2,
+      borderRadius: BorderRadius.circular(20),
+      color: colorScheme.surfaceContainerHigh,
+      child: Tooltip(
+        message: AppLocalizations.of(context).findInPage,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(
+              Icons.search,
+              size: 20,
+              color: colorScheme.primary,
+            ),
           ),
         ),
       ),

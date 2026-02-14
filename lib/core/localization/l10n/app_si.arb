@@ -105,5 +105,13 @@
 
   "scrollToBeginning": "ආරම්භයට යන්න",
 
-  "scrollUpGradually": "තවත් ඉහළින් පෙන්වන්න"
+  "scrollUpGradually": "තවත් ඉහළින් පෙන්වන්න",
+
+  "findInPage": "පිටුවේ සොයන්න",
+
+  "noInPageMatches": "0 / 0",
+
+  "previousMatch": "පෙර ගැලපීම",
+
+  "nextMatch": "ඊළඟ ගැලපීම"
 }

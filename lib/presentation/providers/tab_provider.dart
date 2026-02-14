@@ -3,6 +3,7 @@ import '../../core/constants/constants.dart';
 import '../models/column_display_mode.dart';
 import '../models/reader_tab.dart';
 import '../../domain/entities/search/search_result.dart';
+import 'in_page_search_provider.dart';
 import 'navigation_tree_provider.dart';
 import 'navigator_sync_provider.dart';
 
@@ -275,6 +276,9 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
     // Remove the tab
     ref.read(tabsProvider.notifier).removeTab(tabIndex);
 
+    // Remove in-page search state for this tab and re-index remaining tabs
+    ref.read(inPageSearchStatesProvider.notifier).onTabClosed(tabIndex);
+
     // Remove scroll position for this tab
     final positions = ref.read(tabScrollPositionsProvider);
     final updatedPositions = Map<int, double>.from(positions);
@@ -310,6 +314,7 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
       if (newActiveIndex < 0) {
         // No tabs left - reset to initial state
         ref.read(tabScrollPositionsProvider.notifier).state = {};
+        ref.read(inPageSearchStatesProvider.notifier).clearAll();
         ref.read(selectedNodeProvider.notifier).state = null;
         ref.read(expandedNodesProvider.notifier).state = {TipitakaNodeKeys.suttaPitaka};
       } else {

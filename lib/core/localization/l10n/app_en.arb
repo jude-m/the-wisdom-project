@@ -269,5 +269,25 @@
   "scrollUpGradually": "Show more above",
   "@scrollUpGradually": {
     "description": "Tooltip for button to reveal more content above the current position"
+  },
+
+  "findInPage": "Find in page",
+  "@findInPage": {
+    "description": "Placeholder text for the in-page search text field"
+  },
+
+  "noInPageMatches": "0 / 0",
+  "@noInPageMatches": {
+    "description": "Shown when in-page search finds no matches"
+  },
+
+  "previousMatch": "Previous match",
+  "@previousMatch": {
+    "description": "Tooltip for previous match button in in-page search"
+  },
+
+  "nextMatch": "Next match",
+  "@nextMatch": {
+    "description": "Tooltip for next match button in in-page search"
   }
 }
