@@ -349,6 +349,18 @@ final openTabFromSearchResultProvider =
       columnMode = ColumnDisplayMode.both;
     }
 
+    // Snap entryStart to sutta beginning if the FTS match is near the start.
+    // This prevents showing a misleading "Scroll to beginning" button when
+    // the match is only 1-2 entries after the sutta's true start (e.g., the
+    // sutta number row "1. 2. 9." is skipped).
+    int entryStart = result.entryIndex;
+    final node = ref.read(nodeByKeyProvider(result.nodeKey));
+    if (node != null &&
+        result.pageIndex == node.entryPageIndex &&
+        result.entryIndex - node.entryIndexInPage <= 2) {
+      entryStart = node.entryIndexInPage;
+    }
+
     // Create a new tab for the search result with entryStart for proper positioning
     // This ensures the sutta title appears at the top, not content from a previous
     // sutta that happens to share the same page
@@ -359,7 +371,7 @@ final openTabFromSearchResultProvider =
       sinhalaName: result.title,
       contentFileId: result.contentFileId,
       pageIndex: result.pageIndex,
-      entryStart: result.entryIndex,
+      entryStart: entryStart,
       columnMode: columnMode,
     );
 

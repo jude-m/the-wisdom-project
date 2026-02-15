@@ -168,9 +168,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scrollToBeginning => 'Go to beginning';
 
   @override
-  String get scrollUpGradually => 'Show more above';
-
-  @override
   String get findInPage => 'Find in page';
 
   @override

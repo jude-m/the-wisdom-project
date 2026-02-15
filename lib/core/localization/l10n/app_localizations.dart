@@ -410,12 +410,6 @@ abstract class AppLocalizations {
   /// **'Go to beginning'**
   String get scrollToBeginning;
 
-  /// Tooltip for button to reveal more content above the current position
-  ///
-  /// In en, this message translates to:
-  /// **'Show more above'**
-  String get scrollUpGradually;
-
   /// Placeholder text for the in-page search text field
   ///
   /// In en, this message translates to:

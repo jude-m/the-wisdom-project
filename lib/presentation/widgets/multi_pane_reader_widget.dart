@@ -40,8 +40,6 @@ import 'reader/parallel_text_button.dart';
 import 'dictionary/dictionary_bottom_sheet.dart';
 import 'resizable_divider.dart';
 
-/// Number of entries to reveal per "scroll up gradually" click
-const int kScrollUpEntryStep = 5;
 
 class MultiPaneReaderWidget extends ConsumerStatefulWidget {
   const MultiPaneReaderWidget({super.key});
@@ -167,49 +165,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     });
   }
 
-  /// Reveals more content above by decreasing entryStart by kScrollUpEntryStep.
-  /// Respects the sutta's beginning position (won't go to a previous sutta).
-  /// User's scroll position is preserved so they can scroll up to see new content.
-  void _scrollUpGradually() {
-    // Get the nodeKey of the current sutta
-    final nodeKey = ref.read(activeNodeKeyProvider);
-    if (nodeKey == null) return;
-
-    // Look up the node to find the sutta's actual start position
-    final node = ref.read(nodeByKeyProvider(nodeKey));
-    if (node == null) return;
-
-    final currentPageStart = ref.read(activePageStartProvider);
-    final currentEntryStart = ref.read(activeEntryStartProvider);
-
-    // Determine the minimum entry we can scroll to on the current page
-    // On the sutta's start page, don't go below the sutta's start entry
-    // On later pages, we can go down to entry 0
-    final minEntryOnCurrentPage =
-        currentPageStart == node.entryPageIndex ? node.entryIndexInPage : 0;
-
-    if (currentEntryStart > minEntryOnCurrentPage) {
-      // Still have room to scroll up on current page - decrease entryStart by step
-      final newEntryStart = (currentEntryStart - kScrollUpEntryStep)
-          .clamp(minEntryOnCurrentPage, currentEntryStart);
-      ref.read(updateActiveTabPaginationProvider)(entryStart: newEntryStart);
-      // Don't reset scroll - user can scroll up to see new content
-    } else if (currentPageStart > node.entryPageIndex) {
-      // At entry 0 on current page, but not yet at sutta's start page
-      // Go to previous page
-      // Don't reset scroll - new page content appears above
-      final newPageStart = currentPageStart - 1;
-      // If moving to the sutta's start page, stop at the sutta heading entry
-      // Otherwise, start from entry 0 (will be clamped on next tap)
-      final newEntryStart =
-          newPageStart == node.entryPageIndex ? node.entryIndexInPage : 0;
-      ref.read(updateActiveTabPaginationProvider)(
-        pageStart: newPageStart,
-        entryStart: newEntryStart,
-      );
-    }
-    // If we're already at the sutta's beginning, do nothing
-  }
 
   void _restoreScrollPosition() {
     final activeTabIndex = ref.read(activeTabIndexProvider);
@@ -466,7 +421,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             right: 16,
             child: _ScrollUpButtons(
               onScrollToBeginning: _scrollToBeginning,
-              onScrollUpGradually: _scrollUpGradually,
             ),
           ),
         // Non-modal dictionary bottom sheet overlay
@@ -1071,19 +1025,13 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
   }
 }
 
-/// Floating buttons to unlock scrolling up when content was opened mid-document.
+/// Floating button to scroll to the beginning when content was opened mid-document.
 /// Only visible when entryStart > 0 (i.e., opened from FTS results).
-///
-/// Provides two buttons:
-/// - Go to beginning (vertical_align_top icon): Resets entryStart to 0
-/// - Scroll up gradually (arrow_upward icon): Decreases entryStart by kScrollUpEntryStep
 class _ScrollUpButtons extends StatelessWidget {
   final VoidCallback onScrollToBeginning;
-  final VoidCallback onScrollUpGradually;
 
   const _ScrollUpButtons({
     required this.onScrollToBeginning,
-    required this.onScrollUpGradually,
   });
 
   @override
@@ -1093,51 +1041,18 @@ class _ScrollUpButtons extends StatelessWidget {
       elevation: 2,
       borderRadius: BorderRadius.circular(20),
       color: colorScheme.surfaceContainerHigh,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Go to beginning button
-          _buildButton(
-            context,
-            icon: Icons.vertical_align_top,
-            tooltip: AppLocalizations.of(context).scrollToBeginning,
-            onTap: onScrollToBeginning,
-          ),
-          // Divider between buttons
-          Container(
-            width: 1,
-            height: 24,
-            color: colorScheme.outlineVariant,
-          ),
-          // Scroll up gradually button
-          _buildButton(
-            context,
-            icon: Icons.arrow_upward,
-            tooltip: AppLocalizations.of(context).scrollUpGradually,
-            onTap: onScrollUpGradually,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildButton(
-    BuildContext context, {
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Icon(
-            icon,
-            size: 20,
-            color: Theme.of(context).colorScheme.primary,
+      child: Tooltip(
+        message: AppLocalizations.of(context).scrollToBeginning,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onScrollToBeginning,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Icon(
+              Icons.vertical_align_top,
+              size: 20,
+              color: colorScheme.primary,
+            ),
           ),
         ),
       ),

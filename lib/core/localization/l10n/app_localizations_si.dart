@@ -168,9 +168,6 @@ class AppLocalizationsSi extends AppLocalizations {
   String get scrollToBeginning => 'ආරම්භයට යන්න';
 
   @override
-  String get scrollUpGradually => 'තවත් ඉහළින් පෙන්වන්න';
-
-  @override
   String get findInPage => 'පිටුවේ සොයන්න';
 
   @override

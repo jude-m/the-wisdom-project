@@ -266,11 +266,6 @@
     "description": "Tooltip for button to scroll to the beginning of the sutta when opened mid-document from FTS"
   },
 
-  "scrollUpGradually": "Show more above",
-  "@scrollUpGradually": {
-    "description": "Tooltip for button to reveal more content above the current position"
-  },
-
   "findInPage": "Find in page",
   "@findInPage": {
     "description": "Placeholder text for the in-page search text field"
