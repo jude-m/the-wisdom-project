@@ -449,7 +449,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             ),
           ),
         // Search trigger button (top-left, below search bar if visible)
-        if (contentAsync.value != null && !searchState.isVisible)
+        if (contentAsync.valueOrNull != null && !searchState.isVisible)
           Positioned(
             top: 16,
             left: 16,

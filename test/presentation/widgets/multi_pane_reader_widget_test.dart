@@ -1,6 +1,8 @@
+import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:the_wisdom_project/domain/entities/failure.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/multi_pane_reader_widget.dart';
 
@@ -9,10 +11,10 @@ import '../../helpers/test_data.dart';
 import '../../helpers/pump_app.dart';
 
 void main() {
-  late MockBJTDocumentDataSource mockDataSource;
+  late MockBJTDocumentRepository mockRepository;
 
   setUp(() {
-    mockDataSource = MockBJTDocumentDataSource();
+    mockRepository = MockBJTDocumentRepository();
   });
 
   // ============================================================
@@ -25,7 +27,7 @@ void main() {
       await tester.pumpApp(
         const MultiPaneReaderWidget(),
         overrides: [
-          TestProviderOverrides.bjtDocumentDataSource(mockDataSource),
+          TestProviderOverrides.bjtDocumentRepository(mockRepository),
           // Override the derived provider to return null (no active tab)
           activeContentFileIdProvider.overrideWith((ref) => null),
         ],
@@ -47,15 +49,21 @@ void main() {
   group('Error state', () {
     testWidgets('should show error when document loading fails',
         (tester) async {
-      // ARRANGE
-      when(mockDataSource.loadDocument('dn-1'))
-          .thenThrow(Exception('Network error'));
+      // ARRANGE - Mock repository to return a Failure wrapped in Either
+      when(mockRepository.loadDocument('dn-1')).thenAnswer(
+        (_) async => const Left(
+          Failure.dataLoadFailure(
+            message: 'Failed to load document',
+            error: 'Network error',
+          ),
+        ),
+      );
 
       // ACT
       await tester.pumpApp(
         const MultiPaneReaderWidget(),
         overrides: [
-          TestProviderOverrides.bjtDocumentDataSource(mockDataSource),
+          TestProviderOverrides.bjtDocumentRepository(mockRepository),
           // Override derived provider to simulate active tab with content
           activeContentFileIdProvider.overrideWith((ref) => 'dn-1'),
         ],
@@ -73,11 +81,11 @@ void main() {
   // ============================================================
   group('Content loading', () {
     testWidgets('should show loading indicator initially', (tester) async {
-      // ARRANGE - Set up a delayed response
-      when(mockDataSource.loadDocument('dn-1')).thenAnswer(
+      // ARRANGE - Set up a delayed response with Either<Failure, BJTDocument>
+      when(mockRepository.loadDocument('dn-1')).thenAnswer(
         (_) async {
           await Future.delayed(Duration.zero);
-          return TestData.sampleDocument;
+          return Right(TestData.sampleDocument);
         },
       );
 
@@ -85,7 +93,7 @@ void main() {
       await tester.pumpApp(
         const MultiPaneReaderWidget(),
         overrides: [
-          TestProviderOverrides.bjtDocumentDataSource(mockDataSource),
+          TestProviderOverrides.bjtDocumentRepository(mockRepository),
           // Override derived provider to simulate active tab with content
           activeContentFileIdProvider.overrideWith((ref) => 'dn-1'),
         ],
@@ -102,15 +110,15 @@ void main() {
     });
 
     testWidgets('should hide placeholder when content loads', (tester) async {
-      // ARRANGE
-      when(mockDataSource.loadDocument('dn-1'))
-          .thenAnswer((_) async => TestData.sampleDocument);
+      // ARRANGE - Mock repository to return successful Either
+      when(mockRepository.loadDocument('dn-1'))
+          .thenAnswer((_) async => Right(TestData.sampleDocument));
 
       // ACT
       await tester.pumpApp(
         const MultiPaneReaderWidget(),
         overrides: [
-          TestProviderOverrides.bjtDocumentDataSource(mockDataSource),
+          TestProviderOverrides.bjtDocumentRepository(mockRepository),
           // Override derived provider to simulate active tab with content
           activeContentFileIdProvider.overrideWith((ref) => 'dn-1'),
         ],
