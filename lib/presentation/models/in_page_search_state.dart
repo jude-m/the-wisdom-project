@@ -1,3 +1,5 @@
+import '../../core/utils/search_query_utils.dart' show querySinglishConverted;
+
 /// Represents a single match location within the document.
 ///
 /// Each match is identified by its page, entry, language, and position
@@ -86,9 +88,7 @@ class InPageSearchState {
 
   /// Whether a Singlish conversion was applied
   bool get isSinglishConverted =>
-      rawQuery.isNotEmpty &&
-      effectiveQuery.isNotEmpty &&
-      rawQuery != effectiveQuery;
+      querySinglishConverted(rawQuery, effectiveQuery);
 
   /// Total number of matches
   int get matchCount => matches.length;

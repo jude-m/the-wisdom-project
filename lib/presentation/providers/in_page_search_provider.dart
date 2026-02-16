@@ -3,8 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/search_match_finder.dart';
-import '../../core/utils/singlish_transliterator.dart';
-import '../../core/utils/text_utils.dart';
+import '../../core/utils/search_query_utils.dart';
 import '../../domain/entities/bjt/bjt_document.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../models/column_display_mode.dart';
@@ -206,22 +205,10 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
   // Private helpers
   // ===========================================================================
 
-  /// Sanitizes raw input and applies Singlish conversion.
-  ///
-  /// Same pipeline as FTS search:
-  /// 1. sanitizeSearchQuery() - remove invalid chars
-  /// 2. SinglishTransliterator - convert romanized Sinhala if needed
-  String _computeEffectiveQuery(String rawQuery) {
-    final sanitized = sanitizeSearchQuery(rawQuery);
-    if (sanitized == null || sanitized.isEmpty) return '';
-
-    // Check if input is Singlish (romanized Sinhala)
-    if (SinglishTransliterator.instance.isSinglishQuery(sanitized)) {
-      return SinglishTransliterator.instance.convert(sanitized);
-    }
-
-    return sanitized;
-  }
+  /// Delegates to shared [computeEffectiveQuery] for consistent
+  /// query processing across FTS and in-page search.
+  String _computeEffectiveQuery(String rawQuery) =>
+      computeEffectiveQuery(rawQuery);
 
   /// Searches the sutta's pages for matches (scoped by navigation tree bounds).
   ///

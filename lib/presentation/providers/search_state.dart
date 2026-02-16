@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/utils/singlish_transliterator.dart';
-import '../../core/utils/text_utils.dart';
+import '../../core/utils/search_query_utils.dart'
+    show computeEffectiveQuery, querySinglishConverted;
 import '../../domain/entities/search/grouped_search_result.dart';
 import '../../domain/entities/search/recent_search.dart';
 import '../../domain/entities/search/search_result_type.dart';
@@ -110,6 +110,10 @@ class SearchState with _$SearchState {
   /// and panel hasn't been dismissed
   bool get isResultsPanelVisible =>
       rawQueryText.trim().isNotEmpty && !isPanelDismissed;
+
+  /// Whether a Singlish conversion was applied
+  bool get isSinglishConverted =>
+      querySinglishConverted(rawQueryText, effectiveQueryText);
 
   /// True if "All" is effectively selected (no specific scope chosen)
   bool get isAllSelected => scope.isEmpty;
@@ -364,23 +368,10 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     state = state.copyWith(recentSearches: []);
   }
 
-  /// Computes the effective query from raw input.
-  /// Sanitizes and converts Singlish to Sinhala if needed.
-  /// Returns empty string if query is invalid.
-  String _computeEffectiveQuery(String query) {
-    final sanitized = sanitizeSearchQuery(query);
-    if (sanitized == null) return '';
-
-    final transliterator = SinglishTransliterator.instance;
-    final converted = transliterator.isSinglishQuery(sanitized)
-        ? transliterator.convert(sanitized)
-        : sanitized;
-
-    // Remove any remaining ~ characters that didn't match special patterns
-    // (e.g., incomplete "aaka~" should become "ආක" not "ආක~")
-    // This prevents FTS errors
-    return converted.replaceAll('~', '');
-  }
+  /// Delegates to shared [computeEffectiveQuery] for consistent
+  /// query processing across FTS and in-page search.
+  String _computeEffectiveQuery(String query) =>
+      computeEffectiveQuery(query);
 
   /// Builds validated [SearchQuery] from current state, or `null` if invalid.
   /// Uses pre-computed effectiveQueryText from state.
