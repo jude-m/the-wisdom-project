@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_typography.dart';
+import '../providers/tab_lifecycle_provider.dart';
 import '../providers/tab_provider.dart';
 
 class TabBarWidget extends ConsumerStatefulWidget {

@@ -668,10 +668,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     if (ref.read(hasActiveSelectionProvider)) {
       FocusManager.instance.primaryFocus?.unfocus();
     }
-    // Clear dictionary and FTS highlights
+    // Clear dictionary and FTS highlights (per-tab for FTS)
     ref.read(dictionaryHighlightProvider.notifier).state = null;
     ref.read(selectedDictionaryWordProvider.notifier).state = null;
-    ref.read(ftsHighlightProvider.notifier).state = null;
+    ref.read(ftsHighlightProvider.notifier).clearForActiveTab();
   }
 
   /// Handles word tap for dictionary lookup.

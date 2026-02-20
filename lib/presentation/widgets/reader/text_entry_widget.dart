@@ -158,8 +158,8 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
         // a complete tap gesture (down + up), so long-press for text selection
         // won't accidentally open the dictionary sheet.
         ..onTap = () {
-          // Clear search highlight on any tap (user found what they were looking for)
-          ref.read(ftsHighlightProvider.notifier).state = null;
+          // Clear search highlight for this tab (user found what they were looking for)
+          ref.read(ftsHighlightProvider.notifier).clearForActiveTab();
 
           // Update global highlight state with this widget and position
           ref.read(dictionaryHighlightProvider.notifier).state = (
@@ -181,8 +181,8 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
     // Store the result to use in _buildTextSpan
     final highlightState = ref.watch(dictionaryHighlightProvider);
 
-    // Watch search highlight state for FTS result highlighting
-    final searchHighlight = ref.watch(ftsHighlightProvider);
+    // Watch per-tab search highlight state for FTS result highlighting
+    final searchHighlight = ref.watch(activeFtsHighlightProvider);
 
     // In-page search suppresses FTS highlight to avoid confusing dual highlights
     final hasInPageSearch = widget.inPageSearchQuery != null &&
