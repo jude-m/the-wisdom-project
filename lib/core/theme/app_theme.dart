@@ -11,33 +11,49 @@ class AppTheme {
   /// Best for daytime reading, default theme
   static ThemeData light() {
     // Create ColorScheme once and reuse
-    final colorScheme = ColorScheme.light(
+    const colorScheme = ColorScheme.light(
+      // Primary group (interactive brand color — cinnamon orange)
       primary: LightThemeColors.primary,
       onPrimary: LightThemeColors.onPrimary,
-      primaryContainer: LightThemeColors.accent.withValues(alpha: 0.2),
-      onPrimaryContainer: LightThemeColors.primary,
-      secondary: LightThemeColors.accent,
-      onSecondary: LightThemeColors.onPrimary,
-      tertiary: LightThemeColors.secondaryAccent,
-      surface: LightThemeColors.surface,
-      onSurface: LightThemeColors.onBackground,
-      onSurfaceVariant: LightThemeColors.onBackground.withValues(alpha: 0.7),
-      // Surface Container hierarchy (Flutter 3.22+)
-      surfaceContainerLowest: LightThemeColors.surfaceContainerLowest,
-      surfaceContainerLow: LightThemeColors.surfaceContainerLow,
-      surfaceContainer: LightThemeColors.surface,
-      surfaceContainerHigh: LightThemeColors.surfaceContainerHigh,
-      surfaceContainerHighest: LightThemeColors.surfaceContainerHighest,
-      // Utility
-      error: LightThemeColors.error,
-      onError: LightThemeColors.onError,
-      outline: LightThemeColors.divider,
-      outlineVariant: LightThemeColors.divider.withValues(alpha: 0.5),
-      // Selection colors
+      primaryContainer: LightThemeColors.primaryContainer,
+      onPrimaryContainer: LightThemeColors.onPrimaryContainer,
+      // Secondary group (understated accent — warm taupe)
+      secondary: LightThemeColors.secondary,
+      onSecondary: LightThemeColors.onSecondary,
       secondaryContainer: LightThemeColors.secondaryContainer,
       onSecondaryContainer: LightThemeColors.onSecondaryContainer,
+      // Tertiary group (contrasting accent — golden amber)
+      tertiary: LightThemeColors.tertiary,
+      onTertiary: LightThemeColors.onTertiary,
       tertiaryContainer: LightThemeColors.tertiaryContainer,
       onTertiaryContainer: LightThemeColors.onTertiaryContainer,
+      // Surface & background
+      surface: LightThemeColors.surface,
+      onSurface: LightThemeColors.onSurface,
+      onSurfaceVariant: LightThemeColors.onSurfaceVariant,
+      surfaceContainerLowest: LightThemeColors.surfaceContainerLowest,
+      surfaceContainerLow: LightThemeColors.surfaceContainerLow,
+      surfaceContainer: LightThemeColors.surfaceContainer,
+      surfaceContainerHigh: LightThemeColors.surfaceContainerHigh,
+      surfaceContainerHighest: LightThemeColors.surfaceContainerHighest,
+      surfaceDim: LightThemeColors.surfaceDim,
+      surfaceBright: LightThemeColors.surfaceBright,
+      surfaceTint: LightThemeColors.surfaceTint,
+      // Error group
+      error: LightThemeColors.error,
+      onError: LightThemeColors.onError,
+      errorContainer: LightThemeColors.errorContainer,
+      onErrorContainer: LightThemeColors.onErrorContainer,
+      // Outline & dividers
+      outline: LightThemeColors.outline,
+      outlineVariant: LightThemeColors.outlineVariant,
+      // Inverse group (snackbars, tooltips)
+      inverseSurface: LightThemeColors.inverseSurface,
+      onInverseSurface: LightThemeColors.inverseOnSurface,
+      inversePrimary: LightThemeColors.inversePrimary,
+      // Utility
+      scrim: LightThemeColors.scrim,
+      shadow: LightThemeColors.shadow,
     );
 
     return ThemeData(
@@ -49,16 +65,16 @@ class AppTheme {
 
       // Background colors
       scaffoldBackgroundColor: LightThemeColors.background,
-      cardColor: LightThemeColors.surface,
-      dividerColor: LightThemeColors.divider,
+      cardColor: LightThemeColors.surfaceContainer,
+      dividerColor: LightThemeColors.outline,
 
       colorScheme: colorScheme,
 
       // Typography extensions
       extensions: [
         TextEntryTheme.standard(
-          headingColor: LightThemeColors.primary,
-          bodyColor: LightThemeColors.onBackground,
+          headingColor: LightThemeColors.heading,
+          bodyColor: LightThemeColors.onSurface,
         ),
         AppTypography.fromColorScheme(colorScheme),
       ],

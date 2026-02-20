@@ -141,7 +141,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
         fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.labelFontSize,
         fontWeight: FontWeight.w600,
-        color: colorScheme.primary,
+        color: colorScheme.onSurface,
         letterSpacing: 1.2,
         height: AppFonts.uiLineHeight,
       ),
@@ -204,7 +204,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
         fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.tabFontSize,
         fontWeight: FontWeight.w600,
-        color: colorScheme.primary,
+        color: colorScheme.onSurface,
         height: AppFonts.uiLineHeight,
       ),
       tabLabelInactive: TextStyle(
