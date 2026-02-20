@@ -1,24 +1,27 @@
+/// Widget tests for SearchResultsPanel — edge cases that need mocked state.
+///
+/// These complement the E2E integration tests in `integration_test/search/`.
+/// Only scenarios that are impossible to reproduce with real data are kept here:
+/// loading states, error states, boundary badge values, and callback wiring.
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
-import 'package:the_wisdom_project/domain/entities/search/grouped_search_result.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
 
-/// Fake implementation for testing
+/// Fake implementation for testing — allows injecting arbitrary SearchState.
 class FakeSearchStateNotifier extends StateNotifier<SearchState>
     implements SearchStateNotifier {
   FakeSearchStateNotifier(super.state);
 
-  SearchResultType? lastSelectedResultType;
-
   @override
   Future<void> selectResultType(SearchResultType category) async {
-    lastSelectedResultType = category;
     state = state.copyWith(selectedResultType: category);
   }
 
@@ -26,43 +29,42 @@ class FakeSearchStateNotifier extends StateNotifier<SearchState>
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-void main() {
-  group('SearchResultsPanel -', () {
-    testWidgets('should render header with close button and scope filters',
-        (tester) async {
-      // ARRANGE
-      final notifier = FakeSearchStateNotifier(
-        const SearchState(rawQueryText: 'metta', effectiveQueryText: 'metta'),
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () {},
-              ),
-            ),
+/// Helper to pump SearchResultsPanel with a given [SearchState].
+Future<void> _pumpPanel(
+  WidgetTester tester, {
+  required SearchState state,
+  VoidCallback? onClose,
+  void Function(SearchResult)? onResultTap,
+}) async {
+  final notifier = FakeSearchStateNotifier(state);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        searchStateProvider.overrideWith((ref) => notifier),
+      ],
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SearchResultsPanel(
+            onClose: onClose ?? () {},
+            onResultTap: onResultTap,
           ),
         ),
-      );
+      ),
+    ),
+  );
+}
 
-      // ASSERT - Header now contains close button and scope filter chips
-      expect(find.byIcon(Icons.close), findsOneWidget);
-      // Scope filter "All" chip should be visible (default selected)
-      expect(find.text('All'), findsOneWidget);
-    });
+void main() {
+  group('SearchResultsPanel — edge cases (mocked state)', () {
+    // ── Loading states ──────────────────────────────────────────────────
 
-    testWidgets('should show loading indicator when isLoading is true',
+    testWidgets('shows loading indicator when isLoading is true (All tab)',
         (tester) async {
-      // ARRANGE - "All" tab uses isLoading, not fullResults.loading()
-      final notifier = FakeSearchStateNotifier(
-        const SearchState(
+      await _pumpPanel(
+        tester,
+        state: const SearchState(
           rawQueryText: 'test',
           effectiveQueryText: 'test',
           isLoading: true,
@@ -70,33 +72,15 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () {},
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // ASSERT
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
     testWidgets(
-        'should show loading indicator when fullResults is loading for specific category',
+        'shows loading indicator when fullResults is loading (specific tab)',
         (tester) async {
-      // ARRANGE - Specific category tabs use fullResults
-      final notifier = FakeSearchStateNotifier(
-        const SearchState(
+      await _pumpPanel(
+        tester,
+        state: const SearchState(
           rawQueryText: 'test',
           effectiveQueryText: 'test',
           selectedResultType: SearchResultType.title,
@@ -104,31 +88,15 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () {},
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // ASSERT
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('should show error state with retry button', (tester) async {
-      // ARRANGE - Use a specific category since "All" tab doesn't use fullResults
-      final notifier = FakeSearchStateNotifier(
-        SearchState(
+    // ── Error state ─────────────────────────────────────────────────────
+
+    testWidgets('shows error state with retry button', (tester) async {
+      await _pumpPanel(
+        tester,
+        state: SearchState(
           rawQueryText: 'test',
           effectiveQueryText: 'test',
           selectedResultType: SearchResultType.title,
@@ -139,178 +107,22 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () {},
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // ASSERT
       expect(find.text('Failed to load results'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
     });
 
-    testWidgets('should show empty state when no results for "All" tab',
+    // ── Badge boundary values ───────────────────────────────────────────
+
+    testWidgets('zero count badges show "0" on all 3 category tabs',
         (tester) async {
-      // ARRANGE - "All" tab uses categorizedResults
-      final notifier = FakeSearchStateNotifier(
-        const SearchState(
-          rawQueryText: 'test',
-          effectiveQueryText: 'test',
-          selectedResultType: SearchResultType.topResults,
-          groupedResults: GroupedSearchResult(
-            resultsByType: {},
-          ),
-        ),
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () {},
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // ASSERT
-      expect(find.text('No results found'), findsOneWidget);
-      expect(find.byIcon(Icons.search_off), findsOneWidget);
-    });
-
-    testWidgets('should show empty state when no results for specific category',
-        (tester) async {
-      // ARRANGE
-      final notifier = FakeSearchStateNotifier(
-        const SearchState(
-          rawQueryText: 'test',
-          effectiveQueryText: 'test',
-          fullResults: AsyncValue.data([]),
-          selectedResultType: SearchResultType.title,
-        ),
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () {},
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // ASSERT - uses displayName.toLowerCase(): 'No titles found'
-      expect(find.text('No titles found'), findsOneWidget);
-      expect(find.byIcon(Icons.search_off), findsOneWidget);
-    });
-
-    testWidgets('should render category tab bar with 4 tabs', (tester) async {
-      // ARRANGE
-      final notifier = FakeSearchStateNotifier(
-        const SearchState(rawQueryText: 'test', effectiveQueryText: 'test'),
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () {},
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // ASSERT - Now 4 tabs: Top Results, Titles, Full text, Definitions
-      expect(find.text('Top Results'), findsOneWidget);
-      expect(find.text('Titles'), findsOneWidget);
-      expect(find.text('Full text'), findsOneWidget);
-      expect(find.text('Definitions'), findsOneWidget);
-    });
-
-    testWidgets('should display count badges on tabs', (tester) async {
-      // ARRANGE - Test various count scenarios
-      final notifier = FakeSearchStateNotifier(
-        const SearchState(
+      await _pumpPanel(
+        tester,
+        state: const SearchState(
           rawQueryText: 'test',
           effectiveQueryText: 'test',
           countByResultType: {
-            SearchResultType.topResults: 15, // Top Results doesn't show badge
-            SearchResultType.title: 42,
-            SearchResultType.fullText: 150, // Should show as "100+"
-            SearchResultType.definition: 3,
-          },
-        ),
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () {},
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // ASSERT - Verify count badges are displayed correctly
-      // Top Results tab does NOT show a count badge (per implementation line 354)
-      expect(find.text('42'), findsOneWidget); // Title count
-      expect(find.text('100+'),
-          findsOneWidget); // Full text count (truncated at 100)
-      expect(find.text('3'), findsOneWidget); // Definition count
-    });
-
-    testWidgets('should display zero count badges when counts are zero',
-        (tester) async {
-      // ARRANGE - All counts are zero (badges still show with "0")
-      final notifier = FakeSearchStateNotifier(
-        const SearchState(
-          rawQueryText: 'test',
-          effectiveQueryText: 'test',
-          countByResultType: {
-            SearchResultType.topResults: 0, // Top Results doesn't show badge
+            SearchResultType.topResults: 0,
             SearchResultType.title: 0,
             SearchResultType.fullText: 0,
             SearchResultType.definition: 0,
@@ -318,37 +130,15 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () {},
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // ASSERT - Verify tabs exist and count badges show "0"
-      // Implementation shows badges even when count is 0 (as long as count != null)
-      expect(find.text('Top Results'), findsOneWidget);
-      expect(find.text('Titles'), findsOneWidget);
-      expect(find.text('Full text'), findsOneWidget);
-      expect(find.text('Definitions'), findsOneWidget);
-      // Three "0" badges (for Title, Full text, Definition - not Top Results)
+      // Three "0" badges (Title, Full text, Definition — not Top Results).
       expect(find.text('0'), findsNWidgets(3));
     });
 
-    testWidgets('should display count badge at exactly 100', (tester) async {
-      // ARRANGE - Edge case: exactly 100 results
-      final notifier = FakeSearchStateNotifier(
-        const SearchState(
+    testWidgets('badge at exactly 100 shows "100", not "100+"',
+        (tester) async {
+      await _pumpPanel(
+        tester,
+        state: const SearchState(
           rawQueryText: 'test',
           effectiveQueryText: 'test',
           countByResultType: {
@@ -357,100 +147,33 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () {},
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // ASSERT - At exactly 100, should show "100" not "100+"
       expect(find.text('100'), findsOneWidget);
       expect(find.text('100+'), findsNothing);
     });
 
-    testWidgets('should call selectResultType when tab is tapped',
+    // ── Callback wiring ─────────────────────────────────────────────────
+
+    testWidgets('onClose callback fires when close button tapped',
         (tester) async {
-      // ARRANGE
-      final notifier = FakeSearchStateNotifier(
-        const SearchState(
+      bool closeCalled = false;
+
+      await _pumpPanel(
+        tester,
+        state: const SearchState(
           rawQueryText: 'test',
           effectiveQueryText: 'test',
-          selectedResultType: SearchResultType.topResults,
         ),
+        onClose: () => closeCalled = true,
       );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () {},
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // ACT - Tap on Full text tab
-      await tester.tap(find.text('Full text'));
-      await tester.pumpAndSettle();
-
-      // ASSERT
-      expect(
-          notifier.lastSelectedResultType, equals(SearchResultType.fullText));
-    });
-
-    testWidgets('should call onClose when close button tapped', (tester) async {
-      // ARRANGE
-      bool closeCalled = false;
-      final notifier = FakeSearchStateNotifier(
-        const SearchState(rawQueryText: 'test', effectiveQueryText: 'test'),
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () => closeCalled = true,
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // ACT - Tap close button
       await tester.tap(find.byIcon(Icons.close));
       await tester.pump();
 
-      // ASSERT
       expect(closeCalled, isTrue);
     });
 
-    testWidgets('should call onResultTap when result is tapped',
+    testWidgets('onResultTap callback fires when result is tapped',
         (tester) async {
-      // ARRANGE
       SearchResult? tappedResult;
       const result = SearchResult(
         id: 'test_id',
@@ -466,265 +189,23 @@ void main() {
         language: 'pali',
       );
 
-      final notifier = FakeSearchStateNotifier(
-        const SearchState(
+      await _pumpPanel(
+        tester,
+        state: const SearchState(
           rawQueryText: 'metta',
           effectiveQueryText: 'metta',
           fullResults: AsyncValue.data([result]),
           selectedResultType: SearchResultType.title,
         ),
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () {},
-                onResultTap: (r) => tappedResult = r,
-              ),
-            ),
-          ),
-        ),
+        onResultTap: (r) => tappedResult = r,
       );
       await tester.pumpAndSettle();
 
-      // ACT - Tap on the ListTile (result tile)
       await tester.tap(find.byType(ListTile));
       await tester.pump();
 
-      // ASSERT
       expect(tappedResult, isNotNull);
       expect(tappedResult?.title, equals('Metta Sutta'));
-    });
-
-    testWidgets('should render search result tiles correctly', (tester) async {
-      // ARRANGE
-      const result = SearchResult(
-        id: 'test_id',
-        editionId: 'bjt',
-        resultType: SearchResultType.fullText,
-        title: 'Brahmajālasutta',
-        subtitle: 'Dīgha Nikāya',
-        matchedText: 'This is matched test content',
-        contentFileId: 'dn-1',
-        pageIndex: 0,
-        entryIndex: 5,
-        nodeKey: 'dn-1',
-        language: 'pali',
-      );
-
-      final notifier = FakeSearchStateNotifier(
-        const SearchState(
-          rawQueryText: 'test',
-          effectiveQueryText: 'test',
-          fullResults: AsyncValue.data([result]),
-          selectedResultType: SearchResultType.fullText,
-        ),
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () {},
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // ASSERT - verify the result tile is rendered
-      expect(find.byType(ListTile), findsOneWidget);
-      expect(find.text('Dīgha Nikāya'),
-          findsOneWidget); // Subtitle is regular Text
-      expect(find.text('BJT'), findsOneWidget); // Edition badge
-    });
-
-    testWidgets('should render "All" tab with categorized results',
-        (tester) async {
-      // ARRANGE
-      const titleResult = SearchResult(
-        id: 'title_1',
-        editionId: 'bjt',
-        resultType: SearchResultType.title,
-        title: 'Metta Sutta',
-        subtitle: 'Sutta Nipata',
-        matchedText: '',
-        contentFileId: 'sn-1',
-        pageIndex: 0,
-        entryIndex: 0,
-        nodeKey: 'sn-1',
-        language: 'pali',
-      );
-
-      const contentResult = SearchResult(
-        id: 'content_1',
-        editionId: 'bjt',
-        resultType: SearchResultType.fullText,
-        title: 'Brahmajālasutta',
-        subtitle: 'Dīgha Nikāya',
-        matchedText: 'Metta karuna text',
-        contentFileId: 'dn-1',
-        pageIndex: 0,
-        entryIndex: 5,
-        nodeKey: 'dn-1',
-        language: 'pali',
-      );
-
-      final notifier = FakeSearchStateNotifier(
-        const SearchState(
-          rawQueryText: 'metta',
-          effectiveQueryText: 'metta',
-          selectedResultType: SearchResultType.topResults,
-          groupedResults: GroupedSearchResult(
-            resultsByType: {
-              SearchResultType.title: [titleResult],
-              SearchResultType.fullText: [contentResult],
-            },
-          ),
-        ),
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            searchStateProvider.overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SearchResultsPanel(
-                onClose: () {},
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // ASSERT - Both results should be visible with section headers
-      expect(find.text('TITLES'), findsOneWidget);
-      expect(find.text('FULL TEXT'), findsOneWidget);
-      // Two ListTiles for the two results
-      expect(find.byType(ListTile), findsNWidgets(2));
-    });
-
-    group('Result count footer', () {
-      testWidgets('should show footer when totalCount exceeds displayed count',
-          (tester) async {
-        // ARRANGE - 2 results displayed out of 150 total
-        const result = SearchResult(
-          id: 'test_1',
-          editionId: 'bjt',
-          resultType: SearchResultType.fullText,
-          title: 'Test Sutta',
-          subtitle: 'Test Collection',
-          matchedText: 'test content',
-          contentFileId: 'dn-1',
-          pageIndex: 0,
-          entryIndex: 0,
-          nodeKey: 'dn-1',
-          language: 'pali',
-        );
-
-        final notifier = FakeSearchStateNotifier(
-          SearchState(
-            rawQueryText: 'test',
-            effectiveQueryText: 'test',
-            selectedResultType: SearchResultType.fullText,
-            fullResults: AsyncValue.data(List.generate(2, (_) => result)),
-            countByResultType: const {
-              SearchResultType.fullText: 150, // Total exceeds displayed
-            },
-          ),
-        );
-
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              searchStateProvider.overrideWith((ref) => notifier),
-            ],
-            child: MaterialApp(
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              supportedLocales: AppLocalizations.supportedLocales,
-              home: Scaffold(
-                body: SearchResultsPanel(
-                  onClose: () {},
-                ),
-              ),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // ASSERT - Footer shows "Viewing X out of Y results"
-        expect(find.textContaining('Viewing 2 out of 150'), findsOneWidget);
-      });
-
-      testWidgets('should hide footer when all results are displayed',
-          (tester) async {
-        // ARRANGE - All results fit (3 out of 3)
-        const result = SearchResult(
-          id: 'test_1',
-          editionId: 'bjt',
-          resultType: SearchResultType.fullText,
-          title: 'Test Sutta',
-          subtitle: 'Test Collection',
-          matchedText: 'test content',
-          contentFileId: 'dn-1',
-          pageIndex: 0,
-          entryIndex: 0,
-          nodeKey: 'dn-1',
-          language: 'pali',
-        );
-
-        final notifier = FakeSearchStateNotifier(
-          SearchState(
-            rawQueryText: 'test',
-            effectiveQueryText: 'test',
-            selectedResultType: SearchResultType.fullText,
-            fullResults: AsyncValue.data(List.generate(3, (_) => result)),
-            countByResultType: const {
-              SearchResultType.fullText: 3, // Total equals displayed
-            },
-          ),
-        );
-
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              searchStateProvider.overrideWith((ref) => notifier),
-            ],
-            child: MaterialApp(
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              supportedLocales: AppLocalizations.supportedLocales,
-              home: Scaffold(
-                body: SearchResultsPanel(
-                  onClose: () {},
-                ),
-              ),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // ASSERT - No footer when all results displayed
-        expect(find.textContaining('Viewing'), findsNothing);
-      });
     });
   });
 }
