@@ -168,7 +168,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
         fontFamilyFallback: AppFonts.uiFallback,
         fontSize: AppFonts.labelFontSize,
         fontWeight: FontWeight.w600,
-        color: colorScheme.onSecondaryContainer,
+        color: colorScheme.onSecondary,
         height: AppFonts.uiLineHeight,
       ),
 

@@ -40,8 +40,8 @@ class LightThemeColors {
   // ============================================
   static const secondary = Color(0xFF705E46); // Warm taupe
   static const onSecondary = Color(0xFFFFFFFF); // White
-  static const secondaryContainer = Color(0xFF705E46); // Warm taupe (selected chips)
-  static const onSecondaryContainer = Color(0xFFFFFFFF); // White (text on selected chips)
+  static const secondaryContainer = Color(0xFFF0E6D8); // Light warm cream (M3 tonal fill)
+  static const onSecondaryContainer = Color(0xFF2A1F12); // Dark brown (text on container)
 
   // ============================================
   // Tertiary group (contrasting accent)
