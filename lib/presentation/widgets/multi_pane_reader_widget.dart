@@ -12,6 +12,7 @@ import '../models/column_display_mode.dart';
 import '../models/in_page_search_state.dart';
 import '../../domain/entities/content/entry.dart';
 import '../../domain/entities/content/entry_type.dart';
+import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../providers/document_provider.dart';
 import '../providers/dictionary_provider.dart'
     show
@@ -32,7 +33,10 @@ import '../providers/tab_provider.dart'
         activeSplitRatioProvider,
         updateActiveTabPaginationProvider,
         updateActiveTabSplitRatioProvider;
-import '../providers/navigation_tree_provider.dart' show nodeByKeyProvider;
+import '../providers/previous_sutta_provider.dart'
+    show navigateToPreviousSuttaProvider;
+import '../providers/navigation_tree_provider.dart'
+    show nodeByKeyProvider, previousReadableNodeProvider;
 import '../providers/fts_highlight_provider.dart';
 import 'reader/text_entry_widget.dart';
 import 'reader/in_page_search_bar.dart';
@@ -56,6 +60,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
   // GlobalKey attached to the current match entry for scroll-to-match
   final GlobalKey _currentMatchKey = GlobalKey();
 
+  // Tracks whether the user has scrolled away from the top.
+  // Updated in _onScroll; only calls setState when the value actually changes.
+  bool _isScrolledDown = false;
+
   @override
   void initState() {
     super.initState();
@@ -63,14 +71,22 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     _scrollController.addListener(_onScroll);
   }
 
-  /// Scroll listener for infinite scroll behavior.
+  /// Scroll listener for infinite scroll and scroll-position tracking.
   void _onScroll() {
     if (_scrollController.hasClients) {
-      final maxScroll = _scrollController.position.maxScrollExtent;
       final currentScroll = _scrollController.position.pixels;
-      final delta = maxScroll - currentScroll;
+
+      // Track whether the user has scrolled at least one viewport height down.
+      // This prevents the "Go to beginning" button from appearing too eagerly
+      // after just a couple of scroll ticks.
+      final viewportHeight = _scrollController.position.viewportDimension;
+      final scrolledDown = currentScroll > viewportHeight;
+      if (scrolledDown != _isScrolledDown) {
+        setState(() => _isScrolledDown = scrolledDown);
+      }
 
       // Infinite scroll: load next page when user scrolls near bottom (within 200px)
+      final delta = _scrollController.position.maxScrollExtent - currentScroll;
       if (delta < 200) {
         _loadMorePagesIfNeeded();
       }
@@ -145,6 +161,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     final node = ref.read(nodeByKeyProvider(nodeKey));
     if (node == null) return;
 
+    // Reset scroll-tracking state so the button transitions correctly
+    // (from scroll-to-top to skip-previous once we're at the beginning).
+    setState(() => _isScrolledDown = false);
+
     // Reset pagination to the sutta's beginning
     ref.read(updateActiveTabPaginationProvider)(
       pageStart: node.entryPageIndex,
@@ -165,6 +185,24 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
     });
   }
 
+
+  /// Navigates to the previous sutta in tree order.
+  /// Delegates business logic to [navigateToPreviousSuttaProvider] and
+  /// handles widget-specific concerns (scroll position, page loading).
+  void _navigateToPreviousSutta(TipitakaTreeNode previousNode) {
+    // Delegate business logic to provider
+    ref.read(navigateToPreviousSuttaProvider)(previousNode);
+
+    // Jump to top — handles same-contentFileId case where doc won't reload
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+
+    // Ensure enough pages are loaded to fill the screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMorePagesIfNeeded(scheduleNextCheck: true);
+    });
+  }
 
   void _restoreScrollPosition() {
     final activeTabIndex = ref.read(activeTabIndexProvider);
@@ -308,6 +346,11 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             (pageStart == node.entryPageIndex &&
                 entryStart > node.entryIndexInPage));
 
+    // Watch the previous readable node in tree order for backward navigation
+    final previousNode = nodeKey != null
+        ? ref.watch(previousReadableNodeProvider(nodeKey))
+        : null;
+
     return Stack(
       children: [
         // Main content area
@@ -413,14 +456,26 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                   ref.read(inPageSearchStatesProvider.notifier).openSearch(),
             ),
           ),
-        // Scroll up buttons (only when current position is after sutta's beginning)
-        // Allows user to see content before the search result position
-        if (isAfterSuttaBeginning)
+        // Navigation button: scroll to beginning (mid-sutta) or go to previous sutta
+        // "needsScrollToBeginning" covers two cases:
+        //  1. FTS opened mid-sutta (pageStart/entryStart differ from node start)
+        //  2. User scrolled down from the beginning (scroll offset > 0)
+        if (contentAsync.valueOrNull != null &&
+            (isAfterSuttaBeginning || _isScrolledDown || previousNode != null))
           Positioned(
             top: searchState.isVisible ? 60 : 16,
             right: 16,
             child: _ScrollUpButtons(
-              onScrollToBeginning: _scrollToBeginning,
+              onScrollToBeginning: (isAfterSuttaBeginning || _isScrolledDown)
+                  ? _scrollToBeginning
+                  : () => _navigateToPreviousSutta(previousNode!),
+              tooltip: (isAfterSuttaBeginning || _isScrolledDown)
+                  ? AppLocalizations.of(context).scrollToBeginning
+                  : AppLocalizations.of(context)
+                      .goToPreviousSutta(previousNode!.paliName),
+              icon: (isAfterSuttaBeginning || _isScrolledDown)
+                  ? Icons.vertical_align_top
+                  : Icons.skip_previous,
             ),
           ),
         // Non-modal dictionary bottom sheet overlay
@@ -1025,13 +1080,19 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
   }
 }
 
-/// Floating button to scroll to the beginning when content was opened mid-document.
-/// Only visible when entryStart > 0 (i.e., opened from FTS results).
+/// Floating button for sutta navigation.
+/// Shows different icon/tooltip depending on context:
+/// - Mid-sutta (from FTS): scroll-to-top icon with "Go to beginning"
+/// - At sutta beginning: skip-previous icon with "Go to: [previous sutta]"
 class _ScrollUpButtons extends StatelessWidget {
   final VoidCallback onScrollToBeginning;
+  final String tooltip;
+  final IconData icon;
 
   const _ScrollUpButtons({
     required this.onScrollToBeginning,
+    required this.tooltip,
+    this.icon = Icons.vertical_align_top,
   });
 
   @override
@@ -1042,14 +1103,14 @@ class _ScrollUpButtons extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       color: colorScheme.surfaceContainerHigh,
       child: Tooltip(
-        message: AppLocalizations.of(context).scrollToBeginning,
+        message: tooltip,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: onScrollToBeginning,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Icon(
-              Icons.vertical_align_top,
+              icon,
               size: 20,
               color: colorScheme.primary,
             ),

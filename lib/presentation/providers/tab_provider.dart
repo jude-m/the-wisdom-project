@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/constants.dart';
+import '../../domain/entities/search/search_result.dart';
 import '../models/column_display_mode.dart';
 import '../models/reader_tab.dart';
-import '../../domain/entities/search/search_result.dart';
 import 'navigation_tree_provider.dart';
 import 'navigator_sync_provider.dart';
 

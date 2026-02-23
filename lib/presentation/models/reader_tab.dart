@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import '../../core/utils/text_utils.dart' show truncateGraphemes;
 import 'column_display_mode.dart';
 import 'reader_pane.dart';
 
@@ -76,11 +77,7 @@ class ReaderTab with _$ReaderTab {
     int entryStart = 0,
     ColumnDisplayMode columnMode = ColumnDisplayMode.paliOnly,
   }) {
-    // Create a short label (max 20 characters)
-    final displayName = paliName;
-    final label = displayName.length > 20
-        ? '${displayName.substring(0, 20)}...'
-        : displayName;
+    final label = truncateGraphemes(paliName, 20);
 
     return ReaderTab(
       label: label,

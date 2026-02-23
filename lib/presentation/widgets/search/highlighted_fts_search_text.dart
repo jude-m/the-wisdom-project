@@ -117,11 +117,16 @@ class HighlightedFtsSearchText extends StatelessWidget {
       matchLength = words.isNotEmpty ? words.first.length : 0;
     }
 
-    // Map to original positions and extract snippet
+    // Map to original positions and extract snippet.
+    // Snap snippet boundaries to grapheme cluster boundaries so we don't
+    // split Sinhala combining characters (virama, vowel signs) and produce
+    // garbled text at the "..." edges.
     final range =
         textMatcher.mapToOriginal(matchIndex, matchIndex + matchLength);
-    final snippetStart = (range.start - contextBefore).clamp(0, text.length);
-    final snippetEnd = (range.end + contextAfter).clamp(0, text.length);
+    final rawStart = (range.start - contextBefore).clamp(0, text.length);
+    final rawEnd = (range.end + contextAfter).clamp(0, text.length);
+    final snippetStart = snapToGraphemeBoundary(text, rawStart);
+    final snippetEnd = snapToGraphemeBoundary(text, rawEnd, forward: true);
 
     var snippet = text.substring(snippetStart, snippetEnd);
     if (snippetStart > 0) snippet = '...$snippet';

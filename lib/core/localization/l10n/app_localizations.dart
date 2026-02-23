@@ -410,6 +410,12 @@ abstract class AppLocalizations {
   /// **'Go to beginning'**
   String get scrollToBeginning;
 
+  /// Tooltip for button to navigate to the previous sutta in tree order
+  ///
+  /// In en, this message translates to:
+  /// **'Go to: {name}'**
+  String goToPreviousSutta(String name);
+
   /// Placeholder text for the in-page search text field
   ///
   /// In en, this message translates to:

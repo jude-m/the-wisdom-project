@@ -168,6 +168,11 @@ class AppLocalizationsSi extends AppLocalizations {
   String get scrollToBeginning => 'ආරම්භයට යන්න';
 
   @override
+  String goToPreviousSutta(String name) {
+    return 'වෙත යන්න: $name';
+  }
+
+  @override
   String get findInPage => 'පිටුවේ සොයන්න';
 
   @override

@@ -266,6 +266,16 @@
     "description": "Tooltip for button to scroll to the beginning of the sutta when opened mid-document from FTS"
   },
 
+  "goToPreviousSutta": "Go to: {name}",
+  "@goToPreviousSutta": {
+    "description": "Tooltip for button to navigate to the previous sutta in tree order",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+
   "findInPage": "Find in page",
   "@findInPage": {
     "description": "Placeholder text for the in-page search text field"

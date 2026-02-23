@@ -168,6 +168,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scrollToBeginning => 'Go to beginning';
 
   @override
+  String goToPreviousSutta(String name) {
+    return 'Go to: $name';
+  }
+
+  @override
   String get findInPage => 'Find in page';
 
   @override
