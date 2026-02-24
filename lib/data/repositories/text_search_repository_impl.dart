@@ -559,6 +559,9 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     return nodeMap;
   }
 
+  /// Duplicates parent-walk logic from ancestorKeysProvider (presentation layer).
+  /// Can't share because this data-layer class has no Riverpod Ref.
+  /// If this grows complex, extract to a shared utility in core/utils/tree_utils.dart.
   /// Build a navigation path string from a node
   /// e.g., "Dīgha Nikāya > Sīlakkhandhavagga"
   String _buildNavigationPath(

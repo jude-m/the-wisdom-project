@@ -321,3 +321,40 @@ final openTabFromSearchResultProvider =
     ref.read(syncNavigatorToActiveTabProvider)();
   };
 });
+
+/// Opens a new tab for the given tree node key.
+///
+/// Centralizes the tab-from-node creation used by the tree navigator and
+/// breadcrumb widget. Callers pass [isPortraitMode] (derived from
+/// BuildContext) since providers can't access context.
+///
+/// Returns the new tab index, or -1 if the node was not found.
+///
+/// **Side effects NOT included** (caller-specific):
+/// - Tree navigator: calls `selectNodeProvider` before, closes nav on mobile after
+/// - Breadcrumb: calls `syncNavigatorToActiveTabProvider` after
+final openTabFromNodeKeyProvider =
+    Provider<int Function(String nodeKey, {bool isPortraitMode})>((ref) {
+  return (String nodeKey, {bool isPortraitMode = false}) {
+    final node = ref.read(nodeByKeyProvider(nodeKey));
+    if (node == null) return -1;
+
+    final columnMode = isPortraitMode
+        ? ColumnDisplayMode.paliOnly
+        : ColumnDisplayMode.both;
+
+    final newTab = ReaderTab.fromNode(
+      nodeKey: node.nodeKey,
+      paliName: node.paliName,
+      sinhalaName: node.sinhalaName,
+      contentFileId: node.isReadableContent ? node.contentFileId : null,
+      pageIndex: node.isReadableContent ? node.entryPageIndex : 0,
+      entryStart: node.isReadableContent ? node.entryIndexInPage : 0,
+      columnMode: columnMode,
+    );
+
+    final newIndex = ref.read(tabsProvider.notifier).addTab(newTab);
+    ref.read(activeTabIndexProvider.notifier).state = newIndex;
+    return newIndex;
+  };
+});

@@ -118,6 +118,34 @@ final previousReadableNodeProvider =
   );
 });
 
+/// Returns the list of node keys from root to [nodeKey] by walking up
+/// the parent chain via `parentNodeKey`.
+///
+/// Reused by breadcrumb display, expand-path-to-node, and any future
+/// feature that needs the ancestor path. Returns [] if the node is not
+/// found or the tree hasn't loaded.
+final ancestorKeysProvider =
+    Provider.autoDispose.family<List<String>, String>((ref, nodeKey) {
+  final keys = <String>[];
+  String? currentKey = nodeKey;
+
+  // Safety limit to prevent infinite loops from malformed data
+  const maxDepth = 20;
+  var depth = 0;
+
+  while (currentKey != null && depth < maxDepth) {
+    final node = ref.watch(nodeByKeyProvider(currentKey));
+    if (node == null) break;
+
+    keys.add(node.nodeKey);
+    currentKey = node.parentNodeKey;
+    depth++;
+  }
+
+  // Reverse so it reads root → leaf
+  return keys.reversed.toList();
+});
+
 // Provider to toggle node expansion
 final toggleNodeExpansionProvider = Provider<void Function(String)>((ref) {
   return (String nodeKey) {
@@ -144,38 +172,16 @@ final selectNodeProvider = Provider<void Function(String)>((ref) {
 // Provider to expand path to a node (expand all parents)
 final expandPathToNodeProvider = Provider<void Function(String)>((ref) {
   return (String nodeKey) {
-    final treeAsync = ref.read(navigationTreeProvider);
+    final path = ref.read(ancestorKeysProvider(nodeKey));
+    if (path.isEmpty) return;
+
     final expandedNodes = ref.read(expandedNodesProvider);
+    final newSet = Set<String>.from(expandedNodes);
 
-    treeAsync.whenData((rootNodes) {
-      final newSet = Set<String>.from(expandedNodes);
-
-      // Find path to node
-      List<String>? findPath(List<TipitakaTreeNode> nodes, String targetKey,
-          List<String> currentPath) {
-        for (var node in nodes) {
-          final path = [...currentPath, node.nodeKey];
-
-          if (node.nodeKey == targetKey) {
-            return path;
-          }
-
-          final found = findPath(node.childNodes, targetKey, path);
-          if (found != null) {
-            return found;
-          }
-        }
-        return null;
-      }
-
-      final path = findPath(rootNodes, nodeKey, []);
-      if (path != null) {
-        // Expand all nodes in the path except the last one
-        for (var i = 0; i < path.length - 1; i++) {
-          newSet.add(path[i]);
-        }
-        ref.read(expandedNodesProvider.notifier).state = newSet;
-      }
-    });
+    // Expand all nodes in the path except the last one (the node itself)
+    for (var i = 0; i < path.length - 1; i++) {
+      newSet.add(path[i]);
+    }
+    ref.read(expandedNodesProvider.notifier).state = newSet;
   };
 });

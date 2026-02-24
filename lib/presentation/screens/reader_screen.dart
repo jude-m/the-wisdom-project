@@ -9,6 +9,7 @@ import '../widgets/settings_menu_button.dart';
 import '../widgets/search/search_bar.dart' as app;
 import '../widgets/search/search_results_panel.dart';
 import '../widgets/resizable_divider.dart';
+import '../widgets/breadcrumb_widget.dart';
 import '../providers/navigator_visibility_provider.dart';
 import '../providers/tab_provider.dart';
 import '../providers/search_provider.dart';
@@ -112,6 +113,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+          title: const BreadcrumbWidget(),
+          titleSpacing: 4.0,
           leading: IconButton(
             icon: Icon(navigatorVisible ? Icons.menu_open : Icons.menu),
             tooltip: navigatorVisible ? 'Hide Navigator' : 'Show Navigator',
