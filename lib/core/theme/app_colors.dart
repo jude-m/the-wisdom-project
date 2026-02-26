@@ -48,7 +48,7 @@ class LightThemeColors {
   // ============================================
   static const tertiary = Color(0xFFFFD36A); // Golden amber (match highlight)
   static const onTertiary = Color(0xFF3A2A10); // Dark amber-brown
-  static const tertiaryContainer = Color(0xFFB8C7AB); // Sage green
+  static const tertiaryContainer = Color(0xB3B8C7AB); // Sage green (70% opacity)
   static const onTertiaryContainer = Color(0xFF2F3E28); // Dark green
 
   // ============================================

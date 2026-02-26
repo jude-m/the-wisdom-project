@@ -70,6 +70,11 @@ class AppTheme {
 
       colorScheme: colorScheme,
 
+      textSelectionTheme: const TextSelectionThemeData(
+        selectionColor: LightThemeColors.primaryContainer,
+        selectionHandleColor: LightThemeColors.primary,
+      ),
+
       // Typography extensions
       extensions: [
         TextEntryTheme.standard(
