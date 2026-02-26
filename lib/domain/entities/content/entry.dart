@@ -48,4 +48,77 @@ class Entry with _$Entry {
         .replaceAll('__', '')
         .replaceAll(RegExp(r'\{[^}]*\}'), '');
   }
+
+  /// Cached storage for [markedRanges]. Uses Expando (identity-based) so it
+  /// works with Freezed's const constructor without changing the class signature.
+  static final Expando<List<({int start, int end})>> _markedRangesCache =
+      Expando('markedRanges');
+
+  /// Character ranges in `plainText` coordinate space that correspond
+  /// to text wrapped in `**...**` markers in `rawText`.
+  ///
+  /// Ranges are sorted by start position (left-to-right parse order).
+  ///
+  /// Computed once per instance and cached.
+  List<({int start, int end})> get markedRanges {
+    return _markedRangesCache[this] ??= _computeMarkedRanges();
+  }
+
+  /// Walks `rawText` tracking the current position in the stripped (plainText)
+  /// coordinate system, toggling marked state on/off when `**` is encountered,
+  /// and skipping `__` and `{...}` markers (which are also stripped).
+  List<({int start, int end})> _computeMarkedRanges() {
+    final ranges = <({int start, int end})>[];
+    final raw = rawText;
+    final len = raw.length;
+    int i = 0; // position in rawText
+    int plainIndex = 0; // position in plainText
+    bool inMarked = false;
+    int markedStart = 0;
+
+    while (i < len) {
+      // Check for ** marker (bold toggle)
+      if (i + 1 < len && raw[i] == '*' && raw[i + 1] == '*') {
+        if (!inMarked) {
+          // Opening marker — record where this marked section starts
+          inMarked = true;
+          markedStart = plainIndex;
+        } else {
+          // Closing marker — emit the range
+          inMarked = false;
+          if (plainIndex > markedStart) {
+            ranges.add((start: markedStart, end: plainIndex));
+          }
+        }
+        i += 2; // skip the two * characters
+        continue;
+      }
+
+      // Check for __ marker (underline — stripped, not rendered)
+      if (i + 1 < len && raw[i] == '_' && raw[i + 1] == '_') {
+        i += 2;
+        continue;
+      }
+
+      // Check for {footnote} marker — skip entire content
+      if (raw[i] == '{') {
+        final closeBrace = raw.indexOf('}', i);
+        if (closeBrace != -1) {
+          i = closeBrace + 1;
+          continue;
+        }
+      }
+
+      // Regular character — advances plainIndex
+      plainIndex++;
+      i++;
+    }
+
+    // Close any unclosed marked range (defensive against malformed input)
+    if (inMarked && plainIndex > markedStart) {
+      ranges.add((start: markedStart, end: plainIndex));
+    }
+
+    return ranges;
+  }
 }

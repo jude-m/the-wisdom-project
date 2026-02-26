@@ -1030,6 +1030,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             textAlign: TextAlign.center,
             enableTap: enableDictionaryLookup,
             onWordTap: (word, _) => _handleWordTap(word),
+            markedRanges: entry.markedRanges,
             inPageSearchQuery: inPageSearchQuery,
             currentMatchIndexInEntry: currentMatchIndexInEntry,
           ),
@@ -1049,6 +1050,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             textAlign: TextAlign.left,
             enableTap: enableDictionaryLookup,
             onWordTap: (word, _) => _handleWordTap(word),
+            markedRanges: entry.markedRanges,
             inPageSearchQuery: inPageSearchQuery,
             currentMatchIndexInEntry: currentMatchIndexInEntry,
           ),
@@ -1074,6 +1076,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
       textAlign: textAlign,
       enableTap: enableDictionaryLookup,
       onWordTap: (word, _) => _handleWordTap(word),
+      markedRanges: entry.markedRanges,
       inPageSearchQuery: inPageSearchQuery,
       currentMatchIndexInEntry: currentMatchIndexInEntry,
     );

@@ -107,6 +107,59 @@ String applyConjunctConsonants(String text) {
   return result;
 }
 
+/// Builds a position map from [source] (plainText) to [target] (displayText
+/// after conjunct transformation).
+///
+/// Returns a `List<int>` of length `source.length + 1` where `map[i]` gives
+/// the corresponding index in [target] for source index `i`. The extra entry
+/// at `source.length` maps to the end of [target] (sentinel for range ends).
+///
+/// The conjunct transformation only inserts/removes ZWJ/ZWNJ and replaces
+/// vowels 1:1, so every "real" character in source has exactly one counterpart
+/// in target — just at a potentially different offset.
+///
+/// Usage: map marked ranges from plainText coordinates to displayText:
+/// ```dart
+/// final posMap = buildConjunctPositionMap(plainText, displayText);
+/// final displayStart = posMap[range.start];
+/// final displayEnd = posMap[range.end];
+/// ```
+List<int> buildConjunctPositionMap(String source, String target) {
+  final map = List<int>.filled(source.length + 1, 0);
+  int si = 0;
+  int ti = 0;
+
+  while (si < source.length) {
+    // Skip zero-width characters in source (removed by transformation)
+    if (source[si] == '\u200D' || source[si] == '\u200C') {
+      map[si] = ti;
+      si++;
+      continue;
+    }
+
+    // Skip zero-width characters in target (inserted by transformation)
+    while (ti < target.length &&
+        (target[ti] == '\u200D' || target[ti] == '\u200C')) {
+      ti++;
+    }
+
+    // Real characters correspond 1:1 (including vowel replacements)
+    map[si] = ti;
+    si++;
+    if (ti < target.length) ti++;
+  }
+
+  // Sentinel: map end-of-source to current target position
+  // (skip any trailing ZWJ in target)
+  while (
+      ti < target.length && (target[ti] == '\u200D' || target[ti] == '\u200C')) {
+    ti++;
+  }
+  map[source.length] = ti;
+
+  return map;
+}
+
 /// Removes ZWJ/ZWNJ formatting from text for dictionary lookup.
 ///
 /// When text is transformed by [applyConjunctConsonants], it contains ZWJ
