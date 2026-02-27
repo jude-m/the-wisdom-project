@@ -40,7 +40,7 @@ import '../providers/navigation_tree_provider.dart'
 import '../providers/fts_highlight_provider.dart';
 import 'reader/text_entry_widget.dart';
 import 'reader/in_page_search_bar.dart';
-import 'reader/parallel_text_button.dart';
+import 'reader/reader_action_buttons.dart';
 import 'dictionary/dictionary_bottom_sheet.dart';
 import 'resizable_divider.dart';
 
@@ -351,6 +351,18 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
         ? ref.watch(previousReadableNodeProvider(nodeKey))
         : null;
 
+    // Visibility flags for the two action button modes.
+    // Computed once here so IgnorePointer, AnimatedOpacity, and AnimatedSlide
+    // all reference the same boolean — avoids duplication and drift.
+    final hasContent = contentAsync.valueOrNull != null;
+    final showMode1 = hasContent &&
+        !searchState.isVisible &&
+        !_isScrolledDown &&
+        !isAfterSuttaBeginning;
+    final showMode2 = hasContent &&
+        !searchState.isVisible &&
+        (_isScrolledDown || isAfterSuttaBeginning);
+
     return Stack(
       children: [
         // Main content area
@@ -446,38 +458,69 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
               key: ValueKey('search_bar_${ref.watch(activeTabIndexProvider)}'),
             ),
           ),
-        // Search trigger button (top-left, below search bar if visible)
-        if (contentAsync.valueOrNull != null && !searchState.isVisible)
+        // When search bar is active, all action buttons are hidden.
+        // The search bar is self-contained (close, up/down navigation).
+        //
+        // Mode 1 & 2 both stay in the tree so AnimatedOpacity can crossfade.
+        // IgnorePointer disables taps on the invisible widget.
+        if (hasContent) ...[
+          // Mode 1: Button group at top-right (at sutta beginning, not scrolled)
           Positioned(
-            top: 16,
-            left: 16,
-            child: _InPageSearchTriggerButton(
-              onTap: () =>
-                  ref.read(inPageSearchStatesProvider.notifier).openSearch(),
-            ),
-          ),
-        // Navigation button: scroll to beginning (mid-sutta) or go to previous sutta
-        // "needsScrollToBeginning" covers two cases:
-        //  1. FTS opened mid-sutta (pageStart/entryStart differ from node start)
-        //  2. User scrolled down from the beginning (scroll offset > 0)
-        if (contentAsync.valueOrNull != null &&
-            (isAfterSuttaBeginning || _isScrolledDown || previousNode != null))
-          Positioned(
-            top: searchState.isVisible ? 60 : 16,
+            top: 12,
             right: 16,
-            child: _ScrollUpButtons(
-              onScrollToBeginning: (isAfterSuttaBeginning || _isScrolledDown)
-                  ? _scrollToBeginning
-                  : () => _navigateToPreviousSutta(previousNode!),
-              tooltip: (isAfterSuttaBeginning || _isScrolledDown)
-                  ? AppLocalizations.of(context).scrollToBeginning
-                  : AppLocalizations.of(context)
-                      .goToPreviousSutta(previousNode!.paliName),
-              icon: (isAfterSuttaBeginning || _isScrolledDown)
-                  ? Icons.vertical_align_top
-                  : Icons.skip_previous,
+            child: IgnorePointer(
+              ignoring: !showMode1,
+              child: AnimatedOpacity(
+                opacity: showMode1 ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 150),
+                curve: Curves.easeOutCubic,
+                child: ReaderActionButtonGroup(
+                  onSearchTap: () => ref
+                      .read(inPageSearchStatesProvider.notifier)
+                      .openSearch(),
+                  onScrollTap: previousNode != null
+                      ? () => _navigateToPreviousSutta(previousNode)
+                      : null,
+                  scrollIcon:
+                      previousNode != null ? Icons.skip_previous : null,
+                  scrollTooltip: previousNode != null
+                      ? AppLocalizations.of(context)
+                          .goToPreviousSutta(previousNode.paliName)
+                      : null,
+                ),
+              ),
             ),
           ),
+          // Mode 2: Expandable FAB at bottom-right (scrolled down or FTS mid-sutta)
+          Positioned(
+            bottom: 24,
+            right: 16,
+            child: IgnorePointer(
+              ignoring: !showMode2,
+              child: AnimatedOpacity(
+                opacity: showMode2 ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                child: AnimatedSlide(
+                  offset: showMode2
+                      ? Offset.zero
+                      : const Offset(0, 0.3),
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  child: ReaderExpandableFab(
+                    visible: showMode2,
+                    onSearchTap: () => ref
+                        .read(inPageSearchStatesProvider.notifier)
+                        .openSearch(),
+                    onScrollTap: _scrollToBeginning,
+                    scrollTooltip:
+                        AppLocalizations.of(context).scrollToBeginning,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
         // Non-modal dictionary bottom sheet overlay
         // Only mounted when a word is selected (conditional mounting for performance)
         if (selectedWord != null) const DictionaryBottomSheet(),
@@ -585,13 +628,13 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.all(24.0),
-              itemCount: pages.length + 1, // +1 for commentary link button
+              itemCount: pages.length + 1, // +1 for top spacer
               itemBuilder: (context, index) {
-                // First item is the commentary link button
+                // First item is a spacer so content doesn't hide behind button group
                 if (index == 0) {
-                  return const ParallelTextButton();
+                  return const SizedBox(height: PaneWidthConstants.readerActionButtonGroupHeight);
                 }
-                // Adjust index for pages (index-1 since button is at 0)
+                // Adjust index for pages (index-1 since spacer is at 0)
                 final pageIndex = index - 1;
                 final absolutePageIndex = absolutePageStart + pageIndex;
                 final page = pages[pageIndex];
@@ -632,13 +675,13 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.all(24.0),
-              itemCount: pages.length + 1, // +1 for commentary link button
+              itemCount: pages.length + 1, // +1 for top spacer
               itemBuilder: (context, index) {
-                // First item is the commentary link button
+                // First item is a spacer so content doesn't hide behind button group
                 if (index == 0) {
-                  return const ParallelTextButton();
+                  return const SizedBox(height: PaneWidthConstants.readerActionButtonGroupHeight);
                 }
-                // Adjust index for pages (index-1 since button is at 0)
+                // Adjust index for pages (index-1 since spacer is at 0)
                 final pageIndex = index - 1;
                 final absolutePageIndex = absolutePageStart + pageIndex;
                 final page = pages[pageIndex];
@@ -693,8 +736,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Commentary link button at the top
-                        const ParallelTextButton(),
+                        // Spacer so content doesn't hide behind button group
+                        const SizedBox(height: PaneWidthConstants.readerActionButtonGroupHeight),
                         // Content rows - each page with paired entries
                         ..._buildBothModePages(
                           context,
@@ -1083,75 +1126,3 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget> {
   }
 }
 
-/// Floating button for sutta navigation.
-/// Shows different icon/tooltip depending on context:
-/// - Mid-sutta (from FTS): scroll-to-top icon with "Go to beginning"
-/// - At sutta beginning: skip-previous icon with "Go to: [previous sutta]"
-class _ScrollUpButtons extends StatelessWidget {
-  final VoidCallback onScrollToBeginning;
-  final String tooltip;
-  final IconData icon;
-
-  const _ScrollUpButtons({
-    required this.onScrollToBeginning,
-    required this.tooltip,
-    this.icon = Icons.vertical_align_top,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      elevation: 2,
-      borderRadius: BorderRadius.circular(20),
-      color: colorScheme.surfaceContainerHigh,
-      child: Tooltip(
-        message: tooltip,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: onScrollToBeginning,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Icon(
-              icon,
-              size: 20,
-              color: colorScheme.primary,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Small floating button to open the in-page search bar.
-class _InPageSearchTriggerButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _InPageSearchTriggerButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      elevation: 2,
-      borderRadius: BorderRadius.circular(20),
-      color: colorScheme.surfaceContainerHigh,
-      child: Tooltip(
-        message: AppLocalizations.of(context).findInPage,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Icon(
-              Icons.search,
-              size: 20,
-              color: colorScheme.primary,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
