@@ -337,13 +337,20 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
 
     final spans = <InlineSpan>[];
     int lastEnd = 0;
+    // Track the last word's recognizer for trailing text after the final word.
+    TapGestureRecognizer? lastRecognizer;
 
     for (final match in _wordMatches) {
       final word = match.group(0)!;
       final wordPosition = match.start;
       final wordEnd = match.end;
 
-      // Add spaces and punctuation between words
+      // Get the pre-created recognizer for this word
+      final recognizer = _recognizers[wordPosition];
+
+      // Add spaces and punctuation between words.
+      // Use the next word's recognizer so tapping a gap triggers the
+      // upcoming word — feels more natural when reading left-to-right.
       if (match.start > lastEnd) {
         final betweenText = _displayText.substring(lastEnd, match.start);
         final betweenSpans = _buildSpansWithSearchHighlight(
@@ -352,7 +359,7 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
           searchRanges: effectiveSearchRanges,
           searchHighlightColor: effectiveHighlightColor,
           baseStyle: widget.style,
-          recognizer: null,
+          recognizer: recognizer,
           markedRanges: markedRanges,
           inPageCurrentMatchColor: inPageRanges.isNotEmpty ? inPageCurrentMatchColor : null,
           currentInPageRangeIndex: currentInPageRangeIndex,
@@ -360,9 +367,6 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
         );
         spans.addAll(betweenSpans);
       }
-
-      // Get the pre-created recognizer for this word
-      final recognizer = _recognizers[wordPosition];
 
       // Dictionary highlight takes priority over search highlight
       final isDictHighlight = highlightState?.widgetId == myWidgetId &&
@@ -397,10 +401,11 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
         spans.addAll(wordSpans);
       }
 
+      lastRecognizer = recognizer;
       lastEnd = wordEnd;
     }
 
-    // Add remaining text after the last word
+    // Add remaining text after the last word — extends last word's hit area
     if (lastEnd < _displayText.length) {
       final remainingText = _displayText.substring(lastEnd);
       final remainingSpans = _buildSpansWithSearchHighlight(
@@ -409,7 +414,7 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
         searchRanges: effectiveSearchRanges,
         searchHighlightColor: effectiveHighlightColor,
         baseStyle: widget.style,
-        recognizer: null,
+        recognizer: lastRecognizer,
         markedRanges: markedRanges,
         inPageCurrentMatchColor: inPageRanges.isNotEmpty ? inPageCurrentMatchColor : null,
         currentInPageRangeIndex: currentInPageRangeIndex,
