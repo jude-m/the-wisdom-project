@@ -127,10 +127,22 @@ The `itemBuilder` callback would contain the same per-entry `hasMatchInEntry` ch
 
 `Scrollable.ensureVisible` works with `ListView.builder` the same way — the `GlobalKey` on the current match entry allows scrolling to it. If the match is outside the currently built range, the pagination expansion in `_scrollToCurrentMatch` ensures the page is loaded, then the post-frame callback scrolls to the keyed widget.
 
+## Prerequisites
+
+**`multi_pane_reader_widget.dart` has been refactored** (see `refactor-multi-pane-reader` plan).
+The "both" mode code now lives in `lib/presentation/widgets/reader/dual_column_pane.dart` (~200 lines),
+and entry building logic is in `reader/reader_entry_builder.dart`. Key implications:
+
+- **Files changed**: 1 — `dual_column_pane.dart` (not `multi_pane_reader_widget.dart`)
+- `_buildSplitRow` and `_buildDividerOverlay` are methods inside `DualColumnPane`
+- The `_BothModeItem` sealed class and `_computeBothModeItems` go into `dual_column_pane.dart`
+- `ReaderEntryBuilder.buildEntry()` replaces inline entry building in the `itemBuilder` closure
+- The parent `MultiPaneReaderWidget` passes `scrollController`, `currentMatchKey`, and callbacks — no changes needed there
+
 ## Effort Estimate
 
 - **Complexity**: Medium — the core layout logic already exists, it just needs restructuring
-- **Files changed**: 1 (`multi_pane_reader_widget.dart`)
+- **Files changed**: 1 (`lib/presentation/widgets/reader/dual_column_pane.dart`)
 - **Risk**: The `_buildSplitRow` + `LayoutBuilder` pattern inside `itemBuilder` should work, but needs testing for:
   - Row height alignment (IntrinsicHeight may be needed if entries have different heights)
   - Divider overlay positioning during fast scroll
