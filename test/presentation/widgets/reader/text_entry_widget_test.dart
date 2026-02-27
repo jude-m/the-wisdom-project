@@ -235,12 +235,14 @@ void main() {
         );
 
         // Set FTS highlight that also matches this text
-        testRef.read(ftsHighlightProvider.notifier).state =
-            const FtsHighlightState(
-          queryText: 'භාසති',
-          isPhraseSearch: true,
-          isExactMatch: true,
-        );
+        testRef.read(ftsHighlightProvider.notifier).setForTab(
+              0,
+              const FtsHighlightState(
+                queryText: 'භාසති',
+                isPhraseSearch: true,
+                isExactMatch: true,
+              ),
+            );
         await tester.pump();
 
         // Widget renders as Text.rich (in-page search is active)

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
@@ -25,6 +26,8 @@ void main() {
               ),
             ],
             child: const MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
               home: Scaffold(
                 body: Column(
                   children: [
@@ -69,11 +72,14 @@ void main() {
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
         // STEP 1: Scroll Tab A to 300 using the controller
-        final scrollableA = find.byType(SingleChildScrollView);
+        // SingleColumnPane uses ListView.builder (vertical); TabBarWidget uses horizontal ListView
+        final scrollableA = find.byWidgetPredicate(
+          (widget) => widget is ListView && widget.scrollDirection == Axis.vertical,
+        );
         expect(scrollableA, findsOneWidget,
-            reason: 'Should find SingleChildScrollView for content');
+            reason: 'Should find vertical ListView for content');
         final controllerA =
-            tester.widget<SingleChildScrollView>(scrollableA).controller;
+            tester.widget<ListView>(scrollableA).controller;
         if (controllerA != null && controllerA.hasClients) {
           controllerA.jumpTo(300);
           await tester.pumpAndSettle();
@@ -95,10 +101,12 @@ void main() {
             reason: 'Tab B should now be active');
 
         // STEP 3: Scroll Tab B to 600
-        final scrollableB = find.byType(SingleChildScrollView);
+        final scrollableB = find.byWidgetPredicate(
+          (widget) => widget is ListView && widget.scrollDirection == Axis.vertical,
+        );
         expect(scrollableB, findsOneWidget);
         final controllerB =
-            tester.widget<SingleChildScrollView>(scrollableB).controller;
+            tester.widget<ListView>(scrollableB).controller;
         if (controllerB != null && controllerB.hasClients) {
           controllerB.jumpTo(600);
           await tester.pumpAndSettle();
@@ -148,6 +156,8 @@ void main() {
               ),
             ],
             child: const MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
               home: Scaffold(
                 body: Column(
                   children: [
@@ -205,10 +215,12 @@ void main() {
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
         // Scroll Tab A down
-        final scrollable = find.byType(SingleChildScrollView);
+        final scrollable = find.byWidgetPredicate(
+          (widget) => widget is ListView && widget.scrollDirection == Axis.vertical,
+        );
         if (scrollable.evaluate().isNotEmpty) {
           final controller =
-              tester.widget<SingleChildScrollView>(scrollable).controller;
+              tester.widget<ListView>(scrollable).controller;
           if (controller != null && controller.hasClients) {
             controller.jumpTo(500);
             await tester.pumpAndSettle();
@@ -248,6 +260,8 @@ void main() {
               ),
             ],
             child: const MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
               home: Scaffold(
                 body: Column(
                   children: [
@@ -299,6 +313,8 @@ void main() {
               ),
             ],
             child: const MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
               home: Scaffold(
                 body: Column(
                   children: [
@@ -332,10 +348,12 @@ void main() {
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
         // Scroll and save position
-        final scrollable = find.byType(SingleChildScrollView);
+        final scrollable = find.byWidgetPredicate(
+          (widget) => widget is ListView && widget.scrollDirection == Axis.vertical,
+        );
         if (scrollable.evaluate().isNotEmpty) {
           final controller =
-              tester.widget<SingleChildScrollView>(scrollable).controller;
+              tester.widget<ListView>(scrollable).controller;
           if (controller != null && controller.hasClients) {
             controller.jumpTo(250);
             await tester.pumpAndSettle();
