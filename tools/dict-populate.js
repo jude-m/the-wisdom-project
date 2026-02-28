@@ -166,6 +166,14 @@ async function main() {
     console.log(`Database: ${CONFIG.OUTPUT_DB}`);
     console.log('');
 
+    // Ensure the output directory exists before opening the database
+    const dbDir = path.dirname(CONFIG.OUTPUT_DB);
+    if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+        console.log(`  Created directory: ${dbDir}`);
+        console.log('');
+    }
+
     const db = new Database(CONFIG.OUTPUT_DB);
 
     // Enable WAL mode for better write performance

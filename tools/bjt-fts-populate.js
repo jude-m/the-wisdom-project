@@ -344,6 +344,14 @@ function main() {
     console.log(`Edition:  ${CONFIG.EDITION_ID} (${CONFIG.EDITION_NAME})`);
     console.log('');
 
+    // Ensure the output directory exists before opening the database
+    const dbDir = path.dirname(CONFIG.OUTPUT_DB);
+    if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+        console.log(`  Created directory: ${dbDir}`);
+        console.log('');
+    }
+
     const db = new Database(CONFIG.OUTPUT_DB);
 
     // Enable WAL mode for better write performance
@@ -393,26 +401,10 @@ function main() {
         db.close();
     }
 
-    // Copy database to assets/databases/
-    console.log('');
-    console.log('Copying database to assets/databases/...');
-    const assetsDbDir = path.join(__dirname, '../assets/databases');
-    const dbFileName = path.basename(CONFIG.OUTPUT_DB);
-    const targetDbPath = path.join(assetsDbDir, dbFileName);
-
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(assetsDbDir)) {
-        fs.mkdirSync(assetsDbDir, { recursive: true });
-        console.log(`  Created directory: ${assetsDbDir}`);
-    }
-
-    // Copy the database file
-    fs.copyFileSync(CONFIG.OUTPUT_DB, targetDbPath);
-    console.log(`  ✓ Copied to: ${targetDbPath}`);
-
     console.log('');
     console.log('✓ Done!');
     console.log('');
+    const dbFileName = path.basename(CONFIG.OUTPUT_DB);
     console.log('Database is ready to use in your Flutter app.');
     console.log(`Make sure pubspec.yaml includes: assets/databases/${dbFileName}`);
 }
