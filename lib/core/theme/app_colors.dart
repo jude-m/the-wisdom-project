@@ -3,6 +3,13 @@ import 'package:flutter/material.dart';
 /// Color palette for Light theme
 /// Warm cream background with dark brown text - perfect for daytime reading
 /// Color names follow M3 role semantics (primary = interactive brand color)
+///
+/// Brown tonal bands (4 distinct values, dark → light):
+///   #2A2318 (16%) — heading, onPrimaryContainer, onTertiary, onSecondaryContainer, shadow
+///   #422701 (26%) — onSurface (body text)
+///   #5A3A18 (31%) — primary, surfaceTint (interactive elements)
+///   #705E46 (48%) — secondary, onSurfaceVariant (muted/taupe)
+///   #362F25 (22%) — inverseSurface (snackbar bg, separate context)
 class LightThemeColors {
   // ============================================
   // Background & Surface
@@ -18,22 +25,15 @@ class LightThemeColors {
   static const surfaceContainerHighest = Color(0xFFE0D7C8); // Dialogs, active tabs
   static const surfaceDim = Color(0xFFDED8CE); // Dimmer canvas
   static const surfaceBright = Color(0xFFFDF8F3); // Bright canvas (= bg)
-  static const surfaceTint = Color(0xFF3B220B); // Elevation tint (= primary)
+  static const surfaceTint = Color(0xFF5A3A18); // Elevation tint (= primary)
 
   // ============================================
   // Primary group (interactive brand color)
   // ============================================
-  static const primary = Color(0xFF3B220B); // Deep warm brown
-  // Alternative primary options (swap in to test):
-  // static const primary = Color(0xFF1E3A50); // Deep navy-brown (very subtle blue)
-  // static const primary = Color(0xFF152C3E); // Very deep navy (barely blue)
-  // static const primary = Color(0xFF214365); // Dark steel blue (your suggestion)
-  // static const primary = Color(0xFF3B220B); // Deep warm brown (blends with text)
-  // static const primary = Color(0xFF7D5A2F); // Warm brown (gentle distinction)
-  // static const primary = Color(0xFFA0612B); // Dark cinnamon (clearly interactive)
+  static const primary = Color(0xFF5A3A18); // Warm cinnamon brown (interactive)
   static const onPrimary = Color(0xFFFFFFFF); // White
   static const primaryContainer = Color(0xFFFAEBD7); // Light antique peach
-  static const onPrimaryContainer = Color(0xFF3A2510); // Deep warm brown
+  static const onPrimaryContainer = Color(0xFF2A2318); // Dark brown (= heading)
 
   // ============================================
   // Secondary group (complementary understated accent)
@@ -41,13 +41,13 @@ class LightThemeColors {
   static const secondary = Color(0xFF705E46); // Warm taupe
   static const onSecondary = Color(0xFFFFFFFF); // White
   static const secondaryContainer = Color(0xFFF0E6D8); // Light warm cream (M3 tonal fill)
-  static const onSecondaryContainer = Color(0xFF2A1F12); // Dark brown (text on container)
+  static const onSecondaryContainer = Color(0xFF2A2318); // Dark brown (= heading)
 
   // ============================================
   // Tertiary group (contrasting accent)
   // ============================================
   static const tertiary = Color(0xFFFFD36A); // Golden amber (match highlight)
-  static const onTertiary = Color(0xFF3A2A10); // Dark amber-brown
+  static const onTertiary = Color(0xFF2A2318); // Dark brown (= heading)
   static const tertiaryContainer = Color(0xB3B8C7AB); // Sage green (70% opacity)
   static const onTertiaryContainer = Color(0xFF2F3E28); // Dark green
 
@@ -76,7 +76,7 @@ class LightThemeColors {
   // Utility
   // ============================================
   static const scrim = Color(0xFF000000); // Modal overlay
-  static const shadow = Color(0xFF3A2510); // Warm dark brown (not harsh black)
+  static const shadow = Color(0xFF2A2318); // Dark brown (= heading)
 
   // ============================================
   // Custom (not M3 roles — app-specific)

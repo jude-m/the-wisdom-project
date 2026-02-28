@@ -32,7 +32,7 @@ class ReaderActionButtonGroup extends ConsumerWidget {
     return Material(
       elevation: 1,
       borderRadius: BorderRadius.circular(24),
-      color: colorScheme.surfaceContainerHigh,
+      color: colorScheme.surfaceContainer,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: Row(
@@ -178,7 +178,7 @@ class _ReaderExpandableFabState extends ConsumerState<ReaderExpandableFab> {
           Material(
             elevation: _isExpanded ? 4 : 2,
             borderRadius: BorderRadius.circular(16),
-            color: colorScheme.surfaceContainerHigh,
+            color: colorScheme.surfaceContainer,
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: () => setState(() => _isExpanded = !_isExpanded),
@@ -259,7 +259,7 @@ class _FabActionItem extends StatelessWidget {
     return Material(
       elevation: 2,
       borderRadius: BorderRadius.circular(20),
-      color: colorScheme.surfaceContainerHigh,
+      color: colorScheme.surfaceContainer,
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
