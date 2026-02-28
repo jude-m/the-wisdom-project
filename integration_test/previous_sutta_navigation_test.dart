@@ -130,13 +130,23 @@ void main() {
 
         await openTab(tester, container, tab);
 
-        // ASSERT: vertical_align_top icon visible (scroll-to-beginning mode)
-        expect(find.byIcon(Icons.vertical_align_top), findsOneWidget,
-            reason: 'Mid-sutta should show scroll-to-top icon');
+        // Mid-sutta shows the expandable FAB (Mode 2) instead of the pill
+        // (Mode 1). The scroll-to-top icon is inside the collapsed FAB.
+        // ASSERT: FAB trigger visible, pill icons hidden
+        expect(find.byIcon(Icons.more_vert), findsOneWidget,
+            reason: 'Mid-sutta should show the expandable FAB trigger');
         expect(find.byIcon(Icons.skip_previous), findsNothing,
             reason: 'Mid-sutta should NOT show skip-previous icon');
 
-        // ACT: Tap the button
+        // Expand the FAB to reveal the scroll-to-top action
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+
+        // ASSERT: vertical_align_top icon now visible inside the expanded FAB
+        expect(find.byIcon(Icons.vertical_align_top), findsOneWidget,
+            reason: 'Expanded FAB should show scroll-to-top icon');
+
+        // ACT: Tap the scroll-to-top button
         await tester.tap(find.byIcon(Icons.vertical_align_top));
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
@@ -402,19 +412,30 @@ void main() {
             reason:
                 'Scroll position should be past viewport (actual=${controller.position.pixels})');
 
-        // ASSERT: Button switches to vertical_align_top (Go to beginning)
-        expect(find.byIcon(Icons.vertical_align_top), findsOneWidget,
+        // ASSERT: Scrolling switches from Mode 1 (pill) to Mode 2 (FAB)
+        // The FAB trigger (more_vert) should be visible; the pill's
+        // skip_previous should be hidden.
+        expect(find.byIcon(Icons.more_vert), findsOneWidget,
             reason:
-                'After scrolling past one viewport → scroll-to-top icon');
+                'After scrolling past one viewport → expandable FAB visible');
         expect(find.byIcon(Icons.skip_previous), findsNothing,
             reason:
-                'Scroll-to-top should replace skip-previous when scrolled down');
+                'Scroll-to-top FAB should replace skip-previous when scrolled down');
+
+        // Expand the FAB to reveal the scroll-to-top action
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+
+        // ASSERT: vertical_align_top icon now visible inside the expanded FAB
+        expect(find.byIcon(Icons.vertical_align_top), findsOneWidget,
+            reason:
+                'Expanded FAB should show scroll-to-top icon');
 
         // ACT: Tap the scroll-to-top button
         await tester.tap(find.byIcon(Icons.vertical_align_top));
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
-        // ASSERT: Back at the top, button reverts to skip_previous
+        // ASSERT: Back at the top, button reverts to skip_previous (Mode 1)
         expect(find.byIcon(Icons.skip_previous), findsOneWidget,
             reason:
                 'After scrolling back to top → skip-previous icon returns');
