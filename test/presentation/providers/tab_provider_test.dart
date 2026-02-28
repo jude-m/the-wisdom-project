@@ -5,6 +5,7 @@ import 'package:the_wisdom_project/domain/entities/search/search_result_type.dar
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/presentation/providers/in_page_search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
+import 'package:the_wisdom_project/presentation/providers/tab_lifecycle_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 

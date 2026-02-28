@@ -105,6 +105,8 @@
 
   "scrollToBeginning": "ආරම්භයට යන්න",
 
+  "goToPreviousSutta": "වෙත යන්න: {name}",
+
   "findInPage": "පිටුවේ සොයන්න",
 
   "noInPageMatches": "0 / 0",

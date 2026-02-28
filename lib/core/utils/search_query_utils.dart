@@ -3,7 +3,7 @@ import 'text_utils.dart';
 
 /// Computes the effective search query from raw user input.
 ///
-/// Shared pipeline for both FTS search and in-page search:
+/// Shared pipeline for FTS search, in-page search, and dictionary lookup:
 /// 1. [sanitizeSearchQuery] - strip invalid chars, normalize ZWJ
 /// 2. [SinglishTransliterator.convert] - Singlish → Sinhala (if ASCII input)
 /// 3. Strip leftover `~` (incomplete special char escapes)

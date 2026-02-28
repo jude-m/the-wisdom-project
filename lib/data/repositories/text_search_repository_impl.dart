@@ -353,8 +353,10 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     }
 
     for (final node in nodeMap.values) {
-      final paliName = normalizeText(node.paliName, toLowerCase: true);
-      final sinhalaName = normalizeText(node.sinhalaName, toLowerCase: true);
+      final paliName =
+          normalizeText(node.paliName, toLowerCase: true).replaceAll('.', '');
+      final sinhalaName =
+          normalizeText(node.sinhalaName, toLowerCase: true).replaceAll('.', '');
 
       // Match normalized query against both Pali and Sinhala names
       final paliMatched = matchesQuery(paliName);
@@ -394,8 +396,10 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     // 2. Secondary: leaf nodes (individual suttas) before parent nodes
     results.sort((a, b) {
       // Primary sort: startsWith first
-      final titleA = normalizeText(a.title, toLowerCase: true);
-      final titleB = normalizeText(b.title, toLowerCase: true);
+      final titleA =
+          normalizeText(a.title, toLowerCase: true).replaceAll('.', '');
+      final titleB =
+          normalizeText(b.title, toLowerCase: true).replaceAll('.', '');
       final aStartsWith = titleA.startsWith(searchQuery);
       final bStartsWith = titleB.startsWith(searchQuery);
 
@@ -555,6 +559,9 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     return nodeMap;
   }
 
+  /// Duplicates parent-walk logic from ancestorKeysProvider (presentation layer).
+  /// Can't share because this data-layer class has no Riverpod Ref.
+  /// If this grows complex, extract to a shared utility in core/utils/tree_utils.dart.
   /// Build a navigation path string from a node
   /// e.g., "Dīgha Nikāya > Sīlakkhandhavagga"
   String _buildNavigationPath(

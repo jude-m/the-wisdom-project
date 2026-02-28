@@ -43,6 +43,9 @@ dependencies:
   # Functional Programming (Either type for error handling)
   dartz: ^0.10.1
 
+  # Unicode grapheme cluster support (for safe Sinhala text truncation)
+  characters: ^1.3.0
+
   # Internationalization
   intl: any
 

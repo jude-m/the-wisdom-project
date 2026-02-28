@@ -1,5 +1,5 @@
 ---
-name: world-class-ui-auditor
+name: ui-auditor
 description: >
   Comprehensive UI/UX auditor for The Wisdom Project — a Tipitaka reader app.
   Performs full-app audits before releases covering: WCAG accessibility compliance,

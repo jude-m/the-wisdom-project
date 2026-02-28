@@ -9,6 +9,7 @@ import '../widgets/settings_menu_button.dart';
 import '../widgets/search/search_bar.dart' as app;
 import '../widgets/search/search_results_panel.dart';
 import '../widgets/resizable_divider.dart';
+import '../widgets/breadcrumb_widget.dart';
 import '../providers/navigator_visibility_provider.dart';
 import '../providers/tab_provider.dart';
 import '../providers/search_provider.dart';
@@ -36,21 +37,25 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   }
 
   void _handleSearchResultTap(SearchResult result) {
-    // Only highlight search terms when navigating from FTS results
-    // (Title search doesn't need content highlighting since it matches titles, not content)
-    if (result.resultType == SearchResultType.fullText) {
-      final searchState = ref.read(searchStateProvider);
-      ref.read(ftsHighlightProvider.notifier).state = FtsHighlightState(
-        queryText: searchState.effectiveQueryText,
-        isPhraseSearch: searchState.isPhraseSearch,
-        isExactMatch: searchState.isExactMatch,
-      );
-    }
-
-    // Use centralized provider for consistent tab creation and navigation
-    // Column mode is now set per-tab based on result language (in tab_provider)
+    // Create and activate tab first — this sets activeTabIndexProvider
     final isPortraitMode = ResponsiveUtils.shouldDefaultToSingleColumn(context);
     ref.read(openTabFromSearchResultProvider)(result, isPortraitMode: isPortraitMode);
+
+    // Set per-tab FTS highlight for the newly created tab.
+    // Non-FTS tabs (Title, Definition) simply won't have a map entry,
+    // so they won't show highlights — no explicit clearing needed.
+    if (result.resultType == SearchResultType.fullText) {
+      final tabIndex = ref.read(activeTabIndexProvider);
+      final searchState = ref.read(searchStateProvider);
+      ref.read(ftsHighlightProvider.notifier).setForTab(
+        tabIndex,
+        FtsHighlightState(
+          queryText: searchState.effectiveQueryText,
+          isPhraseSearch: searchState.isPhraseSearch,
+          isExactMatch: searchState.isExactMatch,
+        ),
+      );
+    }
 
     // Save to recent searches and dismiss panel
     ref.read(searchStateProvider.notifier).saveRecentSearchAndDismiss();
@@ -108,6 +113,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+          title: const BreadcrumbWidget(),
+          titleSpacing: 4.0,
           leading: IconButton(
             icon: Icon(navigatorVisible ? Icons.menu_open : Icons.menu),
             tooltip: navigatorVisible ? 'Hide Navigator' : 'Show Navigator',

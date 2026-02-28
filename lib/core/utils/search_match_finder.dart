@@ -160,23 +160,25 @@ class SearchMatchFinder {
 
 /// Caches normalization data for efficient text matching.
 ///
-/// Handles mapping between normalized text (ZWJ removed, lowercased) and
-/// original text positions, which is necessary for highlighting the correct
+/// Handles mapping between normalized text (ZWJ/punctuation removed, lowercased)
+/// and original text positions, which is necessary for highlighting the correct
 /// characters in the UI.
 class NormalizedTextMatcher {
   /// The original text as provided.
   final String original;
 
-  /// Normalized text (ZWJ removed, lowercased).
+  /// Normalized text (ZWJ/punctuation removed, lowercased).
   final String normalized;
 
   /// Position map from normalized indices to original indices.
   final List<int> _positionMap;
 
-  NormalizedTextMatcher(String text)
-      : original = text,
-        normalized = normalizeText(text, toLowerCase: true),
-        _positionMap = createNormalizedToOriginalPositionMap(text);
+  factory NormalizedTextMatcher(String text) {
+    final result = normalizeSearchText(text);
+    return NormalizedTextMatcher._(text, result.normalized, result.positionMap);
+  }
+
+  NormalizedTextMatcher._(this.original, this.normalized, this._positionMap);
 
   /// Maps normalized [start, end) range to original text positions.
   ({int start, int end}) mapToOriginal(int normStart, int normEnd) => (
@@ -189,7 +191,8 @@ class NormalizedTextMatcher {
 
 /// Splits query into normalized non-empty words.
 ///
-/// Uses the same normalization as [NormalizedTextMatcher] for consistency.
+/// Assumes the query has already been sanitized by [sanitizeSearchQuery],
+/// which strips punctuation before this is called.
 List<String> splitQueryWords(String query) =>
     normalizeText(query, toLowerCase: true)
         .split(' ')

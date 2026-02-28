@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/responsive_utils.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
-import '../models/column_display_mode.dart';
-import '../models/reader_tab.dart';
 import '../providers/navigation_tree_provider.dart';
 import '../providers/navigator_visibility_provider.dart';
 import '../providers/tab_provider.dart';
@@ -186,44 +184,18 @@ class TreeNodeWidget extends ConsumerWidget {
               Expanded(
                 child: InkWell(
                   onTap: () {
-                    // Select the node
+                    // Select the node in the tree (for visual highlight)
                     ref.read(selectNodeProvider)(node.nodeKey);
 
-                    // Determine default column mode based on device and orientation
-                    // Mobile portrait: single column, otherwise: side-by-side
+                    // Open a new tab via centralized provider
                     final shouldUseSingleColumn =
                         ResponsiveUtils.shouldDefaultToSingleColumn(context);
-                    final defaultColumnMode = shouldUseSingleColumn
-                        ? ColumnDisplayMode.paliOnly
-                        : ColumnDisplayMode.both;
-
-                    // Create a new tab for this node with entryStart for proper positioning
-                    // This ensures the sutta title appears at the top of the page
-                    final newTab = ReaderTab.fromNode(
-                      nodeKey: node.nodeKey,
-                      paliName: node.paliName,
-                      sinhalaName: node.sinhalaName,
-                      contentFileId:
-                          node.isReadableContent ? node.contentFileId : null,
-                      pageIndex:
-                          node.isReadableContent ? node.entryPageIndex : 0,
-                      entryStart:
-                          node.isReadableContent ? node.entryIndexInPage : 0,
-                      columnMode: defaultColumnMode,
+                    ref.read(openTabFromNodeKeyProvider)(
+                      node.nodeKey,
+                      isPortraitMode: shouldUseSingleColumn,
                     );
 
-                    // Add tab and make it active
-                    // Content and pagination state are derived automatically from the tab via:
-                    // - activeContentFileIdProvider
-                    // - activePageIndexProvider
-                    // - activePageStartProvider, activePageEndProvider, activeEntryStartProvider
-                    // - activeColumnModeProvider
-                    final newIndex =
-                        ref.read(tabsProvider.notifier).addTab(newTab);
-                    ref.read(activeTabIndexProvider.notifier).state = newIndex;
-
                     // Close navigator on mobile portrait so user can see the content
-                    // On tablets or landscape mode, keep navigator open as there's more screen space
                     if (shouldUseSingleColumn) {
                       ref.read(navigatorVisibleProvider.notifier).state = false;
                     }

@@ -142,11 +142,11 @@ class _ScopeChip extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(100),
           color: isSelected
-              ? theme.colorScheme.secondaryContainer
-              : theme.colorScheme.surfaceContainerHigh,
+              ? theme.colorScheme.secondary
+              : theme.colorScheme.surfaceContainer,
           border: Border.all(
             color: isSelected
-                ? theme.colorScheme.secondaryContainer
+                ? theme.colorScheme.secondary
                 : theme.colorScheme.outline.withValues(alpha: 0.5),
             width: 1,
           ),
@@ -190,7 +190,7 @@ class _RefineChip extends StatelessWidget {
           // Outline style to distinguish from scope chips
           color: hasActiveFilters
               ? theme.colorScheme.primaryContainer
-              : Colors.transparent,
+              : theme.colorScheme.surfaceContainerHigh,
           border: Border.all(
             color: hasActiveFilters
                 ? theme.colorScheme.primary
@@ -217,18 +217,6 @@ class _RefineChip extends StatelessWidget {
                     )
                   : typography.chipLabel,
             ),
-            // Active indicator dot
-            if (hasActiveFilters) ...[
-              const SizedBox(width: 4),
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-            ],
           ],
         ),
       ),

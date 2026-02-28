@@ -128,6 +128,10 @@ class PaneWidthConstants {
 
   // Reader content padding (used for scroll area and divider overlay alignment)
   static const double readerContentPadding = 24.0;
+
+  // Height reserved for the floating action button group at the top of the reader.
+  // Used as a spacer in the ListView so content doesn't hide behind it.
+  static const double readerActionButtonGroupHeight = 44.0;
 }
 
 /// Constants for dictionary bottom sheet sizing and behavior.

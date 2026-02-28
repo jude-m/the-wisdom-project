@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +9,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../domain/entities/dictionary/dictionary_entry.dart';
 import '../../../domain/entities/dictionary/dictionary_info.dart';
+import '../../../core/utils/search_query_utils.dart';
 import '../../providers/dictionary_provider.dart';
 
 /// Non-modal bottom sheet that displays dictionary definitions for a word.
@@ -93,16 +96,56 @@ class _DictionarySheet extends ConsumerStatefulWidget {
 class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
+  late final TextEditingController _wordController;
+  late final FocusNode _wordFocusNode;
+  Timer? _debounceTimer;
+
+  /// The word currently used for dictionary lookup.
+  /// Updated after 300ms debounce when user edits the text field.
+  late String _currentLookupWord;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentLookupWord = widget.word;
+    _wordController = TextEditingController(text: widget.word);
+    _wordFocusNode = FocusNode();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DictionarySheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // When a new word is tapped, reset the text field and lookup word
+    if (oldWidget.word != widget.word) {
+      _debounceTimer?.cancel();
+      _wordController.text = widget.word;
+      _currentLookupWord = widget.word;
+    }
+  }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
+    _wordFocusNode.dispose();
+    _wordController.dispose();
     _sheetController.dispose();
     super.dispose();
   }
 
+  void _onWordChanged(String value) {
+    _debounceTimer?.cancel();
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return;
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      final effective = computeEffectiveQuery(trimmed);
+      if (effective.isEmpty) return;
+      setState(() => _currentLookupWord = effective);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final entriesAsync = ref.watch(wordLookupProvider(widget.word));
+    final entriesAsync = ref.watch(wordLookupProvider(_currentLookupWord));
     final theme = Theme.of(context);
 
     // Use the actual Stack height from LayoutBuilder (always provided now).
@@ -138,38 +181,94 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
           child: CustomScrollView(
             controller: scrollController,
             slivers: [
-              // Drag handle - now draggable!
-              SliverToBoxAdapter(
-                child: Center(
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 12),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              ),
-              // Header with word and close button - now draggable!
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
-                  child: Row(
+              // Pinned header: drag handle + editable word + close button.
+              // PinnedHeaderSliver keeps this at the top of the scroll view
+              // so it's always visible, even when the user scrolls through
+              // many results or the content changes after editing the word.
+              PinnedHeaderSliver(
+                child: Container(
+                  color: theme.colorScheme.surface,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: Text(
-                          widget.word,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
+                      // Drag handle
+                      Center(
+                        child: Container(
+                          margin: const EdgeInsets.only(top: 12),
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(2),
                           ),
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: widget.onClose,
-                        tooltip: 'Close',
+                      // Editable word + close button
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _wordController,
+                                focusNode: _wordFocusNode,
+                                onChanged: _onWordChanged,
+                                style:
+                                    theme.textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(vertical: 4),
+                                  border: UnderlineInputBorder(
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline,
+                                    ),
+                                  ),
+                                  enabledBorder: UnderlineInputBorder(
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline,
+                                    ),
+                                  ),
+                                  focusedBorder: UnderlineInputBorder(
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.primary,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  suffixIcon: IconButton(
+                                    icon: const Icon(
+                                      Icons.backspace_outlined,
+                                      size: 20,
+                                    ),
+                                    onPressed: () {
+                                      if (_wordController.text.isEmpty) return;
+                                      // Delete last character
+                                      final text = _wordController.text;
+                                      _wordController.text =
+                                          text.substring(0, text.length - 1);
+                                      // Move cursor to end and focus
+                                      _wordController.selection =
+                                          TextSelection.collapsed(
+                                        offset: _wordController.text.length,
+                                      );
+                                      _wordFocusNode.requestFocus();
+                                      _onWordChanged(_wordController.text);
+                                    },
+                                    tooltip: 'Backspace',
+                                  ),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: widget.onClose,
+                              tooltip: 'Close',
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),

@@ -2,15 +2,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:the_wisdom_project/core/utils/text_utils.dart';
 
 void main() {
-  group('createNormalizedToOriginalPositionMap', () {
+  group('normalizeSearchText', () {
     test('returns identity mapping for text without ZWJ', () {
       // "කර්ම" - 4 characters, no ZWJ
       const text = 'කර්ම';
-      final map = createNormalizedToOriginalPositionMap(text);
+      final result = normalizeSearchText(text);
 
       // Map should have 5 entries: positions 0-3 + end position
-      expect(map.length, 5);
-      expect(map, [0, 1, 2, 3, 4]);
+      expect(result.positionMap.length, 5);
+      expect(result.positionMap, [0, 1, 2, 3, 4]);
+      expect(result.normalized, 'කර්ම');
     });
 
     test('රකාරාංශය (rakaranshaya): skips ZWJ in ර් combinations', () {
@@ -19,20 +20,16 @@ void main() {
       // Normalized: ක්ර (3 characters, ZWJ removed)
       const textWithZWJ = 'ක්\u200Dර'; // ක් + ZWJ + ර
 
-      final map = createNormalizedToOriginalPositionMap(textWithZWJ);
+      final result = normalizeSearchText(textWithZWJ);
 
       // Normalized text has 3 chars, so map has 4 entries (3 + end)
       // Position 0 → original 0 (ක)
       // Position 1 → original 1 (්)
       // Position 2 → original 3 (ර) - skips ZWJ at position 2
       // End → original 4
-      expect(map.length, 4);
-      expect(map, [0, 1, 3, 4]);
-
-      // Verify normalization works consistently
-      final normalized = normalizeText(textWithZWJ);
-      expect(normalized.length, 3); // ZWJ removed
-      expect(normalized, 'ක්ර');
+      expect(result.positionMap.length, 4);
+      expect(result.positionMap, [0, 1, 3, 4]);
+      expect(result.normalized, 'ක්ර');
     });
 
     test('දකාරාංශය (dakaranshaya): skips ZWJ in ද් combinations', () {
@@ -41,20 +38,16 @@ void main() {
       // Normalized: ද්ධ (3 characters, ZWJ removed)
       const textWithZWJ = 'ද්\u200Dධ'; // ද් + ZWJ + ධ
 
-      final map = createNormalizedToOriginalPositionMap(textWithZWJ);
+      final result = normalizeSearchText(textWithZWJ);
 
       // Normalized text has 3 chars, so map has 4 entries (3 + end)
       // Position 0 → original 0 (ද)
       // Position 1 → original 1 (්)
       // Position 2 → original 3 (ධ) - skips ZWJ at position 2
       // End → original 4
-      expect(map.length, 4);
-      expect(map, [0, 1, 3, 4]);
-
-      // Verify normalization works consistently
-      final normalized = normalizeText(textWithZWJ);
-      expect(normalized.length, 3); // ZWJ removed
-      expect(normalized, 'ද්ධ');
+      expect(result.positionMap.length, 4);
+      expect(result.positionMap, [0, 1, 3, 4]);
+      expect(result.normalized, 'ද්ධ');
     });
 
     test('handles multiple ZWJ characters in text', () {
@@ -63,15 +56,37 @@ void main() {
       // Original positions: ක(0) ්(1) ZWJ(2) ර(3) space(4) ද(5) ්(6) ZWJ(7) ව(8)
       // Normalized: ක්ර ද්ව (7 chars)
 
-      final map = createNormalizedToOriginalPositionMap(text);
+      final result = normalizeSearchText(text);
 
-      expect(map.length, 8); // 7 normalized chars + end
-      expect(map, [0, 1, 3, 4, 5, 6, 8, 9]);
+      expect(result.positionMap.length, 8); // 7 normalized chars + end
+      expect(result.positionMap, [0, 1, 3, 4, 5, 6, 8, 9]);
+      expect(result.normalized, 'ක්ර ද්ව');
     });
 
     test('handles empty string', () {
-      final map = createNormalizedToOriginalPositionMap('');
-      expect(map, [0]); // Only end position
+      final result = normalizeSearchText('');
+      expect(result.positionMap, [0]); // Only end position
+      expect(result.normalized, '');
+    });
+
+    test('strips sentence punctuation (.;!) from text', () {
+      // "16. ස" - period between number and Sinhala character
+      const text = '16. ස';
+      // Original: 1(0) 6(1) .(2) space(3) ස(4)
+      // Normalized: "16 ස" - period stripped, space kept
+
+      final result = normalizeSearchText(text);
+
+      expect(result.normalized, '16 ස');
+      expect(result.positionMap, [0, 1, 3, 4, 5]);
+    });
+
+    test('strips semicolons and exclamation marks', () {
+      const text = 'abc; def! ghi';
+      final result = normalizeSearchText(text);
+
+      // Semicolon and ! stripped, whitespace collapsed
+      expect(result.normalized, 'abc def ghi');
     });
   });
 

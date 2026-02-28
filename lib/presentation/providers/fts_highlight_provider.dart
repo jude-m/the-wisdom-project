@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'tab_provider.dart';
+
 /// State for highlighting search terms in the reader after clicking an FTS result.
 ///
 /// This is transient UI state that is:
@@ -24,8 +26,70 @@ class FtsHighlightState {
   });
 }
 
-/// Holds search highlight state for the reader.
+/// Manages per-tab FTS highlight state.
 ///
-/// When non-null, search terms should be highlighted in the reader.
-/// Set to null to clear highlighting (e.g., on tap).
-final ftsHighlightProvider = StateProvider<FtsHighlightState?>((ref) => null);
+/// State is a Map<int, FtsHighlightState> keyed by tab index,
+/// following the same pattern as [InPageSearchNotifier] and
+/// [tabScrollPositionsProvider].
+class FtsHighlightNotifier extends StateNotifier<Map<int, FtsHighlightState>> {
+  final Ref _ref;
+
+  FtsHighlightNotifier(this._ref) : super({});
+
+  /// Sets highlight state for a specific tab.
+  void setForTab(int tabIndex, FtsHighlightState highlight) {
+    state = {...state, tabIndex: highlight};
+  }
+
+  /// Clears highlight state for the currently active tab.
+  ///
+  /// Widgets call this instead of [clearForTab] so they don't need to
+  /// know about [activeTabIndexProvider] themselves.
+  void clearForActiveTab() {
+    final tabIndex = _ref.read(activeTabIndexProvider);
+    clearForTab(tabIndex);
+  }
+
+  /// Clears highlight state for a specific tab.
+  void clearForTab(int tabIndex) {
+    if (!state.containsKey(tabIndex)) return;
+    state = Map.from(state)..remove(tabIndex);
+  }
+
+  /// Removes state for a closed tab and re-indexes remaining tabs.
+  ///
+  /// Same pattern as [InPageSearchNotifier.onTabClosed].
+  void onTabClosed(int tabIndex) {
+    final updated = <int, FtsHighlightState>{};
+    state.forEach((key, value) {
+      if (key < tabIndex) {
+        updated[key] = value;
+      } else if (key > tabIndex) {
+        updated[key - 1] = value;
+      }
+      // key == tabIndex is removed
+    });
+    state = updated;
+  }
+
+  /// Removes all highlight state (e.g., when all tabs are closed).
+  void clearAll() {
+    state = {};
+  }
+}
+
+/// Per-tab FTS highlight state map (tab index → highlight state).
+final ftsHighlightProvider =
+    StateNotifierProvider<FtsHighlightNotifier, Map<int, FtsHighlightState>>(
+  (ref) => FtsHighlightNotifier(ref),
+);
+
+/// Derived provider: the FTS highlight state for the currently active tab.
+///
+/// Returns null if no FTS highlight is set for the active tab.
+/// Same pattern as [activeInPageSearchStateProvider].
+final activeFtsHighlightProvider = Provider<FtsHighlightState?>((ref) {
+  final tabIndex = ref.watch(activeTabIndexProvider);
+  final states = ref.watch(ftsHighlightProvider);
+  return states[tabIndex];
+});

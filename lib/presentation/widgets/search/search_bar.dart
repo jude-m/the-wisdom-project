@@ -162,7 +162,9 @@ class _SearchBarState extends ConsumerState<SearchBar> {
           height: 40,
           child: Container(
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHigh,
+              color: isResultsPanelVisible
+                  ? theme.colorScheme.surfaceContainerHighest
+                  : theme.colorScheme.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(20),
             ),
             child: TextField(
@@ -187,20 +189,24 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                   children: [
                     // Exact match toggle button with clear visual state
                     Container(
+                      height: 30,
+                      width: 30,
                       margin: const EdgeInsets.only(left: 4),
                       decoration: BoxDecoration(
                         color: isExactMatch
                             ? theme.colorScheme.primaryContainer
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
+                            : theme.colorScheme.surfaceContainerHighest,
+                        shape: BoxShape.circle,
                       ),
                       child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         icon: Icon(
                           Icons.abc,
                           size: 20,
                           color: isExactMatch
                               ? theme.colorScheme.onPrimaryContainer
-                              : theme.colorScheme.onSurfaceVariant,
+                              : theme.colorScheme.primary,
                         ),
                         tooltip: l10n.isExactMatchToggle,
                         onPressed: () {
@@ -214,19 +220,24 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                     // Only visible when user starts typing a second word
                     if (showProximityButton)
                       Container(
+                        height: 30,
+                        width: 30,
+                        margin: const EdgeInsets.only(left: 4),
                         decoration: BoxDecoration(
                           color: isProximityActive
                               ? theme.colorScheme.primaryContainer
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(8),
+                              : theme.colorScheme.surfaceContainerHighest,
+                          shape: BoxShape.circle,
                         ),
                         child: IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                           icon: Icon(
                             Icons.space_bar,
                             size: 20,
                             color: isProximityActive
                                 ? theme.colorScheme.onPrimaryContainer
-                                : theme.colorScheme.onSurfaceVariant,
+                                : theme.colorScheme.primary,
                           ),
                           tooltip: l10n.wordProximity,
                           onPressed: () => ProximityDialog.show(context),
@@ -234,17 +245,28 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                       ),
                     // Clear button (only shown when text is present)
                     if (_controller.text.isNotEmpty)
-                      IconButton(
-                        icon: Icon(
-                          Icons.clear,
-                          size: 18,
-                          color: theme.colorScheme.onSurfaceVariant,
+                      Container(
+                        height: 30,
+                        width: 30,
+                        margin: const EdgeInsets.only(left: 4, right: 4),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          shape: BoxShape.circle,
                         ),
-                        onPressed: () {
-                          _controller.clear();
-                          ref.read(searchStateProvider.notifier).clearSearch();
-                          _focusNode.requestFocus();
-                        },
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: Icon(
+                            Icons.clear,
+                            size: 18,
+                            color: theme.colorScheme.primary,
+                          ),
+                          onPressed: () {
+                            _controller.clear();
+                            ref.read(searchStateProvider.notifier).clearSearch();
+                            _focusNode.requestFocus();
+                          },
+                        ),
                       ),
                   ],
                 ),
