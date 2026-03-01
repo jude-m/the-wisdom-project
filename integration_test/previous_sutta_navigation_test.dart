@@ -135,7 +135,7 @@ void main() {
         // ASSERT: FAB trigger visible, pill icons hidden
         expect(find.byIcon(Icons.more_vert), findsOneWidget,
             reason: 'Mid-sutta should show the expandable FAB trigger');
-        expect(find.byIcon(Icons.skip_previous), findsNothing,
+        expect(find.byIcon(Icons.skip_previous).hitTestable(), findsNothing,
             reason: 'Mid-sutta should NOT show skip-previous icon');
 
         // Expand the FAB to reveal the scroll-to-top action
@@ -418,7 +418,10 @@ void main() {
         expect(find.byIcon(Icons.more_vert), findsOneWidget,
             reason:
                 'After scrolling past one viewport → expandable FAB visible');
-        expect(find.byIcon(Icons.skip_previous), findsNothing,
+        // Mode 1 widget is still in the tree (AnimatedOpacity fades it out),
+        // but IgnorePointer makes it non-interactive. Use hitTestable() to
+        // verify it's effectively hidden.
+        expect(find.byIcon(Icons.skip_previous).hitTestable(), findsNothing,
             reason:
                 'Scroll-to-top FAB should replace skip-previous when scrolled down');
 
