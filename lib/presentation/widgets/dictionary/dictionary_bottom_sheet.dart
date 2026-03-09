@@ -415,12 +415,21 @@ class _DictionaryEntryTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          // Meaning (rendered from HTML)
-          SelectableText.rich(
-            TextSpan(
-              children: _parseHtmlToTextSpans(entry.meaning, theme),
+          // Meaning (rendered from HTML).
+          // SelectionArea + Text.rich replaces SelectableText.rich:
+          // SelectableText wraps EditableText/RenderEditable (designed for
+          // editable fields), which throws on double-tap with multi-child
+          // TextSpan trees (effectiveOffset < 0 assertion in getWordAtOffset).
+          // SelectionArea uses the modern SelectableRegion/RenderParagraph
+          // stack — more robust, memory-efficient, and the direction the
+          // framework is moving (flutter/flutter#104547).
+          SelectionArea(
+            child: Text.rich(
+              TextSpan(
+                children: _parseHtmlToTextSpans(entry.meaning, theme),
+              ),
+              style: theme.textTheme.bodyMedium,
             ),
-            style: theme.textTheme.bodyMedium,
           ),
         ],
       ),
