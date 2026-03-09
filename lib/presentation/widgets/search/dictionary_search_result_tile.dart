@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../core/utils/string_extensions.dart';
 import '../../../domain/entities/dictionary/dictionary_info.dart';
 import '../../../domain/entities/search/search_result.dart';
@@ -45,7 +46,7 @@ class DictionarySearchResultTile extends StatelessWidget {
         ),
       ),
       title: Text(
-        result.title, // The word
+        result.title.withPaliConjuncts, // Dictionary words are always Pali
         style: typography.resultTitle.copyWith(fontWeight: FontWeight.w600),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,

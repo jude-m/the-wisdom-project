@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../core/utils/search_match_finder.dart';
 import '../../../core/utils/text_utils.dart';
 
@@ -22,6 +23,10 @@ class HighlightedFtsSearchText extends StatelessWidget {
   /// Exact mode: exact token match. Otherwise prefix matching.
   final bool isExactMatch;
 
+  /// Language of the matched text ('pali' or 'sinhala').
+  /// When 'pali', conjunct consonant transformation is applied for display.
+  final String language;
+
   /// Maximum display lines. Defaults to 3.
   final int maxLines;
 
@@ -31,6 +36,7 @@ class HighlightedFtsSearchText extends StatelessWidget {
     required this.effectiveQuery,
     required this.isPhraseSearch,
     required this.isExactMatch,
+    required this.language,
     this.maxLines = 2,
   });
 
@@ -56,16 +62,28 @@ class HighlightedFtsSearchText extends StatelessWidget {
       color: theme.colorScheme.onPrimaryContainer,
     );
 
-    // Use shared SearchMatchFinder to find highlight ranges
+    // Use shared SearchMatchFinder to find highlight ranges on raw snippet
     final finder = SearchMatchFinder(
       queryText: effectiveQuery,
       isPhraseSearch: isPhraseSearch,
       isExactMatch: isExactMatch,
     );
-    final ranges = finder.findMatchRanges(snippet);
+    final rawRanges = finder.findMatchRanges(snippet);
+
+    // For Pali text, apply conjunct transformation and remap highlight ranges
+    final String displaySnippet;
+    final List<({int start, int end})> displayRanges;
+    if (language == 'pali') {
+      (displaySnippet, displayRanges) =
+          applyConjunctsWithRangeMapping(snippet, rawRanges);
+    } else {
+      displaySnippet = snippet;
+      displayRanges = rawRanges;
+    }
 
     // Build spans from ranges
-    final spans = _buildSpansFromRanges(snippet, ranges, highlightStyle);
+    final spans =
+        _buildSpansFromRanges(displaySnippet, displayRanges, highlightStyle);
 
     return RichText(
       text: TextSpan(style: baseStyle, children: spans),

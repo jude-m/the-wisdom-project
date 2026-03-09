@@ -14,7 +14,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
+import 'package:the_wisdom_project/presentation/widgets/search/dictionary_search_result_tile.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/highlighted_fts_search_text.dart';
 
@@ -128,6 +130,22 @@ void main() {
         // Verify the search text "වාසව" appears somewhere in the rendered UI
         // (either in titles, FTS snippets, or definitions).
         expect(find.textContaining('වාසව'), findsWidgets);
+
+        // Verify that Pali title results display with conjunct transformation.
+        // Title results for "වාසව" include Pali sutta names that contain
+        // consonant clusters — these should be rendered with ZWJ (U+200D).
+        final titleResults =
+            grouped.getResultsByType(SearchResultType.title);
+        final paliTitleResult =
+            titleResults.where((r) => r.language == 'pali').firstOrNull;
+        if (paliTitleResult != null) {
+          final transformedTitle =
+              applyConjunctConsonants(paliTitleResult.title);
+          expect(find.textContaining(transformedTitle), findsWidgets,
+              reason:
+                  'Pali title results should display with conjunct '
+                  'transformation');
+        }
       },
     );
 
@@ -539,6 +557,44 @@ void main() {
           find.textContaining('Viewing 50 out of 3252 results'),
           findsOneWidget,
         );
+      },
+    );
+  });
+
+  // ==========================================================================
+  // GROUP 8: Conjunct Transformation in Search Results
+  // ==========================================================================
+
+  group('Group 8 - Conjunct transformation in search results', () {
+    testWidgets(
+      'C1 Definitions tab shows dictionary word titles with Pali conjuncts',
+      (tester) async {
+        await tester.pumpSearchApp(prefs);
+        await tester.searchFor('waasawa');
+
+        // Switch to Definitions tab
+        await tester.switchToTab('Definitions');
+
+        // Verify DictionarySearchResultTile widgets are rendered
+        expect(find.byType(DictionarySearchResultTile), findsWidgets,
+            reason: 'Definitions tab should show dictionary result tiles');
+
+        // Dictionary word titles are always Pali and should have conjunct
+        // transformation applied. Read the full results from provider state
+        // after switching to Definitions tab.
+        final state = tester.getSearchState();
+        final defResults = state.fullResults.value;
+        expect(defResults, isNotNull, reason: 'Should have definition results');
+        expect(defResults, isNotEmpty, reason: 'Should have definition results');
+
+        // Use the first result — it's always rendered by ListView (top of list).
+        // Results further down may not be built due to lazy rendering.
+        final firstResult = defResults!.first;
+        final transformedTitle = applyConjunctConsonants(firstResult.title);
+        expect(find.textContaining(transformedTitle), findsWidgets,
+            reason:
+                'First dictionary result title should display with Pali '
+                'conjunct transformation applied by the tile widget');
       },
     );
   });

@@ -54,6 +54,7 @@ class SecondaryMatchTile extends StatelessWidget {
                 effectiveQuery: effectiveQuery,
                 isPhraseSearch: isPhraseSearch,
                 isExactMatch: isExactMatch,
+                language: result.language,
               ),
           ],
         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/grouped_search_result.dart';
 import '../../../domain/entities/search/search_result_type.dart';
@@ -600,7 +601,9 @@ class _SearchResultTile extends StatelessWidget {
       ),
       // Title is never highlighted - just plain text
       title: Text(
-        searchResult.title,
+        searchResult.language == 'pali'
+            ? searchResult.title.withPaliConjuncts
+            : searchResult.title,
         style: typography.resultTitle,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
@@ -624,6 +627,7 @@ class _SearchResultTile extends StatelessWidget {
               effectiveQuery: effectiveQuery,
               isPhraseSearch: isPhraseSearch,
               isExactMatch: isExactMatch,
+              language: searchResult.language,
             ),
           ],
         ],

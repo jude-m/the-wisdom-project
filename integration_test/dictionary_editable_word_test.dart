@@ -159,6 +159,19 @@ void main() {
         final tab = tabAtBeginning(container, 'mn-1-1-1');
         await openTab(tester, container, tab);
 
+        // ASSERT: Tab header shows Pali name with conjunct transformation.
+        // Scope to TabBarWidget — the same text also appears in the reading
+        // pane's sutta title, so an unscoped find.text would match twice.
+        final tabLabel = applyConjunctConsonants(tab.label);
+        expect(
+          find.descendant(
+            of: find.byType(TabBarWidget),
+            matching: find.text(tabLabel),
+          ),
+          findsOneWidget,
+          reason: 'Tab label should display with Pali conjunct formatting',
+        );
+
         // STEP 1: Tap "භික්ඛවෙ" in the Pali text
         final recognizer = findWordRecognizer(tester, 'භික්ඛවෙ');
         expect(recognizer, isNotNull,
@@ -170,9 +183,14 @@ void main() {
         expect(find.byType(DictionaryBottomSheet), findsOneWidget,
             reason: 'Dictionary sheet should appear after word tap');
 
-        // ASSERT: selectedDictionaryWordProvider holds the word
-        expect(container.read(selectedDictionaryWordProvider), isNotNull,
+        // ASSERT: selectedDictionaryWordProvider holds the word with conjuncts
+        final selectedWord = container.read(selectedDictionaryWordProvider);
+        expect(selectedWord, isNotNull,
             reason: 'Provider should hold the selected word');
+        expect(selectedWord, contains('\u200D'),
+            reason: 'Selected word should contain ZWJ for conjunct display');
+        expect(removeConjunctFormatting(selectedWord!), 'භික්ඛවෙ',
+            reason: 'Stripping ZWJ should yield the raw Pali word');
 
         // STEP 2: Verify first result contains expected definition
         expect(find.textContaining('monks'), findsWidgets,
@@ -188,11 +206,15 @@ void main() {
         // Wait for 300ms debounce + lookup
         await tester.pumpAndSettle(const Duration(seconds: 1));
 
-        // ASSERT: TextField now shows භික්ඛ
+        // ASSERT: TextField shows භික්ඛ (with conjunct ZWJ formatting).
+        // The backspace button removes one code unit at a time, preserving
+        // the ZWJ characters inserted by applyConjunctConsonants.
         final textField =
             tester.widget<TextField>(findDictionaryTextField());
-        expect(textField.controller?.text, 'භික්ඛ',
-            reason: 'TextField should show "භික්ඛ" after 2 backspaces');
+        expect(
+            removeConjunctFormatting(textField.controller!.text), 'භික්ඛ',
+            reason:
+                'TextField should show "භික්ඛ" (with conjuncts) after 2 backspaces');
 
         // ASSERT: Results updated — first record should contain bhikkha definition
         expect(find.textContaining('භු යාචනෙ'), findsWidgets,
@@ -217,9 +239,18 @@ void main() {
         recognizer!.onTap!();
         await tester.pumpAndSettle(const Duration(seconds: 1));
 
-        // Find the DraggableScrollableSheet and drag it up to max
-        final sheetFinder = find.byType(DictionaryBottomSheet);
-        await tester.drag(sheetFinder, const Offset(0, -500));
+        // Target the Scrollable inside the sheet (not DictionaryBottomSheet
+        // itself, whose LayoutBuilder center falls on content text spans).
+        // .first targets the CustomScrollView's Scrollable, skipping the
+        // TextField's internal Scrollable.
+        final sheetScrollable = find.descendant(
+          of: find.byType(DictionaryBottomSheet),
+          matching: find.byType(Scrollable),
+        ).first;
+
+        // Drag the sheet up to max via its Scrollable (DraggableScrollableSheet
+        // intercepts scroll events to expand before scrolling content)
+        await tester.drag(sheetScrollable, const Offset(0, -500));
         await tester.pumpAndSettle();
 
         // ASSERT: TextField (pinned header) is still visible after expansion
@@ -230,7 +261,7 @@ void main() {
             reason: 'TextField should not be above the screen top');
 
         // Now scroll through results (fling up in the sheet content)
-        await tester.fling(sheetFinder, const Offset(0, -300), 800);
+        await tester.fling(sheetScrollable, const Offset(0, -300), 800);
         await tester.pumpAndSettle();
 
         // ASSERT: Header is STILL visible (pinned) even after scrolling content

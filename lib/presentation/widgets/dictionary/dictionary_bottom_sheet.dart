@@ -7,6 +7,7 @@ import '../../../core/constants/constants.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/responsive_utils.dart';
+import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../domain/entities/dictionary/dictionary_entry.dart';
 import '../../../domain/entities/dictionary/dictionary_info.dart';
 import '../../../core/utils/search_query_utils.dart';
@@ -107,7 +108,8 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
   @override
   void initState() {
     super.initState();
-    _currentLookupWord = widget.word;
+    // Display word with conjuncts (ZWJ) in text field, but strip for lookup
+    _currentLookupWord = removeConjunctFormatting(widget.word);
     _wordController = TextEditingController(text: widget.word);
     _wordFocusNode = FocusNode();
   }
@@ -119,7 +121,7 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
     if (oldWidget.word != widget.word) {
       _debounceTimer?.cancel();
       _wordController.text = widget.word;
-      _currentLookupWord = widget.word;
+      _currentLookupWord = removeConjunctFormatting(widget.word);
     }
   }
 

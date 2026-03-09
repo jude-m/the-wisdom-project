@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
+import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
 import 'package:the_wisdom_project/domain/entities/navigation/navigation_language.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
@@ -323,12 +324,23 @@ void main() {
             NavigationLanguage.pali;
         await tester.pumpAndSettle();
 
-        // ASSERT: Now shows Pali names
+        // ASSERT: Now shows Pali names (with conjunct transformation applied)
         final textAfter = getBreadcrumbText(tester);
-        expect(textAfter, contains(paliName),
+        expect(textAfter, contains(applyConjunctConsonants(paliName)),
             reason: 'After switching to Pali, breadcrumb should show Pali names');
         expect(textAfter, isNot(contains(sinhalaName)),
             reason: 'Sinhala names should no longer appear');
+
+        // ASSERT: Tree navigator also shows Pali names with conjuncts.
+        // The parent node 'dn' (දීඝනිකාය) should now display its Pali name
+        // with conjunct transformation in the tree.
+        final dnNode = container.read(nodeByKeyProvider('dn'));
+        final dnPaliTransformed =
+            applyConjunctConsonants(dnNode!.paliName);
+        expect(find.text(dnPaliTransformed), findsOneWidget,
+            reason:
+                'Tree navigator should show Pali names with conjuncts '
+                'after language switch');
       },
     );
 

@@ -2,6 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/pali_conjunct_transformer.dart';
+import '../models/reader_tab.dart';
 import '../providers/tab_lifecycle_provider.dart';
 import '../providers/tab_provider.dart';
 
@@ -213,7 +215,7 @@ class _ScrollChevron extends StatelessWidget {
 }
 
 class _TabItem extends StatelessWidget {
-  final dynamic tab;
+  final ReaderTab tab;
   final bool isActive;
   final VoidCallback onTap;
   final VoidCallback onClose;
@@ -266,12 +268,16 @@ class _TabItem extends StatelessWidget {
             ),
             const SizedBox(width: 8),
 
-            // Tab label
+            // Tab label — apply Pali conjunct transformation for bound letters.
+            // Tab labels are always derived from paliName (see ReaderTab.fromNode),
+            // so conjunct transformation is always appropriate here.
             Expanded(
               child: Tooltip(
-                message: tab.fullName,
+                message: tab.paliName != null
+                    ? '${tab.paliName!.withPaliConjuncts} / ${tab.sinhalaName ?? ''}'
+                    : tab.fullName,
                 child: Text(
-                  tab.label,
+                  tab.label.withPaliConjuncts,
                   style: isActive
                       ? context.typography.tabLabelActive
                       : context.typography.tabLabelInactive,

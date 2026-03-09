@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/localization/l10n/app_localizations.dart';
 import '../../core/theme/app_typography.dart';
-import '../../core/utils/pali_conjunct_transformer.dart';
 import '../models/column_display_mode.dart';
 import '../models/in_page_search_state.dart';
 import '../../domain/entities/bjt/bjt_page.dart';
@@ -544,9 +543,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       ref.read(dictionaryHighlightProvider.notifier).state = null;
       return;
     }
-    // Open dictionary lookup
-    ref.read(selectedDictionaryWordProvider.notifier).state =
-        removeConjunctFormatting(word);
+    // Open dictionary lookup — pass word with conjuncts intact so the
+    // dictionary bottom sheet displays proper bound letters in the text field.
+    // The lookup itself strips ZWJ via computeEffectiveQuery/normalizeText.
+    ref.read(selectedDictionaryWordProvider.notifier).state = word;
   }
 
   /// Delegates to the appropriate pane widget based on column mode.

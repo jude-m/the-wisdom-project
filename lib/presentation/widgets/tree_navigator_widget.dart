@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/pali_conjunct_transformer.dart';
 import '../../core/utils/responsive_utils.dart';
+import '../../domain/entities/navigation/navigation_language.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../providers/navigation_tree_provider.dart';
 import '../providers/navigator_visibility_provider.dart';
@@ -135,7 +137,10 @@ class TreeNodeWidget extends ConsumerWidget {
     final isExpanded = expandedNodes.contains(node.nodeKey);
     final isSelected = selectedNode == node.nodeKey;
     final hasChildren = node.childNodes.isNotEmpty;
-    final displayName = node.getDisplayName(navigationLanguage);
+    final rawDisplayName = node.getDisplayName(navigationLanguage);
+    final displayName = navigationLanguage == NavigationLanguage.pali
+        ? rawDisplayName.withPaliConjuncts
+        : rawDisplayName;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

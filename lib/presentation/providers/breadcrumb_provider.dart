@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/pali_conjunct_transformer.dart';
+import '../../domain/entities/navigation/navigation_language.dart';
 import 'navigation_tree_provider.dart';
 import 'tab_provider.dart';
 
@@ -23,12 +25,16 @@ final breadcrumbPathProvider =
   // Watch navigation language — re-renders names when language changes
   final language = ref.watch(navigationLanguageProvider);
 
-  // Map each key to its localized display name
+  // Map each key to its localized display name, applying Pali conjuncts
+  // when navigation language is Pali
   return keys.map((key) {
     final node = ref.watch(nodeByKeyProvider(key));
+    final rawName = node?.getDisplayName(language) ?? key;
     return (
       nodeKey: key,
-      displayName: node?.getDisplayName(language) ?? key,
+      displayName: language == NavigationLanguage.pali
+          ? rawName.withPaliConjuncts
+          : rawName,
     );
   }).toList();
 });

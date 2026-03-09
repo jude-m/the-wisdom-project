@@ -114,7 +114,7 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
     // Compute and cache
     _lastText = widget.text;
     _cachedDisplayText =
-        widget.enableTap ? applyConjunctConsonants(widget.text) : widget.text;
+        widget.enableTap ? widget.text.withPaliConjuncts : widget.text;
     // Invalidate marked ranges cache (depends on display text)
     _cachedDisplayMarkedRanges = null;
     return _cachedDisplayText!;
@@ -129,7 +129,9 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
     if (widget.markedRanges.isEmpty) {
       _cachedDisplayMarkedRanges = const [];
     } else if (widget.enableTap) {
-      // Pali text — conjunct transformation may shift positions
+      // Pali text — conjunct transformation may shift positions.
+      // Use buildConjunctPositionMap directly with the already-cached
+      // _displayText to avoid a redundant applyConjunctConsonants call.
       final posMap = buildConjunctPositionMap(widget.text, _displayText);
       _cachedDisplayMarkedRanges = [
         for (final r in widget.markedRanges)

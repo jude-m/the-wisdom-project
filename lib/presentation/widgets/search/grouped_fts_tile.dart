@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/search_result.dart';
 import '../../../domain/entities/search/search_result_type.dart';
@@ -90,7 +91,9 @@ class GroupedFTSTile extends ConsumerWidget {
         ),
       ),
       title: Text(
-        result.title,
+        result.language == 'pali'
+            ? result.title.withPaliConjuncts
+            : result.title,
         style: typography.resultTitle,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
@@ -114,6 +117,7 @@ class GroupedFTSTile extends ConsumerWidget {
               effectiveQuery: effectiveQuery,
               isPhraseSearch: isPhraseSearch,
               isExactMatch: isExactMatch,
+              language: result.language,
             ),
           ],
         ],

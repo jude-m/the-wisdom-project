@@ -183,3 +183,38 @@ String removeConjunctFormatting(String text) {
       .replaceAll(_zwj, '') // Remove Zero-Width Joiner
       .replaceAll(_zwnj, ''); // Remove Zero-Width Non-Joiner
 }
+
+/// Convenience extension for applying conjunct transformation inline.
+///
+/// Usage:
+/// ```dart
+/// Text(paliName.withPaliConjuncts)
+/// ```
+extension PaliConjunctExtension on String {
+  /// Returns this string with Pali conjunct consonants applied.
+  String get withPaliConjuncts => applyConjunctConsonants(this);
+}
+
+/// Applies conjunct transformation and remaps highlight ranges.
+///
+/// Takes [rawText] and a list of character [ranges] found on the raw text,
+/// transforms the text via [applyConjunctConsonants], then remaps the ranges
+/// to the display text coordinates using [buildConjunctPositionMap].
+///
+/// Returns the display text and remapped ranges as a record.
+///
+/// Used by both the reading pane and FTS search results to avoid
+/// duplicating the transform-then-remap pattern.
+(String, List<({int start, int end})>) applyConjunctsWithRangeMapping(
+  String rawText,
+  List<({int start, int end})> ranges,
+) {
+  final displayText = applyConjunctConsonants(rawText);
+  if (ranges.isEmpty) return (displayText, const []);
+
+  final posMap = buildConjunctPositionMap(rawText, displayText);
+  final remappedRanges = [
+    for (final r in ranges) (start: posMap[r.start], end: posMap[r.end]),
+  ];
+  return (displayText, remappedRanges);
+}
