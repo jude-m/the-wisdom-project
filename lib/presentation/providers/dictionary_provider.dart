@@ -28,6 +28,13 @@ final dictionaryHighlightProvider = StateProvider<({int widgetId, int position})
 /// interfering with selection gestures (drag-to-select or clearing selection).
 final hasActiveSelectionProvider = StateProvider<bool>((ref) => false);
 
+/// Dictionary filter for the bottom sheet, independent from search state.
+/// Empty set = all dictionaries (same convention as search).
+/// Intentionally persists across word taps and sheet close/reopen so the
+/// user's filter preference is retained during a reading session.
+final bottomSheetDictionaryFilterProvider =
+    StateProvider<Set<String>>((ref) => {});
+
 // ============================================================================
 // DATASOURCE & REPOSITORY PROVIDERS
 // ============================================================================
@@ -58,7 +65,7 @@ final dictionaryLookupProvider =
   final result = await repository.lookupWord(
     params.word,
     exactMatch: params.exactMatch,
-    targetLanguage: params.targetLanguage,
+    dictionaryIds: params.dictionaryIds,
     limit: params.limit,
   );
 
@@ -101,7 +108,7 @@ final dictionarySearchProvider =
   final result = await repository.searchDefinitions(
     params.query,
     isExactMatch: params.isExactMatch,
-    targetLanguage: params.targetLanguage,
+    dictionaryIds: params.dictionaryIds,
     limit: params.limit,
   );
 
@@ -120,7 +127,7 @@ final dictionaryCountProvider =
   final result = await repository.countDefinitions(
     params.query,
     isExactMatch: params.isExactMatch,
-    targetLanguage: params.targetLanguage,
+    dictionaryIds: params.dictionaryIds,
   );
 
   return result.fold(

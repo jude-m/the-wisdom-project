@@ -73,7 +73,7 @@ void main() {
       when(mockRepository.searchDefinitions(
         testQuery,
         isExactMatch: false,
-        targetLanguage: null,
+        dictionaryIds: const {},
         limit: 50,
       )).thenAnswer((_) async => Right(testEntries));
 
@@ -93,7 +93,7 @@ void main() {
       verify(mockRepository.searchDefinitions(
         testQuery,
         isExactMatch: false,
-        targetLanguage: null,
+        dictionaryIds: const {},
         limit: 50,
       )).called(1);
     });

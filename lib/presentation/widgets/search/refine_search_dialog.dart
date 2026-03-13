@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../../../domain/entities/search/scope_operations.dart';
 import '../../providers/navigation_tree_provider.dart';
@@ -96,7 +97,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
               const SizedBox(height: 16),
 
               // Action buttons
-              _buildActionButtons(theme),
+              _buildActionButtons(theme, AppLocalizations.of(context)),
             ],
           ),
         ),
@@ -270,18 +271,18 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
     );
   }
 
-  Widget _buildActionButtons(ThemeData theme) {
+  Widget _buildActionButtons(ThemeData theme, AppLocalizations l10n) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         TextButton(
           onPressed: _resetToDefaults,
-          child: const Text('Reset'),
+          child: Text(l10n.reset),
         ),
         const SizedBox(width: 8),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Done'),
+          child: Text(l10n.done),
         ),
       ],
     );

@@ -183,4 +183,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nextMatch => 'Next match';
+
+  @override
+  String get dictFilterAll => 'All';
+
+  @override
+  String get dictFilterSinhala => 'Sinhala';
+
+  @override
+  String get dictFilterEnglish => 'English';
+
+  @override
+  String get dictRefineTitle => 'Refine Dictionaries';
+
+  @override
+  String get dictRefineSectionLabel => 'DICTIONARIES';
+
+  @override
+  String get done => 'Done';
 }

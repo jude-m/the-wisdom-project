@@ -183,4 +183,22 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get nextMatch => 'ඊළඟ ගැලපීම';
+
+  @override
+  String get dictFilterAll => 'සියල්ල';
+
+  @override
+  String get dictFilterSinhala => 'සිංහල';
+
+  @override
+  String get dictFilterEnglish => 'ඉංග්‍රීසි';
+
+  @override
+  String get dictRefineTitle => 'ශබ්දකෝෂ සූක්ෂම කිරීම';
+
+  @override
+  String get dictRefineSectionLabel => 'ශබ්දකෝෂ';
+
+  @override
+  String get done => 'හරි';
 }

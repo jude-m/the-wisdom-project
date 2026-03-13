@@ -294,5 +294,35 @@
   "nextMatch": "Next match",
   "@nextMatch": {
     "description": "Tooltip for next match button in in-page search"
+  },
+
+  "dictFilterAll": "All",
+  "@dictFilterAll": {
+    "description": "Label for 'All' dictionary filter chip (no filter)"
+  },
+
+  "dictFilterSinhala": "Sinhala",
+  "@dictFilterSinhala": {
+    "description": "Label for Sinhala dictionary filter chip"
+  },
+
+  "dictFilterEnglish": "English",
+  "@dictFilterEnglish": {
+    "description": "Label for English dictionary filter chip"
+  },
+
+  "dictRefineTitle": "Refine Dictionaries",
+  "@dictRefineTitle": {
+    "description": "Title for the refine dictionaries dialog"
+  },
+
+  "dictRefineSectionLabel": "DICTIONARIES",
+  "@dictRefineSectionLabel": {
+    "description": "Section label in the refine dictionaries dialog"
+  },
+
+  "done": "Done",
+  "@done": {
+    "description": "Button label to dismiss a dialog after completing changes"
   }
 }

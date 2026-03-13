@@ -8,6 +8,7 @@ import '../../domain/entities/search/recent_search.dart';
 import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_query.dart';
 import '../../domain/entities/search/search_result.dart';
+import '../../domain/entities/dictionary/dictionary_filter_operations.dart';
 import '../../domain/entities/search/scope_operations.dart';
 import '../../domain/repositories/recent_searches_repository.dart';
 import '../../domain/repositories/text_search_repository.dart';
@@ -104,6 +105,13 @@ class SearchState with _$SearchState {
     /// Tracks which FTS result groups are expanded (by nodeKey)
     /// Used to show/hide secondary matches in grouped FTS results
     @Default({}) Set<String> expandedFTSGroups,
+
+    /// Dictionary IDs selected for filtering (e.g., {'BUS', 'MS'} for Sinhala).
+    /// Empty set = "All" (no filter applied).
+    ///
+    /// Single source of truth for both quick chips and refine dialog,
+    /// following the same pattern as [scope] for title/FTS filters.
+    @Default({}) Set<String> selectedDictionaryIds,
   }) = _SearchState;
 
   /// Computed property: Results panel is visible when query is not empty
@@ -390,6 +398,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
       isPhraseSearch: state.isPhraseSearch,
       isAnywhereInText: state.isAnywhereInText,
       proximityDistance: state.proximityDistance,
+      selectedDictionaryIds: state.selectedDictionaryIds,
     );
   }
 
@@ -469,7 +478,40 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
       isAnywhereInText: false,
       proximityDistance: 10,
       isExactMatch: false,
+      selectedDictionaryIds: {},
     );
+    _refreshSearchIfNeeded();
+  }
+
+  // ============================================================================
+  // DICTIONARY FILTER METHODS
+  // ============================================================================
+
+  /// Set dictionary filter to specific IDs. Normalizes (all → empty = "All").
+  /// Used by the refine dialog.
+  void setDictionaryFilter(Set<String> dictIds) {
+    final normalized = DictionaryFilterOperations.normalize(dictIds);
+    if (state.selectedDictionaryIds == normalized) return;
+    state = state.copyWith(selectedDictionaryIds: normalized);
+    _refreshSearchIfNeeded();
+  }
+
+  /// Toggle a group of dictionary keys in/out (multi-select behavior).
+  /// Used by quick filter chips.
+  void toggleDictionaryKeys(Set<String> keys) {
+    final newIds = DictionaryFilterOperations.toggleKeys(
+      state.selectedDictionaryIds,
+      keys,
+    );
+    if (state.selectedDictionaryIds == newIds) return;
+    state = state.copyWith(selectedDictionaryIds: newIds);
+    _refreshSearchIfNeeded();
+  }
+
+  /// Select all dictionaries (clear filter).
+  void selectAllDictionaries() {
+    if (state.selectedDictionaryIds.isEmpty) return;
+    state = state.copyWith(selectedDictionaryIds: {});
     _refreshSearchIfNeeded();
   }
 

@@ -15,7 +15,7 @@ class DictionaryRepositoryImpl implements DictionaryRepository {
   Future<Either<Failure, List<DictionaryEntry>>> lookupWord(
     String word, {
     bool exactMatch = false,
-    String? targetLanguage,
+    Set<String> dictionaryIds = const {},
     int limit = 50,
   }) async {
     try {
@@ -27,7 +27,7 @@ class DictionaryRepositoryImpl implements DictionaryRepository {
       final entries = await _dataSource.lookupWord(
         word.trim(),
         exactMatch: exactMatch,
-        targetLanguage: targetLanguage,
+        dictionaryIds: dictionaryIds,
         limit: limit,
       );
 
@@ -46,7 +46,7 @@ class DictionaryRepositoryImpl implements DictionaryRepository {
   Future<Either<Failure, List<DictionaryEntry>>> searchDefinitions(
     String query, {
     bool isExactMatch = false,
-    String? targetLanguage,
+    Set<String> dictionaryIds = const {},
     int limit = 50,
     int offset = 0,
   }) async {
@@ -59,7 +59,7 @@ class DictionaryRepositoryImpl implements DictionaryRepository {
       final entries = await _dataSource.searchDefinitions(
         query.trim(),
         isExactMatch: isExactMatch,
-        targetLanguage: targetLanguage,
+        dictionaryIds: dictionaryIds,
         limit: limit,
         offset: offset,
       );
@@ -79,7 +79,7 @@ class DictionaryRepositoryImpl implements DictionaryRepository {
   Future<Either<Failure, int>> countDefinitions(
     String query, {
     bool isExactMatch = false,
-    String? targetLanguage,
+    Set<String> dictionaryIds = const {},
   }) async {
     try {
       // Defensive guard - return 0 for empty/whitespace query
@@ -90,7 +90,7 @@ class DictionaryRepositoryImpl implements DictionaryRepository {
       final count = await _dataSource.countDefinitions(
         query.trim(),
         isExactMatch: isExactMatch,
-        targetLanguage: targetLanguage,
+        dictionaryIds: dictionaryIds,
       );
 
       return Right(count);

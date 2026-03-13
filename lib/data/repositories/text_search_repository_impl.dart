@@ -114,6 +114,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           resultsByType[SearchResultType.definition] = await _searchDefinitions(
             query.queryText,
             isExactMatch: query.isExactMatch,
+            dictionaryIds: query.selectedDictionaryIds,
             limit: maxPerCategory,
           );
 
@@ -190,6 +191,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
               final results = await _searchDefinitions(
                 query.queryText,
                 isExactMatch: query.isExactMatch,
+                dictionaryIds: query.selectedDictionaryIds,
                 limit: query.limit,
                 offset: query.offset,
               );
@@ -257,6 +259,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           count[SearchResultType.definition] = await _countDefinitions(
             query.queryText,
             isExactMatch: query.isExactMatch,
+            dictionaryIds: query.selectedDictionaryIds,
           );
 
           return Right(count);
@@ -646,6 +649,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   Future<List<SearchResult>> _searchDefinitions(
     String queryText, {
     bool isExactMatch = false,
+    Set<String> dictionaryIds = const {},
     int limit = 50,
     int offset = 0,
   }) async {
@@ -656,6 +660,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     final result = await _dictionaryRepository.searchDefinitions(
       queryText,
       isExactMatch: isExactMatch,
+      dictionaryIds: dictionaryIds,
       limit: limit,
       offset: offset,
     );
@@ -676,6 +681,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   Future<int> _countDefinitions(
     String queryText, {
     bool isExactMatch = false,
+    Set<String> dictionaryIds = const {},
   }) async {
     if (_dictionaryRepository == null) {
       return 0;
@@ -684,6 +690,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     final result = await _dictionaryRepository.countDefinitions(
       queryText,
       isExactMatch: isExactMatch,
+      dictionaryIds: dictionaryIds,
     );
 
     return result.fold(

@@ -52,6 +52,10 @@ class SearchQuery with _$SearchQuery {
     /// Range: 1-100.
     @Default(10) int proximityDistance,
 
+    /// Dictionary IDs to filter definitions by (e.g., {'BUS', 'MS'} for Sinhala).
+    /// Empty set = no restriction (search all dictionaries).
+    @Default({}) Set<String> selectedDictionaryIds,
+
     /// Maximum number of results to return
     @Default(50) int limit,
 

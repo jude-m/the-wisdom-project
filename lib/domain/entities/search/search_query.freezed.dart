@@ -62,6 +62,10 @@ mixin _$SearchQuery {
   /// Range: 1-100.
   int get proximityDistance => throw _privateConstructorUsedError;
 
+  /// Dictionary IDs to filter definitions by (e.g., {'BUS', 'MS'} for Sinhala).
+  /// Empty set = no restriction (search all dictionaries).
+  Set<String> get selectedDictionaryIds => throw _privateConstructorUsedError;
+
   /// Maximum number of results to return
   int get limit => throw _privateConstructorUsedError;
 
@@ -91,6 +95,7 @@ abstract class $SearchQueryCopyWith<$Res> {
       bool isPhraseSearch,
       bool isAnywhereInText,
       int proximityDistance,
+      Set<String> selectedDictionaryIds,
       int limit,
       int offset});
 }
@@ -119,6 +124,7 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
     Object? isPhraseSearch = null,
     Object? isAnywhereInText = null,
     Object? proximityDistance = null,
+    Object? selectedDictionaryIds = null,
     Object? limit = null,
     Object? offset = null,
   }) {
@@ -159,6 +165,10 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
           ? _value.proximityDistance
           : proximityDistance // ignore: cast_nullable_to_non_nullable
               as int,
+      selectedDictionaryIds: null == selectedDictionaryIds
+          ? _value.selectedDictionaryIds
+          : selectedDictionaryIds // ignore: cast_nullable_to_non_nullable
+              as Set<String>,
       limit: null == limit
           ? _value.limit
           : limit // ignore: cast_nullable_to_non_nullable
@@ -189,6 +199,7 @@ abstract class _$$SearchQueryImplCopyWith<$Res>
       bool isPhraseSearch,
       bool isAnywhereInText,
       int proximityDistance,
+      Set<String> selectedDictionaryIds,
       int limit,
       int offset});
 }
@@ -215,6 +226,7 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
     Object? isPhraseSearch = null,
     Object? isAnywhereInText = null,
     Object? proximityDistance = null,
+    Object? selectedDictionaryIds = null,
     Object? limit = null,
     Object? offset = null,
   }) {
@@ -255,6 +267,10 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
           ? _value.proximityDistance
           : proximityDistance // ignore: cast_nullable_to_non_nullable
               as int,
+      selectedDictionaryIds: null == selectedDictionaryIds
+          ? _value._selectedDictionaryIds
+          : selectedDictionaryIds // ignore: cast_nullable_to_non_nullable
+              as Set<String>,
       limit: null == limit
           ? _value.limit
           : limit // ignore: cast_nullable_to_non_nullable
@@ -280,10 +296,12 @@ class _$SearchQueryImpl implements _SearchQuery {
       this.isPhraseSearch = true,
       this.isAnywhereInText = false,
       this.proximityDistance = 10,
+      final Set<String> selectedDictionaryIds = const {},
       this.limit = 50,
       this.offset = 0})
       : _editionIds = editionIds,
-        _scope = scope;
+        _scope = scope,
+        _selectedDictionaryIds = selectedDictionaryIds;
 
   /// The search query text
   @override
@@ -372,6 +390,21 @@ class _$SearchQueryImpl implements _SearchQuery {
   @JsonKey()
   final int proximityDistance;
 
+  /// Dictionary IDs to filter definitions by (e.g., {'BUS', 'MS'} for Sinhala).
+  /// Empty set = no restriction (search all dictionaries).
+  final Set<String> _selectedDictionaryIds;
+
+  /// Dictionary IDs to filter definitions by (e.g., {'BUS', 'MS'} for Sinhala).
+  /// Empty set = no restriction (search all dictionaries).
+  @override
+  @JsonKey()
+  Set<String> get selectedDictionaryIds {
+    if (_selectedDictionaryIds is EqualUnmodifiableSetView)
+      return _selectedDictionaryIds;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableSetView(_selectedDictionaryIds);
+  }
+
   /// Maximum number of results to return
   @override
   @JsonKey()
@@ -384,7 +417,7 @@ class _$SearchQueryImpl implements _SearchQuery {
 
   @override
   String toString() {
-    return 'SearchQuery(queryText: $queryText, isExactMatch: $isExactMatch, editionIds: $editionIds, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, isPhraseSearch: $isPhraseSearch, isAnywhereInText: $isAnywhereInText, proximityDistance: $proximityDistance, limit: $limit, offset: $offset)';
+    return 'SearchQuery(queryText: $queryText, isExactMatch: $isExactMatch, editionIds: $editionIds, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, isPhraseSearch: $isPhraseSearch, isAnywhereInText: $isAnywhereInText, proximityDistance: $proximityDistance, selectedDictionaryIds: $selectedDictionaryIds, limit: $limit, offset: $offset)';
   }
 
   @override
@@ -409,6 +442,8 @@ class _$SearchQueryImpl implements _SearchQuery {
                 other.isAnywhereInText == isAnywhereInText) &&
             (identical(other.proximityDistance, proximityDistance) ||
                 other.proximityDistance == proximityDistance) &&
+            const DeepCollectionEquality()
+                .equals(other._selectedDictionaryIds, _selectedDictionaryIds) &&
             (identical(other.limit, limit) || other.limit == limit) &&
             (identical(other.offset, offset) || other.offset == offset));
   }
@@ -425,6 +460,7 @@ class _$SearchQueryImpl implements _SearchQuery {
       isPhraseSearch,
       isAnywhereInText,
       proximityDistance,
+      const DeepCollectionEquality().hash(_selectedDictionaryIds),
       limit,
       offset);
 
@@ -448,6 +484,7 @@ abstract class _SearchQuery implements SearchQuery {
       final bool isPhraseSearch,
       final bool isAnywhereInText,
       final int proximityDistance,
+      final Set<String> selectedDictionaryIds,
       final int limit,
       final int offset}) = _$SearchQueryImpl;
 
@@ -505,6 +542,11 @@ abstract class _SearchQuery implements SearchQuery {
   /// Range: 1-100.
   @override
   int get proximityDistance;
+
+  /// Dictionary IDs to filter definitions by (e.g., {'BUS', 'MS'} for Sinhala).
+  /// Empty set = no restriction (search all dictionaries).
+  @override
+  Set<String> get selectedDictionaryIds;
 
   /// Maximum number of results to return
   @override

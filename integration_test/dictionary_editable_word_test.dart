@@ -9,7 +9,9 @@ import 'package:the_wisdom_project/presentation/providers/dictionary_provider.da
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
+import 'package:the_wisdom_project/domain/entities/dictionary/dictionary_filter_operations.dart';
 import 'package:the_wisdom_project/presentation/widgets/dictionary/dictionary_bottom_sheet.dart';
+import 'package:the_wisdom_project/presentation/widgets/dictionary/refine_dictionary_dialog.dart';
 import 'package:the_wisdom_project/presentation/widgets/multi_pane_reader_widget.dart';
 import 'package:the_wisdom_project/presentation/widgets/tab_bar_widget.dart';
 import 'package:the_wisdom_project/data/datasources/bjt_document_local_datasource.dart';
@@ -362,6 +364,141 @@ void main() {
             reason:
                 'Scrolling through results should reveal "delighting" '
                 'from a DPD prefix-match entry');
+      },
+    );
+
+    // =================================================================
+    // Test 4: Refine dialog filters bottom sheet results
+    // =================================================================
+    testWidgets(
+      '4. Refine dialog: filter to DPD only, then restore all',
+      (tester) async {
+        final container = await pumpReaderApp(tester);
+
+        // Open මූලපරියායසුත්තං (mn-1-1-1)
+        final tab = tabAtBeginning(container, 'mn-1-1-1');
+        await openTab(tester, container, tab);
+
+        // STEP 1: Tap "භගවා" in the Pali text to open dictionary sheet
+        final recognizer = findWordRecognizer(tester, 'භගවා');
+        expect(recognizer, isNotNull,
+            reason: 'Should find TapGestureRecognizer for භගවා');
+        recognizer!.onTap!();
+        await tester.pumpAndSettle(const Duration(seconds: 1));
+
+        // ASSERT: Dictionary bottom sheet is visible
+        expect(find.byType(DictionaryBottomSheet), findsOneWidget,
+            reason: 'Dictionary sheet should appear after word tap');
+
+        // Record how many result badges are visible before filtering.
+        // Multiple dictionaries should have results for භගවා (e.g. BUS, DPD, PTS...).
+        // We check that at least one non-DPD badge is present.
+        final allBadgeTexts = <String>{};
+        for (final info in DictionaryFilterOperations.allIds) {
+          if (tester.widgetList(find.text(info)).isNotEmpty) {
+            allBadgeTexts.add(info);
+          }
+        }
+        expect(allBadgeTexts.length, greaterThan(1),
+            reason:
+                'භගවා should have results from multiple dictionaries, '
+                'found: $allBadgeTexts');
+        expect(allBadgeTexts.contains('DPD'), isTrue,
+            reason: 'DPD should be among the initial results');
+
+        // STEP 2: Tap the tune (refine) icon button on the bottom sheet
+        final tuneButton = find.descendant(
+          of: find.byType(DictionaryBottomSheet),
+          matching: find.byIcon(Icons.tune),
+        );
+        expect(tuneButton, findsOneWidget,
+            reason: 'Tune icon button should be in the sheet header');
+        await tester.tap(tuneButton);
+        await tester.pumpAndSettle();
+
+        // ASSERT: Refine dictionary dialog is visible
+        expect(find.byType(RefineDictionaryDialog), findsOneWidget,
+            reason: 'RefineDictionaryDialog should be open');
+
+        // STEP 3: Tap "Digital Pali Dictionary" to select only DPD.
+        // Since "All" is the default, clicking a leaf focuses on just that one.
+        await tester.tap(find.text('Digital Pali Dictionary'));
+        await tester.pumpAndSettle();
+
+        // ASSERT: Only DPD checkbox should be checked.
+        // Verify the provider state reflects only DPD selected.
+        final filterAfterDPD =
+            container.read(bottomSheetDictionaryFilterProvider);
+        expect(filterAfterDPD, equals({'DPD'}),
+            reason:
+                'After tapping DPD from "All", only DPD should be selected');
+
+        // Close the dialog
+        await tester.tap(find.text(AppLocalizations.of(
+          tester.element(find.byType(RefineDictionaryDialog)),
+        ).done));
+        await tester.pumpAndSettle(const Duration(seconds: 1));
+
+        // ASSERT: Only DPD badges should be visible in results
+        for (final dictId in DictionaryFilterOperations.allIds) {
+          if (dictId == 'DPD') {
+            expect(find.text('DPD'), findsWidgets,
+                reason: 'DPD results should still be shown');
+          } else {
+            expect(find.text(dictId), findsNothing,
+                reason:
+                    'Non-DPD dictionary "$dictId" should not appear when '
+                    'filtered to DPD only');
+          }
+        }
+
+        // STEP 4: Open refine dialog again and tap DPD to restore all.
+        // Since DPD's entire group (English) is NOT fully selected — only
+        // DPD is — tapping DPD deselects it, resulting in empty set = "All".
+        await tester.tap(tuneButton);
+        await tester.pumpAndSettle();
+
+        // Tap "Digital Pali Dictionary" again — this deselects DPD.
+        // With no dictionaries selected, state normalizes to {} = "All".
+        await tester.tap(find.text('Digital Pali Dictionary'));
+        await tester.pumpAndSettle();
+
+        // ASSERT: All dictionaries should now be selected (empty set = All)
+        final filterAfterRestore =
+            container.read(bottomSheetDictionaryFilterProvider);
+        expect(filterAfterRestore.isEmpty, isTrue,
+            reason:
+                'After deselecting the only selected dict, '
+                'filter should normalize to {} (All)');
+
+        // Verify all checkboxes in the dialog show as checked.
+        // With "All" selected, _effectiveSelection returns allIds,
+        // so every checkbox should be true (not tristate, not false).
+        final checkboxes =
+            tester.widgetList<Checkbox>(find.byType(Checkbox)).toList();
+        for (final checkbox in checkboxes) {
+          expect(checkbox.value, isTrue,
+              reason:
+                  'All checkboxes should be checked when filter is "All"');
+        }
+
+        // Close the dialog
+        await tester.tap(find.text(AppLocalizations.of(
+          tester.element(find.byType(RefineDictionaryDialog)),
+        ).done));
+        await tester.pumpAndSettle(const Duration(seconds: 1));
+
+        // ASSERT: Results from multiple dictionaries should be visible again
+        final restoredBadges = <String>{};
+        for (final info in DictionaryFilterOperations.allIds) {
+          if (tester.widgetList(find.text(info)).isNotEmpty) {
+            restoredBadges.add(info);
+          }
+        }
+        expect(restoredBadges.length, greaterThan(1),
+            reason:
+                'After restoring to "All", multiple dictionary badges '
+                'should be visible again, found: $restoredBadges');
       },
     );
   });

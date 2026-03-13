@@ -113,5 +113,17 @@
 
   "previousMatch": "පෙර ගැලපීම",
 
-  "nextMatch": "ඊළඟ ගැලපීම"
+  "nextMatch": "ඊළඟ ගැලපීම",
+
+  "dictFilterAll": "සියල්ල",
+
+  "dictFilterSinhala": "සිංහල",
+
+  "dictFilterEnglish": "ඉංග්‍රීසි",
+
+  "dictRefineTitle": "ශබ්දකෝෂ සූක්ෂම කිරීම",
+
+  "dictRefineSectionLabel": "ශබ්දකෝෂ",
+
+  "done": "හරි"
 }

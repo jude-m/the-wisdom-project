@@ -23,9 +23,8 @@ mixin _$DictionaryLookupParams {
   /// Default false = prefix matching enabled
   bool get exactMatch => throw _privateConstructorUsedError;
 
-  /// Filter by target language ('en'/'si')
-  /// Default null = all languages
-  String? get targetLanguage => throw _privateConstructorUsedError;
+  /// Filter to specific dictionary IDs, empty = all
+  Set<String> get dictionaryIds => throw _privateConstructorUsedError;
 
   /// Maximum number of results to return
   int get limit => throw _privateConstructorUsedError;
@@ -43,7 +42,8 @@ abstract class $DictionaryLookupParamsCopyWith<$Res> {
           $Res Function(DictionaryLookupParams) then) =
       _$DictionaryLookupParamsCopyWithImpl<$Res, DictionaryLookupParams>;
   @useResult
-  $Res call({String word, bool exactMatch, String? targetLanguage, int limit});
+  $Res call(
+      {String word, bool exactMatch, Set<String> dictionaryIds, int limit});
 }
 
 /// @nodoc
@@ -64,7 +64,7 @@ class _$DictionaryLookupParamsCopyWithImpl<$Res,
   $Res call({
     Object? word = null,
     Object? exactMatch = null,
-    Object? targetLanguage = freezed,
+    Object? dictionaryIds = null,
     Object? limit = null,
   }) {
     return _then(_value.copyWith(
@@ -76,10 +76,10 @@ class _$DictionaryLookupParamsCopyWithImpl<$Res,
           ? _value.exactMatch
           : exactMatch // ignore: cast_nullable_to_non_nullable
               as bool,
-      targetLanguage: freezed == targetLanguage
-          ? _value.targetLanguage
-          : targetLanguage // ignore: cast_nullable_to_non_nullable
-              as String?,
+      dictionaryIds: null == dictionaryIds
+          ? _value.dictionaryIds
+          : dictionaryIds // ignore: cast_nullable_to_non_nullable
+              as Set<String>,
       limit: null == limit
           ? _value.limit
           : limit // ignore: cast_nullable_to_non_nullable
@@ -97,7 +97,8 @@ abstract class _$$DictionaryLookupParamsImplCopyWith<$Res>
       __$$DictionaryLookupParamsImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String word, bool exactMatch, String? targetLanguage, int limit});
+  $Res call(
+      {String word, bool exactMatch, Set<String> dictionaryIds, int limit});
 }
 
 /// @nodoc
@@ -117,7 +118,7 @@ class __$$DictionaryLookupParamsImplCopyWithImpl<$Res>
   $Res call({
     Object? word = null,
     Object? exactMatch = null,
-    Object? targetLanguage = freezed,
+    Object? dictionaryIds = null,
     Object? limit = null,
   }) {
     return _then(_$DictionaryLookupParamsImpl(
@@ -129,10 +130,10 @@ class __$$DictionaryLookupParamsImplCopyWithImpl<$Res>
           ? _value.exactMatch
           : exactMatch // ignore: cast_nullable_to_non_nullable
               as bool,
-      targetLanguage: freezed == targetLanguage
-          ? _value.targetLanguage
-          : targetLanguage // ignore: cast_nullable_to_non_nullable
-              as String?,
+      dictionaryIds: null == dictionaryIds
+          ? _value._dictionaryIds
+          : dictionaryIds // ignore: cast_nullable_to_non_nullable
+              as Set<String>,
       limit: null == limit
           ? _value.limit
           : limit // ignore: cast_nullable_to_non_nullable
@@ -147,8 +148,9 @@ class _$DictionaryLookupParamsImpl implements _DictionaryLookupParams {
   const _$DictionaryLookupParamsImpl(
       {required this.word,
       this.exactMatch = false,
-      this.targetLanguage,
-      this.limit = 50});
+      final Set<String> dictionaryIds = const {},
+      this.limit = 50})
+      : _dictionaryIds = dictionaryIds;
 
   /// The word to look up
   @override
@@ -160,10 +162,17 @@ class _$DictionaryLookupParamsImpl implements _DictionaryLookupParams {
   @JsonKey()
   final bool exactMatch;
 
-  /// Filter by target language ('en'/'si')
-  /// Default null = all languages
+  /// Filter to specific dictionary IDs, empty = all
+  final Set<String> _dictionaryIds;
+
+  /// Filter to specific dictionary IDs, empty = all
   @override
-  final String? targetLanguage;
+  @JsonKey()
+  Set<String> get dictionaryIds {
+    if (_dictionaryIds is EqualUnmodifiableSetView) return _dictionaryIds;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableSetView(_dictionaryIds);
+  }
 
   /// Maximum number of results to return
   @override
@@ -172,7 +181,7 @@ class _$DictionaryLookupParamsImpl implements _DictionaryLookupParams {
 
   @override
   String toString() {
-    return 'DictionaryLookupParams(word: $word, exactMatch: $exactMatch, targetLanguage: $targetLanguage, limit: $limit)';
+    return 'DictionaryLookupParams(word: $word, exactMatch: $exactMatch, dictionaryIds: $dictionaryIds, limit: $limit)';
   }
 
   @override
@@ -183,14 +192,14 @@ class _$DictionaryLookupParamsImpl implements _DictionaryLookupParams {
             (identical(other.word, word) || other.word == word) &&
             (identical(other.exactMatch, exactMatch) ||
                 other.exactMatch == exactMatch) &&
-            (identical(other.targetLanguage, targetLanguage) ||
-                other.targetLanguage == targetLanguage) &&
+            const DeepCollectionEquality()
+                .equals(other._dictionaryIds, _dictionaryIds) &&
             (identical(other.limit, limit) || other.limit == limit));
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, word, exactMatch, targetLanguage, limit);
+  int get hashCode => Object.hash(runtimeType, word, exactMatch,
+      const DeepCollectionEquality().hash(_dictionaryIds), limit);
 
   /// Create a copy of DictionaryLookupParams
   /// with the given fields replaced by the non-null parameter values.
@@ -206,7 +215,7 @@ abstract class _DictionaryLookupParams implements DictionaryLookupParams {
   const factory _DictionaryLookupParams(
       {required final String word,
       final bool exactMatch,
-      final String? targetLanguage,
+      final Set<String> dictionaryIds,
       final int limit}) = _$DictionaryLookupParamsImpl;
 
   /// The word to look up
@@ -218,10 +227,9 @@ abstract class _DictionaryLookupParams implements DictionaryLookupParams {
   @override
   bool get exactMatch;
 
-  /// Filter by target language ('en'/'si')
-  /// Default null = all languages
+  /// Filter to specific dictionary IDs, empty = all
   @override
-  String? get targetLanguage;
+  Set<String> get dictionaryIds;
 
   /// Maximum number of results to return
   @override
@@ -243,9 +251,8 @@ mixin _$DictionarySearchParams {
   /// Whether to require exact word match (no prefix matching)
   bool get isExactMatch => throw _privateConstructorUsedError;
 
-  /// Filter by target language ('en'/'si')
-  /// Default null = all languages
-  String? get targetLanguage => throw _privateConstructorUsedError;
+  /// Filter to specific dictionary IDs, empty = all
+  Set<String> get dictionaryIds => throw _privateConstructorUsedError;
 
   /// Maximum number of results to return
   int get limit => throw _privateConstructorUsedError;
@@ -264,7 +271,7 @@ abstract class $DictionarySearchParamsCopyWith<$Res> {
       _$DictionarySearchParamsCopyWithImpl<$Res, DictionarySearchParams>;
   @useResult
   $Res call(
-      {String query, bool isExactMatch, String? targetLanguage, int limit});
+      {String query, bool isExactMatch, Set<String> dictionaryIds, int limit});
 }
 
 /// @nodoc
@@ -285,7 +292,7 @@ class _$DictionarySearchParamsCopyWithImpl<$Res,
   $Res call({
     Object? query = null,
     Object? isExactMatch = null,
-    Object? targetLanguage = freezed,
+    Object? dictionaryIds = null,
     Object? limit = null,
   }) {
     return _then(_value.copyWith(
@@ -297,10 +304,10 @@ class _$DictionarySearchParamsCopyWithImpl<$Res,
           ? _value.isExactMatch
           : isExactMatch // ignore: cast_nullable_to_non_nullable
               as bool,
-      targetLanguage: freezed == targetLanguage
-          ? _value.targetLanguage
-          : targetLanguage // ignore: cast_nullable_to_non_nullable
-              as String?,
+      dictionaryIds: null == dictionaryIds
+          ? _value.dictionaryIds
+          : dictionaryIds // ignore: cast_nullable_to_non_nullable
+              as Set<String>,
       limit: null == limit
           ? _value.limit
           : limit // ignore: cast_nullable_to_non_nullable
@@ -319,7 +326,7 @@ abstract class _$$DictionarySearchParamsImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {String query, bool isExactMatch, String? targetLanguage, int limit});
+      {String query, bool isExactMatch, Set<String> dictionaryIds, int limit});
 }
 
 /// @nodoc
@@ -339,7 +346,7 @@ class __$$DictionarySearchParamsImplCopyWithImpl<$Res>
   $Res call({
     Object? query = null,
     Object? isExactMatch = null,
-    Object? targetLanguage = freezed,
+    Object? dictionaryIds = null,
     Object? limit = null,
   }) {
     return _then(_$DictionarySearchParamsImpl(
@@ -351,10 +358,10 @@ class __$$DictionarySearchParamsImplCopyWithImpl<$Res>
           ? _value.isExactMatch
           : isExactMatch // ignore: cast_nullable_to_non_nullable
               as bool,
-      targetLanguage: freezed == targetLanguage
-          ? _value.targetLanguage
-          : targetLanguage // ignore: cast_nullable_to_non_nullable
-              as String?,
+      dictionaryIds: null == dictionaryIds
+          ? _value._dictionaryIds
+          : dictionaryIds // ignore: cast_nullable_to_non_nullable
+              as Set<String>,
       limit: null == limit
           ? _value.limit
           : limit // ignore: cast_nullable_to_non_nullable
@@ -369,8 +376,9 @@ class _$DictionarySearchParamsImpl implements _DictionarySearchParams {
   const _$DictionarySearchParamsImpl(
       {required this.query,
       this.isExactMatch = false,
-      this.targetLanguage,
-      this.limit = 50});
+      final Set<String> dictionaryIds = const {},
+      this.limit = 50})
+      : _dictionaryIds = dictionaryIds;
 
   /// The search query text
   @override
@@ -381,10 +389,17 @@ class _$DictionarySearchParamsImpl implements _DictionarySearchParams {
   @JsonKey()
   final bool isExactMatch;
 
-  /// Filter by target language ('en'/'si')
-  /// Default null = all languages
+  /// Filter to specific dictionary IDs, empty = all
+  final Set<String> _dictionaryIds;
+
+  /// Filter to specific dictionary IDs, empty = all
   @override
-  final String? targetLanguage;
+  @JsonKey()
+  Set<String> get dictionaryIds {
+    if (_dictionaryIds is EqualUnmodifiableSetView) return _dictionaryIds;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableSetView(_dictionaryIds);
+  }
 
   /// Maximum number of results to return
   @override
@@ -393,7 +408,7 @@ class _$DictionarySearchParamsImpl implements _DictionarySearchParams {
 
   @override
   String toString() {
-    return 'DictionarySearchParams(query: $query, isExactMatch: $isExactMatch, targetLanguage: $targetLanguage, limit: $limit)';
+    return 'DictionarySearchParams(query: $query, isExactMatch: $isExactMatch, dictionaryIds: $dictionaryIds, limit: $limit)';
   }
 
   @override
@@ -404,14 +419,14 @@ class _$DictionarySearchParamsImpl implements _DictionarySearchParams {
             (identical(other.query, query) || other.query == query) &&
             (identical(other.isExactMatch, isExactMatch) ||
                 other.isExactMatch == isExactMatch) &&
-            (identical(other.targetLanguage, targetLanguage) ||
-                other.targetLanguage == targetLanguage) &&
+            const DeepCollectionEquality()
+                .equals(other._dictionaryIds, _dictionaryIds) &&
             (identical(other.limit, limit) || other.limit == limit));
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, query, isExactMatch, targetLanguage, limit);
+  int get hashCode => Object.hash(runtimeType, query, isExactMatch,
+      const DeepCollectionEquality().hash(_dictionaryIds), limit);
 
   /// Create a copy of DictionarySearchParams
   /// with the given fields replaced by the non-null parameter values.
@@ -427,7 +442,7 @@ abstract class _DictionarySearchParams implements DictionarySearchParams {
   const factory _DictionarySearchParams(
       {required final String query,
       final bool isExactMatch,
-      final String? targetLanguage,
+      final Set<String> dictionaryIds,
       final int limit}) = _$DictionarySearchParamsImpl;
 
   /// The search query text
@@ -438,10 +453,9 @@ abstract class _DictionarySearchParams implements DictionarySearchParams {
   @override
   bool get isExactMatch;
 
-  /// Filter by target language ('en'/'si')
-  /// Default null = all languages
+  /// Filter to specific dictionary IDs, empty = all
   @override
-  String? get targetLanguage;
+  Set<String> get dictionaryIds;
 
   /// Maximum number of results to return
   @override

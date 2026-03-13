@@ -439,6 +439,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Next match'**
   String get nextMatch;
+
+  /// Label for 'All' dictionary filter chip (no filter)
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get dictFilterAll;
+
+  /// Label for Sinhala dictionary filter chip
+  ///
+  /// In en, this message translates to:
+  /// **'Sinhala'**
+  String get dictFilterSinhala;
+
+  /// Label for English dictionary filter chip
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get dictFilterEnglish;
+
+  /// Title for the refine dictionaries dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Refine Dictionaries'**
+  String get dictRefineTitle;
+
+  /// Section label in the refine dictionaries dialog
+  ///
+  /// In en, this message translates to:
+  /// **'DICTIONARIES'**
+  String get dictRefineSectionLabel;
+
+  /// Button label to dismiss a dialog after completing changes
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get done;
 }
 
 class _AppLocalizationsDelegate

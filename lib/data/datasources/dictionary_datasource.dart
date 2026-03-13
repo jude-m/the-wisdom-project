@@ -15,27 +15,33 @@ abstract class DictionaryDataSource {
 
   /// Lookup a word in the dictionary (exact or prefix match)
   /// Returns entries ordered by: exact match first, then by rank
+  ///
+  /// [dictionaryIds] - Filter to specific dict IDs, empty = all
   Future<List<DictionaryEntry>> lookupWord(
     String word, {
     bool exactMatch = false,
-    String? targetLanguage,
+    Set<String> dictionaryIds = const {},
     int limit = 50,
   });
 
   /// Search definitions for a query (used in search tab)
+  ///
+  /// [dictionaryIds] - Filter to specific dict IDs, empty = all
   Future<List<DictionaryEntry>> searchDefinitions(
     String query, {
     bool isExactMatch = false,
-    String? targetLanguage,
+    Set<String> dictionaryIds = const {},
     int limit = 50,
     int offset = 0,
   });
 
   /// Count definition matches for a query (for tab badge)
+  ///
+  /// [dictionaryIds] - Filter to specific dict IDs, empty = all
   Future<int> countDefinitions(
     String query, {
     bool isExactMatch = false,
-    String? targetLanguage,
+    Set<String> dictionaryIds = const {},
   });
 
   /// Close the database connection
@@ -99,7 +105,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
   Future<List<DictionaryEntry>> lookupWord(
     String word, {
     bool exactMatch = false,
-    String? targetLanguage,
+    Set<String> dictionaryIds = const {},
     int limit = 50,
   }) async {
     await initialize();
@@ -127,7 +133,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
 
       final args = <Object>[word, likePattern];
 
-      // Note: targetLanguage filter removed as we removed target_lang column
+      _appendDictionaryFilter(buffer, args, dictionaryIds);
 
       buffer.write('''
         ORDER BY is_exact ASC, rank DESC
@@ -152,7 +158,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
   Future<List<DictionaryEntry>> searchDefinitions(
     String query, {
     bool isExactMatch = false,
-    String? targetLanguage,
+    Set<String> dictionaryIds = const {},
     int limit = 50,
     int offset = 0,
   }) async {
@@ -178,7 +184,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
 
       final args = <Object>[query, likePattern];
 
-      // Note: targetLanguage filter removed as we removed target_lang column
+      _appendDictionaryFilter(buffer, args, dictionaryIds);
 
       buffer.write('''
         ORDER BY is_exact ASC, rank DESC
@@ -203,7 +209,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
   Future<int> countDefinitions(
     String query, {
     bool isExactMatch = false,
-    String? targetLanguage,
+    Set<String> dictionaryIds = const {},
   }) async {
     await initialize();
 
@@ -225,12 +231,26 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
 
       final args = <Object>[likePattern];
 
-      // Note: targetLanguage filter removed as we removed target_lang column
+      _appendDictionaryFilter(buffer, args, dictionaryIds);
 
       final results = await db.rawQuery(buffer.toString(), args);
       return results.first['count'] as int;
     } catch (e) {
       throw Exception('Dictionary count failed: $e');
+    }
+  }
+
+  /// Appends SQL WHERE clause for dictionary ID filtering.
+  /// Empty [dictionaryIds] = no filter (all dictionaries).
+  void _appendDictionaryFilter(
+    StringBuffer buffer,
+    List<Object> args,
+    Set<String> dictionaryIds,
+  ) {
+    if (dictionaryIds.isNotEmpty) {
+      final placeholders = List.filled(dictionaryIds.length, '?').join(', ');
+      buffer.write(' AND dict_id IN ($placeholders)');
+      args.addAll(dictionaryIds);
     }
   }
 

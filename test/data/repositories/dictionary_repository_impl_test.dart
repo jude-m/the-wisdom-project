@@ -45,7 +45,7 @@ void main() {
       when(mockDataSource.lookupWord(
         testWord,
         exactMatch: false,
-        targetLanguage: null,
+        dictionaryIds: const {},
         limit: 50,
       )).thenAnswer((_) async => testEntries);
 
@@ -68,7 +68,7 @@ void main() {
       when(mockDataSource.lookupWord(
         testWord,
         exactMatch: false,
-        targetLanguage: null,
+        dictionaryIds: const {},
         limit: 50,
       )).thenThrow(Exception('Database error'));
 
@@ -101,7 +101,7 @@ void main() {
       verifyNever(mockDataSource.lookupWord(
         any,
         exactMatch: anyNamed('exactMatch'),
-        targetLanguage: anyNamed('targetLanguage'),
+        dictionaryIds: anyNamed('dictionaryIds'),
         limit: anyNamed('limit'),
       ));
     });

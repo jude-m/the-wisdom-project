@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
+import 'package:the_wisdom_project/domain/entities/dictionary/dictionary_filter_operations.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
+import 'package:the_wisdom_project/presentation/widgets/dictionary/dictionary_filter_chips.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_bar.dart'
     as app;
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
@@ -291,6 +293,97 @@ extension SearchTestHelpers on WidgetTester {
     }
 
     // Close the dialog.
+    await tap(find.text('Done'));
+    await pumpAndSettle();
+    await waitForSearchResults();
+  }
+
+  // ---- Dictionary filter helpers ----
+
+  /// Tap a dictionary filter chip by its label (e.g., "English", "Sinhala", "All").
+  ///
+  /// Dictionary filter chips are only visible on the Definitions tab.
+  /// The helper finds the chip within [DictionaryFilterChips] to avoid
+  /// matching the "All" tab label in the tab bar.
+  Future<void> tapDictFilterChip(String chipLabel) async {
+    final chip = find.descendant(
+      of: find.byType(DictionaryFilterChips),
+      matching: find.text(chipLabel),
+    );
+    expect(chip, findsOneWidget,
+        reason: 'Dictionary filter chip "$chipLabel" should be visible');
+    await tap(chip);
+    await pump();
+    await waitForSearchResults();
+  }
+
+  /// Whether a dictionary filter chip is visually selected.
+  ///
+  /// Checks the chip's `isSelected` state via the [DictionaryFilterOperations]
+  /// logic — the same source of truth the widget uses to decide its color.
+  bool isDictFilterChipSelected(String chipLabel) {
+    final state = getSearchState();
+    final ids = state.selectedDictionaryIds;
+
+    return switch (chipLabel) {
+      'All' => DictionaryFilterOperations.isAllSelected(ids),
+      'Sinhala' => DictionaryFilterOperations.containsAllKeys(
+          ids, DictionaryFilterOperations.sinhalaIds),
+      'English' => DictionaryFilterOperations.containsAllKeys(
+          ids, DictionaryFilterOperations.englishIds),
+      _ => false,
+    };
+  }
+
+  /// Open the Refine Dictionaries dialog, toggle dictionaries by name,
+  /// then close with "Done".
+  ///
+  /// [dictNames]: Display names of dictionaries to toggle (e.g., "Buddhadatta (Sinhala)").
+  ///
+  /// Unlike [refineScope] which needs tree expansion, the dictionary dialog
+  /// has a flat 2-level list (language group → dictionaries) that is always
+  /// fully visible.
+  Future<void> refineDictionaries(List<String> dictNames) async {
+    // The Refine chip is inside DictionaryFilterChips (only on Definitions tab).
+    // Find the chip with the tune icon.
+    final refineChip = find.descendant(
+      of: find.byType(DictionaryFilterChips),
+      matching: find.byIcon(Icons.tune),
+    );
+    expect(refineChip, findsOneWidget,
+        reason: 'Refine chip should be visible on Definitions tab');
+    await tap(refineChip);
+    await pumpAndSettle();
+
+    // Toggle each dictionary by name.
+    // Scope to the Dialog to avoid matching dictionary names in result
+    // tiles behind the dialog overlay.
+    final dialog = find.byType(Dialog);
+    for (final name in dictNames) {
+      final dictText = find.descendant(
+        of: dialog,
+        matching: find.text(name),
+      );
+      expect(dictText, findsOneWidget,
+          reason: 'Dictionary "$name" should be visible in Refine dialog');
+
+      // The innermost Row ancestor of dictText is the dictionary item row,
+      // which contains the Checkbox we need to toggle.
+      final parentRow = find.ancestor(
+        of: dictText,
+        matching: find.byType(Row),
+      );
+      final checkbox = find.descendant(
+        of: parentRow.first,
+        matching: find.byType(Checkbox),
+      );
+      expect(checkbox, findsWidgets,
+          reason: 'Checkbox for "$name" should exist');
+      await tap(checkbox.first);
+      await pumpAndSettle();
+    }
+
+    // Close the dialog
     await tap(find.text('Done'));
     await pumpAndSettle();
     await waitForSearchResults();

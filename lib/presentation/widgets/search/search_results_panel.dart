@@ -8,6 +8,8 @@ import '../../../domain/entities/search/search_result_type.dart';
 import '../../../domain/entities/search/search_result.dart';
 import '../../providers/dictionary_provider.dart' show selectedDictionaryWordProvider;
 import '../../providers/search_provider.dart';
+import '../dictionary/dictionary_filter_chips.dart';
+import '../dictionary/refine_dictionary_dialog.dart';
 import 'dictionary_search_result_tile.dart';
 import 'grouped_fts_tile.dart';
 import 'highlighted_fts_search_text.dart';
@@ -404,8 +406,9 @@ class SearchResultsPanel extends ConsumerWidget {
 }
 
 /// Header for the search results panel
-/// Contains close button (for mobile full-screen) and scope filter chips
-class _PanelHeader extends StatelessWidget {
+/// Contains close button and filter chips.
+/// Shows scope filter chips for Title/FTS tabs, dictionary filter chips for Definitions tab.
+class _PanelHeader extends ConsumerWidget {
   final VoidCallback onClose;
 
   const _PanelHeader({
@@ -413,8 +416,16 @@ class _PanelHeader extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final isDefinitionTab = ref.watch(
+      searchStateProvider.select(
+        (s) => s.selectedResultType == SearchResultType.definition,
+      ),
+    );
+    final selectedDictionaryIds = ref.watch(
+      searchStateProvider.select((s) => s.selectedDictionaryIds),
+    );
 
     return Container(
       height: 60,
@@ -434,9 +445,27 @@ class _PanelHeader extends StatelessWidget {
             onPressed: onClose,
             tooltip: 'Close',
           ),
-          // Scope filter chips (scrollable)
-          const Expanded(
-            child: ScopeFilterChips(),
+          // Show dictionary filter chips on Definitions tab,
+          // scope filter chips on all other tabs
+          Expanded(
+            child: isDefinitionTab
+                ? DictionaryFilterChips(
+                    selectedDictionaryIds: selectedDictionaryIds,
+                    onToggleKeys: (keys) => ref
+                        .read(searchStateProvider.notifier)
+                        .toggleDictionaryKeys(keys),
+                    onSelectAll: () => ref
+                        .read(searchStateProvider.notifier)
+                        .selectAllDictionaries(),
+                    onRefineTap: () => RefineDictionaryDialog.show(
+                      context,
+                      selectedIds: selectedDictionaryIds,
+                      onFilterChanged: (ids) => ref
+                          .read(searchStateProvider.notifier)
+                          .setDictionaryFilter(ids),
+                    ),
+                  )
+                : const ScopeFilterChips(),
           ),
         ],
       ),

@@ -9,9 +9,12 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../domain/entities/dictionary/dictionary_entry.dart';
+import '../../../domain/entities/dictionary/dictionary_filter_operations.dart';
 import '../../../domain/entities/dictionary/dictionary_info.dart';
+import '../../../domain/entities/dictionary/dictionary_params.dart';
 import '../../../core/utils/search_query_utils.dart';
 import '../../providers/dictionary_provider.dart';
+import 'refine_dictionary_dialog.dart';
 
 /// Non-modal bottom sheet that displays dictionary definitions for a word.
 ///
@@ -134,6 +137,17 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
     super.dispose();
   }
 
+  void _openRefineDialog(BuildContext context) {
+    final currentIds = ref.read(bottomSheetDictionaryFilterProvider);
+    RefineDictionaryDialog.show(
+      context,
+      selectedIds: currentIds,
+      onFilterChanged: (ids) {
+        ref.read(bottomSheetDictionaryFilterProvider.notifier).state = ids;
+      },
+    );
+  }
+
   void _onWordChanged(String value) {
     _debounceTimer?.cancel();
     final trimmed = value.trim();
@@ -147,7 +161,15 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
 
   @override
   Widget build(BuildContext context) {
-    final entriesAsync = ref.watch(wordLookupProvider(_currentLookupWord));
+    final filterIds = ref.watch(bottomSheetDictionaryFilterProvider);
+    final entriesAsync = ref.watch(
+      dictionaryLookupProvider(
+        DictionaryLookupParams(
+          word: _currentLookupWord,
+          dictionaryIds: filterIds,
+        ),
+      ),
+    );
     final theme = Theme.of(context);
 
     // Use the actual Stack height from LayoutBuilder (always provided now).
@@ -206,11 +228,12 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
                           ),
                         ),
                       ),
-                      // Editable word + close button
+                      // Editable word + filter button + close button
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 4, 8),
                         child: Row(
                           children: [
+                            // Word input field
                             Expanded(
                               child: TextField(
                                 controller: _wordController,
@@ -263,6 +286,11 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
                                   ),
                                 ),
                               ),
+                            ),
+                            // Refine dictionaries button
+                            _DictionaryFilterButton(
+                              filterIds: filterIds,
+                              onTap: () => _openRefineDialog(context),
                             ),
                             IconButton(
                               icon: const Icon(Icons.close),
@@ -370,6 +398,54 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
         ),
       ),
     ];
+  }
+}
+
+/// Icon button that opens the dictionary refine dialog.
+/// Shows a colored dot indicator when a custom filter is active.
+class _DictionaryFilterButton extends StatelessWidget {
+  final Set<String> filterIds;
+  final VoidCallback onTap;
+
+  const _DictionaryFilterButton({
+    required this.filterIds,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasFilter = !DictionaryFilterOperations.isAllSelected(filterIds);
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          icon: Icon(
+            Icons.tune,
+            color: hasFilter
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurfaceVariant,
+          ),
+          onPressed: onTap,
+          tooltip: AppLocalizations.of(context).refine,
+        ),
+        // Active filter indicator dot
+        if (hasFilter)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 

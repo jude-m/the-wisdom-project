@@ -14,9 +14,8 @@ class DictionaryLookupParams with _$DictionaryLookupParams {
     /// Default false = prefix matching enabled
     @Default(false) bool exactMatch,
 
-    /// Filter by target language ('en'/'si')
-    /// Default null = all languages
-    String? targetLanguage,
+    /// Filter to specific dictionary IDs, empty = all
+    @Default({}) Set<String> dictionaryIds,
 
     /// Maximum number of results to return
     @Default(50) int limit,
@@ -34,9 +33,8 @@ class DictionarySearchParams with _$DictionarySearchParams {
     /// Whether to require exact word match (no prefix matching)
     @Default(false) bool isExactMatch,
 
-    /// Filter by target language ('en'/'si')
-    /// Default null = all languages
-    String? targetLanguage,
+    /// Filter to specific dictionary IDs, empty = all
+    @Default({}) Set<String> dictionaryIds,
 
     /// Maximum number of results to return
     @Default(50) int limit,

@@ -96,6 +96,13 @@ mixin _$SearchState {
   /// Used to show/hide secondary matches in grouped FTS results
   Set<String> get expandedFTSGroups => throw _privateConstructorUsedError;
 
+  /// Dictionary IDs selected for filtering (e.g., {'BUS', 'MS'} for Sinhala).
+  /// Empty set = "All" (no filter applied).
+  ///
+  /// Single source of truth for both quick chips and refine dialog,
+  /// following the same pattern as [scope] for title/FTS filters.
+  Set<String> get selectedDictionaryIds => throw _privateConstructorUsedError;
+
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -127,7 +134,8 @@ abstract class $SearchStateCopyWith<$Res> {
       bool isPanelDismissed,
       bool isExactMatch,
       Map<SearchResultType, int> countByResultType,
-      Set<String> expandedFTSGroups});
+      Set<String> expandedFTSGroups,
+      Set<String> selectedDictionaryIds});
 
   $GroupedSearchResultCopyWith<$Res>? get groupedResults;
 }
@@ -165,6 +173,7 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
     Object? isExactMatch = null,
     Object? countByResultType = null,
     Object? expandedFTSGroups = null,
+    Object? selectedDictionaryIds = null,
   }) {
     return _then(_value.copyWith(
       rawQueryText: null == rawQueryText
@@ -239,6 +248,10 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
           ? _value.expandedFTSGroups
           : expandedFTSGroups // ignore: cast_nullable_to_non_nullable
               as Set<String>,
+      selectedDictionaryIds: null == selectedDictionaryIds
+          ? _value.selectedDictionaryIds
+          : selectedDictionaryIds // ignore: cast_nullable_to_non_nullable
+              as Set<String>,
     ) as $Val);
   }
 
@@ -283,7 +296,8 @@ abstract class _$$SearchStateImplCopyWith<$Res>
       bool isPanelDismissed,
       bool isExactMatch,
       Map<SearchResultType, int> countByResultType,
-      Set<String> expandedFTSGroups});
+      Set<String> expandedFTSGroups,
+      Set<String> selectedDictionaryIds});
 
   @override
   $GroupedSearchResultCopyWith<$Res>? get groupedResults;
@@ -320,6 +334,7 @@ class __$$SearchStateImplCopyWithImpl<$Res>
     Object? isExactMatch = null,
     Object? countByResultType = null,
     Object? expandedFTSGroups = null,
+    Object? selectedDictionaryIds = null,
   }) {
     return _then(_$SearchStateImpl(
       rawQueryText: null == rawQueryText
@@ -394,6 +409,10 @@ class __$$SearchStateImplCopyWithImpl<$Res>
           ? _value._expandedFTSGroups
           : expandedFTSGroups // ignore: cast_nullable_to_non_nullable
               as Set<String>,
+      selectedDictionaryIds: null == selectedDictionaryIds
+          ? _value._selectedDictionaryIds
+          : selectedDictionaryIds // ignore: cast_nullable_to_non_nullable
+              as Set<String>,
     ));
   }
 }
@@ -419,12 +438,14 @@ class _$SearchStateImpl extends _SearchState {
       this.isPanelDismissed = false,
       this.isExactMatch = false,
       final Map<SearchResultType, int> countByResultType = const {},
-      final Set<String> expandedFTSGroups = const {}})
+      final Set<String> expandedFTSGroups = const {},
+      final Set<String> selectedDictionaryIds = const {}})
       : _recentSearches = recentSearches,
         _selectedEditions = selectedEditions,
         _scope = scope,
         _countByResultType = countByResultType,
         _expandedFTSGroups = expandedFTSGroups,
+        _selectedDictionaryIds = selectedDictionaryIds,
         super._();
 
   /// Current search query text (raw user input)
@@ -586,9 +607,30 @@ class _$SearchStateImpl extends _SearchState {
     return EqualUnmodifiableSetView(_expandedFTSGroups);
   }
 
+  /// Dictionary IDs selected for filtering (e.g., {'BUS', 'MS'} for Sinhala).
+  /// Empty set = "All" (no filter applied).
+  ///
+  /// Single source of truth for both quick chips and refine dialog,
+  /// following the same pattern as [scope] for title/FTS filters.
+  final Set<String> _selectedDictionaryIds;
+
+  /// Dictionary IDs selected for filtering (e.g., {'BUS', 'MS'} for Sinhala).
+  /// Empty set = "All" (no filter applied).
+  ///
+  /// Single source of truth for both quick chips and refine dialog,
+  /// following the same pattern as [scope] for title/FTS filters.
+  @override
+  @JsonKey()
+  Set<String> get selectedDictionaryIds {
+    if (_selectedDictionaryIds is EqualUnmodifiableSetView)
+      return _selectedDictionaryIds;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableSetView(_selectedDictionaryIds);
+  }
+
   @override
   String toString() {
-    return 'SearchState(rawQueryText: $rawQueryText, effectiveQueryText: $effectiveQueryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, isPhraseSearch: $isPhraseSearch, isAnywhereInText: $isAnywhereInText, proximityDistance: $proximityDistance, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType, expandedFTSGroups: $expandedFTSGroups)';
+    return 'SearchState(rawQueryText: $rawQueryText, effectiveQueryText: $effectiveQueryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, isPhraseSearch: $isPhraseSearch, isAnywhereInText: $isAnywhereInText, proximityDistance: $proximityDistance, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType, expandedFTSGroups: $expandedFTSGroups, selectedDictionaryIds: $selectedDictionaryIds)';
   }
 
   @override
@@ -630,30 +672,34 @@ class _$SearchStateImpl extends _SearchState {
             const DeepCollectionEquality()
                 .equals(other._countByResultType, _countByResultType) &&
             const DeepCollectionEquality()
-                .equals(other._expandedFTSGroups, _expandedFTSGroups));
+                .equals(other._expandedFTSGroups, _expandedFTSGroups) &&
+            const DeepCollectionEquality()
+                .equals(other._selectedDictionaryIds, _selectedDictionaryIds));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      rawQueryText,
-      effectiveQueryText,
-      const DeepCollectionEquality().hash(_recentSearches),
-      selectedResultType,
-      groupedResults,
-      fullResults,
-      isLoading,
-      const DeepCollectionEquality().hash(_selectedEditions),
-      searchInPali,
-      searchInSinhala,
-      const DeepCollectionEquality().hash(_scope),
-      isPhraseSearch,
-      isAnywhereInText,
-      proximityDistance,
-      isPanelDismissed,
-      isExactMatch,
-      const DeepCollectionEquality().hash(_countByResultType),
-      const DeepCollectionEquality().hash(_expandedFTSGroups));
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        rawQueryText,
+        effectiveQueryText,
+        const DeepCollectionEquality().hash(_recentSearches),
+        selectedResultType,
+        groupedResults,
+        fullResults,
+        isLoading,
+        const DeepCollectionEquality().hash(_selectedEditions),
+        searchInPali,
+        searchInSinhala,
+        const DeepCollectionEquality().hash(_scope),
+        isPhraseSearch,
+        isAnywhereInText,
+        proximityDistance,
+        isPanelDismissed,
+        isExactMatch,
+        const DeepCollectionEquality().hash(_countByResultType),
+        const DeepCollectionEquality().hash(_expandedFTSGroups),
+        const DeepCollectionEquality().hash(_selectedDictionaryIds)
+      ]);
 
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
@@ -683,7 +729,8 @@ abstract class _SearchState extends SearchState {
       final bool isPanelDismissed,
       final bool isExactMatch,
       final Map<SearchResultType, int> countByResultType,
-      final Set<String> expandedFTSGroups}) = _$SearchStateImpl;
+      final Set<String> expandedFTSGroups,
+      final Set<String> selectedDictionaryIds}) = _$SearchStateImpl;
   const _SearchState._() : super._();
 
   /// Current search query text (raw user input)
@@ -781,6 +828,14 @@ abstract class _SearchState extends SearchState {
   /// Used to show/hide secondary matches in grouped FTS results
   @override
   Set<String> get expandedFTSGroups;
+
+  /// Dictionary IDs selected for filtering (e.g., {'BUS', 'MS'} for Sinhala).
+  /// Empty set = "All" (no filter applied).
+  ///
+  /// Single source of truth for both quick chips and refine dialog,
+  /// following the same pattern as [scope] for title/FTS filters.
+  @override
+  Set<String> get selectedDictionaryIds;
 
   /// Create a copy of SearchState
   /// with the given fields replaced by the non-null parameter values.
