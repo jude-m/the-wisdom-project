@@ -201,4 +201,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get done => 'Done';
+
+  @override
+  String get readMore => 'Read more';
+
+  @override
+  String get couldNotOpenLink => 'Could not open link';
 }

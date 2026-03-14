@@ -5,6 +5,7 @@ import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../core/utils/string_extensions.dart';
 import '../../../domain/entities/dictionary/dictionary_info.dart';
 import '../../../domain/entities/search/search_result.dart';
+import '../dictionary/dpd_read_more_link.dart';
 
 /// A search result tile for dictionary definition results.
 ///
@@ -69,6 +70,13 @@ class DictionarySearchResultTile extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
+          // "Read more" link for DPD dictionary entries
+          if (result.editionId == 'DPD')
+            DpdReadMoreLink(
+              html: result.matchedText,
+              baseStyle: typography.resultMatchedText,
+              padding: const EdgeInsets.only(top: 4),
+            ),
         ],
       ),
       onTap: onTap,

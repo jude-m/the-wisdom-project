@@ -324,5 +324,15 @@
   "done": "Done",
   "@done": {
     "description": "Button label to dismiss a dialog after completing changes"
+  },
+
+  "readMore": "Read more",
+  "@readMore": {
+    "description": "Label for the DPD dictionary 'Read more' link"
+  },
+
+  "couldNotOpenLink": "Could not open link",
+  "@couldNotOpenLink": {
+    "description": "Error message shown when a URL cannot be launched"
   }
 }

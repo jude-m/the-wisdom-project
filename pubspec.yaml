@@ -57,6 +57,9 @@ dependencies:
   path_provider: ^2.1.1
   path: ^1.8.3
 
+  # URL launching (in-app browser for DPD "Read more" links)
+  url_launcher: ^6.2.0
+
   # Icons
   cupertino_icons: ^1.0.8
   flutter_gen: ^5.12.0

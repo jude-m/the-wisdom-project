@@ -475,6 +475,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Done'**
   String get done;
+
+  /// Label for the DPD dictionary 'Read more' link
+  ///
+  /// In en, this message translates to:
+  /// **'Read more'**
+  String get readMore;
+
+  /// Error message shown when a URL cannot be launched
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open link'**
+  String get couldNotOpenLink;
 }
 
 class _AppLocalizationsDelegate

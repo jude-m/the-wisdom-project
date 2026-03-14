@@ -125,5 +125,9 @@
 
   "dictRefineSectionLabel": "ශබ්දකෝෂ",
 
-  "done": "හරි"
+  "done": "හරි",
+
+  "readMore": "තව කියවන්න",
+
+  "couldNotOpenLink": "සබැඳිය විවෘත කළ නොහැකිය"
 }

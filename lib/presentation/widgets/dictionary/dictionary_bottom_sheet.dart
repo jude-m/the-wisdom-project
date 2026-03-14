@@ -14,6 +14,7 @@ import '../../../domain/entities/dictionary/dictionary_info.dart';
 import '../../../domain/entities/dictionary/dictionary_params.dart';
 import '../../../core/utils/search_query_utils.dart';
 import '../../providers/dictionary_provider.dart';
+import 'dpd_read_more_link.dart';
 import 'refine_dictionary_dialog.dart';
 
 /// Non-modal bottom sheet that displays dictionary definitions for a word.
@@ -509,6 +510,11 @@ class _DictionaryEntryTile extends StatelessWidget {
               style: theme.textTheme.bodyMedium,
             ),
           ),
+          // "Read more" link rendered outside SelectionArea so tap gestures
+          // aren't intercepted by the text selection handler (especially on
+          // desktop where mouse clicks trigger selection, not tap recognizers).
+          if (entry.dictionaryId == 'DPD')
+            DpdReadMoreLink(html: entry.meaning),
         ],
       ),
     );
@@ -519,10 +525,7 @@ class _DictionaryEntryTile extends StatelessWidget {
   List<InlineSpan> _parseHtmlToTextSpans(String html, ThemeData theme) {
     final spans = <InlineSpan>[];
 
-    // Simplified HTML parsing - handles common tags
-    // For more complex HTML, consider using flutter_html package
-
-    // Replace <br> and <br/> with newlines
+    // Replace <br> and <br/> with newlines, decode HTML entities
     var text = html
         .replaceAll(RegExp(r'<br\s*/?>'), '\n')
         .replaceAll('&nbsp;', ' ')
@@ -535,6 +538,7 @@ class _DictionaryEntryTile extends StatelessWidget {
     final buffer = StringBuffer();
     var isBold = false;
     var isItalic = false;
+    var isInsideLink = false;
 
     int i = 0;
     while (i < text.length) {
@@ -565,8 +569,11 @@ class _DictionaryEntryTile extends StatelessWidget {
           isItalic = true;
         } else if (tag == '/i' || tag == '/em') {
           isItalic = false;
-        } else if (tag.startsWith('a ') || tag == '/a') {
-          // Skip link tags but keep content
+        } else if (tag.startsWith('a ')) {
+          // Skip link content — rendered as a separate widget below
+          isInsideLink = true;
+        } else if (tag == '/a') {
+          isInsideLink = false;
         } else if (tag.startsWith('r ') || tag == 'r') {
           // Custom <r> tags used in Sinhala dictionaries
           // Just render the content without special styling
@@ -575,7 +582,9 @@ class _DictionaryEntryTile extends StatelessWidget {
         }
         // Ignore other tags
       } else {
-        buffer.write(text[i]);
+        if (!isInsideLink) {
+          buffer.write(text[i]);
+        }
         i++;
       }
     }
@@ -583,6 +592,21 @@ class _DictionaryEntryTile extends StatelessWidget {
     // Flush remaining buffer
     if (buffer.isNotEmpty) {
       spans.add(_createTextSpan(buffer.toString(), isBold, isItalic));
+    }
+
+    // Trim trailing whitespace/newlines from the last span (e.g. a <br>
+    // before a stripped <a> tag would leave a dangling newline).
+    if (spans.isNotEmpty && spans.last is TextSpan) {
+      final last = spans.last as TextSpan;
+      if (last.text != null) {
+        final trimmed = last.text!.trimRight();
+        if (trimmed != last.text) {
+          spans[spans.length - 1] = TextSpan(
+            text: trimmed,
+            style: last.style,
+          );
+        }
+      }
     }
 
     return spans.isEmpty ? [const TextSpan(text: '')] : spans;
