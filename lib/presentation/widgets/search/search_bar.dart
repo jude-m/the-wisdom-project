@@ -273,7 +273,6 @@ class _SearchBarState extends ConsumerState<SearchBar> {
               ),
               onChanged: (value) {
                 ref.read(searchStateProvider.notifier).updateQuery(value);
-                setState(() {});
               },
               onSubmitted: (value) {
                 // Dismiss keyboard on mobile when user presses Enter
