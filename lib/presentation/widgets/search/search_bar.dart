@@ -106,14 +106,13 @@ class _SearchBarState extends ConsumerState<SearchBar> {
         ref.watch(searchStateProvider.select((s) => s.rawQueryText));
     final showProximityButton = RegExp(r'\s\S').hasMatch(rawQueryText);
 
-    // Listen to queryText changes and sync controller
+    // Listen to queryText changes for overlay visibility.
+    // Note: We intentionally do NOT sync _controller.text from state here.
+    // The controller is the source of truth — onChanged pushes text to state.
+    // Writing state back to the controller causes an IME race condition on
+    // Windows, where setting _controller.text during Sinhala character
+    // composition interrupts the IME and deletes the character.
     ref.listen(searchStateProvider.select((s) => s.rawQueryText), (prev, next) {
-      if (_controller.text != next) {
-        _controller.text = next;
-        // Move cursor to end
-        _controller.selection = TextSelection.collapsed(offset: next.length);
-      }
-
       // Hide overlay when query has any text (panel takes over)
       if (next.trim().isNotEmpty && _overlayController.isShowing) {
         _overlayController.hide();
