@@ -78,8 +78,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final isTabletOrDesktop = ResponsiveUtils.isTabletOrDesktop(context);
     final navigatorVisible = ref.watch(navigatorVisibleProvider);
 
-    // Watch search state to show/hide search panel
-    final searchState = ref.watch(searchStateProvider);
+    // Watch only search panel visibility — NOT the entire search state.
+    // Watching the full state causes this widget (and its AppBar/SearchBar
+    // children) to rebuild on every keystroke, which disrupts IME composition
+    // on Windows (e.g. Helakuru Phonetic keyboard deletes Sinhala characters).
+    final isSearchPanelVisible = ref.watch(
+      searchStateProvider.select((s) => s.isResultsPanelVisible),
+    );
 
     // Watch pane widths from providers
     final navigatorWidth = ref.watch(navigatorWidthProvider);
@@ -106,7 +111,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         // Close search panel on Escape key
         if (event is KeyDownEvent &&
             event.logicalKey == LogicalKeyboardKey.escape &&
-            searchState.isResultsPanelVisible) {
+            isSearchPanelVisible) {
           _closeSearchPanel();
         }
       },
@@ -198,7 +203,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               ),
 
             // Search panel overlay (desktop: side panel, mobile: full-screen)
-            if (searchState.isResultsPanelVisible) ...[
+            if (isSearchPanelVisible) ...[
               // Dim barrier
               Positioned.fill(
                 child: GestureDetector(
