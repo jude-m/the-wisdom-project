@@ -165,14 +165,15 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
   Widget build(BuildContext context) {
     final filterIds = ref.watch(bottomSheetDictionaryFilterProvider);
     final isExactMatch = ref.watch(bottomSheetExactMatchProvider);
-    final entriesAsync = ref.watch(
-      dictionaryLookupProvider(
-        DictionaryLookupParams(
-          word: _currentLookupWord,
-          exactMatch: isExactMatch,
-          dictionaryIds: filterIds,
-        ),
-      ),
+    final lookupParams = DictionaryLookupParams(
+      word: _currentLookupWord,
+      exactMatch: isExactMatch,
+      dictionaryIds: filterIds,
+    );
+    final entriesAsync = ref.watch(dictionaryLookupProvider(lookupParams));
+    final totalCount = ref.watch(
+      dictionaryLookupCountProvider(lookupParams)
+          .select((asyncValue) => asyncValue.valueOrNull),
     );
     final theme = Theme.of(context);
 
@@ -326,7 +327,7 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
                   if (entries.isEmpty) {
                     return [_buildNoResultsSliver(context)];
                   }
-                  return _buildResultsSlivers(context, entries);
+                  return _buildResultsSlivers(context, entries, totalCount);
                 },
                 loading: () => [
                   const SliverFillRemaining(
@@ -396,11 +397,14 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
     );
   }
 
-  /// Builds slivers for the results list with separators
+  /// Builds slivers for the results list with separators and optional footer.
   List<Widget> _buildResultsSlivers(
     BuildContext context,
     List<DictionaryEntry> entries,
+    int? totalCount,
   ) {
+    final hasMore = totalCount != null && totalCount > entries.length;
+
     return [
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -413,7 +417,48 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
           },
         ),
       ),
+      // "Viewing X out of Y results" footer when results are truncated
+      if (hasMore)
+        SliverToBoxAdapter(
+          child: _buildResultsFooter(
+            Theme.of(context),
+            entries.length,
+            totalCount,
+          ),
+        ),
     ];
+  }
+
+  /// Footer showing "Viewing X out of Y results" with decorative dividers.
+  Widget _buildResultsFooter(ThemeData theme, int displayed, int total) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Divider(
+              color: theme.colorScheme.outlineVariant,
+              thickness: 1,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Viewing $displayed out of $total results',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Divider(
+              color: theme.colorScheme.outlineVariant,
+              thickness: 1,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

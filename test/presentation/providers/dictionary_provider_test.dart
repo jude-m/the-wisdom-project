@@ -10,7 +10,6 @@ import '../../helpers/mocks.mocks.dart';
 
 void main() {
   // Test data
-  const testWord = 'බුද්ධ';
   const testQuery = 'meditation';
 
   final testEntries = [
@@ -33,37 +32,6 @@ void main() {
       rank: 4,
     ),
   ];
-
-  group('wordLookupProvider', () {
-    test('fetches entries for word', () async {
-      // Arrange
-      final mockRepository = MockDictionaryRepository();
-      when(mockRepository.lookupWord(
-        testWord,
-        exactMatch: false,
-        limit: 50,
-      )).thenAnswer((_) async => Right(testEntries));
-
-      final container = ProviderContainer(
-        overrides: [
-          dictionaryRepositoryProvider.overrideWithValue(mockRepository),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      // Act
-      final result = await container.read(wordLookupProvider(testWord).future);
-
-      // Assert
-      expect(result, equals(testEntries));
-      expect(result.length, equals(2));
-      verify(mockRepository.lookupWord(
-        testWord,
-        exactMatch: false,
-        limit: 50,
-      )).called(1);
-    });
-  });
 
   group('dictionarySearchProvider', () {
     test('returns search results', () async {

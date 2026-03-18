@@ -80,22 +80,24 @@ final dictionaryLookupProvider =
   );
 });
 
-/// Simple lookup provider for tap-on-word feature
-/// Uses default parameters (prefix match, all languages, limit 50)
-/// Uses autoDispose to clean up when no listeners remain (prevents memory leaks).
-final wordLookupProvider =
-    FutureProvider.autoDispose.family<List<DictionaryEntry>, String>((ref, word) async {
+
+/// Count lookup results for a word (for bottom sheet "Viewing X of Y" footer).
+/// Reuses countDefinitions since lookupWord and searchDefinitions share the
+/// same SQL WHERE clause (word LIKE ? with optional dictionary filter).
+final dictionaryLookupCountProvider =
+    FutureProvider.autoDispose.family<int, DictionaryLookupParams>(
+        (ref, params) async {
   final repository = ref.watch(dictionaryRepositoryProvider);
 
-  final result = await repository.lookupWord(
-    word,
-    exactMatch: false,
-    limit: 50,
+  final result = await repository.countDefinitions(
+    params.word,
+    isExactMatch: params.exactMatch,
+    dictionaryIds: params.dictionaryIds,
   );
 
   return result.fold(
     (failure) => throw Exception(failure.userMessage),
-    (entries) => entries,
+    (count) => count,
   );
 });
 
