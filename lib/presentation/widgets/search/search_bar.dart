@@ -25,17 +25,10 @@ class _SearchBarState extends ConsumerState<SearchBar> {
   final OverlayPortalController _overlayController = OverlayPortalController();
   final LayerLink _layerLink = LayerLink();
 
-  // Track button visibility locally so we only rebuild when it actually changes,
-  // NOT on every keystroke. Rebuilding per-keystroke disrupts IME composition
-  // on Windows (e.g. Helakuru Phonetic keyboard deletes Sinhala characters).
-  bool _showProximityButton = false;
-  bool _showClearButton = false;
-
   @override
   void initState() {
     super.initState();
     _focusNode.addListener(_onFocusChange);
-    _controller.addListener(_onControllerTextChanged);
 
     // Sync controller with initial state if needed
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -49,25 +42,9 @@ class _SearchBarState extends ConsumerState<SearchBar> {
   @override
   void dispose() {
     _focusNode.removeListener(_onFocusChange);
-    _controller.removeListener(_onControllerTextChanged);
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
-  }
-
-  /// Update suffix button visibility only when the condition flips.
-  /// This avoids rebuilding the widget on every keystroke, which would
-  /// interrupt IME composition on Windows.
-  void _onControllerTextChanged() {
-    final shouldShowClear = _controller.text.isNotEmpty;
-    final shouldShowProximity = RegExp(r'\s\S').hasMatch(_controller.text);
-    if (shouldShowClear != _showClearButton ||
-        shouldShowProximity != _showProximityButton) {
-      setState(() {
-        _showClearButton = shouldShowClear;
-        _showProximityButton = shouldShowProximity;
-      });
-    }
   }
 
   void _onFocusChange() async {
@@ -123,16 +100,20 @@ class _SearchBarState extends ConsumerState<SearchBar> {
     // OR when using non-default proximity settings
     final isProximityActive = !isPhraseSearch || isAnywhereInText || proximityDistance != 10;
 
-    // Proximity button and clear button visibility are tracked via
-    // _onControllerTextChanged to avoid per-keystroke rebuilds (see initState).
+    // Show proximity button only when user has started typing a second word
+    // (i.e., there's a space followed by at least one non-space character)
+    final rawQueryText =
+        ref.watch(searchStateProvider.select((s) => s.rawQueryText));
+    final showProximityButton = RegExp(r'\s\S').hasMatch(rawQueryText);
 
-    // Listen to queryText changes for overlay visibility only.
-    // Note: We intentionally do NOT sync _controller.text from state here.
-    // The controller is the source of truth — onChanged pushes text to state.
-    // Writing state back to the controller causes an IME race condition on
-    // Windows, where setting _controller.text during Sinhala character
-    // composition interrupts the IME and deletes the character.
+    // Listen to queryText changes and sync controller
     ref.listen(searchStateProvider.select((s) => s.rawQueryText), (prev, next) {
+      if (_controller.text != next) {
+        _controller.text = next;
+        // Move cursor to end
+        _controller.selection = TextSelection.collapsed(offset: next.length);
+      }
+
       // Hide overlay when query has any text (panel takes over)
       if (next.trim().isNotEmpty && _overlayController.isShowing) {
         _overlayController.hide();
@@ -237,7 +218,7 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                     ),
                     // Proximity toggle button - opens proximity dialog
                     // Only visible when user starts typing a second word
-                    if (_showProximityButton)
+                    if (showProximityButton)
                       Container(
                         height: 30,
                         width: 30,
@@ -263,7 +244,7 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                         ),
                       ),
                     // Clear button (only shown when text is present)
-                    if (_showClearButton)
+                    if (_controller.text.isNotEmpty)
                       Container(
                         height: 30,
                         width: 30,
@@ -292,10 +273,7 @@ class _SearchBarState extends ConsumerState<SearchBar> {
               ),
               onChanged: (value) {
                 ref.read(searchStateProvider.notifier).updateQuery(value);
-                // Note: Do NOT call setState() here. Button visibility is
-                // handled by _onControllerTextChanged. Calling setState on
-                // every keystroke causes widget rebuilds that interrupt IME
-                // composition on Windows (Helakuru Phonetic keyboard).
+                setState(() {});
               },
               onSubmitted: (value) {
                 // Dismiss keyboard on mobile when user presses Enter
