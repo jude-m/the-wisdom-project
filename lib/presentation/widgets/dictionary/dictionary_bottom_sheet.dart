@@ -14,6 +14,7 @@ import '../../../domain/entities/dictionary/dictionary_info.dart';
 import '../../../domain/entities/dictionary/dictionary_params.dart';
 import '../../../core/utils/search_query_utils.dart';
 import '../../providers/dictionary_provider.dart';
+import '../common/circular_toggle_button.dart';
 import 'dpd_read_more_link.dart';
 import 'refine_dictionary_dialog.dart';
 
@@ -163,10 +164,12 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
   @override
   Widget build(BuildContext context) {
     final filterIds = ref.watch(bottomSheetDictionaryFilterProvider);
+    final isExactMatch = ref.watch(bottomSheetExactMatchProvider);
     final entriesAsync = ref.watch(
       dictionaryLookupProvider(
         DictionaryLookupParams(
           word: _currentLookupWord,
+          exactMatch: isExactMatch,
           dictionaryIds: filterIds,
         ),
       ),
@@ -287,6 +290,18 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
                                   ),
                                 ),
                               ),
+                            ),
+                            // Exact match toggle
+                            CircularToggleButton(
+                              isActive: isExactMatch,
+                              icon: Icons.abc,
+                              tooltip:
+                                  AppLocalizations.of(context).isExactMatchToggle,
+                              onPressed: () {
+                                ref
+                                    .read(bottomSheetExactMatchProvider.notifier)
+                                    .state = !isExactMatch;
+                              },
                             ),
                             // Refine dictionaries button
                             _DictionaryFilterButton(

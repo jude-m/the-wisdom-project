@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import '../../providers/search_provider.dart';
+import '../common/circular_toggle_button.dart';
 import 'proximity_dialog.dart';
 import 'recent_search_overlay.dart';
 
@@ -188,60 +189,24 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Exact match toggle button with clear visual state
-                    Container(
-                      height: 30,
-                      width: 30,
-                      margin: const EdgeInsets.only(left: 4),
-                      decoration: BoxDecoration(
-                        color: isExactMatch
-                            ? theme.colorScheme.primaryContainer
-                            : theme.colorScheme.surfaceContainerHighest,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        icon: Icon(
-                          Icons.abc,
-                          size: 20,
-                          color: isExactMatch
-                              ? theme.colorScheme.onPrimaryContainer
-                              : theme.colorScheme.primary,
-                        ),
-                        tooltip: l10n.isExactMatchToggle,
-                        onPressed: () {
-                          ref
-                              .read(searchStateProvider.notifier)
-                              .toggleExactMatch();
-                        },
-                      ),
+                    CircularToggleButton(
+                      isActive: isExactMatch,
+                      icon: Icons.abc,
+                      tooltip: l10n.isExactMatchToggle,
+                      onPressed: () {
+                        ref
+                            .read(searchStateProvider.notifier)
+                            .toggleExactMatch();
+                      },
                     ),
                     // Proximity toggle button - opens proximity dialog
                     // Only visible when user starts typing a second word
                     if (showProximityButton)
-                      Container(
-                        height: 30,
-                        width: 30,
-                        margin: const EdgeInsets.only(left: 4),
-                        decoration: BoxDecoration(
-                          color: isProximityActive
-                              ? theme.colorScheme.primaryContainer
-                              : theme.colorScheme.surfaceContainerHighest,
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: Icon(
-                            Icons.space_bar,
-                            size: 20,
-                            color: isProximityActive
-                                ? theme.colorScheme.onPrimaryContainer
-                                : theme.colorScheme.primary,
-                          ),
-                          tooltip: l10n.wordProximity,
-                          onPressed: () => ProximityDialog.show(context),
-                        ),
+                      CircularToggleButton(
+                        isActive: isProximityActive,
+                        icon: Icons.space_bar,
+                        tooltip: l10n.wordProximity,
+                        onPressed: () => ProximityDialog.show(context),
                       ),
                     // Clear button (only shown when text is present)
                     if (_controller.text.isNotEmpty)

@@ -35,6 +35,11 @@ final hasActiveSelectionProvider = StateProvider<bool>((ref) => false);
 final bottomSheetDictionaryFilterProvider =
     StateProvider<Set<String>>((ref) => {});
 
+/// Exact match toggle for the dictionary bottom sheet.
+/// When true, only exact word matches are returned (no prefix matching).
+/// Persists across word taps and sheet close/reopen (like the filter provider).
+final bottomSheetExactMatchProvider = StateProvider<bool>((ref) => false);
+
 // ============================================================================
 // DATASOURCE & REPOSITORY PROVIDERS
 // ============================================================================
