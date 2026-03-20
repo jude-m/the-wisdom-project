@@ -116,23 +116,23 @@ abstract class AppLocalizations {
   /// **'Reader'**
   String get readerTitle;
 
-  /// Label for Pali-only column display mode
+  /// Label for Pali-only reader layout
   ///
   /// In en, this message translates to:
   /// **'Pali Only'**
-  String get columnModePaliOnly;
+  String get layoutPaliOnly;
 
-  /// Label for Sinhala-only column display mode
+  /// Label for Sinhala-only reader layout
   ///
   /// In en, this message translates to:
   /// **'Sinhala Only'**
-  String get columnModeSinhalaOnly;
+  String get layoutSinhalaOnly;
 
-  /// Label for dual-column display mode showing both Pali and Sinhala
+  /// Label for side-by-side reader layout showing both Pali and Sinhala horizontally
   ///
   /// In en, this message translates to:
-  /// **'Both'**
-  String get columnModeBoth;
+  /// **'Side by Side'**
+  String get layoutSideBySide;
 
   /// Label for Pali language
   ///

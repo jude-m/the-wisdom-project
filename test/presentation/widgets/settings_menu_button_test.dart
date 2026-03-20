@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/presentation/widgets/settings_menu_button.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
-import 'package:the_wisdom_project/presentation/models/column_display_mode.dart';
+import 'package:the_wisdom_project/presentation/models/reader_layout.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/domain/entities/navigation/navigation_language.dart';
 
@@ -83,16 +83,16 @@ void main() {
       expect(container.read(navigationLanguageProvider),
           NavigationLanguage.sinhala);
 
-      // Change Sutta Language (Column Mode) - now per-tab
+      // Change Sutta Language (Reader Layout) - now per-tab
       // Note: 'P' text might be inside the SegmentedButton
       await tester.tap(find.text('S'));
       await tester.pumpAndSettle();
-      expect(container.read(activeColumnModeProvider),
-          ColumnDisplayMode.sinhalaOnly);
+      expect(container.read(activeReaderLayoutProvider),
+          ReaderLayout.sinhalaOnly);
 
       await tester.tap(find.text('P+S'));
       await tester.pumpAndSettle();
-      expect(container.read(activeColumnModeProvider), ColumnDisplayMode.both);
+      expect(container.read(activeReaderLayoutProvider), ReaderLayout.sideBySide);
     });
   });
 }

@@ -18,13 +18,13 @@ class AppLocalizationsSi extends AppLocalizations {
   String get readerTitle => 'පාඨකය';
 
   @override
-  String get columnModePaliOnly => 'පාලි පමණයි';
+  String get layoutPaliOnly => 'පාලි පමණයි';
 
   @override
-  String get columnModeSinhalaOnly => 'සිංහල පමණයි';
+  String get layoutSinhalaOnly => 'සිංහල පමණයි';
 
   @override
-  String get columnModeBoth => 'දෙකම';
+  String get layoutSideBySide => 'දෙකම';
 
   @override
   String get paliLanguageLabel => 'පාලි';

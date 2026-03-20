@@ -18,13 +18,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readerTitle => 'Reader';
 
   @override
-  String get columnModePaliOnly => 'Pali Only';
+  String get layoutPaliOnly => 'Pali Only';
 
   @override
-  String get columnModeSinhalaOnly => 'Sinhala Only';
+  String get layoutSinhalaOnly => 'Sinhala Only';
 
   @override
-  String get columnModeBoth => 'Both';
+  String get layoutSideBySide => 'Side by Side';
 
   @override
   String get paliLanguageLabel => 'Pali';

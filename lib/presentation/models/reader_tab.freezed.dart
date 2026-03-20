@@ -58,11 +58,11 @@ mixin _$ReaderTab {
   /// Nullable for backward compatibility
   List<ReaderPane> get panes => throw _privateConstructorUsedError;
 
-  /// Column display mode for this tab (per-tab setting)
+  /// Reader layout mode for this tab (per-tab setting)
   /// Defaults to paliOnly for portrait mode, can be changed by user
-  ColumnDisplayMode get columnMode => throw _privateConstructorUsedError;
+  ReaderLayout get layout => throw _privateConstructorUsedError;
 
-  /// Split ratio for "both" column mode (0.0 to 1.0)
+  /// Split ratio for side-by-side layout (0.0 to 1.0)
   /// Represents the proportion of width for the left (Pali) pane
   double get splitRatio => throw _privateConstructorUsedError;
 
@@ -91,7 +91,7 @@ abstract class $ReaderTabCopyWith<$Res> {
       String? sinhalaName,
       String? textId,
       List<ReaderPane> panes,
-      ColumnDisplayMode columnMode,
+      ReaderLayout layout,
       double splitRatio});
 }
 
@@ -122,7 +122,7 @@ class _$ReaderTabCopyWithImpl<$Res, $Val extends ReaderTab>
     Object? sinhalaName = freezed,
     Object? textId = freezed,
     Object? panes = null,
-    Object? columnMode = null,
+    Object? layout = null,
     Object? splitRatio = null,
   }) {
     return _then(_value.copyWith(
@@ -174,10 +174,10 @@ class _$ReaderTabCopyWithImpl<$Res, $Val extends ReaderTab>
           ? _value.panes
           : panes // ignore: cast_nullable_to_non_nullable
               as List<ReaderPane>,
-      columnMode: null == columnMode
-          ? _value.columnMode
-          : columnMode // ignore: cast_nullable_to_non_nullable
-              as ColumnDisplayMode,
+      layout: null == layout
+          ? _value.layout
+          : layout // ignore: cast_nullable_to_non_nullable
+              as ReaderLayout,
       splitRatio: null == splitRatio
           ? _value.splitRatio
           : splitRatio // ignore: cast_nullable_to_non_nullable
@@ -207,7 +207,7 @@ abstract class _$$ReaderTabImplCopyWith<$Res>
       String? sinhalaName,
       String? textId,
       List<ReaderPane> panes,
-      ColumnDisplayMode columnMode,
+      ReaderLayout layout,
       double splitRatio});
 }
 
@@ -236,7 +236,7 @@ class __$$ReaderTabImplCopyWithImpl<$Res>
     Object? sinhalaName = freezed,
     Object? textId = freezed,
     Object? panes = null,
-    Object? columnMode = null,
+    Object? layout = null,
     Object? splitRatio = null,
   }) {
     return _then(_$ReaderTabImpl(
@@ -288,10 +288,10 @@ class __$$ReaderTabImplCopyWithImpl<$Res>
           ? _value._panes
           : panes // ignore: cast_nullable_to_non_nullable
               as List<ReaderPane>,
-      columnMode: null == columnMode
-          ? _value.columnMode
-          : columnMode // ignore: cast_nullable_to_non_nullable
-              as ColumnDisplayMode,
+      layout: null == layout
+          ? _value.layout
+          : layout // ignore: cast_nullable_to_non_nullable
+              as ReaderLayout,
       splitRatio: null == splitRatio
           ? _value.splitRatio
           : splitRatio // ignore: cast_nullable_to_non_nullable
@@ -316,7 +316,7 @@ class _$ReaderTabImpl extends _ReaderTab {
       this.sinhalaName,
       this.textId,
       final List<ReaderPane> panes = const [],
-      this.columnMode = ColumnDisplayMode.paliOnly,
+      this.layout = ReaderLayout.paliOnly,
       this.splitRatio = 0.5})
       : assert(splitRatio >= 0.0 && splitRatio <= 1.0,
             'splitRatio must be between 0.0 and 1.0'),
@@ -392,13 +392,13 @@ class _$ReaderTabImpl extends _ReaderTab {
     return EqualUnmodifiableListView(_panes);
   }
 
-  /// Column display mode for this tab (per-tab setting)
+  /// Reader layout mode for this tab (per-tab setting)
   /// Defaults to paliOnly for portrait mode, can be changed by user
   @override
   @JsonKey()
-  final ColumnDisplayMode columnMode;
+  final ReaderLayout layout;
 
-  /// Split ratio for "both" column mode (0.0 to 1.0)
+  /// Split ratio for side-by-side layout (0.0 to 1.0)
   /// Represents the proportion of width for the left (Pali) pane
   @override
   @JsonKey()
@@ -406,7 +406,7 @@ class _$ReaderTabImpl extends _ReaderTab {
 
   @override
   String toString() {
-    return 'ReaderTab(label: $label, fullName: $fullName, contentFileId: $contentFileId, pageIndex: $pageIndex, pageStart: $pageStart, pageEnd: $pageEnd, entryStart: $entryStart, nodeKey: $nodeKey, paliName: $paliName, sinhalaName: $sinhalaName, textId: $textId, panes: $panes, columnMode: $columnMode, splitRatio: $splitRatio)';
+    return 'ReaderTab(label: $label, fullName: $fullName, contentFileId: $contentFileId, pageIndex: $pageIndex, pageStart: $pageStart, pageEnd: $pageEnd, entryStart: $entryStart, nodeKey: $nodeKey, paliName: $paliName, sinhalaName: $sinhalaName, textId: $textId, panes: $panes, layout: $layout, splitRatio: $splitRatio)';
   }
 
   @override
@@ -433,8 +433,7 @@ class _$ReaderTabImpl extends _ReaderTab {
                 other.sinhalaName == sinhalaName) &&
             (identical(other.textId, textId) || other.textId == textId) &&
             const DeepCollectionEquality().equals(other._panes, _panes) &&
-            (identical(other.columnMode, columnMode) ||
-                other.columnMode == columnMode) &&
+            (identical(other.layout, layout) || other.layout == layout) &&
             (identical(other.splitRatio, splitRatio) ||
                 other.splitRatio == splitRatio));
   }
@@ -454,7 +453,7 @@ class _$ReaderTabImpl extends _ReaderTab {
       sinhalaName,
       textId,
       const DeepCollectionEquality().hash(_panes),
-      columnMode,
+      layout,
       splitRatio);
 
   /// Create a copy of ReaderTab
@@ -480,7 +479,7 @@ abstract class _ReaderTab extends ReaderTab {
       final String? sinhalaName,
       final String? textId,
       final List<ReaderPane> panes,
-      final ColumnDisplayMode columnMode,
+      final ReaderLayout layout,
       final double splitRatio}) = _$ReaderTabImpl;
   const _ReaderTab._() : super._();
 
@@ -538,12 +537,12 @@ abstract class _ReaderTab extends ReaderTab {
   @override
   List<ReaderPane> get panes;
 
-  /// Column display mode for this tab (per-tab setting)
+  /// Reader layout mode for this tab (per-tab setting)
   /// Defaults to paliOnly for portrait mode, can be changed by user
   @override
-  ColumnDisplayMode get columnMode;
+  ReaderLayout get layout;
 
-  /// Split ratio for "both" column mode (0.0 to 1.0)
+  /// Split ratio for side-by-side layout (0.0 to 1.0)
   /// Represents the proportion of width for the left (Pali) pane
   @override
   double get splitRatio;

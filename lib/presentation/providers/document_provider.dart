@@ -61,9 +61,9 @@ final currentBJTDocumentProvider = Provider<AsyncValue<BJTDocument?>>((ref) {
   return ref.watch(bjtDocumentProvider(fileId));
 });
 
-// Note: Column display mode is now per-tab, stored in ReaderTab.columnMode
-// Access via activeColumnModeProvider in tab_provider.dart
-// Update via updateActiveTabColumnModeProvider in tab_provider.dart
+// Note: Reader layout is now per-tab, stored in ReaderTab.layout
+// Access via activeReaderLayoutProvider in tab_provider.dart
+// Update via updateActiveTabLayoutProvider in tab_provider.dart
 
 // Provider to load more pages
 // Updates only the active tab's pageEnd; widgets react via activePageEndProvider

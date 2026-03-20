@@ -7,11 +7,11 @@
 
   "readerTitle": "පාඨකය",
 
-  "columnModePaliOnly": "පාලි පමණයි",
+  "layoutPaliOnly": "පාලි පමණයි",
 
-  "columnModeSinhalaOnly": "සිංහල පමණයි",
+  "layoutSinhalaOnly": "සිංහල පමණයි",
 
-  "columnModeBoth": "දෙකම",
+  "layoutSideBySide": "දෙකම",
 
   "paliLanguageLabel": "පාලි",
 

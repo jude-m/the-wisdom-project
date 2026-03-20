@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/constants.dart';
 import '../../domain/entities/search/search_result.dart';
-import '../models/column_display_mode.dart';
+import '../models/reader_layout.dart';
 import '../models/reader_tab.dart';
 import 'navigation_tree_provider.dart';
 import 'navigator_sync_provider.dart';
@@ -166,15 +166,15 @@ final activeEntryStartProvider = Provider<int>((ref) {
   return 0;
 });
 
-/// Derived provider for active tab's column display mode
+/// Derived provider for active tab's reader layout mode
 /// Returns paliOnly if no tab is selected (default for portrait mode)
-final activeColumnModeProvider = Provider<ColumnDisplayMode>((ref) {
+final activeReaderLayoutProvider = Provider<ReaderLayout>((ref) {
   final activeIndex = ref.watch(activeTabIndexProvider);
   final tabs = ref.watch(tabsProvider);
   if (activeIndex >= 0 && activeIndex < tabs.length) {
-    return tabs[activeIndex].columnMode;
+    return tabs[activeIndex].layout;
   }
-  return ColumnDisplayMode.paliOnly;
+  return ReaderLayout.paliOnly;
 });
 
 /// Provider to update pagination state for the active tab
@@ -206,21 +206,21 @@ final updateActiveTabPageIndexProvider = Provider<void Function(int)>((ref) {
   };
 });
 
-/// Provider to update the column display mode of the active tab
-/// Used when user changes column mode in settings menu
-final updateActiveTabColumnModeProvider =
-    Provider<void Function(ColumnDisplayMode)>((ref) {
-  return (ColumnDisplayMode mode) {
+/// Provider to update the reader layout of the active tab
+/// Used when user changes layout in settings menu
+final updateActiveTabLayoutProvider =
+    Provider<void Function(ReaderLayout)>((ref) {
+  return (ReaderLayout layout) {
     final activeIndex = ref.read(activeTabIndexProvider);
     final tabs = ref.read(tabsProvider);
     if (activeIndex >= 0 && activeIndex < tabs.length) {
-      final updatedTab = tabs[activeIndex].copyWith(columnMode: mode);
+      final updatedTab = tabs[activeIndex].copyWith(layout: layout);
       ref.read(tabsProvider.notifier).updateTab(activeIndex, updatedTab);
     }
   };
 });
 
-/// Derived provider for active tab's split ratio (for "both" column mode)
+/// Derived provider for active tab's split ratio (for side-by-side layout)
 /// Returns default ratio (0.5) if no tab is selected
 final activeSplitRatioProvider = Provider<double>((ref) {
   final activeIndex = ref.watch(activeTabIndexProvider);
@@ -232,7 +232,7 @@ final activeSplitRatioProvider = Provider<double>((ref) {
 });
 
 /// Provider to update the split ratio of the active tab
-/// Used when user drags the resizable divider in "both" column mode
+/// Used when user drags the resizable divider in side-by-side layout
 final updateActiveTabSplitRatioProvider = Provider<void Function(double)>((ref) {
   return (double ratio) {
     final activeIndex = ref.read(activeTabIndexProvider);
@@ -266,20 +266,20 @@ final switchTabProvider = Provider<void Function(int)>((ref) {
 
 /// Provider to open a new tab from a search result
 /// Centralizes the tab creation and navigation logic used across search widgets
-/// All state (contentFileId, pageIndex, pagination, columnMode) is derived from the tab entity
+/// All state (contentFileId, pageIndex, pagination, layout) is derived from the tab entity
 final openTabFromSearchResultProvider =
     Provider<void Function(SearchResult, {bool isPortraitMode})>((ref) {
   return (SearchResult result, {bool isPortraitMode = false}) {
-    // Determine column mode based on result language
+    // Determine layout based on result language
     // In portrait mode: show the language matching the search result
-    // In landscape mode: show both columns
-    final ColumnDisplayMode columnMode;
+    // In landscape mode: show side by side
+    final ReaderLayout layout;
     if (isPortraitMode) {
-      columnMode = result.language == 'sinhala'
-          ? ColumnDisplayMode.sinhalaOnly
-          : ColumnDisplayMode.paliOnly;
+      layout = result.language == 'sinhala'
+          ? ReaderLayout.sinhalaOnly
+          : ReaderLayout.paliOnly;
     } else {
-      columnMode = ColumnDisplayMode.both;
+      layout = ReaderLayout.sideBySide;
     }
 
     // Snap entryStart to sutta beginning if the FTS match is near the start.
@@ -305,7 +305,7 @@ final openTabFromSearchResultProvider =
       contentFileId: result.contentFileId,
       pageIndex: result.pageIndex,
       entryStart: entryStart,
-      columnMode: columnMode,
+      layout: layout,
     );
 
     // Add tab and make it active
@@ -313,7 +313,7 @@ final openTabFromSearchResultProvider =
     // - activeContentFileIdProvider
     // - activePageIndexProvider
     // - activePageStartProvider, activePageEndProvider, activeEntryStartProvider
-    // - activeColumnModeProvider
+    // - activeReaderLayoutProvider
     final newIndex = ref.read(tabsProvider.notifier).addTab(newTab);
     ref.read(activeTabIndexProvider.notifier).state = newIndex;
 
@@ -339,9 +339,9 @@ final openTabFromNodeKeyProvider =
     final node = ref.read(nodeByKeyProvider(nodeKey));
     if (node == null) return -1;
 
-    final columnMode = isPortraitMode
-        ? ColumnDisplayMode.paliOnly
-        : ColumnDisplayMode.both;
+    final layout = isPortraitMode
+        ? ReaderLayout.paliOnly
+        : ReaderLayout.sideBySide;
 
     final newTab = ReaderTab.fromNode(
       nodeKey: node.nodeKey,
@@ -350,7 +350,7 @@ final openTabFromNodeKeyProvider =
       contentFileId: node.isReadableContent ? node.contentFileId : null,
       pageIndex: node.isReadableContent ? node.entryPageIndex : 0,
       entryStart: node.isReadableContent ? node.entryIndexInPage : 0,
-      columnMode: columnMode,
+      layout: layout,
     );
 
     final newIndex = ref.read(tabsProvider.notifier).addTab(newTab);

@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import '../../core/utils/text_utils.dart' show truncateGraphemes;
-import 'column_display_mode.dart';
+import 'reader_layout.dart';
 import 'reader_pane.dart';
 
 part 'reader_tab.freezed.dart';
@@ -58,11 +58,11 @@ class ReaderTab with _$ReaderTab {
     /// Nullable for backward compatibility
     @Default([]) List<ReaderPane> panes,
 
-    /// Column display mode for this tab (per-tab setting)
+    /// Reader layout mode for this tab (per-tab setting)
     /// Defaults to paliOnly for portrait mode, can be changed by user
-    @Default(ColumnDisplayMode.paliOnly) ColumnDisplayMode columnMode,
+    @Default(ReaderLayout.paliOnly) ReaderLayout layout,
 
-    /// Split ratio for "both" column mode (0.0 to 1.0)
+    /// Split ratio for side-by-side layout (0.0 to 1.0)
     /// Represents the proportion of width for the left (Pali) pane
     @Default(0.5) double splitRatio,
   }) = _ReaderTab;
@@ -75,7 +75,7 @@ class ReaderTab with _$ReaderTab {
     String? contentFileId,
     int pageIndex = 0,
     int entryStart = 0,
-    ColumnDisplayMode columnMode = ColumnDisplayMode.paliOnly,
+    ReaderLayout layout = ReaderLayout.paliOnly,
   }) {
     final label = truncateGraphemes(paliName, 20);
 
@@ -90,7 +90,7 @@ class ReaderTab with _$ReaderTab {
       nodeKey: nodeKey,
       paliName: paliName,
       sinhalaName: sinhalaName,
-      columnMode: columnMode,
+      layout: layout,
     );
   }
 

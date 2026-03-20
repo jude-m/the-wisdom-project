@@ -31,7 +31,7 @@ final navigateToPreviousSuttaProvider =
     ref.read(saveTabScrollPositionProvider)(activeIndex, 0);
 
     // Build from the canonical factory, then preserve the user's display
-    // preferences (columnMode, splitRatio) from the current tab.
+    // preferences (layout, splitRatio) from the current tab.
     final baseTab = ReaderTab.fromNode(
       nodeKey: previousNode.nodeKey,
       paliName: previousNode.paliName,
@@ -39,7 +39,7 @@ final navigateToPreviousSuttaProvider =
       contentFileId: previousNode.contentFileId,
       pageIndex: previousNode.entryPageIndex,
       entryStart: previousNode.entryIndexInPage,
-      columnMode: currentTab.columnMode,
+      layout: currentTab.layout,
     );
     final updatedTab = baseTab.copyWith(splitRatio: currentTab.splitRatio);
     ref.read(tabsProvider.notifier).updateTab(activeIndex, updatedTab);

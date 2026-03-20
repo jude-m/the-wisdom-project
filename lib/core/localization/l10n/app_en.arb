@@ -16,19 +16,19 @@
     "description": "Title for the reading screen"
   },
 
-  "columnModePaliOnly": "Pali Only",
-  "@columnModePaliOnly": {
-    "description": "Label for Pali-only column display mode"
+  "layoutPaliOnly": "Pali Only",
+  "@layoutPaliOnly": {
+    "description": "Label for Pali-only reader layout"
   },
 
-  "columnModeSinhalaOnly": "Sinhala Only",
-  "@columnModeSinhalaOnly": {
-    "description": "Label for Sinhala-only column display mode"
+  "layoutSinhalaOnly": "Sinhala Only",
+  "@layoutSinhalaOnly": {
+    "description": "Label for Sinhala-only reader layout"
   },
 
-  "columnModeBoth": "Both",
-  "@columnModeBoth": {
-    "description": "Label for dual-column display mode showing both Pali and Sinhala"
+  "layoutSideBySide": "Side by Side",
+  "@layoutSideBySide": {
+    "description": "Label for side-by-side reader layout showing both Pali and Sinhala horizontally"
   },
 
   "paliLanguageLabel": "Pali",

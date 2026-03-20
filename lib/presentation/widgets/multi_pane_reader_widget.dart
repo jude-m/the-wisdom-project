@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/localization/l10n/app_localizations.dart';
 import '../../core/theme/app_typography.dart';
-import '../models/column_display_mode.dart';
+import '../models/reader_layout.dart';
 import '../models/in_page_search_state.dart';
 import '../../domain/entities/bjt/bjt_page.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
@@ -21,7 +21,7 @@ import '../providers/tab_provider.dart'
         activePageStartProvider,
         activePageEndProvider,
         activeEntryStartProvider,
-        activeColumnModeProvider,
+        activeReaderLayoutProvider,
         activeNodeKeyProvider,
         updateActiveTabPaginationProvider;
 import '../providers/previous_sutta_provider.dart'
@@ -31,6 +31,7 @@ import '../providers/navigation_tree_provider.dart'
 import '../providers/fts_highlight_provider.dart';
 import 'reader/single_column_pane.dart';
 import 'reader/dual_column_pane.dart';
+import 'reader/stacked_pane.dart';
 import 'reader/reader_selection_handler.dart';
 import 'reader/in_page_search_bar.dart';
 import 'reader/reader_action_buttons.dart';
@@ -275,7 +276,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           _scrollController.jumpTo(0);
         }
 
-        // Column mode is now per-tab and derived from activeColumnModeProvider
+        // Layout is now per-tab and derived from activeReaderLayoutProvider
         // No need to override or reset - each tab remembers its own column mode
 
         // Then restore the actual saved position for the new tab after content renders
@@ -310,6 +311,14 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       });
     });
 
+    // Listen to layout changes to preserve scroll position across pane switches
+    ref.listen<ReaderLayout>(activeReaderLayoutProvider, (previous, next) {
+      if (previous != null && previous != next) {
+        _saveScrollPosition();
+        _restoreScrollPosition();
+      }
+    });
+
     // Listen to in-page search state changes to trigger scroll-to-match
     ref.listen<InPageSearchState>(activeInPageSearchStateProvider,
         (previous, next) {
@@ -320,8 +329,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     });
 
     final contentAsync = ref.watch(currentBJTDocumentProvider);
-    // Watch per-tab column mode (each tab remembers its own setting)
-    final columnMode = ref.watch(activeColumnModeProvider);
+    // Watch per-tab reader layout (each tab remembers its own setting)
+    final readerLayout = ref.watch(activeReaderLayoutProvider);
     // Watch selected word to conditionally mount the dictionary sheet
     final selectedWord = ref.watch(selectedDictionaryWordProvider);
     // Watch pagination state to determine if scroll up buttons should show
@@ -399,12 +408,12 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
                     );
                   }
 
-                  // Build the layout based on column mode
+                  // Build the layout based on reader layout mode
                   // (entryStart already watched above for isAfterSuttaBeginning check)
                   return _buildContentLayout(
                     context,
                     pagesToShow,
-                    columnMode,
+                    readerLayout,
                     entryStart,
                     searchState,
                     pageStart,
@@ -549,17 +558,17 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     ref.read(selectedDictionaryWordProvider.notifier).state = word;
   }
 
-  /// Delegates to the appropriate pane widget based on column mode.
+  /// Delegates to the appropriate pane widget based on reader layout.
   Widget _buildContentLayout(
     BuildContext context,
     List<BJTPage> pages,
-    ColumnDisplayMode columnMode,
+    ReaderLayout readerLayout,
     int entryStart,
     InPageSearchState searchState,
     int absolutePageStart,
   ) {
-    switch (columnMode) {
-      case ColumnDisplayMode.paliOnly:
+    switch (readerLayout) {
+      case ReaderLayout.paliOnly:
         return SingleColumnPane(
           scrollController: _scrollController,
           pages: pages,
@@ -574,7 +583,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           onSelectionChanged: onSelectionChanged,
           contextMenuBuilder: buildSelectionContextMenu,
         );
-      case ColumnDisplayMode.sinhalaOnly:
+      case ReaderLayout.sinhalaOnly:
         return SingleColumnPane(
           scrollController: _scrollController,
           pages: pages,
@@ -589,8 +598,21 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           onSelectionChanged: onSelectionChanged,
           contextMenuBuilder: buildSelectionContextMenu,
         );
-      case ColumnDisplayMode.both:
+      case ReaderLayout.sideBySide:
         return DualColumnPane(
+          scrollController: _scrollController,
+          pages: pages,
+          entryStart: entryStart,
+          absolutePageStart: absolutePageStart,
+          searchState: searchState,
+          currentMatchKey: _currentMatchKey,
+          onTapEmpty: _clearAllHighlights,
+          onWordTap: _handleWordTap,
+          onSelectionChanged: onSelectionChanged,
+          contextMenuBuilder: buildSelectionContextMenu,
+        );
+      case ReaderLayout.stacked:
+        return StackedPane(
           scrollController: _scrollController,
           pages: pages,
           entryStart: entryStart,

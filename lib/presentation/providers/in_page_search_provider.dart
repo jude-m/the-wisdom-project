@@ -6,7 +6,7 @@ import '../../core/utils/search_match_finder.dart';
 import '../../core/utils/search_query_utils.dart';
 import '../../domain/entities/bjt/bjt_document.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
-import '../models/column_display_mode.dart';
+import '../models/reader_layout.dart';
 import '../models/in_page_search_state.dart';
 import 'document_provider.dart';
 import 'navigation_tree_provider.dart';
@@ -98,13 +98,13 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
     final tabs = _ref.read(tabsProvider);
     if (tabIndex >= tabs.length) return;
     final contentFileId = tabs[tabIndex].contentFileId;
-    final columnMode = tabs[tabIndex].columnMode;
+    final layout = tabs[tabIndex].layout;
     final nodeKey = tabs[tabIndex].nodeKey;
 
     // Debounce the expensive match computation
     _debounceTimers[tabIndex] = Timer(const Duration(milliseconds: 300), () {
       _computeAndSetMatches(
-        tabIndex, effectiveQuery, contentFileId, columnMode, nodeKey,
+        tabIndex, effectiveQuery, contentFileId, layout, nodeKey,
       );
     });
   }
@@ -212,7 +212,7 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
 
   /// Searches the sutta's pages for matches (scoped by navigation tree bounds).
   ///
-  /// Uses tab-specific [contentFileId], [columnMode], and [nodeKey] (captured
+  /// Uses tab-specific [contentFileId], [layout], and [nodeKey] (captured
   /// at call time) to avoid reading stale state if the active tab changed
   /// during debounce.
   ///
@@ -225,7 +225,7 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
     int tabIndex,
     String effectiveQuery,
     String? contentFileId,
-    ColumnDisplayMode columnMode,
+    ReaderLayout layout,
     String? nodeKey,
   ) {
     if (!mounted) return;
@@ -244,7 +244,7 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
       );
 
       final matches = _findAllMatches(
-        document, effectiveQuery, columnMode, bounds,
+        document, effectiveQuery, layout, bounds,
       );
 
       _setTabState(
@@ -257,14 +257,14 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
     });
   }
 
-  /// Scans pages within [bounds] for the query, respecting column mode.
+  /// Scans pages within [bounds] for the query, respecting reader layout.
   ///
   /// Only searches entries that belong to the current sutta (bounded by the
   /// next sibling's start position in the navigation tree).
   List<InPageMatch> _findAllMatches(
     BJTDocument document,
     String effectiveQuery,
-    ColumnDisplayMode columnMode,
+    ReaderLayout layout,
     _SuttaBounds bounds,
   ) {
     final matches = <InPageMatch>[];
@@ -287,8 +287,8 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
 
       final page = document.pages[pageIndex];
 
-      // Search Pali entries if column mode includes Pali
-      if (columnMode != ColumnDisplayMode.sinhalaOnly) {
+      // Search Pali entries if layout includes Pali
+      if (layout != ReaderLayout.sinhalaOnly) {
         final paliEntries = page.paliSection.entries;
         final firstEntry =
             (pageIndex == bounds.startPage) ? bounds.startEntry : 0;
@@ -311,8 +311,8 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
         }
       }
 
-      // Search Sinhala entries if column mode includes Sinhala
-      if (columnMode != ColumnDisplayMode.paliOnly) {
+      // Search Sinhala entries if layout includes Sinhala
+      if (layout != ReaderLayout.paliOnly) {
         final sinhalaEntries = page.sinhalaSection.entries;
         final firstEntry =
             (pageIndex == bounds.startPage) ? bounds.startEntry : 0;

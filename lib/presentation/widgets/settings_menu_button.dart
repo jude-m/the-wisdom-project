@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../domain/entities/navigation/navigation_language.dart';
-import '../models/column_display_mode.dart';
+import '../models/reader_layout.dart';
 import '../providers/navigation_tree_provider.dart';
 import '../providers/tab_provider.dart'
-    show activeColumnModeProvider, updateActiveTabColumnModeProvider;
+    show activeReaderLayoutProvider, updateActiveTabLayoutProvider;
 
 /// Settings menu button for AppBar
 class SettingsMenuButton extends ConsumerWidget {
@@ -142,33 +142,37 @@ class _LanguageSelector extends ConsumerWidget {
 }
 
 /// Sutta language selection buttons
-/// Uses per-tab column mode - each tab remembers its own setting
+/// Uses per-tab reader layout - each tab remembers its own setting
 class _SuttaLanguageSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch per-tab column mode
-    final currentMode = ref.watch(activeColumnModeProvider);
+    // Watch per-tab reader layout
+    final currentLayout = ref.watch(activeReaderLayoutProvider);
     final segmentStyle = context.typography.segmentedButtonLabel;
 
-    return SegmentedButton<ColumnDisplayMode>(
+    return SegmentedButton<ReaderLayout>(
       segments: [
         ButtonSegment(
-          value: ColumnDisplayMode.paliOnly,
+          value: ReaderLayout.paliOnly,
           label: Text('P', style: segmentStyle),
         ),
         ButtonSegment(
-          value: ColumnDisplayMode.both,
+          value: ReaderLayout.sideBySide,
           label: Text('P+S', style: segmentStyle),
         ),
         ButtonSegment(
-          value: ColumnDisplayMode.sinhalaOnly,
+          value: ReaderLayout.stacked,
+          label: Text('P|S', style: segmentStyle),
+        ),
+        ButtonSegment(
+          value: ReaderLayout.sinhalaOnly,
           label: Text('S', style: segmentStyle),
         ),
       ],
-      selected: {currentMode},
-      onSelectionChanged: (Set<ColumnDisplayMode> newSelection) {
-        // Update the active tab's column mode
-        ref.read(updateActiveTabColumnModeProvider)(newSelection.first);
+      selected: {currentLayout},
+      onSelectionChanged: (Set<ReaderLayout> newSelection) {
+        // Update the active tab's reader layout
+        ref.read(updateActiveTabLayoutProvider)(newSelection.first);
       },
       style: const ButtonStyle(
         visualDensity: VisualDensity.compact,
