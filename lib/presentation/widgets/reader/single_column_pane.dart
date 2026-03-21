@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart' show SelectedContent;
 import '../../../core/constants/constants.dart';
 import '../../../domain/entities/bjt/bjt_page.dart';
 import '../../models/in_page_search_state.dart';
+import 'entry_key_registry.dart';
 import 'reader_entry_builder.dart';
 
 /// A single-column reader pane for paliOnly or sinhalaOnly display modes.
@@ -21,6 +22,7 @@ class SingleColumnPane extends StatelessWidget {
     required this.languageCode,
     required this.enableDictionaryLookup,
     required this.currentMatchKey,
+    required this.entryKeyRegistry,
     required this.onTapEmpty,
     this.onWordTap,
     required this.onSelectionChanged,
@@ -39,6 +41,10 @@ class SingleColumnPane extends StatelessWidget {
 
   /// Attached to the current search match entry for scroll-to-match.
   final GlobalKey currentMatchKey;
+
+  /// Registry for entry-level GlobalKeys used to sync scroll position
+  /// across layout switches.
+  final EntryKeyRegistry entryKeyRegistry;
 
   /// Called when tapping empty space (clears highlights).
   final VoidCallback onTapEmpty;
@@ -94,6 +100,7 @@ class SingleColumnPane extends StatelessWidget {
                   languageCode: languageCode,
                   currentMatchKey: currentMatchKey,
                   onWordTap: onWordTap,
+                  entryKeyRegistry: entryKeyRegistry,
                 ),
                 const SizedBox(height: 32), // Space between pages
               ],

@@ -4,6 +4,7 @@ import '../../../core/constants/constants.dart';
 import '../../../domain/entities/bjt/bjt_page.dart';
 import '../../../domain/entities/content/entry_type.dart';
 import '../../models/in_page_search_state.dart';
+import 'entry_key_registry.dart';
 import 'reader_entry_builder.dart';
 
 /// A stacked reader pane that renders Pali and Sinhala entries vertically.
@@ -23,6 +24,7 @@ class StackedPane extends StatelessWidget {
     required this.absolutePageStart,
     required this.searchState,
     required this.currentMatchKey,
+    required this.entryKeyRegistry,
     required this.onTapEmpty,
     this.onWordTap,
     required this.onSelectionChanged,
@@ -37,6 +39,10 @@ class StackedPane extends StatelessWidget {
 
   /// Attached to the current search match entry for scroll-to-match.
   final GlobalKey currentMatchKey;
+
+  /// Registry for entry-level GlobalKeys used to sync scroll position
+  /// across layout switches.
+  final EntryKeyRegistry entryKeyRegistry;
 
   /// Called when tapping empty space (clears highlights).
   final VoidCallback onTapEmpty;
@@ -143,13 +149,14 @@ class StackedPane extends StatelessWidget {
         ),
       );
 
-      widgets.add(
+      // Build the entry pair children
+      final pairChildren = <Widget>[
         Padding(
           key: isPaliCurrentMatch ? currentMatchKey : null,
           padding: const EdgeInsets.only(bottom: 8.0),
           child: paliWidget,
         ),
-      );
+      ];
 
       // Sinhala entry — regular weight, no dictionary lookup
       if (sinhalaEntry != null) {
@@ -165,7 +172,7 @@ class StackedPane extends StatelessWidget {
           onWordTap: onWordTap,
         );
 
-        widgets.add(
+        pairChildren.add(
           Padding(
             key: isSinhalaCurrentMatch ? currentMatchKey : null,
             padding: const EdgeInsets.only(bottom: 20.0),
@@ -173,19 +180,24 @@ class StackedPane extends StatelessWidget {
           ),
         );
       } else {
-        // No Sinhala entry — add standard spacing after Pali
-        // Replace the 8px bottom with 20px for consistent pair spacing
-        if (widgets.isNotEmpty) {
-          final lastWidget = widgets.removeLast();
-          widgets.add(
-            Padding(
-              key: (lastWidget as Padding).key,
-              padding: const EdgeInsets.only(bottom: 20.0),
-              child: lastWidget.child,
-            ),
-          );
-        }
+        // No Sinhala entry — use 20px spacing for consistent pair gap
+        pairChildren[0] = Padding(
+          key: isPaliCurrentMatch ? currentMatchKey : null,
+          padding: const EdgeInsets.only(bottom: 20.0),
+          child: paliWidget,
+        );
       }
+
+      // Wrap the entry pair with a registry key for layout-switch scroll sync
+      widgets.add(
+        KeyedSubtree(
+          key: entryKeyRegistry.keyFor(absolutePageIndex, entryIndex),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: pairChildren,
+          ),
+        ),
+      );
     }
 
     return widgets;

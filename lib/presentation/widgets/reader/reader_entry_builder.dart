@@ -4,6 +4,7 @@ import '../../../core/theme/text_entry_theme.dart';
 import '../../models/in_page_search_state.dart';
 import '../../../domain/entities/content/entry.dart';
 import '../../../domain/entities/content/entry_type.dart';
+import 'entry_key_registry.dart';
 import 'text_entry_widget.dart';
 
 /// Static utility for building reader entry widgets.
@@ -120,6 +121,7 @@ class ReaderEntryBuilder {
     String languageCode = 'pi',
     GlobalKey? currentMatchKey,
     void Function(String word)? onWordTap,
+    EntryKeyRegistry? entryKeyRegistry,
   }) {
     final currentMatch = searchState.currentMatch;
     final effectiveQuery = searchState.effectiveQuery;
@@ -144,7 +146,7 @@ class ReaderEntryBuilder {
             absolutePageIndex, absoluteEntryIndex, languageCode,
           );
 
-      return Padding(
+      final entryWidget = Padding(
         key: isCurrentMatchEntry ? currentMatchKey : null,
         padding: const EdgeInsets.only(bottom: 12.0),
         child: buildEntry(
@@ -157,6 +159,15 @@ class ReaderEntryBuilder {
           onWordTap: onWordTap,
         ),
       );
+
+      // Wrap with registry key for layout-switch scroll sync
+      if (entryKeyRegistry != null) {
+        return KeyedSubtree(
+          key: entryKeyRegistry.keyFor(absolutePageIndex, absoluteEntryIndex),
+          child: entryWidget,
+        );
+      }
+      return entryWidget;
     }).toList();
   }
 

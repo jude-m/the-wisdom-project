@@ -8,6 +8,7 @@ import '../../models/in_page_search_state.dart';
 import '../../providers/tab_provider.dart'
     show activeSplitRatioProvider, updateActiveTabSplitRatioProvider;
 import '../resizable_divider.dart';
+import 'entry_key_registry.dart';
 import 'reader_entry_builder.dart';
 
 /// A dual-column reader pane for side-by-side Pali/Sinhala display mode.
@@ -27,6 +28,7 @@ class DualColumnPane extends ConsumerWidget {
     required this.absolutePageStart,
     required this.searchState,
     required this.currentMatchKey,
+    required this.entryKeyRegistry,
     required this.onTapEmpty,
     this.onWordTap,
     required this.onSelectionChanged,
@@ -41,6 +43,10 @@ class DualColumnPane extends ConsumerWidget {
 
   /// Attached to the current search match row for scroll-to-match.
   final GlobalKey currentMatchKey;
+
+  /// Registry for entry-level GlobalKeys used to sync scroll position
+  /// across layout switches.
+  final EntryKeyRegistry entryKeyRegistry;
 
   /// Called when tapping empty space (clears highlights).
   final VoidCallback onTapEmpty;
@@ -170,15 +176,19 @@ class DualColumnPane extends ConsumerWidget {
         // Wrap the current match entry with a GlobalKey for scroll-to-match
         final isCurrentMatchRow = isPaliCurrentMatch || isSinhalaCurrentMatch;
 
+        // Wrap with registry key for layout-switch scroll sync
         widgets.add(
-          Padding(
-            key: isCurrentMatchRow ? currentMatchKey : null,
-            padding: const EdgeInsets.only(bottom: 12.0),
-            child: _buildSplitRow(
-              context,
-              splitRatio: splitRatio,
-              leftChild: paliWidget,
-              rightChild: sinhalaWidget,
+          KeyedSubtree(
+            key: entryKeyRegistry.keyFor(absolutePageIndex, entryIndex),
+            child: Padding(
+              key: isCurrentMatchRow ? currentMatchKey : null,
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: _buildSplitRow(
+                context,
+                splitRatio: splitRatio,
+                leftChild: paliWidget,
+                rightChild: sinhalaWidget,
+              ),
             ),
           ),
         );

@@ -29,6 +29,7 @@ import '../providers/previous_sutta_provider.dart'
 import '../providers/navigation_tree_provider.dart'
     show nodeByKeyProvider, previousReadableNodeProvider;
 import '../providers/fts_highlight_provider.dart';
+import 'reader/entry_key_registry.dart';
 import 'reader/single_column_pane.dart';
 import 'reader/dual_column_pane.dart';
 import 'reader/stacked_pane.dart';
@@ -53,6 +54,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
 
   // GlobalKey attached to the current match entry for scroll-to-match
   final GlobalKey _currentMatchKey = GlobalKey();
+
+  // Registry for entry-level GlobalKeys used to sync scroll position
+  // across layout switches. Shared with all pane widgets.
+  final EntryKeyRegistry _entryKeyRegistry = EntryKeyRegistry();
 
   // Tracks whether the user has scrolled away from the top.
   // Updated in _onScroll; only calls setState when the value actually changes.
@@ -132,6 +137,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     // and when navigating away, so we don't need to save here.
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _entryKeyRegistry.clear();
     super.dispose();
   }
 
@@ -271,6 +277,9 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           _saveScrollPosition(previous);
         }
 
+        // Clear entry key registry — old tab's keys are stale
+        _entryKeyRegistry.clear();
+
         // Reset scroll to 0 (always reset when tab changes)
         if (_scrollController.hasClients) {
           _scrollController.jumpTo(0);
@@ -311,11 +320,40 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       });
     });
 
-    // Listen to layout changes to preserve scroll position across pane switches
+    // Listen to layout changes — sync scroll position by logical entry, not pixels.
+    // Pixel offsets are meaningless across layouts (stacked is ~2x taller than
+    // side-by-side per entry). Instead, capture which entry is at the viewport
+    // top, then reset pagination so the new layout starts from that entry.
+    //
+    // This avoids Scrollable.ensureVisible which clamps to maxScrollExtent —
+    // a value ListView.builder underestimates on fresh layouts. By changing
+    // WHAT content is displayed (pagination reset) rather than WHERE to scroll,
+    // we sidestep all scroll-extent estimation issues.
     ref.listen<ReaderLayout>(activeReaderLayoutProvider, (previous, next) {
       if (previous != null && previous != next) {
-        _saveScrollPosition();
-        _restoreScrollPosition();
+        // Capture top-visible entry from the OLD layout (still mounted)
+        final topEntry =
+            _entryKeyRegistry.findTopVisibleEntry(_scrollController);
+        // Clear stale keys from old layout before rebuild
+        _entryKeyRegistry.clear();
+        if (topEntry != null) {
+          // Reset pagination to start from the target entry.
+          // The rebuild in this same frame renders the new layout starting
+          // at this entry — no scrolling needed.
+          ref.read(updateActiveTabPaginationProvider)(
+            pageStart: topEntry.$1,
+            pageEnd: topEntry.$1 + 1,
+            entryStart: topEntry.$2,
+          );
+        }
+
+        // After rebuild, ensure scroll is at 0 and fill screen with pages
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.jumpTo(0);
+          }
+          _loadMorePagesIfNeeded(scheduleNextCheck: true);
+        });
       }
     });
 
@@ -578,6 +616,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           languageCode: 'pi',
           enableDictionaryLookup: true,
           currentMatchKey: _currentMatchKey,
+          entryKeyRegistry: _entryKeyRegistry,
           onTapEmpty: _clearAllHighlights,
           onWordTap: _handleWordTap,
           onSelectionChanged: onSelectionChanged,
@@ -593,6 +632,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           languageCode: 'si',
           enableDictionaryLookup: false,
           currentMatchKey: _currentMatchKey,
+          entryKeyRegistry: _entryKeyRegistry,
           onTapEmpty: _clearAllHighlights,
           onWordTap: _handleWordTap,
           onSelectionChanged: onSelectionChanged,
@@ -606,6 +646,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           absolutePageStart: absolutePageStart,
           searchState: searchState,
           currentMatchKey: _currentMatchKey,
+          entryKeyRegistry: _entryKeyRegistry,
           onTapEmpty: _clearAllHighlights,
           onWordTap: _handleWordTap,
           onSelectionChanged: onSelectionChanged,
@@ -619,6 +660,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           absolutePageStart: absolutePageStart,
           searchState: searchState,
           currentMatchKey: _currentMatchKey,
+          entryKeyRegistry: _entryKeyRegistry,
           onTapEmpty: _clearAllHighlights,
           onWordTap: _handleWordTap,
           onSelectionChanged: onSelectionChanged,
