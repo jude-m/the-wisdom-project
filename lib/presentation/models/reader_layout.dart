@@ -13,5 +13,15 @@ enum ReaderLayout {
 
   /// Display Pali and Sinhala content stacked vertically
   /// (Pali paragraph followed by its Sinhala translation, repeating)
-  stacked,
+  stacked;
+
+  /// Short label for compact UI controls (e.g. floating pills).
+  /// Displayed as text for [paliOnly] and [sinhalaOnly]; [sideBySide] and
+  /// [stacked] use icons instead but labels are kept for completeness.
+  String get shortLabel => switch (this) {
+        ReaderLayout.paliOnly => 'P',
+        ReaderLayout.sideBySide => 'P|S',
+        ReaderLayout.stacked => 'P/S',
+        ReaderLayout.sinhalaOnly => 'S',
+      };
 }

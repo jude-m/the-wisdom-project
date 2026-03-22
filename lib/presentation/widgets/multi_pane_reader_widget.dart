@@ -498,13 +498,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
               key: ValueKey('search_bar_${ref.watch(activeTabIndexProvider)}'),
             ),
           ),
-        // When search bar is active, all action buttons are hidden.
-        // The search bar is self-contained (close, up/down navigation).
-        //
-        // Mode 1 & 2 both stay in the tree so AnimatedOpacity can crossfade.
+        // Mode 1: Floating pills at top-right when at sutta beginning.
+        // Layout selector pill + action button pill in a row.
         // IgnorePointer disables taps on the invisible widget.
-        if (hasContent) ...[
-          // Mode 1: Button group at top-right (at sutta beginning, not scrolled)
+        if (hasContent)
           Positioned(
             top: 12,
             right: 16,
@@ -514,24 +511,33 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
                 opacity: showMode1 ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 150),
                 curve: Curves.easeOutCubic,
-                child: ReaderActionButtonGroup(
-                  onSearchTap: () => ref
-                      .read(inPageSearchStatesProvider.notifier)
-                      .openSearch(),
-                  onScrollTap: previousNode != null
-                      ? () => _navigateToPreviousSutta(previousNode)
-                      : null,
-                  scrollIcon:
-                      previousNode != null ? Icons.skip_previous : null,
-                  scrollTooltip: previousNode != null
-                      ? AppLocalizations.of(context)
-                          .goToPreviousSutta(previousNode.paliName)
-                      : null,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const ReaderLayoutPill(),
+                    const SizedBox(width: 8),
+                    ReaderActionButtonGroup(
+                      onSearchTap: () => ref
+                          .read(inPageSearchStatesProvider.notifier)
+                          .openSearch(),
+                      onScrollTap: previousNode != null
+                          ? () => _navigateToPreviousSutta(previousNode)
+                          : null,
+                      scrollIcon:
+                          previousNode != null ? Icons.skip_previous : null,
+                      scrollTooltip: previousNode != null
+                          ? AppLocalizations.of(context)
+                              .goToPreviousSutta(previousNode.paliName)
+                          : null,
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-          // Mode 2: Expandable FAB at bottom-right (scrolled down or FTS mid-sutta)
+        // Mode 2: Expandable FAB at bottom-right (scrolled down or FTS mid-sutta)
+        // Contains layout selector + action buttons when expanded.
+        if (hasContent)
           Positioned(
             bottom: 24,
             right: 16,
@@ -560,7 +566,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
               ),
             ),
           ),
-        ],
         // Non-modal dictionary bottom sheet overlay
         // Only mounted when a word is selected (conditional mounting for performance)
         if (selectedWord != null) const DictionaryBottomSheet(),

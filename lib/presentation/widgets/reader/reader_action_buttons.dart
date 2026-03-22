@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../models/reader_layout.dart';
 import '../../providers/parallel_text_provider.dart';
+import '../../providers/tab_provider.dart'
+    show activeReaderLayoutProvider, updateActiveTabLayoutProvider;
 
 /// Mode 1: Horizontal pill of icon buttons shown at top-right when the user
 /// hasn't scrolled past the first viewport.
@@ -67,6 +71,40 @@ class ReaderActionButtonGroup extends ConsumerWidget {
   }
 }
 
+/// Floating pill showing the layout selector (P / P+S / P|S / S).
+/// Shown at top-right when the user is at the sutta beginning.
+/// Matches the visual style of [ReaderActionButtonGroup] — no outlines.
+class ReaderLayoutPill extends ConsumerWidget {
+  const ReaderLayoutPill({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final currentLayout = ref.watch(activeReaderLayoutProvider);
+    return Material(
+      elevation: 1,
+      borderRadius: BorderRadius.circular(24),
+      color: colorScheme.surfaceContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final layout in ReaderLayout.values)
+              _LayoutOptionButton(
+                layout: layout,
+                tooltip: _tooltipFor(context, layout),
+                isSelected: currentLayout == layout,
+                onTap: () =>
+                    ref.read(updateActiveTabLayoutProvider)(layout),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Mode 2: Expandable FAB at bottom-right shown when the user has scrolled
 /// past one viewport height.
 ///
@@ -114,6 +152,7 @@ class _ReaderExpandableFabState extends ConsumerState<ReaderExpandableFab> {
     final colorScheme = Theme.of(context).colorScheme;
     final targetNode = ref.watch(parallelTextNodeProvider);
     final isCommentary = ref.watch(isCommentaryProvider);
+    final currentLayout = ref.watch(activeReaderLayoutProvider);
     final l10n = AppLocalizations.of(context);
 
     return TapRegion(
@@ -135,6 +174,24 @@ class _ReaderExpandableFabState extends ConsumerState<ReaderExpandableFab> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
+                      // Layout selector — per-tab setting
+                      _FabLayoutSelector(
+                        currentLayout: currentLayout,
+                        onLayoutChanged: (layout) {
+                          ref.read(updateActiveTabLayoutProvider)(layout);
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      // Divider between layout and actions
+                      SizedBox(
+                        width: 120,
+                        child: Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: colorScheme.outlineVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       // Commentary/Root text toggle
                       if (targetNode != null) ...[
                         _FabActionItem(
@@ -235,6 +292,119 @@ class _ActionIconButton extends StatelessWidget {
             size: 20,
             color: colorScheme.primary,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Returns the localized tooltip for a given [ReaderLayout].
+String _tooltipFor(BuildContext context, ReaderLayout layout) {
+  final l10n = AppLocalizations.of(context);
+  return switch (layout) {
+    ReaderLayout.paliOnly => l10n.layoutPaliOnly,
+    ReaderLayout.sideBySide => l10n.layoutSideBySide,
+    ReaderLayout.stacked => l10n.layoutStacked,
+    ReaderLayout.sinhalaOnly => l10n.layoutSinhalaOnly,
+  };
+}
+
+/// Maps each [ReaderLayout] to an icon (for dual-language modes) or `null`
+/// (for single-language modes that use a text label instead).
+const _layoutIcons = {
+  ReaderLayout.sideBySide: Icons.vertical_split,
+  ReaderLayout.stacked: Icons.horizontal_split,
+};
+
+/// Individual layout option button used inside [ReaderLayoutPill] and
+/// [_FabLayoutSelector]. Shows an icon or a text label depending on the layout.
+/// Selected state is indicated by primary color + bold weight.
+class _LayoutOptionButton extends StatelessWidget {
+  final ReaderLayout layout;
+  final String tooltip;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _LayoutOptionButton({
+    required this.layout,
+    required this.tooltip,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final segmentStyle = context.typography.segmentedButtonLabel;
+    final color =
+        isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant;
+    final icon = _layoutIcons[layout];
+
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: isSelected
+            ? colorScheme.primaryContainer
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: 44,
+              minHeight: 44,
+            ),
+            child: Center(
+              child: icon != null
+                  ? Icon(icon, size: 20, color: color)
+                  : Text(
+                      layout.shortLabel,
+                      style: segmentStyle.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Layout selector shown inside the expanded [ReaderExpandableFab].
+/// Matches the outline-free style of [ReaderLayoutPill].
+class _FabLayoutSelector extends StatelessWidget {
+  final ReaderLayout currentLayout;
+  final ValueChanged<ReaderLayout> onLayoutChanged;
+
+  const _FabLayoutSelector({
+    required this.currentLayout,
+    required this.onLayoutChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      elevation: 2,
+      borderRadius: BorderRadius.circular(20),
+      color: colorScheme.surfaceContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final layout in ReaderLayout.values)
+              _LayoutOptionButton(
+                layout: layout,
+                tooltip: _tooltipFor(context, layout),
+                isSelected: currentLayout == layout,
+                onTap: () => onLayoutChanged(layout),
+              ),
+          ],
         ),
       ),
     );

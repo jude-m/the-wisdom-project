@@ -27,6 +27,9 @@ class AppLocalizationsSi extends AppLocalizations {
   String get layoutSideBySide => 'දෙකම';
 
   @override
+  String get layoutStacked => 'ගොඩගැසූ';
+
+  @override
   String get paliLanguageLabel => 'පාලි';
 
   @override

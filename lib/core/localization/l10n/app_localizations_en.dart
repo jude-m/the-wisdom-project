@@ -27,6 +27,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get layoutSideBySide => 'Side by Side';
 
   @override
+  String get layoutStacked => 'Stacked';
+
+  @override
   String get paliLanguageLabel => 'Pali';
 
   @override

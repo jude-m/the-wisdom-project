@@ -31,6 +31,11 @@
     "description": "Label for side-by-side reader layout showing both Pali and Sinhala horizontally"
   },
 
+  "layoutStacked": "Stacked",
+  "@layoutStacked": {
+    "description": "Label for stacked reader layout showing Pali and Sinhala in alternating paragraphs"
+  },
+
   "paliLanguageLabel": "Pali",
   "@paliLanguageLabel": {
     "description": "Label for Pali language"

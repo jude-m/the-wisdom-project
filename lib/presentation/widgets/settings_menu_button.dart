@@ -3,10 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../domain/entities/navigation/navigation_language.dart';
-import '../models/reader_layout.dart';
 import '../providers/navigation_tree_provider.dart';
-import '../providers/tab_provider.dart'
-    show activeReaderLayoutProvider, updateActiveTabLayoutProvider;
 
 /// Settings menu button for AppBar
 class SettingsMenuButton extends ConsumerWidget {
@@ -55,23 +52,6 @@ class SettingsMenuButton extends ConsumerWidget {
           ),
         ),
 
-        const PopupMenuDivider(),
-
-        // Sutta language selector
-        PopupMenuItem<String>(
-          enabled: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Sutta Language',
-                style: context.typography.menuSectionLabel,
-              ),
-              const SizedBox(height: 8),
-              _SuttaLanguageSelector(),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -133,46 +113,6 @@ class _LanguageSelector extends ConsumerWidget {
       onSelectionChanged: (Set<NavigationLanguage> newSelection) {
         ref.read(navigationLanguageProvider.notifier).state =
             newSelection.first;
-      },
-      style: const ButtonStyle(
-        visualDensity: VisualDensity.compact,
-      ),
-    );
-  }
-}
-
-/// Sutta language selection buttons
-/// Uses per-tab reader layout - each tab remembers its own setting
-class _SuttaLanguageSelector extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Watch per-tab reader layout
-    final currentLayout = ref.watch(activeReaderLayoutProvider);
-    final segmentStyle = context.typography.segmentedButtonLabel;
-
-    return SegmentedButton<ReaderLayout>(
-      segments: [
-        ButtonSegment(
-          value: ReaderLayout.paliOnly,
-          label: Text('P', style: segmentStyle),
-        ),
-        ButtonSegment(
-          value: ReaderLayout.sideBySide,
-          label: Text('P+S', style: segmentStyle),
-        ),
-        ButtonSegment(
-          value: ReaderLayout.stacked,
-          label: Text('P|S', style: segmentStyle),
-        ),
-        ButtonSegment(
-          value: ReaderLayout.sinhalaOnly,
-          label: Text('S', style: segmentStyle),
-        ),
-      ],
-      selected: {currentLayout},
-      onSelectionChanged: (Set<ReaderLayout> newSelection) {
-        // Update the active tab's reader layout
-        ref.read(updateActiveTabLayoutProvider)(newSelection.first);
       },
       style: const ButtonStyle(
         visualDensity: VisualDensity.compact,

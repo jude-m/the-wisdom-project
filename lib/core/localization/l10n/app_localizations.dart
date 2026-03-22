@@ -134,6 +134,12 @@ abstract class AppLocalizations {
   /// **'Side by Side'**
   String get layoutSideBySide;
 
+  /// Label for stacked reader layout showing Pali and Sinhala in alternating paragraphs
+  ///
+  /// In en, this message translates to:
+  /// **'Stacked'**
+  String get layoutStacked;
+
   /// Label for Pali language
   ///
   /// In en, this message translates to:
