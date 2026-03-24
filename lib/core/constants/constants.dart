@@ -61,7 +61,7 @@ class TipitakaNodeKeys {
   static const commentary = 'atta-';
 
   /// Treatises and other texts
-  static const treatise = 'anya';
+  static const treatises = 'anya';
 
   // ============================================================================
   // CONVENIENCE SETS
@@ -94,7 +94,7 @@ class TipitakaNodeKeys {
     vinayaAtthakatha,
     suttaAtthakatha,
     abhidhammaAtthakatha,
-    treatise,
+    treatises,
   };
 }
 

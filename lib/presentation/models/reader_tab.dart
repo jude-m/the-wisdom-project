@@ -104,6 +104,6 @@ class ReaderTab with _$ReaderTab {
 
   /// Checks if this tab's node is a treatise (e.g. Visuddhimagga)
   bool get isTreatise =>
-      nodeKey != null && nodeKey!.startsWith(TipitakaNodeKeys.treatise);
+      nodeKey != null && nodeKey!.startsWith(TipitakaNodeKeys.treatises);
 
 }

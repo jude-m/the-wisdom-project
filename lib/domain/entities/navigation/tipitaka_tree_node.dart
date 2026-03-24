@@ -69,7 +69,7 @@ class TipitakaTreeNode with _$TipitakaTreeNode {
   bool get isCommentary => nodeKey.startsWith(TipitakaNodeKeys.commentary);
 
   /// Checks if this node is a treatise (e.g. Visuddhimagga)
-  bool get isTreatise => nodeKey.startsWith(TipitakaNodeKeys.treatise);
+  bool get isTreatise => nodeKey.startsWith(TipitakaNodeKeys.treatises);
 
   /// Returns the number of direct children
   int get childCount => childNodes.length;
