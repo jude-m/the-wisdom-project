@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/constants.dart';
 import '../models/reader_tab.dart';
 import 'navigation_tree_provider.dart';
 import 'navigator_sync_provider.dart';
@@ -8,7 +9,7 @@ import 'tab_provider.dart';
 /// Returns true if nodeKey starts with 'atta-'.
 final isCommentaryProvider = Provider<bool>((ref) {
   final nodeKey = ref.watch(activeNodeKeyProvider);
-  return nodeKey?.startsWith('atta-') ?? false;
+  return nodeKey?.startsWith(TipitakaNodeKeys.commentary) ?? false;
 });
 
 /// Gets the parallel text node for navigation between root text and commentary.
@@ -26,9 +27,10 @@ final parallelTextNodeProvider = Provider.autoDispose((ref) {
   }
 
   // Compute target key: toggle between root text and commentary
-  final targetKey = nodeKey.startsWith('atta-')
-      ? nodeKey.substring(5) // Remove 'atta-' prefix
-      : 'atta-$nodeKey'; // Add 'atta-' prefix
+  const prefix = TipitakaNodeKeys.commentary;
+  final targetKey = nodeKey.startsWith(prefix)
+      ? nodeKey.substring(prefix.length) // Remove commentary prefix
+      : '$prefix$nodeKey'; // Add commentary prefix
 
   // Return the node directly (null if doesn't exist in tree)
   return ref.watch(nodeByKeyProvider(targetKey));

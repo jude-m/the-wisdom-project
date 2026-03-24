@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import '../../../core/constants/constants.dart';
 import 'navigation_language.dart';
 
 part 'tipitaka_tree_node.freezed.dart';
@@ -41,13 +42,14 @@ class TipitakaTreeNode with _$TipitakaTreeNode {
     @Default(false) bool hasAudioAvailable,
   }) = _TipitakaTreeNode;
 
-  /// Returns the display name based on the selected language
+  // TODO: Some nodes (e.g. ap-pat / Paṭṭhāna) lack Sinhala translations.
+  // Fallback to the other language when the selected one is empty.
   String getDisplayName(NavigationLanguage language) {
     switch (language) {
       case NavigationLanguage.pali:
-        return paliName;
+        return paliName.isEmpty ? sinhalaName : paliName;
       case NavigationLanguage.sinhala:
-        return sinhalaName;
+        return sinhalaName.isEmpty ? paliName : sinhalaName;
     }
   }
 
@@ -62,6 +64,12 @@ class TipitakaTreeNode with _$TipitakaTreeNode {
 
   /// Checks if this is a root level node
   bool get isRootNode => parentNodeKey == null;
+
+  /// Checks if this node is a commentary (atthakatha)
+  bool get isCommentary => nodeKey.startsWith(TipitakaNodeKeys.commentary);
+
+  /// Checks if this node is a treatise (e.g. Visuddhimagga)
+  bool get isTreatise => nodeKey.startsWith(TipitakaNodeKeys.treatise);
 
   /// Returns the number of direct children
   int get childCount => childNodes.length;

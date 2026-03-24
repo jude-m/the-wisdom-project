@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import '../../core/constants/constants.dart';
 import '../../core/utils/text_utils.dart' show truncateGraphemes;
 import 'reader_layout.dart';
 import 'reader_pane.dart';
@@ -96,4 +97,13 @@ class ReaderTab with _$ReaderTab {
 
   /// Returns true if this tab has content to display
   bool get hasContent => contentFileId != null && contentFileId!.isNotEmpty;
+
+  /// Checks if this tab's node is a commentary (atthakatha)
+  bool get isCommentary =>
+      nodeKey != null && nodeKey!.startsWith(TipitakaNodeKeys.commentary);
+
+  /// Checks if this tab's node is a treatise (e.g. Visuddhimagga)
+  bool get isTreatise =>
+      nodeKey != null && nodeKey!.startsWith(TipitakaNodeKeys.treatise);
+
 }

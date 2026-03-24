@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_typography.dart';
+import '../utils/content_icons.dart';
 import '../../core/utils/pali_conjunct_transformer.dart';
 import '../../core/utils/responsive_utils.dart';
 import '../../domain/entities/navigation/navigation_language.dart';
@@ -141,6 +142,13 @@ class TreeNodeWidget extends ConsumerWidget {
     final displayName = navigationLanguage == NavigationLanguage.pali
         ? rawDisplayName.withPaliConjuncts
         : rawDisplayName;
+    final ci = contentIcon(
+      isCommentary: node.isCommentary,
+      isTreatise: node.isTreatise,
+      hasChildren: hasChildren,
+      isExpanded: isExpanded,
+      colorScheme: Theme.of(context).colorScheme,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -207,18 +215,13 @@ class TreeNodeWidget extends ConsumerWidget {
                   },
                   child: Row(
                     children: [
-                      // Node icon
                       Icon(
-                        node.isReadableContent
-                            ? Icons.description_outlined
-                            : Icons.folder_outlined,
-                        size: 18,
+                        ci.icon,
+                        size: 20,
+                        weight: 600,
                         color: isSelected
                             ? Theme.of(context).colorScheme.onPrimaryContainer
-                            : Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
+                            : ci.color.withValues(alpha: 0.8),
                       ),
                       const SizedBox(width: 8),
 

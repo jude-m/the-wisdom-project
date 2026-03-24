@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_typography.dart';
+import '../utils/content_icons.dart';
 import '../../core/utils/pali_conjunct_transformer.dart';
 import '../models/reader_tab.dart';
 import '../providers/tab_lifecycle_provider.dart';
@@ -229,6 +230,11 @@ class _TabItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ci = contentIcon(
+      isCommentary: tab.isCommentary,
+      isTreatise: tab.isTreatise,
+      colorScheme: Theme.of(context).colorScheme,
+    );
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -256,15 +262,14 @@ class _TabItem extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Tab icon
+            // Tab icon: matches navigator tree icons
             Icon(
-              tab.hasContent
-                  ? Icons.description_outlined
-                  : Icons.folder_outlined,
-              size: 16,
+              ci.icon,
+              size: 18,
+              weight: 600,
               color: isActive
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ? Theme.of(context).colorScheme.onPrimaryContainer
+                  : ci.color.withValues(alpha: 0.8),
             ),
             const SizedBox(width: 8),
 

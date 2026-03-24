@@ -57,8 +57,11 @@ class TipitakaNodeKeys {
   // OTHER
   // ============================================================================
 
+  /// Prefix shared by all commentary (atthakatha) node keys
+  static const commentary = 'atta-';
+
   /// Treatises and other texts
-  static const treatises = 'anya';
+  static const treatise = 'anya';
 
   // ============================================================================
   // CONVENIENCE SETS
@@ -91,7 +94,7 @@ class TipitakaNodeKeys {
     vinayaAtthakatha,
     suttaAtthakatha,
     abhidhammaAtthakatha,
-    treatises,
+    treatise,
   };
 }
 

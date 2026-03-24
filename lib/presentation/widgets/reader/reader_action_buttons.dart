@@ -4,6 +4,7 @@ import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../models/reader_layout.dart';
 import '../../providers/parallel_text_provider.dart';
+import '../../utils/content_icons.dart';
 import '../../providers/tab_provider.dart'
     show activeReaderLayoutProvider, updateActiveTabLayoutProvider;
 
@@ -45,9 +46,10 @@ class ReaderActionButtonGroup extends ConsumerWidget {
             // Commentary/Root text toggle — hidden when no parallel text
             if (targetNode != null)
               _ActionIconButton(
-                icon: isCommentary
-                    ? Icons.article_outlined
-                    : Icons.menu_book_outlined,
+                icon: contentIcon(
+                  isCommentary: !isCommentary,
+                  colorScheme: colorScheme,
+                ).icon,
                 tooltip: isCommentary ? l10n.rootText : l10n.commentary,
                 onTap: () => ref.read(openParallelTextProvider)(),
               ),
@@ -195,9 +197,10 @@ class _ReaderExpandableFabState extends ConsumerState<ReaderExpandableFab> {
                       // Commentary/Root text toggle
                       if (targetNode != null) ...[
                         _FabActionItem(
-                          icon: isCommentary
-                              ? Icons.article_outlined
-                              : Icons.menu_book_outlined,
+                          icon: contentIcon(
+                            isCommentary: !isCommentary,
+                            colorScheme: colorScheme,
+                          ).icon,
                           label:
                               isCommentary ? l10n.rootText : l10n.commentary,
                           onTap: () {
