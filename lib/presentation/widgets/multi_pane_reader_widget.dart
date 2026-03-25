@@ -63,6 +63,11 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   // Updated in _onScroll; only calls setState when the value actually changes.
   bool _isScrolledDown = false;
 
+  // When true, the layout change listener is suppressed. Set during tab
+  // switches to prevent the layout listener from firing when the "change"
+  // is just a side-effect of switching to a tab with a different layout.
+  bool _suppressLayoutListener = false;
+
   @override
   void initState() {
     super.initState();
@@ -204,23 +209,18 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     });
   }
 
-  void _restoreScrollPosition() {
+  /// Restores scroll position immediately (no extra frame delay).
+  /// Must be called from within an [addPostFrameCallback] where the
+  /// content has already been rebuilt — avoids the double-postFrameCallback
+  /// that caused a visible glitch (title flash) when switching tabs.
+  void _restoreScrollPositionImmediate() {
     final activeTabIndex = ref.read(activeTabIndexProvider);
-    if (activeTabIndex >= 0) {
-      // Pagination state is derived from the active tab automatically via
-      // activePageStartProvider, activePageEndProvider, activeEntryStartProvider.
-      // Just restore the scroll position after a frame (to let content rebuild).
-      if (_scrollController.hasClients) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients) {
-            final scrollOffset =
-                ref.read(getTabScrollPositionProvider)(activeTabIndex);
-            final maxExtent = _scrollController.position.maxScrollExtent;
-            final targetOffset = scrollOffset.clamp(0.0, maxExtent);
-            _scrollController.jumpTo(targetOffset);
-          }
-        });
-      }
+    if (activeTabIndex >= 0 && _scrollController.hasClients) {
+      final scrollOffset =
+          ref.read(getTabScrollPositionProvider)(activeTabIndex);
+      final maxExtent = _scrollController.position.maxScrollExtent;
+      final targetOffset = scrollOffset.clamp(0.0, maxExtent);
+      _scrollController.jumpTo(targetOffset);
     }
   }
 
@@ -269,6 +269,12 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     // Listen to active tab changes
     ref.listen<int>(activeTabIndexProvider, (previous, next) {
       if (previous != null && previous != next) {
+        // Suppress the layout listener during tab switches. When tabs have
+        // different layout settings, activeReaderLayoutProvider changes as a
+        // side-effect. Without this guard, the layout listener's jumpTo(0)
+        // would override the scroll position restoration below.
+        _suppressLayoutListener = true;
+
         // Save scroll position for the previous tab, but ONLY if:
         // - previous was a valid tab (>= 0)
         // - next is also a valid tab (>= 0) - meaning we're switching, not closing
@@ -280,19 +286,16 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
         // Clear entry key registry — old tab's keys are stale
         _entryKeyRegistry.clear();
 
-        // Reset scroll to 0 (always reset when tab changes)
-        if (_scrollController.hasClients) {
-          _scrollController.jumpTo(0);
-        }
-
         // Layout is now per-tab and derived from activeReaderLayoutProvider
         // No need to override or reset - each tab remembers its own column mode
 
-        // Then restore the actual saved position for the new tab after content renders
-        // (only if transitioning to a valid tab, not to -1)
+        // Restore the saved scroll position for the new tab after content renders.
+        // We do NOT jumpTo(0) first — that would briefly flash the sutta title
+        // before the restore fires, causing a visible glitch.
         if (next >= 0) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _restoreScrollPosition();
+            _suppressLayoutListener = false;
+            _restoreScrollPositionImmediate();
             // Only load more pages if content doesn't fill the viewport yet.
             // Returning to a tab that already has enough content should NOT grow
             // pageEnd — that causes search results to inflate on every tab switch.
@@ -301,6 +304,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
               _loadMorePagesIfNeeded(scheduleNextCheck: true);
             }
           });
+        } else {
+          _suppressLayoutListener = false;
         }
       }
     });
@@ -311,7 +316,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       next.whenData((content) {
         if (content != null && previous?.value == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _restoreScrollPosition();
+            _restoreScrollPositionImmediate();
             // Fresh content: Document just loaded (cache miss). Ensure initial
             // pages fill the screen so user can scroll to load more.
             _loadMorePagesIfNeeded(scheduleNextCheck: true);
@@ -330,7 +335,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     // WHAT content is displayed (pagination reset) rather than WHERE to scroll,
     // we sidestep all scroll-extent estimation issues.
     ref.listen<ReaderLayout>(activeReaderLayoutProvider, (previous, next) {
-      if (previous != null && previous != next) {
+      if (previous != null && previous != next && !_suppressLayoutListener) {
         // Capture top-visible entry from the OLD layout (still mounted)
         final topEntry =
             _entryKeyRegistry.findTopVisibleEntry(_scrollController);
