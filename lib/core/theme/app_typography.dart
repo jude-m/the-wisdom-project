@@ -125,13 +125,19 @@ class AppTypography extends ThemeExtension<AppTypography> {
   /// Standard typography configuration.
   /// Colors are derived from the provided ColorScheme.
   /// Uses sans-serif UI font (AppFonts.ui) for all interface elements.
-  factory AppTypography.fromColorScheme(ColorScheme colorScheme) {
+  /// [fontScale] multiplies all font sizes (default 1.0).
+  factory AppTypography.fromColorScheme(
+    ColorScheme colorScheme, {
+    double fontScale = 1.0,
+  }) {
+    final scaledFonts = AppFonts.scaled(fontScale);
+
     return AppTypography(
       // Labels & Badges
       badgeLabel: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.badgeFontSize,
+        fontSize: scaledFonts.badge,
         fontWeight: FontWeight.w600,
         color: colorScheme.onPrimaryContainer,
         height: AppFonts.uiLineHeight,
@@ -139,7 +145,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       sectionHeader: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.labelFontSize,
+        fontSize: scaledFonts.label,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSurface,
         letterSpacing: 1.2,
@@ -148,7 +154,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       countBadge: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.badgeFontSize,
+        fontSize: scaledFonts.badge,
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurfaceVariant,
         height: AppFonts.uiLineHeight,
@@ -158,7 +164,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       chipLabel: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.labelFontSize,
+        fontSize: scaledFonts.label,
         fontWeight: FontWeight.w400,
         color: colorScheme.onSurfaceVariant,
         height: AppFonts.uiLineHeight,
@@ -166,7 +172,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       chipLabelSelected: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.labelFontSize,
+        fontSize: scaledFonts.label,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSecondary,
         height: AppFonts.uiLineHeight,
@@ -176,7 +182,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       resultTitle: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.baseFontSize,
+        fontSize: scaledFonts.base,
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurface,
         height: AppFonts.uiLineHeight,
@@ -184,7 +190,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       resultSubtitle: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.treeFontSize,
+        fontSize: scaledFonts.tree,
         fontWeight: FontWeight.normal,
         color: colorScheme.onSurfaceVariant,
         height: AppFonts.uiLineHeight,
@@ -192,7 +198,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       resultMatchedText: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.treeFontSize,
+        fontSize: scaledFonts.tree,
         fontWeight: FontWeight.normal,
         color: colorScheme.onSurface,
         height: AppFonts.uiLineHeight,
@@ -202,7 +208,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       tabLabelActive: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.tabFontSize,
+        fontSize: scaledFonts.tab,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSurface,
         height: AppFonts.uiLineHeight,
@@ -210,7 +216,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       tabLabelInactive: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.tabFontSize,
+        fontSize: scaledFonts.tab,
         fontWeight: FontWeight.normal,
         color: colorScheme.onSurface,
         height: AppFonts.uiLineHeight,
@@ -218,7 +224,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       treeNodeLabel: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.treeFontSize,
+        fontSize: scaledFonts.tree,
         fontWeight: FontWeight.normal,
         color: colorScheme.onSurface,
         height: AppFonts.uiLineHeight,
@@ -226,7 +232,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       treeNodeLabelSelected: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.treeFontSize,
+        fontSize: scaledFonts.tree,
         fontWeight: FontWeight.w600,
         color: colorScheme.onPrimaryContainer,
         height: AppFonts.uiLineHeight,
@@ -236,7 +242,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       dialogTitle: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.baseFontSize * 1.25,
+        fontSize: scaledFonts.base * 1.25,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSurface,
         height: AppFonts.uiLineHeight,
@@ -244,7 +250,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       menuSectionLabel: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.labelFontSize,
+        fontSize: scaledFonts.label,
         fontWeight: FontWeight.normal,
         color: colorScheme.onSurfaceVariant,
         height: AppFonts.uiLineHeight,
@@ -252,7 +258,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       segmentedButtonLabel: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.badgeFontSize,
+        fontSize: scaledFonts.badge,
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurface,
         height: AppFonts.uiLineHeight,
@@ -262,7 +268,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       searchHint: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.baseFontSize,
+        fontSize: scaledFonts.base,
         fontWeight: FontWeight.normal,
         color: colorScheme.onSurfaceVariant,
         height: AppFonts.uiLineHeight,
@@ -272,7 +278,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       emptyStateMessage: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.baseFontSize,
+        fontSize: scaledFonts.base,
         fontWeight: FontWeight.normal,
         color: colorScheme.onSurface.withValues(alpha: 0.6),
         height: AppFonts.uiLineHeight,
@@ -280,7 +286,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       errorMessage: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.treeFontSize,
+        fontSize: scaledFonts.tree,
         fontWeight: FontWeight.normal,
         color: colorScheme.error,
         height: AppFonts.uiLineHeight,
@@ -288,7 +294,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       pageNumber: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: AppFonts.pageNumberFontSize,
+        fontSize: scaledFonts.pageNumber,
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurface.withValues(alpha: 0.6),
         height: 1.0,

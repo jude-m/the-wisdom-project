@@ -5,11 +5,16 @@ import 'app_typography.dart';
 import 'text_entry_theme.dart';
 
 /// Application theme builder
-/// Combines color palettes with typography to create complete Material 3 themes
+/// Combines color palettes with typography to create complete Material 3 themes.
+///
+/// All theme methods accept a [fontScale] parameter (default 1.0) that
+/// multiplies every font size and content spacing value. On web this
+/// defaults to 0.85 to compensate for desktop display density differences.
+/// Later, user font-size preferences will control this same value.
 class AppTheme {
   /// Light theme - Warm cream background with dark brown text
   /// Best for daytime reading, default theme
-  static ThemeData light() {
+  static ThemeData light({double fontScale = 1.0}) {
     // Create ColorScheme once and reuse
     const colorScheme = ColorScheme.light(
       // Primary group (interactive brand color — cinnamon orange)
@@ -80,15 +85,16 @@ class AppTheme {
         TextEntryTheme.standard(
           headingColor: LightThemeColors.heading,
           bodyColor: LightThemeColors.onSurface,
+          fontScale: fontScale,
         ),
-        AppTypography.fromColorScheme(colorScheme),
+        AppTypography.fromColorScheme(colorScheme, fontScale: fontScale),
       ],
     );
   }
 
   /// Dark theme - High contrast black with white text
   /// WCAG AAA compliant for accessibility, night reading
-  static ThemeData dark() {
+  static ThemeData dark({double fontScale = 1.0}) {
     // Create ColorScheme once and reuse
     final colorScheme = ColorScheme.dark(
       primary: DarkThemeColors.primary,
@@ -136,15 +142,16 @@ class AppTheme {
         TextEntryTheme.standard(
           headingColor: DarkThemeColors.primary,
           bodyColor: DarkThemeColors.onBackground,
+          fontScale: fontScale,
         ),
-        AppTypography.fromColorScheme(colorScheme),
+        AppTypography.fromColorScheme(colorScheme, fontScale: fontScale),
       ],
     );
   }
 
   /// Warm theme - Earthy dark browns with warm text
   /// Signature Buddhist aesthetic, evening reading
-  static ThemeData warm() {
+  static ThemeData warm({double fontScale = 1.0}) {
     // Create ColorScheme once and reuse
     final colorScheme = ColorScheme.dark(
       primary: WarmThemeColors.primary,
@@ -192,8 +199,9 @@ class AppTheme {
         TextEntryTheme.standard(
           headingColor: WarmThemeColors.primary,
           bodyColor: WarmThemeColors.onBackground,
+          fontScale: fontScale,
         ),
-        AppTypography.fromColorScheme(colorScheme),
+        AppTypography.fromColorScheme(colorScheme, fontScale: fontScale),
       ],
     );
   }

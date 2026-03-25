@@ -126,10 +126,11 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   void initState() {
     super.initState();
-    // Load saved theme preference on startup
-    Future.microtask(
-      () => ref.read(themeNotifierProvider.notifier).loadSavedTheme(),
-    );
+    // Load saved preferences on startup
+    Future.microtask(() {
+      ref.read(themeNotifierProvider.notifier).loadSavedTheme();
+      ref.read(fontScaleProvider.notifier).loadSavedScale();
+    });
   }
 
   @override

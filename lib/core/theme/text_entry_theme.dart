@@ -50,18 +50,24 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
     required this.paragraphStyle,
     required this.gathaStyle,
     required this.unindentedStyle,
-    this.paragraphFirstLineIndent = 22.4, // 1.4em at 16px base
-    this.gathaLeftPadding = 38.4, // 2.4em at 16px base
-    this.gathaLevel2LeftPadding = 80.0, // 5em at 16px base
+    this.paragraphFirstLineIndent =
+        AppFonts.baseFontSize * AppFonts.paragraphIndentEm,
+    this.gathaLeftPadding = AppFonts.baseFontSize * AppFonts.gathaIndentEm,
+    this.gathaLevel2LeftPadding =
+        AppFonts.baseFontSize * AppFonts.gathaLevel2IndentEm,
   });
 
   /// Standard typography configuration (color-independent)
   /// Colors should be provided by the theme's ColorScheme
   /// Uses serif reader font (AppFonts.reader) for all reading content.
+  /// [fontScale] multiplies all font sizes (default 1.0).
   factory TextEntryTheme.standard({
     required Color headingColor,
     required Color bodyColor,
+    double fontScale = 1.0,
   }) {
+    final scaledFonts = AppFonts.scaled(fontScale);
+
     return TextEntryTheme(
       // Heading styles by level (1-5)
       // Level 5 = largest (book titles), Level 1 = smallest (sub-sections)
@@ -70,7 +76,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         5: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
-          fontSize: AppFonts.baseFontSize * 1.8,
+          fontSize: scaledFonts.base * 1.8,
           fontWeight: FontWeight.bold,
           color: headingColor,
           height: _headingLineHeight,
@@ -78,7 +84,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         4: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
-          fontSize: AppFonts.baseFontSize * 1.7,
+          fontSize: scaledFonts.base * 1.7,
           fontWeight: FontWeight.bold,
           color: headingColor,
           height: _headingLineHeight,
@@ -86,7 +92,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         3: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
-          fontSize: AppFonts.baseFontSize * 1.6,
+          fontSize: scaledFonts.base * 1.6,
           fontWeight: FontWeight.bold,
           color: headingColor,
           height: _headingLineHeight,
@@ -94,7 +100,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         2: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
-          fontSize: AppFonts.baseFontSize * 1.4,
+          fontSize: scaledFonts.base * 1.4,
           fontWeight: FontWeight.bold,
           color: headingColor,
           height: _headingLineHeight,
@@ -102,7 +108,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         1: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
-          fontSize: AppFonts.baseFontSize * 1.3,
+          fontSize: scaledFonts.base * 1.3,
           fontWeight: FontWeight.bold,
           color: headingColor,
           height: _headingLineHeight,
@@ -115,7 +121,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         5: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
-          fontSize: AppFonts.baseFontSize * 2.1,
+          fontSize: scaledFonts.base * 2.1,
           fontWeight: FontWeight.w600,
           color: bodyColor,
           height: _headingLineHeight,
@@ -123,7 +129,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         4: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
-          fontSize: AppFonts.baseFontSize * 1.8,
+          fontSize: scaledFonts.base * 1.8,
           fontWeight: FontWeight.w600,
           color: bodyColor,
           height: _headingLineHeight,
@@ -131,7 +137,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         3: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
-          fontSize: AppFonts.baseFontSize * 1.5,
+          fontSize: scaledFonts.base * 1.5,
           fontWeight: FontWeight.w600,
           color: bodyColor,
           height: _headingLineHeight,
@@ -139,7 +145,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         2: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
-          fontSize: AppFonts.baseFontSize * 1.25,
+          fontSize: scaledFonts.base * 1.25,
           fontWeight: FontWeight.w600,
           color: bodyColor,
           height: _headingLineHeight,
@@ -147,7 +153,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         1: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
-          fontSize: AppFonts.baseFontSize * 1.1,
+          fontSize: scaledFonts.base * 1.1,
           fontWeight: FontWeight.w500,
           color: bodyColor,
           height: _headingLineHeight,
@@ -155,7 +161,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         0: TextStyle(
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
-          fontSize: AppFonts.baseFontSize,
+          fontSize: scaledFonts.base,
           fontWeight: FontWeight.normal, // Non-bold for level 0
           color: bodyColor,
           height: _headingLineHeight,
@@ -167,7 +173,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
       paragraphStyle: TextStyle(
         fontFamily: AppFonts.reader,
         fontFamilyFallback: AppFonts.readerFallback,
-        fontSize: AppFonts.baseFontSize * 1.1,
+        fontSize: scaledFonts.base * 1.1,
         height: _paragraphLineHeight,
         color: bodyColor,
       ),
@@ -177,7 +183,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
       gathaStyle: TextStyle(
         fontFamily: AppFonts.reader,
         fontFamilyFallback: AppFonts.readerFallback,
-        fontSize: AppFonts.baseFontSize * 1.1,
+        fontSize: scaledFonts.base * 1.1,
         fontStyle: FontStyle.italic,
         height: _gathaLineHeight,
         color: bodyColor,
@@ -188,10 +194,18 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
       unindentedStyle: TextStyle(
         fontFamily: AppFonts.reader,
         fontFamilyFallback: AppFonts.readerFallback,
-        fontSize: AppFonts.baseFontSize * 1.1,
+        fontSize: scaledFonts.base * 1.1,
         height: _paragraphLineHeight,
         color: bodyColor,
       ),
+
+      // Scale layout spacing values proportionally
+      paragraphFirstLineIndent:
+          AppFonts.baseFontSize * AppFonts.paragraphIndentEm * fontScale,
+      gathaLeftPadding:
+          AppFonts.baseFontSize * AppFonts.gathaIndentEm * fontScale,
+      gathaLevel2LeftPadding:
+          AppFonts.baseFontSize * AppFonts.gathaLevel2IndentEm * fontScale,
     );
   }
 

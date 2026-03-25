@@ -97,4 +97,50 @@ abstract class AppFonts {
 
   /// Font size for page numbers and counts
   static const double pageNumberFontSize = 12.0;
+
+  // ============================================
+  // Spacing Em Multipliers
+  // ============================================
+  // Used by TextEntryTheme for scaled layout spacing.
+  // Values originate from the Vue.js app CSS (TextEntry.vue).
+
+  /// Paragraph first-line indent: 1.4em
+  static const double paragraphIndentEm = 1.4;
+
+  /// Gatha (verse) left padding: 2.4em
+  static const double gathaIndentEm = 2.4;
+
+  /// Gatha level-2 left padding: 5em
+  static const double gathaLevel2IndentEm = 5.0;
+
+  // ============================================
+  // Font Scale
+  // ============================================
+
+  /// Default font scale for web/desktop where fonts appear larger
+  /// due to display density differences (desktop monitors vs phones).
+  static const double webDefaultScale = 0.85;
+
+  /// Returns all font sizes multiplied by [scale].
+  ///
+  /// Used by AppTypography and TextEntryTheme factories to build
+  /// scale-aware text styles. The scale factor defaults to 1.0 on
+  /// native and 0.85 on web — later a user font-size preference
+  /// will control this same value.
+  static ScaledFontSizes scaled(double scale) => ScaledFontSizes(scale);
+}
+
+/// All AppFonts size constants multiplied by a scale factor.
+/// Created via [AppFonts.scaled].
+class ScaledFontSizes {
+  final double scale;
+
+  const ScaledFontSizes(this.scale);
+
+  double get base => AppFonts.baseFontSize * scale;
+  double get badge => AppFonts.badgeFontSize * scale;
+  double get label => AppFonts.labelFontSize * scale;
+  double get tab => AppFonts.tabFontSize * scale;
+  double get tree => AppFonts.treeFontSize * scale;
+  double get pageNumber => AppFonts.pageNumberFontSize * scale;
 }
