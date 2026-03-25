@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/datasources/dictionary_datasource.dart';
+import '../../data/datasources/dictionary_local_datasource.dart';
 import '../../data/repositories/dictionary_repository_impl.dart';
 import '../../domain/entities/dictionary/dictionary_entry.dart';
 import '../../domain/entities/dictionary/dictionary_params.dart';

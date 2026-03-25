@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,13 +8,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'presentation/screens/reader_screen.dart';
 import 'presentation/providers/search_provider.dart';
+import 'presentation/providers/platform_providers.dart';
 import 'core/theme/theme_notifier.dart';
+
+// Conditional import: uses dart:io on native, no-op on web
+import 'core/utils/platform_utils.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize FFI-based SQLite for desktop platforms (Windows, Linux)
-  if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
+  // Uses conditional import so dart:io is never referenced on web
+  if (!kIsWeb && isDesktopPlatform()) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
@@ -25,13 +28,15 @@ void main() async {
   final sharedPrefs = await SharedPreferences.getInstance();
 
   // Quick validation: Check if FTS database exists in assets
-  // This is a fast check that doesn't load the entire database
-  try {
-    await rootBundle.load('assets/databases/bjt-fts.db');
-  } catch (e) {
-    // Database not found - show error and exit
-    runApp(const _DatabaseMissingError());
-    return;
+  // Skip on web - web uses remote datasources (server has the databases)
+  if (!kIsWeb) {
+    try {
+      await rootBundle.load('assets/databases/bjt-fts.db');
+    } catch (e) {
+      // Database not found - show error and exit
+      runApp(const _DatabaseMissingError());
+      return;
+    }
   }
 
   runApp(
@@ -39,6 +44,8 @@ void main() async {
       overrides: [
         // Provide SharedPreferences for recent searches
         sharedPreferencesProvider.overrideWithValue(sharedPrefs),
+        // On web, swap local datasources for remote (HTTP) datasources
+        if (kIsWeb) ...getWebOverrides(),
       ],
       child: const MyApp(),
     ),

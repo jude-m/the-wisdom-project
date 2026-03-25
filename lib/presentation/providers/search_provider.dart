@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/datasources/fts_datasource.dart';
+import '../../data/datasources/fts_local_datasource.dart';
 import '../../data/repositories/recent_searches_repository_impl.dart';
 import '../../data/repositories/text_search_repository_impl.dart';
 import '../../domain/repositories/recent_searches_repository.dart';

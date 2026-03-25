@@ -292,7 +292,7 @@ void main() {
         final ftsMatches = [
           FTSMatch(
             editionId: 'bjt',
-            rowid: 1,
+            id: 1,
             filename: 'dn-1',
             eind: '0-5',
             language: 'pali',
@@ -1613,7 +1613,7 @@ void main() {
         final ftsMatches = [
           FTSMatch(
             editionId: 'bjt',
-            rowid: 1,
+            id: 1,
             filename: 'dn-1',
             eind: '0-5',
             language: 'pali',
@@ -1669,7 +1669,7 @@ void main() {
         final firstPageMatches = [
           FTSMatch(
             editionId: 'bjt',
-            rowid: 1,
+            id: 1,
             filename: 'dn-1',
             eind: '0-5',
             language: 'pali',
@@ -1679,11 +1679,11 @@ void main() {
           ),
         ];
 
-        // Second page results (different rowid)
+        // Second page results (different id)
         final secondPageMatches = [
           FTSMatch(
             editionId: 'bjt',
-            rowid: 51,
+            id: 51,
             filename: 'dn-2',
             eind: '10-15',
             language: 'pali',

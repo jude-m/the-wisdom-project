@@ -474,8 +474,16 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       final node = nodeMap[match.nodeKey];
 
       if (node != null) {
-        // Load text content for display
-        final matchedText = await _loadTextForMatch(
+        // FTS results only contain metadata (filename, eind, language) — not
+        // the actual text content needed for the search result preview snippet.
+        //
+        // On web: the server pre-loads the text from JSON files and attaches it
+        //   as match.matchedText before sending the response (since the JSON
+        //   files are not bundled in the web build).
+        // On native: match.matchedText is null, so we fall through to
+        //   _loadTextForMatch() which reads from bundled assets via rootBundle.
+        final matchedText = match.matchedText ??
+            await _loadTextForMatch(
               match.filename,
               match.eind,
               match.language,

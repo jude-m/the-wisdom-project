@@ -57,6 +57,9 @@ dependencies:
   path_provider: ^2.1.1
   path: ^1.8.3
 
+  # HTTP client (for web API calls to server)
+  http: ^1.2.0
+
   # URL launching (in-app browser for DPD "Read more" links)
   url_launcher: ^6.2.0
 
@@ -96,16 +99,21 @@ flutter:
   generate: true
 
   # Assets - Tipitaka JSON data files
+  #
+  # NOTE: databases/ and text/ are required by native platforms (iOS, Android,
+  # desktop) but NOT by web. On web the Dart server serves these via API.
+  # The serve-web.sh script strips them from build/web/ after build to avoid
+  # bloating the web bundle (~600 MB -> ~37 MB).
   assets:
-    # Navigation tree and metadata
+    # Navigation tree and metadata (used on ALL platforms including web)
     - assets/data/tree.json
     - assets/data/file-map.json
     - assets/data/footnote-abbreviations.json
-    # Text content files (285 JSON files)
+    # Text content files - 285 JSON files (native only; web fetches via API)
     - assets/text/
-    # Full-text search database (BJT edition)
+    # Full-text search database - BJT edition (native only; web uses API)
     - assets/databases/bjt-fts.db
-    # Dictionary database (Pali-English/Sinhala definitions)
+    # Dictionary database - Pali-English/Sinhala (native only; web uses API)
     - assets/databases/dict.db
 
   # An image asset can refer to one or more resolution-specific "variants", see

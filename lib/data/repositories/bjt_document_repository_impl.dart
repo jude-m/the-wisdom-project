@@ -2,7 +2,7 @@ import 'package:dartz/dartz.dart';
 import '../../domain/entities/failure.dart';
 import '../../domain/entities/bjt/bjt_document.dart';
 import '../../domain/repositories/bjt_document_repository.dart';
-import '../datasources/bjt_document_local_datasource.dart';
+import '../datasources/bjt_document_datasource.dart';
 
 class BJTDocumentRepositoryImpl implements BJTDocumentRepository {
   final BJTDocumentDataSource _dataSource;
