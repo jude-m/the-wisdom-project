@@ -14,11 +14,11 @@ class TextHandler {
 
   TextHandler(this._logger, this._assetsPath);
 
-  Router get router {
-    final router = Router();
-    router.get('/<fileId>', _getText);
-    return router;
-  }
+  late final router = () {
+    final r = Router();
+    r.get('/<fileId>', _getText);
+    return r;
+  }();
 
   /// GET /api/text/<fileId>
   /// Returns the JSON content for a single text file (e.g., dn-1, mn-1)

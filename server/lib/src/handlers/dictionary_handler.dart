@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
+import 'package:wisdom_shared/wisdom_shared.dart';
 
 import '../database/database_manager.dart';
 import '../logging/logger.dart';
@@ -13,13 +14,13 @@ class DictionaryHandler {
 
   DictionaryHandler(this._db, this._logger);
 
-  Router get router {
-    final router = Router();
-    router.get('/lookup', _lookup);
-    router.get('/search', _search);
-    router.get('/count', _count);
-    return router;
-  }
+  late final router = () {
+    final r = Router();
+    r.get('/lookup', _lookup);
+    r.get('/search', _search);
+    r.get('/count', _count);
+    return r;
+  }();
 
   /// GET /api/dict/lookup?word=...&exactMatch=false&dictionaryIds=DPD,BUS&limit=50
   Future<Response> _lookup(Request request) async {
@@ -31,10 +32,10 @@ class DictionaryHandler {
       }
 
       final exactMatch = params['exactMatch'] == 'true';
-      final dictionaryIds = _parseSet(params['dictionaryIds']);
+      final dictionaryIds = parseCsvToSet(params['dictionaryIds']);
       final limit = int.tryParse(params['limit'] ?? '') ?? 50;
 
-      final likePattern = _buildLikePattern(word, exactMatch: exactMatch);
+      final likePattern = buildDictionaryLikePattern(word, exactMatch: exactMatch);
 
       final sql = StringBuffer();
       sql.write('''
@@ -46,7 +47,7 @@ class DictionaryHandler {
       ''');
 
       final args = <Object>[word, likePattern];
-      _appendDictionaryFilter(sql, args, dictionaryIds);
+      appendDictionaryFilter(sql, args, dictionaryIds);
 
       sql.write(' ORDER BY is_exact ASC, rank DESC LIMIT ?');
       args.add(limit);
@@ -71,11 +72,11 @@ class DictionaryHandler {
       }
 
       final isExactMatch = params['isExactMatch'] == 'true';
-      final dictionaryIds = _parseSet(params['dictionaryIds']);
+      final dictionaryIds = parseCsvToSet(params['dictionaryIds']);
       final limit = int.tryParse(params['limit'] ?? '') ?? 50;
       final offset = int.tryParse(params['offset'] ?? '') ?? 0;
 
-      final likePattern = _buildLikePattern(query, exactMatch: isExactMatch);
+      final likePattern = buildDictionaryLikePattern(query, exactMatch: isExactMatch);
 
       final sql = StringBuffer();
       sql.write('''
@@ -87,7 +88,7 @@ class DictionaryHandler {
       ''');
 
       final args = <Object>[query, likePattern];
-      _appendDictionaryFilter(sql, args, dictionaryIds);
+      appendDictionaryFilter(sql, args, dictionaryIds);
 
       sql.write(' ORDER BY is_exact ASC, rank DESC LIMIT ? OFFSET ?');
       args.addAll([limit, offset]);
@@ -112,9 +113,9 @@ class DictionaryHandler {
       }
 
       final isExactMatch = params['isExactMatch'] == 'true';
-      final dictionaryIds = _parseSet(params['dictionaryIds']);
+      final dictionaryIds = parseCsvToSet(params['dictionaryIds']);
 
-      final likePattern = _buildLikePattern(query, exactMatch: isExactMatch);
+      final likePattern = buildDictionaryLikePattern(query, exactMatch: isExactMatch);
 
       final sql = StringBuffer();
       sql.write('''
@@ -124,7 +125,7 @@ class DictionaryHandler {
       ''');
 
       final args = <Object>[likePattern];
-      _appendDictionaryFilter(sql, args, dictionaryIds);
+      appendDictionaryFilter(sql, args, dictionaryIds);
 
       final results = _db.dictDb.select(sql.toString(), args);
       final count = results.first['count'] as int;
@@ -136,31 +137,8 @@ class DictionaryHandler {
     }
   }
 
-  // ===========================================================================
-  // Helpers (same logic as DictionaryDataSourceImpl)
-  // ===========================================================================
-
-  String _buildLikePattern(String word, {bool exactMatch = false}) {
-    if (word.isEmpty) return '%';
-    final escaped = word.replaceAll('%', '\\%').replaceAll('_', '\\_');
-    return exactMatch ? escaped : '$escaped%';
-  }
-
-  void _appendDictionaryFilter(
-    StringBuffer sql,
-    List<Object> args,
-    Set<String> dictionaryIds,
-  ) {
-    if (dictionaryIds.isNotEmpty) {
-      final placeholders = List.filled(dictionaryIds.length, '?').join(', ');
-      sql.write(' AND dict_id IN ($placeholders)');
-      args.addAll(dictionaryIds);
-    }
-  }
-
   Map<String, dynamic> _mapRow(dynamic row) {
     final dictId = row['dict_id'] as String;
-    final targetLang = (dictId == 'BUS' || dictId == 'MS') ? 'si' : 'en';
     final rawScore = row['is_exact'];
     final double? score = rawScore == null
         ? null
@@ -171,16 +149,11 @@ class DictionaryHandler {
       'word': row['word'],
       'dictionaryId': dictId,
       'meaning': row['meaning'],
-      'targetLanguage': targetLang,
+      'targetLanguage': inferTargetLanguage(dictId),
       'sourceLanguage': 'pali',
       'rank': row['rank'],
       if (score != null) 'relevanceScore': score,
     };
-  }
-
-  Set<String> _parseSet(String? csv) {
-    if (csv == null || csv.isEmpty) return {};
-    return csv.split(',').where((s) => s.isNotEmpty).toSet();
   }
 
   Response _jsonResponse(Object data) {

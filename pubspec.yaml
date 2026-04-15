@@ -60,6 +60,10 @@ dependencies:
   # HTTP client (for web API calls to server)
   http: ^1.2.0
 
+  # Shared logic between client and server
+  wisdom_shared:
+    path: packages/wisdom_shared
+
   # URL launching (in-app browser for DPD "Read more" links)
   url_launcher: ^6.2.0
 

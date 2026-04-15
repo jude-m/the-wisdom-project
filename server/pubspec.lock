@@ -169,5 +169,12 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
+  wisdom_shared:
+    dependency: "direct main"
+    description:
+      path: "../packages/wisdom_shared"
+      relative: true
+    source: path
+    version: "0.1.0"
 sdks:
   dart: ">=3.7.0 <4.0.0"

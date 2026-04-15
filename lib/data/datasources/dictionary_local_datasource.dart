@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:wisdom_shared/wisdom_shared.dart';
 
 import '../../domain/entities/dictionary/dictionary_entry.dart';
 import 'dictionary_datasource.dart';
@@ -52,16 +53,6 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     }
   }
 
-  /// Builds LIKE pattern for word lookup
-  /// For single word: "word%" (prefix) or "word" (exact)
-  /// Escapes special SQL LIKE characters
-  String _buildLikePattern(String word, {bool exactMatch = false}) {
-    if (word.isEmpty) return '%';
-    // Escape special LIKE characters: % and _
-    final escaped = word.replaceAll('%', '\\%').replaceAll('_', '\\_');
-    return exactMatch ? escaped : '$escaped%';
-  }
-
   @override
   Future<List<DictionaryEntry>> lookupWord(
     String word, {
@@ -77,7 +68,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     }
 
     try {
-      final likePattern = _buildLikePattern(word, exactMatch: exactMatch);
+      final likePattern = buildDictionaryLikePattern(word, exactMatch: exactMatch);
 
       // Build the SQL query
       // Order by:
@@ -94,7 +85,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
 
       final args = <Object>[word, likePattern];
 
-      _appendDictionaryFilter(buffer, args, dictionaryIds);
+      appendDictionaryFilter(buffer, args, dictionaryIds);
 
       buffer.write('''
         ORDER BY is_exact ASC, rank DESC
@@ -131,7 +122,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     }
 
     try {
-      final likePattern = _buildLikePattern(query, exactMatch: isExactMatch);
+      final likePattern = buildDictionaryLikePattern(query, exactMatch: isExactMatch);
 
       // Build the SQL query
       final buffer = StringBuffer();
@@ -145,7 +136,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
 
       final args = <Object>[query, likePattern];
 
-      _appendDictionaryFilter(buffer, args, dictionaryIds);
+      appendDictionaryFilter(buffer, args, dictionaryIds);
 
       buffer.write('''
         ORDER BY is_exact ASC, rank DESC
@@ -180,7 +171,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     }
 
     try {
-      final likePattern = _buildLikePattern(query, exactMatch: isExactMatch);
+      final likePattern = buildDictionaryLikePattern(query, exactMatch: isExactMatch);
 
       // Build count query
       final buffer = StringBuffer();
@@ -192,7 +183,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
 
       final args = <Object>[likePattern];
 
-      _appendDictionaryFilter(buffer, args, dictionaryIds);
+      appendDictionaryFilter(buffer, args, dictionaryIds);
 
       final results = await db.rawQuery(buffer.toString(), args);
       return results.first['count'] as int;
@@ -201,27 +192,10 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     }
   }
 
-  /// Appends SQL WHERE clause for dictionary ID filtering.
-  /// Empty [dictionaryIds] = no filter (all dictionaries).
-  void _appendDictionaryFilter(
-    StringBuffer buffer,
-    List<Object> args,
-    Set<String> dictionaryIds,
-  ) {
-    if (dictionaryIds.isNotEmpty) {
-      final placeholders = List.filled(dictionaryIds.length, '?').join(', ');
-      buffer.write(' AND dict_id IN ($placeholders)');
-      args.addAll(dictionaryIds);
-    }
-  }
-
   /// Maps a database row to DictionaryEntry
   DictionaryEntry _mapRowToEntry(Map<String, dynamic> row) {
     final dictId = row['dict_id'] as String;
-
-    // Infer target language from dictionary ID
-    // BUS and MS are Sinhala target dictionaries, others are English
-    final targetLang = (dictId == 'BUS' || dictId == 'MS') ? 'si' : 'en';
+    final targetLang = inferTargetLanguage(dictId);
 
     // Handle is_exact as relevance score (0 for exact match, 1 for prefix match)
     final rawScore = row['is_exact'];

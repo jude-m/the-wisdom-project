@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:wisdom_shared/wisdom_shared.dart';
 
 import '../services/scope_filter_service.dart';
 import 'fts_datasource.dart';
@@ -19,96 +20,6 @@ class FTSDataSourceImpl implements FTSDataSource {
   /// Uses dart:developer.log which is stripped in release builds.
   void _log(String message) {
     developer.log(message, name: 'FTSDataSource');
-  }
-
-  /// Builds FTS5 query syntax for single or multi-word queries.
-  ///
-  /// ## Single word:
-  /// - `word*` (prefix matching) when [isExactMatch] is false
-  /// - `word` (exact token) when [isExactMatch] is true
-  ///
-  /// ## Multi-word with [isPhraseSearch] = true (phrase search):
-  /// - [isExactMatch] = true: `"word1 word2"` (exact phrase, consecutive)
-  /// - [isExactMatch] = false: `NEAR(word1* word2*, 1)` (adjacent with prefix)
-  ///   Note: FTS5 doesn't support wildcards inside phrase quotes, so we use
-  ///   NEAR with distance 1 as a workaround for phrase+prefix matching.
-  ///
-  /// ## Multi-word with [isPhraseSearch] = false (separate-word search):
-  /// - [isAnywhereInText] = true: Implicit AND (space-separated words)
-  /// - [isAnywhereInText] = false: Use NEAR(terms, n) for proximity
-  /// - [isExactMatch] affects whether wildcards are added to each word
-  ///
-  /// ## Search Flows Summary (FTS5):
-  /// | isPhraseSearch | isAnywhereInText | isExactMatch | FTS5 Query |
-  /// |---------------|------------------|--------------|------------|
-  /// | true | - | true | `"word1 word2"` (exact phrase) |
-  /// | true | - | false | `NEAR(word1* word2*, 1)` (phrase with/adjacent prefix) |
-  /// | false | true | true | `word1 word2` (AND, exact tokens) |
-  /// | false | true | false | `word1* word2*` (AND, prefix match) |
-  /// | false | false | true | `NEAR(word1 word2, n)` (proximity, exact) |
-  /// | false | false | false | `NEAR(word1* word2*, n)` (proximity, prefix) |
-  String _buildFtsQuery(
-    String queryText, {
-    bool isExactMatch = false,
-    bool isPhraseSearch = true,
-    bool isAnywhereInText = false,
-    int proximityDistance = 10,
-  }) {
-    if (queryText.isEmpty) {
-      return '""';
-    }
-
-    // Split into words (handles multi-word queries)
-    final words = queryText.split(' ').where((w) => w.isNotEmpty).toList();
-
-    if (words.length == 1) {
-      // Single word: simple token matching (no quotes)
-      // isExactMatch=false: අනාථ* (prefix token matching)
-      // isExactMatch=true: අනාථ (exact token matching)
-      final singleWordQuery = isExactMatch ? words[0] : '${words[0]}*';
-      return singleWordQuery;
-    }
-
-    // Multi-word handling
-    String result;
-    if (isPhraseSearch) {
-      // Phrase search: words must be adjacent (consecutive)
-      if (isExactMatch) {
-        // Exact phrase: use double quotes for FTS phrase query
-        // FTS5 query: "word1 word2" (exact consecutive match)
-        result = '"${words.join(' ')}"';
-      } else {
-        // FTS5 workaround: wildcards not supported inside phrase quotes
-        // Use NEAR with distance 1 to approximate phrase+prefix behavior
-        // FTS5 query: NEAR(word1* word2*, 1) (adjacent with prefix matching)
-        result = 'NEAR(${words.map((w) => '$w*').join(' ')}, 1)';
-      }
-    } else {
-      // Separate-word search
-      if (isAnywhereInText) {
-        // Anywhere in text: use implicit AND (no NEAR operator)
-        // Simply listing terms with spaces = AND query (both must exist)
-        if (isExactMatch) {
-          // FTS5 query: word1 word2 (exact tokens, both must exist)
-          result = words.join(' ');
-        } else {
-          // FTS5 query: word1* word2* (prefix matching, both must exist)
-          result = words.map((w) => '$w*').join(' ');
-        }
-      } else {
-        // Proximity search: words within specific distance
-        // FTS5 uses NEAR(terms, distance) syntax instead of NEAR/n
-        if (isExactMatch) {
-          // FTS5 query: NEAR(word1 word2, n) (exact tokens within distance)
-          result = 'NEAR(${words.join(' ')}, $proximityDistance)';
-        } else {
-          // FTS5 query: NEAR(word1* word2*, n) (prefix matching within distance)
-          result = 'NEAR(${words.map((w) => '$w*').join(' ')}, $proximityDistance)';
-        }
-      }
-    }
-
-    return result;
   }
 
   /// Track which editions are initialized
@@ -229,7 +140,7 @@ class FTSDataSourceImpl implements FTSDataSource {
       final metaTable = '${editionId}_meta';
 
       // Build FTS query syntax (query already validated by repository)
-      final ftsQuery = _buildFtsQuery(
+      final ftsQuery = buildFtsQuery(
         query,
         isExactMatch: isExactMatch,
         isPhraseSearch: isPhraseSearch,
@@ -310,7 +221,7 @@ class FTSDataSourceImpl implements FTSDataSource {
       final metaTable = '${editionId}_meta';
 
       // Build FTS query syntax (query already validated by repository)
-      final ftsQuery = _buildFtsQuery(
+      final ftsQuery = buildFtsQuery(
         query,
         isExactMatch: isExactMatch,
         isPhraseSearch: isPhraseSearch,

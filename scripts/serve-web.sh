@@ -44,8 +44,8 @@ if [ "$SKIP_BUILD" = false ]; then
   # Remove server-only assets from web build (databases + text JSON files).
   # On web these are served by the API — bundling them wastes ~600 MB.
   echo "Cleaning server-only assets from web build..."
-  rm -rf build/web/assets/assets/databases
-  rm -rf build/web/assets/assets/text
+  [ -d "build/web/assets/assets/databases" ] && rm -rf build/web/assets/assets/databases
+  [ -d "build/web/assets/assets/text" ] && rm -rf build/web/assets/assets/text
   SAVED=$(du -sh build/web | awk '{print $1}')
   echo "Web build size after cleanup: $SAVED"
   echo ""

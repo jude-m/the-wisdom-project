@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
+import 'package:wisdom_shared/wisdom_shared.dart';
 
 import '../database/database_manager.dart';
 import '../logging/logger.dart';
@@ -15,13 +16,13 @@ class FtsHandler {
 
   FtsHandler(this._db, this._logger, this._assetsPath);
 
-  Router get router {
-    final router = Router();
-    router.get('/search', _search);
-    router.get('/count', _count);
-    router.get('/suggestions', _suggestions);
-    return router;
-  }
+  late final router = () {
+    final r = Router();
+    r.get('/search', _search);
+    r.get('/count', _count);
+    r.get('/suggestions', _suggestions);
+    return r;
+  }();
 
   /// GET /api/fts/search?query=...&editionIds=bjt&scope=dn,mn&...
   Future<Response> _search(Request request) async {
@@ -33,7 +34,7 @@ class FtsHandler {
       }
 
       final editionId = params['editionIds'] ?? 'bjt';
-      final scope = _parseSet(params['scope']);
+      final scope = parseCsvToSet(params['scope']);
       final isExactMatch = params['isExactMatch'] == 'true';
       final isPhraseSearch = params['isPhraseSearch'] != 'false';
       final isAnywhereInText = params['isAnywhereInText'] == 'true';
@@ -42,7 +43,7 @@ class FtsHandler {
       final offset = int.tryParse(params['offset'] ?? '') ?? 0;
 
       // Build FTS5 query string
-      final ftsQuery = _buildFtsQuery(
+      final ftsQuery = buildFtsQuery(
         query,
         isExactMatch: isExactMatch,
         isPhraseSearch: isPhraseSearch,
@@ -54,8 +55,8 @@ class FtsHandler {
       final metaTable = '${editionId}_meta';
 
       // Build scope filter
-      final scopeClause = _buildScopeWhereClause(scope);
-      final scopeParams = _getScopeParams(scope);
+      final scopeClause = ScopeFilterSql.buildWhereClause(scope);
+      final scopeParams = ScopeFilterSql.getWhereParams(scope);
 
       // Build SQL with BM25 ranking
       final sql = StringBuffer();
@@ -130,13 +131,13 @@ class FtsHandler {
       }
 
       final editionId = params['editionId'] ?? 'bjt';
-      final scope = _parseSet(params['scope']);
+      final scope = parseCsvToSet(params['scope']);
       final isExactMatch = params['isExactMatch'] == 'true';
       final isPhraseSearch = params['isPhraseSearch'] != 'false';
       final isAnywhereInText = params['isAnywhereInText'] == 'true';
       final proximityDistance = int.tryParse(params['proximityDistance'] ?? '') ?? 10;
 
-      final ftsQuery = _buildFtsQuery(
+      final ftsQuery = buildFtsQuery(
         query,
         isExactMatch: isExactMatch,
         isPhraseSearch: isPhraseSearch,
@@ -150,8 +151,8 @@ class FtsHandler {
       final sql = StringBuffer();
       final args = <Object>[ftsQuery];
 
-      final scopeClause = _buildScopeWhereClause(scope);
-      final scopeParams = _getScopeParams(scope);
+      final scopeClause = ScopeFilterSql.buildWhereClause(scope);
+      final scopeParams = ScopeFilterSql.getWhereParams(scope);
 
       if (scope.isNotEmpty) {
         sql.write('''
@@ -228,81 +229,6 @@ class FtsHandler {
   }
 
   // ===========================================================================
-  // FTS5 Query Builder (same logic as FTSDataSourceImpl._buildFtsQuery)
-  // ===========================================================================
-
-  String _buildFtsQuery(
-    String queryText, {
-    bool isExactMatch = false,
-    bool isPhraseSearch = true,
-    bool isAnywhereInText = false,
-    int proximityDistance = 10,
-  }) {
-    if (queryText.isEmpty) return '""';
-
-    final words = queryText.split(' ').where((w) => w.isNotEmpty).toList();
-
-    if (words.length == 1) {
-      return isExactMatch ? words[0] : '${words[0]}*';
-    }
-
-    if (isPhraseSearch) {
-      if (isExactMatch) {
-        return '"${words.join(' ')}"';
-      } else {
-        return 'NEAR(${words.map((w) => '$w*').join(' ')}, 1)';
-      }
-    } else {
-      if (isAnywhereInText) {
-        if (isExactMatch) {
-          return words.join(' ');
-        } else {
-          return words.map((w) => '$w*').join(' ');
-        }
-      } else {
-        if (isExactMatch) {
-          return 'NEAR(${words.join(' ')}, $proximityDistance)';
-        } else {
-          return 'NEAR(${words.map((w) => '$w*').join(' ')}, $proximityDistance)';
-        }
-      }
-    }
-  }
-
-  // ===========================================================================
-  // Scope Filter (same logic as ScopeFilterService + ScopeOperations)
-  // ===========================================================================
-
-  /// Root nodes that need expansion to multiple filename prefixes
-  static const _expandedPatterns = <String, List<String>>{
-    'sp': ['dn-', 'mn-', 'sn-', 'an-', 'kn-'],
-    'atta-sp': ['atta-dn-', 'atta-mn-', 'atta-sn-', 'atta-an-', 'atta-kn-'],
-  };
-
-  List<String> _getPatternsForScope(Set<String> scope) {
-    if (scope.isEmpty) return [];
-    return scope.expand((key) {
-      if (_expandedPatterns.containsKey(key)) {
-        return _expandedPatterns[key]!;
-      }
-      return ['$key-'];
-    }).toList();
-  }
-
-  String? _buildScopeWhereClause(Set<String> scope) {
-    if (scope.isEmpty) return null;
-    final patterns = _getPatternsForScope(scope);
-    if (patterns.isEmpty) return null;
-    final conditions = patterns.map((_) => 'm.filename LIKE ?').join(' OR ');
-    return '($conditions)';
-  }
-
-  List<String> _getScopeParams(Set<String> scope) {
-    if (scope.isEmpty) return [];
-    return _getPatternsForScope(scope).map((p) => '$p%').toList();
-  }
-
-  // ===========================================================================
   // Text Content Loading (for enriching search results with matched text)
   // ===========================================================================
 
@@ -369,11 +295,6 @@ class FtsHandler {
   // ===========================================================================
   // Helpers
   // ===========================================================================
-
-  Set<String> _parseSet(String? csv) {
-    if (csv == null || csv.isEmpty) return {};
-    return csv.split(',').where((s) => s.isNotEmpty).toSet();
-  }
 
   Response _jsonResponse(Object data) {
     return Response.ok(

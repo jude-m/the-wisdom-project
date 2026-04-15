@@ -1,4 +1,5 @@
-import '../../../core/constants/constants.dart';
+import 'package:wisdom_shared/wisdom_shared.dart';
+
 import '../navigation/tipitaka_tree_node.dart';
 
 /// Consolidated utility class for all search scope operations.
@@ -38,34 +39,6 @@ class ScopeOperations {
   // CONSTANTS
   // ============================================================================
 
-  /// Root node keys that need expansion to multiple filename prefixes.
-  ///
-  /// Most tree node keys map directly to filename prefixes (e.g., 'dn' → 'dn-').
-  /// However, some root nodes don't match filename conventions directly:
-  /// - 'sp' (Sutta Pitaka) → files are named dn-*, mn-*, sn-*, an-*, kn-*
-  /// - 'atta-sp' (Sutta Commentary) → files are named atta-dn-*, atta-mn-*, etc.
-  ///
-  /// Other roots like 'vp', 'ap', 'anya' work naturally because files match
-  /// their node keys directly (vp-*, ap-*, anya-*).
-  static const Map<String, List<String>> _expandedPatterns = {
-    // Sutta Pitaka: tree key 'sp' but files use nikaya prefixes
-    TipitakaNodeKeys.suttaPitaka: [
-      '${TipitakaNodeKeys.dighaNikaya}-',
-      '${TipitakaNodeKeys.majjhimaNikaya}-',
-      '${TipitakaNodeKeys.samyuttaNikaya}-',
-      '${TipitakaNodeKeys.anguttaraNikaya}-',
-      '${TipitakaNodeKeys.khuddakaNikaya}-',
-    ],
-    // Sutta Commentary: tree key 'atta-sp' but files use nikaya prefixes
-    TipitakaNodeKeys.suttaAtthakatha: [
-      'atta-${TipitakaNodeKeys.dighaNikaya}-',
-      'atta-${TipitakaNodeKeys.majjhimaNikaya}-',
-      'atta-${TipitakaNodeKeys.samyuttaNikaya}-',
-      'atta-${TipitakaNodeKeys.anguttaraNikaya}-',
-      'atta-${TipitakaNodeKeys.khuddakaNikaya}-',
-    ],
-  };
-
   /// Chip key groupings - defines how root scope keys are grouped for quick selection.
   ///
   /// This is the domain-level knowledge that UI chips implement.
@@ -85,103 +58,31 @@ class ScopeOperations {
   ];
 
   // ============================================================================
-  // PATTERN CONFIGURATION (from ScopeFilterConfig)
+  // PATTERN METHODS (delegated to shared ScopePatterns)
   // ============================================================================
 
   /// Converts a tree node key to filename prefix patterns.
-  ///
-  /// Most node keys map directly to filename prefixes:
-  /// - 'dn' → ['dn-'] (all Digha Nikaya files)
-  /// - 'dn-1' → ['dn-1-'] (Silakkhandhavagga suttas)
-  /// - 'vp' → ['vp-'] (all Vinaya Pitaka files)
-  /// - 'ap' → ['ap-'] (all Abhidhamma Pitaka files)
-  /// - 'anya' → ['anya-'] (all Treatises)
-  ///
-  /// Root nodes that don't match filenames are expanded:
-  /// - 'sp' → ['dn-', 'mn-', 'sn-', 'an-', 'kn-']
-  /// - 'atta-sp' → ['atta-dn-', 'atta-mn-', 'atta-sn-', 'atta-an-', 'atta-kn-']
-  ///
-  /// Note: The SQL LIKE wildcard (%) is added by the service layer.
-  ///
-  /// Example:
-  /// ```dart
-  /// getPatternsForNodeKey('dn')   // Returns: ['dn-']
-  /// getPatternsForNodeKey('sp')   // Returns: ['dn-', 'mn-', 'sn-', 'an-', 'kn-']
-  /// getPatternsForNodeKey('vp')   // Returns: ['vp-']
-  /// ```
-  static List<String> getPatternsForNodeKey(String nodeKey) {
-    // Check if this is a root node that needs expansion
-    if (_expandedPatterns.containsKey(nodeKey)) {
-      return _expandedPatterns[nodeKey]!;
-    }
-    // Standard case: node key maps directly to filename prefix
-    // Note: % wildcard is added by the service layer, not here
-    return ['$nodeKey-'];
-  }
+  /// Delegates to [ScopePatterns.getPatternsForNodeKey].
+  static List<String> getPatternsForNodeKey(String nodeKey) =>
+      ScopePatterns.getPatternsForNodeKey(nodeKey);
 
   /// Converts a set of tree node keys to filename prefix patterns.
-  ///
-  /// Returns empty list if [searchScope] is empty (no filter = search all).
-  ///
-  /// Note: The SQL LIKE wildcard (%) is added by the service layer.
-  ///
-  /// Example:
-  /// ```dart
-  /// getPatternsForScope({'dn', 'mn'})
-  /// // Returns: ['dn-', 'mn-']
-  /// getPatternsForScope({'sp'})
-  /// // Returns: ['dn-', 'mn-', 'sn-', 'an-', 'kn-']
-  /// getPatternsForScope({'sp', 'vp'})
-  /// // Returns: ['dn-', 'mn-', 'sn-', 'an-', 'kn-', 'vp-']
-  /// ```
-  static List<String> getPatternsForScope(Set<String> searchScope) {
-    if (searchScope.isEmpty) return [];
-    // Use expand() since some nodes return multiple patterns
-    return searchScope.expand(getPatternsForNodeKey).toList();
-  }
+  /// Delegates to [ScopePatterns.getPatternsForScope].
+  static List<String> getPatternsForScope(Set<String> searchScope) =>
+      ScopePatterns.getPatternsForScope(searchScope);
 
-  // ============================================================================
-  // HIERARCHY NAVIGATION (from ScopeFilterConfig)
-  // ============================================================================
-
-  /// Check if [childNodeKey] is covered by (is a descendant of) [ancestorNodeKey].
-  ///
-  /// A node is "covered" if all of its filename patterns are prefixed by
-  /// at least one of the ancestor's patterns.
-  ///
-  /// Examples:
-  /// - isNodeCoveredBy('dn', 'sp') → true (dn- is in sp's expanded patterns)
-  /// - isNodeCoveredBy('dn-1', 'dn') → true (dn-1- starts with dn-)
-  /// - isNodeCoveredBy('mn', 'dn') → false (mn- doesn't start with dn-)
-  /// - isNodeCoveredBy('sp', 'sp') → true (a node covers itself)
-  static bool isNodeCoveredBy(String childNodeKey, String ancestorNodeKey) {
-    final childPatterns = getPatternsForNodeKey(childNodeKey);
-    final ancestorPatterns = getPatternsForNodeKey(ancestorNodeKey);
-
-    // Child is covered if ALL of its patterns start with at least one ancestor pattern
-    return childPatterns.every(
-      (childPattern) => ancestorPatterns.any(
-        (ancestorPattern) => childPattern.startsWith(ancestorPattern),
-      ),
-    );
-  }
+  /// Check if [childNodeKey] is covered by [ancestorNodeKey].
+  /// Delegates to [ScopePatterns.isNodeCoveredBy].
+  static bool isNodeCoveredBy(String childNodeKey, String ancestorNodeKey) =>
+      ScopePatterns.isNodeCoveredBy(childNodeKey, ancestorNodeKey);
 
   /// Find which of the [candidateAncestors] cover the given [nodeKey].
-  ///
-  /// Returns the set of ancestor keys that cover the node.
-  /// A node covers itself (e.g., 'sp' is covered by {'sp'}).
-  ///
-  /// Example:
-  /// - findCoveringAncestors('dn', {'sp', 'vp', 'ap'}) → {'sp'}
-  /// - findCoveringAncestors('dn-1', {'sp', 'dn'}) → {'sp', 'dn'}
+  /// Delegates to [ScopePatterns.findCoveringAncestors].
   static Set<String> findCoveringAncestors(
     String nodeKey,
     Set<String> candidateAncestors,
-  ) {
-    return candidateAncestors
-        .where((ancestor) => isNodeCoveredBy(nodeKey, ancestor))
-        .toSet();
-  }
+  ) =>
+      ScopePatterns.findCoveringAncestors(nodeKey, candidateAncestors);
 
   // ============================================================================
   // CHIP OPERATIONS (from ScopeUtils)
