@@ -110,6 +110,16 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
   /// Updated after 300ms debounce when user edits the text field.
   late String _currentLookupWord;
 
+  /// Threshold above which the sheet is considered "expanded" for the
+  /// chevron toggle icon. Chosen between the min snap (0.28) and mid snap
+  /// (0.55) so the icon flips as soon as the sheet grows past collapsed.
+  static const double _expandedThreshold = 0.4;
+
+  /// Cached expansion state — used to avoid redundant setState calls on
+  /// every pixel of drag. We only rebuild when the size crosses the
+  /// threshold.
+  bool _wasExpanded = false;
+
   @override
   void initState() {
     super.initState();
@@ -117,6 +127,8 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
     _currentLookupWord = removeConjunctFormatting(widget.word);
     _wordController = TextEditingController(text: widget.word);
     _wordFocusNode = FocusNode();
+    // Listen so the chevron icon flips when the user drags the sheet.
+    _sheetController.addListener(_onSheetSizeChanged);
   }
 
   @override
@@ -137,6 +149,38 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
     _wordController.dispose();
     _sheetController.dispose();
     super.dispose();
+  }
+
+  /// Called whenever the DraggableScrollableController's size changes
+  /// (from dragging or animateTo). Rebuilds only when the expansion state
+  /// flips, keeping setState cost minimal.
+  void _onSheetSizeChanged() {
+    if (!_sheetController.isAttached) return;
+    final nowExpanded = _sheetController.size > _expandedThreshold;
+    if (nowExpanded != _wasExpanded) {
+      _wasExpanded = nowExpanded;
+      if (mounted) setState(() {});
+    }
+  }
+
+  /// True when the sheet is currently expanded past the collapsed snap.
+  /// Sourced from the cached flag the listener maintains — inside `build`
+  /// this is always in sync with the live size, and defaults to `false`
+  /// before the controller attaches.
+  bool get _isExpanded => _wasExpanded;
+
+  /// Chevron button handler — toggles between the collapsed min snap and
+  /// the fully expanded max snap. Skips the mid snap by design.
+  void _toggleExpansion() {
+    if (!_sheetController.isAttached) return;
+    final target = _isExpanded
+        ? DictionarySheetConstants.minChildSize
+        : DictionarySheetConstants.maxChildSize;
+    _sheetController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   void _openRefineDialog(BuildContext context) {
@@ -292,12 +336,14 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
                                 ),
                               ),
                             ),
-                            // Exact match toggle
                             CircularToggleButton(
                               isActive: isExactMatch,
                               icon: Icons.abc,
-                              tooltip:
-                                  AppLocalizations.of(context).isExactMatchToggle,
+                              // Icons.abc has heavy internal padding — bump
+                              // the size so the letters read clearly.
+                              iconSize: 28,
+                              tooltip: AppLocalizations.of(context)
+                                  .isExactMatchToggle,
                               onPressed: () {
                                 ref
                                     .read(bottomSheetExactMatchProvider.notifier)
@@ -308,6 +354,19 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
                             _DictionaryFilterButton(
                               filterIds: filterIds,
                               onTap: () => _openRefineDialog(context),
+                            ),
+                            // Chevron toggle: collapsed ↔ fully expanded.
+                            // Skips the mid snap; drag the handle for that.
+                            IconButton(
+                              icon: Icon(
+                                _isExpanded
+                                    ? Icons.keyboard_arrow_down
+                                    : Icons.keyboard_arrow_up,
+                              ),
+                              onPressed: _toggleExpansion,
+                              tooltip: _isExpanded
+                                  ? AppLocalizations.of(context).collapse
+                                  : AppLocalizations.of(context).expand,
                             ),
                             IconButton(
                               icon: const Icon(Icons.close),

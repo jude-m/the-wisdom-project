@@ -151,6 +151,16 @@
     "description": "Label for the refine button/chip"
   },
 
+  "expand": "Expand",
+  "@expand": {
+    "description": "Tooltip for the chevron button that expands the dictionary bottom sheet to full height"
+  },
+
+  "collapse": "Collapse",
+  "@collapse": {
+    "description": "Tooltip for the chevron button that collapses the dictionary bottom sheet to its minimum height"
+  },
+
   "scope": "Scope",
   "@scope": {
     "description": "Label for the scope section in refine dialog"

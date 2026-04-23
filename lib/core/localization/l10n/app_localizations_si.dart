@@ -100,6 +100,12 @@ class AppLocalizationsSi extends AppLocalizations {
   String get refine => 'සූක්ෂම';
 
   @override
+  String get expand => 'විහිදන්න';
+
+  @override
+  String get collapse => 'හකුළන්න';
+
+  @override
   String get scope => 'පරාසය';
 
   @override

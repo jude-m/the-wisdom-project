@@ -23,28 +23,19 @@ class CircularToggleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      height: 30,
-      width: 30,
-      margin: margin,
-      decoration: BoxDecoration(
-        color: isActive
-            ? theme.colorScheme.primaryContainer
-            : theme.colorScheme.surfaceContainerHighest,
-        shape: BoxShape.circle,
-      ),
+    return Padding(
+      padding: margin,
       child: IconButton(
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-        icon: Icon(
-          icon,
-          size: iconSize,
-          color: isActive
-              ? theme.colorScheme.onPrimaryContainer
-              : theme.colorScheme.primary,
-        ),
+        icon: Icon(icon, size: iconSize),
         tooltip: tooltip,
         onPressed: onPressed,
+        style: IconButton.styleFrom(
+          backgroundColor:
+              isActive ? theme.colorScheme.primaryContainer : null,
+          foregroundColor: isActive
+              ? theme.colorScheme.onPrimaryContainer
+              : theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }

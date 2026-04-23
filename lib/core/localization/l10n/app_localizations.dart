@@ -278,6 +278,18 @@ abstract class AppLocalizations {
   /// **'Refine'**
   String get refine;
 
+  /// Tooltip for the chevron button that expands the dictionary bottom sheet to full height
+  ///
+  /// In en, this message translates to:
+  /// **'Expand'**
+  String get expand;
+
+  /// Tooltip for the chevron button that collapses the dictionary bottom sheet to its minimum height
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse'**
+  String get collapse;
+
   /// Label for the scope section in refine dialog
   ///
   /// In en, this message translates to:

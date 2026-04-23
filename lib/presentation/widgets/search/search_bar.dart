@@ -192,6 +192,7 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                     CircularToggleButton(
                       isActive: isExactMatch,
                       icon: Icons.abc,
+                      iconSize: 24,
                       tooltip: l10n.isExactMatchToggle,
                       onPressed: () {
                         ref
@@ -205,6 +206,7 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                       CircularToggleButton(
                         isActive: isProximityActive,
                         icon: Icons.space_bar,
+                        iconSize: 24,
                         tooltip: l10n.wordProximity,
                         onPressed: () => ProximityDialog.show(context),
                       ),
@@ -223,7 +225,7 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                           constraints: const BoxConstraints(),
                           icon: Icon(
                             Icons.clear,
-                            size: 18,
+                            size: 20,
                             color: theme.colorScheme.primary,
                           ),
                           onPressed: () {

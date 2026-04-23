@@ -100,6 +100,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get refine => 'Refine';
 
   @override
+  String get expand => 'Expand';
+
+  @override
+  String get collapse => 'Collapse';
+
+  @override
   String get scope => 'Scope';
 
   @override
