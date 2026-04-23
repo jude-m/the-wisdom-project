@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:mockito/mockito.dart';
 import 'package:the_wisdom_project/presentation/widgets/tree_navigator_widget.dart';
 
@@ -222,8 +223,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // ASSERT - Root nodes are containers, should show folder icon
-      expect(find.byIcon(Icons.folder_outlined), findsWidgets);
+      // ASSERT - Root nodes are containers (collapsed) → book_4_sharp from contentIcon()
+      expect(find.byIcon(Symbols.book_4_sharp), findsWidgets);
     });
   });
 

@@ -3,9 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/presentation/widgets/settings_menu_button.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
-import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
-import 'package:the_wisdom_project/presentation/models/reader_layout.dart';
-import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/domain/entities/navigation/navigation_language.dart';
 
 import '../../helpers/pump_app.dart';
@@ -22,10 +19,11 @@ void main() {
       await tester.tap(find.byIcon(Icons.settings));
       await tester.pumpAndSettle();
 
-      // Verify all sections present
+      // Verify all sections present. The reader layout (P/P+S/S)
+      // selector lives per-tab now, so it is no longer in this menu.
       expect(find.text('Theme'), findsOneWidget);
+      expect(find.text('Font Size'), findsOneWidget);
       expect(find.text('Navigation Language'), findsOneWidget);
-      expect(find.text('Sutta Language'), findsOneWidget);
 
       // Verify all theme options
       expect(find.text('Light'), findsOneWidget);
@@ -35,26 +33,13 @@ void main() {
       // Verify language options
       expect(find.text('Pali'), findsOneWidget);
       expect(find.text('සිංහල'), findsOneWidget);
-
-      // Verify sutta language (column mode) options
-      expect(find.text('P'), findsOneWidget);
-      expect(find.text('P+S'), findsOneWidget);
-      expect(find.text('S'), findsOneWidget);
     });
 
     testWidgets('should update providers when options selected',
         (tester) async {
-      // We'll use a container to read providers
+      // Use a container so we can read providers directly.
       final container = ProviderContainer();
-
-      // Create a tab so column mode has a target to update
-      container.read(tabsProvider.notifier).addTab(ReaderTab.fromNode(
-        nodeKey: 'test-node',
-        paliName: 'Test Sutta',
-        sinhalaName: 'Test Sutta',
-        contentFileId: 'test-file',
-      ));
-      container.read(activeTabIndexProvider.notifier).state = 0;
+      addTearDown(container.dispose);
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -77,22 +62,15 @@ void main() {
       expect(
           container.read(navigationLanguageProvider), NavigationLanguage.pali);
 
+      // Re-open the menu (PopupMenu closes after a selection).
+      await tester.tap(find.byIcon(Icons.settings));
+      await tester.pumpAndSettle();
+
       // Change Navigation Language to Sinhala
       await tester.tap(find.text('සිංහල'));
       await tester.pumpAndSettle();
       expect(container.read(navigationLanguageProvider),
           NavigationLanguage.sinhala);
-
-      // Change Sutta Language (Reader Layout) - now per-tab
-      // Note: 'P' text might be inside the SegmentedButton
-      await tester.tap(find.text('S'));
-      await tester.pumpAndSettle();
-      expect(container.read(activeReaderLayoutProvider),
-          ReaderLayout.sinhalaOnly);
-
-      await tester.tap(find.text('P+S'));
-      await tester.pumpAndSettle();
-      expect(container.read(activeReaderLayoutProvider), ReaderLayout.sideBySide);
     });
   });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/tab_bar_widget.dart';
@@ -66,13 +67,12 @@ void main() {
       expect(find.text('Sutta 2'), findsOneWidget);
     });
 
-    testWidgets('should show correct icon based on content availability',
-        (tester) async {
-      // ARRANGE - Tab with content and tab without content
-      final tabWithContent =
-          createTab(label: 'With Content', contentFileId: 'dn-1');
-      final tabWithoutContent =
-          createTab(label: 'Folder Tab', contentFileId: null);
+    testWidgets('should show content icon for each tab', (tester) async {
+      // ARRANGE - Two tabs rendered in the tab bar.
+      // The tab bar always shows the document/sutta icon (contentIcon is
+      // invoked without hasChildren, so every tab uses description_sharp).
+      final tab1 = createTab(label: 'With Content', contentFileId: 'dn-1');
+      final tab2 = createTab(label: 'Folder Tab', contentFileId: null);
 
       // ACT
       await tester.pumpApp(
@@ -80,8 +80,8 @@ void main() {
         overrides: [
           tabsProvider.overrideWith((ref) {
             final notifier = TabsNotifier();
-            notifier.addTab(tabWithContent);
-            notifier.addTab(tabWithoutContent);
+            notifier.addTab(tab1);
+            notifier.addTab(tab2);
             return notifier;
           }),
           activeTabIndexProvider.overrideWith((ref) => 0),
@@ -89,10 +89,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // ASSERT - Document icon for tab with content
-      expect(find.byIcon(Icons.description_outlined), findsOneWidget);
-      // Folder icon for tab without content
-      expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
+      // ASSERT - One description icon per tab (both tabs render).
+      expect(find.byIcon(Symbols.description_sharp), findsNWidgets(2));
     });
   });
 
