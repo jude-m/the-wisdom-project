@@ -46,6 +46,13 @@ if [ "$SKIP_BUILD" = false ]; then
   echo "Cleaning server-only assets from web build..."
   [ -d "build/web/assets/assets/databases" ] && rm -rf build/web/assets/assets/databases
   [ -d "build/web/assets/assets/text" ] && rm -rf build/web/assets/assets/text
+
+  # Strip the Flutter service worker. Without it, redeploys show fresh
+  # code immediately instead of serving a stale cached bundle until the
+  # user hard-reloads. Losing offline support is fine — this app needs
+  # the server running anyway.
+  [ -f "build/web/flutter_service_worker.js" ] && rm -f build/web/flutter_service_worker.js
+
   SAVED=$(du -sh build/web | awk '{print $1}')
   echo "Web build size after cleanup: $SAVED"
   echo ""

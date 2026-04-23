@@ -8,6 +8,7 @@ import 'package:shelf_static/shelf_static.dart';
 import 'database/database_manager.dart';
 import 'handlers/dictionary_handler.dart';
 import 'handlers/fts_handler.dart';
+import 'handlers/health_handler.dart';
 import 'handlers/text_handler.dart';
 import 'logging/logger.dart';
 
@@ -36,6 +37,10 @@ class ServerApp {
     final topRouter = Router();
     topRouter.mount('/api/', apiRouter.call);
 
+    // /healthz is a top-level, top-priority endpoint for the deploy pipeline.
+    // Constructed once so startedAt reflects process start, not request time.
+    final healthHandler = HealthHandler(logger, assetsPath);
+
     // Build the pipeline
     final pipeline = const Pipeline()
         .addMiddleware(_gzipMiddleware())
@@ -49,9 +54,12 @@ class ServerApp {
         defaultDocument: 'index.html',
       );
 
-      // API routes take priority, then static files
+      // /healthz > API > static files
       return pipeline.addHandler(
         (Request request) async {
+          if (request.url.path == 'healthz') {
+            return healthHandler.handle(request);
+          }
           // Try API first
           if (request.url.path.startsWith('api/')) {
             return topRouter.call(request);
@@ -72,8 +80,15 @@ class ServerApp {
         },
       );
     } else {
-      // API only mode (no web root specified)
-      return pipeline.addHandler(topRouter.call);
+      // API-only mode — still expose /healthz for the deploy pipeline.
+      return pipeline.addHandler(
+        (Request request) async {
+          if (request.url.path == 'healthz') {
+            return healthHandler.handle(request);
+          }
+          return topRouter.call(request);
+        },
+      );
     }
   }
 
