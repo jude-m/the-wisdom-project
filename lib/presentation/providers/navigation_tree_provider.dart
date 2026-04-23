@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/constants.dart';
 import '../../data/datasources/tree_local_datasource.dart';
 import '../../data/repositories/navigation_tree_repository_impl.dart';
@@ -49,10 +51,48 @@ final selectedNodeProvider = StateProvider<String?>((ref) => null);
 // This separates "selection" from "scroll request"
 final scrollToNodeRequestProvider = StateProvider<String?>((ref) => null);
 
-// State for navigation language preference
-final navigationLanguageProvider = StateProvider<NavigationLanguage>((ref) {
-  return NavigationLanguage.sinhala;
-});
+// State for navigation language preference (persisted to SharedPreferences)
+final navigationLanguageProvider =
+    StateNotifierProvider<NavigationLanguageNotifier, NavigationLanguage>(
+  (ref) => NavigationLanguageNotifier(),
+);
+
+/// Manages the navigation language preference with persistence across
+/// app restarts / web reloads. See [NavigationLanguage] for supported values.
+class NavigationLanguageNotifier extends StateNotifier<NavigationLanguage> {
+  static const String _storageKey = 'navigation_language';
+
+  NavigationLanguageNotifier() : super(NavigationLanguage.sinhala);
+
+  /// Load saved language preference from storage. Called once at startup.
+  Future<void> loadSavedLanguage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_storageKey);
+      if (saved != null) {
+        state = NavigationLanguage.values.firstWhere(
+          (e) => e.name == saved,
+          orElse: () => NavigationLanguage.sinhala,
+        );
+      }
+    } catch (e) {
+      // Keep default if load fails
+      debugPrint('Failed to load navigation language: $e');
+    }
+  }
+
+  /// Update the language and persist the choice.
+  Future<void> setLanguage(NavigationLanguage language) async {
+    state = language;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_storageKey, language.name);
+    } catch (e) {
+      // UI still updates even if persistence fails
+      debugPrint('Failed to save navigation language: $e');
+    }
+  }
+}
 
 // Helper provider to get a node by key
 // Uses autoDispose to clean up when no listeners remain (prevents memory leaks).

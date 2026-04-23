@@ -233,8 +233,8 @@ class _LanguageSelector extends ConsumerWidget {
       ],
       selected: {currentLanguage},
       onSelectionChanged: (Set<NavigationLanguage> newSelection) {
-        ref.read(navigationLanguageProvider.notifier).state =
-            newSelection.first;
+        final notifier = ref.read(navigationLanguageProvider.notifier);
+        notifier.setLanguage(newSelection.first);
       },
       style: const ButtonStyle(
         visualDensity: VisualDensity.compact,

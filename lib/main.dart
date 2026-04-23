@@ -9,6 +9,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'presentation/screens/reader_screen.dart';
 import 'presentation/providers/search_provider.dart';
 import 'presentation/providers/platform_providers.dart';
+import 'presentation/providers/navigation_tree_provider.dart';
 import 'core/theme/theme_notifier.dart';
 
 // Conditional import: uses dart:io on native, no-op on web
@@ -137,6 +138,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     Future.microtask(() {
       ref.read(themeNotifierProvider.notifier).loadSavedTheme();
       ref.read(fontScaleProvider.notifier).loadSavedScale();
+      ref.read(navigationLanguageProvider.notifier).loadSavedLanguage();
     });
   }
 

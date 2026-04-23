@@ -1,9 +1,10 @@
-// TODO: Both ThemeNotifier and FontScaleNotifier call
+// TODO: ThemeNotifier, FontScaleNotifier, and NavigationLanguageNotifier
+// (in presentation/providers/navigation_tree_provider.dart) all call
 // SharedPreferences.getInstance() directly instead of using the injected
 // sharedPreferencesProvider. Refactor to inject SharedPreferences via
 // constructor — requires moving sharedPreferencesProvider from
 // presentation/providers/ to core/ to avoid a layer violation.
-// Do both notifiers together for consistency.
+// Do all three notifiers together for consistency.
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
