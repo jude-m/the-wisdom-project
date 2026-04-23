@@ -9,7 +9,6 @@ import 'package:the_wisdom_project/presentation/providers/dictionary_provider.da
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
-import 'package:the_wisdom_project/domain/entities/dictionary/dictionary_filter_operations.dart';
 import 'package:the_wisdom_project/presentation/widgets/dictionary/dictionary_bottom_sheet.dart';
 import 'package:the_wisdom_project/presentation/widgets/dictionary/refine_dictionary_dialog.dart';
 import 'package:the_wisdom_project/presentation/widgets/multi_pane_reader_widget.dart';
@@ -400,9 +399,11 @@ void main() {
         Set<String> dictIdsFromProvider() {
           final word = container.read(selectedDictionaryWordProvider);
           final filter = container.read(bottomSheetDictionaryFilterProvider);
+          final exactMatch = container.read(bottomSheetExactMatchProvider);
           final params = DictionaryLookupParams(
             word: removeConjunctFormatting(word!),
             dictionaryIds: filter,
+            exactMatch: exactMatch,
           );
           final entries = container
               .read(dictionaryLookupProvider(params))
