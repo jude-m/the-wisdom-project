@@ -188,31 +188,40 @@ void main() {
             reason: 'Sinhala-only should still have some results');
 
         // ---------------------------------------------------------------
-        // STEP 2: Refine → uncheck first Sinhala dict (BUS)
+        // STEP 2: Refine → tap BUS.
+        //
+        // Because the entire Sinhala parent group {BUS, MS} is fully
+        // selected, the dialog NARROWS the selection to just {BUS} (it
+        // does not unselect BUS). This matches the search refine UX:
+        // tapping a child of a fully-selected parent narrows down rather
+        // than removes — see _toggleDictionary in refine_dictionary_dialog.dart.
         // ---------------------------------------------------------------
         await tester.refineDictionaries([DictionaryInfo.getDisplayName('BUS')]);
 
-        final afterUncheckBus =
+        final afterNarrowToBus =
             tester.getResultCounts()[SearchResultType.definition]!;
-        expect(afterUncheckBus, lessThan(sinhalaDefinitions),
-            reason: 'Removing one Sinhala dict should reduce count');
-        expect(afterUncheckBus, greaterThan(0),
-            reason: 'One Sinhala dict (Sumangala) should still have results');
+        expect(afterNarrowToBus, lessThan(sinhalaDefinitions),
+            reason: 'Narrowing to one Sinhala dict should reduce count');
+        expect(afterNarrowToBus, greaterThan(0),
+            reason: 'BUS alone should still have some results');
 
-        // Provider should hold only {MS}
-        final stateAfterUncheckBus = tester.getSearchState();
-        expect(stateAfterUncheckBus.selectedDictionaryIds, equals({'MS'}),
-            reason: 'Only Sumangala (MS) should remain selected');
+        // Provider should hold only {BUS} after the narrow-down.
+        final stateAfterNarrow = tester.getSearchState();
+        expect(stateAfterNarrow.selectedDictionaryIds, equals({'BUS'}),
+            reason:
+                'Tapping BUS while {BUS, MS} is fully selected should '
+                'narrow to {BUS} (parent-fully-selected → narrow-down)');
 
         // ---------------------------------------------------------------
-        // STEP 3: Refine → uncheck last Sinhala dict (MS) → {} → All
+        // STEP 3: Refine → tap BUS again → {} → snaps back to "All".
         //
-        // This is the edge case: removing the very last dictionary
-        // produces an empty set, which the convention treats as "All".
-        // The UI should snap back to all-checked instead of showing
-        // "nothing selected."
+        // This is the edge case: now {BUS} is the only selection, so its
+        // parent group is NOT fully selected. The dialog falls through to
+        // the remove-branch, producing an empty set, which the convention
+        // treats as "All". The UI should snap back to all-checked instead
+        // of showing "nothing selected".
         // ---------------------------------------------------------------
-        await tester.refineDictionaries([DictionaryInfo.getDisplayName('MS')]);
+        await tester.refineDictionaries([DictionaryInfo.getDisplayName('BUS')]);
 
         // ASSERT: Snapped back to "All"
         expect(tester.isDictFilterChipSelected('All'), isTrue,

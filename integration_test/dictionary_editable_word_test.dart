@@ -16,6 +16,7 @@ import 'package:the_wisdom_project/presentation/widgets/multi_pane_reader_widget
 import 'package:the_wisdom_project/presentation/widgets/tab_bar_widget.dart';
 import 'package:the_wisdom_project/data/datasources/bjt_document_local_datasource.dart';
 import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
+import 'package:the_wisdom_project/domain/entities/dictionary/dictionary_params.dart';
 
 /// Integration tests for the editable dictionary word feature.
 ///
@@ -390,15 +391,29 @@ void main() {
         expect(find.byType(DictionaryBottomSheet), findsOneWidget,
             reason: 'Dictionary sheet should appear after word tap');
 
-        // Record how many result badges are visible before filtering.
-        // Multiple dictionaries should have results for භගවා (e.g. BUS, DPD, PTS...).
-        // We check that at least one non-DPD badge is present.
-        final allBadgeTexts = <String>{};
-        for (final info in DictionaryFilterOperations.allIds) {
-          if (tester.widgetList(find.text(info)).isNotEmpty) {
-            allBadgeTexts.add(info);
-          }
+        // Helper: read all distinct dict IDs the lookup provider returned.
+        // We assert against the loaded provider data rather than rendered
+        // badges because the sheet opens at initialChildSize (28% of screen)
+        // and SliverList lazy-builds tiles — off-screen badges (lower-rank
+        // dicts like VRI/DPDC) aren't in the widget tree, so find.text would
+        // miss them.
+        Set<String> dictIdsFromProvider() {
+          final word = container.read(selectedDictionaryWordProvider);
+          final filter = container.read(bottomSheetDictionaryFilterProvider);
+          final params = DictionaryLookupParams(
+            word: removeConjunctFormatting(word!),
+            dictionaryIds: filter,
+          );
+          final entries = container
+              .read(dictionaryLookupProvider(params))
+              .value;
+          expect(entries, isNotNull,
+              reason: 'Dictionary lookup should have completed');
+          return entries!.map((e) => e.dictionaryId).toSet();
         }
+
+        // Multiple dictionaries should have results for භගවා (e.g. DPD, VRI, DPDC).
+        final allBadgeTexts = dictIdsFromProvider();
         expect(allBadgeTexts.length, greaterThan(1),
             reason:
                 'භගවා should have results from multiple dictionaries, '
@@ -439,18 +454,14 @@ void main() {
         ).done));
         await tester.pumpAndSettle(const Duration(seconds: 1));
 
-        // ASSERT: Only DPD badges should be visible in results
-        for (final dictId in DictionaryFilterOperations.allIds) {
-          if (dictId == 'DPD') {
-            expect(find.text('DPD'), findsWidgets,
-                reason: 'DPD results should still be shown');
-          } else {
-            expect(find.text(dictId), findsNothing,
-                reason:
-                    'Non-DPD dictionary "$dictId" should not appear when '
-                    'filtered to DPD only');
-          }
-        }
+        // ASSERT: Only DPD entries should be returned by the lookup
+        // (asserted against the provider data rather than the lazily-built
+        // badges, for the reason explained in dictIdsFromProvider above).
+        final filteredDictIds = dictIdsFromProvider();
+        expect(filteredDictIds, equals({'DPD'}),
+            reason:
+                'After filtering to DPD only, the lookup should return '
+                'entries from no other dictionary, got: $filteredDictIds');
 
         // STEP 4: Open refine dialog again and tap DPD to restore all.
         // Since DPD's entire group (English) is NOT fully selected — only
@@ -488,13 +499,8 @@ void main() {
         ).done));
         await tester.pumpAndSettle(const Duration(seconds: 1));
 
-        // ASSERT: Results from multiple dictionaries should be visible again
-        final restoredBadges = <String>{};
-        for (final info in DictionaryFilterOperations.allIds) {
-          if (tester.widgetList(find.text(info)).isNotEmpty) {
-            restoredBadges.add(info);
-          }
-        }
+        // ASSERT: Results from multiple dictionaries should be returned again
+        final restoredBadges = dictIdsFromProvider();
         expect(restoredBadges.length, greaterThan(1),
             reason:
                 'After restoring to "All", multiple dictionary badges '
