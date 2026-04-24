@@ -80,11 +80,12 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     if (_scrollController.hasClients) {
       final currentScroll = _scrollController.position.pixels;
 
-      // Track whether the user has scrolled at least one viewport height down.
-      // This prevents the "Go to beginning" button from appearing too eagerly
-      // after just a couple of scroll ticks.
-      final viewportHeight = _scrollController.position.viewportDimension;
-      final scrolledDown = currentScroll > viewportHeight;
+      // Track whether the user has scrolled meaningfully from the top.
+      // Small fixed threshold (not a full viewport) so Mode 2 kicks in
+      // promptly once the user starts scrolling, while still ignoring
+      // overscroll/bounce jitter near the top.
+      const scrollAwayFromTopThreshold = 60.0;
+      final scrolledDown = currentScroll > scrollAwayFromTopThreshold;
       if (scrolledDown != _isScrolledDown) {
         setState(() => _isScrolledDown = scrolledDown);
       }
@@ -514,7 +515,9 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
               ignoring: !showMode1,
               child: AnimatedOpacity(
                 opacity: showMode1 ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 150),
+                // Matches Mode 2's 200ms so the two modes cross-fade
+                // symmetrically with no brief "neither visible" gap.
+                duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOutCubic,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
