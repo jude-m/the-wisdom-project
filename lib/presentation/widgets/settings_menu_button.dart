@@ -89,16 +89,16 @@ class _ThemeSelector extends ConsumerWidget {
           label: Text('Light'),
           icon: Icon(Icons.light_mode, size: 16),
         ),
-        ButtonSegment(
-          value: AppThemeMode.dark,
-          label: Text('Dark'),
-          icon: Icon(Icons.dark_mode, size: 16),
-        ),
-        ButtonSegment(
-          value: AppThemeMode.warm,
-          label: Text('Warm'),
-          icon: Icon(Icons.palette, size: 16),
-        ),
+        // ButtonSegment(
+        //   value: AppThemeMode.dark,
+        //   label: Text('Dark'),
+        //   icon: Icon(Icons.dark_mode, size: 16),
+        // ),
+        // ButtonSegment(
+        //   value: AppThemeMode.warm,
+        //   label: Text('Warm'),
+        //   icon: Icon(Icons.palette, size: 16),
+        // ),
       ],
       selected: {currentTheme},
       onSelectionChanged: (Set<AppThemeMode> newSelection) {

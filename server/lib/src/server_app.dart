@@ -64,19 +64,43 @@ class ServerApp {
           if (request.url.path.startsWith('api/')) {
             return topRouter.call(request);
           }
-          // Fall back to static files
+          // Fall back to static files.
           final response = await staticHandler(request);
-          // If static file not found, serve index.html for SPA routing
-          if (response.statusCode == 404) {
+
+          // Force Chrome to revalidate files that change every deploy.
+          // Without this, shelf_static sends ETag/Last-Modified but no
+          // Cache-Control, so Chrome's heuristic freshness rule serves
+          // main.dart.js from disk cache without hitting us. `no-cache`
+          // = may cache, MUST revalidate → tiny 304 when unchanged,
+          // fresh 200 when changed. Long-lived assets (fonts, wasm,
+          // images) keep their default cacheability for performance.
+          final path = request.url.path;
+          final mustRevalidate = path.isEmpty ||
+              path == 'index.html' ||
+              path.endsWith('.js') ||
+              path == 'manifest.json' ||
+              path == 'version.json';
+          final finalResponse = mustRevalidate
+              ? response.change(headers: {
+                  ...response.headers,
+                  'Cache-Control': 'no-cache',
+                })
+              : response;
+
+          // If static file not found, serve index.html for SPA routing.
+          if (finalResponse.statusCode == 404) {
             final indexFile = File('$webRoot/index.html');
             if (indexFile.existsSync()) {
               return Response.ok(
                 indexFile.readAsStringSync(),
-                headers: {'Content-Type': 'text/html; charset=utf-8'},
+                headers: {
+                  'Content-Type': 'text/html; charset=utf-8',
+                  'Cache-Control': 'no-cache',
+                },
               );
             }
           }
-          return response;
+          return finalResponse;
         },
       );
     } else {
