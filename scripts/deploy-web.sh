@@ -11,8 +11,10 @@
 #    ./scripts/deploy-web.sh --dry-run      # run tests + build, skip rsync
 #    ./scripts/deploy-web.sh -h             # help
 #
-#  Assumes the SMB share //192.168.1.200/wisdom-project is mounted at
-#  /Volumes/wisdom-project (Finder: Go → Connect to Server).
+#  Auto-mounts the SMB share //192.168.1.200/wisdom-project at
+#  /Volumes/wisdom-project if not already mounted. Requires the password
+#  to be saved in Keychain (tick "Remember this password" on first Finder
+#  mount: Go → Connect to Server → smb://192.168.1.200/wisdom-project).
 # =============================================================================
 
 set -euo pipefail
@@ -66,7 +68,28 @@ cd "$PROJECT_ROOT"
 
 # ---------------------------------------------------------------- Preflight
 phase "Preflight"
-[[ -d "$SHARE_MOUNT" ]] || die "Share not mounted at $SHARE_MOUNT. Finder → Go → Connect to Server → smb://${WINDOWS_IP}/wisdom-project"
+
+# Try to auto-mount the SMB share if it isn't already. `open smb://…`
+# delegates to Finder, which pulls saved credentials from Keychain (no
+# password prompt if "Remember this password" was ticked on first mount).
+# Poll for up to ~15s for the mount point to appear.
+mount_share() {
+  local url="smb://${WINDOWS_IP}/wisdom-project"
+  warn "Share not mounted — attempting auto-mount via $url"
+  open "$url" >/dev/null 2>&1 || true
+  local waited=0
+  while (( waited < 15 )); do
+    [[ -d "$SHARE_MOUNT" ]] && return 0
+    sleep 1
+    waited=$((waited + 1))
+  done
+  return 1
+}
+
+if [[ ! -d "$SHARE_MOUNT" ]]; then
+  mount_share || die "Auto-mount failed. Mount manually once in Finder (Go → Connect to Server → smb://${WINDOWS_IP}/wisdom-project) and tick 'Remember this password in my keychain'."
+fi
+
 touch "$SHARE_MOUNT/.write-test" 2>/dev/null || die "Share not writable"
 rm -f "$SHARE_MOUNT/.write-test"
 ok "Share mounted and writable"
