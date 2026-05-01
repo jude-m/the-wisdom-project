@@ -6,10 +6,14 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'core/storage/key_value_store_provider.dart';
+import 'core/storage/shared_preferences_key_value_store.dart';
 import 'presentation/screens/reader_screen.dart';
 import 'presentation/providers/search_provider.dart';
 import 'presentation/providers/platform_providers.dart';
 import 'presentation/providers/navigation_tree_provider.dart';
+import 'presentation/providers/tab_provider.dart' show activeTabIndexPersistenceProvider;
+import 'presentation/providers/navigator_visibility_provider.dart' show navigatorVisiblePersistenceProvider;
 import 'core/theme/theme_notifier.dart';
 
 // Conditional import: uses dart:io on native, no-op on web
@@ -45,6 +49,11 @@ void main() async {
       overrides: [
         // Provide SharedPreferences for recent searches
         sharedPreferencesProvider.overrideWithValue(sharedPrefs),
+        // Generic key/value storage backing tab persistence (and future features).
+        // Shares the same SharedPreferences instance — no duplicate IO.
+        keyValueStoreProvider.overrideWithValue(
+          SharedPreferencesKeyValueStore(sharedPrefs),
+        ),
         // On web, swap local datasources for remote (HTTP) datasources
         if (kIsWeb) ...getWebOverrides(),
       ],
@@ -139,6 +148,12 @@ class _MyAppState extends ConsumerState<MyApp> {
       ref.read(themeNotifierProvider.notifier).loadSavedTheme();
       ref.read(fontScaleProvider.notifier).loadSavedScale();
       ref.read(navigationLanguageProvider.notifier).loadSavedLanguage();
+      // Instantiate the active-tab persistence listener once so changes to
+      // activeTabIndexProvider get written to disk for the rest of the
+      // session. Tabs themselves persist via TabsNotifier directly.
+      ref.read(activeTabIndexPersistenceProvider);
+      // Same pattern for the navigator collapse state.
+      ref.read(navigatorVisiblePersistenceProvider);
     });
   }
 

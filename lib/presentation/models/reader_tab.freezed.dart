@@ -14,6 +14,10 @@ T _$identity<T>(T value) => value;
 final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
+ReaderTab _$ReaderTabFromJson(Map<String, dynamic> json) {
+  return _ReaderTab.fromJson(json);
+}
+
 /// @nodoc
 mixin _$ReaderTab {
   /// Short label for tab display (truncated if needed)
@@ -66,6 +70,13 @@ mixin _$ReaderTab {
   /// Represents the proportion of width for the left (Pali) pane
   double get splitRatio => throw _privateConstructorUsedError;
 
+  /// Last known scroll offset (in pixels) for this tab.
+  /// Persisted to disk so a reload resumes at the same reading position.
+  double get scrollOffset => throw _privateConstructorUsedError;
+
+  /// Serializes this ReaderTab to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
   /// Create a copy of ReaderTab
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -92,7 +103,8 @@ abstract class $ReaderTabCopyWith<$Res> {
       String? textId,
       List<ReaderPane> panes,
       ReaderLayout layout,
-      double splitRatio});
+      double splitRatio,
+      double scrollOffset});
 }
 
 /// @nodoc
@@ -124,6 +136,7 @@ class _$ReaderTabCopyWithImpl<$Res, $Val extends ReaderTab>
     Object? panes = null,
     Object? layout = null,
     Object? splitRatio = null,
+    Object? scrollOffset = null,
   }) {
     return _then(_value.copyWith(
       label: null == label
@@ -182,6 +195,10 @@ class _$ReaderTabCopyWithImpl<$Res, $Val extends ReaderTab>
           ? _value.splitRatio
           : splitRatio // ignore: cast_nullable_to_non_nullable
               as double,
+      scrollOffset: null == scrollOffset
+          ? _value.scrollOffset
+          : scrollOffset // ignore: cast_nullable_to_non_nullable
+              as double,
     ) as $Val);
   }
 }
@@ -208,7 +225,8 @@ abstract class _$$ReaderTabImplCopyWith<$Res>
       String? textId,
       List<ReaderPane> panes,
       ReaderLayout layout,
-      double splitRatio});
+      double splitRatio,
+      double scrollOffset});
 }
 
 /// @nodoc
@@ -238,6 +256,7 @@ class __$$ReaderTabImplCopyWithImpl<$Res>
     Object? panes = null,
     Object? layout = null,
     Object? splitRatio = null,
+    Object? scrollOffset = null,
   }) {
     return _then(_$ReaderTabImpl(
       label: null == label
@@ -296,12 +315,16 @@ class __$$ReaderTabImplCopyWithImpl<$Res>
           ? _value.splitRatio
           : splitRatio // ignore: cast_nullable_to_non_nullable
               as double,
+      scrollOffset: null == scrollOffset
+          ? _value.scrollOffset
+          : scrollOffset // ignore: cast_nullable_to_non_nullable
+              as double,
     ));
   }
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$ReaderTabImpl extends _ReaderTab {
   const _$ReaderTabImpl(
       {required this.label,
@@ -317,11 +340,15 @@ class _$ReaderTabImpl extends _ReaderTab {
       this.textId,
       final List<ReaderPane> panes = const [],
       this.layout = ReaderLayout.paliOnly,
-      this.splitRatio = 0.5})
+      this.splitRatio = 0.5,
+      this.scrollOffset = 0.0})
       : assert(splitRatio >= 0.0 && splitRatio <= 1.0,
             'splitRatio must be between 0.0 and 1.0'),
         _panes = panes,
         super._();
+
+  factory _$ReaderTabImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ReaderTabImplFromJson(json);
 
   /// Short label for tab display (truncated if needed)
   @override
@@ -404,9 +431,15 @@ class _$ReaderTabImpl extends _ReaderTab {
   @JsonKey()
   final double splitRatio;
 
+  /// Last known scroll offset (in pixels) for this tab.
+  /// Persisted to disk so a reload resumes at the same reading position.
+  @override
+  @JsonKey()
+  final double scrollOffset;
+
   @override
   String toString() {
-    return 'ReaderTab(label: $label, fullName: $fullName, contentFileId: $contentFileId, pageIndex: $pageIndex, pageStart: $pageStart, pageEnd: $pageEnd, entryStart: $entryStart, nodeKey: $nodeKey, paliName: $paliName, sinhalaName: $sinhalaName, textId: $textId, panes: $panes, layout: $layout, splitRatio: $splitRatio)';
+    return 'ReaderTab(label: $label, fullName: $fullName, contentFileId: $contentFileId, pageIndex: $pageIndex, pageStart: $pageStart, pageEnd: $pageEnd, entryStart: $entryStart, nodeKey: $nodeKey, paliName: $paliName, sinhalaName: $sinhalaName, textId: $textId, panes: $panes, layout: $layout, splitRatio: $splitRatio, scrollOffset: $scrollOffset)';
   }
 
   @override
@@ -435,9 +468,12 @@ class _$ReaderTabImpl extends _ReaderTab {
             const DeepCollectionEquality().equals(other._panes, _panes) &&
             (identical(other.layout, layout) || other.layout == layout) &&
             (identical(other.splitRatio, splitRatio) ||
-                other.splitRatio == splitRatio));
+                other.splitRatio == splitRatio) &&
+            (identical(other.scrollOffset, scrollOffset) ||
+                other.scrollOffset == scrollOffset));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -454,7 +490,8 @@ class _$ReaderTabImpl extends _ReaderTab {
       textId,
       const DeepCollectionEquality().hash(_panes),
       layout,
-      splitRatio);
+      splitRatio,
+      scrollOffset);
 
   /// Create a copy of ReaderTab
   /// with the given fields replaced by the non-null parameter values.
@@ -463,6 +500,13 @@ class _$ReaderTabImpl extends _ReaderTab {
   @pragma('vm:prefer-inline')
   _$$ReaderTabImplCopyWith<_$ReaderTabImpl> get copyWith =>
       __$$ReaderTabImplCopyWithImpl<_$ReaderTabImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ReaderTabImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _ReaderTab extends ReaderTab {
@@ -480,8 +524,12 @@ abstract class _ReaderTab extends ReaderTab {
       final String? textId,
       final List<ReaderPane> panes,
       final ReaderLayout layout,
-      final double splitRatio}) = _$ReaderTabImpl;
+      final double splitRatio,
+      final double scrollOffset}) = _$ReaderTabImpl;
   const _ReaderTab._() : super._();
+
+  factory _ReaderTab.fromJson(Map<String, dynamic> json) =
+      _$ReaderTabImpl.fromJson;
 
   /// Short label for tab display (truncated if needed)
   @override
@@ -546,6 +594,11 @@ abstract class _ReaderTab extends ReaderTab {
   /// Represents the proportion of width for the left (Pali) pane
   @override
   double get splitRatio;
+
+  /// Last known scroll offset (in pixels) for this tab.
+  /// Persisted to disk so a reload resumes at the same reading position.
+  @override
+  double get scrollOffset;
 
   /// Create a copy of ReaderTab
   /// with the given fields replaced by the non-null parameter values.

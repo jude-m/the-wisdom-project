@@ -28,9 +28,8 @@ class FtsHighlightState {
 
 /// Manages per-tab FTS highlight state.
 ///
-/// State is a Map<int, FtsHighlightState> keyed by tab index,
-/// following the same pattern as [InPageSearchNotifier] and
-/// [tabScrollPositionsProvider].
+/// State is a Map<int, FtsHighlightState> keyed by tab index, following
+/// the same per-tab map pattern as [InPageSearchNotifier].
 class FtsHighlightNotifier extends StateNotifier<Map<int, FtsHighlightState>> {
   final Ref _ref;
 

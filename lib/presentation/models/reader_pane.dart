@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'reader_pane.freezed.dart';
+part 'reader_pane.g.dart';
 
 /// Represents a single column/pane in the multi-pane reader
 ///
@@ -25,4 +26,8 @@ class ReaderPane with _$ReaderPane {
     /// Hidden panes preserve their state but don't render
     @Default(true) bool isVisible,
   }) = _ReaderPane;
+
+  /// JSON deserialization for SharedPreferences-backed persistence.
+  factory ReaderPane.fromJson(Map<String, dynamic> json) =>
+      _$ReaderPaneFromJson(json);
 }

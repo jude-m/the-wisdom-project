@@ -27,11 +27,10 @@ final navigateToPreviousSuttaProvider =
     ref.read(ftsHighlightProvider.notifier).clearForActiveTab();
     ref.read(inPageSearchStatesProvider.notifier).closeSearch();
 
-    // Save scroll position as 0 for this tab (new sutta starts at top)
-    ref.read(saveTabScrollPositionProvider)(activeIndex, 0);
-
     // Build from the canonical factory, then preserve the user's display
     // preferences (layout, splitRatio) from the current tab.
+    // ReaderTab.fromNode produces scrollOffset:0 by default, so the new
+    // sutta naturally starts at the top.
     final baseTab = ReaderTab.fromNode(
       nodeKey: previousNode.nodeKey,
       paliName: previousNode.paliName,

@@ -14,6 +14,10 @@ T _$identity<T>(T value) => value;
 final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
+ReaderPane _$ReaderPaneFromJson(Map<String, dynamic> json) {
+  return _ReaderPane.fromJson(json);
+}
+
 /// @nodoc
 mixin _$ReaderPane {
   /// Unique identifier for this pane instance
@@ -28,6 +32,9 @@ mixin _$ReaderPane {
   /// Whether this pane is currently visible
   /// Hidden panes preserve their state but don't render
   bool get isVisible => throw _privateConstructorUsedError;
+
+  /// Serializes this ReaderPane to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of ReaderPane
   /// with the given fields replaced by the non-null parameter values.
@@ -127,10 +134,13 @@ class __$$ReaderPaneImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$ReaderPaneImpl implements _ReaderPane {
   const _$ReaderPaneImpl(
       {required this.paneId, required this.layerId, this.isVisible = true});
+
+  factory _$ReaderPaneImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ReaderPaneImplFromJson(json);
 
   /// Unique identifier for this pane instance
   /// Generated as UUID when creating a new pane
@@ -165,6 +175,7 @@ class _$ReaderPaneImpl implements _ReaderPane {
                 other.isVisible == isVisible));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, paneId, layerId, isVisible);
 
@@ -175,6 +186,13 @@ class _$ReaderPaneImpl implements _ReaderPane {
   @pragma('vm:prefer-inline')
   _$$ReaderPaneImplCopyWith<_$ReaderPaneImpl> get copyWith =>
       __$$ReaderPaneImplCopyWithImpl<_$ReaderPaneImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ReaderPaneImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _ReaderPane implements ReaderPane {
@@ -182,6 +200,9 @@ abstract class _ReaderPane implements ReaderPane {
       {required final String paneId,
       required final String layerId,
       final bool isVisible}) = _$ReaderPaneImpl;
+
+  factory _ReaderPane.fromJson(Map<String, dynamic> json) =
+      _$ReaderPaneImpl.fromJson;
 
   /// Unique identifier for this pane instance
   /// Generated as UUID when creating a new pane

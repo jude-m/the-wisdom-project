@@ -1,14 +1,71 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/constants.dart';
+import '../../core/storage/key_value_store.dart';
+import '../../core/storage/key_value_store_provider.dart';
+import '../../core/storage/storage_keys.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../models/reader_layout.dart';
 import '../models/reader_tab.dart';
 import 'navigation_tree_provider.dart';
 import 'navigator_sync_provider.dart';
 
-/// State notifier for managing the list of reader tabs
+/// State notifier for managing the list of reader tabs.
+///
+/// Hydrates from [KeyValueStore] on construction so previously open tabs
+/// come back across app reloads. Every state change schedules a debounced
+/// disk write — fast scroll updates that mutate [ReaderTab.scrollOffset]
+/// coalesce into a single write.
+///
+/// Serialization is intentionally inlined here rather than hidden behind
+/// a Repository<T> indirection. Tabs persistence is a pass-through over
+/// [KeyValueStore]; an extra interface would be ceremony with no payoff.
 class TabsNotifier extends StateNotifier<List<ReaderTab>> {
-  TabsNotifier() : super([]);
+  TabsNotifier(this._store) : super(_loadTabs(_store)) {
+    // fireImmediately:false — don't write back the value we just read.
+    // Capture the RemoveListener so dispose() can detach explicitly. Not
+    // strictly required (the notifier itself is being disposed), but it
+    // future-proofs against accidental re-entrancy if dispose grows.
+    _removeStateListener =
+        addListener(_onStateChanged, fireImmediately: false);
+  }
+
+  final KeyValueStore _store;
+  Timer? _saveDebounce;
+  late final RemoveListener _removeStateListener;
+
+  static const _saveDebounceDelay = Duration(milliseconds: 500);
+
+  /// Reads and decodes the persisted tab list. On corruption (wrong
+  /// shape, parse failure) the bad entry is removed and we start clean —
+  /// same defensive posture as `RecentSearchesRepositoryImpl`.
+  static List<ReaderTab> _loadTabs(KeyValueStore store) {
+    final raw = store.getJsonList(StorageKeys.openTabs);
+    if (raw == null) return const [];
+    try {
+      return raw
+          .whereType<Map<String, dynamic>>()
+          .map(ReaderTab.fromJson)
+          .toList(growable: false);
+    } catch (_) {
+      store.remove(StorageKeys.openTabs);
+      return const [];
+    }
+  }
+
+  /// Encodes the current state and writes it to the KV store. Shared by
+  /// the debounced auto-save path and the dispose-time flush so the JSON
+  /// shape stays in lockstep.
+  void _persistNow() {
+    final list = state.map((t) => t.toJson()).toList(growable: false);
+    _store.setJson(StorageKeys.openTabs, list);
+  }
+
+  void _onStateChanged(List<ReaderTab> _) {
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(_saveDebounceDelay, _persistNow);
+  }
 
   /// Adds a new tab and returns its index
   int addTab(ReaderTab tab) {
@@ -45,6 +102,16 @@ class TabsNotifier extends StateNotifier<List<ReaderTab>> {
     }
   }
 
+  /// Updates only the scroll offset for a tab.
+  /// No-op if the offset hasn't changed (avoids spamming the debounce timer
+  /// from `_onScroll` ticks that didn't actually move).
+  void updateTabScrollOffset(int tabIndex, double offset) {
+    if (tabIndex < 0 || tabIndex >= state.length) return;
+    if (state[tabIndex].scrollOffset == offset) return;
+    final updatedTab = state[tabIndex].copyWith(scrollOffset: offset);
+    updateTab(tabIndex, updatedTab);
+  }
+
   /// Clears all tabs
   void clearAll() {
     state = [];
@@ -57,38 +124,68 @@ class TabsNotifier extends StateNotifier<List<ReaderTab>> {
     }
     return null;
   }
+
+  @override
+  void dispose() {
+    _saveDebounce?.cancel();
+    _removeStateListener();
+    // Best-effort flush of any pending state on shutdown. Fire-and-forget
+    // is intentional: dispose() is sync, so awaiting the SharedPreferences
+    // write is impossible. On web a `beforeunload` may not give the write
+    // time to land — worst case the user loses up to ~500ms of edits, which
+    // is the same window the debounced auto-save already permits.
+    _persistNow();
+    super.dispose();
+  }
 }
 
-/// Provider for the list of reader tabs
+/// Provider for the list of reader tabs.
+///
+/// Uses `ref.read` for [keyValueStoreProvider] (not `watch`) — the store
+/// is a service-like singleton overridden once in main.dart and never
+/// replaced. `watch` would otherwise rebuild the entire [TabsNotifier]
+/// (rehydrating from disk and dropping any pending debounced writes) if
+/// the override ever changed.
 final tabsProvider =
     StateNotifierProvider<TabsNotifier, List<ReaderTab>>((ref) {
-  return TabsNotifier();
+  return TabsNotifier(ref.read(keyValueStoreProvider));
 });
 
-/// Provider for the currently active tab index (-1 means no tab selected)
-final activeTabIndexProvider = StateProvider<int>((ref) => -1);
-
-/// Provider for in-memory scroll positions (Map<tabIndex, scrollOffset>)
-final tabScrollPositionsProvider = StateProvider<Map<int, double>>((ref) => {});
-
-/// Provider to save scroll position for a tab
-final saveTabScrollPositionProvider =
-    Provider<void Function(int, double)>((ref) {
-  return (int tabIndex, double scrollOffset) {
-    final positions = ref.read(tabScrollPositionsProvider);
-    ref.read(tabScrollPositionsProvider.notifier).state = {
-      ...positions,
-      tabIndex: scrollOffset,
-    };
-  };
+/// Provider for the currently active tab index (-1 means no tab selected).
+///
+/// Initial value is hydrated from disk so the previously active tab is
+/// re-focused on launch. Falls back to 0 if the persisted index is out of
+/// range relative to the currently loaded tabs, or to -1 if there are no
+/// tabs at all. Uses `ref.read` (not `watch`) so future changes to
+/// `tabsProvider` don't reset the user's selection.
+final activeTabIndexProvider = StateProvider<int>((ref) {
+  final store = ref.read(keyValueStoreProvider);
+  final tabs = ref.read(tabsProvider);
+  final stored = store.getInt(StorageKeys.activeTabIndex) ?? -1;
+  if (stored >= 0 && stored < tabs.length) return stored;
+  return tabs.isEmpty ? -1 : 0;
 });
 
-/// Provider to get scroll position for a tab (returns 0.0 if not found)
-final getTabScrollPositionProvider = Provider<double Function(int)>((ref) {
-  return (int tabIndex) {
-    final positions = ref.read(tabScrollPositionsProvider);
-    return positions[tabIndex] ?? 0.0;
-  };
+/// Listens to [activeTabIndexProvider] and writes every change to disk.
+///
+/// Must be instantiated once at app start (read it from main.dart) so the
+/// listener is alive for the whole session. The save itself is fire-and-
+/// forget — SharedPreferences is fast and a missed write would just mean
+/// we restore one tab earlier on next launch.
+///
+/// Coalesces synchronous back-to-back changes (e.g. the deliberate
+/// `-1` → `newIndex` flip in `closeTabProvider` used to force the
+/// listener to fire) via a zero-duration timer so disk only sees the
+/// final value per microtask batch.
+final activeTabIndexPersistenceProvider = Provider<void>((ref) {
+  Timer? debounce;
+  ref.listen<int>(activeTabIndexProvider, (_, next) {
+    debounce?.cancel();
+    debounce = Timer(Duration.zero, () {
+      ref.read(keyValueStoreProvider).setInt(StorageKeys.activeTabIndex, next);
+    });
+  });
+  ref.onDispose(() => debounce?.cancel());
 });
 
 // ============================================================================

@@ -25,21 +25,8 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
     ref.read(inPageSearchStatesProvider.notifier).onTabClosed(tabIndex);
     ref.read(ftsHighlightProvider.notifier).onTabClosed(tabIndex);
 
-    // Remove scroll position for this tab
-    final positions = ref.read(tabScrollPositionsProvider);
-    final updatedPositions = Map<int, double>.from(positions);
-    updatedPositions.remove(tabIndex);
-
-    // Adjust scroll positions for tabs after the closed tab
-    final newPositions = <int, double>{};
-    updatedPositions.forEach((key, value) {
-      if (key < tabIndex) {
-        newPositions[key] = value;
-      } else {
-        newPositions[key - 1] = value;
-      }
-    });
-    ref.read(tabScrollPositionsProvider.notifier).state = newPositions;
+    // Scroll position lives inside ReaderTab.scrollOffset, so removeTab
+    // above already discarded it — no separate map cleanup needed.
 
     // Update active tab index
     if (isClosingActiveTab) {
@@ -59,7 +46,6 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
 
       if (newActiveIndex < 0) {
         // No tabs left - reset to initial state
-        ref.read(tabScrollPositionsProvider.notifier).state = {};
         ref.read(inPageSearchStatesProvider.notifier).clearAll();
         ref.read(ftsHighlightProvider.notifier).clearAll();
         ref.read(selectedNodeProvider.notifier).state = null;

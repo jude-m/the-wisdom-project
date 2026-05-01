@@ -5,9 +5,18 @@ import 'reader_layout.dart';
 import 'reader_pane.dart';
 
 part 'reader_tab.freezed.dart';
+part 'reader_tab.g.dart';
 
 /// Represents a single tab in the reader interface
 /// Holds reference to the content being viewed and navigation state
+///
+/// **Persistence warning**: this entity is serialized to disk via
+/// [toJson]/[fromJson] (see `TabsNotifier`). Adding a non-nullable field
+/// without a `@Default(...)` will cause `_$ReaderTabFromJson` to throw on
+/// every previously-saved tab, and `TabsNotifier._loadTabs` will silently
+/// wipe the user's tab list as a result. Either give new fields a default,
+/// or bump `StorageKeys.openTabs` to `_v2` so the old data is ignored
+/// instead of misread.
 @freezed
 class ReaderTab with _$ReaderTab {
   const ReaderTab._();
@@ -66,7 +75,15 @@ class ReaderTab with _$ReaderTab {
     /// Split ratio for side-by-side layout (0.0 to 1.0)
     /// Represents the proportion of width for the left (Pali) pane
     @Default(0.5) double splitRatio,
+
+    /// Last known scroll offset (in pixels) for this tab.
+    /// Persisted to disk so a reload resumes at the same reading position.
+    @Default(0.0) double scrollOffset,
   }) = _ReaderTab;
+
+  /// JSON deserialization for SharedPreferences-backed persistence.
+  factory ReaderTab.fromJson(Map<String, dynamic> json) =>
+      _$ReaderTabFromJson(json);
 
   /// Creates a tab from a tree node
   factory ReaderTab.fromNode({

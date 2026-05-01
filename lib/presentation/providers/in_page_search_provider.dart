@@ -14,8 +14,8 @@ import 'tab_provider.dart';
 
 /// Manages in-page search state for all tabs.
 ///
-/// State is a Map<int, InPageSearchState> keyed by tab index,
-/// following the same pattern as [tabScrollPositionsProvider].
+/// State is a Map<int, InPageSearchState> keyed by tab index — one
+/// search state per tab, re-indexed on tab close.
 class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
   final Ref _ref;
 

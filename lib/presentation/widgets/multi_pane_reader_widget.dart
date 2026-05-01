@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/localization/l10n/app_localizations.dart';
@@ -16,8 +18,7 @@ import '../providers/in_page_search_provider.dart';
 import '../providers/tab_provider.dart'
     show
         activeTabIndexProvider,
-        saveTabScrollPositionProvider,
-        getTabScrollPositionProvider,
+        tabsProvider,
         activePageStartProvider,
         activePageEndProvider,
         activeEntryStartProvider,
@@ -68,6 +69,23 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   // is just a side-effect of switching to a tab with a different layout.
   bool _suppressLayoutListener = false;
 
+  // Debounces scroll-position writes into the active tab so a fast scroll
+  // doesn't push hundreds of state mutations through Riverpod / disk.
+  Timer? _scrollSaveDebounce;
+  static const _scrollSaveDelay = Duration(milliseconds: 400);
+
+  // When true, _onScroll skips the debounced auto-save. Toggled around
+  // programmatic jumpTo() calls during scroll restoration so the clamped
+  // jumpTo (when ListView's maxExtent is still small on cold load) can't
+  // overwrite the genuinely saved offset on disk.
+  bool _suppressScrollSave = false;
+
+  // Bound on restoration retries — see [_restoreScrollPositionImmediate].
+  // 30 frames ≈ 500ms at 60fps; plenty of time for a few more pages to
+  // lay out without spinning indefinitely on a saved offset that can
+  // genuinely no longer be reached (content shrunk, etc.).
+  static const _restoreMaxRetries = 30;
+
   @override
   void initState() {
     super.initState();
@@ -94,6 +112,20 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       final delta = _scrollController.position.maxScrollExtent - currentScroll;
       if (delta < 200) {
         _loadMorePagesIfNeeded();
+      }
+
+      // Debounced persist of scroll position into the active tab. Without
+      // this, a reload while parked in a tab (no tab switch) would lose
+      // the position. TabsNotifier itself coalesces writes again before
+      // hitting disk.
+      //
+      // Skip while a programmatic restore is in flight — otherwise the
+      // jumpTo we just performed (possibly clamped to a small maxExtent
+      // because pages haven't laid out yet) would clobber the real saved
+      // offset on disk.
+      if (!_suppressScrollSave) {
+        _scrollSaveDebounce?.cancel();
+        _scrollSaveDebounce = Timer(_scrollSaveDelay, _saveScrollPosition);
       }
     }
   }
@@ -138,23 +170,22 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
 
   @override
   void dispose() {
-    // Note: We cannot use ref.read() in dispose() as the widget is already unmounted.
-    // Scroll position is saved when switching tabs (in the ref.listen callback)
-    // and when navigating away, so we don't need to save here.
+    _scrollSaveDebounce?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _entryKeyRegistry.clear();
     super.dispose();
   }
 
+  /// Persists the current scroll offset into the active tab's
+  /// [ReaderTab.scrollOffset]. TabsNotifier debounces the disk write, so
+  /// calling this often is cheap.
   void _saveScrollPosition([int? index]) {
     final int activeTabIndex = index ?? ref.read(activeTabIndexProvider);
     if (activeTabIndex >= 0 && _scrollController.hasClients) {
-      ref.read(saveTabScrollPositionProvider)(
-          activeTabIndex, _scrollController.offset);
-      // Note: Pagination state (pageStart, pageEnd, entryStart) is already
-      // stored in the tab entity and updated via updateActiveTabPaginationProvider
-      // when loading more pages, so no need to sync it here.
+      ref
+          .read(tabsProvider.notifier)
+          .updateTabScrollOffset(activeTabIndex, _scrollController.offset);
     }
   }
 
@@ -214,14 +245,48 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   /// Must be called from within an [addPostFrameCallback] where the
   /// content has already been rebuilt — avoids the double-postFrameCallback
   /// that caused a visible glitch (title flash) when switching tabs.
+  ///
+  /// On cold-load (e.g. browser reload) the document for the active tab
+  /// arrives before ListView.builder has laid out enough pages, so
+  /// `maxScrollExtent` is initially smaller than the saved offset. In
+  /// that case we keep nudging more pages to load and re-jump on
+  /// subsequent frames until we either reach the saved offset or run
+  /// out of retries. Throughout, [_suppressScrollSave] is held high so
+  /// the jumpTo's own scroll notification can't trigger an auto-save
+  /// that would overwrite the on-disk offset with a clamped one.
   void _restoreScrollPositionImmediate() {
+    _restoreScrollWithRetry(retriesLeft: _restoreMaxRetries);
+  }
+
+  void _restoreScrollWithRetry({required int retriesLeft}) {
+    if (!mounted) return;
     final activeTabIndex = ref.read(activeTabIndexProvider);
-    if (activeTabIndex >= 0 && _scrollController.hasClients) {
-      final scrollOffset =
-          ref.read(getTabScrollPositionProvider)(activeTabIndex);
-      final maxExtent = _scrollController.position.maxScrollExtent;
-      final targetOffset = scrollOffset.clamp(0.0, maxExtent);
-      _scrollController.jumpTo(targetOffset);
+    final tabs = ref.read(tabsProvider);
+    if (activeTabIndex < 0 ||
+        activeTabIndex >= tabs.length ||
+        !_scrollController.hasClients) {
+      return;
+    }
+    final saved = tabs[activeTabIndex].scrollOffset;
+    final maxExtent = _scrollController.position.maxScrollExtent;
+
+    _suppressScrollSave = true;
+    _scrollController.jumpTo(saved.clamp(0.0, maxExtent));
+    // The clamped jumpTo notifies _onScroll synchronously above; clear
+    // the flag on the next frame so genuine user scrolls aren't missed.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _suppressScrollSave = false;
+    });
+
+    // Saved offset still beyond what's laid out → trigger another page
+    // load and try again on the next frame. Bounded by retriesLeft so
+    // a saved offset that can genuinely no longer be reached (e.g. the
+    // sutta got shorter) eventually settles instead of spinning.
+    if (saved > maxExtent && retriesLeft > 0) {
+      _loadMorePagesIfNeeded();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _restoreScrollWithRetry(retriesLeft: retriesLeft - 1);
+      });
     }
   }
 
