@@ -9,7 +9,7 @@ import 'app_fonts.dart';
 
 /// Line height for paragraph text (body content)
 /// Optimized for Sinhala readability - slightly generous spacing
-const double _paragraphLineHeight = 1.5;
+const double _paragraphLineHeight = 1.6;
 
 /// Line height for gatha (verse) entries
 /// Tighter than paragraphs to visually group verse lines

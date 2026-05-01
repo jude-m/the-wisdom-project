@@ -163,7 +163,7 @@ class TreeNodeWidget extends ConsumerWidget {
           ),
           decoration: BoxDecoration(
             color: isSelected
-                ? Theme.of(context).colorScheme.primaryContainer
+                ? Theme.of(context).colorScheme.surfaceContainerHigh
                 : null,
             border: Border(
               bottom: BorderSide(
@@ -220,7 +220,7 @@ class TreeNodeWidget extends ConsumerWidget {
                         size: 20,
                         weight: 600,
                         color: isSelected
-                            ? Theme.of(context).colorScheme.onPrimaryContainer
+                            ? Theme.of(context).colorScheme.onSurface
                             : ci.color.withValues(alpha: 0.8),
                       ),
                       const SizedBox(width: 8),

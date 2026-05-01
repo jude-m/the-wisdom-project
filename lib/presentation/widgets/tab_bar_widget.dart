@@ -183,7 +183,7 @@ class _ScrollChevron extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                        Theme.of(context).colorScheme.surfaceContainer,
                     border: Border(
                       left: icon == Icons.chevron_right
                           ? BorderSide(
@@ -205,7 +205,6 @@ class _ScrollChevron extends StatelessWidget {
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withValues(alpha: 0.7),
                   ),
                 ),
               )

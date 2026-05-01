@@ -618,7 +618,7 @@ class _SearchResultTile extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer,
+          color: theme.colorScheme.tertiary.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Center(

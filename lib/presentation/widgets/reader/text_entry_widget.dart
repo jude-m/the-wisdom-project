@@ -321,7 +321,6 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
     final colorScheme = Theme.of(context).colorScheme;
     final dictHighlightColor = colorScheme.tertiary;
     final searchHighlightColor = colorScheme.tertiaryContainer;
-    // In-page search colors: Sage Green for all matches, Golden Amber for current
     final inPageMatchColor = colorScheme.tertiaryContainer;
     final inPageCurrentMatchColor = colorScheme.tertiary;
     final myWidgetId = identityHashCode(this);

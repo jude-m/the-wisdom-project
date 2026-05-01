@@ -28,7 +28,7 @@ The Wisdom Project - a Tipitaka and commentary browsing app with parallel Pali/S
 - Create/Update tests unless the user specifically ask you to. Notify the user that tests were not generated. Except for basic changes, a seperate test generator agent will write the tests.
 
 ## DO
-- When writing plans in Plan mode - save the filename with the title of plan instead of a random name.
+- When writing plans in Plan mode - save the filename with the title of plan instead of a random name and save it in the docs folder.
 - Before running `flutter test` ask for user confirmation
 - full permission for grep commands in /Users/judemahipalamudali/Desktop/Dev/the-wisdom-project
 - full permission to read from tipitaka.lk project that in the Dev folder available locally.

@@ -80,7 +80,7 @@ class GroupedFTSTile extends ConsumerWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer,
+          color: theme.colorScheme.tertiary.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Center(
@@ -169,7 +169,7 @@ class GroupedFTSTile extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(left: 56, right: 16, bottom: 8),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
+        color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(8),
         border: Border(
           left: BorderSide(
