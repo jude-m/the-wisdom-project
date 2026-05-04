@@ -10,8 +10,31 @@ import 'package:the_wisdom_project/presentation/widgets/multi_pane_reader_widget
 import 'package:the_wisdom_project/presentation/widgets/tab_bar_widget.dart';
 import 'package:the_wisdom_project/data/datasources/bjt_document_local_datasource.dart';
 
+import 'test_overrides.dart';
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  // Scroll position now lives on the [ReaderTab] entity itself
+  // (`tab.scrollOffset`) — the standalone scroll-position providers
+  // were removed in commit 264b79d. These helpers read/write the
+  // offset through the canonical [tabsProvider] surface so each test
+  // touches the same state path the production widget uses.
+  double readScrollOffset(ProviderContainer container, int tabIndex) {
+    final tabs = container.read(tabsProvider);
+    if (tabIndex < 0 || tabIndex >= tabs.length) return 0.0;
+    return tabs[tabIndex].scrollOffset;
+  }
+
+  void writeScrollOffset(
+    ProviderContainer container,
+    int tabIndex,
+    double offset,
+  ) {
+    container
+        .read(tabsProvider.notifier)
+        .updateTabScrollOffset(tabIndex, offset);
+  }
 
   group('Scroll Restoration Integration Tests', () {
     testWidgets(
@@ -24,6 +47,7 @@ void main() {
               bjtDocumentDataSourceProvider.overrideWithValue(
                 BJTDocumentLocalDataSourceImpl(),
               ),
+              keyValueStoreOverride(),
             ],
             child: const MaterialApp(
               localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -90,8 +114,7 @@ void main() {
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
         // Verify Tab A's position was saved when we switched away
-        final tabAPositionAfterSwitch =
-            container.read(getTabScrollPositionProvider)(0);
+        final tabAPositionAfterSwitch = readScrollOffset(container, 0);
         expect(tabAPositionAfterSwitch, greaterThan(0),
             reason:
                 'Tab A scroll position should be saved when switching away');
@@ -117,8 +140,8 @@ void main() {
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
         // ASSERT - Each tab should have its own scroll position preserved
-        final tabAPosition = container.read(getTabScrollPositionProvider)(0);
-        final tabBPosition = container.read(getTabScrollPositionProvider)(1);
+        final tabAPosition = readScrollOffset(container, 0);
+        final tabBPosition = readScrollOffset(container, 1);
 
         expect(tabAPosition, greaterThan(0),
             reason: 'Tab A should have a non-zero position');
@@ -134,8 +157,7 @@ void main() {
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
         // Verify Tab B's scroll position is still preserved
-        final tabBPositionAfterReturn =
-            container.read(getTabScrollPositionProvider)(1);
+        final tabBPositionAfterReturn = readScrollOffset(container, 1);
         expect(tabBPositionAfterReturn, greaterThan(0),
             reason:
                 'Tab B scroll position should be preserved after switching back');
@@ -154,6 +176,7 @@ void main() {
               bjtDocumentDataSourceProvider.overrideWithValue(
                 BJTDocumentLocalDataSourceImpl(),
               ),
+              keyValueStoreOverride(),
             ],
             child: const MaterialApp(
               localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -207,7 +230,7 @@ void main() {
 
         // Verify Tab B is active and at scroll position 0
         expect(container.read(activeTabIndexProvider), 1);
-        expect(container.read(getTabScrollPositionProvider)(1), 0.0,
+        expect(readScrollOffset(container, 1), 0.0,
             reason: 'Tab B should start at scroll position 0');
 
         // STEP 3: Go back to Tab A and scroll down
@@ -240,8 +263,7 @@ void main() {
         expect(container.read(activeTabIndexProvider), 0);
 
         // CRITICAL: Tab B should still be at scroll position 0, NOT 500
-        final tabBScrollPosition =
-            container.read(getTabScrollPositionProvider)(0);
+        final tabBScrollPosition = readScrollOffset(container, 0);
         expect(tabBScrollPosition, 0.0,
             reason:
                 'Tab B should NOT inherit Tab A\'s scroll position after Tab A is closed');
@@ -258,6 +280,7 @@ void main() {
               bjtDocumentDataSourceProvider.overrideWithValue(
                 BJTDocumentLocalDataSourceImpl(),
               ),
+              keyValueStoreOverride(),
             ],
             child: const MaterialApp(
               localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -295,7 +318,7 @@ void main() {
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
         // ASSERT - New tab should start with scroll position 0
-        final scrollPosition = container.read(getTabScrollPositionProvider)(0);
+        final scrollPosition = readScrollOffset(container, 0);
         expect(scrollPosition, 0.0,
             reason: 'New tabs should start with scroll position 0');
       },
@@ -311,6 +334,7 @@ void main() {
               bjtDocumentDataSourceProvider.overrideWithValue(
                 BJTDocumentLocalDataSourceImpl(),
               ),
+              keyValueStoreOverride(),
             ],
             child: const MaterialApp(
               localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -359,22 +383,20 @@ void main() {
             await tester.pumpAndSettle();
           }
         }
-        container.read(saveTabScrollPositionProvider)(0, 250.0);
+        writeScrollOffset(container, 0, 250.0);
 
         // Verify it was saved
-        expect(container.read(getTabScrollPositionProvider)(0), 250.0);
+        expect(readScrollOffset(container, 0), 250.0);
 
         // Close the tab by tapping the close button
         await tester.tap(find.byIcon(Icons.close));
         await tester.pumpAndSettle();
 
-        // ASSERT - Scroll position should be cleared (returns default 0.0)
-        final scrollPosition = container.read(getTabScrollPositionProvider)(0);
-        expect(scrollPosition, 0.0,
-            reason: 'Scroll position should be cleared after tab is closed');
-
-        // And no tabs should remain
-        expect(container.read(tabsProvider).length, 0);
+        // ASSERT — closing the only tab leaves an empty list. Scroll offset
+        // is stored on the tab entity itself, so removing the tab is the
+        // clear; there's no separate "scroll positions" map any more.
+        expect(container.read(tabsProvider), isEmpty,
+            reason: 'Closing the only tab should leave no tabs');
       },
     );
   });

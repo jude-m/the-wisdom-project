@@ -11,6 +11,8 @@ import 'package:the_wisdom_project/presentation/widgets/multi_pane_reader_widget
 import 'package:the_wisdom_project/presentation/widgets/tab_bar_widget.dart';
 import 'package:the_wisdom_project/data/datasources/bjt_document_local_datasource.dart';
 
+import 'test_overrides.dart';
+
 /// Integration tests for the "Scroll to top / Previous sutta" navigation button.
 ///
 /// Tree structure used (DFS order of readable nodes in Digha Nikaya):
@@ -43,6 +45,7 @@ void main() {
             bjtDocumentDataSourceProvider.overrideWithValue(
               BJTDocumentLocalDataSourceImpl(),
             ),
+            keyValueStoreOverride(),
           ],
           child: const MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,

@@ -14,6 +14,8 @@ import 'package:the_wisdom_project/presentation/widgets/multi_pane_reader_widget
 import 'package:the_wisdom_project/presentation/widgets/reader/in_page_search_bar.dart';
 import 'package:the_wisdom_project/presentation/widgets/tab_bar_widget.dart';
 
+import 'test_overrides.dart';
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -31,6 +33,7 @@ void main() {
             bjtDocumentDataSourceProvider.overrideWithValue(
               BJTDocumentLocalDataSourceImpl(),
             ),
+            keyValueStoreOverride(),
           ],
           child: const MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,

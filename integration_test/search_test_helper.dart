@@ -12,6 +12,8 @@ import 'package:the_wisdom_project/presentation/widgets/search/search_bar.dart'
     as app;
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
 
+import 'test_overrides.dart';
+
 // ---------------------------------------------------------------------------
 // Test widget: Combines SearchBar + SearchResultsPanel with real providers
 // ---------------------------------------------------------------------------
@@ -59,6 +61,7 @@ extension SearchTestHelpers on WidgetTester {
       ProviderScope(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
+          keyValueStoreOverride(),
         ],
         child: const MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,

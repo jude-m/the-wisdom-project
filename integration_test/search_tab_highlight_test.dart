@@ -31,6 +31,8 @@ import 'package:the_wisdom_project/presentation/widgets/search/search_results_pa
 import 'package:the_wisdom_project/presentation/widgets/tab_bar_widget.dart';
 import 'package:the_wisdom_project/presentation/widgets/tree_navigator_widget.dart';
 
+import 'test_overrides.dart';
+
 // ---------------------------------------------------------------------------
 // Test widget: Combines Search + Reader + TabBar with highlight logic
 // ---------------------------------------------------------------------------
@@ -160,6 +162,7 @@ void main() {
               sharedPreferencesProvider.overrideWithValue(prefs),
               bjtDocumentDataSourceProvider
                   .overrideWithValue(BJTDocumentLocalDataSourceImpl()),
+              keyValueStoreOverride(),
             ],
             child: const MaterialApp(
               localizationsDelegates: AppLocalizations.localizationsDelegates,

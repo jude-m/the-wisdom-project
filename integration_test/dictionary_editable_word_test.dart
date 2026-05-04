@@ -17,6 +17,8 @@ import 'package:the_wisdom_project/data/datasources/bjt_document_local_datasourc
 import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
 import 'package:the_wisdom_project/domain/entities/dictionary/dictionary_params.dart';
 
+import 'test_overrides.dart';
+
 /// Integration tests for the editable dictionary word feature.
 ///
 /// Covers:
@@ -95,6 +97,7 @@ void main() {
             bjtDocumentDataSourceProvider.overrideWithValue(
               BJTDocumentLocalDataSourceImpl(),
             ),
+            keyValueStoreOverride(),
           ],
           child: const MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,

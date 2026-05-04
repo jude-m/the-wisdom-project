@@ -16,6 +16,8 @@ import 'package:the_wisdom_project/presentation/widgets/tree_navigator_widget.da
 import 'package:the_wisdom_project/data/datasources/bjt_document_local_datasource.dart';
 import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
 
+import 'test_overrides.dart';
+
 /// Integration tests for clickable breadcrumb navigation and the centralized
 /// openTabFromNodeKeyProvider.
 ///
@@ -43,6 +45,7 @@ void main() {
             bjtDocumentDataSourceProvider.overrideWithValue(
               BJTDocumentLocalDataSourceImpl(),
             ),
+            keyValueStoreOverride(),
           ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
