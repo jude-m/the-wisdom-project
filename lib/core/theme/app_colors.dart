@@ -49,7 +49,7 @@ class LightThemeColors {
   // ============================================
   static const tertiary = Color(0xFFADEBB3); // Mint green (match highlight)
   static const onTertiary = Color(0xFF2A2318); // Dark brown (= heading)
-  static const tertiaryContainer = Color(0xFFFFDBBB); // Light peach
+  static const tertiaryContainer = Color(0xFFFFDBBB); // Light orange
   static const onTertiaryContainer = Color(0xFF2F3E28); // Dark green
 
   // ============================================
