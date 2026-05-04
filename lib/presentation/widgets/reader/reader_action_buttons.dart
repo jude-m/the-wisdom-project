@@ -340,7 +340,7 @@ class _LayoutOptionButton extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final segmentStyle = context.typography.segmentedButtonLabel;
     final color =
-        isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant;
+        isSelected ? colorScheme.onSecondaryContainer : colorScheme.primary;
     final icon = _layoutIcons[layout];
 
     return Tooltip(

@@ -47,10 +47,10 @@ class _BreadcrumbWidgetState extends ConsumerState<BreadcrumbWidget> {
     }
     _recognizers = [];
 
-    final leafStyle = context.typography.resultSubtitle;
+    final leafStyle = context.typography.resultMatchedText;
     // Parent segments use onSurface (brighter) to hint interactivity
     final parentStyle = leafStyle.copyWith(
-      color: Theme.of(context).colorScheme.onSurface,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
     );
     final isPortrait = ResponsiveUtils.shouldDefaultToSingleColumn(context);
 
