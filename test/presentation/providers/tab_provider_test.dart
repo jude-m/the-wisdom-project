@@ -9,12 +9,14 @@ import 'package:the_wisdom_project/presentation/providers/tab_lifecycle_provider
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 
+import '../../helpers/pump_app.dart';
+
 void main() {
   group('TabsNotifier -', () {
     late ProviderContainer container;
 
     setUp(() {
-      container = ProviderContainer();
+      container = createTestContainer();
     });
 
     tearDown(() {
@@ -84,7 +86,7 @@ void main() {
     late ProviderContainer container;
 
     setUp(() {
-      container = ProviderContainer();
+      container = createTestContainer();
     });
 
     tearDown(() {
@@ -239,7 +241,7 @@ void main() {
     late ProviderContainer container;
 
     setUp(() {
-      container = ProviderContainer();
+      container = createTestContainer();
       // Add some initial tabs
       final notifier = container.read(tabsProvider.notifier);
       notifier.addTab(_createTestReaderTab(
@@ -295,7 +297,7 @@ void main() {
     late ProviderContainer container;
 
     setUp(() {
-      container = ProviderContainer();
+      container = createTestContainer();
     });
 
     tearDown(() {
@@ -406,7 +408,9 @@ void main() {
     });
 
     test('scroll positions should be shifted correctly after close', () {
-      // ARRANGE - Add 3 tabs with scroll positions
+      // ARRANGE - Add 3 tabs with scroll positions stored on the tabs.
+      // Scroll position now lives on ReaderTab.scrollOffset, so closing
+      // a tab shifts surrounding offsets naturally as the list collapses.
       final notifier = container.read(tabsProvider.notifier);
       notifier
           .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
@@ -415,23 +419,21 @@ void main() {
       notifier
           .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
 
-      // Set scroll positions for all tabs
-      container.read(saveTabScrollPositionProvider)(0, 100.0);
-      container.read(saveTabScrollPositionProvider)(1, 200.0);
-      container.read(saveTabScrollPositionProvider)(2, 300.0);
+      notifier.updateTabScrollOffset(0, 100.0);
+      notifier.updateTabScrollOffset(1, 200.0);
+      notifier.updateTabScrollOffset(2, 300.0);
 
       container.read(activeTabIndexProvider.notifier).state = 2;
 
       // ACT - Close tab at index 1
       container.read(closeTabProvider)(1);
 
-      // ASSERT - Scroll positions should be shifted
-      // Tab 0 remains at position 100.0
-      // Tab 2 (now at index 1) should have position 300.0
-      expect(container.read(getTabScrollPositionProvider)(0), equals(100.0));
-      expect(container.read(getTabScrollPositionProvider)(1), equals(300.0));
-      // Position for removed index should return default (0.0)
-      expect(container.read(getTabScrollPositionProvider)(2), equals(0.0));
+      // ASSERT - Tab 0 keeps 100.0, sn-1 (was index 2) is now at index 1
+      // with offset 300.0, and there's no third tab anymore.
+      final tabs = container.read(tabsProvider);
+      expect(tabs.length, equals(2));
+      expect(tabs[0].scrollOffset, equals(100.0));
+      expect(tabs[1].scrollOffset, equals(300.0));
     });
 
     test('closing the only tab should clear selectedNode', () {
@@ -470,18 +472,20 @@ void main() {
     });
 
     test('closing the only tab should clear scroll positions', () {
-      // ARRANGE - Add 1 tab with scroll position
+      // Scroll position lives on ReaderTab.scrollOffset, so removing
+      // the tab inherently discards its offset — assert the tabs list
+      // is empty rather than checking a separate map.
       final notifier = container.read(tabsProvider.notifier);
       notifier
           .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
       container.read(activeTabIndexProvider.notifier).state = 0;
-      container.read(saveTabScrollPositionProvider)(0, 500.0);
+      notifier.updateTabScrollOffset(0, 500.0);
 
       // ACT - Close the only tab
       container.read(closeTabProvider)(0);
 
-      // ASSERT - Scroll positions should be empty
-      expect(container.read(tabScrollPositionsProvider), isEmpty);
+      // ASSERT - No tabs left, so no scroll state remains
+      expect(container.read(tabsProvider), isEmpty);
     });
 
     test('closing middle tab should correctly shift scroll positions', () {
@@ -496,25 +500,22 @@ void main() {
       notifier
           .addTab(_createTestReaderTab(nodeKey: 'an-1', contentFileId: 'an-1'));
 
-      container.read(saveTabScrollPositionProvider)(0, 100.0);
-      container.read(saveTabScrollPositionProvider)(1, 200.0);
-      container.read(saveTabScrollPositionProvider)(2, 300.0);
-      container.read(saveTabScrollPositionProvider)(3, 400.0);
+      notifier.updateTabScrollOffset(0, 100.0);
+      notifier.updateTabScrollOffset(1, 200.0);
+      notifier.updateTabScrollOffset(2, 300.0);
+      notifier.updateTabScrollOffset(3, 400.0);
 
       container.read(activeTabIndexProvider.notifier).state = 0;
 
       // ACT - Close tab at index 1 (middle tab)
       container.read(closeTabProvider)(1);
 
-      // ASSERT - Verify scroll positions are shifted correctly
-      // Index 0 stays the same
-      expect(container.read(getTabScrollPositionProvider)(0), equals(100.0));
-      // Index 2 becomes index 1 with value 300.0
-      expect(container.read(getTabScrollPositionProvider)(1), equals(300.0));
-      // Index 3 becomes index 2 with value 400.0
-      expect(container.read(getTabScrollPositionProvider)(2), equals(400.0));
-      // Old index 3 no longer exists
-      expect(container.read(getTabScrollPositionProvider)(3), equals(0.0));
+      // ASSERT - Surviving tabs collapse left, taking their offsets along.
+      final tabs = container.read(tabsProvider);
+      expect(tabs.length, equals(3));
+      expect(tabs[0].scrollOffset, equals(100.0));
+      expect(tabs[1].scrollOffset, equals(300.0));
+      expect(tabs[2].scrollOffset, equals(400.0));
     });
 
     test('closing active middle tab should select previous and shift positions',
@@ -528,9 +529,9 @@ void main() {
       notifier
           .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
 
-      container.read(saveTabScrollPositionProvider)(0, 100.0);
-      container.read(saveTabScrollPositionProvider)(1, 200.0);
-      container.read(saveTabScrollPositionProvider)(2, 300.0);
+      notifier.updateTabScrollOffset(0, 100.0);
+      notifier.updateTabScrollOffset(1, 200.0);
+      notifier.updateTabScrollOffset(2, 300.0);
 
       container.read(activeTabIndexProvider.notifier).state = 1;
 
@@ -542,9 +543,10 @@ void main() {
       expect(container.read(activeTabIndexProvider), equals(0));
       // Content should be from the first tab
       expect(container.read(activeContentFileIdProvider), equals('dn-1'));
-      // Scroll positions should be shifted
-      expect(container.read(getTabScrollPositionProvider)(0), equals(100.0));
-      expect(container.read(getTabScrollPositionProvider)(1), equals(300.0));
+      // Scroll positions ride on the surviving tabs
+      final tabs = container.read(tabsProvider);
+      expect(tabs[0].scrollOffset, equals(100.0));
+      expect(tabs[1].scrollOffset, equals(300.0));
     });
 
     // ==========================================================================

@@ -5,6 +5,8 @@ import 'package:the_wisdom_project/presentation/providers/dictionary_provider.da
 import 'package:the_wisdom_project/presentation/providers/fts_highlight_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/reader/text_entry_widget.dart';
 
+import '../../../helpers/pump_app.dart';
+
 void main() {
   // Test data - Using Sinhala script since sinhalaWordPattern only matches Sinhala Unicode
   const sinhalaText = 'මෙසේ මා විසින් අසන ලදී';
@@ -16,6 +18,7 @@ void main() {
     bool enableTap = true,
   }) {
     return ProviderScope(
+      overrides: defaultTestOverrides(),
       child: MaterialApp(
         home: Scaffold(
           body: TextEntryWidget(
@@ -63,6 +66,7 @@ void main() {
       // Arrange & Act
       await tester.pumpWidget(
         ProviderScope(
+          overrides: defaultTestOverrides(),
           child: MaterialApp(
             home: Scaffold(
               body: Builder(
@@ -101,6 +105,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
+          overrides: defaultTestOverrides(),
           child: MaterialApp(
             home: Scaffold(
               body: Consumer(
@@ -178,6 +183,7 @@ void main() {
         int? currentMatchIndexInEntry,
       }) {
         return ProviderScope(
+          overrides: defaultTestOverrides(),
           child: MaterialApp(
             home: Scaffold(
               body: TextEntryWidget(
@@ -215,6 +221,7 @@ void main() {
 
         await tester.pumpWidget(
           ProviderScope(
+            overrides: defaultTestOverrides(),
             child: MaterialApp(
               home: Scaffold(
                 body: Consumer(

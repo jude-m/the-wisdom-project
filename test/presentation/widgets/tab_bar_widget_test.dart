@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:the_wisdom_project/core/storage/key_value_store_provider.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/tab_bar_widget.dart';
@@ -52,7 +53,7 @@ void main() {
         const TabBarWidget(),
         overrides: [
           tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier();
+            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
             notifier.addTab(tab1);
             notifier.addTab(tab2);
             return notifier;
@@ -79,7 +80,7 @@ void main() {
         const TabBarWidget(),
         overrides: [
           tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier();
+            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
             notifier.addTab(tab1);
             notifier.addTab(tab2);
             return notifier;
@@ -108,7 +109,7 @@ void main() {
         const TabBarWidget(),
         overrides: [
           tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier();
+            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
             notifier.addTab(tab1);
             notifier.addTab(tab2);
             return notifier;
@@ -138,7 +139,7 @@ void main() {
         const TabBarWidget(),
         overrides: [
           tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier();
+            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
             notifier.addTab(tab);
             return notifier;
           }),
@@ -169,7 +170,7 @@ void main() {
         const TabBarWidget(),
         overrides: [
           tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier();
+            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
             notifier.addTab(tab1);
             notifier.addTab(tab2);
             return notifier;
@@ -201,7 +202,7 @@ void main() {
         const TabBarWidget(),
         overrides: [
           tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier();
+            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
             for (final tab in tabs) {
               notifier.addTab(tab);
             }
@@ -231,7 +232,7 @@ void main() {
         const TabBarWidget(),
         overrides: [
           tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier();
+            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
             for (final tab in tabs) {
               notifier.addTab(tab);
             }
@@ -266,7 +267,7 @@ void main() {
         const TabBarWidget(),
         overrides: [
           tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier();
+            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
             for (final tab in tabs) {
               notifier.addTab(tab);
             }
@@ -310,7 +311,7 @@ void main() {
         const TabBarWidget(),
         overrides: [
           tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier();
+            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
             for (final tab in tabs) {
               notifier.addTab(tab);
             }

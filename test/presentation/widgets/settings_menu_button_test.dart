@@ -25,10 +25,12 @@ void main() {
       expect(find.text('Font Size'), findsOneWidget);
       expect(find.text('Navigation Language'), findsOneWidget);
 
-      // Verify all theme options
+      // Verify theme options. Dark/Warm are temporarily commented out
+      // in `_ThemeSelector` until light/dark theming is reworked, so only
+      // 'Light' is asserted today.
       expect(find.text('Light'), findsOneWidget);
-      expect(find.text('Dark'), findsOneWidget);
-      expect(find.text('Warm'), findsOneWidget);
+      expect(find.text('Dark'), findsNothing);
+      expect(find.text('Warm'), findsNothing);
 
       // Verify language options
       expect(find.text('Pali'), findsOneWidget);

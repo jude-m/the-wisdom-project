@@ -1,17 +1,21 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:the_wisdom_project/core/storage/key_value_store_provider.dart';
 import 'package:the_wisdom_project/presentation/models/in_page_search_state.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/in_page_search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
+
+import '../../helpers/fake_key_value_store.dart';
+import '../../helpers/pump_app.dart';
 
 void main() {
   late ProviderContainer container;
 
   /// Sets up a container with [tabCount] tabs and activates the first one.
   ProviderContainer createContainerWithTabs(int tabCount) {
-    final c = ProviderContainer();
+    final c = createTestContainer();
     for (var i = 0; i < tabCount; i++) {
       c.read(tabsProvider.notifier).addTab(
             ReaderTab.fromNode(
@@ -257,6 +261,7 @@ ProviderContainer _createContainerWithMatches(
 
   return ProviderContainer(
     overrides: [
+      keyValueStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
       inPageSearchStatesProvider.overrideWith(
         (ref) => _TestableSearchNotifier(ref, {
           0: InPageSearchState(
@@ -270,7 +275,7 @@ ProviderContainer _createContainerWithMatches(
       ),
       activeTabIndexProvider.overrideWith((ref) => 0),
       tabsProvider.overrideWith((ref) {
-        final notifier = TabsNotifier();
+        final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
         notifier.addTab(
           ReaderTab.fromNode(
             nodeKey: 'test-node',
