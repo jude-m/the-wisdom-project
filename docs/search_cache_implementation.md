@@ -5,9 +5,12 @@ This document describes the caching mechanism for search results in The Wisdom P
 ## Overview
 
 - **Pattern**: Repository decorator (wraps existing `TextSearchRepositoryImpl`)
-- **Storage**: In-memory LRU cache with TTL expiration
+- **Storage**: In-memory LRU cache (capacity-bounded; no TTL)
 - **Platforms**: Mobile (iOS/Android), Desktop (macOS/Windows/Linux), Web
-- **Data staleness**: Not a concern - Tipitaka corpus is immutable
+- **Data staleness**: Not a concern — Tipitaka corpus is immutable
+- **Hottest cacheable call**: `countByResultType` — fired *unawaited* on every keystroke
+  (debounced) **and** every tab switch in `SearchStateNotifier._performSearch`
+  (`lib/presentation/providers/search_state.dart`). Tab-switch flicker → 0ms.
 
 ---
 
@@ -59,100 +62,68 @@ Data Layer
 
 ### 1. `lib/data/cache/lru_cache.dart`
 
-Generic LRU (Least Recently Used) cache with TTL (Time-To-Live) support.
+Generic LRU (Least Recently Used) cache. **No TTL** — the Tipitaka corpus is
+immutable, so cached results never go stale. Capacity bounds memory; LRU
+eviction handles cold entries.
 
 ```dart
 import 'dart:collection';
 import 'package:flutter/foundation.dart';
 
-/// Generic LRU cache with TTL expiration.
+/// Generic LRU cache (capacity-bounded, no TTL).
 ///
 /// Uses LinkedHashMap to maintain insertion order.
 /// On access, entries are re-inserted to move to "most recently used" position.
 /// On capacity overflow, the first entry (least recently used) is evicted.
 class LRUCache<K, V> {
   final int capacity;
-  final Duration ttl;
-  final LinkedHashMap<K, _CacheEntry<V>> _map = LinkedHashMap();
+  final LinkedHashMap<K, V> _map = LinkedHashMap();
 
-  // Global stats (not per-entry)
+  // Aggregated stats. Useful for ad-hoc diagnostics; cheap to maintain.
   int _hits = 0;
   int _misses = 0;
 
-  LRUCache(this.capacity, this.ttl);
+  LRUCache(this.capacity);
 
-  /// Get value for key, or null if not found or expired.
-  /// Updates LRU position on hit.
   V? get(K key) {
     if (!_map.containsKey(key)) {
       _misses++;
       return null;
     }
-
-    final entry = _map[key]!;
-
-    // TTL check - remove if expired
-    if (DateTime.now().difference(entry.creationTime) > ttl) {
-      _map.remove(key);
-      _misses++;
-      return null;
-    }
-
-    // LRU logic: remove and re-insert to move to end (most recently used)
-    _map.remove(key);
-    _map[key] = entry;
+    // LRU touch: remove and re-insert at end (most recently used)
+    final value = _map.remove(key) as V;
+    _map[key] = value;
     _hits++;
-    return entry.value;
+    return value;
   }
 
-  /// Store value for key. Evicts LRU entry if at capacity.
   void put(K key, V value) {
-    // If key exists, remove it first (will be re-added at end)
     if (_map.containsKey(key)) {
       _map.remove(key);
     } else if (_map.length >= capacity) {
-      // Eviction: remove first entry (Least Recently Used)
       _map.remove(_map.keys.first);
     }
-
-    _map[key] = _CacheEntry(value, DateTime.now());
+    _map[key] = value;
   }
 
-  /// Clear all entries and reset stats.
   void clear() {
     _map.clear();
     _hits = 0;
     _misses = 0;
   }
 
-  /// Log cache statistics (debug mode only).
   void logStats(String cacheName) {
-    if (kDebugMode) {
-      final hitRate = (_hits + _misses) > 0
-          ? (_hits / (_hits + _misses) * 100).toStringAsFixed(1)
-          : '0.0';
-      debugPrint('[$cacheName] Size: ${_map.length}/$capacity | '
-          'Hits: $_hits | Misses: $_misses | Rate: $hitRate%');
-    }
+    if (kDebugMode) debugPrint('[$cacheName] $stats');
   }
 
-  /// Current number of entries.
   int get size => _map.length;
 
-  /// Cache statistics snapshot.
   CacheStats get stats => CacheStats(
-    size: _map.length,
-    maxSize: capacity,
-    hits: _hits,
-    misses: _misses,
-  );
-}
-
-/// Private cache entry - holds value and creation timestamp.
-class _CacheEntry<V> {
-  final V value;
-  final DateTime creationTime;
-  _CacheEntry(this.value, this.creationTime);
+        size: _map.length,
+        maxSize: capacity,
+        hits: _hits,
+        misses: _misses,
+      );
 }
 
 /// Immutable snapshot of cache statistics.
@@ -172,8 +143,10 @@ class CacheStats {
   double get hitRate => (hits + misses) > 0 ? hits / (hits + misses) : 0.0;
 
   @override
-  String toString() => 'CacheStats(size: $size/$maxSize, '
-      'hits: $hits, misses: $misses, rate: ${(hitRate * 100).toStringAsFixed(1)}%)';
+  String toString() {
+    final rate = (hitRate * 100).toStringAsFixed(1);
+    return 'size=$size/$maxSize hits=$hits misses=$misses rate=$rate%';
+  }
 }
 ```
 
@@ -187,59 +160,38 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// Configuration for search result caching.
 ///
-/// Different platforms have different memory constraints:
-/// - Mobile: Limited memory, smaller cache, shorter TTL
-/// - Web: Session-based, moderate cache
-/// - Desktop: More memory available, larger cache, longer TTL
+/// Memory budget varies by platform. No TTL — corpus is immutable.
 class CacheConfig {
   final int maxEntries;
-  final Duration ttl;
   final bool enabled;
 
   const CacheConfig({
     required this.maxEntries,
-    required this.ttl,
     required this.enabled,
   });
 
   /// Create platform-appropriate configuration.
   ///
-  /// | Platform | Max Entries | TTL     |
-  /// |----------|-------------|---------|
-  /// | Mobile   | 20          | 5 min   |
-  /// | Web      | 30          | 10 min  |
-  /// | Desktop  | 50          | 15 min  |
+  /// | Platform | Max Entries |
+  /// |----------|-------------|
+  /// | Mobile   | 20          |
+  /// | Web      | 30          |
+  /// | Desktop  | 50          |
   factory CacheConfig.forPlatform({bool enabled = true}) {
     if (kIsWeb) {
-      return CacheConfig(
-        maxEntries: 30,
-        ttl: const Duration(minutes: 10),
-        enabled: enabled,
-      );
+      return CacheConfig(maxEntries: 30, enabled: enabled);
     }
-
     if (Platform.isAndroid || Platform.isIOS) {
-      return CacheConfig(
-        maxEntries: 20,  // Can reduce to 10 if OOM issues on older devices
-        ttl: const Duration(minutes: 5),
-        enabled: enabled,
-      );
+      // Reduce to 10 if OOM issues surface on older devices.
+      return CacheConfig(maxEntries: 20, enabled: enabled);
     }
-
     // Desktop (macOS, Windows, Linux)
-    return CacheConfig(
-      maxEntries: 50,
-      ttl: const Duration(minutes: 15),
-      enabled: enabled,
-    );
+    return CacheConfig(maxEntries: 50, enabled: enabled);
   }
 
-  /// Disabled configuration - all cache operations become pass-through.
-  factory CacheConfig.disabled() => const CacheConfig(
-    maxEntries: 0,
-    ttl: Duration.zero,
-    enabled: false,
-  );
+  /// Disabled — all cache calls become pass-through.
+  factory CacheConfig.disabled() =>
+      const CacheConfig(maxEntries: 0, enabled: false);
 }
 ```
 
@@ -270,61 +222,57 @@ import '../cache/lru_cache.dart';
 /// - Full results by type
 /// - Result counts
 ///
-/// Suggestions are NOT cached (fast, change frequently).
+/// Suggestions are NOT cached — they're fast (in-memory FTS prefix scan)
+/// and the call site fires per-keystroke, so caching adds little.
 class CachingTextSearchRepository implements TextSearchRepository {
   final TextSearchRepository _delegate;
-  final CacheConfig _config;
 
-  // Separate caches for different result types
-  late final LRUCache<String, GroupedSearchResult> _topResultsCache;
-  late final LRUCache<String, List<SearchResult>> _fullResultsCache;
-  late final LRUCache<String, Map<SearchResultType, int>> _countsCache;
+  // Nullable so disabled mode requires no special-case in tests / clearAll.
+  // (Earlier draft used `late final` + conditional init; that risks a
+  // LateInitializationError if a future call site forgets the `enabled` gate.)
+  final LRUCache<String, GroupedSearchResult>? _topResultsCache;
+  final LRUCache<String, List<SearchResult>>? _fullResultsCache;
+  final LRUCache<String, Map<SearchResultType, int>>? _countsCache;
 
   CachingTextSearchRepository(
     this._delegate, {
     required CacheConfig config,
-  }) : _config = config {
-    if (_config.enabled) {
-      _topResultsCache = LRUCache(_config.maxEntries, _config.ttl);
-      // More capacity for full results (may have multiple pages)
-      _fullResultsCache = LRUCache(_config.maxEntries * 2, _config.ttl);
-      _countsCache = LRUCache(_config.maxEntries, _config.ttl);
-    }
-  }
+  })  : _topResultsCache =
+            config.enabled ? LRUCache(config.maxEntries) : null,
+        // No `* 2` multiplier: pagination not implemented yet (limit=50,
+        // offset=0 in current call sites). Bump when "load more" lands.
+        _fullResultsCache =
+            config.enabled ? LRUCache(config.maxEntries) : null,
+        _countsCache =
+            config.enabled ? LRUCache(config.maxEntries) : null;
 
   @override
   Future<Either<Failure, GroupedSearchResult>> searchTopResults(
     SearchQuery query, {
     int maxPerCategory = 3,
   }) async {
-    // Bypass cache if disabled
-    if (!_config.enabled) {
+    final cache = _topResultsCache;
+    if (cache == null) {
       return _delegate.searchTopResults(query, maxPerCategory: maxPerCategory);
     }
 
     final cacheKey = _generateKey(query, null, maxPerCategory: maxPerCategory);
-
-    // Check cache
-    final cached = _topResultsCache.get(cacheKey);
+    final cached = cache.get(cacheKey);
     if (cached != null) {
-      if (kDebugMode) debugPrint('🔍 Cache HIT [topResults]: $cacheKey');
+      if (kDebugMode) debugPrint('🔍 HIT  [topResults] $cacheKey');
       return Right(cached);
     }
 
-    if (kDebugMode) debugPrint('☁️ Cache MISS [topResults]: $cacheKey');
-
-    // Delegate to actual implementation
+    if (kDebugMode) debugPrint('☁️  MISS [topResults] $cacheKey');
     final result = await _delegate.searchTopResults(
       query,
       maxPerCategory: maxPerCategory,
     );
 
-    // Cache successful results only
     result.fold(
-      (failure) {}, // Don't cache failures
-      (data) => _topResultsCache.put(cacheKey, data),
+      (_) {}, // Don't cache failures
+      (data) => cache.put(cacheKey, data),
     );
-
     return result;
   }
 
@@ -333,27 +281,23 @@ class CachingTextSearchRepository implements TextSearchRepository {
     SearchQuery query,
     SearchResultType resultType,
   ) async {
-    if (!_config.enabled) {
-      return _delegate.searchByResultType(query, resultType);
-    }
+    final cache = _fullResultsCache;
+    if (cache == null) return _delegate.searchByResultType(query, resultType);
 
     final cacheKey = _generateKey(query, resultType);
-
-    final cached = _fullResultsCache.get(cacheKey);
+    final cached = cache.get(cacheKey);
     if (cached != null) {
-      if (kDebugMode) debugPrint('🔍 Cache HIT [fullResults]: $cacheKey');
+      if (kDebugMode) debugPrint('🔍 HIT  [fullResults] $cacheKey');
       return Right(cached);
     }
 
-    if (kDebugMode) debugPrint('☁️ Cache MISS [fullResults]: $cacheKey');
-
+    if (kDebugMode) debugPrint('☁️  MISS [fullResults] $cacheKey');
     final result = await _delegate.searchByResultType(query, resultType);
 
     result.fold(
-      (failure) {},
-      (data) => _fullResultsCache.put(cacheKey, data),
+      (_) {},
+      (data) => cache.put(cacheKey, data),
     );
-
     return result;
   }
 
@@ -361,27 +305,23 @@ class CachingTextSearchRepository implements TextSearchRepository {
   Future<Either<Failure, Map<SearchResultType, int>>> countByResultType(
     SearchQuery query,
   ) async {
-    if (!_config.enabled) {
-      return _delegate.countByResultType(query);
-    }
+    final cache = _countsCache;
+    if (cache == null) return _delegate.countByResultType(query);
 
     final cacheKey = _generateKey(query, null);
-
-    final cached = _countsCache.get(cacheKey);
+    final cached = cache.get(cacheKey);
     if (cached != null) {
-      if (kDebugMode) debugPrint('🔍 Cache HIT [counts]: $cacheKey');
+      if (kDebugMode) debugPrint('🔍 HIT  [counts] $cacheKey');
       return Right(cached);
     }
 
-    if (kDebugMode) debugPrint('☁️ Cache MISS [counts]: $cacheKey');
-
+    if (kDebugMode) debugPrint('☁️  MISS [counts] $cacheKey');
     final result = await _delegate.countByResultType(query);
 
     result.fold(
-      (failure) {},
-      (data) => _countsCache.put(cacheKey, data),
+      (_) {},
+      (data) => cache.put(cacheKey, data),
     );
-
     return result;
   }
 
@@ -390,58 +330,72 @@ class CachingTextSearchRepository implements TextSearchRepository {
     String prefix, {
     String? language,
   }) {
-    // Suggestions are NOT cached - they're fast and change frequently
+    // Not cached — fast and high-churn (every keystroke in some flows).
     return _delegate.getSuggestions(prefix, language: language);
   }
 
   /// Generate deterministic cache key from SearchQuery.
   ///
-  /// CRITICAL: Collections (editionIds, scope) MUST be sorted before
-  /// stringifying to ensure [BJT, SC] == [SC, BJT].
+  /// CRITICAL: every Set on SearchQuery (editionIds, scope, selectedDictionaryIds)
+  /// MUST be sorted before stringifying. Otherwise {BJT,SC} and {SC,BJT}
+  /// produce different keys for logically identical queries → cache thrash.
   String _generateKey(
     SearchQuery query,
     SearchResultType? resultType, {
     int? maxPerCategory,
   }) {
-    // MUST sort collections for deterministic keys
     final sortedEditions = (query.editionIds.toList()..sort()).join(',');
     final sortedScope = (query.scope.toList()..sort()).join(',');
+    final sortedDicts =
+        (query.selectedDictionaryIds.toList()..sort()).join(',');
 
-    final parts = [
+    // '__all__' sentinel keeps "no filter" distinct from "explicitly bjt".
+    // Today the underlying repo collapses both to {'bjt'} so they'd return
+    // the same data, BUT once SC ships, "{}" means "search all editions" and
+    // "{'bjt'}" means "BJT only" — and they MUST be different cache entries.
+    final editionsPart = sortedEditions.isEmpty ? '__all__' : sortedEditions;
+
+    // Booleans rendered as 0/1 for compact, unambiguous keys.
+    final parts = <String>[
       query.queryText,
-      query.isExactMatch,
-      sortedEditions.isEmpty ? 'bjt' : sortedEditions,
-      query.searchInPali,
-      query.searchInSinhala,
+      query.isExactMatch ? '1' : '0',
+      editionsPart,
+      query.searchInPali ? '1' : '0',
+      query.searchInSinhala ? '1' : '0',
       sortedScope,
-      query.isPhraseSearch,
-      query.isAnywhereInText,
-      query.proximityDistance,
-      query.limit,
-      query.offset,
+      sortedDicts, // BUGFIX vs original draft — was missing entirely
+      query.isPhraseSearch ? '1' : '0',
+      query.isAnywhereInText ? '1' : '0',
+      '${query.proximityDistance}',
+      '${query.limit}',
+      '${query.offset}',
       resultType?.name ?? 'top',
-      maxPerCategory ?? 0,
+      '${maxPerCategory ?? 0}',
     ];
-
     return parts.join('|');
   }
 
-  /// Clear all caches. Call when you need to force fresh results.
+  /// Clear all caches. Use to force fresh results (e.g., after a manual
+  /// "reload corpus" action — not currently exposed in the UI).
   void clearAll() {
-    if (_config.enabled) {
-      _topResultsCache.clear();
-      _fullResultsCache.clear();
-      _countsCache.clear();
-    }
+    _topResultsCache?.clear();
+    _fullResultsCache?.clear();
+    _countsCache?.clear();
   }
+
+  /// Snapshot of all cache stats — used by the perf measurement panel.
+  Map<String, CacheStats> snapshotStats() => {
+        if (_topResultsCache != null) 'topResults': _topResultsCache!.stats,
+        if (_fullResultsCache != null) 'fullResults': _fullResultsCache!.stats,
+        if (_countsCache != null) 'counts': _countsCache!.stats,
+      };
 
   /// Log statistics for all caches (debug mode only).
   void logAllStats() {
-    if (_config.enabled && kDebugMode) {
-      _topResultsCache.logStats('TopResults');
-      _fullResultsCache.logStats('FullResults');
-      _countsCache.logStats('Counts');
-    }
+    if (!kDebugMode) return;
+    _topResultsCache?.logStats('TopResults');
+    _fullResultsCache?.logStats('FullResults');
+    _countsCache?.logStats('Counts');
   }
 }
 ```
@@ -454,88 +408,125 @@ class CachingTextSearchRepository implements TextSearchRepository {
 
 Update `textSearchRepositoryProvider` to wrap with caching decorator.
 
+> NOTE: import paths are `../../data/...` not `../...` — `search_provider.dart`
+> lives in `lib/presentation/providers/`, the new files live in `lib/data/`.
+> The earlier draft had this wrong.
+
 ```dart
-import '../cache/cache_config.dart';
-import '../repositories/caching_text_search_repository.dart';
+// Add these to the existing imports:
+import '../../data/cache/cache_config.dart';
+import '../../data/repositories/caching_text_search_repository.dart';
 
 /// Feature flag for search caching.
-/// Set to false to disable caching for A/B testing or debugging.
+/// Set to false to disable for A/B testing or debugging.
 const bool kEnableSearchCache = true;
 
-/// Provider for the text search repository (with optional caching).
-final textSearchRepositoryProvider = Provider<TextSearchRepository>((ref) {
-  final baseRepository = TextSearchRepositoryImpl(
+/// Concrete decorator instance (when enabled). Exposed separately so the
+/// performance-measurement debug panel can read `snapshotStats()` /
+/// call `clearAll()` without going through the abstract repo interface.
+final cachingSearchRepositoryProvider =
+    Provider<CachingTextSearchRepository?>((ref) {
+  if (!kEnableSearchCache) return null;
+  final base = TextSearchRepositoryImpl(
     ref.watch(ftsDataSourceProvider),
     ref.watch(navigationTreeRepositoryProvider),
     ref.watch(dictionaryRepositoryProvider),
   );
-
-  // Wrap with caching decorator (can be disabled via feature flag)
   return CachingTextSearchRepository(
-    baseRepository,
-    config: CacheConfig.forPlatform(enabled: kEnableSearchCache),
+    base,
+    config: CacheConfig.forPlatform(),
+  );
+});
+
+/// Provider for the text search repository (with optional caching).
+final textSearchRepositoryProvider = Provider<TextSearchRepository>((ref) {
+  final cached = ref.watch(cachingSearchRepositoryProvider);
+  if (cached != null) return cached;
+
+  // Cache disabled — return the bare implementation.
+  return TextSearchRepositoryImpl(
+    ref.watch(ftsDataSourceProvider),
+    ref.watch(navigationTreeRepositoryProvider),
+    ref.watch(dictionaryRepositoryProvider),
   );
 });
 ```
 
-**To test without caching:** Change `kEnableSearchCache` to `false` and hot-restart.
+**To test without caching:** flip `kEnableSearchCache` to `false` and hot-restart.
 
 ---
 
 ## Cache Key Strategy
 
-Cache keys must be **deterministic** - the same query parameters must always produce the same key.
+Cache keys must be **deterministic** — the same logical query must always produce the same key.
 
 ### Key Format
 
 ```
-"{queryText}|{isExactMatch}|{sortedEditions}|{pali}|{sinh}|{sortedScope}|{phrase}|{anywhere}|{proximity}|{limit}|{offset}|{resultType}|{maxPerCategory}"
+"{queryText}|{isExactMatch}|{sortedEditions|__all__}|{pali}|{sinh}|{sortedScope}|{sortedDicts}|{phrase}|{anywhere}|{proximity}|{limit}|{offset}|{resultType}|{maxPerCategory}"
 ```
 
 ### Example Keys
 
 ```
-"dhamma|false|bjt|true|true|sp|true|false|10|50|0|fullText|0"
-"සති|true|bjt,sc|true|true|dn,mn|false|true|100|20|0|top|3"
+"dhamma|0|__all__|1|1|sp||1|0|10|50|0|fullText|0"
+"සති|1|bjt,sc|1|1|dn,mn|BUS,MS|0|1|100|20|0|top|3"
 ```
 
-### CRITICAL: Sort Collections
+### CRITICAL: sort every Set, include every filter
 
-Collections (Sets/Lists) must be sorted before joining to string:
+Three Sets exist on `SearchQuery`. All three MUST be sorted before joining:
 
 ```dart
-// WRONG - order depends on Set iteration order
-final key = query.editionIds.join(',');  // Could be "sc,bjt" or "bjt,sc"
-
-// CORRECT - sorted for deterministic order
-final sortedEditions = (query.editionIds.toList()..sort()).join(',');  // Always "bjt,sc"
+final sortedEditions = (query.editionIds.toList()..sort()).join(',');
+final sortedScope    = (query.scope.toList()..sort()).join(',');
+final sortedDicts    = (query.selectedDictionaryIds.toList()..sort()).join(',');
 ```
 
-If you don't sort, `[BJT, SC]` and `[SC, BJT]` will produce different cache keys, causing cache misses for logically identical queries.
+**Why this matters:** Sets in Dart have undefined iteration order, so
+`{BJT, SC}.join(',')` could yield either `"bjt,sc"` or `"sc,bjt"`. Without
+sorting, two logically identical queries can produce different keys → cache
+thrash and incorrect cache hits.
+
+The original draft of this plan **omitted `selectedDictionaryIds`** entirely.
+That bug would have caused the cache to return stale results from a different
+dictionary filter when the user toggled `BUS` ↔ `MS` ↔ `All`. Fixed.
+
+### Empty editionIds: `__all__` not `'bjt'`
+
+```dart
+sortedEditions.isEmpty ? '__all__' : sortedEditions
+```
+
+Today, `text_search_repository_impl.dart:70` collapses an empty set to
+`{'bjt'}`, so functionally `{}` and `{'bjt'}` return the same data. But the
+moment SC edition is added, `{}` will mean "all editions" while `{'bjt'}` will
+mean "only BJT" — they MUST be different cache entries. Using `__all__` keeps
+the key correct across that change.
 
 ---
 
 ## Eviction Policy
 
-### LRU + TTL (Combined)
+1. **On `get()`**: returns the value and re-inserts at end (most recently used).
+2. **On `put()`**: if at capacity, removes the first entry (least recently used).
+3. **No TTL** — corpus is immutable, no staleness to expire.
 
-1. **On `get()`**: If entry exists but TTL expired, remove it and return null (cache miss)
-2. **On `put()`**: If at capacity, remove the least recently used entry (first in LinkedHashMap)
-3. **On access**: Re-insert entry to move it to "most recently used" position
+### No selective invalidation (v1)
 
-### No Selective Invalidation (v1)
-
-For v1, only `clear()` is implemented. Selective invalidation (e.g., `invalidateWhere(predicate)`) can be added later when "load more" pagination is implemented.
+Only `clear()` / `clearAll()` is implemented. Selective invalidation
+(e.g., `invalidateWhere(predicate)`) can be added later if "load more"
+pagination needs it.
 
 ---
 
 ## Platform Considerations
 
-| Platform | Max Entries | TTL | Notes |
-|----------|-------------|-----|-------|
-| Mobile (iOS/Android) | 20 | 5 min | Limited memory. Can reduce to 10 if OOM on older devices. |
-| Web | 30 | 10 min | Session-based. Can reduce to 20 if Safari memory issues. |
-| Desktop | 50 | 15 min | More memory available. |
+| Platform | Max Entries | Notes |
+|----------|-------------|-------|
+| Mobile (iOS/Android) | 20 | Limited memory. Reduce to 10 if OOM appears on older devices. |
+| Web | 30 | Session-based. Reduce to 20 if Safari memory issues surface. |
+| Desktop | 50 | More memory available. |
 
 ### Mobile Lifecycle
 
@@ -587,31 +578,40 @@ This would allow stitching pages together and avoiding re-fetches for already-lo
 
 ---
 
-## Verification Plan
+## Diagnostics
 
-### 1. Test with Caching Enabled (`kEnableSearchCache = true`)
+The decorator emits debug-only HIT/MISS logs and exposes lightweight stats
+for ad-hoc inspection. All of this is gated on `kDebugMode` and costs nothing
+in release.
 
-1. Search "dhamma" → observe cache miss (first request)
-2. Search "dhamma" again → should be instant (cache hit)
-3. Toggle exact match → new search (cache miss, different key)
-4. Change scope filter → new search (cache miss, different key)
-5. Check `CacheStats` via debug logging
-
-### 2. Test with Caching Disabled (`kEnableSearchCache = false`)
-
-1. Search "dhamma" → note response time
-2. Search "dhamma" again → same response time (no caching)
-3. Compare times with caching enabled to measure benefit
-
-### 3. Debug Logging
-
-All cache operations are logged in debug mode:
+### Debug log lines
 
 ```
-🔍 Cache HIT [topResults]: dhamma|false|bjt|true|true|...|top|3
-☁️ Cache MISS [fullResults]: dhamma|false|bjt|true|true|...|fullText|0
-[TopResults] Size: 5/20 | Hits: 12 | Misses: 3 | Rate: 80.0%
+🔍 HIT  [topResults] dhamma|0|__all__|1|1|sp||1|0|10|50|0|top|3
+☁️  MISS [fullResults] dhamma|0|__all__|1|1|||1|0|10|50|0|fullText|0
 ```
+
+Filter the browser/IDE console for `MISS` or `HIT` to narrow down to cache
+events. Suggestions are not cached and don't appear here.
+
+### Stats snapshot
+
+```dart
+ref.read(cachingSearchRepositoryProvider)?.logAllStats();
+// [TopResults]  size=2/50 hits=4 misses=2 rate=66.7%
+// [FullResults] size=3/50 hits=0 misses=3 rate=0.0%
+// [Counts]      size=2/50 hits=8 misses=2 rate=80.0%
+```
+
+Use this when you want to confirm the cache is being exercised. A persistently
+low hit rate (<10%) on `Counts` suggests a cache-key bug: some flag is
+changing between calls when it shouldn't, or some flag is missing from the
+key when it should be there.
+
+The original draft of this doc included `Stopwatch` timing, `avgMissMs` and
+`estimatedTimeSavedMs` for verifying speedup before/after. Once verified,
+that scaffolding was removed; only the cheap `hits` / `misses` / `size`
+counters remain.
 
 ---
 
@@ -628,11 +628,30 @@ This would allow returning users to get instant search results for previously se
 
 ## Implementation Checklist
 
-- [ ] Create `lib/data/cache/lru_cache.dart`
-- [ ] Create `lib/data/cache/cache_config.dart`
-- [ ] Create `lib/data/repositories/caching_text_search_repository.dart`
-- [ ] Update `lib/presentation/providers/search_provider.dart`
+- [x] Create `lib/data/cache/lru_cache.dart`
+- [x] Create `lib/data/cache/cache_config.dart` (no `ttl` field)
+- [x] Create `lib/data/repositories/caching_text_search_repository.dart`
+  - [x] Cache key includes `selectedDictionaryIds`
+  - [x] Empty `editionIds` keyed as `__all__`, not `'bjt'`
+  - [x] Caches are nullable, not `late final`
+- [x] Update `lib/presentation/providers/search_provider.dart`
+  - [x] Add `kEnableSearchCache` feature flag
+  - [x] Expose `cachingSearchRepositoryProvider` for diagnostics
+- [x] Verify HIT/MISS logs in browser DevTools console (debug build)
 - [ ] Test on mobile (iOS and Android)
-- [ ] Test on web (Chrome and Safari)
 - [ ] Test on desktop (macOS)
 - [ ] Monitor for OOM issues on older Android devices
+
+## Changelog vs. original draft
+
+| Change | Reason |
+|---|---|
+| Removed TTL everywhere | Corpus is immutable; TTL only adds cost & surprise misses |
+| Added `selectedDictionaryIds` to cache key | Without it, dictionary filter changes returned stale results |
+| Empty editionIds → `__all__` sentinel (was `'bjt'`) | Future-proof for SuttaCentral edition |
+| Caches nullable, not `late final` | Avoid `LateInitializationError` if a future call site forgets the gate |
+| Dropped `* 2` capacity multiplier on `_fullResultsCache` | Pagination not implemented yet — add the multiplier when "load more" lands |
+| Fixed import paths in provider snippet | `../cache/...` → `../../data/cache/...` |
+| Booleans rendered as `0/1` in cache key | Compact, unambiguous — easier to debug |
+| Used `defaultTargetPlatform` instead of `dart:io`'s `Platform` | Web-safe; no conditional imports needed |
+| Added then **removed** Stopwatch-based miss timing | Used to verify the speedup; once obvious, the scaffolding was stripped per moderate-cleanup pass |

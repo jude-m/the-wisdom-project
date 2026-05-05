@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../data/cache/cache_config.dart';
 import '../../data/datasources/fts_datasource.dart';
 import '../../data/datasources/fts_local_datasource.dart';
+import '../../data/repositories/caching_text_search_repository.dart';
 import '../../data/repositories/recent_searches_repository_impl.dart';
 import '../../data/repositories/text_search_repository_impl.dart';
 import '../../domain/repositories/recent_searches_repository.dart';
@@ -24,9 +26,39 @@ final ftsDataSourceProvider = Provider<FTSDataSource>((ref) {
   return FTSDataSourceImpl();
 });
 
-/// Provider for the text search repository
-/// Now includes dictionary repository for definition search
+/// Feature flag for the search-results cache.
+/// Flip to `false` to disable for A/B testing or debugging, then hot-restart.
+const bool kEnableSearchCache = true;
+
+/// Concrete decorator instance, exposed separately so the perf-verification
+/// panel can call `snapshotStats()` / `logAllStats()` / `clearAll()` without
+/// going through the abstract [TextSearchRepository] interface.
+///
+/// Returns `null` when [kEnableSearchCache] is false.
+///
+/// PERF SCAFFOLDING — once cache effectiveness is verified, this provider can
+/// be folded back into [textSearchRepositoryProvider].
+final cachingSearchRepositoryProvider =
+    Provider<CachingTextSearchRepository?>((ref) {
+  if (!kEnableSearchCache) return null;
+  final base = TextSearchRepositoryImpl(
+    ref.watch(ftsDataSourceProvider),
+    ref.watch(navigationTreeRepositoryProvider),
+    ref.watch(dictionaryRepositoryProvider),
+  );
+  return CachingTextSearchRepository(
+    base,
+    config: CacheConfig.forPlatform(),
+  );
+});
+
+/// Provider for the text search repository.
+/// Wraps [TextSearchRepositoryImpl] with [CachingTextSearchRepository] when
+/// [kEnableSearchCache] is true; otherwise returns the bare implementation.
 final textSearchRepositoryProvider = Provider<TextSearchRepository>((ref) {
+  final cached = ref.watch(cachingSearchRepositoryProvider);
+  if (cached != null) return cached;
+
   return TextSearchRepositoryImpl(
     ref.watch(ftsDataSourceProvider),
     ref.watch(navigationTreeRepositoryProvider),
