@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show SelectedContent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,15 +13,13 @@ import '../resizable_divider.dart';
 import 'entry_key_registry.dart';
 import 'reader_entry_builder.dart';
 
-/// A dual-column reader pane for side-by-side Pali/Sinhala display mode.
+/// Side-by-side Pali/Sinhala reader.
 ///
-/// Uses [SingleChildScrollView] with paired entry rows (each row contains
-/// both Pali and Sinhala entries side-by-side). On tablet/desktop, includes
-/// a draggable divider overlay for resizing panes.
-///
-/// Watches [activeSplitRatioProvider] internally for split ratio changes,
-/// so the parent widget doesn't rebuild on divider drags.
-class DualColumnPane extends ConsumerWidget {
+/// Each column has its own [SelectionArea] so a drag-select stays within
+/// the column it started in. Pair alignment is restored by
+/// [_PairHeightSync]: each side reports its rendered height; the shorter
+/// side pads to match.
+class DualColumnPane extends ConsumerStatefulWidget {
   const DualColumnPane({
     super.key,
     required this.scrollController,
@@ -41,91 +41,178 @@ class DualColumnPane extends ConsumerWidget {
   final int absolutePageStart;
   final InPageSearchState searchState;
 
-  /// Attached to the current search match row for scroll-to-match.
+  /// Single GlobalKey — at most one side per build may attach it.
+  /// `currentMatch.languageCode` is one of `'pi'`/`'si'`; assert in
+  /// [_DualColumnPaneState._buildColumnEntries] guards against regression.
   final GlobalKey currentMatchKey;
 
-  /// Registry for entry-level GlobalKeys used to sync scroll position
-  /// across layout switches.
   final EntryKeyRegistry entryKeyRegistry;
-
-  /// Called when tapping empty space (clears highlights).
   final VoidCallback onTapEmpty;
-
-  /// Called when a word is tapped (for dictionary lookup).
   final void Function(String word)? onWordTap;
-
   final void Function(SelectedContent?) onSelectionChanged;
   final Widget Function(BuildContext, SelectableRegionState) contextMenuBuilder;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isTabletOrDesktop = ResponsiveUtils.isTabletOrDesktop(context);
-    // Watch split ratio — only this widget rebuilds on divider drag
-    final splitRatio = ref.watch(activeSplitRatioProvider);
+  ConsumerState<DualColumnPane> createState() => _DualColumnPaneState();
+}
 
-    return SelectionArea(
-      onSelectionChanged: onSelectionChanged,
-      contextMenuBuilder: contextMenuBuilder,
-      child: GestureDetector(
-        onTap: onTapEmpty,
-        behavior: HitTestBehavior.translucent,
-        child: Stack(
-          children: [
-            // Main scrollable content
-            SingleChildScrollView(
-              controller: scrollController,
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Spacer so content doesn't hide behind button group
-                    const SizedBox(
-                        height:
-                            PaneWidthConstants.readerActionButtonGroupHeight),
-                    // Content rows - each page with paired entries
-                    ..._buildBothModePages(context, splitRatio),
-                  ],
-                ),
+class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
+  late final _PairHeightSync _heightSync;
+
+  @override
+  void initState() {
+    super.initState();
+    _heightSync = _PairHeightSync();
+  }
+
+  @override
+  void didUpdateWidget(DualColumnPane old) {
+    super.didUpdateWidget(old);
+    // Drop heights for entries no longer in the page slice; persisted
+    // entries keep theirs to avoid re-measure churn.
+    if (!identical(old.pages, widget.pages) ||
+        old.absolutePageStart != widget.absolutePageStart ||
+        old.entryStart != widget.entryStart) {
+      _heightSync.prune(_liveIdSet());
+    }
+  }
+
+  Set<(int, int)> _liveIdSet() {
+    final live = <(int, int)>{};
+    for (var p = 0; p < widget.pages.length; p++) {
+      final absPage = widget.absolutePageStart + p;
+      final start = p == 0 ? widget.entryStart : 0;
+      final entryCount = widget.pages[p].paliSection.entries.length;
+      for (var e = start; e < entryCount; e++) {
+        live.add((absPage, e));
+      }
+    }
+    return live;
+  }
+
+  @override
+  void dispose() {
+    _heightSync.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isTabletOrDesktop = ResponsiveUtils.isTabletOrDesktop(context);
+
+    // Build sides ONCE per parent build. These references are captured by
+    // the inner Consumer's closure — across drag frames the Consumer hands
+    // back the same Widget instance to each SizedBox's `child` slot, so
+    // Flutter's element diff keeps the entry subtree mounted and only
+    // re-lays out the changed widths. No `_buildColumnEntries` re-run, no
+    // GlobalKey reattachment, no `_AlignedEntry` state loss.
+    final leftSide = _buildSideContent(context, isLeft: true);
+    final rightSide = _buildSideContent(context, isLeft: false);
+
+    return GestureDetector(
+      onTap: widget.onTapEmpty,
+      behavior: HitTestBehavior.translucent,
+      child: Stack(
+        children: [
+          SingleChildScrollView(
+            controller: widget.scrollController,
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final dividerWidth = isTabletOrDesktop
+                      ? PaneWidthConstants.dividerWidth
+                      : 24.0;
+                  final availableWidth = constraints.maxWidth - dividerWidth;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(
+                          height: PaneWidthConstants
+                              .readerActionButtonGroupHeight),
+                      // Watch splitRatio scoped to just the Row so drag
+                      // frames don't rebuild the parent or the side trees.
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final splitRatio =
+                              ref.watch(activeSplitRatioProvider);
+                          final leftWidth = availableWidth * splitRatio;
+                          final rightWidth = availableWidth * (1 - splitRatio);
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(width: leftWidth, child: leftSide),
+                              SizedBox(width: dividerWidth),
+                              SizedBox(width: rightWidth, child: rightSide),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
-            // Single draggable divider overlay (tablet/desktop only)
-            if (isTabletOrDesktop)
-              _buildDividerOverlay(context, ref, splitRatio),
-          ],
+          ),
+          if (isTabletOrDesktop)
+            // Overlay also watches splitRatio in its own Consumer — it's a
+            // tiny widget, cheap to rebuild on drag.
+            Consumer(
+              builder: (context, ref, _) {
+                final splitRatio = ref.watch(activeSplitRatioProvider);
+                return _buildDividerOverlay(context, ref, splitRatio);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// One column: SelectionArea wrapped in a RepaintBoundary so paint in
+  /// one column doesn't dirty the other.
+  Widget _buildSideContent(BuildContext context, {required bool isLeft}) {
+    return RepaintBoundary(
+      child: SelectionArea(
+        onSelectionChanged: widget.onSelectionChanged,
+        contextMenuBuilder: widget.contextMenuBuilder,
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: isLeft ? 0 : 12.0,
+            right: isLeft ? 12.0 : 0,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: _buildColumnEntries(context, isLeft: isLeft),
+          ),
         ),
       ),
     );
   }
 
-  /// Builds the page content for side-by-side Pali/Sinhala.
-  /// On the first page, skips entries before [entryStart].
-  List<Widget> _buildBothModePages(BuildContext context, double splitRatio) {
-    final widgets = <Widget>[];
+  List<Widget> _buildColumnEntries(
+    BuildContext context, {
+    required bool isLeft,
+  }) {
+    final pages = widget.pages;
+    final entryStart = widget.entryStart;
+    final absolutePageStart = widget.absolutePageStart;
+    final searchState = widget.searchState;
     final currentMatch = searchState.currentMatch;
     final effectiveQuery = searchState.effectiveQuery;
     final hasQuery = searchState.hasActiveQuery;
 
+    final widgets = <Widget>[];
+
     for (var pageIndex = 0; pageIndex < pages.length; pageIndex++) {
       final page = pages[pageIndex];
       final absolutePageIndex = absolutePageStart + pageIndex;
-      // On first page, skip entries before entryStart
       final startEntry = pageIndex == 0 ? entryStart : 0;
 
-      // Page number row - uses split layout
-      widgets.add(
-        _buildSplitRow(
-          context,
-          splitRatio: splitRatio,
-          leftChild:
-              ReaderEntryBuilder.buildPageNumber(context, page.pageNumber),
-          rightChild:
-              ReaderEntryBuilder.buildPageNumber(context, page.pageNumber),
-        ),
-      );
+      // Page number row — same on both sides, no sync needed.
+      widgets.add(ReaderEntryBuilder.buildPageNumber(context, page.pageNumber));
       widgets.add(const SizedBox(height: 16));
 
-      // Paired entry rows - skip entries before startEntry on first page
       final entryCount = page.paliSection.entries.length - startEntry;
       for (var i = 0; i < entryCount; i++) {
         final entryIndex = i + startEntry;
@@ -134,7 +221,6 @@ class DualColumnPane extends ConsumerWidget {
             ? page.sinhalaSection.entries[entryIndex]
             : null;
 
-        // Determine if either entry is the current match
         final isPaliCurrentMatch = currentMatch != null &&
             currentMatch.pageIndex == absolutePageIndex &&
             currentMatch.entryIndex == entryIndex &&
@@ -144,139 +230,97 @@ class DualColumnPane extends ConsumerWidget {
             currentMatch.entryIndex == entryIndex &&
             currentMatch.languageCode == 'si';
 
-        // Pali entry widget — only highlight if this entry has matches
-        final paliHasMatch = hasQuery &&
-            searchState.hasMatchInEntry(absolutePageIndex, entryIndex, 'pi');
-        final paliWidget = ReaderEntryBuilder.buildEntry(
-          context,
-          paliEntry,
-          enableDictionaryLookup: true,
-          inPageSearchQuery: paliHasMatch ? effectiveQuery : null,
-          currentMatchIndexInEntry:
-              isPaliCurrentMatch ? currentMatch.matchIndexInEntry : null,
-          onWordTap: onWordTap,
+        // Single GlobalKey — at most one side may attach it.
+        assert(
+            !(isPaliCurrentMatch && isSinhalaCurrentMatch),
+            'currentMatchKey would attach to both sides for pair '
+            '($absolutePageIndex, $entryIndex).');
+
+        final Widget innerEntry;
+        if (isLeft) {
+          final paliHasMatch = hasQuery &&
+              searchState.hasMatchInEntry(absolutePageIndex, entryIndex, 'pi');
+          innerEntry = ReaderEntryBuilder.buildEntry(
+            context,
+            paliEntry,
+            enableDictionaryLookup: true,
+            inPageSearchQuery: paliHasMatch ? effectiveQuery : null,
+            currentMatchIndexInEntry:
+                isPaliCurrentMatch ? currentMatch.matchIndexInEntry : null,
+            onWordTap: widget.onWordTap,
+          );
+        } else if (sinhalaEntry != null) {
+          final sinhalaHasMatch = hasQuery &&
+              searchState.hasMatchInEntry(absolutePageIndex, entryIndex, 'si');
+          innerEntry = ReaderEntryBuilder.buildEntry(
+            context,
+            sinhalaEntry,
+            enableDictionaryLookup: false,
+            inPageSearchQuery: sinhalaHasMatch ? effectiveQuery : null,
+            currentMatchIndexInEntry:
+                isSinhalaCurrentMatch ? currentMatch.matchIndexInEntry : null,
+            onWordTap: widget.onWordTap,
+          );
+        } else {
+          innerEntry = const SizedBox.shrink();
+        }
+
+        final id = (absolutePageIndex, entryIndex);
+
+        Widget side = _AlignedEntry(
+          key: ValueKey((absolutePageIndex, entryIndex, isLeft)),
+          id: id,
+          isLeft: isLeft,
+          sync: _heightSync,
+          child: innerEntry,
         );
 
-        // Sinhala entry widget — only highlight if this entry has matches
-        final sinhalaHasMatch = hasQuery &&
-            searchState.hasMatchInEntry(absolutePageIndex, entryIndex, 'si');
-        final sinhalaWidget = sinhalaEntry != null
-            ? ReaderEntryBuilder.buildEntry(
-                context,
-                sinhalaEntry,
-                enableDictionaryLookup: false,
-                inPageSearchQuery: sinhalaHasMatch ? effectiveQuery : null,
-                currentMatchIndexInEntry: isSinhalaCurrentMatch
-                    ? currentMatch.matchIndexInEntry
-                    : null,
-                onWordTap: onWordTap,
-              )
-            : const SizedBox.shrink();
+        final isThisSideCurrentMatch =
+            isLeft ? isPaliCurrentMatch : isSinhalaCurrentMatch;
 
-        // Wrap the current match entry with a GlobalKey for scroll-to-match
-        final isCurrentMatchRow = isPaliCurrentMatch || isSinhalaCurrentMatch;
-
-        // Wrap with registry key for layout-switch scroll sync
-        widgets.add(
-          KeyedSubtree(
-            key: entryKeyRegistry.keyFor(absolutePageIndex, entryIndex),
-            child: Padding(
-              key: isCurrentMatchRow ? currentMatchKey : null,
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: _buildSplitRow(
-                context,
-                splitRatio: splitRatio,
-                leftChild: paliWidget,
-                rightChild: sinhalaWidget,
-              ),
-            ),
-          ),
+        Widget row = Padding(
+          key: isThisSideCurrentMatch ? widget.currentMatchKey : null,
+          padding: const EdgeInsets.only(bottom: 12.0),
+          child: side,
         );
+
+        // Registry key on LEFT only — duplicate GlobalKeys would crash.
+        // Both sides share the same y after height-sync converges.
+        if (isLeft) {
+          row = KeyedSubtree(
+            key: widget.entryKeyRegistry.keyFor(absolutePageIndex, entryIndex),
+            child: row,
+          );
+        }
+
+        widgets.add(row);
       }
 
-      widgets.add(const SizedBox(height: 32)); // Space between pages
+      widgets.add(const SizedBox(height: 32));
     }
 
     return widgets;
   }
 
-  /// Builds a row with split layout for side-by-side columns.
-  /// Uses a thin vertical line as separator (actual dragging handled by overlay).
-  Widget _buildSplitRow(
-    BuildContext context, {
-    required double splitRatio,
-    required Widget leftChild,
-    required Widget rightChild,
-  }) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isTabletOrDesktop = ResponsiveUtils.isTabletOrDesktop(context);
-
-        // Divider width: thin line on tablet/desktop, gap on mobile
-        final dividerWidth =
-            isTabletOrDesktop ? PaneWidthConstants.dividerWidth : 24.0;
-
-        // Calculate pane widths based on split ratio
-        final availableWidth = constraints.maxWidth - dividerWidth;
-        final leftWidth = availableWidth * splitRatio;
-        final rightWidth = availableWidth * (1 - splitRatio);
-
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left pane (Pali)
-            SizedBox(
-              width: leftWidth,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 12.0),
-                child: leftChild,
-              ),
-            ),
-            // Thin vertical line separator (tablet/desktop) or simple gap (mobile)
-            // Note: The actual drag interaction is handled by _buildDividerOverlay
-            SizedBox(width: dividerWidth),
-            // Right pane (Sinhala)
-            SizedBox(
-              width: rightWidth,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 12.0),
-                child: rightChild,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  /// Builds the draggable divider overlay positioned at the split ratio.
-  /// This single divider handles all drag interactions for resizing panes.
-  /// Only visible on hover (the pill handle appears on mouse hover).
   Widget _buildDividerOverlay(
       BuildContext context, WidgetRef ref, double splitRatio) {
-    // Content area has 24px padding on each side (matches SingleChildScrollView padding)
     const horizontalPadding = 24.0;
 
     return Positioned.fill(
       child: LayoutBuilder(
         builder: (context, constraints) {
           final contentWidth = constraints.maxWidth - (horizontalPadding * 2);
-
-          // Position divider at the split point within the content area
-          // Account for padding offset and center the divider on the split line
           final dividerLeft = horizontalPadding +
               (contentWidth * splitRatio) -
               (PaneWidthConstants.dividerWidth / 2);
 
-          // Use Padding + Align instead of nested Stack for simpler structure
           return Padding(
             padding: EdgeInsets.only(left: dividerLeft),
             child: Align(
               alignment: Alignment.centerLeft,
               child: ResizableDivider(
-                hideWhenIdle: true, // Only show pill on hover
+                hideWhenIdle: true,
                 onDragUpdate: (delta) {
-                  // Convert pixel delta to ratio change relative to content width
                   final ratioChange = delta / contentWidth;
                   final currentRatio = ref.read(activeSplitRatioProvider);
                   ref.read(updateActiveTabSplitRatioProvider)(
@@ -287,6 +331,141 @@ class DualColumnPane extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+}
+
+// =============================================================================
+// Per-pair height sync
+// =============================================================================
+
+/// Per-(pair, side) [ValueNotifier]s for bottom-pad. Each [_AlignedEntry]
+/// listens to its own notifier via [ValueListenableBuilder], so a height
+/// report rebuilds only the affected Padding — no parent setState, no
+/// cascade across siblings.
+class _PairHeightSync {
+  final Map<(int, int), double> _leftH = {};
+  final Map<(int, int), double> _rightH = {};
+  final Map<(int, int, bool), ValueNotifier<double>> _pads = {};
+
+  ValueNotifier<double> padNotifierFor((int, int) id, bool isLeft) {
+    final key = (id.$1, id.$2, isLeft);
+    return _pads.putIfAbsent(
+      key,
+      () => ValueNotifier<double>(_computePad(id, isLeft)),
+    );
+  }
+
+  double _computePad((int, int) id, bool isLeft) {
+    final l = _leftH[id] ?? 0;
+    final r = _rightH[id] ?? 0;
+    final mine = isLeft ? l : r;
+    return math.max(l, r) - mine;
+  }
+
+  void report((int, int) id, bool isLeft, double height) {
+    final map = isLeft ? _leftH : _rightH;
+    if (map[id] == height) return;
+    map[id] = height;
+    final l = _leftH[id] ?? 0;
+    final r = _rightH[id] ?? 0;
+    final maxH = math.max(l, r);
+    _pads[(id.$1, id.$2, true)]?.value = maxH - l;
+    _pads[(id.$1, id.$2, false)]?.value = maxH - r;
+  }
+
+  /// Drops stale ids. Notifiers aren't disposed here — listeners may still
+  /// be attached to soon-to-unmount widgets; orphaned notifiers GC after
+  /// listeners detach. ValueNotifier holds no resources beyond its
+  /// listener list, so this is leak-free.
+  void prune(Set<(int, int)> live) {
+    _leftH.removeWhere((k, _) => !live.contains(k));
+    _rightH.removeWhere((k, _) => !live.contains(k));
+    _pads.removeWhere((k, _) => !live.contains((k.$1, k.$2)));
+  }
+
+  void dispose() {
+    for (final n in _pads.values) {
+      n.dispose();
+    }
+    _pads.clear();
+    _leftH.clear();
+    _rightH.clear();
+  }
+}
+
+/// Wraps one entry, measures its height, and pads the bottom to match
+/// its partner.
+///
+/// Initial-frame caveat: both sides start at `pad = 0` until the first
+/// postframe measurement runs. One-frame transient on first paint.
+class _AlignedEntry extends StatefulWidget {
+  const _AlignedEntry({
+    super.key,
+    required this.id,
+    required this.isLeft,
+    required this.sync,
+    required this.child,
+  });
+
+  final (int, int) id;
+  final bool isLeft;
+  final _PairHeightSync sync;
+  final Widget child;
+
+  @override
+  State<_AlignedEntry> createState() => _AlignedEntryState();
+}
+
+class _AlignedEntryState extends State<_AlignedEntry> {
+  final _measureKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    // SizeChangedLayoutNotifier doesn't fire on first layout — bootstrap.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _measureAndReport();
+    });
+  }
+
+  void _measureAndReport() {
+    if (!mounted) return;
+    final ctx = _measureKey.currentContext;
+    if (ctx == null) return;
+    final box = ctx.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return;
+    widget.sync.report(widget.id, widget.isLeft, box.size.height);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final padNotifier = widget.sync.padNotifierFor(widget.id, widget.isLeft);
+
+    // NotificationListener MUST be the ancestor of SizeChangedLayoutNotifier
+    // — SCN dispatches up from its own context, so a listener placed inside
+    // it never fires and width-change re-measurement silently breaks.
+    return ValueListenableBuilder<double>(
+      valueListenable: padNotifier,
+      child: NotificationListener<SizeChangedLayoutNotification>(
+        onNotification: (_) {
+          // Defer — notification dispatches mid-layout; mutating a
+          // notifier during layout is unsafe.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _measureAndReport();
+          });
+          return true;
+        },
+        child: SizeChangedLayoutNotifier(
+          child: KeyedSubtree(key: _measureKey, child: widget.child),
+        ),
+      ),
+      builder: (context, pad, child) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: pad),
+          child: child,
+        );
+      },
     );
   }
 }

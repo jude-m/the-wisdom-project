@@ -335,11 +335,19 @@ final updateActiveTabSplitRatioProvider = Provider<void Function(double)>((ref) 
     final activeIndex = ref.read(activeTabIndexProvider);
     final tabs = ref.read(tabsProvider);
     if (activeIndex >= 0 && activeIndex < tabs.length) {
-      // Clamp ratio to allowed range
-      final clampedRatio = ratio.clamp(
+      // Snap to a 0.002 grid (≈2 logical pixels on a 1200px pane) so
+      // sub-pixel drag deltas collapse into the same value. Coarser than
+      // 0.001 to claw back fast-drag savings; finer than 0.005 so a
+      // slow drag doesn't develop a perceptible dead zone.
+      final quantized = (ratio * 500).round() / 500;
+      final clampedRatio = quantized.clamp(
         PaneWidthConstants.readerSplitMin,
         PaneWidthConstants.readerSplitMax,
       );
+      // Skip the state mutation when the snapped value matches the current
+      // one — this is what actually drops the rebuild cascade.
+      final current = tabs[activeIndex].splitRatio;
+      if ((current - clampedRatio).abs() < 1e-9) return;
       final updatedTab = tabs[activeIndex].copyWith(splitRatio: clampedRatio);
       ref.read(tabsProvider.notifier).updateTab(activeIndex, updatedTab);
     }
