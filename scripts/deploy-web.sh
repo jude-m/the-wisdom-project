@@ -21,6 +21,7 @@ set -euo pipefail
 
 # ---------------------------------------------------------------- Config
 readonly WINDOWS_IP="192.168.1.200"
+readonly WINDOWS_SSH_USER="admin"
 readonly SERVER_PORT="8081"
 readonly SHARE_MOUNT="/Volumes/wisdom-project"
 readonly HEALTHZ_URL="http://${WINDOWS_IP}:${SERVER_PORT}/healthz"
@@ -201,15 +202,26 @@ ok "DEPLOY.json: sha=$GIT_SHA builtAt=$BUILT_AT"
 # ---------------------------------------------------------------- Phase 7: restart + verify
 phase "Phase 7/7: restart Windows server + verify"
 
-cat <<EOF
+# Trigger restart over SSH. BatchMode=yes refuses interactive password
+# prompts (keeps the script from hanging if key auth is broken),
+# ConnectTimeout=5 keeps it responsive if the box is offline.
+SSH_TARGET="${WINDOWS_SSH_USER}@${WINDOWS_IP}"
+if ssh -o BatchMode=yes -o ConnectTimeout=5 "$SSH_TARGET" \
+       'C:\wisdom-project\restart.bat'; then
+  ok "Restart triggered via SSH"
+else
+  warn "SSH restart failed — fall back to manual restart on Windows:"
+  cat <<EOF
 
-${BOLD}${YELLOW}Action needed on Windows:${RESET}
   Fast:    double-click C:\\wisdom-project\\restart.bat
   Manual:  Ctrl+C the cmd window running serve-web.bat → press Y → rerun serve-web.bat
 
-Waiting for /healthz to report sha=${GIT_SHA}...
-
 EOF
+fi
+
+echo
+echo "Waiting for /healthz to report sha=${GIT_SHA}..."
+echo
 
 ELAPSED=0
 while [[ $ELAPSED -lt $HEALTH_POLL_TIMEOUT_S ]]; do
