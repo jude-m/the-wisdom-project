@@ -58,17 +58,16 @@ void main() {
       await tester.tap(find.byIcon(Icons.settings));
       await tester.pumpAndSettle();
 
-      // Change Navigation Language to Pali
+      // Change Navigation Language to Pali. The enclosing PopupMenuItem is
+      // disabled (enabled: false), so selecting a SegmentedButton option
+      // updates the provider but does NOT dismiss the popup — the menu stays
+      // open and we can switch directly to සිංහල without re-opening.
       await tester.tap(find.text('Pali').first);
       await tester.pumpAndSettle();
       expect(
           container.read(navigationLanguageProvider), NavigationLanguage.pali);
 
-      // Re-open the menu (PopupMenu closes after a selection).
-      await tester.tap(find.byIcon(Icons.settings));
-      await tester.pumpAndSettle();
-
-      // Change Navigation Language to Sinhala
+      // Change Navigation Language to Sinhala (menu still open).
       await tester.tap(find.text('සිංහල'));
       await tester.pumpAndSettle();
       expect(container.read(navigationLanguageProvider),
