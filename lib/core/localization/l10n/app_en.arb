@@ -61,11 +61,6 @@
     "description": "Error message when navigation tree fails to load"
   },
 
-  "retry": "Retry",
-  "@retry": {
-    "description": "Button label to retry a failed operation"
-  },
-
   "selectNodeToRead": "Select a sutta from the navigator to begin reading",
   "@selectNodeToRead": {
     "description": "Placeholder message shown when no content is selected"
@@ -349,5 +344,55 @@
   "couldNotOpenLink": "Could not open link",
   "@couldNotOpenLink": {
     "description": "Error message shown when a URL cannot be launched"
+  },
+
+  "statusOfflineTitle": "Cannot reach the server",
+  "@statusOfflineTitle": {
+    "description": "Title shown in any panel when the server is unreachable (no network, timeout, etc.)"
+  },
+
+  "statusOfflineDescription": "Check your connection and try again.",
+  "@statusOfflineDescription": {
+    "description": "Supporting line shown under statusOfflineTitle"
+  },
+
+  "errorLoadingSearch": "Error loading results",
+  "@errorLoadingSearch": {
+    "description": "Specific error title shown in the search panel when a non-network failure occurs"
+  },
+
+  "statusErrorDescription": "Please try again in a moment.",
+  "@statusErrorDescription": {
+    "description": "Supporting line shown under each panel-specific error title (errorLoadingSearch, errorLoadingTree, errorLoadingContent, errorLoadingDefinitions)."
+  },
+
+  "statusInvalidQuery": "Enter a valid search query",
+  "@statusInvalidQuery": {
+    "description": "Shown in the search panel when the query is empty or otherwise invalid"
+  },
+
+  "statusNoResultsForCategory": "No {category} found",
+  "@statusNoResultsForCategory": {
+    "description": "Empty state for a specific search category tab",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+
+  "statusSelectSuttaToRead": "Select a sutta from the tree to begin reading",
+  "@statusSelectSuttaToRead": {
+    "description": "Empty state shown in the reader before any sutta has been selected"
+  },
+
+  "statusNoContentToDisplay": "No content to display",
+  "@statusNoContentToDisplay": {
+    "description": "Empty state shown in the reader when the loaded document has no pages in range"
+  },
+
+  "statusNoTreeContent": "No content available",
+  "@statusNoTreeContent": {
+    "description": "Empty state shown in the navigation tree when no root nodes exist"
   }
 }

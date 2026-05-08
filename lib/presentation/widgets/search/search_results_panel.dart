@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../domain/entities/search/grouped_fts_match.dart';
@@ -8,6 +9,7 @@ import '../../../domain/entities/search/search_result_type.dart';
 import '../../../domain/entities/search/search_result.dart';
 import '../../providers/dictionary_provider.dart' show selectedDictionaryWordProvider;
 import '../../providers/search_provider.dart';
+import '../common/status_message_view.dart';
 import '../dictionary/dictionary_filter_chips.dart';
 import '../dictionary/refine_dictionary_dialog.dart';
 import 'dictionary_search_result_tile.dart';
@@ -95,17 +97,23 @@ class SearchResultsPanel extends ConsumerWidget {
   ) {
     // Loading state
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const StatusMessageView(variant: StatusVariant.loading);
     }
 
     // Invalid query - didn't search
     if (categorizedResults == null) {
-      return _buildEmptyState(context, isInvalidQuery: true);
+      return StatusMessageView(
+        variant: StatusVariant.invalid,
+        title: AppLocalizations.of(context).statusInvalidQuery,
+      );
     }
 
     // Valid query - searched but no results
     if (categorizedResults.isEmpty) {
-      return _buildEmptyState(context, isInvalidQuery: false);
+      return StatusMessageView(
+        variant: StatusVariant.empty,
+        title: AppLocalizations.of(context).noResultsFound,
+      );
     }
 
     // Build categorized results - use grouped tiles for fullText, dictionary tiles for definitions
@@ -191,49 +199,40 @@ class SearchResultsPanel extends ConsumerWidget {
     bool isExactMatch,
   ) {
     return fullResults.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(),
-      ),
-      error: (error, stack) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: 48,
-                color: theme.colorScheme.error,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Failed to load results',
-                style: theme.textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () {
-                  ref
-                      .read(searchStateProvider.notifier)
-                      .selectResultType(selectedResultType);
-                },
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      ),
+      loading: () => const StatusMessageView(variant: StatusVariant.loading),
+      error: (error, stack) {
+        // Decide between offline (server unreachable) and generic error.
+        // statusVariantForError unwraps Failure and inspects the inner cause.
+        // No Retry button: on web the user can refresh the page; on mobile
+        // assets are bundled, so a retry can't fix an inherent failure.
+        final variant = statusVariantForError(error);
+        final l10n = AppLocalizations.of(context);
+        return StatusMessageView(
+          variant: variant,
+          title: variant == StatusVariant.offline
+              ? l10n.statusOfflineTitle
+              : l10n.errorLoadingSearch,
+          description: variant == StatusVariant.offline
+              ? l10n.statusOfflineDescription
+              : l10n.statusErrorDescription,
+        );
+      },
       data: (results) {
+        final l10n = AppLocalizations.of(context);
         // Invalid query - didn't search
         if (results == null) {
-          return _buildEmptyState(context, isInvalidQuery: true);
+          return StatusMessageView(
+            variant: StatusVariant.invalid,
+            title: l10n.statusInvalidQuery,
+          );
         }
         // Valid query - no results
         if (results.isEmpty) {
-          return _buildEmptyState(
-            context,
-            isInvalidQuery: false,
-            resultTypeName: selectedResultType.displayName.toLowerCase(),
+          return StatusMessageView(
+            variant: StatusVariant.empty,
+            title: l10n.statusNoResultsForCategory(
+              selectedResultType.displayName.toLowerCase(),
+            ),
           );
         }
 
@@ -370,39 +369,6 @@ class SearchResultsPanel extends ConsumerWidget {
     );
   }
 
-  /// Builds empty state widget for invalid query or no results
-  Widget _buildEmptyState(
-    BuildContext context, {
-    required bool isInvalidQuery,
-    String? resultTypeName,
-  }) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isInvalidQuery ? Icons.edit_note : Icons.search_off,
-              size: 48,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              isInvalidQuery
-                  ? 'Enter a valid search query'
-                  : resultTypeName != null
-                      ? 'No $resultTypeName found'
-                      : 'No results found',
-              style: context.typography.emptyStateMessage,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// Header for the search results panel

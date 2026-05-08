@@ -5,10 +5,13 @@
 /// loading states, error states, boundary badge values, and callback wiring.
 library;
 
+import 'dart:io' show SocketException;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
+import 'package:the_wisdom_project/domain/entities/failure.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
@@ -16,6 +19,12 @@ import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
 
 /// Fake implementation for testing — allows injecting arbitrary SearchState.
+///
+/// Implements only the methods the panel actually calls. Anything else
+/// throws an [UnimplementedError] that names the missing member, so a
+/// future panel change that calls a new method fails loudly with a useful
+/// message (instead of the cryptic NoSuchMethodError you'd get from
+/// super.noSuchMethod).
 class FakeSearchStateNotifier extends StateNotifier<SearchState>
     implements SearchStateNotifier {
   FakeSearchStateNotifier(super.state);
@@ -26,7 +35,12 @@ class FakeSearchStateNotifier extends StateNotifier<SearchState>
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) {
+    throw UnimplementedError(
+      'FakeSearchStateNotifier does not implement '
+      '${invocation.memberName} — add it to the fake if your test needs it.',
+    );
+  }
 }
 
 /// Helper to pump SearchResultsPanel with a given [SearchState].
@@ -36,11 +50,10 @@ Future<void> _pumpPanel(
   VoidCallback? onClose,
   void Function(SearchResult)? onResultTap,
 }) async {
-  final notifier = FakeSearchStateNotifier(state);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        searchStateProvider.overrideWith((ref) => notifier),
+        searchStateProvider.overrideWith((ref) => FakeSearchStateNotifier(state)),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -93,23 +106,60 @@ void main() {
 
     // ── Error state ─────────────────────────────────────────────────────
 
-    testWidgets('shows error state with retry button', (tester) async {
+    testWidgets('generic error → errorLoadingSearch, no raw leak, no Retry',
+        (tester) async {
       await _pumpPanel(
         tester,
         state: SearchState(
-          rawQueryText: 'test',
-          effectiveQueryText: 'test',
+          rawQueryText: 'metta',
+          effectiveQueryText: 'metta',
           selectedResultType: SearchResultType.title,
           fullResults: AsyncValue.error(
-            Exception('Test error'),
+            Exception('LEAKED-RAW-MESSAGE'),
             StackTrace.current,
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
-      expect(find.text('Failed to load results'), findsOneWidget);
-      expect(find.text('Retry'), findsOneWidget);
+      expect(find.text('Error loading results'), findsOneWidget);
+      expect(find.text('Please try again in a moment.'), findsOneWidget);
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      // Retry was removed — error states are non-actionable now.
+      expect(find.text('Retry'), findsNothing);
+      expect(find.byIcon(Icons.refresh), findsNothing);
+      // Raw error.toString() must NOT be on screen.
+      expect(find.textContaining('LEAKED-RAW-MESSAGE'), findsNothing);
+    });
+
+    testWidgets('Failure wrapping a SocketException → offline copy, no Retry',
+        (tester) async {
+      // SocketException's runtime type name is matched by the classifier,
+      // and `Failure.error` is unwrapped one level — so this routes the
+      // panel to the offline preset.
+      const failure = Failure.dataLoadFailure(
+        message: 'fts',
+        error: SocketException('failed host lookup'),
+      );
+      await _pumpPanel(
+        tester,
+        state: SearchState(
+          rawQueryText: 'metta',
+          effectiveQueryText: 'metta',
+          selectedResultType: SearchResultType.title,
+          fullResults: AsyncValue.error(failure, StackTrace.current),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Cannot reach the server'), findsOneWidget);
+      expect(
+        find.text('Check your connection and try again.'),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.cloud_off), findsOneWidget);
+      // Retry was removed; on web the user can refresh the page instead.
+      expect(find.text('Retry'), findsNothing);
     });
 
     // ── Badge boundary values ───────────────────────────────────────────

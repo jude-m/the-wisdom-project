@@ -45,9 +45,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorLoadingTree => 'Error loading navigation tree';
 
   @override
-  String get retry => 'Retry';
-
-  @override
   String get selectNodeToRead =>
       'Select a sutta from the navigator to begin reading';
 
@@ -216,4 +213,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get couldNotOpenLink => 'Could not open link';
+
+  @override
+  String get statusOfflineTitle => 'Cannot reach the server';
+
+  @override
+  String get statusOfflineDescription => 'Check your connection and try again.';
+
+  @override
+  String get errorLoadingSearch => 'Error loading results';
+
+  @override
+  String get statusErrorDescription => 'Please try again in a moment.';
+
+  @override
+  String get statusInvalidQuery => 'Enter a valid search query';
+
+  @override
+  String statusNoResultsForCategory(String category) {
+    return 'No $category found';
+  }
+
+  @override
+  String get statusSelectSuttaToRead =>
+      'Select a sutta from the tree to begin reading';
+
+  @override
+  String get statusNoContentToDisplay => 'No content to display';
+
+  @override
+  String get statusNoTreeContent => 'No content available';
 }

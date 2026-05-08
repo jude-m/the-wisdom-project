@@ -19,6 +19,7 @@ import 'previous_sutta_navigation_test.dart' as previous_sutta;
 import 'scroll_restoration_test.dart' as scroll_restoration;
 import 'search_flow_integration_test.dart' as search_flow;
 import 'search_tab_highlight_test.dart' as search_tab_highlight;
+import 'status_message_view_integration_test.dart' as status_message_view;
 
 void main() {
   breadcrumb.main();
@@ -29,4 +30,5 @@ void main() {
   scroll_restoration.main();
   search_flow.main();
   search_tab_highlight.main();
+  status_message_view.main();
 }

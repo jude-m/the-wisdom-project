@@ -170,12 +170,6 @@ abstract class AppLocalizations {
   /// **'Error loading navigation tree'**
   String get errorLoadingTree;
 
-  /// Button label to retry a failed operation
-  ///
-  /// In en, this message translates to:
-  /// **'Retry'**
-  String get retry;
-
   /// Placeholder message shown when no content is selected
   ///
   /// In en, this message translates to:
@@ -505,6 +499,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not open link'**
   String get couldNotOpenLink;
+
+  /// Title shown in any panel when the server is unreachable (no network, timeout, etc.)
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot reach the server'**
+  String get statusOfflineTitle;
+
+  /// Supporting line shown under statusOfflineTitle
+  ///
+  /// In en, this message translates to:
+  /// **'Check your connection and try again.'**
+  String get statusOfflineDescription;
+
+  /// Specific error title shown in the search panel when a non-network failure occurs
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading results'**
+  String get errorLoadingSearch;
+
+  /// Supporting line shown under each panel-specific error title (errorLoadingSearch, errorLoadingTree, errorLoadingContent, errorLoadingDefinitions).
+  ///
+  /// In en, this message translates to:
+  /// **'Please try again in a moment.'**
+  String get statusErrorDescription;
+
+  /// Shown in the search panel when the query is empty or otherwise invalid
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid search query'**
+  String get statusInvalidQuery;
+
+  /// Empty state for a specific search category tab
+  ///
+  /// In en, this message translates to:
+  /// **'No {category} found'**
+  String statusNoResultsForCategory(String category);
+
+  /// Empty state shown in the reader before any sutta has been selected
+  ///
+  /// In en, this message translates to:
+  /// **'Select a sutta from the tree to begin reading'**
+  String get statusSelectSuttaToRead;
+
+  /// Empty state shown in the reader when the loaded document has no pages in range
+  ///
+  /// In en, this message translates to:
+  /// **'No content to display'**
+  String get statusNoContentToDisplay;
+
+  /// Empty state shown in the navigation tree when no root nodes exist
+  ///
+  /// In en, this message translates to:
+  /// **'No content available'**
+  String get statusNoTreeContent;
 }
 
 class _AppLocalizationsDelegate

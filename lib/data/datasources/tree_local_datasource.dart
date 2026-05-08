@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:flutter/services.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 
@@ -10,6 +11,12 @@ abstract class TreeLocalDataSource {
 
 class TreeLocalDataSourceImpl implements TreeLocalDataSource {
   static const String _treeJsonPath = 'assets/data/tree.json';
+
+  // Mirrors the pattern in DictionaryDataSourceImpl. dart:developer.log is a
+  // no-op in release builds, so this costs nothing in production.
+  void _log(String message, {Object? error, StackTrace? stack}) {
+    developer.log(message, name: 'TreeDataSource', error: error, stackTrace: stack);
+  }
 
   @override
   Future<List<TipitakaTreeNode>> loadNavigationTree() async {
@@ -42,8 +49,12 @@ class TreeLocalDataSourceImpl implements TreeLocalDataSource {
 
       // Build tree structure with parent-child relationships
       return _buildTreeStructure(nodesList);
-    } catch (e) {
-      throw Exception('Failed to load navigation tree: $e');
+    } catch (e, stack) {
+      // rethrow (instead of wrapping) preserves the original stack trace —
+      // FormatException, PlatformException, etc. flow up unchanged so the
+      // repository's offline classifier can inspect the real exception type.
+      _log('Failed to load navigation tree', error: e, stack: stack);
+      rethrow;
     }
   }
 

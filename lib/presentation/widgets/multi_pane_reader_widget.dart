@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/localization/l10n/app_localizations.dart';
-import '../../core/theme/app_typography.dart';
 import '../models/reader_layout.dart';
 import '../models/in_page_search_state.dart';
 import '../../domain/entities/bjt/bjt_page.dart';
@@ -38,6 +37,7 @@ import 'reader/reader_selection_handler.dart';
 import 'reader/in_page_search_bar.dart';
 import 'reader/reader_action_buttons.dart';
 import 'dictionary/dictionary_bottom_sheet.dart';
+import 'common/status_message_view.dart';
 
 
 class MultiPaneReaderWidget extends ConsumerStatefulWidget {
@@ -483,22 +483,13 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
               child: contentAsync.when(
                 data: (content) {
                   if (content == null) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.menu_book_outlined,
-                            size: 64,
-                            color: Theme.of(context).colorScheme.outline,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Select a sutta from the tree to begin reading',
-                            style: context.typography.emptyStateMessage,
-                          ),
-                        ],
-                      ),
+                    // Empty "select a sutta" state: keep the book icon (it's a
+                    // first-run hint, not a search-empty state) but route it
+                    // through StatusMessageView for consistent layout.
+                    return StatusMessageView(
+                      variant: StatusVariant.info,
+                      iconOverride: Icons.menu_book_outlined,
+                      title: AppLocalizations.of(context).statusSelectSuttaToRead,
                     );
                   }
 
@@ -512,8 +503,13 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
                   );
 
                   if (pagesToShow.isEmpty) {
-                    return const Center(
-                      child: Text('No content to display'),
+                    return StatusMessageView(
+                      variant: StatusVariant.empty,
+                      // The user didn't search — search_off is wrong here.
+                      // menu_book_outlined matches the reader's vocabulary
+                      // (also used for the "select a sutta" info hint).
+                      iconOverride: Icons.menu_book_outlined,
+                      title: AppLocalizations.of(context).statusNoContentToDisplay,
                     );
                   }
 
@@ -528,32 +524,26 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
                     pageStart,
                   );
                 },
-                loading: () => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-                error: (error, stack) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline,
-                            size: 48, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Error loading content',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          error.toString(),
-                          style: Theme.of(context).textTheme.bodySmall,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                loading: () =>
+                    const StatusMessageView(variant: StatusVariant.loading),
+                error: (error, stack) {
+                  // No Retry / no widget-level logging:
+                  //   - BJTDataSource logs the raw error + stack trace at
+                  //     the catch site, so DevTools shows the real cause.
+                  //   - On web the user can refresh; on mobile the JSON is
+                  //     bundled in the app, so retry can't fix it.
+                  final variant = statusVariantForError(error);
+                  final l10n = AppLocalizations.of(context);
+                  return StatusMessageView(
+                    variant: variant,
+                    title: variant == StatusVariant.offline
+                        ? l10n.statusOfflineTitle
+                        : l10n.errorLoadingContent,
+                    description: variant == StatusVariant.offline
+                        ? l10n.statusOfflineDescription
+                        : l10n.statusErrorDescription,
+                  );
+                },
               ),
             ),
           ],

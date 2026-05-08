@@ -25,8 +25,6 @@
 
   "errorLoadingTree": "සංචාලන ව්‍යූහය පූරණය කිරීමේ දෝෂයකි",
 
-  "retry": "යළි උත්සාහ කරන්න",
-
   "selectNodeToRead": "කියවීම ආරම්භ කිරීමට සංචාලකයෙන් සූත්‍රයක් තෝරන්න",
 
   "searchPlaceholder": "ත්‍රිපිටකයේ සොයන්න...",
@@ -135,5 +133,23 @@
 
   "readMore": "තව කියවන්න",
 
-  "couldNotOpenLink": "සබැඳිය විවෘත කළ නොහැකිය"
+  "couldNotOpenLink": "සබැඳිය විවෘත කළ නොහැකිය",
+
+  "statusOfflineTitle": "සේවාදායකය වෙත සම්බන්ධ විය නොහැක",
+
+  "statusOfflineDescription": "ඔබගේ සම්බන්ධතාවය පරීක්ෂා කර නැවත උත්සාහ කරන්න.",
+
+  "errorLoadingSearch": "ප්‍රතිඵල පූරණය කිරීමේ දෝෂයකි",
+
+  "statusErrorDescription": "මොහොතකින් නැවත උත්සාහ කරන්න.",
+
+  "statusInvalidQuery": "වලංගු සෙවුම් පදයක් ඇතුළත් කරන්න",
+
+  "statusNoResultsForCategory": "{category} හමු නොවීය",
+
+  "statusSelectSuttaToRead": "කියවීම ආරම්භ කිරීමට ව්‍යූහයෙන් සූත්‍රයක් තෝරන්න",
+
+  "statusNoContentToDisplay": "පෙන්වීමට අන්තර්ගතයක් නැත",
+
+  "statusNoTreeContent": "අන්තර්ගතයක් නොමැත"
 }

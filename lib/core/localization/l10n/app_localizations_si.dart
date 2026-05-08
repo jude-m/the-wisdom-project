@@ -45,9 +45,6 @@ class AppLocalizationsSi extends AppLocalizations {
   String get errorLoadingTree => 'සංචාලන ව්‍යූහය පූරණය කිරීමේ දෝෂයකි';
 
   @override
-  String get retry => 'යළි උත්සාහ කරන්න';
-
-  @override
   String get selectNodeToRead =>
       'කියවීම ආරම්භ කිරීමට සංචාලකයෙන් සූත්‍රයක් තෝරන්න';
 
@@ -216,4 +213,35 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get couldNotOpenLink => 'සබැඳිය විවෘත කළ නොහැකිය';
+
+  @override
+  String get statusOfflineTitle => 'සේවාදායකය වෙත සම්බන්ධ විය නොහැක';
+
+  @override
+  String get statusOfflineDescription =>
+      'ඔබගේ සම්බන්ධතාවය පරීක්ෂා කර නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get errorLoadingSearch => 'ප්‍රතිඵල පූරණය කිරීමේ දෝෂයකි';
+
+  @override
+  String get statusErrorDescription => 'මොහොතකින් නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get statusInvalidQuery => 'වලංගු සෙවුම් පදයක් ඇතුළත් කරන්න';
+
+  @override
+  String statusNoResultsForCategory(String category) {
+    return '$category හමු නොවීය';
+  }
+
+  @override
+  String get statusSelectSuttaToRead =>
+      'කියවීම ආරම්භ කිරීමට ව්‍යූහයෙන් සූත්‍රයක් තෝරන්න';
+
+  @override
+  String get statusNoContentToDisplay => 'පෙන්වීමට අන්තර්ගතයක් නැත';
+
+  @override
+  String get statusNoTreeContent => 'අන්තර්ගතයක් නොමැත';
 }

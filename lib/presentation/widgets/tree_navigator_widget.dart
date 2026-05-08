@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/localization/l10n/app_localizations.dart';
 import '../../core/theme/app_typography.dart';
 import '../utils/content_icons.dart';
 import '../../core/utils/pali_conjunct_transformer.dart';
@@ -9,6 +10,7 @@ import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../providers/navigation_tree_provider.dart';
 import '../providers/navigator_visibility_provider.dart';
 import '../providers/tab_provider.dart';
+import 'common/status_message_view.dart';
 
 class TreeNavigatorWidget extends ConsumerStatefulWidget {
   const TreeNavigatorWidget({super.key});
@@ -40,8 +42,12 @@ class _TreeNavigatorWidgetState extends ConsumerState<TreeNavigatorWidget> {
     return treeAsync.when(
       data: (rootNodes) {
         if (rootNodes.isEmpty) {
-          return const Center(
-            child: Text('No content available'),
+          // search_off (the default for `empty`) doesn't fit a tree that the
+          // user did not search — use a folder icon instead.
+          return StatusMessageView(
+            variant: StatusVariant.empty,
+            iconOverride: Icons.folder_off_outlined,
+            title: AppLocalizations.of(context).statusNoTreeContent,
           );
         }
 
@@ -56,31 +62,25 @@ class _TreeNavigatorWidgetState extends ConsumerState<TreeNavigatorWidget> {
           },
         );
       },
-      loading: () => const Center(
-        child: CircularProgressIndicator(),
-      ),
-      error: (error, stack) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(
-                'Error loading navigation tree',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                error.toString(),
-                style: Theme.of(context).textTheme.bodySmall,
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
+      loading: () => const StatusMessageView(variant: StatusVariant.loading),
+      error: (error, stack) {
+        // No Retry / no widget-level logging:
+        //   - TreeDataSource logs the raw error + stack trace at the catch
+        //     site, so engineers see the real exception in DevTools.
+        //   - Web users can refresh the page; mobile assets are bundled,
+        //     so a retry can't fix the underlying problem.
+        final variant = statusVariantForError(error);
+        final l10n = AppLocalizations.of(context);
+        return StatusMessageView(
+          variant: variant,
+          title: variant == StatusVariant.offline
+              ? l10n.statusOfflineTitle
+              : l10n.errorLoadingTree,
+          description: variant == StatusVariant.offline
+              ? l10n.statusOfflineDescription
+              : l10n.statusErrorDescription,
+        );
+      },
     );
   }
 

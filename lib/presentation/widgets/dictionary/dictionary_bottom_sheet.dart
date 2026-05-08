@@ -15,6 +15,7 @@ import '../../../domain/entities/dictionary/dictionary_params.dart';
 import '../../../core/utils/search_query_utils.dart';
 import '../../providers/dictionary_provider.dart';
 import '../common/circular_toggle_button.dart';
+import '../common/status_message_view.dart';
 import 'dpd_read_more_link.dart';
 import 'refine_dictionary_dialog.dart';
 
@@ -388,13 +389,13 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
                   }
                   return _buildResultsSlivers(context, entries, totalCount);
                 },
-                loading: () => [
-                  const SliverFillRemaining(
+                loading: () => const [
+                  SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(child: CircularProgressIndicator()),
+                    child: StatusMessageView(variant: StatusVariant.loading),
                   ),
                 ],
-                error: (error, stack) => [_buildErrorSliver(context, error)],
+                error: (error, _) => [_buildErrorSliver(context, error)],
               ),
             ],
           ),
@@ -406,52 +407,28 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
   Widget _buildNoResultsSliver(BuildContext context) {
     return SliverFillRemaining(
       hasScrollBody: false,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.search_off,
-                size: 40,
-                color:
-                    Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                AppLocalizations.of(context).noDefinitionsFound,
-                style: context.typography.emptyStateMessage,
-              ),
-            ],
-          ),
-        ),
+      child: StatusMessageView(
+        variant: StatusVariant.empty,
+        title: AppLocalizations.of(context).noDefinitionsFound,
       ),
     );
   }
 
   Widget _buildErrorSliver(BuildContext context, Object error) {
+    // The DB datasource already logs failures (lib/data/datasources/
+    // dictionary_local_datasource.dart). Widget just renders the user copy.
+    final variant = statusVariantForError(error);
+    final l10n = AppLocalizations.of(context);
     return SliverFillRemaining(
       hasScrollBody: false,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: 40,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                AppLocalizations.of(context).errorLoadingDefinitions,
-                style: context.typography.errorMessage,
-              ),
-            ],
-          ),
-        ),
+      child: StatusMessageView(
+        variant: variant,
+        title: variant == StatusVariant.offline
+            ? l10n.statusOfflineTitle
+            : l10n.errorLoadingDefinitions,
+        description: variant == StatusVariant.offline
+            ? l10n.statusOfflineDescription
+            : l10n.statusErrorDescription,
       ),
     );
   }
