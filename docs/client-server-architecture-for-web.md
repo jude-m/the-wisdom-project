@@ -237,9 +237,9 @@ final text = match.matchedText ??  // Use server-provided text if available
 
 Build and serve:
 ```bash
-./scripts/serve-web.sh            # build + start server on port 8080
-./scripts/serve-web.sh --skip-build  # skip build if already built
-./scripts/serve-web.sh --port 3000   # custom port
+./scripts/web/run_mac.sh             # build + start server on port 8080
+./scripts/web/run_mac.sh --skip-build  # skip build if already built
+./scripts/web/run_mac.sh --port 3000   # custom port
 ```
 
 The script:
@@ -277,7 +277,7 @@ The script:
 | `lib/core/utils/platform_utils.dart` | Conditional dart:io export |
 | `lib/core/utils/platform_utils_io.dart` | Native platform helpers |
 | `lib/core/utils/platform_utils_web.dart` | Web platform stubs |
-| `scripts/serve-web.sh` | Build + serve script for testers |
+| `scripts/web/run_mac.sh` | Build + serve script for testers |
 
 ## Files to Modify
 
@@ -310,7 +310,7 @@ Assets are declared in `pubspec.yaml` for native platforms but not all are neede
 | `assets/databases/bjt-fts.db` | sqflite | Server API | sqflite doesn't work on web |
 | `assets/databases/dict.db` | sqflite | Server API | sqflite doesn't work on web |
 
-The `serve-web.sh` script removes `databases/` and `text/` from the web build output after `flutter build web`, reducing the bundle from **~638 MB to ~37 MB**. Flutter doesn't support per-platform asset exclusion in pubspec.yaml, so this post-build cleanup is the cleanest approach.
+The `scripts/web/run_mac.sh` script removes `databases/` and `text/` from the web build output after `flutter build web`, reducing the bundle from **~638 MB to ~37 MB**. Flutter doesn't support per-platform asset exclusion in pubspec.yaml, so this post-build cleanup is the cleanest approach.
 
 ## What Testers Get
 

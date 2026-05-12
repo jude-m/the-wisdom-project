@@ -62,7 +62,7 @@ Flow:
 
 Flutter web does NOT hash `main.dart.js` or `flutter.js` by default. Options:
 
-- **Post-build step in `deploy-web.sh`**: after `flutter build web`, rename
+- **Post-build step in `scripts/web/deploy.sh`**: after `flutter build web`, rename
   `main.dart.js` → `main.<sha256-prefix>.js`, same for `flutter.js`, then
   rewrite references inside `flutter_bootstrap.js` and `index.html`. ~20
   lines of bash. Deterministic, no runtime changes.
@@ -155,9 +155,9 @@ string. Incomplete fix; skip.
 
 ## 3. Service worker strategy
 
-`deploy-web.sh` currently strips `flutter_service_worker.js` from the build
-(line 128). Reasoning: without it, redeploys are served fresh immediately
-via the `no-cache` mechanism above.
+`scripts/web/deploy.sh` currently strips `flutter_service_worker.js` from the
+build. Reasoning: without it, redeploys are served fresh immediately via
+the `no-cache` mechanism above.
 
 ### When to reintroduce a service worker
 

@@ -1,8 +1,8 @@
 #!/bin/bash
-# Build and serve The Wisdom Project for web testing.
+# Build and serve The Wisdom Project for web testing on macOS.
 #
 # Usage:
-#   ./scripts/serve-web.sh [--port 8080] [--skip-build] [--debug]
+#   ./scripts/web/run_mac.sh [--port 8080] [--skip-build] [--debug]
 #
 # This script:
 # 1. Builds the Flutter web app (unless --skip-build)
@@ -36,14 +36,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: ./scripts/serve-web.sh [--port 8080] [--skip-build] [--debug]"
+      echo "Usage: ./scripts/web/run_mac.sh [--port 8080] [--skip-build] [--debug]"
       exit 1
       ;;
   esac
 done
 
-# Navigate to project root
-cd "$(dirname "$0")/.."
+# Navigate to project root (two levels up: scripts/web/ → scripts/ → project)
+cd "$(dirname "$0")/../.."
 
 # Step 1: Build Flutter web
 if [ "$SKIP_BUILD" = false ]; then

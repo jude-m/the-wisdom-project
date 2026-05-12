@@ -69,7 +69,7 @@ packages/wisdom_shared/
 ### 8. Quick wins
 - **#8**: `platform_utils.dart` — change `dart.library.html` → `dart.library.js_interop`
 - **#10**: Server handlers — change `Router get router` → `late final router` (3 files)
-- **#12**: `serve-web.sh` — add `[ -d ... ] &&` guards before `rm -rf`
+- **#12**: `scripts/web/run_mac.sh` — add `[ -d ... ] &&` guards before `rm -rf`
 
 ## Files Modified
 
@@ -87,7 +87,7 @@ packages/wisdom_shared/
 | `server/lib/src/handlers/dictionary_handler.dart` | Remove duplicated logic, import shared, late final router |
 | `server/lib/src/handlers/text_handler.dart` | late final router |
 | `lib/core/utils/platform_utils.dart` | dart.library.js_interop |
-| `scripts/serve-web.sh` | Guard rm -rf |
+| `scripts/web/run_mac.sh` | Guard rm -rf |
 
 ## Verification
 1. `cd packages/wisdom_shared && dart analyze` — shared package clean

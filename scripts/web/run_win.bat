@@ -3,12 +3,12 @@ REM =====================================================================
 REM  The Wisdom Project - Windows server launcher
 REM
 REM  Usage:
-REM    serve-web.bat            starts on port 8081
-REM    serve-web.bat 9000       starts on the given port
+REM    run_win.bat            starts on port 8081
+REM    run_win.bat 9000       starts on the given port
 REM
-REM  Deployed by scripts/deploy-web.sh from the Mac. Place a shortcut to
-REM  this file in the Windows Startup folder (Win+R -> shell:startup) so
-REM  the server starts at login.
+REM  Deployed by scripts/web/deploy.sh from the Mac. Place a shortcut
+REM  to this file in the Windows Startup folder (Win+R -> shell:startup)
+REM  so the server starts at login.
 REM =====================================================================
 
 setlocal

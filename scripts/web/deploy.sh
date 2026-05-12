@@ -6,10 +6,10 @@
 #  poll /healthz until the new SHA is live.
 #
 #  Usage:
-#    ./scripts/deploy-web.sh                # full pipeline
-#    ./scripts/deploy-web.sh --skip-tests   # skip unit + integration tests
-#    ./scripts/deploy-web.sh --dry-run      # run tests + build, skip rsync
-#    ./scripts/deploy-web.sh -h             # help
+#    ./scripts/web/deploy.sh                # full pipeline
+#    ./scripts/web/deploy.sh --skip-tests   # skip unit + integration tests
+#    ./scripts/web/deploy.sh --dry-run      # run tests + build, skip rsync
+#    ./scripts/web/deploy.sh -h             # help
 #
 #  Auto-mounts the SMB share //192.168.1.200/wisdom-project at
 #  /Volumes/wisdom-project if not already mounted. Requires the password
@@ -64,7 +64,7 @@ err()   { printf '%s✗%s %s\n' "${RED}" "${RESET}" "$1" >&2; }
 die()   { err "$1"; exit 1; }
 
 # ---------------------------------------------------------------- Setup
-PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 # ---------------------------------------------------------------- Preflight
@@ -180,8 +180,8 @@ rsync -rt --modify-window=2 --delete \
   assets/ "$SHARE_MOUNT/assets/"
 
 # Windows helper scripts at the deploy root.
-cp scripts/windows/serve-web.bat "$SHARE_MOUNT/serve-web.bat"
-cp scripts/windows/restart.bat   "$SHARE_MOUNT/restart.bat"
+cp scripts/web/run_win.bat     "$SHARE_MOUNT/run_win.bat"
+cp scripts/web/restart_win.bat "$SHARE_MOUNT/restart_win.bat"
 
 ok "rsync complete"
 
@@ -207,14 +207,14 @@ phase "Phase 7/7: restart Windows server + verify"
 # ConnectTimeout=5 keeps it responsive if the box is offline.
 SSH_TARGET="${WINDOWS_SSH_USER}@${WINDOWS_IP}"
 if ssh -o BatchMode=yes -o ConnectTimeout=5 "$SSH_TARGET" \
-       'C:\wisdom-project\restart.bat'; then
+       'C:\wisdom-project\restart_win.bat'; then
   ok "Restart triggered via SSH"
 else
   warn "SSH restart failed — fall back to manual restart on Windows:"
   cat <<EOF
 
-  Fast:    double-click C:\\wisdom-project\\restart.bat
-  Manual:  Ctrl+C the cmd window running serve-web.bat → press Y → rerun serve-web.bat
+  Fast:    double-click C:\\wisdom-project\\restart_win.bat
+  Manual:  Ctrl+C the cmd window running run_win.bat → press Y → rerun run_win.bat
 
 EOF
 fi
