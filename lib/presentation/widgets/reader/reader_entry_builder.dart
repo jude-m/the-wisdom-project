@@ -172,12 +172,19 @@ class ReaderEntryBuilder {
   }
 
   /// Builds a page number label with fixed height for alignment.
+  ///
+  /// Wrapped in [SelectionContainer.disabled] so the digits aren't picked up
+  /// when the user drag-selects across pages inside the reader's
+  /// [SelectionArea] — copying a passage shouldn't sprinkle page numbers
+  /// into the clipboard.
   static Widget buildPageNumber(BuildContext context, int pageNumber) {
-    return SizedBox(
-      height: 20, // Fixed height to ensure alignment
-      child: Text(
-        '$pageNumber',
-        style: context.typography.pageNumber,
+    return SelectionContainer.disabled(
+      child: SizedBox(
+        height: 20, // Fixed height to ensure alignment
+        child: Text(
+          '$pageNumber',
+          style: context.typography.pageNumber,
+        ),
       ),
     );
   }
