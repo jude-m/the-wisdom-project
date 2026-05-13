@@ -171,29 +171,22 @@ class _CardBody extends ConsumerWidget {
 
             // ── Refresh action ────────────────────────────────────
             const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsetsDirectional.only(
-                start: _contentIndent,
-                end: 8,
-              ),
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: FilledButton.icon(
-                  // Invert the colour role so the button pops against
-                  // the mint-green card: dark-brown surface, mint label.
-                  style: FilledButton.styleFrom(
-                    backgroundColor: colors.onTertiary,
-                    foregroundColor: colors.tertiary,
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
+            Center(
+              child: ElevatedButton(
+                // Invert the colour role so the button pops against
+                // the mint-green card: dark-brown surface, mint label.
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colors.onTertiary,
+                  foregroundColor: colors.tertiary,
+                  elevation: 3,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 10,
                   ),
-                  onPressed: reloadPage,
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: Text(l10n.updateBannerRefreshAction),
+                  textStyle: theme.textTheme.labelLarge,
                 ),
+                onPressed: reloadPage,
+                child: Text(l10n.updateBannerRefreshAction),
               ),
             ),
           ],
