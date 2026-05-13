@@ -39,7 +39,22 @@ class ReaderEntryBuilder {
         final level = (entry.level ?? 1).clamp(1, 5);
         textStyle = textEntryTheme.headingStyles[level] ??
             textEntryTheme.headingStyles[1];
-        break;
+        // Wrap in Center so headings span the full column width regardless
+        // of the parent Column's CrossAxisAlignment.start. Without this,
+        // a short title's Text widget shrinks to its intrinsic width and
+        // TextAlign.center has nothing to centre against.
+        return Center(
+          child: TextEntryWidget(
+            text: entry.plainText,
+            style: textStyle,
+            textAlign: TextAlign.center,
+            enableTap: enableDictionaryLookup,
+            onWordTap: wordTapHandler,
+            markedRanges: entry.markedRanges,
+            inPageSearchQuery: inPageSearchQuery,
+            currentMatchIndexInEntry: currentMatchIndexInEntry,
+          ),
+        );
       case EntryType.centered:
         // Direct 1:1 mapping from JSON level, fallback to level 1
         final level = (entry.level ?? 1).clamp(1, 5);
@@ -86,10 +101,9 @@ class ReaderEntryBuilder {
     }
 
     final textAlign = switch (entry.entryType) {
-      EntryType.heading => TextAlign.center,
       EntryType.paragraph || EntryType.unindented => TextAlign.justify,
       _ =>
-        TextAlign.left, // gatha (already returned above, but kept for safety)
+        TextAlign.left, // heading, centered, gatha already returned above
     };
 
     return TextEntryWidget(
