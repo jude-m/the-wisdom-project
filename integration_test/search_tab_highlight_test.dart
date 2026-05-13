@@ -24,12 +24,12 @@ import 'package:the_wisdom_project/presentation/providers/fts_highlight_provider
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
-import 'package:the_wisdom_project/presentation/widgets/multi_pane_reader_widget.dart';
+import 'package:the_wisdom_project/presentation/widgets/reader/multi_pane_reader_widget.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_bar.dart'
     as app;
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
-import 'package:the_wisdom_project/presentation/widgets/tab_bar_widget.dart';
-import 'package:the_wisdom_project/presentation/widgets/tree_navigator_widget.dart';
+import 'package:the_wisdom_project/presentation/widgets/navigation/tab_bar_widget.dart';
+import 'package:the_wisdom_project/presentation/widgets/navigation/tree_navigator_widget.dart';
 
 import 'test_overrides.dart';
 

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/app_fonts.dart';
-import '../../core/theme/app_typography.dart';
-import '../../core/theme/theme_notifier.dart';
-import '../../domain/entities/navigation/navigation_language.dart';
-import '../providers/navigation_tree_provider.dart';
+import '../../../core/theme/app_fonts.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/theme_notifier.dart';
+import '../../../domain/entities/navigation/navigation_language.dart';
+import '../../providers/navigation_tree_provider.dart';
 
 /// Settings menu button for AppBar
 class SettingsMenuButton extends ConsumerWidget {

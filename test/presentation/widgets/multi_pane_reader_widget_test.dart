@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:the_wisdom_project/domain/entities/failure.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
-import 'package:the_wisdom_project/presentation/widgets/multi_pane_reader_widget.dart';
+import 'package:the_wisdom_project/presentation/widgets/reader/multi_pane_reader_widget.dart';
 
 import '../../helpers/mocks.mocks.dart';
 import '../../helpers/test_data.dart';

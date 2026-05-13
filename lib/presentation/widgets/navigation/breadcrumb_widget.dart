@@ -1,11 +1,11 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/app_typography.dart';
-import '../../core/utils/responsive_utils.dart';
-import '../providers/breadcrumb_provider.dart';
-import '../providers/navigator_sync_provider.dart';
-import '../providers/tab_provider.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/responsive_utils.dart';
+import '../../providers/breadcrumb_provider.dart';
+import '../../providers/navigator_sync_provider.dart';
+import '../../providers/tab_provider.dart';
 
 /// Displays the active tab's position in the Tipitaka hierarchy as a
 /// breadcrumb trail in the AppBar (e.g., "සුත්ත පිටකය › දීඝ නිකාය › බ්‍රහ්මජාලසුත්තං").

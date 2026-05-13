@@ -2,19 +2,19 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/localization/l10n/app_localizations.dart';
-import '../models/reader_layout.dart';
-import '../models/in_page_search_state.dart';
-import '../../domain/entities/bjt/bjt_page.dart';
-import '../../domain/entities/navigation/tipitaka_tree_node.dart';
-import '../providers/document_provider.dart';
-import '../providers/dictionary_provider.dart'
+import '../../../core/localization/l10n/app_localizations.dart';
+import '../../models/reader_layout.dart';
+import '../../models/in_page_search_state.dart';
+import '../../../domain/entities/bjt/bjt_page.dart';
+import '../../../domain/entities/navigation/tipitaka_tree_node.dart';
+import '../../providers/document_provider.dart';
+import '../../providers/dictionary_provider.dart'
     show
         selectedDictionaryWordProvider,
         dictionaryHighlightProvider,
         hasActiveSelectionProvider;
-import '../providers/in_page_search_provider.dart';
-import '../providers/tab_provider.dart'
+import '../../providers/in_page_search_provider.dart';
+import '../../providers/tab_provider.dart'
     show
         activeTabIndexProvider,
         tabsProvider,
@@ -24,20 +24,20 @@ import '../providers/tab_provider.dart'
         activeReaderLayoutProvider,
         activeNodeKeyProvider,
         updateActiveTabPaginationProvider;
-import '../providers/previous_sutta_provider.dart'
+import '../../providers/previous_sutta_provider.dart'
     show navigateToPreviousSuttaProvider;
-import '../providers/navigation_tree_provider.dart'
+import '../../providers/navigation_tree_provider.dart'
     show nodeByKeyProvider, previousReadableNodeProvider;
-import '../providers/fts_highlight_provider.dart';
-import 'reader/entry_key_registry.dart';
-import 'reader/single_column_pane.dart';
-import 'reader/dual_column_pane.dart';
-import 'reader/stacked_pane.dart';
-import 'reader/reader_selection_handler.dart';
-import 'reader/in_page_search_bar.dart';
-import 'reader/reader_action_buttons.dart';
-import 'dictionary/dictionary_bottom_sheet.dart';
-import 'common/status_message_view.dart';
+import '../../providers/fts_highlight_provider.dart';
+import 'entry_key_registry.dart';
+import 'single_column_pane.dart';
+import 'dual_column_pane.dart';
+import 'stacked_pane.dart';
+import 'reader_selection_handler.dart';
+import 'in_page_search_bar.dart';
+import 'reader_action_buttons.dart';
+import '../dictionary/dictionary_bottom_sheet.dart';
+import '../common/status_message_view.dart';
 
 
 class MultiPaneReaderWidget extends ConsumerStatefulWidget {

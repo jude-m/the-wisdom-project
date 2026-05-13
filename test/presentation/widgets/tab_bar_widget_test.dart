@@ -4,7 +4,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:the_wisdom_project/core/storage/key_value_store_provider.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
-import 'package:the_wisdom_project/presentation/widgets/tab_bar_widget.dart';
+import 'package:the_wisdom_project/presentation/widgets/navigation/tab_bar_widget.dart';
 
 import '../../helpers/pump_app.dart';
 

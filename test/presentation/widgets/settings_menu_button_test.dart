@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:the_wisdom_project/presentation/widgets/settings_menu_button.dart';
+import 'package:the_wisdom_project/presentation/widgets/app/settings_menu_button.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 import 'package:the_wisdom_project/domain/entities/navigation/navigation_language.dart';
 

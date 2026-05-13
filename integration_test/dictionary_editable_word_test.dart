@@ -11,8 +11,8 @@ import 'package:the_wisdom_project/presentation/providers/document_provider.dart
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/dictionary/dictionary_bottom_sheet.dart';
 import 'package:the_wisdom_project/presentation/widgets/dictionary/refine_dictionary_dialog.dart';
-import 'package:the_wisdom_project/presentation/widgets/multi_pane_reader_widget.dart';
-import 'package:the_wisdom_project/presentation/widgets/tab_bar_widget.dart';
+import 'package:the_wisdom_project/presentation/widgets/reader/multi_pane_reader_widget.dart';
+import 'package:the_wisdom_project/presentation/widgets/navigation/tab_bar_widget.dart';
 import 'package:the_wisdom_project/data/datasources/bjt_document_local_datasource.dart';
 import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
 import 'package:the_wisdom_project/domain/entities/dictionary/dictionary_params.dart';

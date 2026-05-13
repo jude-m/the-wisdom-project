@@ -10,9 +10,9 @@ import 'package:the_wisdom_project/presentation/providers/document_provider.dart
 import 'package:the_wisdom_project/presentation/providers/in_page_search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
-import 'package:the_wisdom_project/presentation/widgets/multi_pane_reader_widget.dart';
+import 'package:the_wisdom_project/presentation/widgets/reader/multi_pane_reader_widget.dart';
 import 'package:the_wisdom_project/presentation/widgets/reader/in_page_search_bar.dart';
-import 'package:the_wisdom_project/presentation/widgets/tab_bar_widget.dart';
+import 'package:the_wisdom_project/presentation/widgets/navigation/tab_bar_widget.dart';
 
 import 'test_overrides.dart';
 

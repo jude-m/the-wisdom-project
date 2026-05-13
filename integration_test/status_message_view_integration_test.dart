@@ -39,9 +39,9 @@ import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/dictionary/dictionary_bottom_sheet.dart';
-import 'package:the_wisdom_project/presentation/widgets/multi_pane_reader_widget.dart';
+import 'package:the_wisdom_project/presentation/widgets/reader/multi_pane_reader_widget.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
-import 'package:the_wisdom_project/presentation/widgets/tree_navigator_widget.dart';
+import 'package:the_wisdom_project/presentation/widgets/navigation/tree_navigator_widget.dart';
 
 import 'test_overrides.dart';
 

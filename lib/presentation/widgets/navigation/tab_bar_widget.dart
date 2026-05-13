@@ -1,12 +1,12 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/app_typography.dart';
-import '../utils/content_icons.dart';
-import '../../core/utils/pali_conjunct_transformer.dart';
-import '../models/reader_tab.dart';
-import '../providers/tab_lifecycle_provider.dart';
-import '../providers/tab_provider.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../utils/content_icons.dart';
+import '../../../core/utils/pali_conjunct_transformer.dart';
+import '../../models/reader_tab.dart';
+import '../../providers/tab_lifecycle_provider.dart';
+import '../../providers/tab_provider.dart';
 
 class TabBarWidget extends ConsumerStatefulWidget {
   const TabBarWidget({super.key});

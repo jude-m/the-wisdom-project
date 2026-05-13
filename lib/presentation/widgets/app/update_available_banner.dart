@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/localization/l10n/app_localizations.dart';
-import '../../core/version/version_check_service.dart';
-import '../../core/version/web_reload.dart';
-import '../providers/version_check_provider.dart';
+import '../../../core/localization/l10n/app_localizations.dart';
+import '../../../core/version/version_check_service.dart';
+import '../../../core/version/web_reload.dart';
+import '../../providers/version_check_provider.dart';
 
 // Header icon (20 px) + gap (10 px) — body content uses this as a
 // start inset so notes line up under the title text.

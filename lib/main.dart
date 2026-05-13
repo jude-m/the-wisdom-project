@@ -14,7 +14,7 @@ import 'presentation/providers/platform_providers.dart';
 import 'presentation/providers/navigation_tree_provider.dart';
 import 'presentation/providers/tab_provider.dart' show activeTabIndexPersistenceProvider;
 import 'presentation/providers/navigator_visibility_provider.dart' show navigatorVisiblePersistenceProvider;
-import 'presentation/widgets/update_available_banner.dart';
+import 'presentation/widgets/app/update_available_banner.dart';
 import 'core/theme/theme_notifier.dart';
 
 // Conditional import: uses dart:io on native, no-op on web

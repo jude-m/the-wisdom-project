@@ -9,7 +9,7 @@ import '../../../domain/entities/bjt/bjt_page.dart';
 import '../../models/in_page_search_state.dart';
 import '../../providers/tab_provider.dart'
     show activeSplitRatioProvider, updateActiveTabSplitRatioProvider;
-import '../resizable_divider.dart';
+import '../common/resizable_divider.dart';
 import 'entry_key_registry.dart';
 import 'reader_entry_builder.dart';
 

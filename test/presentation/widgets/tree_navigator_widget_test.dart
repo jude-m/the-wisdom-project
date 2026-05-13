@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:mockito/mockito.dart';
-import 'package:the_wisdom_project/presentation/widgets/tree_navigator_widget.dart';
+import 'package:the_wisdom_project/presentation/widgets/navigation/tree_navigator_widget.dart';
 
 import '../../helpers/mocks.mocks.dart';
 import '../../helpers/test_data.dart';
