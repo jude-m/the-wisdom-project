@@ -6,26 +6,10 @@ import '../../core/version/version_check_service.dart';
 import '../../core/version/web_reload.dart';
 import '../providers/version_check_provider.dart';
 
-/// Lines notes / button up under the title text. The icon is 20 px
-/// wide and there's a 10 px gap after it, so the body content needs
-/// a 30 px start inset to read as a single indented block.
+// Header icon (20 px) + gap (10 px) — body content uses this as a
+// start inset so notes line up under the title text.
 const double _contentIndent = 30;
 
-/// Notification card shown when a fresher build is live on the server
-/// (see [VersionCheckNotifier]). Renders nothing when there's no update
-/// — the parent can always include it unconditionally.
-///
-/// Designed as a self-contained overlay layer:
-///   - The caller (`main.dart`) wraps it in `Positioned.fill` inside a
-///     Stack, so this widget itself stays portable — it can also drop
-///     into an OverlayEntry without modification.
-///   - Anchors top-right; slides in from the right and fades on enter;
-///     reverses on dismiss.
-///   - Caps at 360 px wide so it stays a "card" on desktop while
-///     fitting nicely on narrow widths.
-///   - Background uses `colorScheme.tertiary` — the same mint green
-///     the reader uses to highlight dictionary text — so the card
-///     reads as an informational accent that fits the app's palette.
 class UpdateAvailableBanner extends ConsumerWidget {
   const UpdateAvailableBanner({super.key});
 
@@ -40,11 +24,9 @@ class UpdateAvailableBanner extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 360),
-            // AnimatedSwitcher handles enter (null → info), exit
-            // (info → null) AND swap (info_A → info_B) with the same
-            // slide+fade. The key embeds the remote SHA so a second
-            // deploy arriving while the banner is showing produces
-            // a proper cross-fade instead of an in-place blink.
+            // Key embeds the remote SHA so a second deploy arriving
+            // while the banner is showing cross-fades instead of
+            // blinking in place.
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 260),
               reverseDuration: const Duration(milliseconds: 200),
@@ -64,10 +46,6 @@ class UpdateAvailableBanner extends ConsumerWidget {
     );
   }
 
-  /// Slides the card in from the right (`+1.0` on the x-axis means one
-  /// full child-width off-screen) while fading in. AnimatedSwitcher
-  /// drives `animation` from 0→1 on enter and 1→0 on exit, so the same
-  /// builder works for both directions.
   static Widget _slideAndFade(Widget child, Animation<double> animation) {
     final slide = Tween<Offset>(
       begin: const Offset(1.0, 0),
@@ -91,13 +69,11 @@ class _CardBody extends ConsumerWidget {
     final colors = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
 
-    // Material gives us elevation + ripple-capable surface in one go.
-    // `colorScheme.shadow` is the app-palette warm dark-brown, so the
-    // drop-shadow tints with the same hue as the rest of the chrome
-    // instead of a flat black bruise on the cream background.
     return Material(
       color: colors.tertiary,
       elevation: 6,
+      // App-palette warm brown tints the drop-shadow with the same hue
+      // as the rest of the chrome instead of a flat black bruise.
       shadowColor: colors.shadow.withValues(alpha: 0.25),
       borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
@@ -107,7 +83,6 @@ class _CardBody extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header: icon + title + dismiss ────────────────────
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -126,9 +101,6 @@ class _CardBody extends ConsumerWidget {
                     ),
                   ),
                 ),
-                // Compact dismiss button. visualDensity.compact keeps
-                // the header tight without sacrificing the 40 px touch
-                // target Material insists on internally.
                 IconButton(
                   tooltip: l10n.updateBannerDismissTooltip,
                   visualDensity: VisualDensity.compact,
@@ -143,7 +115,6 @@ class _CardBody extends ConsumerWidget {
               ],
             ),
 
-            // ── Notes: numbered list, indented under the title ────
             if (info.notes.isNotEmpty) ...[
               const SizedBox(height: 2),
               Padding(
@@ -169,25 +140,28 @@ class _CardBody extends ConsumerWidget {
               ),
             ],
 
-            // ── Refresh action ────────────────────────────────────
             const SizedBox(height: 12),
-            Center(
-              child: ElevatedButton(
-                // Invert the colour role so the button pops against
-                // the mint-green card: dark-brown surface, mint label.
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colors.onTertiary,
-                  foregroundColor: colors.tertiary,
-                  elevation: 3,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 10,
+            // Row(mainAxisSize.max) is what gives us a full-width slot
+            // to centre the button in — a bare Center gets shrink-
+            // wrapped to the button's own width inside this Column.
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colors.onTertiary,
+                    foregroundColor: colors.tertiary,
+                    elevation: 3,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 10,
+                    ),
+                    textStyle: theme.textTheme.labelLarge,
                   ),
-                  textStyle: theme.textTheme.labelLarge,
+                  onPressed: reloadPage,
+                  child: Text(l10n.updateBannerRefreshAction),
                 ),
-                onPressed: reloadPage,
-                child: Text(l10n.updateBannerRefreshAction),
-              ),
+              ],
             ),
           ],
         ),
