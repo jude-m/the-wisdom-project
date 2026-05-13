@@ -17,6 +17,8 @@ class UpdateAvailableBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final info = ref.watch(versionCheckProvider);
 
+    if (info == null) return const SizedBox.shrink();
+
     return SafeArea(
       child: Align(
         alignment: AlignmentDirectional.topEnd,
@@ -24,38 +26,14 @@ class UpdateAvailableBanner extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 360),
-            // Key embeds the remote SHA so a second deploy arriving
-            // while the banner is showing cross-fades instead of
-            // blinking in place.
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 260),
-              reverseDuration: const Duration(milliseconds: 200),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: _slideAndFade,
-              child: info == null
-                  ? const SizedBox.shrink(key: ValueKey('empty'))
-                  : _CardBody(
-                      info: info,
-                      onDismiss: () =>
-                          ref.read(versionCheckProvider.notifier).dismiss(),
-                      key: ValueKey('card-${info.remoteSha}'),
-                    ),
+            child: _CardBody(
+              info: info,
+              onDismiss: () =>
+                  ref.read(versionCheckProvider.notifier).dismiss(),
             ),
           ),
         ),
       ),
-    );
-  }
-
-  static Widget _slideAndFade(Widget child, Animation<double> animation) {
-    final slide = Tween<Offset>(
-      begin: const Offset(1.0, 0),
-      end: Offset.zero,
-    ).animate(animation);
-    return SlideTransition(
-      position: slide,
-      child: FadeTransition(opacity: animation, child: child),
     );
   }
 }
@@ -67,7 +45,6 @@ class _CardBody extends StatelessWidget {
   const _CardBody({
     required this.info,
     required this.onDismiss,
-    super.key,
   });
 
   @override
@@ -111,7 +88,6 @@ class _CardBody extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: l10n.updateBannerDismissTooltip,
                   visualDensity: VisualDensity.compact,
                   icon: Icon(
                     Icons.close,
