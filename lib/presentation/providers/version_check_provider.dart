@@ -5,11 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/version/build_info.dart';
 import '../../core/version/version_check_service.dart';
 
-/// How often we poll `/healthz` once the app is up. Five minutes is the
-/// industry-standard cadence for "we've deployed, please refresh" UX —
-/// short enough that testers see the banner soon after a deploy, long
-/// enough to be invisible on the network tab.
-const Duration _pollInterval = Duration(minutes: 5);
+/// How often we poll `/healthz` once the app is up.
+///
+/// Sourced from [BuildInfo.pollIntervalSeconds] — a compile-time constant
+/// baked in by `--dart-define=VERSION_CHECK_POLL_SECONDS=...` in
+/// `scripts/web/deploy.sh`. Default 300s (5 min) is the steady-state
+/// cadence; drop to 60s during rapid dev days to see the banner sooner
+/// after a deploy.
+Duration get _pollInterval =>
+    const Duration(seconds: BuildInfo.pollIntervalSeconds);
 
 /// Delay before the very first poll fires after launch. Lets the rest
 /// of the app finish painting and warming caches before we hit the wire.

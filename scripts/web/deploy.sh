@@ -123,9 +123,13 @@ phase "Phase 3/7: flutter build web --release"
 # BUILD_SHA lets the running client compare itself against the deployed
 # sha from /healthz; VERSION_CHECK_ENABLED is a kill switch for the
 # update banner (set to false here once dev phase is over).
+# VERSION_CHECK_POLL_SECONDS controls how often the running client polls
+# /healthz — drop to 60 during rapid-dev days, raise to 300 (or delete
+# the line, since 300 is the default) once releases slow down.
 flutter build web --release \
   --dart-define=BUILD_SHA="$GIT_SHA" \
   --dart-define=VERSION_CHECK_ENABLED=true \
+  --dart-define=VERSION_CHECK_POLL_SECONDS=120 \
   || die "web build failed"
 
 # Strip server-only assets from the web bundle (served by API instead).

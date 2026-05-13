@@ -26,6 +26,16 @@ class BuildInfo {
   static const bool versionCheckEnabled =
       bool.fromEnvironment('VERSION_CHECK_ENABLED', defaultValue: false);
 
+  /// How often (in seconds) the client polls `/healthz` for a new sha.
+  ///
+  /// Default 300s (5 min) — the steady-state cadence for production.
+  /// During rapid dev days, override at build time to shorten the loop:
+  ///   --dart-define=VERSION_CHECK_POLL_SECONDS=60
+  /// Set in `scripts/web/deploy.sh`. Local debug builds ignore this —
+  /// the feature is gated off by [canCheckForUpdates] regardless.
+  static const int pollIntervalSeconds =
+      int.fromEnvironment('VERSION_CHECK_POLL_SECONDS', defaultValue: 300);
+
   /// True when there is enough metadata to perform a meaningful
   /// version check against `/healthz`. A build without a `BUILD_SHA`
   /// can't compare itself to anything, so the feature stays dormant.
