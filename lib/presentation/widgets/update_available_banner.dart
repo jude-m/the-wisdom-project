@@ -87,21 +87,26 @@ class _CardBody extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Bare InkWell instead of IconButton — IconButton brings
-                // its own internal Material/focus-ring/splash-radius
-                // machinery that was painting a stuck grey overlay on
-                // press. A plain InkWell with explicit size constraints
-                // keeps the splash bounded to the visible touch target.
-                InkWell(
-                  onTap: onDismiss,
-                  borderRadius: BorderRadius.circular(16),
-                  child: SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: Icon(
-                      Icons.close,
-                      color: colors.onTertiary,
-                      size: 18,
+                // MouseRegion + GestureDetector instead of InkWell /
+                // IconButton — both of those route through Material's
+                // ink machinery (hover overlay, splash, focus ring),
+                // which on Flutter Web canvaskit was painting an
+                // opaque grey rectangle on hover. Going Material-free
+                // here means no hover/splash effects can render at
+                // all — just a hand cursor and a tap target.
+                MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onDismiss,
+                    child: SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: Icon(
+                        Icons.close,
+                        color: colors.onTertiary,
+                        size: 18,
+                      ),
                     ),
                   ),
                 ),
