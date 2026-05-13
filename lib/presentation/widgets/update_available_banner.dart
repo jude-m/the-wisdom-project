@@ -100,8 +100,8 @@ class _CardBody extends StatelessWidget {
                     behavior: HitTestBehavior.opaque,
                     onTap: onDismiss,
                     child: SizedBox(
-                      width: 32,
-                      height: 32,
+                      width: 48,
+                      height: 48,
                       child: Icon(
                         Icons.close,
                         color: colors.onTertiary,
