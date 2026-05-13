@@ -118,7 +118,15 @@ fi
 
 # ---------------------------------------------------------------- Phase 3: build
 phase "Phase 3/7: flutter build web --release"
-flutter build web --release || die "web build failed"
+# --dart-define values are baked into the compiled JS as compile-time
+# constants (read via String.fromEnvironment in lib/core/version/build_info.dart).
+# BUILD_SHA lets the running client compare itself against the deployed
+# sha from /healthz; VERSION_CHECK_ENABLED is a kill switch for the
+# update banner (set to false here once dev phase is over).
+flutter build web --release \
+  --dart-define=BUILD_SHA="$GIT_SHA" \
+  --dart-define=VERSION_CHECK_ENABLED=true \
+  || die "web build failed"
 
 # Strip server-only assets from the web bundle (served by API instead).
 [[ -d build/web/assets/assets/databases ]] && rm -rf build/web/assets/assets/databases
@@ -187,17 +195,89 @@ ok "rsync complete"
 
 # ---------------------------------------------------------------- Phase 6: DEPLOY.json
 phase "Phase 6/7: write DEPLOY.json"
+
+# Build a JSON array from RELEASE_NOTES.md.
+# Only lines under the `## Current release` heading are read — anything
+# above it is treated as documentation. Of those lines:
+#   - blank lines are skipped
+#   - HTML comment delimiters and lines inside <!-- ... --> are skipped
+#   - a leading `- `, `* ` or `1. ` bullet marker is stripped
+#   - everything else becomes one banner bullet
+# All bash; avoids requiring jq/python on the deploy machine.
+build_notes_json() {
+  local file="$PROJECT_ROOT/RELEASE_NOTES.md"
+  if [[ ! -f "$file" ]]; then
+    # Surface a warning to stderr so a forgotten file doesn't silently
+    # ship an empty banner. Don't fail the deploy — an empty notes list
+    # is the documented "show a generic banner" fallback.
+    warn "RELEASE_NOTES.md not found — banner will fall back to a generic message"
+    printf '[]'
+    return
+  fi
+  local first=true line in_release=false in_comment=false
+  printf '['
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    # Trim leading and trailing whitespace
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    # Track when we enter the "Current release" section. Stop at the next H2.
+    if [[ "$line" == "## Current release" ]]; then
+      in_release=true
+      continue
+    fi
+    if [[ "$in_release" == true && "$line" == "## "* ]]; then
+      break
+    fi
+    [[ "$in_release" == true ]] || continue
+    # Skip HTML comment blocks (in case someone tucks notes inline)
+    if [[ "$line" == "<!--"* ]]; then in_comment=true; fi
+    if [[ "$in_comment" == true ]]; then
+      [[ "$line" == *"-->" ]] && in_comment=false
+      continue
+    fi
+    [[ -z "$line" ]] && continue
+    # Strip a single leading bullet marker
+    if [[ "$line" =~ ^(-[[:space:]]+|\*[[:space:]]+|[0-9]+\.[[:space:]]+) ]]; then
+      line="${line#"${BASH_REMATCH[0]}"}"
+    fi
+    # Normalise tabs to spaces — raw control chars are illegal inside
+    # a JSON string literal. (The line-by-line read already excludes
+    # embedded newlines.)
+    line="${line//$'\t'/ }"
+    # JSON-escape backslash and double-quote
+    line="${line//\\/\\\\}"
+    line="${line//\"/\\\"}"
+    if [[ "$first" == true ]]; then
+      printf '"%s"' "$line"
+      first=false
+    else
+      printf ',"%s"' "$line"
+    fi
+  done < "$file"
+  printf ']'
+}
+NOTES_JSON=$(build_notes_json)
+# count = (number of '","' separators) + 1, or 0 when the array is empty.
+# `|| true` keeps `set -o pipefail` happy when grep finds nothing.
+if [[ "$NOTES_JSON" == "[]" ]]; then
+  NOTES_COUNT=0
+else
+  SEPARATORS=$(printf '%s' "$NOTES_JSON" | grep -oE '","' | wc -l | tr -d ' ' || true)
+  NOTES_COUNT=$((SEPARATORS + 1))
+fi
+
 # Write to a .tmp sibling then rename into place. rename is atomic on
 # the same filesystem (and single-op on SMB), so a mid-write share hiccup
 # leaves DEPLOY.json untouched instead of half-written.
 cat > "$SHARE_MOUNT/DEPLOY.json.tmp" <<EOF
 {
   "sha": "$GIT_SHA",
-  "builtAt": "$BUILT_AT"
+  "builtAt": "$BUILT_AT",
+  "notes": $NOTES_JSON
 }
 EOF
 mv "$SHARE_MOUNT/DEPLOY.json.tmp" "$SHARE_MOUNT/DEPLOY.json"
-ok "DEPLOY.json: sha=$GIT_SHA builtAt=$BUILT_AT"
+ok "DEPLOY.json: sha=$GIT_SHA builtAt=$BUILT_AT notes=$NOTES_COUNT"
 
 # ---------------------------------------------------------------- Phase 7: restart + verify
 phase "Phase 7/7: restart Windows server + verify"

@@ -394,5 +394,20 @@
   "statusNoTreeContent": "No content available",
   "@statusNoTreeContent": {
     "description": "Empty state shown in the navigation tree when no root nodes exist"
+  },
+
+  "updateBannerTitle": "A new version is available",
+  "@updateBannerTitle": {
+    "description": "Title text of the banner shown when a fresher app build is live on the server"
+  },
+
+  "updateBannerRefreshAction": "Refresh",
+  "@updateBannerRefreshAction": {
+    "description": "Tappable text in the update banner that reloads the page to pick up the new version"
+  },
+
+  "updateBannerDismissTooltip": "Dismiss",
+  "@updateBannerDismissTooltip": {
+    "description": "Tooltip on the close (×) icon of the update banner"
   }
 }

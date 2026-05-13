@@ -151,5 +151,11 @@
 
   "statusNoContentToDisplay": "පෙන්වීමට අන්තර්ගතයක් නැත",
 
-  "statusNoTreeContent": "අන්තර්ගතයක් නොමැත"
+  "statusNoTreeContent": "අන්තර්ගතයක් නොමැත",
+
+  "updateBannerTitle": "නව සංස්කරණයක් තිබේ",
+
+  "updateBannerRefreshAction": "නැවුම් කරන්න",
+
+  "updateBannerDismissTooltip": "ඉවත් කරන්න"
 }

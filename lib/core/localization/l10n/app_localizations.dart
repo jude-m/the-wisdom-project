@@ -553,6 +553,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No content available'**
   String get statusNoTreeContent;
+
+  /// Title text of the banner shown when a fresher app build is live on the server
+  ///
+  /// In en, this message translates to:
+  /// **'A new version is available'**
+  String get updateBannerTitle;
+
+  /// Tappable text in the update banner that reloads the page to pick up the new version
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get updateBannerRefreshAction;
+
+  /// Tooltip on the close (×) icon of the update banner
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get updateBannerDismissTooltip;
 }
 
 class _AppLocalizationsDelegate

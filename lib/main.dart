@@ -14,6 +14,7 @@ import 'presentation/providers/platform_providers.dart';
 import 'presentation/providers/navigation_tree_provider.dart';
 import 'presentation/providers/tab_provider.dart' show activeTabIndexPersistenceProvider;
 import 'presentation/providers/navigator_visibility_provider.dart' show navigatorVisiblePersistenceProvider;
+import 'presentation/widgets/update_available_banner.dart';
 import 'core/theme/theme_notifier.dart';
 
 // Conditional import: uses dart:io on native, no-op on web
@@ -180,6 +181,27 @@ class _MyAppState extends ConsumerState<MyApp> {
 
       // Theme - Single theme based on user preference
       theme: themeData,
+
+      // Overlay every route with an "update available" notification
+      // card. The card sits in a Stack on top of the page content (not
+      // a Column above it) — so it never displaces the screen and never
+      // double-counts the status-bar inset, regardless of platform.
+      // The banner is a no-op when there's no update or when the
+      // feature flag is off (see BuildInfo.canCheckForUpdates), so it's
+      // safe to keep in the tree unconditionally.
+      //
+      // `Positioned.fill` is wrapped here (not inside the widget) so
+      // UpdateAvailableBanner stays portable — it can also be dropped
+      // into an OverlayEntry later without a layout-context change.
+      builder: (context, child) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            child ?? const SizedBox.shrink(),
+            const Positioned.fill(child: UpdateAvailableBanner()),
+          ],
+        );
+      },
 
       // Home screen
       home: const ReaderScreen(),

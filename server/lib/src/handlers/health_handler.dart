@@ -17,7 +17,8 @@ import '../logging/logger.dart';
 ///     "ok": true,
 ///     "sha": "abc1234",           // from DEPLOY.json, null if not present
 ///     "builtAt": "2026-04-23T...", // ISO-8601 UTC, from DEPLOY.json
-///     "startedAt": "2026-04-23T..." // when this server process started
+///     "startedAt": "2026-04-23T...", // when this server process started
+///     "notes": ["fixed X", "added Y"] // release-notes bullets, may be empty
 ///   }
 class HealthHandler {
   final ServerLogger _logger;
@@ -33,6 +34,7 @@ class HealthHandler {
   Future<Response> handle(Request request) async {
     String? sha;
     String? builtAt;
+    List<String> notes = const [];
 
     final file = File(_deployJsonPath);
     if (file.existsSync()) {
@@ -40,6 +42,11 @@ class HealthHandler {
         final parsed = json.decode(file.readAsStringSync()) as Map<String, dynamic>;
         sha = parsed['sha'] as String?;
         builtAt = parsed['builtAt'] as String?;
+        // `notes` may be missing on older deploys — tolerate that silently.
+        final rawNotes = parsed['notes'];
+        if (rawNotes is List) {
+          notes = rawNotes.whereType<String>().toList(growable: false);
+        }
       } catch (e, st) {
         _logger.error('Failed to parse DEPLOY.json at $_deployJsonPath', e, st);
       }
@@ -51,6 +58,7 @@ class HealthHandler {
         'sha': sha,
         'builtAt': builtAt,
         'startedAt': _startedAt.toIso8601String(),
+        'notes': notes,
       }),
       headers: const {
         'Content-Type': 'application/json; charset=utf-8',

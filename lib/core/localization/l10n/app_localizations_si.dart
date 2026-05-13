@@ -244,4 +244,13 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get statusNoTreeContent => 'අන්තර්ගතයක් නොමැත';
+
+  @override
+  String get updateBannerTitle => 'නව සංස්කරණයක් තිබේ';
+
+  @override
+  String get updateBannerRefreshAction => 'නැවුම් කරන්න';
+
+  @override
+  String get updateBannerDismissTooltip => 'ඉවත් කරන්න';
 }

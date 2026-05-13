@@ -243,4 +243,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusNoTreeContent => 'No content available';
+
+  @override
+  String get updateBannerTitle => 'A new version is available';
+
+  @override
+  String get updateBannerRefreshAction => 'Refresh';
+
+  @override
+  String get updateBannerDismissTooltip => 'Dismiss';
 }
