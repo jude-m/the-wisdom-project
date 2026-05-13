@@ -87,6 +87,10 @@ class AppTypography extends ThemeExtension<AppTypography> {
   /// Style for search placeholder text
   final TextStyle searchHint;
 
+  /// Style for the editable text inside the app bar search input.
+  /// Same metrics as [searchHint] but uses full-opacity [onSurface] color.
+  final TextStyle searchInput;
+
   // ============================================
   // States & Feedback
   // ============================================
@@ -117,6 +121,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
     required this.menuSectionLabel,
     required this.segmentedButtonLabel,
     required this.searchHint,
+    required this.searchInput,
     required this.emptyStateMessage,
     required this.errorMessage,
     required this.pageNumber,
@@ -273,6 +278,14 @@ class AppTypography extends ThemeExtension<AppTypography> {
         color: colorScheme.onSurfaceVariant,
         height: AppFonts.uiLineHeight,
       ),
+      searchInput: TextStyle(
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
+        fontSize: scaledFonts.base,
+        fontWeight: FontWeight.normal,
+        color: colorScheme.onSurface,
+        height: AppFonts.uiLineHeight,
+      ),
 
       // States & Feedback
       emptyStateMessage: TextStyle(
@@ -320,6 +333,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
     TextStyle? menuSectionLabel,
     TextStyle? segmentedButtonLabel,
     TextStyle? searchHint,
+    TextStyle? searchInput,
     TextStyle? emptyStateMessage,
     TextStyle? errorMessage,
     TextStyle? pageNumber,
@@ -342,6 +356,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       menuSectionLabel: menuSectionLabel ?? this.menuSectionLabel,
       segmentedButtonLabel: segmentedButtonLabel ?? this.segmentedButtonLabel,
       searchHint: searchHint ?? this.searchHint,
+      searchInput: searchInput ?? this.searchInput,
       emptyStateMessage: emptyStateMessage ?? this.emptyStateMessage,
       errorMessage: errorMessage ?? this.errorMessage,
       pageNumber: pageNumber ?? this.pageNumber,
@@ -378,6 +393,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       segmentedButtonLabel:
           TextStyle.lerp(segmentedButtonLabel, other.segmentedButtonLabel, t)!,
       searchHint: TextStyle.lerp(searchHint, other.searchHint, t)!,
+      searchInput: TextStyle.lerp(searchInput, other.searchInput, t)!,
       emptyStateMessage:
           TextStyle.lerp(emptyStateMessage, other.emptyStateMessage, t)!,
       errorMessage: TextStyle.lerp(errorMessage, other.errorMessage, t)!,

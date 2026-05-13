@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../providers/search_provider.dart';
 import '../common/circular_toggle_button.dart';
 import 'proximity_dialog.dart';
@@ -13,7 +14,7 @@ class SearchBar extends ConsumerStatefulWidget {
 
   const SearchBar({
     super.key,
-    this.width = 280,
+    this.width = 360,
   });
 
   @override
@@ -79,6 +80,11 @@ class _SearchBarState extends ConsumerState<SearchBar> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
+
+    final inputStyle = context.typography.searchInput;
+    final hintStyle = inputStyle.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
 
     // Watch if results panel is visible (query is not empty)
     final isResultsPanelVisible =
@@ -171,12 +177,10 @@ class _SearchBarState extends ConsumerState<SearchBar> {
             child: TextField(
               controller: _controller,
               focusNode: _focusNode,
-              style: theme.textTheme.bodyMedium,
+              style: inputStyle,
               decoration: InputDecoration(
                 hintText: l10n.searchHint,
-                hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+                hintStyle: hintStyle,
                 prefixIcon: Icon(
                   Icons.search,
                   size: 20,

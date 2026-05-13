@@ -289,10 +289,8 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
                                 controller: _wordController,
                                 focusNode: _wordFocusNode,
                                 onChanged: _onWordChanged,
-                                style:
-                                    theme.textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: context.typography.dialogTitle
+                                    .copyWith(fontWeight: FontWeight.w700),
                                 decoration: InputDecoration(
                                   isDense: true,
                                   contentPadding:

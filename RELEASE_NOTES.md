@@ -18,5 +18,6 @@
 
 ## Current release
 
-- Fixed: highlighting error in reader
-- New: create notes on a passage
+- Fixed: 1. Center වෙලා තිබ්බ නැති Headings 
+         2. Dictionary bottom sheet එකේ text field එකේ font size
+         3. Search bar font size and width
