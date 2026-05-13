@@ -37,6 +37,8 @@ class UpdateAvailableBanner extends ConsumerWidget {
                   ? const SizedBox.shrink(key: ValueKey('empty'))
                   : _CardBody(
                       info: info,
+                      onDismiss: () =>
+                          ref.read(versionCheckProvider.notifier).dismiss(),
                       key: ValueKey('card-${info.remoteSha}'),
                     ),
             ),
@@ -58,13 +60,18 @@ class UpdateAvailableBanner extends ConsumerWidget {
   }
 }
 
-class _CardBody extends ConsumerWidget {
+class _CardBody extends StatelessWidget {
   final UpdateInfo info;
+  final VoidCallback onDismiss;
 
-  const _CardBody({required this.info, super.key});
+  const _CardBody({
+    required this.info,
+    required this.onDismiss,
+    super.key,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
@@ -75,7 +82,7 @@ class _CardBody extends ConsumerWidget {
       // App-palette warm brown tints the drop-shadow with the same hue
       // as the rest of the chrome instead of a flat black bruise.
       shadowColor: colors.shadow.withValues(alpha: 0.25),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: const BorderRadius.all(Radius.circular(12)),
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 8, 14),
@@ -95,6 +102,8 @@ class _CardBody extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     l10n.updateBannerTitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleSmall?.copyWith(
                       color: colors.onTertiary,
                       fontWeight: FontWeight.w600,
@@ -109,14 +118,13 @@ class _CardBody extends ConsumerWidget {
                     color: colors.onTertiary,
                     size: 18,
                   ),
-                  onPressed: () =>
-                      ref.read(versionCheckProvider.notifier).dismiss(),
+                  onPressed: onDismiss,
                 ),
               ],
             ),
 
             if (info.notes.isNotEmpty) ...[
-              const SizedBox(height: 2),
+              const SizedBox(height: 6),
               Padding(
                 padding: const EdgeInsetsDirectional.only(
                   start: _contentIndent,
@@ -124,18 +132,18 @@ class _CardBody extends ConsumerWidget {
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: List.generate(info.notes.length, (i) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
+                  children: [
+                    for (var i = 0; i < info.notes.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 4),
+                      Text(
                         '${i + 1}. ${info.notes[i]}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colors.onTertiary,
                           height: 1.35,
                         ),
                       ),
-                    );
-                  }),
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -156,7 +164,6 @@ class _CardBody extends ConsumerWidget {
                       horizontal: 24,
                       vertical: 10,
                     ),
-                    textStyle: theme.textTheme.labelLarge,
                   ),
                   onPressed: reloadPage,
                   child: Text(l10n.updateBannerRefreshAction),
