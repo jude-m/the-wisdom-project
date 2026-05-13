@@ -87,14 +87,23 @@ class _CardBody extends StatelessWidget {
                     ),
                   ),
                 ),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  icon: Icon(
-                    Icons.close,
-                    color: colors.onTertiary,
-                    size: 18,
+                // Bare InkWell instead of IconButton — IconButton brings
+                // its own internal Material/focus-ring/splash-radius
+                // machinery that was painting a stuck grey overlay on
+                // press. A plain InkWell with explicit size constraints
+                // keeps the splash bounded to the visible touch target.
+                InkWell(
+                  onTap: onDismiss,
+                  borderRadius: BorderRadius.circular(16),
+                  child: SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: Icon(
+                      Icons.close,
+                      color: colors.onTertiary,
+                      size: 18,
+                    ),
                   ),
-                  onPressed: onDismiss,
                 ),
               ],
             ),
