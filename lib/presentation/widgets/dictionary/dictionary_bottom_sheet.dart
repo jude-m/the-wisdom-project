@@ -111,15 +111,17 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
   /// Updated after 300ms debounce when user edits the text field.
   late String _currentLookupWord;
 
-  /// Threshold above which the sheet is considered "expanded" for the
-  /// chevron toggle icon. Chosen between the min snap (0.28) and mid snap
-  /// (0.55) so the icon flips as soon as the sheet grows past collapsed.
-  static const double _expandedThreshold = 0.4;
+  /// Adaptive snap fractions. Set by [_syncSnaps] from lifecycle methods —
+  /// never assigned in [build]. Initializers are placeholders.
+  double _minFraction = DictionarySheetConstants.minFractionFloor;
+  double _midFraction = 0.55;
 
-  /// Cached expansion state — used to avoid redundant setState calls on
-  /// every pixel of drag. We only rebuild when the size crosses the
-  /// threshold.
-  bool _wasExpanded = false;
+  double get _expandedThreshold => (_minFraction + _midFraction) / 2;
+
+  /// Notifier (not plain field + `setState`) so flipping the chevron only
+  /// rebuilds the icon — rebuilding the whole sheet mid-snap caused
+  /// `DraggableScrollableSheet` to see a fresh `snapSizes` list and shake.
+  final ValueNotifier<bool> _isExpandedNotifier = ValueNotifier<bool>(false);
 
   @override
   void initState() {
@@ -128,6 +130,7 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
     _currentLookupWord = removeConjunctFormatting(widget.word);
     _wordController = TextEditingController(text: widget.word);
     _wordFocusNode = FocusNode();
+    _syncSnaps();
     // Listen so the chevron icon flips when the user drags the sheet.
     _sheetController.addListener(_onSheetSizeChanged);
   }
@@ -141,6 +144,25 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
       _wordController.text = widget.word;
       _currentLookupWord = removeConjunctFormatting(widget.word);
     }
+    if (oldWidget.availableHeight != widget.availableHeight) {
+      _syncSnaps();
+    }
+  }
+
+  /// Recompute snap fractions and re-sync the notifier against the new
+  /// threshold. The re-sync matters on orientation/resize: the threshold
+  /// can shift even when the sheet size hasn't, leaving the chevron stale.
+  void _syncSnaps() {
+    final snaps =
+        DictionarySheetConstants.adaptiveSnaps(widget.availableHeight);
+    _minFraction = snaps.min;
+    _midFraction = snaps.mid;
+    if (_sheetController.isAttached) {
+      final nowExpanded = _sheetController.size > _expandedThreshold;
+      if (nowExpanded != _isExpandedNotifier.value) {
+        _isExpandedNotifier.value = nowExpanded;
+      }
+    }
   }
 
   @override
@@ -149,34 +171,25 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
     _wordFocusNode.dispose();
     _wordController.dispose();
     _sheetController.dispose();
+    _isExpandedNotifier.dispose();
     super.dispose();
   }
 
-  /// Called whenever the DraggableScrollableController's size changes
-  /// (from dragging or animateTo). Rebuilds only when the expansion state
-  /// flips, keeping setState cost minimal.
   void _onSheetSizeChanged() {
     if (!_sheetController.isAttached) return;
     final nowExpanded = _sheetController.size > _expandedThreshold;
-    if (nowExpanded != _wasExpanded) {
-      _wasExpanded = nowExpanded;
-      if (mounted) setState(() {});
+    if (nowExpanded != _isExpandedNotifier.value) {
+      _isExpandedNotifier.value = nowExpanded;
     }
   }
 
-  /// True when the sheet is currently expanded past the collapsed snap.
-  /// Sourced from the cached flag the listener maintains — inside `build`
-  /// this is always in sync with the live size, and defaults to `false`
-  /// before the controller attaches.
-  bool get _isExpanded => _wasExpanded;
+  bool get _isExpanded => _isExpandedNotifier.value;
 
-  /// Chevron button handler — toggles between the collapsed min snap and
-  /// the fully expanded max snap. Skips the mid snap by design.
+  /// Toggles between min and max snap. Skips mid by design — drag for that.
   void _toggleExpansion() {
     if (!_sheetController.isAttached) return;
-    final target = _isExpanded
-        ? DictionarySheetConstants.minChildSize
-        : DictionarySheetConstants.maxChildSize;
+    final target =
+        _isExpanded ? _minFraction : DictionarySheetConstants.maxChildSize;
     _sheetController.animateTo(
       target,
       duration: const Duration(milliseconds: 250),
@@ -231,11 +244,15 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
       height: sheetHeight,
       child: DraggableScrollableSheet(
         controller: _sheetController,
-        initialChildSize: DictionarySheetConstants.initialChildSize,
-        minChildSize: DictionarySheetConstants.minChildSize,
+        initialChildSize: _minFraction,
+        minChildSize: _minFraction,
         maxChildSize: DictionarySheetConstants.maxChildSize,
         snap: true,
-        snapSizes: DictionarySheetConstants.snapSizes,
+        snapSizes: [
+          _minFraction,
+          _midFraction,
+          DictionarySheetConstants.maxChildSize,
+        ],
         builder: (context, scrollController) => Container(
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
@@ -355,17 +372,21 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
                               onTap: () => _openRefineDialog(context),
                             ),
                             // Chevron toggle: collapsed ↔ fully expanded.
-                            // Skips the mid snap; drag the handle for that.
-                            IconButton(
-                              icon: Icon(
-                                _isExpanded
-                                    ? Icons.keyboard_arrow_down
-                                    : Icons.keyboard_arrow_up,
+                            // Wrapped so only the icon rebuilds when the
+                            // expansion flag flips, not the whole sheet.
+                            ValueListenableBuilder<bool>(
+                              valueListenable: _isExpandedNotifier,
+                              builder: (context, isExpanded, _) => IconButton(
+                                icon: Icon(
+                                  isExpanded
+                                      ? Icons.keyboard_arrow_down
+                                      : Icons.keyboard_arrow_up,
+                                ),
+                                onPressed: _toggleExpansion,
+                                tooltip: isExpanded
+                                    ? AppLocalizations.of(context).collapse
+                                    : AppLocalizations.of(context).expand,
                               ),
-                              onPressed: _toggleExpansion,
-                              tooltip: _isExpanded
-                                  ? AppLocalizations.of(context).collapse
-                                  : AppLocalizations.of(context).expand,
                             ),
                             IconButton(
                               icon: const Icon(Icons.close),
