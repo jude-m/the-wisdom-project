@@ -18,6 +18,4 @@
 
 ## Current release
 
-- Fixed: 1. Center වෙලා තිබ්බ නැති Headings 
-         2. Dictionary bottom sheet එකේ text field එකේ font size
-         3. Search bar font size and width
+- Fixed: අකුරු වල පැහැදිලි බව සඳ​හා Font sizes සහ weight එක වැඩි කර ඇත. 

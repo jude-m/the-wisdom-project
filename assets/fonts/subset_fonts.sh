@@ -45,7 +45,30 @@ done
 echo ""
 
 # ============================================
-# 2. NOTO SERIF (Romanized Pali & English)
+# 2. NOTO SERIF SINHALA (Pali content)
+# ============================================
+echo "Processing Noto Serif Sinhala..."
+
+for font in noto-serif-sinhala/NotoSerifSinhala-*.ttf; do
+    if [[ -f "$font" && ! "$font" == *"-Subset"* ]]; then
+        filename=$(basename "$font" .ttf)
+        output="noto-serif-sinhala/${filename}-Subset.ttf"
+
+        echo "  Subsetting: $font"
+        pyftsubset "$font" \
+            --output-file="$output" \
+            --layout-features='*' \
+            --unicodes="$SINHALA_RANGES"
+
+        original_size=$(du -k "$font" | cut -f1)
+        new_size=$(du -k "$output" | cut -f1)
+        echo "    ${original_size}KB → ${new_size}KB"
+    fi
+done
+echo ""
+
+# ============================================
+# 3. NOTO SERIF (Romanized Pali & English)
 # ============================================
 echo "Processing Noto Serif..."
 SERIF_RANGES="${BASIC_LATIN},${LATIN_1_SUPPLEMENT},${LATIN_EXTENDED_A},${LATIN_EXTENDED_ADD},${GENERAL_PUNCT}"
@@ -69,7 +92,7 @@ done
 echo ""
 
 # ============================================
-# 3. NOTO SANS (UI elements)
+# 4. NOTO SANS (UI elements)
 # ============================================
 echo "Processing Noto Sans..."
 SANS_RANGES="${BASIC_LATIN},${LATIN_1_SUPPLEMENT},${GENERAL_PUNCT}"

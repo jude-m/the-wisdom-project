@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,7 +48,12 @@ class _BreadcrumbWidgetState extends ConsumerState<BreadcrumbWidget> {
     }
     _recognizers = [];
 
-    final leafStyle = context.typography.resultMatchedText;
+    // On web, CanvasKit renders this small text paler than native Skia —
+    // bump it to w600 there so it reads as crisply as on macOS (native
+    // keeps resultMatchedText's regular weight).
+    final leafStyle = context.typography.resultMatchedText.copyWith(
+      fontWeight: kIsWeb ? FontWeight.w600 : null,
+    );
     // Parent segments use onSurface (brighter) to hint interactivity
     final parentStyle = leafStyle.copyWith(
       color: Theme.of(context).colorScheme.onSurfaceVariant,

@@ -7,10 +7,8 @@ import '../../../domain/entities/content/entry_type.dart';
 import 'entry_key_registry.dart';
 import 'text_entry_widget.dart';
 
-/// Static utility for building reader entry widgets.
-///
-/// Used by [SingleColumnPane] and [DualColumnPane] to render
-/// entries and page numbers without duplicating styling logic.
+/// Static utility for building reader entry widgets, shared by the reader
+/// panes so entry/page-number styling isn't duplicated.
 class ReaderEntryBuilder {
   ReaderEntryBuilder._();
 
@@ -19,6 +17,8 @@ class ReaderEntryBuilder {
   /// [onWordTap] is called when a word is tapped (for dictionary lookup).
   /// [inPageSearchQuery] highlights matching text when non-null.
   /// [currentMatchIndexInEntry] marks the active match within the entry.
+  /// [fontWeight] overrides the weight of body-type entries only (paragraph,
+  /// unindented, gatha); headings and centered entries keep their theme weight.
   static Widget buildEntry(
     BuildContext context,
     Entry entry, {
@@ -26,6 +26,7 @@ class ReaderEntryBuilder {
     String? inPageSearchQuery,
     int? currentMatchIndexInEntry,
     void Function(String word)? onWordTap,
+    FontWeight? fontWeight,
   }) {
     final textEntryTheme = context.textEntryTheme;
     // Wrap the word tap callback to match OnWordTap signature (word, position)
@@ -35,14 +36,11 @@ class ReaderEntryBuilder {
 
     switch (entry.entryType) {
       case EntryType.heading:
-        // Direct 1:1 mapping from JSON level, fallback to level 1
         final level = (entry.level ?? 1).clamp(1, 5);
         textStyle = textEntryTheme.headingStyles[level] ??
             textEntryTheme.headingStyles[1];
-        // Wrap in Center so headings span the full column width regardless
-        // of the parent Column's CrossAxisAlignment.start. Without this,
-        // a short title's Text widget shrinks to its intrinsic width and
-        // TextAlign.center has nothing to centre against.
+        // Center so a short title still spans the full column width — without
+        // it the Text shrinks to intrinsic width and TextAlign.center is moot.
         return Center(
           child: TextEntryWidget(
             text: entry.plainText,
@@ -56,7 +54,6 @@ class ReaderEntryBuilder {
           ),
         );
       case EntryType.centered:
-        // Direct 1:1 mapping from JSON level, fallback to level 1
         final level = (entry.level ?? 1).clamp(1, 5);
         textStyle = textEntryTheme.centeredStyles[level] ??
             textEntryTheme.centeredStyles[1];
@@ -74,7 +71,6 @@ class ReaderEntryBuilder {
         );
       case EntryType.gatha:
         textStyle = textEntryTheme.gathaStyle;
-        // Use level to determine padding (level 2 = deeper indent)
         final gathaLevel = entry.level ?? 1;
         final leftPadding = gathaLevel >= 2
             ? textEntryTheme.gathaLevel2LeftPadding
@@ -83,7 +79,7 @@ class ReaderEntryBuilder {
           padding: EdgeInsets.only(left: leftPadding),
           child: TextEntryWidget(
             text: entry.plainText,
-            style: textStyle,
+            style: textStyle.copyWith(fontWeight: fontWeight),
             textAlign: TextAlign.left,
             enableTap: enableDictionaryLookup,
             onWordTap: wordTapHandler,
@@ -106,9 +102,10 @@ class ReaderEntryBuilder {
         TextAlign.left, // heading, centered, gatha already returned above
     };
 
+    // paragraph / unindented — copyWith ignores a null fontWeight.
     return TextEntryWidget(
       text: entry.plainText,
-      style: textStyle,
+      style: textStyle.copyWith(fontWeight: fontWeight),
       textAlign: textAlign,
       enableTap: enableDictionaryLookup,
       onWordTap: wordTapHandler,

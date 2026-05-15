@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/painting.dart' show FontWeight;
+
 /// Centralized font configuration for The Wisdom Project
 ///
 /// This file contains all font-related constants used throughout the app.
@@ -72,6 +75,29 @@ abstract class AppFonts {
   static const double uiLineHeight = 1.4;
 
   // ============================================
+  // Weights
+  // ============================================
+
+  /// Regular body text weight.
+  ///
+  /// On web, Flutter's CanvasKit renderer lacks the "stem darkening" that
+  /// native Skia applies, so w400 text renders noticeably thinner and paler
+  /// than on macOS/Android. Bumping to w500 on web compensates for this and
+  /// matches the perceived weight on native platforms. See Flutter issue
+  /// #75832 and related CanvasKit font-rendering discussions.
+  static FontWeight get bodyWeight =>
+      kIsWeb ? FontWeight.w500 : FontWeight.w400;
+
+  /// Pali entry weight for stacked/parallel reading modes.
+  ///
+  /// Kept two weight steps heavier than [bodyWeight] so Pali stays visually
+  /// distinct from its Sinhala translation: w600 vs w400 on native, w700 vs
+  /// w500 on web. The web values are also shifted up to compensate for
+  /// CanvasKit's lighter rendering (see [bodyWeight]).
+  static FontWeight get paliWeight =>
+      kIsWeb ? FontWeight.w700 : FontWeight.w600;
+
+  // ============================================
   // Base Sizes
   // ============================================
 
@@ -117,16 +143,16 @@ abstract class AppFonts {
   // Font Scale
   // ============================================
 
-  /// Default font scale for web/desktop where fonts appear larger
-  /// due to display density differences (desktop monitors vs phones).
-  static const double webDefaultScale = 0.85;
+  /// Default font scale on web.
+  /// Slightly below the native 1.0 — web text reads a touch large at full
+  /// size. A user font-size preference overrides this at runtime.
+  static const double webDefaultScale = 0.9;
 
   /// Returns all font sizes multiplied by [scale].
   ///
   /// Used by AppTypography and TextEntryTheme factories to build
-  /// scale-aware text styles. The scale factor defaults to 1.0 on
-  /// native and 0.85 on web — later a user font-size preference
-  /// will control this same value.
+  /// scale-aware text styles. Defaults to 1.0 on native and 0.9 on web;
+  /// a user font-size preference can override it at runtime.
   static ScaledFontSizes scaled(double scale) => ScaledFontSizes(scale);
 }
 

@@ -66,9 +66,9 @@ final themeNotifierProvider =
 
 /// Font scale factor for the entire app.
 ///
-/// Defaults to 0.85 on web (desktop monitors make fonts appear larger)
-/// and 1.0 on native (mobile/tablet). The user can adjust this via the
-/// font size slider in settings. The value is persisted to SharedPreferences.
+/// Defaults to 0.9 on web and 1.0 on native. The user can adjust this via
+/// the font size slider in settings. The value is persisted to
+/// SharedPreferences.
 final fontScaleProvider =
     StateNotifierProvider<FontScaleNotifier, double>((ref) {
   return FontScaleNotifier();
@@ -87,7 +87,7 @@ class FontScaleNotifier extends StateNotifier<double> {
 
   FontScaleNotifier() : super(_platformDefault);
 
-  /// The platform-appropriate default scale (1.0 native, 0.85 web)
+  /// The platform-appropriate default scale (1.0 native, 0.9 web)
   double get platformDefault => _platformDefault;
 
   /// Load saved font scale from storage

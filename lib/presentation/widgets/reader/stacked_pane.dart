@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show SelectedContent;
 import '../../../core/constants/constants.dart';
+import '../../../core/theme/app_fonts.dart';
 import '../../../domain/entities/bjt/bjt_page.dart';
 import '../../../domain/entities/content/entry_type.dart';
 import '../../models/in_page_search_state.dart';
@@ -9,9 +10,10 @@ import 'reader_entry_builder.dart';
 
 /// A stacked reader pane that renders Pali and Sinhala entries vertically.
 ///
-/// For each entry index, renders the Pali entry first (semi-bold) followed by
-/// its Sinhala translation (regular weight), then moves to the next index.
-/// This layout is ideal for smaller screens where side-by-side is too cramped.
+/// For each entry index, renders the Pali entry first (heavier weight)
+/// followed by its Sinhala translation (regular weight), then moves to the
+/// next index. This layout is ideal for smaller screens where side-by-side
+/// is too cramped.
 ///
 /// Uses [ListView.builder] with one item per page for lazy rendering,
 /// following the same pattern as [SingleColumnPane].
@@ -93,9 +95,9 @@ class StackedPane extends StatelessWidget {
 
   /// Builds stacked Pali/Sinhala entry widgets for a single page.
   ///
-  /// For each entry index, emits the Pali entry (semi-bold, dictionary-tappable)
-  /// then the Sinhala entry (regular weight), with a small gap between them
-  /// and a larger gap between pairs.
+  /// For each entry index, emits the Pali entry (heavier weight,
+  /// dictionary-tappable) then the Sinhala entry (regular weight), with a
+  /// small gap between them and a larger gap between pairs.
   List<Widget> _buildStackedEntries(
     BuildContext context,
     BJTPage page,
@@ -133,20 +135,19 @@ class StackedPane extends StatelessWidget {
         widgets.add(const SizedBox(height: 12.0));
       }
 
-      // Pali entry — semi-bold, dictionary lookup enabled
+      // Pali entry — heavier weight, dictionary lookup enabled. The weight
+      // override keeps Pali two steps above the Sinhala body weight.
       final paliHasMatch = hasQuery &&
           searchState.hasMatchInEntry(absolutePageIndex, entryIndex, 'pi');
-      final paliWidget = DefaultTextStyle.merge(
-        style: const TextStyle(fontWeight: FontWeight.w600),
-        child: ReaderEntryBuilder.buildEntry(
-          context,
-          paliEntry,
-          enableDictionaryLookup: true,
-          inPageSearchQuery: paliHasMatch ? effectiveQuery : null,
-          currentMatchIndexInEntry:
-              isPaliCurrentMatch ? currentMatch.matchIndexInEntry : null,
-          onWordTap: onWordTap,
-        ),
+      final paliWidget = ReaderEntryBuilder.buildEntry(
+        context,
+        paliEntry,
+        enableDictionaryLookup: true,
+        inPageSearchQuery: paliHasMatch ? effectiveQuery : null,
+        currentMatchIndexInEntry:
+            isPaliCurrentMatch ? currentMatch.matchIndexInEntry : null,
+        onWordTap: onWordTap,
+        fontWeight: AppFonts.paliWeight,
       );
 
       // Build the entry pair children

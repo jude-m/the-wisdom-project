@@ -162,7 +162,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           fontFamily: AppFonts.reader,
           fontFamilyFallback: AppFonts.readerFallback,
           fontSize: scaledFonts.base,
-          fontWeight: FontWeight.normal, // Non-bold for level 0
+          fontWeight: AppFonts.bodyWeight, // Non-bold for level 0
           color: bodyColor,
           height: _headingLineHeight,
         ),
@@ -174,6 +174,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         fontFamily: AppFonts.reader,
         fontFamilyFallback: AppFonts.readerFallback,
         fontSize: scaledFonts.base * 1.1,
+        fontWeight: AppFonts.bodyWeight,
         height: _paragraphLineHeight,
         color: bodyColor,
       ),
@@ -184,6 +185,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         fontFamily: AppFonts.reader,
         fontFamilyFallback: AppFonts.readerFallback,
         fontSize: scaledFonts.base * 1.1,
+        fontWeight: AppFonts.bodyWeight,
         fontStyle: FontStyle.italic,
         height: _gathaLineHeight,
         color: bodyColor,
@@ -195,6 +197,7 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
         fontFamily: AppFonts.reader,
         fontFamilyFallback: AppFonts.readerFallback,
         fontSize: scaledFonts.base * 1.1,
+        fontWeight: AppFonts.bodyWeight,
         height: _paragraphLineHeight,
         color: bodyColor,
       ),

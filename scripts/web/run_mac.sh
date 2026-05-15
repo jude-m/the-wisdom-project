@@ -2,7 +2,7 @@
 # Build and serve The Wisdom Project for web testing on macOS.
 #
 # Usage:
-#   ./scripts/web/run_mac.sh [--port 8080] [--skip-build] [--debug]
+#   ./scripts/web/run_mac.sh [--port 8080] [--skip-build] [--debug] [--clean]
 #
 # This script:
 # 1. Builds the Flutter web app (unless --skip-build)
@@ -12,12 +12,17 @@
 # --debug builds with `flutter build web --debug` so kDebugMode is true and
 # debugPrint output appears in the browser DevTools console (F12 → Console).
 # Default is a release build.
+#
+# --clean runs `flutter clean` + `flutter pub get` before building. Use this
+# when cached build artifacts are stale — e.g. after changing fonts in
+# pubspec.yaml, since the web FontManifest.json is cached aggressively.
 
 set -e
 
 PORT=8080
 SKIP_BUILD=false
 DEBUG=false
+CLEAN=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -34,9 +39,13 @@ while [[ $# -gt 0 ]]; do
       DEBUG=true
       shift
       ;;
+    --clean)
+      CLEAN=true
+      shift
+      ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: ./scripts/web/run_mac.sh [--port 8080] [--skip-build] [--debug]"
+      echo "Usage: ./scripts/web/run_mac.sh [--port 8080] [--skip-build] [--debug] [--clean]"
       exit 1
       ;;
   esac
@@ -47,6 +56,13 @@ cd "$(dirname "$0")/../.."
 
 # Step 1: Build Flutter web
 if [ "$SKIP_BUILD" = false ]; then
+  if [ "$CLEAN" = true ]; then
+    echo "Cleaning build artifacts (flutter clean + pub get)..."
+    flutter clean
+    flutter pub get
+    echo ""
+  fi
+
   if [ "$DEBUG" = true ]; then
     echo "Building Flutter web app (DEBUG — debugPrint enabled)..."
     flutter build web --debug

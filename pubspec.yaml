@@ -133,37 +133,49 @@ flutter:
     - family: NotoSansSinhala
       fonts:
         - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-Regular.ttf
+          weight: 400
         - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-Medium.ttf
           weight: 500
         - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-SemiBold.ttf
           weight: 600
+        - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-Bold.ttf
+          weight: 700
 
     # Sinhala script for Pali content (serif - better conjunct rendering)
     - family: NotoSerifSinhala
       fonts:
         - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-Regular.ttf
+          weight: 400
         - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-Medium.ttf
           weight: 500
         - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-SemiBold.ttf
           weight: 600
+        - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-Bold.ttf
+          weight: 700
 
     # Serif font for romanized Pali with diacritics and English
     - family: NotoSerif
       fonts:
         - asset: assets/fonts/noto-serif/NotoSerif-Regular.ttf
+          weight: 400
         - asset: assets/fonts/noto-serif/NotoSerif-Italic.ttf
           style: italic
         - asset: assets/fonts/noto-serif/NotoSerif-Medium.ttf
           weight: 500
         - asset: assets/fonts/noto-serif/NotoSerif-SemiBold.ttf
           weight: 600
+        - asset: assets/fonts/noto-serif/NotoSerif-Bold.ttf
+          weight: 700
 
     # Noto Sans for Latin/English characters - FALLBACK for Sinhala fonts
     # Same Noto design language ensures visual harmony
     - family: NotoSans
       fonts:
         - asset: assets/fonts/noto-sans/NotoSans-Regular.ttf
+          weight: 400
         - asset: assets/fonts/noto-sans/NotoSans-Medium.ttf
           weight: 500
         - asset: assets/fonts/noto-sans/NotoSans-SemiBold.ttf
           weight: 600
+        - asset: assets/fonts/noto-sans/NotoSans-Bold.ttf
+          weight: 700
