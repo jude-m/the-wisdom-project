@@ -56,11 +56,9 @@ class CachingTextSearchRepository implements TextSearchRepository {
     final cacheKey = _generateKey(query, null, maxPerCategory: maxPerCategory);
     final cached = cache.get(cacheKey);
     if (cached != null) {
-      if (kDebugMode) debugPrint('🔍 HIT  [topResults] $cacheKey');
       return Right(cached);
     }
 
-    if (kDebugMode) debugPrint('☁️  MISS [topResults] $cacheKey');
     final result = await _delegate.searchTopResults(
       query,
       maxPerCategory: maxPerCategory,
@@ -85,11 +83,9 @@ class CachingTextSearchRepository implements TextSearchRepository {
     final cacheKey = _generateKey(query, resultType);
     final cached = cache.get(cacheKey);
     if (cached != null) {
-      if (kDebugMode) debugPrint('🔍 HIT  [fullResults] $cacheKey');
       return Right(cached);
     }
 
-    if (kDebugMode) debugPrint('☁️  MISS [fullResults] $cacheKey');
     final result = await _delegate.searchByResultType(query, resultType);
 
     result.fold(
@@ -109,11 +105,9 @@ class CachingTextSearchRepository implements TextSearchRepository {
     final cacheKey = _generateKey(query, null);
     final cached = cache.get(cacheKey);
     if (cached != null) {
-      if (kDebugMode) debugPrint('🔍 HIT  [counts] $cacheKey');
       return Right(cached);
     }
 
-    if (kDebugMode) debugPrint('☁️  MISS [counts] $cacheKey');
     final result = await _delegate.countByResultType(query);
 
     result.fold(
