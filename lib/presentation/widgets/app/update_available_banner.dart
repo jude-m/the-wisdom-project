@@ -25,7 +25,7 @@ class UpdateAvailableBanner extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
+            constraints: const BoxConstraints(maxWidth: 480),
             child: _CardBody(
               info: info,
               onDismiss: () =>
