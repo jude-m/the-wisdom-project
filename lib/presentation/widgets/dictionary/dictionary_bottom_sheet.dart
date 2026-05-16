@@ -185,11 +185,10 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
 
   bool get _isExpanded => _isExpandedNotifier.value;
 
-  /// Toggles between min and max snap. Skips mid by design — drag for that.
+  /// Toggles between min and mid snap. Max is still reachable via drag.
   void _toggleExpansion() {
     if (!_sheetController.isAttached) return;
-    final target =
-        _isExpanded ? _minFraction : DictionarySheetConstants.maxChildSize;
+    final target = _isExpanded ? _minFraction : _midFraction;
     _sheetController.animateTo(
       target,
       duration: const Duration(milliseconds: 250),
