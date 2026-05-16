@@ -25,7 +25,6 @@ class StackedPane extends StatelessWidget {
     required this.entryStart,
     required this.absolutePageStart,
     required this.searchState,
-    required this.currentMatchKey,
     required this.entryKeyRegistry,
     required this.onTapEmpty,
     this.onWordTap,
@@ -39,11 +38,10 @@ class StackedPane extends StatelessWidget {
   final int absolutePageStart;
   final InPageSearchState searchState;
 
-  /// Attached to the current search match entry for scroll-to-match.
-  final GlobalKey currentMatchKey;
-
-  /// Registry for entry-level GlobalKeys used to sync scroll position
-  /// across layout switches.
+  /// Registry for entry-level GlobalKeys. Used for layout-switch scroll
+  /// sync AND in-page-search scroll-to-match. The pair-level KeyedSubtree
+  /// at the bottom of `_buildStackedEntries` carries the registry key for
+  /// each `(absolutePageIndex, entryIndex)`.
   final EntryKeyRegistry entryKeyRegistry;
 
   /// Called when tapping empty space (clears highlights).
@@ -153,7 +151,6 @@ class StackedPane extends StatelessWidget {
       // Build the entry pair children
       final pairChildren = <Widget>[
         Padding(
-          key: isPaliCurrentMatch ? currentMatchKey : null,
           padding: const EdgeInsets.only(bottom: 8.0),
           child: paliWidget,
         ),
@@ -175,7 +172,6 @@ class StackedPane extends StatelessWidget {
 
         pairChildren.add(
           Padding(
-            key: isSinhalaCurrentMatch ? currentMatchKey : null,
             padding: const EdgeInsets.only(bottom: 20.0),
             child: sinhalaWidget,
           ),
@@ -183,7 +179,6 @@ class StackedPane extends StatelessWidget {
       } else {
         // No Sinhala entry — use 20px spacing for consistent pair gap
         pairChildren[0] = Padding(
-          key: isPaliCurrentMatch ? currentMatchKey : null,
           padding: const EdgeInsets.only(bottom: 20.0),
           child: paliWidget,
         );

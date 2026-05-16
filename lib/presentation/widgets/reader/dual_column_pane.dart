@@ -27,7 +27,6 @@ class DualColumnPane extends ConsumerStatefulWidget {
     required this.entryStart,
     required this.absolutePageStart,
     required this.searchState,
-    required this.currentMatchKey,
     required this.entryKeyRegistry,
     required this.onTapEmpty,
     this.onWordTap,
@@ -41,11 +40,10 @@ class DualColumnPane extends ConsumerStatefulWidget {
   final int absolutePageStart;
   final InPageSearchState searchState;
 
-  /// Single GlobalKey — at most one side per build may attach it.
-  /// `currentMatch.languageCode` is one of `'pi'`/`'si'`; assert in
-  /// [_DualColumnPaneState._buildColumnEntries] guards against regression.
-  final GlobalKey currentMatchKey;
-
+  /// Registry for entry-level GlobalKeys. Used for layout-switch scroll
+  /// sync AND in-page-search scroll-to-match. The registry key wraps the
+  /// LEFT side only — `_PairHeightSync` keeps both sides on the same y,
+  /// so scrolling to the left side reveals either-side matches.
   final EntryKeyRegistry entryKeyRegistry;
   final VoidCallback onTapEmpty;
   final void Function(String word)? onWordTap;
@@ -230,12 +228,6 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
             currentMatch.entryIndex == entryIndex &&
             currentMatch.languageCode == 'si';
 
-        // Single GlobalKey — at most one side may attach it.
-        assert(
-            !(isPaliCurrentMatch && isSinhalaCurrentMatch),
-            'currentMatchKey would attach to both sides for pair '
-            '($absolutePageIndex, $entryIndex).');
-
         final Widget innerEntry;
         if (isLeft) {
           final paliHasMatch = hasQuery &&
@@ -275,17 +267,14 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
           child: innerEntry,
         );
 
-        final isThisSideCurrentMatch =
-            isLeft ? isPaliCurrentMatch : isSinhalaCurrentMatch;
-
         Widget row = Padding(
-          key: isThisSideCurrentMatch ? widget.currentMatchKey : null,
           padding: const EdgeInsets.only(bottom: 12.0),
           child: side,
         );
 
         // Registry key on LEFT only — duplicate GlobalKeys would crash.
-        // Both sides share the same y after height-sync converges.
+        // Both sides share the same y after height-sync converges, so the
+        // left-side key is sufficient for scroll-to-match on either side.
         if (isLeft) {
           row = KeyedSubtree(
             key: widget.entryKeyRegistry.keyFor(absolutePageIndex, entryIndex),

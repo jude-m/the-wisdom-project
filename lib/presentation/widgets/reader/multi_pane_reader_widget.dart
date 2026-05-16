@@ -53,11 +53,9 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   // Single scroll controller for all modes
   final ScrollController _scrollController = ScrollController();
 
-  // GlobalKey attached to the current match entry for scroll-to-match
-  final GlobalKey _currentMatchKey = GlobalKey();
-
   // Registry for entry-level GlobalKeys used to sync scroll position
-  // across layout switches. Shared with all pane widgets.
+  // across layout switches AND to drive in-page-search scroll-to-match.
+  // Shared with all pane widgets.
   final EntryKeyRegistry _entryKeyRegistry = EntryKeyRegistry();
 
   // Tracks whether the user has scrolled away from the top.
@@ -85,6 +83,12 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   // lay out without spinning indefinitely on a saved offset that can
   // genuinely no longer be reached (content shrunk, etc.).
   static const _restoreMaxRetries = 30;
+
+  // Bound on scroll-to-match retries — see [_ensureMatchVisibleWithRetry].
+  // ~10 frames is enough for ListView.builder to lazy-build the page
+  // containing the match after pagination expansion, without spinning
+  // forever if the entry is genuinely unreachable.
+  static const _matchScrollMaxRetries = 10;
 
   @override
   void initState() {
@@ -292,8 +296,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
 
   /// Scrolls to the current in-page search match.
   ///
-  /// If the match is on a page outside the loaded range, expands pagination first.
-  /// Then uses Scrollable.ensureVisible on the GlobalKey attached to the match entry.
+  /// If the match is on a page outside the loaded range, expands pagination
+  /// first. Then resolves the match entry via [_entryKeyRegistry] (the same
+  /// stable per-`(pageIndex, entryIndex)` GlobalKey used for layout-switch
+  /// scroll sync) and scrolls it into view with [Scrollable.ensureVisible].
   void _scrollToCurrentMatch(InPageSearchState searchState) {
     final currentMatch = searchState.currentMatch;
     if (currentMatch == null) return;
@@ -316,17 +322,50 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       );
     }
 
-    // Scroll to the match after the frame rebuilds with the new content
+    // Scroll to the match after the frame rebuilds with the new content.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final keyContext = _currentMatchKey.currentContext;
-      if (keyContext != null) {
-        Scrollable.ensureVisible(
-          keyContext,
-          alignment: 0.3, // Position match 30% from the top
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      }
+      _ensureMatchVisibleWithRetry(
+        currentMatch,
+        retriesLeft: _matchScrollMaxRetries,
+      );
+    });
+  }
+
+  /// Attempts to scroll the given match into view, retrying on subsequent
+  /// frames if the entry's GlobalKey isn't yet mounted (e.g. the target
+  /// page hasn't been lazy-built by [ListView.builder] yet).
+  ///
+  /// Mirrors the bounded-retry pattern used by [_restoreScrollWithRetry]:
+  /// nudge [_loadMorePagesIfNeeded] to grow the laid-out range, then re-
+  /// attempt on the next frame, up to [_matchScrollMaxRetries] times.
+  void _ensureMatchVisibleWithRetry(
+    InPageMatch match, {
+    required int retriesLeft,
+  }) {
+    if (!mounted) return;
+
+    final key = _entryKeyRegistry.keyFor(match.pageIndex, match.entryIndex);
+    final keyContext = key.currentContext;
+    final renderObject = keyContext?.findRenderObject();
+    final isReady = renderObject != null && renderObject.attached;
+
+    if (isReady) {
+      Scrollable.ensureVisible(
+        keyContext!,
+        alignment: 0.3, // Position match 30% from the top
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      return;
+    }
+
+    if (retriesLeft <= 0) return;
+
+    // Entry not built yet — encourage ListView to lazy-build more pages,
+    // then retry on the next frame.
+    _loadMorePagesIfNeeded();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureMatchVisibleWithRetry(match, retriesLeft: retriesLeft - 1);
     });
   }
 
@@ -683,7 +722,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           searchState: searchState,
           languageCode: 'pi',
           enableDictionaryLookup: true,
-          currentMatchKey: _currentMatchKey,
           entryKeyRegistry: _entryKeyRegistry,
           onTapEmpty: _clearAllHighlights,
           onWordTap: _handleWordTap,
@@ -699,7 +737,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           searchState: searchState,
           languageCode: 'si',
           enableDictionaryLookup: false,
-          currentMatchKey: _currentMatchKey,
           entryKeyRegistry: _entryKeyRegistry,
           onTapEmpty: _clearAllHighlights,
           onWordTap: _handleWordTap,
@@ -713,7 +750,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           entryStart: entryStart,
           absolutePageStart: absolutePageStart,
           searchState: searchState,
-          currentMatchKey: _currentMatchKey,
           entryKeyRegistry: _entryKeyRegistry,
           onTapEmpty: _clearAllHighlights,
           onWordTap: _handleWordTap,
@@ -727,7 +763,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           entryStart: entryStart,
           absolutePageStart: absolutePageStart,
           searchState: searchState,
-          currentMatchKey: _currentMatchKey,
           entryKeyRegistry: _entryKeyRegistry,
           onTapEmpty: _clearAllHighlights,
           onWordTap: _handleWordTap,

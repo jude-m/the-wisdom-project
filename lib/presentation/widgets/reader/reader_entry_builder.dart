@@ -121,7 +121,9 @@ class ReaderEntryBuilder {
   /// [absolutePageIndex] is the page index in the full document (not the loaded slice).
   /// [entryStartOffset] accounts for skipped entries on the first page.
   /// [languageCode] is 'pi' for Pali or 'si' for Sinhala.
-  /// [currentMatchKey] is attached to the current search match entry for scroll-to-match.
+  /// [entryKeyRegistry], when provided, wraps each entry in a [KeyedSubtree]
+  /// keyed by `(absolutePageIndex, entryIndex)`. The registry's GlobalKeys
+  /// also drive in-page-search scroll-to-match (see [MultiPaneReaderWidget]).
   static List<Widget> buildEntries(
     BuildContext context,
     List<Entry> entries, {
@@ -130,7 +132,6 @@ class ReaderEntryBuilder {
     int absolutePageIndex = 0,
     int entryStartOffset = 0,
     String languageCode = 'pi',
-    GlobalKey? currentMatchKey,
     void Function(String word)? onWordTap,
     EntryKeyRegistry? entryKeyRegistry,
   }) {
@@ -158,7 +159,6 @@ class ReaderEntryBuilder {
           );
 
       final entryWidget = Padding(
-        key: isCurrentMatchEntry ? currentMatchKey : null,
         padding: const EdgeInsets.only(bottom: 12.0),
         child: buildEntry(
           context,

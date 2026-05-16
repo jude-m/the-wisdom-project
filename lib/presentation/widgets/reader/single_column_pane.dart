@@ -21,7 +21,6 @@ class SingleColumnPane extends StatelessWidget {
     required this.searchState,
     required this.languageCode,
     required this.enableDictionaryLookup,
-    required this.currentMatchKey,
     required this.entryKeyRegistry,
     required this.onTapEmpty,
     this.onWordTap,
@@ -39,11 +38,8 @@ class SingleColumnPane extends StatelessWidget {
   final String languageCode;
   final bool enableDictionaryLookup;
 
-  /// Attached to the current search match entry for scroll-to-match.
-  final GlobalKey currentMatchKey;
-
   /// Registry for entry-level GlobalKeys used to sync scroll position
-  /// across layout switches.
+  /// across layout switches AND to drive in-page-search scroll-to-match.
   final EntryKeyRegistry entryKeyRegistry;
 
   /// Called when tapping empty space (clears highlights).
@@ -98,7 +94,6 @@ class SingleColumnPane extends StatelessWidget {
                   absolutePageIndex: absolutePageIndex,
                   entryStartOffset: actualEntryStart,
                   languageCode: languageCode,
-                  currentMatchKey: currentMatchKey,
                   onWordTap: onWordTap,
                   entryKeyRegistry: entryKeyRegistry,
                 ),
