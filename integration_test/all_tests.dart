@@ -15,6 +15,7 @@ import 'breadcrumb_navigation_test.dart' as breadcrumb;
 import 'dictionary_editable_word_test.dart' as dictionary;
 import 'dictionary_filter_flow_test.dart' as dictionary_filter;
 import 'in_page_search_test.dart' as in_page_search;
+import 'layout_switch_test.dart' as layout_switch;
 import 'previous_sutta_navigation_test.dart' as previous_sutta;
 import 'scroll_restoration_test.dart' as scroll_restoration;
 import 'search_flow_integration_test.dart' as search_flow;
@@ -26,6 +27,7 @@ void main() {
   dictionary.main();
   dictionary_filter.main();
   in_page_search.main();
+  layout_switch.main();
   previous_sutta.main();
   scroll_restoration.main();
   search_flow.main();

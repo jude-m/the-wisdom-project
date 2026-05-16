@@ -299,12 +299,25 @@ void main() {
         final pageEndAtStart = container.read(activePageEndProvider);
 
         // Step through a few matches forward — verify index tracks correctly
+        // AND that the viewport actually scrolls down to follow each match.
         for (var i = 1; i <= 3; i++) {
           await tester.tap(find.byIcon(Icons.keyboard_arrow_down));
           await tester.pumpAndSettle();
           expect(readSearchState(container, 0).currentMatchIndex, i,
               reason: 'After $i next-taps, currentMatchIndex should be $i');
         }
+
+        // Forward scroll-behaviour assertion (regression guard):
+        // Matches of "එවං" past index 0 lie further down the page, so the
+        // viewport offset must strictly increase after 3 next-taps. The
+        // earlier version of this test only checked currentMatchIndex,
+        // which let a real "match advances but viewport stays put" bug slip.
+        final offsetAfterForward = controller.offset;
+        expect(
+          offsetAfterForward, greaterThan(offsetAtStart),
+          reason: 'Stepping forward through matches must scroll the viewport '
+              'down — offset: $offsetAtStart → $offsetAfterForward',
+        );
 
         // Verify the match counter text updates in the UI
         expect(
@@ -313,12 +326,20 @@ void main() {
           reason: 'Counter should show "4 / $matchCount" after 3 next-taps',
         );
 
-        // Navigate back to match 0
+        // Navigate back to match 0 — viewport must scroll up symmetrically.
         for (var i = 0; i < 3; i++) {
           await tester.tap(find.byIcon(Icons.keyboard_arrow_up));
           await tester.pumpAndSettle();
         }
         expect(readSearchState(container, 0).currentMatchIndex, 0);
+
+        // Back scroll-behaviour assertion: offset must shrink back toward 0.
+        final offsetAfterBack = controller.offset;
+        expect(
+          offsetAfterBack, lessThan(offsetAfterForward),
+          reason: 'Stepping back through matches must scroll the viewport up '
+              '— offset: $offsetAfterForward → $offsetAfterBack',
+        );
 
         // Wrap to the LAST match (previous from 0 → last match at end of sutta)
         await tester.tap(find.byIcon(Icons.keyboard_arrow_up));
@@ -328,17 +349,33 @@ void main() {
         expect(readSearchState(container, 0).currentMatchIndex, matchCount - 1,
             reason: 'Previous from 0 should wrap to last match');
 
-        // The last match is far from the beginning of the sutta.
-        // Either the scroll offset increased or pagination expanded to load
-        // the page containing the match.
-        final offsetAtLast = controller.offset;
+        // The last match is far from the beginning of the sutta, so wrapping
+        // to it must exercise the full chain:
+        //   1) pagination expands to load the page containing the match, AND
+        //   2) the post-frame ensureVisible (with bounded retry) scrolls the
+        //      viewport to that newly-built entry.
+        //
+        // The previous version of this assertion was an OR — pagination
+        // expansion alone satisfied it, which silently let the real scroll
+        // step (#2) regress. We now assert BOTH halves of the chain.
         final pageEndAtLast = container.read(activePageEndProvider);
         expect(
-          offsetAtLast > offsetAtStart || pageEndAtLast > pageEndAtStart,
-          isTrue,
-          reason: 'Scrolling to last match should move the view — '
-              'offset: $offsetAtStart→$offsetAtLast, '
-              'pageEnd: $pageEndAtStart→$pageEndAtLast',
+          pageEndAtLast, greaterThan(pageEndAtStart),
+          reason: 'Wrapping to last match must expand pagination to include '
+              'the match page — pageEnd: $pageEndAtStart → $pageEndAtLast',
+        );
+
+        // Give the bounded retry inside _scrollToCurrentMatch time to wait
+        // for the ListView.builder to lazy-build the target entry, then
+        // run Scrollable.ensureVisible.
+        await tester.pumpAndSettle(const Duration(seconds: 1));
+
+        final offsetAtLast = controller.offset;
+        expect(
+          offsetAtLast, greaterThan(offsetAtStart),
+          reason: 'After pagination expands, the viewport must actually '
+              'scroll to the last match — offset: $offsetAtStart → '
+              '$offsetAtLast',
         );
 
         // Match counter should show the last position
