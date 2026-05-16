@@ -457,6 +457,16 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           );
         }
 
+        // In-page search matches are layout-dependent: paliOnly only finds
+        // matches in the Pali section, sinhalaOnly only in the Sinhala
+        // section, etc. After a layout switch, the previous match set is
+        // stale (wrong count, navigation arrows would land on entries with
+        // no visible highlight on the new side). Recompute against the new
+        // layout. No-op if there's no active query.
+        ref
+            .read(inPageSearchStatesProvider.notifier)
+            .recomputeActiveTabMatches();
+
         // After rebuild, ensure scroll is at 0 and fill screen with pages
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollController.hasClients) {
