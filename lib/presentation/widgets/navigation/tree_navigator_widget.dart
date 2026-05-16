@@ -163,7 +163,7 @@ class TreeNodeWidget extends ConsumerWidget {
           ),
           decoration: BoxDecoration(
             color: isSelected
-                ? Theme.of(context).colorScheme.surfaceContainerHigh
+                ? Theme.of(context).colorScheme.surfaceContainer
                 : null,
             border: Border(
               bottom: BorderSide(
