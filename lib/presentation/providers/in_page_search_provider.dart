@@ -126,16 +126,8 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
     );
   }
 
-  /// Recomputes matches for the active tab using its current layout.
-  ///
-  /// Called when the reader layout changes (e.g. sideBySide → paliOnly).
-  /// Matches are layout-dependent — the previous result set may include
-  /// matches in a section that is no longer rendered. Without recomputing,
-  /// the count (e.g. "1/3") stays stale and the up/down arrows would
-  /// navigate to entries that no longer contain a visible highlight on the
-  /// currently rendered side.
-  ///
-  /// No-ops if there is no active query.
+  /// Re-runs the match scan for the active tab against its current layout.
+  /// Call after a layout change; no-ops if no active query.
   void recomputeActiveTabMatches() {
     final tabIndex = _ref.read(activeTabIndexProvider);
     if (tabIndex < 0) return;
@@ -143,7 +135,6 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
     final tabState = _getTabState(tabIndex);
     if (tabState.effectiveQuery.isEmpty) return;
 
-    // Cancel any pending debounce — we're replacing the result set now.
     _debounceTimers[tabIndex]?.cancel();
 
     final tabs = _ref.read(tabsProvider);

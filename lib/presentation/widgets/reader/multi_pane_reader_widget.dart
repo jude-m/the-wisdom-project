@@ -457,12 +457,9 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           );
         }
 
-        // In-page search matches are layout-dependent: paliOnly only finds
-        // matches in the Pali section, sinhalaOnly only in the Sinhala
-        // section, etc. After a layout switch, the previous match set is
-        // stale (wrong count, navigation arrows would land on entries with
-        // no visible highlight on the new side). Recompute against the new
-        // layout. No-op if there's no active query.
+        // Match set is layout-scoped — refresh against the new layout.
+        // Also covered by the suppression guard above: tab switches skip
+        // this because each tab's matches already align with its own layout.
         ref
             .read(inPageSearchStatesProvider.notifier)
             .recomputeActiveTabMatches();
