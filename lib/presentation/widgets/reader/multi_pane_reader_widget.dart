@@ -38,6 +38,7 @@ import 'in_page_search_bar.dart';
 import 'reader_action_buttons.dart';
 import '../dictionary/dictionary_bottom_sheet.dart';
 import '../common/status_message_view.dart';
+import '../../../core/utils/responsive_utils.dart';
 
 
 class MultiPaneReaderWidget extends ConsumerStatefulWidget {
@@ -594,15 +595,26 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
             ),
           ],
         ),
-        // In-page search bar (floating at top)
-        // ValueKey ensures a fresh widget instance per tab (resets controller text)
+        // In-page search bar (floating at top).
+        // Mobile: full-width edge-to-edge. Tablet/desktop: right-anchored with
+        // a capped width (Chrome/Safari/VS Code pattern — close button lands
+        // where the eye expects it). Breakpoint comes from ResponsiveUtils so
+        // it stays in sync with the rest of the app's layout decisions.
+        // ValueKey ensures a fresh widget instance per tab (resets controller text).
         if (searchState.isVisible)
           Positioned(
             top: 8,
-            left: 16,
             right: 16,
-            child: InPageSearchBar(
-              key: ValueKey('search_bar_${ref.watch(activeTabIndexProvider)}'),
+            left: ResponsiveUtils.isMobile(context) ? 16 : null,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: InPageSearchBar.maxWidthOnLargeScreens,
+              ),
+              child: InPageSearchBar(
+                key: ValueKey(
+                  'search_bar_${ref.watch(activeTabIndexProvider)}',
+                ),
+              ),
             ),
           ),
         // Mode 1: Floating pills at top-right when at sutta beginning.

@@ -11,6 +11,12 @@ import '../../providers/in_page_search_provider.dart';
 class InPageSearchBar extends ConsumerStatefulWidget {
   const InPageSearchBar({super.key});
 
+  // Cap the bar's width on tablet/desktop. Wide enough for ~40 chars of query
+  // plus the "199 / 1500" counter and the prev/next/close buttons without
+  // crowding; narrow enough that it doesn't span the whole reading area.
+  // Caller decides whether to enforce this (see multi_pane_reader_widget.dart).
+  static const double maxWidthOnLargeScreens = 480.0;
+
   @override
   ConsumerState<InPageSearchBar> createState() => _InPageSearchBarState();
 }

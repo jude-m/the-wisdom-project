@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/responsive_utils.dart';
 import '../../providers/search_provider.dart';
 import '../../../domain/entities/search/recent_search.dart';
 
@@ -20,16 +21,19 @@ class RecentSearchOverlay extends ConsumerWidget {
   });
 
   /// Calculate max height based on screen size.
+  ///
+  /// Mobile: fill the available height (minus safe-area insets and a small
+  /// gap for the search bar above). Tablet/desktop: cap at 66% so the
+  /// overlay doesn't dominate the viewport.
   double _calculateMaxHeight(BuildContext context) {
+    // Safe-area insets (status bar, home indicator) — not a responsive
+    // decision, so MediaQuery is still the right source here.
     final mediaQuery = MediaQuery.of(context);
-    final screenHeight = mediaQuery.size.height;
-    final screenWidth = mediaQuery.size.width;
     final topPadding = mediaQuery.padding.top;
     final bottomPadding = mediaQuery.padding.bottom;
+    final screenHeight = ResponsiveUtils.screenHeight(context);
 
-    const mobileBreakpoint = 600.0;
-
-    if (screenWidth < mobileBreakpoint) {
+    if (ResponsiveUtils.isMobile(context)) {
       return screenHeight - topPadding - bottomPadding - 100;
     } else {
       return screenHeight * 0.66;
