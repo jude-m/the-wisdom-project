@@ -37,10 +37,16 @@ class _InPageSearchBarState extends ConsumerState<InPageSearchBar> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChange);
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -54,8 +60,17 @@ class _InPageSearchBarState extends ConsumerState<InPageSearchBar> {
 
     return Material(
       elevation: 4,
-      borderRadius: BorderRadius.circular(8),
-      color: colorScheme.surfaceContainerHigh,
+      color: colorScheme.surface,
+      // Border lives on Material.shape; Material disallows passing
+      // both `borderRadius` and `shape`.
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(
+          color: _focusNode.hasFocus
+              ? colorScheme.primary
+              : colorScheme.outline,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Row(

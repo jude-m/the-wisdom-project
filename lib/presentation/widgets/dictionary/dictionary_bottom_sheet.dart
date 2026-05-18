@@ -256,9 +256,12 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            // Y is negated so the shadow rises above the bottom-anchored
+            // sheet. Alpha tuned to roughly match the in-page-search
+            // bar's `elevation: 4` visual weight.
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
+                color: Colors.black.withValues(alpha: 0.12),
                 blurRadius: 10,
                 offset: const Offset(0, -2),
               ),
