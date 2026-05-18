@@ -339,6 +339,14 @@ void main() {
         // exercises the recompute pathway, not the InPageSearchBar UI.
         // 'එවං' is Pali "evaṃ" (= "thus") in Sinhala script; appears
         // throughout dn-1-1's Pali source.
+        //
+        // openSearch() before updateQuery: the layout-switch recompute
+        // is gated on `isVisible == true` so that closing the bar +
+        // changing layout doesn't leave stale matches misaligned with
+        // pagination (see InPageSearchNotifier.recomputeActiveTabMatches).
+        // Driving the notifier directly would skip the visibility flip
+        // the real UI does — opening the bar restores parity.
+        container.read(inPageSearchStatesProvider.notifier).openSearch();
         container
             .read(inPageSearchStatesProvider.notifier)
             .updateQuery('එවං');
@@ -415,6 +423,185 @@ void main() {
           restoredState.effectiveQuery,
           paliOnlyState.effectiveQuery,
           reason: 'Query should be unchanged across layout switches',
+        );
+      },
+    );
+
+    // ---------------------------------------------------------------
+    // Test: in-page search match scroll past cacheExtent works after a
+    // layout switch.
+    //
+    // Reproduces the bug fixed by `_stepViewportToward` in
+    // `multi_pane_reader_widget.dart`. The repro path:
+    //
+    //   1. Search "සීල" in sideBySide → 10 matches across dn-1-1.
+    //   2. Navigate to the 5th match (mid-sutta).
+    //   3. Close search, switch to stacked. The layout listener resets
+    //      pagination to a narrow range around the captured top entry
+    //      and jumpTo(0). Recompute drops matches (search hidden).
+    //   4. Reopen search. `openSearch` recomputes, currentMatchIndex
+    //      = 0, the search-state listener auto-scrolls to match[0] —
+    //      which expands pageStart *backward* to page 2, leaving a
+    //      wide loaded range with scroll parked at the top.
+    //   5. Step forward through matches. Matches several pages down
+    //      sit in [pageStart, pageEnd) but *outside* ListView.builder's
+    //      default ~250px cacheExtent → keys aren't mounted →
+    //      ensureVisible silently fails after bounded retries → scroll
+    //      stops at the cula-sila entry while currentMatchIndex keeps
+    //      advancing. User reported: "scrolls down until චුල්ලසීල
+    //      නිට්ඨිතං and doesnt scroll any further".
+    //
+    // Load-bearing assertion: the offset delta after 5 next-taps must
+    // exceed one viewport height. Without the fix, ensureVisible never
+    // builds the target page → delta ≈ one entry-height (~200–400px),
+    // well below viewport. With the fix, `_stepViewportToward` pushes
+    // the controller forward in viewport-sized steps until ListView
+    // builds the target slab, then ensureVisible animates the rest.
+    //
+    // Tying the threshold to `viewportDimension` keeps the assertion
+    // robust to entry-height variations across builds — the bug is
+    // about not scrolling FAR ENOUGH, not about not scrolling at all.
+    // ---------------------------------------------------------------
+    testWidgets(
+      'in-page search scrolls past cacheExtent after a layout switch',
+      (tester) async {
+        // Constrain the test view to a mobile-portrait size. On macOS the
+        // default integration-test viewport is large enough that the entire
+        // dn-1-1 "සීල" match range fits in ListView.builder's cacheExtent,
+        // which masks case (b) entirely (every key stays mounted, the bug
+        // can't manifest). A mobile viewport puts page 6 well outside the
+        // ~250 px cacheExtent from match[0]'s rendered position — the
+        // dimensions case (b) is born for.
+        tester.view.physicalSize = const Size(414, 896);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        final container = await pumpReaderApp(tester);
+
+        final tab = tabFromNode(container, 'dn-1-1');
+        await openTab(tester, container, tab);
+
+        // Start in sideBySide so "සීල" matches both Pali and Sinhala
+        // entries (10 total in dn-1-1).
+        container
+            .read(updateActiveTabLayoutProvider)(ReaderLayout.sideBySide);
+        await tester.pumpAndSettle();
+
+        // Drive search via the notifier (same pattern as the recompute
+        // test above). openSearch first so the visibility flag flips
+        // before updateQuery — matches the real UI path.
+        container.read(inPageSearchStatesProvider.notifier).openSearch();
+        container
+            .read(inPageSearchStatesProvider.notifier)
+            .updateQuery('සීල');
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pumpAndSettle();
+
+        final matchCount = readSearchState(container, 0).matchCount;
+        expect(
+          matchCount, 10,
+          reason: '"සීල" in dn-1-1 sideBySide should yield 10 matches '
+              '(see _findAllMatches: Pali + Sinhala sections scanned). '
+              'Got $matchCount — repro depends on this exact count.',
+        );
+
+        // Advance to the 5th match (index 4) — mirrors the user's repro
+        // ("stop at the 5th match and change the layout").
+        for (var i = 0; i < 4; i++) {
+          container.read(inPageSearchStatesProvider.notifier).nextMatch();
+        }
+        await tester.pumpAndSettle(const Duration(seconds: 1));
+        expect(readSearchState(container, 0).currentMatchIndex, 4);
+
+        // Close search BEFORE switching layout. The layout pill in the
+        // UI is gated on !searchState.isVisible, so the real-world path
+        // always closes first. This also triggers the
+        // recomputeActiveTabMatches drop-matches branch when the layout
+        // listener fires next.
+        container.read(inPageSearchStatesProvider.notifier).closeSearch();
+        await tester.pumpAndSettle();
+
+        // Switch to stacked. Listener captures top entry → narrow
+        // pagination reset → jumpTo(0) → load forward to fill viewport.
+        // Matches dropped (search hidden).
+        container
+            .read(updateActiveTabLayoutProvider)(ReaderLayout.stacked);
+        await tester.pumpAndSettle(const Duration(seconds: 1));
+
+        expect(
+          readSearchState(container, 0).matches, isEmpty,
+          reason: 'Layout switch with search hidden must drop stale '
+              'matches — openSearch will recompute on reopen',
+        );
+
+        // Reopen search. openSearch sees retained query + empty matches
+        // → recomputes against stacked → currentMatchIndex = 0 → search
+        // state listener fires _scrollToCurrentMatch on match[0], which
+        // expands pageStart backward to page 2 and rebuilds.
+        container.read(inPageSearchStatesProvider.notifier).openSearch();
+        await tester.pumpAndSettle(const Duration(seconds: 2));
+
+        expect(
+          readSearchState(container, 0).matchCount, 10,
+          reason: 'Reopen must recompute against stacked (still both '
+              'langs scanned) — count unchanged',
+        );
+        expect(
+          readSearchState(container, 0).currentMatchIndex, 0,
+          reason: 'Reopen recompute resets currentMatchIndex to 0',
+        );
+
+        // Capture viewport + offset right after the auto-scroll to
+        // match[0]. This is our baseline — match[0] sits ~30% from top.
+        final scrollable = find.byWidgetPredicate(
+          (w) => w is ListView && w.scrollDirection == Axis.vertical,
+        );
+        final controller = tester.widget<ListView>(scrollable).controller!;
+        final offsetAtFirstMatch = controller.offset;
+        final viewport = controller.position.viewportDimension;
+        final pageEndAfterFirst = container.read(activePageEndProvider);
+
+        // Precondition guard for the load-bearing assertion below.
+        // Case (b) ONLY exercises if match[5]'s page sits inside
+        // [pageStart, pageEnd). match[5] is on page 6 (see
+        // _findAllMatches output for "සීල" in dn-1-1). If pageEnd <= 6,
+        // stepping triggers case (a) — pagination expansion — instead,
+        // and the test would pass without proving the case (b) fix.
+        expect(
+          pageEndAfterFirst, greaterThan(6),
+          reason: 'Test invariant: pageEnd ($pageEndAfterFirst) must '
+              'cover match[5]\'s page (6) so the next-taps below '
+              'exercise case (b) [in-range but unbuilt] rather than '
+              'case (a) [past pageEnd]. If this fails, the viewport '
+              'in the test is too small — adjust setup, not assertion.',
+        );
+
+        // Step forward 5 times — reaches match[5] (page 6 entry 4 si,
+        // "මජ්ඣිමසීලය"). This is several pages below match[0]'s position
+        // (page 2 entry 1) — well beyond default cacheExtent (~250px).
+        for (var i = 0; i < 5; i++) {
+          container.read(inPageSearchStatesProvider.notifier).nextMatch();
+          await tester.pumpAndSettle(const Duration(milliseconds: 500));
+        }
+        expect(
+          readSearchState(container, 0).currentMatchIndex, 5,
+          reason: '5 next-taps should advance currentMatchIndex from 0 to 5',
+        );
+
+        // Load-bearing assertion (see test header). Without
+        // _stepViewportToward, scroll stops at the cula-sila entry
+        // (~one entry-height past match[0], well under viewport).
+        final offsetAfterAdvance = controller.offset;
+        final delta = offsetAfterAdvance - offsetAtFirstMatch;
+        expect(
+          delta, greaterThan(viewport),
+          reason: 'After 5 next-taps past cacheExtent, scroll offset '
+              'must advance by more than one viewport height '
+              '($viewport px). Got delta $delta '
+              '($offsetAtFirstMatch → $offsetAfterAdvance). '
+              'A small delta means _ensureMatchVisibleWithRetry gave up '
+              'before pushing ListView to build the match\'s page — '
+              'the case (b) bug.',
         );
       },
     );

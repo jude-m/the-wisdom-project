@@ -316,10 +316,18 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           currentMatch.pageIndex < pageStart ? currentMatch.pageIndex : pageStart;
       final newPageEnd =
           currentMatch.pageIndex >= pageEnd ? currentMatch.pageIndex + 1 : pageEnd;
+      // Clamp entryStart to the sutta boundary so backward expansion doesn't
+      // pull in trailing entries of the previous sutta on the start page.
+      // Off the start page, 0 is correct (we're entirely inside this sutta).
+      final nodeKey = ref.read(activeNodeKeyProvider);
+      final node = nodeKey != null ? ref.read(nodeByKeyProvider(nodeKey)) : null;
+      final newEntryStart = (node != null && newPageStart == node.entryPageIndex)
+          ? node.entryIndexInPage
+          : 0;
       ref.read(updateActiveTabPaginationProvider)(
         pageStart: newPageStart,
         pageEnd: newPageEnd,
-        entryStart: 0,
+        entryStart: newEntryStart,
       );
     }
 
@@ -333,12 +341,27 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   }
 
   /// Attempts to scroll the given match into view, retrying on subsequent
-  /// frames if the entry's GlobalKey isn't yet mounted (e.g. the target
-  /// page hasn't been lazy-built by [ListView.builder] yet).
+  /// frames if the entry's GlobalKey isn't yet mounted.
   ///
-  /// Mirrors the bounded-retry pattern used by [_restoreScrollWithRetry]:
-  /// nudge [_loadMorePagesIfNeeded] to grow the laid-out range, then re-
-  /// attempt on the next frame, up to [_matchScrollMaxRetries] times.
+  /// Two distinct reasons the key may be unmounted:
+  ///   (a) match.pageIndex >= pageEnd — pagination hasn't grown far enough.
+  ///       Nudge [_loadMorePagesIfNeeded] so ListView gets one more item.
+  ///   (b) match.pageIndex in [pageStart, pageEnd) — the page IS in the
+  ///       item list but [ListView.builder] hasn't lazy-built it because
+  ///       it's outside the default cacheExtent (~250px). Growing pageEnd
+  ///       is useless here — the page is already in range. Instead, step
+  ///       the controller by one viewport toward the target so the next
+  ///       frame's cacheExtent covers the next slab and ListView builds
+  ///       it. Direction comes from [EntryKeyRegistry.findTopVisibleEntry].
+  ///
+  /// Case (b) is what bites after a layout switch: the listener resets
+  /// pagination to a narrow range around the top-visible entry, jumps
+  /// scroll to 0, and the first scroll-to-match expands pageStart
+  /// backward — leaving a wide range with the user parked at the top.
+  /// Subsequent matches several pages down fall outside cacheExtent.
+  ///
+  /// Bounded by [_matchScrollMaxRetries] so an unreachable match settles
+  /// instead of spinning forever.
   void _ensureMatchVisibleWithRetry(
     InPageMatch match, {
     required int retriesLeft,
@@ -362,11 +385,45 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
 
     if (retriesLeft <= 0) return;
 
-    // Entry not built yet — encourage ListView to lazy-build more pages,
-    // then retry on the next frame.
-    _loadMorePagesIfNeeded();
+    final pageEnd = ref.read(activePageEndProvider);
+    if (match.pageIndex >= pageEnd) {
+      // Case (a): pagination needs to grow forward.
+      _loadMorePagesIfNeeded();
+    } else {
+      // Case (b): page in range but unbuilt — push the viewport toward it.
+      _stepViewportToward(match);
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _ensureMatchVisibleWithRetry(match, retriesLeft: retriesLeft - 1);
+    });
+  }
+
+  /// Steps the scroll controller by one viewport toward [match] so the next
+  /// frame's [ListView.builder] cacheExtent covers the slab containing the
+  /// match. Direction is inferred from the currently top-visible entry; when
+  /// the registry has nothing mounted yet (transitional frame), defaults to
+  /// forward — the dominant case after openSearch.
+  ///
+  /// Suppresses the debounced scroll-position auto-save: the intermediate
+  /// clamped offsets aren't user-meaningful and shouldn't overwrite disk.
+  /// Mirrors the suppression pattern in [_restoreScrollWithRetry].
+  void _stepViewportToward(InPageMatch match) {
+    if (!_scrollController.hasClients) return;
+
+    final pos = _scrollController.position;
+    final topEntry = _entryKeyRegistry.findTopVisibleEntry(_scrollController);
+    final scrollingDown = topEntry == null || match.pageIndex > topEntry.$1;
+    final delta =
+        scrollingDown ? pos.viewportDimension : -pos.viewportDimension;
+    final target = (pos.pixels + delta).clamp(0.0, pos.maxScrollExtent);
+
+    if (target == pos.pixels) return;
+
+    _suppressScrollSave = true;
+    _scrollController.jumpTo(target);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _suppressScrollSave = false;
     });
   }
 

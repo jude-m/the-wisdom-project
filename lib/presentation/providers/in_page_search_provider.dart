@@ -37,12 +37,24 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
   }
 
   /// Opens the search bar for the active tab.
+  ///
+  /// If a query was retained from a previous session but matches were dropped
+  /// (because the bar was closed when a layout switch invalidated them — see
+  /// [recomputeActiveTabMatches]), this kicks a fresh compute so the reopened
+  /// bar reflects the *current* layout and pagination.
   void openSearch() {
     final tabIndex = _ref.read(activeTabIndexProvider);
     if (tabIndex < 0) return;
 
     final tabState = _getTabState(tabIndex);
     _setTabState(tabIndex, tabState.copyWith(isVisible: true));
+
+    // Retained query but no matches → recompute against current state.
+    // The recompute runs against the freshly-flipped isVisible=true state,
+    // so it takes the compute branch (not the drop-matches branch).
+    if (tabState.effectiveQuery.isNotEmpty && tabState.matches.isEmpty) {
+      recomputeActiveTabMatches();
+    }
   }
 
   /// Hides the search bar for the active tab.
@@ -128,6 +140,13 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
 
   /// Re-runs the match scan for the active tab against its current layout.
   /// Call after a layout change; no-ops if no active query.
+  ///
+  /// Layout switches re-scope which entries are searchable
+  /// (Pali ↔ Sinhala ↔ both), so any cached match set goes stale.
+  /// While the bar is visible, refresh it. While closed, drop the stale set —
+  /// recomputing silently both wastes work the user can't see and risks
+  /// leaving matches misaligned with the layout-switch pagination reset.
+  /// [openSearch] computes fresh on reopen.
   void recomputeActiveTabMatches() {
     final tabIndex = _ref.read(activeTabIndexProvider);
     if (tabIndex < 0) return;
@@ -136,6 +155,15 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
     if (tabState.effectiveQuery.isEmpty) return;
 
     _debounceTimers[tabIndex]?.cancel();
+
+    if (!tabState.isVisible) {
+      // Drop stale matches; openSearch will recompute against current state.
+      _setTabState(
+        tabIndex,
+        tabState.copyWith(matches: const [], currentMatchIndex: -1),
+      );
+      return;
+    }
 
     final tabs = _ref.read(tabsProvider);
     if (tabIndex >= tabs.length) return;
