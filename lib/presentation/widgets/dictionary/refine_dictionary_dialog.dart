@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../domain/entities/dictionary/dictionary_filter_operations.dart';
 import '../../../domain/entities/dictionary/dictionary_info.dart';
+import '../../providers/overlay_stack_provider.dart';
 
 /// Dialog for refining dictionary search with individual dictionary selection.
 ///
@@ -30,18 +32,41 @@ class RefineDictionaryDialog extends StatefulWidget {
   });
 
   /// Show the dialog with the given filter state and callback.
+  ///
+  /// Registers the dialog on [overlayStackProvider] so the global ESC
+  /// shortcut pops it first instead of dismissing whatever sits underneath
+  /// (the FTS results panel when opened from the search panel, the
+  /// dictionary bottom sheet when opened from there). Used by both
+  /// call sites — keeping the registration here means neither has to
+  /// remember to wrap.
+  ///
+  /// Single stack id `'refine-dictionary-dialog'` is safe because only one
+  /// instance of this dialog can be visible at any time.
   static Future<void> show(
     BuildContext context, {
     required Set<String> selectedIds,
     required ValueChanged<Set<String>> onFilterChanged,
-  }) {
-    return showDialog<void>(
-      context: context,
-      builder: (context) => RefineDictionaryDialog(
-        selectedIds: selectedIds,
-        onFilterChanged: onFilterChanged,
-      ),
-    );
+  }) async {
+    final overlayStack = ProviderScope.containerOf(context, listen: false)
+        .read(overlayStackProvider.notifier);
+    final navigator = Navigator.of(context, rootNavigator: true);
+    overlayStack.push(DismissibleOverlay(
+      id: 'refine-dictionary-dialog',
+      dismiss: () {
+        if (navigator.canPop()) navigator.pop();
+      },
+    ));
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => RefineDictionaryDialog(
+          selectedIds: selectedIds,
+          onFilterChanged: onFilterChanged,
+        ),
+      );
+    } finally {
+      overlayStack.remove('refine-dictionary-dialog');
+    }
   }
 
   @override

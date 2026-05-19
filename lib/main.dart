@@ -8,12 +8,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'core/storage/key_value_store_provider.dart';
 import 'core/storage/shared_preferences_key_value_store.dart';
+import 'presentation/keyboard/app_shortcuts.dart';
 import 'presentation/screens/reader_screen.dart';
 import 'presentation/providers/search_provider.dart';
 import 'presentation/providers/platform_providers.dart';
 import 'presentation/providers/navigation_tree_provider.dart';
-import 'presentation/providers/tab_provider.dart' show activeTabIndexPersistenceProvider;
-import 'presentation/providers/navigator_visibility_provider.dart' show navigatorVisiblePersistenceProvider;
+import 'presentation/providers/tab_provider.dart'
+    show activeTabIndexPersistenceProvider;
+import 'presentation/providers/navigator_visibility_provider.dart'
+    show navigatorVisiblePersistenceProvider;
+import 'presentation/widgets/app/overlay_stack_sync.dart';
 import 'presentation/widgets/app/update_available_banner.dart';
 import 'core/theme/theme_notifier.dart';
 
@@ -193,13 +197,22 @@ class _MyAppState extends ConsumerState<MyApp> {
       // `Positioned.fill` is wrapped here (not inside the widget) so
       // UpdateAvailableBanner stays portable — it can also be dropped
       // into an OverlayEntry later without a layout-context change.
+      // AppShortcuts installs the top-level Shortcuts/Actions/Focus tree
+      // for keyboard handling (ESC, Ctrl/Cmd+F, Ctrl/Cmd+Shift+F, smart copy).
+      // OverlayStackSync sits inside it and feeds the LIFO overlay stack that
+      // the ESC handler pops from — keeps overlay visibility providers as the
+      // single source of truth without each overlay knowing about keyboard.
       builder: (context, child) {
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            child ?? const SizedBox.shrink(),
-            const Positioned.fill(child: UpdateAvailableBanner()),
-          ],
+        return AppShortcuts(
+          child: OverlayStackSync(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                child ?? const SizedBox.shrink(),
+                const Positioned.fill(child: UpdateAvailableBanner()),
+              ],
+            ),
+          ),
         );
       },
 

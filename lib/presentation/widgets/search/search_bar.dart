@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../providers/main_search_focus_provider.dart';
+import '../../providers/overlay_stack_provider.dart';
 import '../../providers/search_provider.dart';
 import '../common/circular_toggle_button.dart';
 import 'proximity_dialog.dart';
@@ -32,8 +34,12 @@ class _SearchBarState extends ConsumerState<SearchBar> {
     super.initState();
     _focusNode.addListener(_onFocusChange);
 
-    // Sync controller with initial state if needed
+    // Sync controller with initial state if needed, and publish our focus
+    // node so OpenMainSearchAction (Ctrl/Cmd+Shift+F) can request focus on
+    // this exact node from anywhere in the app.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(mainSearchFocusNodeProvider.notifier).state = _focusNode;
       final queryText = ref.read(searchStateProvider).rawQueryText;
       if (queryText.isNotEmpty && _controller.text != queryText) {
         _controller.text = queryText;
@@ -43,6 +49,18 @@ class _SearchBarState extends ConsumerState<SearchBar> {
 
   @override
   void dispose() {
+    // Detach from the provider before tearing down our node — otherwise a
+    // late Ctrl/Cmd+Shift+F could call requestFocus on a disposed node.
+    // Identity check guards against a freshly-mounted SearchBar already
+    // having published a new node while we were still in flight.
+    final current = ref.read(mainSearchFocusNodeProvider);
+    if (identical(current, _focusNode)) {
+      ref.read(mainSearchFocusNodeProvider.notifier).state = null;
+    }
+    // Drop any lingering ESC-stack registration before our state is gone,
+    // otherwise DismissTopOverlayAction could invoke _hideOverlay on a
+    // disposed _focusNode / _overlayController.
+    ref.read(overlayStackProvider.notifier).remove('recent-searches');
     _focusNode.removeListener(_onFocusChange);
     _controller.dispose();
     _focusNode.dispose();
@@ -58,14 +76,41 @@ class _SearchBarState extends ConsumerState<SearchBar> {
       // When query has any text, the results panel is shown instead
       final queryText = ref.read(searchStateProvider).rawQueryText;
       if (queryText.trim().isEmpty) {
-        _overlayController.show();
+        _openRecentOverlay();
       }
     }
   }
 
-  /// Hide the overlay
-  void _hideOverlay() {
+  /// Show the recent-searches dropdown and register it with the global ESC
+  /// stack so Ctrl+Esc / Esc dismissal goes through the same LIFO path as
+  /// every other overlay in the app.
+  void _openRecentOverlay() {
+    if (_overlayController.isShowing) return;
+    _overlayController.show();
+    ref.read(overlayStackProvider.notifier).push(
+          DismissibleOverlay(
+            id: 'recent-searches',
+            // ESC mirrors the tap-outside flow: drop the dropdown AND
+            // release search-bar focus.
+            dismiss: _hideOverlay,
+          ),
+        );
+  }
+
+  /// Hide the dropdown without touching focus. Used when the user starts
+  /// typing — query becomes non-empty, the FTS results panel takes over,
+  /// but focus must stay on the search bar so they can keep typing.
+  void _hideRecentOverlay() {
+    if (!_overlayController.isShowing) return;
     _overlayController.hide();
+    ref.read(overlayStackProvider.notifier).remove('recent-searches');
+  }
+
+  /// Full close: hide the dropdown and release search-bar focus.
+  /// Wired to ESC (via the dismiss callback above), tap-outside, and as
+  /// the closing half of [_closeAndClear].
+  void _hideOverlay() {
+    _hideRecentOverlay();
     _focusNode.unfocus();
   }
 
@@ -105,7 +150,8 @@ class _SearchBarState extends ConsumerState<SearchBar> {
 
     // Proximity button is active when NOT using default phrase search
     // OR when using non-default proximity settings
-    final isProximityActive = !isPhraseSearch || isAnywhereInText || proximityDistance != 10;
+    final isProximityActive =
+        !isPhraseSearch || isAnywhereInText || proximityDistance != 10;
 
     // Show proximity button only when user has started typing a second word
     // (i.e., there's a space followed by at least one non-space character)
@@ -121,13 +167,16 @@ class _SearchBarState extends ConsumerState<SearchBar> {
         _controller.selection = TextSelection.collapsed(offset: next.length);
       }
 
-      // Hide overlay when query has any text (panel takes over)
+      // Hide overlay when query has any text (panel takes over).
+      // Use the helper so the LIFO stack registration is dropped too —
+      // otherwise a stale 'recent-searches' entry would shadow the
+      // FTS panel and Esc would close the wrong thing.
       if (next.trim().isNotEmpty && _overlayController.isShowing) {
-        _overlayController.hide();
+        _hideRecentOverlay();
       }
       // Show overlay when query becomes empty and focused
       else if (next.trim().isEmpty && _focusNode.hasFocus) {
-        _overlayController.show();
+        _openRecentOverlay();
       }
     });
 
@@ -234,7 +283,9 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                           ),
                           onPressed: () {
                             _controller.clear();
-                            ref.read(searchStateProvider.notifier).clearSearch();
+                            ref
+                                .read(searchStateProvider.notifier)
+                                .clearSearch();
                             _focusNode.requestFocus();
                           },
                         ),

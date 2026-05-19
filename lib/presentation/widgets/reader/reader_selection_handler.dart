@@ -7,6 +7,7 @@ import '../../providers/dictionary_provider.dart'
         selectedDictionaryWordProvider,
         dictionaryHighlightProvider,
         hasActiveSelectionProvider;
+import '../../providers/last_selected_text_provider.dart';
 
 /// Mixin that handles text selection and context menu in the reader.
 ///
@@ -30,6 +31,10 @@ mixin ReaderSelectionHandler<T extends ConsumerStatefulWidget>
     if (selection != null && selection.plainText.isNotEmpty) {
       // Store selected text for the copy action
       currentSelectedText = selection.plainText;
+      // Publish to the app-wide provider so SmartCopyAction (Ctrl/Cmd+C) can
+      // copy this text even when the focus tree has dropped out of the
+      // SelectableRegion — the typical failure mode on Flutter web.
+      ref.read(lastSelectedTextProvider.notifier).state = selection.plainText;
       // Mark that selection is active - prevents dictionary from opening on taps
       ref.read(hasActiveSelectionProvider.notifier).state = true;
       // Clear dictionary highlight when user starts selecting text
@@ -38,6 +43,7 @@ mixin ReaderSelectionHandler<T extends ConsumerStatefulWidget>
       ref.read(selectedDictionaryWordProvider.notifier).state = null;
     } else {
       currentSelectedText = null;
+      ref.read(lastSelectedTextProvider.notifier).state = null;
       // Use post-frame callback to clear selection state AFTER tap handlers run.
       // This allows tap handler to see hasActiveSelection=true and skip dictionary,
       // then this callback clears it for subsequent taps.
@@ -67,8 +73,7 @@ mixin ReaderSelectionHandler<T extends ConsumerStatefulWidget>
         label: 'Copy',
         onPressed: () {
           // Copy the currently selected text to clipboard
-          if (currentSelectedText != null &&
-              currentSelectedText!.isNotEmpty) {
+          if (currentSelectedText != null && currentSelectedText!.isNotEmpty) {
             Clipboard.setData(ClipboardData(text: currentSelectedText!));
           }
           // Hide the context menu and clear selection

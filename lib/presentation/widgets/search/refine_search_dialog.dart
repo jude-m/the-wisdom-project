@@ -4,6 +4,7 @@ import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../../../domain/entities/search/scope_operations.dart';
 import '../../providers/navigation_tree_provider.dart';
+import '../../providers/overlay_stack_provider.dart';
 import '../../providers/search_provider.dart';
 
 /// Dialog for refining search with hierarchical scope selection.
@@ -22,11 +23,35 @@ class RefineSearchDialog extends ConsumerStatefulWidget {
   const RefineSearchDialog({super.key});
 
   /// Show the dialog.
-  static Future<void> show(BuildContext context) {
-    return showDialog<void>(
-      context: context,
-      builder: (context) => const RefineSearchDialog(),
-    );
+  ///
+  /// Registers the dialog on [overlayStackProvider] so the global ESC
+  /// shortcut treats it as the topmost dismissible overlay. Without this,
+  /// pressing ESC while the dialog is open would pop the underlying FTS
+  /// results panel (the next entry on the stack) and leave the dialog
+  /// floating above an empty reader — clearly wrong.
+  ///
+  /// We capture the navigator at show-time so the dismiss callback can pop
+  /// the dialog without needing the dialog's own BuildContext. The
+  /// try/finally guarantees the stack entry is removed no matter how the
+  /// dialog actually closed (ESC, barrier tap, system back, programmatic).
+  static Future<void> show(BuildContext context) async {
+    final overlayStack = ProviderScope.containerOf(context, listen: false)
+        .read(overlayStackProvider.notifier);
+    final navigator = Navigator.of(context, rootNavigator: true);
+    overlayStack.push(DismissibleOverlay(
+      id: 'refine-search-dialog',
+      dismiss: () {
+        if (navigator.canPop()) navigator.pop();
+      },
+    ));
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => const RefineSearchDialog(),
+      );
+    } finally {
+      overlayStack.remove('refine-search-dialog');
+    }
   }
 
   @override

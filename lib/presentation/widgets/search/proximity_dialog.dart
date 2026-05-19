@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
+import '../../providers/overlay_stack_provider.dart';
 import '../../providers/search_provider.dart';
 
 /// Dialog for configuring word proximity and phrase/separate-word search mode.
@@ -16,11 +17,33 @@ class ProximityDialog extends ConsumerStatefulWidget {
   const ProximityDialog({super.key});
 
   /// Show the dialog and return true if changes were applied.
-  static Future<bool?> show(BuildContext context) {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => const ProximityDialog(),
-    );
+  ///
+  /// Registers the dialog on [overlayStackProvider] so the global ESC
+  /// shortcut pops it first instead of dismissing the FTS results panel
+  /// that's almost always visible underneath. Same pattern as the two
+  /// Refine dialogs — keeping the registration here means the call site
+  /// in `search_bar.dart` stays unchanged.
+  ///
+  /// The `bool?` return value is preserved so a future caller can inspect
+  /// whether Apply was tapped vs the dialog was simply dismissed.
+  static Future<bool?> show(BuildContext context) async {
+    final overlayStack = ProviderScope.containerOf(context, listen: false)
+        .read(overlayStackProvider.notifier);
+    final navigator = Navigator.of(context, rootNavigator: true);
+    overlayStack.push(DismissibleOverlay(
+      id: 'proximity-dialog',
+      dismiss: () {
+        if (navigator.canPop()) navigator.pop();
+      },
+    ));
+    try {
+      return await showDialog<bool>(
+        context: context,
+        builder: (context) => const ProximityDialog(),
+      );
+    } finally {
+      overlayStack.remove('proximity-dialog');
+    }
   }
 
   @override
