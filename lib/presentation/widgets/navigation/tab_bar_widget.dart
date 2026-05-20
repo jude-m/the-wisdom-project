@@ -27,15 +27,10 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
   bool _showLeftChevron = false;
   bool _showRightChevron = false;
 
-  // Previous tab-list state, so the post-frame callback can tell a genuine
-  // "tab added / active tab changed" apart from an ordinary rebuild. Seeded
-  // in initState so the first frame doesn't trigger a spurious scroll.
-  int _prevTabsLen = 0;
-  int _prevActiveIndex = -1;
-
-  // _pendingReveal : the active tab still needs scrolling into view.
-  // _revealInFlight: a reveal animation chain is already running, so the
-  //                  post-frame callback must not start a second, racing one.
+  // _pendingReveal : a reveal is pending or animating; also freezes chevron
+  //                  updates while it runs (see _updateChevronVisibility).
+  // _revealInFlight: a reveal animation chain is already running, so a new
+  //                  reveal request must not start a second, racing one.
   // _revealAttempts: bounds the self-correcting reveal loop (see
   //                  _revealActiveTab).
   bool _pendingReveal = false;
@@ -48,12 +43,10 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
   @override
   void initState() {
     super.initState();
+    // Ongoing chevron updates come from the ScrollController listener and the
+    // ScrollMetricsNotification in _buildTabList; this post-frame check just
+    // covers the very first layout.
     _scrollController.addListener(_updateChevronVisibility);
-    // Seed tracking with current state so initial build is a no-op for
-    // the auto-scroll path.
-    _prevTabsLen = ref.read(tabsProvider).length;
-    _prevActiveIndex = ref.read(activeTabIndexProvider);
-    // Check initial state after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateChevronVisibility();
     });
@@ -68,6 +61,11 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
 
   void _updateChevronVisibility() {
     if (!_scrollController.hasClients) return;
+    // While a reveal is pending or animating, freeze the chevrons — otherwise
+    // the right chevron blinks on then off as the animation crosses
+    // maxScrollExtent. _endReveal does the one authoritative update once the
+    // scroll has settled.
+    if (_pendingReveal) return;
 
     final position = _scrollController.position;
     final showLeft = position.pixels > 0;
@@ -105,14 +103,22 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
     );
   }
 
-  /// Detects a "tab added" or "active tab changed" event and starts a
-  /// reveal so the active tab is scrolled fully into view. Called from the
-  /// post-frame callback, after chevron visibility has been updated.
-  void _handleTabChange(int tabsLen, int activeIndex) {
-    final changed = tabsLen > _prevTabsLen || activeIndex != _prevActiveIndex;
-    _prevTabsLen = tabsLen;
-    _prevActiveIndex = activeIndex;
-    if (!changed) return;
+  /// Schedules a reveal of the active tab for after the current frame.
+  ///
+  /// Called from the `ref.listen` callbacks in [build] when a tab is added
+  /// or the active tab changes. The post-frame delay lets the new layout
+  /// settle — tab RenderBoxes and maxScrollExtent — before [_startReveal]
+  /// measures against it.
+  void _scheduleReveal() {
+    // Set the flag synchronously — before any post-frame callback can run —
+    // so the chevron freeze is already in effect when the reveal begins.
+    _pendingReveal = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startReveal());
+  }
+
+  /// Starts a reveal so the active tab is scrolled fully into view.
+  void _startReveal() {
+    if (!mounted) return;
 
     _pendingReveal = true;
     _revealAttempts = 0;
@@ -125,25 +131,28 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
     }
   }
 
+  /// Ends the reveal: clears the flags and runs the one chevron update that
+  /// was frozen while it ran (see [_updateChevronVisibility]).
+  void _endReveal() {
+    _pendingReveal = false;
+    _revealInFlight = false;
+    if (mounted) _updateChevronVisibility();
+  }
+
   /// Scrolls the active tab fully into view, self-correcting until it is.
   ///
-  /// Measures the active tab's real geometry, scrolls to it, then re-checks
-  /// once the scroll settles and corrects if anything shifted. The floating
-  /// chevrons do not consume the list's width, so the viewport is constant
-  /// and this normally converges in a single pass; _revealAttempts bounds it.
+  /// Measures the active tab's geometry, scrolls to it, then re-checks once
+  /// the scroll settles and corrects if anything shifted. Normally converges
+  /// in a single pass; _revealAttempts bounds it.
   void _revealActiveTab() {
     if (!mounted || !_scrollController.hasClients || !_pendingReveal) {
-      _pendingReveal = false;
-      _revealInFlight = false;
+      _endReveal();
       return;
     }
-    // Safety net: this normally settles in a single pass (the viewport is
-    // constant and the measurement is exact); the cap just bounds it if
-    // something — e.g. the user grabbing the strip mid-reveal — keeps it
-    // from settling.
+    // Cap the self-correcting loop so it can't spin if something keeps it
+    // from settling — e.g. the user grabbing the strip mid-reveal.
     if (_revealAttempts++ >= 6) {
-      _pendingReveal = false;
-      _revealInFlight = false;
+      _endReveal();
       return;
     }
 
@@ -154,14 +163,12 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
     // Don't fight the user: if a drag or fling is in progress, abandon the
     // reveal rather than animating the strip against them.
     if (pos.userScrollDirection != ScrollDirection.idle) {
-      _pendingReveal = false;
-      _revealInFlight = false;
+      _endReveal();
       return;
     }
 
     if (activeIndex < 0 || activeIndex >= tabsLen) {
-      _pendingReveal = false;
-      _revealInFlight = false;
+      _endReveal();
       return;
     }
 
@@ -170,8 +177,7 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
     // Either the active tab is not laid out (target == null) or it is
     // already where it needs to be — the reveal is complete.
     if (target == null || (target - pos.pixels).abs() <= _revealEpsilon) {
-      _pendingReveal = false;
-      _revealInFlight = false;
+      _endReveal();
       return;
     }
 
@@ -245,6 +251,17 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
     final tabs = ref.watch(tabsProvider);
     final activeTabIndex = ref.watch(activeTabIndexProvider);
 
+    // Reveal the active tab when a tab is added or the active tab
+    // changes. ref.listen fires only on a real change — not on every
+    // rebuild — and must be called unconditionally, so it sits above the
+    // isEmpty early-return.
+    ref.listen(tabsProvider, (prev, next) {
+      if (prev != null && next.length > prev.length) _scheduleReveal();
+    });
+    ref.listen(activeTabIndexProvider, (prev, next) {
+      if (prev != next) _scheduleReveal();
+    });
+
     if (tabs.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -252,13 +269,6 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
     // Drop GlobalKeys for tab slots that no longer exist, so _tabKeys does
     // not grow unbounded as tabs are opened and closed over a session.
     _tabKeys.removeWhere((index, _) => index >= tabs.length);
-
-    // After the frame is laid out, refresh chevron visibility and, when a
-    // tab was added or the active tab changed, scroll it fully into view.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _updateChevronVisibility();
-      _handleTabChange(tabs.length, activeTabIndex);
-    });
 
     return Container(
       height: 48,
@@ -304,37 +314,49 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
 
   /// The horizontal, scrollable list of tabs.
   Widget _buildTabList(List<ReaderTab> tabs, int activeTabIndex) {
-    return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(context).copyWith(
-        dragDevices: {
-          PointerDeviceKind.touch,
-          PointerDeviceKind.mouse,
-          PointerDeviceKind.trackpad,
-          PointerDeviceKind.stylus,
-        },
-        scrollbars: false, // Hide scrollbar, we have chevrons
-      ),
-      child: ListView.builder(
-        controller: _scrollController,
-        scrollDirection: Axis.horizontal,
-        itemCount: tabs.length,
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
+    return NotificationListener<ScrollMetricsNotification>(
+      // Fires whenever the list's scroll metrics change without a scroll —
+      // a viewport resize (pane divider), a tab added/removed, or tab labels
+      // resized by a theme or text-scale change. The ScrollController
+      // listener only sees pixel changes, so this is what keeps the chevrons
+      // honest. Deferred to post-frame: the notification can arrive
+      // mid-layout, and _updateChevronVisibility calls setState.
+      onNotification: (_) {
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _updateChevronVisibility(),
+        );
+        return false;
+      },
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: {
+            PointerDeviceKind.touch,
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.trackpad,
+            PointerDeviceKind.stylus,
+          },
+          scrollbars: false, // Hide scrollbar, we have chevrons
         ),
-        itemBuilder: (context, index) {
-          final tab = tabs[index];
-          final isActive = index == activeTabIndex;
+        child: ListView.builder(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          itemCount: tabs.length,
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          itemBuilder: (context, index) {
+            final tab = tabs[index];
+            final isActive = index == activeTabIndex;
 
-          return _TabItem(
-            // Stable per-index key so _revealActiveTab can locate
-            // this tab's RenderBox.
-            key: _tabKeys.putIfAbsent(index, () => GlobalKey()),
-            tab: tab,
-            isActive: isActive,
-            onTap: () => ref.read(switchTabProvider)(index),
-            onClose: () => ref.read(closeTabProvider)(index),
-          );
-        },
+            return _TabItem(
+              key: _tabKeys.putIfAbsent(index, () => GlobalKey()),
+              tab: tab,
+              isActive: isActive,
+              onTap: () => ref.read(switchTabProvider)(index),
+              onClose: () => ref.read(closeTabProvider)(index),
+            );
+          },
+        ),
       ),
     );
   }
