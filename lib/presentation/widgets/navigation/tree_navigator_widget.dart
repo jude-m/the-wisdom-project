@@ -29,6 +29,17 @@ class _TreeNavigatorWidgetState extends ConsumerState<TreeNavigatorWidget> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // ref.listen below only catches *future* changes, so reveal the node
+    // selected while the navigator was closed on first mount.
+    final selected = ref.read(selectedNodeProvider);
+    if (selected != null) {
+      _scrollToSelectedNode(selected);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final treeAsync = ref.watch(navigationTreeProvider);
 
