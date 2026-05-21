@@ -15,6 +15,7 @@ import '../providers/tab_provider.dart';
 import '../providers/search_provider.dart';
 import '../providers/pane_width_provider.dart';
 import '../providers/fts_highlight_provider.dart';
+import '../providers/reader_scroll_provider.dart';
 import '../../core/constants/constants.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../../domain/entities/search/search_result_type.dart';
@@ -108,9 +109,29 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       searchPanelMaxWidth,
     );
 
+    // The app bar tints itself "scrolled under" when the active reader
+    // content is scrolled away from the top. We drive this from
+    // readerScrolledUnderProvider rather than Material 3's built-in
+    // detection: the built-in version is ScrollNotification-based and goes
+    // stale across tab switches (a restored jumpTo(0) fires no notification,
+    // so the app bar would keep the previous tab's tint).
+    final scrolledUnder = ref.watch(readerScrolledUnderProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        // Disable M3's built-in scrolled-under detection (see comment above);
+        // we set backgroundColor manually below instead. The tinted value
+        // reproduces M3's surface tint at the AppBar's default
+        // scrolledUnderElevation (3.0), so the visible effect is unchanged.
+        notificationPredicate: (_) => false,
+        backgroundColor: scrolledUnder
+            ? ElevationOverlay.applySurfaceTint(
+                colorScheme.surfaceContainerLow,
+                colorScheme.surfaceTint,
+                3.0,
+              )
+            : colorScheme.surfaceContainerLow,
         title: const BreadcrumbWidget(),
         titleSpacing: 4.0,
         leading: IconButton(

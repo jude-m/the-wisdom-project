@@ -29,6 +29,7 @@ import '../../providers/previous_sutta_provider.dart'
 import '../../providers/navigation_tree_provider.dart'
     show nodeByKeyProvider, previousReadableNodeProvider;
 import '../../providers/fts_highlight_provider.dart';
+import '../../providers/reader_scroll_provider.dart';
 import 'entry_key_registry.dart';
 import 'single_column_pane.dart';
 import 'dual_column_pane.dart';
@@ -113,6 +114,9 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
         setState(() => _isScrolledDown = scrolledDown);
       }
 
+      // Keep the app bar's "scrolled under" tint in sync with this scroll.
+      _syncScrolledUnder();
+
       // Infinite scroll: load next page when user scrolls near bottom (within 200px)
       final delta = _scrollController.position.maxScrollExtent - currentScroll;
       if (delta < 200) {
@@ -132,6 +136,25 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
         _scrollSaveDebounce?.cancel();
         _scrollSaveDebounce = Timer(_scrollSaveDelay, _saveScrollPosition);
       }
+    }
+  }
+
+  /// Publishes whether the reader content is scrolled away from the top into
+  /// [readerScrolledUnderProvider], which drives the app bar's tint.
+  ///
+  /// Uses `extentBefore > 0` — the exact threshold Material 3's built-in
+  /// scrolled-under detection uses — so the tint behaves identically, just
+  /// reliably. Called from [_onScroll] (covers genuine scrolling and any
+  /// `jumpTo` to a non-zero offset, both of which notify the controller) and
+  /// explicitly after a tab-switch scroll restore — where a `jumpTo(0)` onto
+  /// a freshly mounted, already-at-0 scroll view is a no-op and would
+  /// otherwise leave the flag stale at the previous tab's value.
+  void _syncScrolledUnder() {
+    if (!_scrollController.hasClients) return;
+    final scrolledUnder = _scrollController.position.extentBefore > 0;
+    final notifier = ref.read(readerScrolledUnderProvider.notifier);
+    if (notifier.state != scrolledUnder) {
+      notifier.state = scrolledUnder;
     }
   }
 
@@ -277,6 +300,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
 
     _suppressScrollSave = true;
     _scrollController.jumpTo(saved.clamp(0.0, maxExtent));
+    // Sync the app bar tint to the tab we just restored. A jumpTo(0) onto a
+    // freshly mounted scroll view (already at 0) is a no-op and fires no
+    // notification, so _onScroll won't run — sync explicitly here.
+    _syncScrolledUnder();
     // The clamped jumpTo notifies _onScroll synchronously above; clear
     // the flag on the next frame so genuine user scrolls aren't missed.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -469,6 +496,9 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           });
         } else {
           _suppressLayoutListener = false;
+          // No active tab (all tabs closed) — the reader shows the empty
+          // state, so the app bar must not stay tinted.
+          ref.read(readerScrolledUnderProvider.notifier).state = false;
         }
       }
     });
