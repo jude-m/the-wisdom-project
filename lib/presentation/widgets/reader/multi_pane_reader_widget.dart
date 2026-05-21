@@ -92,6 +92,9 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   // forever if the entry is genuinely unreachable.
   static const _matchScrollMaxRetries = 10;
 
+  // Emblem shown in the first-run "select a sutta" hint.
+  static const _selectSuttaEmblemAsset = 'assets/icons/urna_hair_relic.png';
+
   @override
   void initState() {
     super.initState();
@@ -617,12 +620,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
               child: contentAsync.when(
                 data: (content) {
                   if (content == null) {
-                    // Empty "select a sutta" state: keep the book icon (it's a
-                    // first-run hint, not a search-empty state) but route it
-                    // through StatusMessageView for consistent layout.
                     return StatusMessageView(
                       variant: StatusVariant.info,
-                      iconOverride: Icons.menu_book_outlined,
+                      imageAsset: _selectSuttaEmblemAsset,
+                      imageSize: 80,
                       title: AppLocalizations.of(context).statusSelectSuttaToRead,
                     );
                   }

@@ -48,12 +48,31 @@ enum StatusVariant {
 /// );
 /// ```
 class StatusMessageView extends StatelessWidget {
+  /// Side length of the leading icon / image, in logical pixels. The [Icon]
+  /// and the [imageSize] default both read this so a tweak to one can't
+  /// silently desync from the other.
+  static const double _leadingSize = 40;
+
+  /// Side length of the loading spinner's bounding box, in logical pixels.
+  static const double _spinnerSize = 32;
+
   /// Which preset to render. Drives the default icon and colours.
   final StatusVariant variant;
 
   /// Optional override for the variant's default icon. Use sparingly —
   /// the whole point of this widget is visual consistency.
   final IconData? iconOverride;
+
+  /// Optional asset image used as the leading visual instead of an icon.
+  /// Must be a flat "template" shape — it is tinted with the variant's icon
+  /// colour. Takes precedence over [iconOverride] and is ignored when
+  /// [variant] is [StatusVariant.loading]. Use sparingly, for the same
+  /// visual-consistency reason as [iconOverride].
+  final String? imageAsset;
+
+  /// Side length of [imageAsset] in logical pixels. Defaults to the
+  /// standard leading-visual size.
+  final double imageSize;
 
   /// Headline message shown to the user. Required for every variant
   /// except [StatusVariant.loading], where it is optional.
@@ -75,6 +94,8 @@ class StatusMessageView extends StatelessWidget {
     required this.variant,
     this.title,
     this.iconOverride,
+    this.imageAsset,
+    this.imageSize = _leadingSize,
     this.description,
     this.action,
     this.padding = const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
@@ -89,18 +110,34 @@ class StatusMessageView extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final typography = context.typography;
 
-    // Resolve the leading visual: spinner for loading, otherwise an icon.
+    // Leading visual: spinner for loading, asset image, or icon.
     final Widget leading;
     if (variant == StatusVariant.loading) {
       leading = const SizedBox(
-        width: 32,
-        height: 32,
+        width: _spinnerSize,
+        height: _spinnerSize,
         child: CircularProgressIndicator(strokeWidth: 3),
+      );
+    } else if (imageAsset != null) {
+      // Decode the bitmap at display resolution rather than its intrinsic
+      // size, so a large source PNG doesn't sit in the image cache full-size.
+      final cacheExtent =
+          (imageSize * MediaQuery.devicePixelRatioOf(context)).round();
+      // srcIn paints the variant colour through the asset's alpha,
+      // so the shape tints correctly in light & dark themes.
+      leading = Image.asset(
+        imageAsset!,
+        width: imageSize,
+        height: imageSize,
+        cacheWidth: cacheExtent,
+        cacheHeight: cacheExtent,
+        color: _iconColor(variant, colorScheme),
+        colorBlendMode: BlendMode.srcIn,
       );
     } else {
       leading = Icon(
         iconOverride ?? _defaultIcon(variant),
-        size: 40,
+        size: _leadingSize,
         color: _iconColor(variant, colorScheme),
       );
     }
