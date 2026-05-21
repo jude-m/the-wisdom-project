@@ -84,13 +84,13 @@ class _TreeNavigatorWidgetState extends ConsumerState<TreeNavigatorWidget> {
     );
   }
 
-  /// Scrolls to the selected node in the tree.
+  /// Reveals the selected node in the tree.
   /// Uses a retry mechanism to wait for the node to be rendered after expansion.
   void _scrollToSelectedNode(String nodeKey) {
     _attemptScrollToNode(nodeKey, retriesRemaining: 5);
   }
 
-  /// Attempts to scroll to a node, retrying if the node isn't rendered yet.
+  /// Attempts to reveal a node, retrying if the node isn't rendered yet.
   /// This handles the async nature of tree expansion and layout.
   void _attemptScrollToNode(String nodeKey, {required int retriesRemaining}) {
     if (!mounted || retriesRemaining <= 0) return;
@@ -102,11 +102,11 @@ class _TreeNavigatorWidgetState extends ConsumerState<TreeNavigatorWidget> {
       final context = key?.currentContext;
 
       if (context != null) {
-        // Node is rendered, scroll to it
+        // No `duration` → ensureVisible does an instant jumpTo, not an
+        // animateTo. An animated scroll chases the tree's still-settling
+        // layout (post collapse+expand) and visibly bounces.
         Scrollable.ensureVisible(
           context,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
           alignment: 0.2, // Position at 20% from top
         );
       } else {
