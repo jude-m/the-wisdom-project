@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -79,25 +81,20 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
     }
   }
 
-  void _scrollLeft() {
-    final newOffset = (_scrollController.offset - 150).clamp(
-      0.0,
-      _scrollController.position.maxScrollExtent,
-    );
-    _scrollController.animateTo(
-      newOffset,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-    );
-  }
+  // How far a single chevron tap nudges the tab strip.
+  static const double _chevronScrollStep = 150;
 
-  void _scrollRight() {
-    final newOffset = (_scrollController.offset + 150).clamp(
+  void _scrollLeft() => _scrollBy(-_chevronScrollStep);
+  void _scrollRight() => _scrollBy(_chevronScrollStep);
+
+  /// Animates the tab strip by [delta] pixels, clamped to the scroll range.
+  void _scrollBy(double delta) {
+    final target = (_scrollController.offset + delta).clamp(
       0.0,
       _scrollController.position.maxScrollExtent,
     );
     _scrollController.animateTo(
-      newOffset,
+      target,
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
     );
@@ -224,8 +221,8 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
     final viewport = RenderAbstractViewport.of(box);
     final atLeading = viewport.getOffsetToReveal(box, 0.0).offset;
     final atTrailing = viewport.getOffsetToReveal(box, 1.0).offset;
-    final lo = atLeading < atTrailing ? atLeading : atTrailing;
-    final hi = atLeading < atTrailing ? atTrailing : atLeading;
+    final lo = math.min(atLeading, atTrailing);
+    final hi = math.max(atLeading, atTrailing);
 
     // Already fully inside the viewport — stay put.
     if (pos.pixels >= lo - _revealEpsilon &&
@@ -243,7 +240,7 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
     // chevron hidden). A small manual scroll recovers it; not worth the
     // fragile chevron-width padding to correct.
     final edge = pos.pixels < lo ? lo : hi;
-    return edge.clamp(0.0, pos.maxScrollExtent).toDouble();
+    return edge.clamp(0.0, pos.maxScrollExtent);
   }
 
   @override
@@ -377,9 +374,10 @@ class _ScrollChevron extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final isRight = icon == Icons.chevron_right;
     final divider = BorderSide(
-      color: Theme.of(context).dividerColor,
+      color: theme.dividerColor,
       width: 1,
     );
 
@@ -398,7 +396,7 @@ class _ScrollChevron extends StatelessWidget {
           // Own Material so the chevron's hover/press ink is painted and
           // clipped here, instead of bleeding onto a distant ancestor.
           child: Material(
-            color: Theme.of(context).colorScheme.surfaceContainer,
+            color: theme.colorScheme.surfaceContainer,
             child: InkWell(
               onTap: onTap,
               child: Container(
@@ -413,7 +411,7 @@ class _ScrollChevron extends StatelessWidget {
                 child: Icon(
                   icon,
                   size: 20,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ),
@@ -440,10 +438,12 @@ class _TabItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final ci = contentIcon(
       isCommentary: tab.isCommentary,
       isTreatise: tab.isTreatise,
-      colorScheme: Theme.of(context).colorScheme,
+      colorScheme: colors,
     );
     return Material(
       // Per-tab Material so this tab's hover/press ink is painted and
@@ -453,8 +453,8 @@ class _TabItem extends StatelessWidget {
       // zeroed so the active/inactive colour change stays instant, matching
       // the bottom indicator.
       color: isActive
-          ? Theme.of(context).colorScheme.surfaceContainerHighest
-          : Theme.of(context).colorScheme.surfaceContainerLowest,
+          ? colors.surfaceContainerHighest
+          : colors.surfaceContainerLowest,
       animationDuration: Duration.zero,
       child: InkWell(
         onTap: onTap,
@@ -467,12 +467,12 @@ class _TabItem extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(
               right: BorderSide(
-                color: Theme.of(context).dividerColor,
+                color: theme.dividerColor,
                 width: 1,
               ),
               bottom: isActive
                   ? BorderSide(
-                      color: Theme.of(context).colorScheme.primary,
+                      color: colors.primary,
                       width: 2,
                     )
                   : BorderSide.none,
@@ -486,7 +486,7 @@ class _TabItem extends StatelessWidget {
                 size: 18,
                 weight: 600,
                 color: isActive
-                    ? Theme.of(context).colorScheme.onPrimaryContainer
+                    ? colors.onPrimaryContainer
                     : ci.color.withValues(alpha: 0.8),
               ),
               const SizedBox(width: 8),
@@ -521,10 +521,7 @@ class _TabItem extends StatelessWidget {
                   child: Icon(
                     Icons.close,
                     size: 14,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.6),
+                    color: colors.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ),
