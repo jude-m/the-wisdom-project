@@ -39,7 +39,9 @@ void main() {
         find.text('Select a sutta from the tree to begin reading'),
         findsOneWidget,
       );
-      expect(find.byIcon(Icons.menu_book_outlined), findsOneWidget);
+      // The "select a sutta" hint shows the Urna Hair Relic emblem
+      // (Image.asset) as its leading visual, not a Material icon.
+      expect(find.byType(Image), findsOneWidget);
     });
   });
 

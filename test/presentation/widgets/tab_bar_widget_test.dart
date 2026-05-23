@@ -159,6 +159,21 @@ void main() {
   // Scroll Chevron Tests
   // ============================================================
   group('Scroll chevrons', () {
+    // Helper: read the opacity of the AnimatedOpacity that wraps a given
+    // chevron icon. Chevrons are always present in the tree (so the layout
+    // doesn't shift when they appear) — visibility is driven by an
+    // AnimatedOpacity / IgnorePointer pair. So "is the chevron visible?"
+    // means "is its AnimatedOpacity at 1.0?".
+    double chevronOpacity(WidgetTester tester, IconData icon) {
+      final animatedOpacity = tester.widget<AnimatedOpacity>(
+        find.ancestor(
+          of: find.byIcon(icon),
+          matching: find.byType(AnimatedOpacity),
+        ),
+      );
+      return animatedOpacity.opacity;
+    }
+
     testWidgets('should not show chevrons when all tabs fit on screen',
         (tester) async {
       // ARRANGE - Just 2 tabs that will fit
@@ -180,14 +195,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // ASSERT - Neither chevron should be visible (width is 0 when hidden)
-      // The chevron icons exist but are hidden via AnimatedContainer width: 0
-      final leftChevronFinder = find.byIcon(Icons.chevron_left);
-      final rightChevronFinder = find.byIcon(Icons.chevron_right);
-
-      // When hidden, the AnimatedContainer has width 0, so icons won't be found
-      expect(leftChevronFinder, findsNothing);
-      expect(rightChevronFinder, findsNothing);
+      // ASSERT - Both chevrons exist in the tree but are faded out
+      // (opacity 0) because no scrolling is possible.
+      expect(chevronOpacity(tester, Icons.chevron_left), 0.0);
+      expect(chevronOpacity(tester, Icons.chevron_right), 0.0);
     });
 
     testWidgets('should show right chevron when tabs overflow', (tester) async {
@@ -214,9 +225,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // ASSERT - Right chevron should be visible (tabs overflow to the right)
-      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+      expect(chevronOpacity(tester, Icons.chevron_right), 1.0);
       // Left chevron should NOT be visible (we're at the start)
-      expect(find.byIcon(Icons.chevron_left), findsNothing);
+      expect(chevronOpacity(tester, Icons.chevron_left), 0.0);
     });
 
     testWidgets('should show left chevron after scrolling right',
@@ -251,8 +262,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // ASSERT - Left chevron should now be visible
-      expect(find.byIcon(Icons.chevron_left), findsOneWidget);
+      // ASSERT - Left chevron should now be visible (opacity 1.0)
+      expect(chevronOpacity(tester, Icons.chevron_left), 1.0);
     });
 
     testWidgets('should scroll when chevron is tapped', (tester) async {
@@ -281,17 +292,17 @@ void main() {
       // First tab should be visible
       expect(find.text('Tab Number 0'), findsOneWidget);
 
-      // Tap the right chevron multiple times to scroll
+      // Tap the right chevron multiple times to scroll. The icon is always in
+      // the tree; only tap while it's actually visible (opacity 1.0).
       for (var i = 0; i < 5; i++) {
-        final rightChevron = find.byIcon(Icons.chevron_right);
-        if (rightChevron.evaluate().isNotEmpty) {
-          await tester.tap(rightChevron);
+        if (chevronOpacity(tester, Icons.chevron_right) == 1.0) {
+          await tester.tap(find.byIcon(Icons.chevron_right));
           await tester.pumpAndSettle();
         }
       }
 
-      // ASSERT - After scrolling, left chevron should appear
-      expect(find.byIcon(Icons.chevron_left), findsOneWidget);
+      // ASSERT - After scrolling, left chevron should now be visible
+      expect(chevronOpacity(tester, Icons.chevron_left), 1.0);
     });
   });
 
