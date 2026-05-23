@@ -142,6 +142,8 @@ class TreeNodeWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final expandedNodes = ref.watch(expandedNodesProvider);
     final selectedNode = ref.watch(selectedNodeProvider);
     final navigationLanguage = ref.watch(navigationLanguageProvider);
@@ -158,98 +160,99 @@ class TreeNodeWidget extends ConsumerWidget {
       isTreatise: node.isTreatise,
       hasChildren: hasChildren,
       isExpanded: isExpanded,
-      colorScheme: Theme.of(context).colorScheme,
+      colorScheme: colorScheme,
     );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
+        // Material + InkWell wraps the whole row so the M3 hover/focus state
+        // layer paints across the full row width, matching the selected
+        // background's footprint. The chevron's nested GestureDetector uses
+        // HitTestBehavior.opaque so its full 28x28 padded extent absorbs
+        // taps (otherwise the 4-px padding ring would fall through to this
+        // InkWell). animationDuration: zero keeps the selected-background
+        // swap instant so it doesn't drift behind the icon/text colour swap
+        // — same reasoning as _TabItem in tab_bar_widget.dart.
+        Material(
           key: getKeyForNode(node.nodeKey),
-          padding: EdgeInsets.only(
-            left: 16.0 + (level * 20.0),
-            right: 16.0,
-            top: 8.0,
-            bottom: 8.0,
-          ),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? Theme.of(context).colorScheme.surfaceContainer
-                : null,
-            border: Border(
-              bottom: BorderSide(
-                color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
-                width: 0.5,
+          animationDuration: Duration.zero,
+          color: isSelected ? colorScheme.surfaceContainer : Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              ref.read(selectNodeProvider)(node.nodeKey);
+
+              final shouldUseSingleColumn =
+                  ResponsiveUtils.shouldDefaultToSingleColumn(context);
+              ref.read(openTabFromNodeKeyProvider)(
+                node.nodeKey,
+                isPortraitMode: shouldUseSingleColumn,
+              );
+
+              if (shouldUseSingleColumn) {
+                ref.read(navigatorVisibleProvider.notifier).state = false;
+              }
+            },
+            child: Container(
+              padding: EdgeInsets.only(
+                left: 16.0 + (level * 20.0),
+                right: 16.0,
+                top: 8.0,
+                bottom: 8.0,
               ),
-            ),
-          ),
-          child: Row(
-            children: [
-              // Expand/collapse icon - separate tap handler
-              if (hasChildren)
-                GestureDetector(
-                  onTap: () {
-                    // Only toggle expansion, don't create tab
-                    ref.read(toggleNodeExpansionProvider)(node.nodeKey);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(4.0),
-                    child: Icon(
-                      isExpanded ? Icons.expand_more : Icons.chevron_right,
-                      size: 20,
-                    ),
-                  ),
-                )
-              else
-                const SizedBox(width: 28),
-              const SizedBox(width: 8),
-
-              // Node content area - tap to select and create tab
-              Expanded(
-                child: InkWell(
-                  onTap: () {
-                    // Select the node in the tree (for visual highlight)
-                    ref.read(selectNodeProvider)(node.nodeKey);
-
-                    // Open a new tab via centralized provider
-                    final shouldUseSingleColumn =
-                        ResponsiveUtils.shouldDefaultToSingleColumn(context);
-                    ref.read(openTabFromNodeKeyProvider)(
-                      node.nodeKey,
-                      isPortraitMode: shouldUseSingleColumn,
-                    );
-
-                    // Close navigator on mobile portrait so user can see the content
-                    if (shouldUseSingleColumn) {
-                      ref.read(navigatorVisibleProvider.notifier).state = false;
-                    }
-                  },
-                  child: Row(
-                    children: [
-                      Icon(
-                        ci.icon,
-                        size: 20,
-                        weight: 600,
-                        color: isSelected
-                            ? Theme.of(context).colorScheme.onSurface
-                            : ci.color.withValues(alpha: 0.8),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Node name
-                      Expanded(
-                        child: Text(
-                          displayName,
-                          style: isSelected
-                              ? context.typography.treeNodeLabelSelected
-                              : context.typography.treeNodeLabel,
-                        ),
-                      ),
-                    ],
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: theme.dividerColor.withValues(alpha: 0.3),
+                    width: 0.5,
                   ),
                 ),
               ),
-            ],
+              child: Row(
+                children: [
+                  // Expand/collapse icon - own tap handler, absorbs its taps.
+                  if (hasChildren)
+                    GestureDetector(
+                      // opaque so the 4-px padding ring around the icon also
+                      // toggles expansion instead of falling through to the
+                      // row's InkWell.
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        ref.read(toggleNodeExpansionProvider)(node.nodeKey);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Icon(
+                          isExpanded ? Icons.expand_more : Icons.chevron_right,
+                          size: 20,
+                        ),
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 28),
+                  const SizedBox(width: 8),
+
+                  Icon(
+                    ci.icon,
+                    size: 20,
+                    weight: 600,
+                    color: isSelected
+                        ? colorScheme.onSurface
+                        : ci.color.withValues(alpha: 0.8),
+                  ),
+                  const SizedBox(width: 8),
+
+                  Expanded(
+                    child: Text(
+                      displayName,
+                      style: isSelected
+                          ? context.typography.treeNodeLabelSelected
+                          : context.typography.treeNodeLabel,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
 
