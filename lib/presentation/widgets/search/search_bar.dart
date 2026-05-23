@@ -29,17 +29,30 @@ class _SearchBarState extends ConsumerState<SearchBar> {
   final OverlayPortalController _overlayController = OverlayPortalController();
   final LayerLink _layerLink = LayerLink();
 
+  // Provider handles captured once in initState. dispose() detaches through
+  // these instead of `ref`: using `ref` after the ConsumerStatefulElement is
+  // disposed throws "Cannot use ref after the widget was disposed", which
+  // happens whenever the SearchBar is unmounted during widget-tree teardown.
+  // The providers outlive this widget (they live on the ProviderScope), so
+  // holding and using the notifiers directly is safe.
+  late final StateController<FocusNode?> _searchFocusController;
+  late final OverlayStackNotifier _overlayStack;
+
   @override
   void initState() {
     super.initState();
     _focusNode.addListener(_onFocusChange);
+
+    // Capture provider notifiers now, while `ref` is valid.
+    _searchFocusController = ref.read(mainSearchFocusNodeProvider.notifier);
+    _overlayStack = ref.read(overlayStackProvider.notifier);
 
     // Sync controller with initial state if needed, and publish our focus
     // node so OpenMainSearchAction (Ctrl/Cmd+Shift+F) can request focus on
     // this exact node from anywhere in the app.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(mainSearchFocusNodeProvider.notifier).state = _focusNode;
+      _searchFocusController.state = _focusNode;
       final queryText = ref.read(searchStateProvider).rawQueryText;
       if (queryText.isNotEmpty && _controller.text != queryText) {
         _controller.text = queryText;
@@ -53,14 +66,13 @@ class _SearchBarState extends ConsumerState<SearchBar> {
     // late Ctrl/Cmd+Shift+F could call requestFocus on a disposed node.
     // Identity check guards against a freshly-mounted SearchBar already
     // having published a new node while we were still in flight.
-    final current = ref.read(mainSearchFocusNodeProvider);
-    if (identical(current, _focusNode)) {
-      ref.read(mainSearchFocusNodeProvider.notifier).state = null;
+    if (identical(_searchFocusController.state, _focusNode)) {
+      _searchFocusController.state = null;
     }
     // Drop any lingering ESC-stack registration before our state is gone,
     // otherwise DismissTopOverlayAction could invoke _hideOverlay on a
     // disposed _focusNode / _overlayController.
-    ref.read(overlayStackProvider.notifier).remove('recent-searches');
+    _overlayStack.remove('recent-searches');
     _focusNode.removeListener(_onFocusChange);
     _controller.dispose();
     _focusNode.dispose();

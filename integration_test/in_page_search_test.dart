@@ -87,10 +87,27 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 2));
     }
 
-    /// Taps the search icon (Icons.search) in the ReaderActionButtonGroup
-    /// to open the in-page search bar.
-    Future<void> tapSearchIcon(WidgetTester tester) async {
-      await tester.tap(find.byIcon(Icons.search));
+    /// Opens the in-page search bar.
+    ///
+    /// In production this is wired to the [Icons.search] button in
+    /// [ReaderActionButtonGroup], but that button is gated on the reader
+    /// having visible content AND not being scrolled down AND not being past
+    /// the sutta beginning — all wrapped in an [IgnorePointer] /
+    /// [AnimatedOpacity] pair. Under integration-test timing (cold-load,
+    /// content fetched off the bundle, opacity animation) the icon is not
+    /// reliably hit-testable on the first frame after [openTab] settles,
+    /// which made [find.byIcon(Icons.search)] flake with "0 widgets".
+    ///
+    /// The other integration tests (e.g. layout_switch_test) already open
+    /// search by driving the notifier directly. Mirror that pattern — it's
+    /// what `onSearchTap` ultimately calls anyway, so we exercise the same
+    /// state transition without depending on the floating-UI visibility
+    /// chain.
+    Future<void> openSearchBar(
+      WidgetTester tester,
+      ProviderContainer container,
+    ) async {
+      container.read(inPageSearchStatesProvider.notifier).openSearch();
       await tester.pumpAndSettle();
     }
 
@@ -132,7 +149,7 @@ void main() {
         await openTab(tester, container, tab);
 
         // Tap search icon → search bar should appear
-        await tapSearchIcon(tester);
+        await openSearchBar(tester, container);
         expect(find.byType(InPageSearchBar), findsOneWidget,
             reason: 'Search bar should appear after tapping search icon');
 
@@ -185,7 +202,7 @@ void main() {
         final tab = tabFromNode(container, 'dn-1-1');
         await openTab(tester, container, tab);
 
-        await tapSearchIcon(tester);
+        await openSearchBar(tester, container);
         await enterSearchQuery(tester, 'bhikkhu');
 
         final state = readSearchState(container, 0);
@@ -224,7 +241,7 @@ void main() {
         await openTab(tester, container, tabA);
 
         // Search in Tab A
-        await tapSearchIcon(tester);
+        await openSearchBar(tester, container);
         await enterSearchQuery(tester, 'එවං');
 
         final stateA = readSearchState(container, 0);
@@ -236,7 +253,7 @@ void main() {
         await openTab(tester, container, tabB);
 
         // Search in Tab B with a different query
-        await tapSearchIcon(tester);
+        await openSearchBar(tester, container);
         await enterSearchQuery(tester, 'භික්ඛවෙ');
 
         final stateB = readSearchState(container, 1);
@@ -282,7 +299,7 @@ void main() {
         final tab = tabFromNode(container, 'dn-1-1');
         await openTab(tester, container, tab);
 
-        await tapSearchIcon(tester);
+        await openSearchBar(tester, container);
         await enterSearchQuery(tester, 'එවං');
 
         final matchCount = readSearchState(container, 0).matchCount;
@@ -399,7 +416,7 @@ void main() {
         await openTab(tester, container, tab);
 
         // Search and verify matches exist
-        await tapSearchIcon(tester);
+        await openSearchBar(tester, container);
         await enterSearchQuery(tester, 'එවං');
         expect(readSearchState(container, 0).hasMatches, isTrue);
 
@@ -436,7 +453,7 @@ void main() {
         final tab = tabFromNode(container, 'dn-1-1');
         await openTab(tester, container, tab);
 
-        await tapSearchIcon(tester);
+        await openSearchBar(tester, container);
         await enterSearchQuery(tester, 'එවං');
         expect(readSearchState(container, 0).hasMatches, isTrue);
 
@@ -474,7 +491,7 @@ void main() {
         final tabA = tabFromNode(container, 'dn-1-1');
         await openTab(tester, container, tabA);
 
-        await tapSearchIcon(tester);
+        await openSearchBar(tester, container);
         await enterSearchQuery(tester, 'එවං');
         expect(readSearchState(container, 0).hasMatches, isTrue);
 
@@ -519,7 +536,7 @@ void main() {
         final tab = tabFromNode(container, 'dn-1-1');
         await openTab(tester, container, tab);
 
-        await tapSearchIcon(tester);
+        await openSearchBar(tester, container);
         await enterSearchQuery(tester, 'එවං');
         expect(readSearchState(container, 0).hasMatches, isTrue);
 
