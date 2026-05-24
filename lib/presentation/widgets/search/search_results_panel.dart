@@ -465,7 +465,14 @@ class _SearchResultsTabBar extends StatelessWidget {
           ),
         ),
       ),
-      child: Row(
+      // IntrinsicHeight measures the tallest tab first and locks the Row to
+      // that height. Combined with CrossAxisAlignment.stretch below, every
+      // tab cell fills the full height so the 2px selected-indicator butts
+      // flush against the outer 1px divider — no gap on the badge-less
+      // "Top Results" tab.
+      child: IntrinsicHeight(
+        child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: SearchResultType.values.map((resultType) {
           final isSelected = resultType == selectedResultType;
           final count = countByResultType[resultType];
@@ -474,6 +481,7 @@ class _SearchResultsTabBar extends StatelessWidget {
             child: InkWell(
               onTap: () => onResultTypeSelected(resultType),
               child: Container(
+                alignment: Alignment.center,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
                   border: Border(
@@ -515,6 +523,7 @@ class _SearchResultsTabBar extends StatelessWidget {
             ),
           );
         }).toList(),
+        ),
       ),
     );
   }
