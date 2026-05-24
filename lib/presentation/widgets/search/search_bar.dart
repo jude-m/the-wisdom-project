@@ -4,6 +4,7 @@ import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart
 import '../../../core/theme/app_typography.dart';
 import '../../providers/main_search_focus_provider.dart';
 import '../../providers/overlay_stack_provider.dart';
+import '../../providers/reader_scroll_provider.dart';
 import '../../providers/search_provider.dart';
 import '../common/circular_toggle_button.dart';
 import 'proximity_dialog.dart';
@@ -80,6 +81,9 @@ class _SearchBarState extends ConsumerState<SearchBar> {
   }
 
   void _onFocusChange() async {
+    // Rebuild so fill + focus outline track focus, not just typed text.
+    if (mounted) setState(() {});
+
     if (_focusNode.hasFocus) {
       // Load recent searches
       await ref.read(searchStateProvider.notifier).onFocus();
@@ -144,8 +148,12 @@ class _SearchBarState extends ConsumerState<SearchBar> {
     );
 
     // Watch if results panel is visible (query is not empty)
+    // When query has any text, the results panel is shown instead
     final isResultsPanelVisible =
         ref.watch(searchStateProvider.select((s) => s.isResultsPanelVisible));
+
+    // Same scroll signal the AppBar uses, so the pill's fill stays aligned.
+    final scrolledUnder = ref.watch(readerScrolledUnderProvider);
 
     // Watch exact match state for toggle button
     final isExactMatch =
@@ -230,10 +238,21 @@ class _SearchBarState extends ConsumerState<SearchBar> {
           height: 40,
           child: Container(
             decoration: BoxDecoration(
-              color: isResultsPanelVisible
+              // Tri-state fill: idle / scrolled (merges with AppBar) / focused.
+              color: _focusNode.hasFocus
                   ? theme.colorScheme.surfaceContainerHighest
-                  : theme.colorScheme.surfaceContainerHigh,
+                  : (scrolledUnder
+                    ? theme.colorScheme.surfaceContainer
+                    : theme.colorScheme.surfaceContainerHigh),
               borderRadius: BorderRadius.circular(20),
+              // Always 1px (transparent when unfocused) so focus change
+              // doesn't reflow inner content by the stroke width.
+              border: Border.all(
+                color: _focusNode.hasFocus
+                    ? theme.colorScheme.primary
+                    : Colors.transparent,
+                width: 1,
+              ),
             ),
             child: TextField(
               controller: _controller,
@@ -281,10 +300,6 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                         height: 30,
                         width: 30,
                         margin: const EdgeInsets.only(left: 4, right: 4),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          shape: BoxShape.circle,
-                        ),
                         child: IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
