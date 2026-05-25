@@ -94,7 +94,8 @@ class RecentSearchOverlay extends ConsumerWidget {
                 size: 20,
                 color: theme.colorScheme.onSurfaceVariant,
               ),
-              title: Text(search.queryText, style: theme.textTheme.bodyMedium),
+              title: Text(search.queryText,
+                  style: context.typography.listRowTitle),
               trailing: GestureDetector(
                 onTap: () {
                   ref
@@ -147,7 +148,7 @@ class RecentSearchOverlay extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Text(
                   'Clear All',
-                  style: theme.textTheme.bodySmall?.copyWith(
+                  style: context.typography.actionLabel.copyWith(
                     color: theme.colorScheme.primary,
                   ),
                 ),

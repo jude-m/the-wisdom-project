@@ -117,7 +117,7 @@ class _ThemeSelector extends ConsumerWidget {
 /// slider UI remains stable while the user adjusts the scale.
 class _FontSizeSelector extends ConsumerWidget {
   /// Number of discrete steps between min and max (0.05 increments)
-  static const int _scaleDivisions = 12;
+  static const int _scaleDivisions = 16;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

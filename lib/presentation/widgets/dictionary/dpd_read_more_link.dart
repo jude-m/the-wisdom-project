@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/localization/l10n/app_localizations.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/url_launcher_utils.dart';
 
 /// Tappable "Read more" link for DPD dictionary entries.
@@ -33,7 +34,8 @@ class DpdReadMoreLink extends StatelessWidget {
 
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
-    final effectiveStyle = (baseStyle ?? theme.textTheme.bodyMedium)?.copyWith(
+    final effectiveStyle =
+        (baseStyle ?? context.typography.definitionBody).copyWith(
       color: theme.colorScheme.primary,
       decoration: TextDecoration.underline,
       decorationColor: theme.colorScheme.primary,

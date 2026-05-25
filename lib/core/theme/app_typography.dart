@@ -51,6 +51,33 @@ class AppTypography extends ThemeExtension<AppTypography> {
   /// Style for base search highlight text
   final TextStyle resultMatchedText;
 
+  /// Style for the primary text of a row in a compact list/dropdown
+  /// (e.g. recent searches). Smaller and lighter than [resultTitle], which
+  /// is reserved for prominent search-result tiles.
+  final TextStyle listRowTitle;
+
+  // ============================================
+  // Actions
+  // ============================================
+
+  /// Style for the text label of an action button shown next to an icon
+  /// (e.g. reader toolbar: Bookmark, Share). Color is left to the call site
+  /// since it usually wants the theme's primary color.
+  final TextStyle actionLabel;
+
+  /// Style for small inline clickable text links / affordances
+  /// (e.g. "View N more", "Show Less" inside grouped result rows).
+  final TextStyle linkLabel;
+
+  // ============================================
+  // Reading Content (scaled by font slider)
+  // ============================================
+
+  /// Style for dictionary definition/meaning body text.
+  /// Used inside the dictionary bottom sheet and any other place that
+  /// renders longer-form definition prose. Scales with the font slider.
+  final TextStyle definitionBody;
+
   // ============================================
   // Navigation
   // ============================================
@@ -113,6 +140,10 @@ class AppTypography extends ThemeExtension<AppTypography> {
     required this.resultTitle,
     required this.resultSubtitle,
     required this.resultMatchedText,
+    required this.listRowTitle,
+    required this.actionLabel,
+    required this.linkLabel,
+    required this.definitionBody,
     required this.tabLabelActive,
     required this.tabLabelInactive,
     required this.treeNodeLabel,
@@ -201,6 +232,47 @@ class AppTypography extends ThemeExtension<AppTypography> {
         height: AppFonts.uiLineHeight,
       ),
       resultMatchedText: TextStyle(
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
+        fontSize: scaledFonts.tree,
+        fontWeight: AppFonts.bodyWeight,
+        color: colorScheme.onSurface,
+        height: AppFonts.uiLineHeight,
+      ),
+      listRowTitle: TextStyle(
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
+        fontSize: scaledFonts.tree,
+        fontWeight: AppFonts.bodyWeight,
+        color: colorScheme.onSurface,
+        height: AppFonts.uiLineHeight,
+      ),
+
+      // Actions — clickable affordances (button labels, inline links).
+      // Color is intentionally left at onSurface; call sites that want the
+      // primary color (selected state, highlighted action) apply .copyWith.
+      actionLabel: TextStyle(
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
+        fontSize: scaledFonts.label,
+        fontWeight: FontWeight.w500,
+        color: colorScheme.onSurface,
+        height: AppFonts.uiLineHeight,
+      ),
+      linkLabel: TextStyle(
+        fontFamily: AppFonts.ui,
+        fontFamilyFallback: AppFonts.uiFallback,
+        fontSize: scaledFonts.badge,
+        fontWeight: FontWeight.w500,
+        color: colorScheme.onSurfaceVariant,
+        height: AppFonts.uiLineHeight,
+      ),
+
+      // Reading Content — dictionary definitions, prose blocks.
+      // Sized to match Material's bodyMedium (14sp) at scale=1.0 so existing
+      // layouts don't shift, but driven by `scaledFonts.tree` so the font
+      // slider takes effect.
+      definitionBody: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
         fontSize: scaledFonts.tree,
@@ -325,6 +397,10 @@ class AppTypography extends ThemeExtension<AppTypography> {
     TextStyle? resultTitle,
     TextStyle? resultSubtitle,
     TextStyle? resultMatchedText,
+    TextStyle? listRowTitle,
+    TextStyle? actionLabel,
+    TextStyle? linkLabel,
+    TextStyle? definitionBody,
     TextStyle? tabLabelActive,
     TextStyle? tabLabelInactive,
     TextStyle? treeNodeLabel,
@@ -347,6 +423,10 @@ class AppTypography extends ThemeExtension<AppTypography> {
       resultTitle: resultTitle ?? this.resultTitle,
       resultSubtitle: resultSubtitle ?? this.resultSubtitle,
       resultMatchedText: resultMatchedText ?? this.resultMatchedText,
+      listRowTitle: listRowTitle ?? this.listRowTitle,
+      actionLabel: actionLabel ?? this.actionLabel,
+      linkLabel: linkLabel ?? this.linkLabel,
+      definitionBody: definitionBody ?? this.definitionBody,
       tabLabelActive: tabLabelActive ?? this.tabLabelActive,
       tabLabelInactive: tabLabelInactive ?? this.tabLabelInactive,
       treeNodeLabel: treeNodeLabel ?? this.treeNodeLabel,
@@ -381,6 +461,10 @@ class AppTypography extends ThemeExtension<AppTypography> {
       resultSubtitle: TextStyle.lerp(resultSubtitle, other.resultSubtitle, t)!,
       resultMatchedText:
           TextStyle.lerp(resultMatchedText, other.resultMatchedText, t)!,
+      listRowTitle: TextStyle.lerp(listRowTitle, other.listRowTitle, t)!,
+      actionLabel: TextStyle.lerp(actionLabel, other.actionLabel, t)!,
+      linkLabel: TextStyle.lerp(linkLabel, other.linkLabel, t)!,
+      definitionBody: TextStyle.lerp(definitionBody, other.definitionBody, t)!,
       tabLabelActive: TextStyle.lerp(tabLabelActive, other.tabLabelActive, t)!,
       tabLabelInactive:
           TextStyle.lerp(tabLabelInactive, other.tabLabelInactive, t)!,

@@ -148,9 +148,7 @@ class GroupedFTSTile extends ConsumerWidget {
               isExpanded
                   ? 'Show Less'
                   : 'View ${group.secondaryMatchCount} more',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: context.typography.linkLabel,
             ),
             const SizedBox(width: 4),
             Icon(

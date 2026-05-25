@@ -7,7 +7,8 @@ import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/grouped_search_result.dart';
 import '../../../domain/entities/search/search_result_type.dart';
 import '../../../domain/entities/search/search_result.dart';
-import '../../providers/dictionary_provider.dart' show selectedDictionaryWordProvider;
+import '../../providers/dictionary_provider.dart'
+    show selectedDictionaryWordProvider;
 import '../../providers/search_provider.dart';
 import '../common/status_message_view.dart';
 import '../dictionary/dictionary_filter_chips.dart';
@@ -50,7 +51,9 @@ class SearchResultsPanel extends ConsumerWidget {
             selectedResultType: searchState.selectedResultType,
             countByResultType: searchState.countByResultType,
             onResultTypeSelected: (renameType) {
-              ref.read(searchStateProvider.notifier).selectResultType(renameType);
+              ref
+                  .read(searchStateProvider.notifier)
+                  .selectResultType(renameType);
             },
           ),
           // Results list - different view for "All" tab vs specific category
@@ -127,7 +130,8 @@ class SearchResultsPanel extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Section header
-                      _sectionHeader(context, resultType.displayName.toUpperCase()),
+                      _sectionHeader(
+                          context, resultType.displayName.toUpperCase()),
                       // Use appropriate tile type for each result type
                       if (resultType == SearchResultType.fullText)
                         ..._buildGroupedFTSResults(
@@ -141,7 +145,8 @@ class SearchResultsPanel extends ConsumerWidget {
                             .getResultsByType(resultType)
                             .map((result) => DictionarySearchResultTile(
                                   result: result,
-                                  onTap: () => _showDictionaryBottomSheet(ref, result),
+                                  onTap: () =>
+                                      _showDictionaryBottomSheet(ref, result),
                                 ))
                       else
                         ...categorizedResults
@@ -246,8 +251,9 @@ class SearchResultsPanel extends ConsumerWidget {
           final groupedResults = GroupedFTSMatch.fromSearchResults(results);
           return ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount:
-                hasMoreResults ? groupedResults.length + 1 : groupedResults.length,
+            itemCount: hasMoreResults
+                ? groupedResults.length + 1
+                : groupedResults.length,
             separatorBuilder: (context, index) => Divider(
               height: 1,
               indent: 72,
@@ -256,7 +262,7 @@ class SearchResultsPanel extends ConsumerWidget {
             itemBuilder: (context, index) {
               // Render footer as the last item when results are truncated
               if (hasMoreResults && index == groupedResults.length) {
-                return _footer(theme, results.length, totalCount);
+                return _footer(context, results.length, totalCount);
               }
 
               return GroupedFTSTile(
@@ -283,7 +289,7 @@ class SearchResultsPanel extends ConsumerWidget {
             ),
             itemBuilder: (context, index) {
               if (hasMoreResults && index == results.length) {
-                return _footer(theme, results.length, totalCount);
+                return _footer(context, results.length, totalCount);
               }
 
               return DictionarySearchResultTile(
@@ -307,7 +313,7 @@ class SearchResultsPanel extends ConsumerWidget {
           itemBuilder: (context, index) {
             // Render footer as the last item when results are truncated
             if (hasMoreResults && index == results.length) {
-              return _footer(theme, results.length, totalCount);
+              return _footer(context, results.length, totalCount);
             }
 
             return _SearchResultTile(
@@ -327,7 +333,8 @@ class SearchResultsPanel extends ConsumerWidget {
   ///
   /// Displayed at the bottom of the results list when [totalCount] > [displayedCount].
   /// Shows "Viewing X out of Y results" with decorative dividers on each side.
-  Widget _footer(ThemeData theme, int displayedCount, int totalCount) {
+  Widget _footer(BuildContext context, int displayedCount, int totalCount) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       child: Row(
@@ -342,9 +349,7 @@ class SearchResultsPanel extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               'Viewing $displayedCount out of $totalCount results',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: context.typography.resultSubtitle,
             ),
           ),
           Expanded(
@@ -368,7 +373,6 @@ class SearchResultsPanel extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 /// Header for the search results panel
@@ -472,57 +476,59 @@ class _SearchResultsTabBar extends StatelessWidget {
       // "Top Results" tab.
       child: IntrinsicHeight(
         child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: SearchResultType.values.map((resultType) {
-          final isSelected = resultType == selectedResultType;
-          final count = countByResultType[resultType];
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: SearchResultType.values.map((resultType) {
+            final isSelected = resultType == selectedResultType;
+            final count = countByResultType[resultType];
 
-          return Expanded(
-            child: InkWell(
-              onTap: () => onResultTypeSelected(resultType),
-              child: Container(
-                alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      color: isSelected
-                          ? theme.colorScheme.primary
-                          : Colors.transparent,
-                      width: 2,
+            return Expanded(
+              child: InkWell(
+                onTap: () => onResultTypeSelected(resultType),
+                child: Container(
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isSelected
+                            ? theme.colorScheme.primary
+                            : Colors.transparent,
+                        width: 2,
+                      ),
                     ),
                   ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        resultType.displayName,
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurfaceVariant,
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.w400,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          resultType.displayName,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          style: (isSelected
+                                  ? context.typography.tabLabelActive
+                                  : context.typography.tabLabelInactive)
+                              .copyWith(
+                            color: isSelected
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
-                    ),
-                    // Show badge for non-"Top Results" tabs when count is available
-                    if (resultType != SearchResultType.topResults && count != null)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 6),
-                        child: _CountBadge(count: count),
-                      ),
-                  ],
+                      // Show badge for non-"Top Results" tabs when count is available
+                      if (resultType != SearchResultType.topResults &&
+                          count != null)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: _CountBadge(count: count),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
         ),
       ),
     );

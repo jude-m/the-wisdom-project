@@ -150,9 +150,7 @@ class StatusMessageView extends StatelessWidget {
             ? typography.errorMessage
             : typography.emptyStateMessage;
 
-    final TextStyle? descriptionStyle = theme.textTheme.bodySmall?.copyWith(
-      color: colorScheme.onSurfaceVariant,
-    );
+    final TextStyle descriptionStyle = typography.resultSubtitle;
 
     return Center(
       child: Padding(

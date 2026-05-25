@@ -116,7 +116,7 @@ abstract class AppFonts {
   static const double labelFontSize = 12.0;
 
   /// Font size for tabs and secondary UI elements
-  static const double tabFontSize = 13.0;
+  static const double tabFontSize = 14.0;
 
   /// Font size for tree nodes and primary UI text
   static const double treeFontSize = 14.0;

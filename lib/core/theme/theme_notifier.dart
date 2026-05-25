@@ -78,9 +78,9 @@ final fontScaleProvider =
 class FontScaleNotifier extends StateNotifier<double> {
   static const String _storageKey = 'font_scale';
 
-  /// Valid scale range (0.7x – 1.3x)
+  /// Valid scale range (0.7x – 1.5x)
   static const double minScale = 0.7;
-  static const double maxScale = 1.3;
+  static const double maxScale = 1.5;
 
   static const double _platformDefault =
       kIsWeb ? AppFonts.webDefaultScale : 1.0;

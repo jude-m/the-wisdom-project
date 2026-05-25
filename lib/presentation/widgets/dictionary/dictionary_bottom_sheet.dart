@@ -478,7 +478,7 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
       if (hasMore)
         SliverToBoxAdapter(
           child: _buildResultsFooter(
-            Theme.of(context),
+            context,
             entries.length,
             totalCount,
           ),
@@ -487,7 +487,8 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
   }
 
   /// Footer showing "Viewing X out of Y results" with decorative dividers.
-  Widget _buildResultsFooter(ThemeData theme, int displayed, int total) {
+  Widget _buildResultsFooter(BuildContext context, int displayed, int total) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       child: Row(
@@ -502,9 +503,7 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               'Viewing $displayed out of $total results',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: context.typography.resultSubtitle,
             ),
           ),
           Expanded(
@@ -624,7 +623,7 @@ class _DictionaryEntryTile extends StatelessWidget {
               TextSpan(
                 children: _parseHtmlToTextSpans(entry.meaning, theme),
               ),
-              style: theme.textTheme.bodyMedium,
+              style: typography.definitionBody,
             ),
           ),
           // "Read more" link rendered outside SelectionArea so tap gestures

@@ -449,9 +449,9 @@ class _FabActionItem extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 label,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: colorScheme.primary,
-                    ),
+                style: context.typography.actionLabel.copyWith(
+                  color: colorScheme.primary,
+                ),
               ),
             ],
           ),
