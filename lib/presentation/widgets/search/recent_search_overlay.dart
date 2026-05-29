@@ -125,7 +125,6 @@ class RecentSearchOverlay extends ConsumerWidget {
   }
 
   Widget _sectionHeader(BuildContext context, WidgetRef ref, String title) {
-    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(
@@ -137,25 +136,57 @@ class RecentSearchOverlay extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(4),
-              onTap: () {
-                ref.read(searchStateProvider.notifier).clearRecentSearches();
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Text(
-                  'Clear All',
-                  style: context.typography.actionLabel.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ),
-            ),
+          _ClearAllButton(
+            onTap: () {
+              ref.read(searchStateProvider.notifier).clearRecentSearches();
+            },
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// "Clear All" action in the recent-searches header.
+///
+/// Idle: muted `linkLabel` color (onSurfaceVariant) — reads as quiet helper text.
+/// Hover: pill-shaped highlight + label recolored to `primary` so it reads
+/// as an actionable affordance.
+class _ClearAllButton extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const _ClearAllButton({required this.onTap});
+
+  @override
+  State<_ClearAllButton> createState() => _ClearAllButtonState();
+}
+
+class _ClearAllButtonState extends State<_ClearAllButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final baseStyle = context.typography.linkLabel;
+    // Large radius makes the InkWell's hover overlay + splash clip to a
+    // stadium (pill) shape instead of the default rectangle.
+    final pillRadius = BorderRadius.circular(100);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: pillRadius,
+        onHover: (h) => setState(() => _hovered = h),
+        onTap: widget.onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Text(
+            'Clear All',
+            style: _hovered
+                ? baseStyle.copyWith(color: theme.colorScheme.primary)
+                : baseStyle,
+          ),
+        ),
       ),
     );
   }

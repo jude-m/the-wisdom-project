@@ -143,11 +143,11 @@ class _ScopeChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(100),
           color: isSelected
               ? theme.colorScheme.secondary
-              : theme.colorScheme.surfaceContainer,
+              : theme.colorScheme.surfaceContainerLow,
           border: Border.all(
             color: isSelected
                 ? theme.colorScheme.secondary
-                : theme.colorScheme.outline.withValues(alpha: 0.5),
+                : theme.colorScheme.outline,
             width: 1,
           ),
         ),
@@ -190,11 +190,11 @@ class _RefineChip extends StatelessWidget {
           // Outline style to distinguish from scope chips
           color: hasActiveFilters
               ? theme.colorScheme.primaryContainer
-              : theme.colorScheme.surfaceContainerHigh,
+              : theme.colorScheme.surfaceContainerLowest,
           border: Border.all(
             color: hasActiveFilters
                 ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withValues(alpha: 0.5),
+                : theme.colorScheme.outline,
             width: 1,
           ),
         ),

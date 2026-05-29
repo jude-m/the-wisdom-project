@@ -76,7 +76,7 @@ class AppTheme {
       colorScheme: colorScheme,
 
       textSelectionTheme: const TextSelectionThemeData(
-        selectionColor: LightThemeColors.primaryContainer,
+        selectionColor: LightThemeColors.highlight,
         selectionHandleColor: LightThemeColors.primary,
       ),
 

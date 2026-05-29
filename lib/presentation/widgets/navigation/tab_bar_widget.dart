@@ -486,7 +486,7 @@ class _TabItem extends StatelessWidget {
                 size: 18,
                 weight: 600,
                 color: isActive
-                    ? colors.onPrimaryContainer
+                    ? colors.onSurface
                     : ci.color.withValues(alpha: 0.8),
               ),
               const SizedBox(width: 8),

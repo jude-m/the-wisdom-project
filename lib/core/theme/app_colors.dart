@@ -33,7 +33,7 @@ class LightThemeColors {
   static const primary = Color(0xFF5A3A18); // Warm cinnamon brown (interactive)
   static const onPrimary = Color(0xFFFFFFFF); // White
   //static const primaryContainer = Color(0xFFFAEBD7); // Light antique peach
-  static const primaryContainer = Color(0xFFFFD36A);
+  static const primaryContainer = Color(0xFFBAC095); // Olive green
   static const onPrimaryContainer = Color(0xFF2A2318); // Dark brown (= heading)
 
   // ============================================
@@ -49,8 +49,8 @@ class LightThemeColors {
   // ============================================
   static const tertiary = Color(0xFFADEBB3); // Mint green (match highlight)
   static const onTertiary = Color(0xFF2A2318); // Dark brown (= heading)
-  static const tertiaryContainer = Color(0xFFFFDBBB); // Light orange
-  static const onTertiaryContainer = Color(0xFF2F3E28); // Dark green
+  static const tertiaryContainer = Color(0xFFD3D3FF); // Lavender. Old - Light orange FFDBBB
+  static const onTertiaryContainer = Color(0xFF26282F); // Cool Charcoal
 
   // ============================================
   // Error group
@@ -83,6 +83,7 @@ class LightThemeColors {
   // Custom (not M3 roles — app-specific)
   // ============================================
   static const heading = Color(0xFF2A2318); // Dark brown (reader headings only)
+  static const highlight = Color(0xFFFFE680); // Soft amber (text highlight on parchment)
 }
 
 /// Color palette for Dark theme

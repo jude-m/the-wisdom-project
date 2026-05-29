@@ -54,7 +54,7 @@ class _CardBody extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
 
     return Material(
-      color: colors.tertiary,
+      color: colors.primaryContainer,
       elevation: 6,
       // App-palette warm brown tints the drop-shadow with the same hue
       // as the rest of the chrome instead of a flat black bruise.
@@ -72,7 +72,7 @@ class _CardBody extends StatelessWidget {
               children: [
                 Icon(
                   Icons.system_update_alt,
-                  color: colors.onTertiary,
+                  color: colors.onPrimaryContainer,
                   size: 20,
                 ),
                 const SizedBox(width: 10),
@@ -82,7 +82,7 @@ class _CardBody extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleSmall?.copyWith(
-                      color: colors.onTertiary,
+                      color: colors.onPrimaryContainer,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -104,7 +104,7 @@ class _CardBody extends StatelessWidget {
                       height: 48,
                       child: Icon(
                         Icons.close,
-                        color: colors.onTertiary,
+                        color: colors.onPrimaryContainer,
                         size: 18,
                       ),
                     ),
@@ -128,7 +128,7 @@ class _CardBody extends StatelessWidget {
                       Text(
                         '${i + 1}. ${info.notes[i]}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: colors.onTertiary,
+                          color: colors.onPrimaryContainer,
                           height: 1.35,
                         ),
                       ),
@@ -147,8 +147,8 @@ class _CardBody extends StatelessWidget {
               children: [
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.onTertiary,
-                    foregroundColor: colors.tertiary,
+                    backgroundColor: colors.onPrimaryContainer,
+                    foregroundColor: colors.primaryContainer,
                     elevation: 3,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
