@@ -29,10 +29,7 @@ class SettingsMenuButton extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                l10n.theme,
-                style: context.typography.menuSectionLabel,
-              ),
+              _MenuSectionLabel((l10n) => l10n.theme),
               const SizedBox(height: 8),
               _ThemeSelector(),
             ],
@@ -47,10 +44,7 @@ class SettingsMenuButton extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                l10n.fontSize,
-                style: context.typography.menuSectionLabel,
-              ),
+              _MenuSectionLabel((l10n) => l10n.fontSize),
               const SizedBox(height: 4),
               _FontSizeSelector(),
             ],
@@ -65,10 +59,7 @@ class SettingsMenuButton extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                l10n.appLanguage,
-                style: context.typography.menuSectionLabel,
-              ),
+              _MenuSectionLabel((l10n) => l10n.appLanguage),
               const SizedBox(height: 8),
               _AppLanguageSelector(),
             ],
@@ -85,16 +76,42 @@ class SettingsMenuButton extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                l10n.contentLanguage,
-                style: context.typography.menuSectionLabel,
-              ),
+              _MenuSectionLabel((l10n) => l10n.contentLanguage),
               const SizedBox(height: 8),
               _ContentLanguageSelector(),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A localized section header inside the settings popup menu.
+///
+/// Why this is its own widget: the settings menu is a [PopupMenuButton], whose
+/// `itemBuilder` runs only ONCE — when the menu opens. A plain `Text(l10n.xxx)`
+/// built there would freeze at whatever App Language was active at open-time, so
+/// switching the language with the menu open left stale headers until you closed
+/// and reopened it.
+///
+/// Resolving [AppLocalizations.of] inside this widget's own `build` registers a
+/// dependency on the [Localizations] ancestor. The open menu lives in the
+/// navigator overlay (below that ancestor), so when the App Language changes —
+/// which rebuilds the MaterialApp's [Localizations] — this header rebuilds with
+/// it and the label switches live.
+class _MenuSectionLabel extends StatelessWidget {
+  const _MenuSectionLabel(this.selector);
+
+  /// Picks the string to show, e.g. `(l10n) => l10n.theme`.
+  final String Function(AppLocalizations l10n) selector;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Text(
+      selector(l10n),
+      style: context.typography.menuSectionLabel,
     );
   }
 }
