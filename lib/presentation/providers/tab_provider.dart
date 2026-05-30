@@ -8,6 +8,7 @@ import '../../core/storage/storage_keys.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../models/reader_layout.dart';
 import '../models/reader_tab.dart';
+import 'last_reader_layout_provider.dart';
 import 'navigation_tree_provider.dart';
 import 'navigator_sync_provider.dart';
 
@@ -314,6 +315,10 @@ final updateActiveTabLayoutProvider =
       final updatedTab = tabs[activeIndex].copyWith(layout: layout);
       ref.read(tabsProvider.notifier).updateTab(activeIndex, updatedTab);
     }
+    // Remember this choice (per device) so newly opened tabs seed their
+    // layout from it. This is the single chokepoint both the layout pill and
+    // the FAB selector call, so persisting here covers both entry points.
+    ref.read(lastReaderLayoutProvider.notifier).set(layout);
   };
 });
 
@@ -375,17 +380,11 @@ final switchTabProvider = Provider<void Function(int)>((ref) {
 final openTabFromSearchResultProvider =
     Provider<void Function(SearchResult, {bool isPortraitMode})>((ref) {
   return (SearchResult result, {bool isPortraitMode = false}) {
-    // Determine layout based on result language
-    // In portrait mode: show the language matching the search result
-    // In landscape mode: show side by side
-    final ReaderLayout layout;
-    if (isPortraitMode) {
-      layout = result.language == 'sinhala'
-          ? ReaderLayout.sinhalaOnly
-          : ReaderLayout.paliOnly;
-    } else {
-      layout = ReaderLayout.sideBySide;
-    }
+    // Seed the new tab's layout from the user's last selection, falling back to
+    // the orientation default (see [resolveSeedLayout]). We no longer pick a
+    // single-language mode based on result.language — both orientation defaults
+    // show the matched language alongside its translation.
+    final layout = resolveSeedLayout(ref, isPortraitMode: isPortraitMode);
 
     // Snap entryStart to sutta beginning if the FTS match is near the start.
     // This prevents showing a misleading "Scroll to beginning" button when
@@ -444,9 +443,9 @@ final openTabFromNodeKeyProvider =
     final node = ref.read(nodeByKeyProvider(nodeKey));
     if (node == null) return -1;
 
-    final layout = isPortraitMode
-        ? ReaderLayout.paliOnly
-        : ReaderLayout.sideBySide;
+    // Seed from the user's last layout choice, falling back to the orientation
+    // default (see [resolveSeedLayout]).
+    final layout = resolveSeedLayout(ref, isPortraitMode: isPortraitMode);
 
     final newTab = ReaderTab.fromNode(
       nodeKey: node.nodeKey,

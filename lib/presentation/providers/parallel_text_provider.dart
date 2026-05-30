@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/constants.dart';
 import '../models/reader_tab.dart';
+import 'last_reader_layout_provider.dart';
 import 'navigation_tree_provider.dart';
 import 'navigator_sync_provider.dart';
 import 'tab_provider.dart';
@@ -38,12 +39,22 @@ final parallelTextNodeProvider = Provider.autoDispose((ref) {
 
 /// Action provider to open the parallel text in a new tab.
 /// Creates a new tab from the target node and makes it active.
-final openParallelTextProvider = Provider<void Function()>((ref) {
-  return () {
+///
+/// Callers pass [isPortraitMode] (derived from BuildContext) since providers
+/// can't access context — used only as the fallback when the user has no saved
+/// layout preference yet.
+final openParallelTextProvider =
+    Provider<void Function({bool isPortraitMode})>((ref) {
+  return ({bool isPortraitMode = false}) {
     final targetNode = ref.read(parallelTextNodeProvider);
     if (targetNode == null) {
       return;
     }
+
+    // Seed the new tab's layout from the user's last selection, falling back to
+    // the orientation default. Shared with the tree/breadcrumb/search paths via
+    // the single [resolveSeedLayout] helper.
+    final layout = resolveSeedLayout(ref, isPortraitMode: isPortraitMode);
 
     // Create a new tab from the target node
     final newTab = ReaderTab.fromNode(
@@ -53,6 +64,7 @@ final openParallelTextProvider = Provider<void Function()>((ref) {
       contentFileId: targetNode.contentFileId,
       pageIndex: targetNode.entryPageIndex,
       entryStart: targetNode.entryIndexInPage,
+      layout: layout,
     );
 
     // Add tab and make it active

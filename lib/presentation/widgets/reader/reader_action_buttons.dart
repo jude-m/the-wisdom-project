@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/responsive_utils.dart';
 import '../../models/reader_layout.dart';
 import '../../providers/parallel_text_provider.dart';
 import '../../utils/content_icons.dart';
@@ -51,7 +52,10 @@ class ReaderActionButtonGroup extends ConsumerWidget {
                   colorScheme: colorScheme,
                 ).icon,
                 tooltip: isCommentary ? l10n.rootText : l10n.commentary,
-                onTap: () => ref.read(openParallelTextProvider)(),
+                onTap: () => ref.read(openParallelTextProvider)(
+                  isPortraitMode:
+                      ResponsiveUtils.shouldDefaultToSingleColumn(context),
+                ),
               ),
             // In-page search
             _ActionIconButton(
@@ -205,7 +209,10 @@ class _ReaderExpandableFabState extends ConsumerState<ReaderExpandableFab> {
                               isCommentary ? l10n.rootText : l10n.commentary,
                           onTap: () {
                             _collapse();
-                            ref.read(openParallelTextProvider)();
+                            ref.read(openParallelTextProvider)(
+                              isPortraitMode: ResponsiveUtils
+                                  .shouldDefaultToSingleColumn(context),
+                            );
                           },
                         ),
                         const SizedBox(height: 8),

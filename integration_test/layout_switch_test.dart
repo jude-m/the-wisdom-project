@@ -9,6 +9,7 @@ import 'package:the_wisdom_project/presentation/models/reader_layout.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/in_page_search_provider.dart';
+import 'package:the_wisdom_project/presentation/providers/last_reader_layout_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/reader/multi_pane_reader_widget.dart';
@@ -602,6 +603,113 @@ void main() {
               'A small delta means _ensureMatchVisibleWithRetry gave up '
               'before pushing ListView to build the match\'s page — '
               'the case (b) bug.',
+        );
+      },
+    );
+
+    // ---------------------------------------------------------------
+    // Test: the last-used layout is persisted and seeds newly created
+    // tabs, while existing tabs keep their own per-tab layout.
+    //
+    // Covers the feature in `last_reader_layout_provider.dart`: changing
+    // a tab's layout records it as the global "last used" value, and the
+    // tab-creation providers seed new tabs from it (falling back to the
+    // orientation default only when nothing is saved).
+    //
+    // We drive a single creation path — `openTabFromNodeKeyProvider` —
+    // since the tree, breadcrumb, search, and commentary/root-text paths
+    // all read the same `lastReaderLayoutProvider` seed. The chosen
+    // layout (sinhalaOnly) is deliberately NOT the default for either
+    // orientation (portrait → stacked, landscape → sideBySide), so a new
+    // tab landing on it proves the saved value drove the choice rather
+    // than the orientation heuristic.
+    // ---------------------------------------------------------------
+    testWidgets(
+      'last-used layout seeds new tabs; existing tabs keep their own',
+      (tester) async {
+        final container = await pumpReaderApp(tester);
+
+        // Nothing chosen yet → nothing persisted.
+        expect(
+          container.read(lastReaderLayoutProvider),
+          isNull,
+          reason: 'No layout has been selected yet',
+        );
+
+        // 1. First tab via the real creator with nothing saved → falls
+        //    back to the landscape orientation default (sideBySide).
+        final idxA =
+            container.read(openTabFromNodeKeyProvider)('dn-1-1');
+        await tester.pumpAndSettle(const Duration(seconds: 2));
+        expect(idxA, isNonNegative, reason: 'dn-1-1 should open');
+        expect(
+          container.read(tabsProvider)[idxA].layout,
+          ReaderLayout.sideBySide,
+          reason: 'With nothing saved, a landscape tab seeds to sideBySide',
+        );
+
+        // 2. User changes the layout → must update BOTH the active tab and
+        //    the global last-used value.
+        container.read(updateActiveTabLayoutProvider)(ReaderLayout.sinhalaOnly);
+        await tester.pumpAndSettle(const Duration(seconds: 1));
+        expect(
+          container.read(tabsProvider)[idxA].layout,
+          ReaderLayout.sinhalaOnly,
+          reason: 'Changing layout updates the active tab',
+        );
+        expect(
+          container.read(lastReaderLayoutProvider),
+          ReaderLayout.sinhalaOnly,
+          reason: 'Changing layout also records the last-used layout',
+        );
+
+        // 3. New tabs now seed from the saved layout, and the saved value
+        //    wins over the orientation default in BOTH orientations
+        //    (sinhalaOnly is neither orientation's default).
+        final idxLandscape =
+            container.read(openTabFromNodeKeyProvider)('dn-1-1');
+        await tester.pumpAndSettle(const Duration(seconds: 2));
+        expect(
+          container.read(tabsProvider)[idxLandscape].layout,
+          ReaderLayout.sinhalaOnly,
+          reason: 'New landscape tab seeds from saved layout, not sideBySide',
+        );
+
+        final idxPortrait = container
+            .read(openTabFromNodeKeyProvider)('dn-1-1', isPortraitMode: true);
+        await tester.pumpAndSettle(const Duration(seconds: 2));
+        expect(
+          container.read(tabsProvider)[idxPortrait].layout,
+          ReaderLayout.sinhalaOnly,
+          reason: 'New portrait tab seeds from saved layout, not stacked',
+        );
+
+        // 4. Existing tab keeps its own layout — switching never re-seeds.
+        //    Simulate a tab saved earlier in a different layout (sideBySide).
+        final yesterdayTab = tabFromNode(container, 'dn-1-1')
+            .copyWith(layout: ReaderLayout.sideBySide);
+        container.read(tabsProvider.notifier).addTab(yesterdayTab);
+        final idxYesterday = container.read(tabsProvider).length - 1;
+
+        container.read(switchTabProvider)(idxYesterday);
+        await tester.pumpAndSettle(const Duration(seconds: 1));
+
+        expect(
+          container.read(tabsProvider)[idxYesterday].layout,
+          ReaderLayout.sideBySide,
+          reason: 'Switching to an existing tab must not change its layout',
+        );
+        expect(
+          container.read(activeReaderLayoutProvider),
+          ReaderLayout.sideBySide,
+          reason: 'Reader shows the active tab\'s own layout, not the global '
+              'last-used value',
+        );
+        expect(
+          container.read(lastReaderLayoutProvider),
+          ReaderLayout.sinhalaOnly,
+          reason: 'Merely switching tabs must not overwrite the last-used '
+              'layout',
         );
       },
     );

@@ -1,6 +1,7 @@
 /// Represents the layout mode for the bilingual reader
 ///
-/// TODO: Persist user's layout preference (SharedPreferences or similar)
+/// The user's last-selected layout is persisted per-device via
+/// `LastReaderLayoutNotifier` and seeds the layout of newly opened tabs.
 enum ReaderLayout {
   /// Display only Pali content in a single column
   paliOnly,
