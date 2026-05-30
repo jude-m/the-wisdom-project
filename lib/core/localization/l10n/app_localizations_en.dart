@@ -64,7 +64,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings => 'Settings';
 
   @override
-  String get navigationLanguage => 'Navigation Language';
+  String get theme => 'Theme';
+
+  @override
+  String get appLanguage => 'App Language';
+
+  @override
+  String get contentLanguage => 'Content Language';
 
   @override
   String get fontSize => 'Font Size';

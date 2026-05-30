@@ -21,4 +21,13 @@ class StorageKeys {
   /// Seeds the layout of newly opened tabs. Absent means "never picked one",
   /// in which case new tabs fall back to the orientation default.
   static const lastReaderLayout = 'last_reader_layout_v1';
+
+  /// String ([AppLanguage.name]) — the user's chosen UI language. Absent means
+  /// "never chosen", in which case the app follows the device locale.
+  static const appLanguage = 'app_language_v1';
+
+  /// String ([ContentLanguage.name]) — which text/translation to show for data
+  /// labels (tree, breadcrumbs, search, dialogs, tabs). Validated against the
+  /// active edition's available languages at read time.
+  static const contentLanguage = 'content_language_v1';
 }

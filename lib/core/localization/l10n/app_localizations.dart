@@ -206,11 +206,23 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settings;
 
-  /// Label for navigation language setting
+  /// Label for the theme setting in the settings menu
   ///
   /// In en, this message translates to:
-  /// **'Navigation Language'**
-  String get navigationLanguage;
+  /// **'Theme'**
+  String get theme;
+
+  /// Label for the app/UI language setting (pure localization of interface labels)
+  ///
+  /// In en, this message translates to:
+  /// **'App Language'**
+  String get appLanguage;
+
+  /// Label for the content language setting — which text/translation is shown for data labels (tree, breadcrumbs, search, dialogs, tabs)
+  ///
+  /// In en, this message translates to:
+  /// **'Content Language'**
+  String get contentLanguage;
 
   /// Label for font size setting
   ///

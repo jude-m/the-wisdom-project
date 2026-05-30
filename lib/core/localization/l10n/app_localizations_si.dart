@@ -64,7 +64,13 @@ class AppLocalizationsSi extends AppLocalizations {
   String get settings => 'සැකසීම්';
 
   @override
-  String get navigationLanguage => 'සංචාලන භාෂාව';
+  String get theme => 'තේමාව';
+
+  @override
+  String get appLanguage => 'යෙදුම් භාෂාව';
+
+  @override
+  String get contentLanguage => 'අන්තර්ගත භාෂාව';
 
   @override
   String get fontSize => 'අක්ෂර ප්‍රමාණය';

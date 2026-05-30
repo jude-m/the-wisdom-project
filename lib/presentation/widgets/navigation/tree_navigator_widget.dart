@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../utils/content_icons.dart';
-import '../../../core/utils/pali_conjunct_transformer.dart';
+import '../../utils/content_text_formatter.dart';
 import '../../../core/utils/responsive_utils.dart';
-import '../../../domain/entities/navigation/navigation_language.dart';
 import '../../../domain/entities/navigation/tipitaka_tree_node.dart';
+import '../../providers/content_language_provider.dart';
 import '../../providers/navigation_tree_provider.dart';
 import '../../providers/navigator_visibility_provider.dart';
 import '../../providers/tab_provider.dart';
@@ -146,15 +146,15 @@ class TreeNodeWidget extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final expandedNodes = ref.watch(expandedNodesProvider);
     final selectedNode = ref.watch(selectedNodeProvider);
-    final navigationLanguage = ref.watch(navigationLanguageProvider);
+    final contentLanguage = ref.watch(effectiveContentLanguageProvider);
 
     final isExpanded = expandedNodes.contains(node.nodeKey);
     final isSelected = selectedNode == node.nodeKey;
     final hasChildren = node.childNodes.isNotEmpty;
-    final rawDisplayName = node.getDisplayName(navigationLanguage);
-    final displayName = navigationLanguage == NavigationLanguage.pali
-        ? rawDisplayName.withPaliConjuncts
-        : rawDisplayName;
+    final displayName = formatContentLabel(
+      node.getDisplayName(contentLanguage),
+      contentLanguage,
+    );
     final ci = contentIcon(
       isCommentary: node.isCommentary,
       isTreatise: node.isTreatise,

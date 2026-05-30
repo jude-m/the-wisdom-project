@@ -91,9 +91,19 @@
     "description": "Label for settings menu"
   },
 
-  "navigationLanguage": "Navigation Language",
-  "@navigationLanguage": {
-    "description": "Label for navigation language setting"
+  "theme": "Theme",
+  "@theme": {
+    "description": "Label for the theme setting in the settings menu"
+  },
+
+  "appLanguage": "App Language",
+  "@appLanguage": {
+    "description": "Label for the app/UI language setting (pure localization of interface labels)"
+  },
+
+  "contentLanguage": "Content Language",
+  "@contentLanguage": {
+    "description": "Label for the content language setting — which text/translation is shown for data labels (tree, breadcrumbs, search, dialogs, tabs)"
   },
 
   "fontSize": "Font Size",

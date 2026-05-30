@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/grouped_search_result.dart';
 import '../../../domain/entities/search/search_result_type.dart';
@@ -10,6 +9,7 @@ import '../../../domain/entities/search/search_result.dart';
 import '../../providers/dictionary_provider.dart'
     show selectedDictionaryWordProvider;
 import '../../providers/search_provider.dart';
+import '../../utils/search_result_labels.dart';
 import '../common/status_message_view.dart';
 import '../dictionary/dictionary_filter_chips.dart';
 import '../dictionary/refine_dictionary_dialog.dart';
@@ -563,7 +563,7 @@ class _CountBadge extends StatelessWidget {
 }
 
 /// Individual search result tile with highlighting support
-class _SearchResultTile extends StatelessWidget {
+class _SearchResultTile extends ConsumerWidget {
   final SearchResult searchResult;
 
   /// Pre-computed effective query (sanitized + Singlish→Sinhala converted)
@@ -589,9 +589,13 @@ class _SearchResultTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final typography = context.typography;
+
+    // Title + navigation path in the active Content Language (same pipeline as
+    // the breadcrumbs and tree), instead of the query-matched language.
+    final labels = searchResultLabels(ref, searchResult);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -611,9 +615,7 @@ class _SearchResultTile extends StatelessWidget {
       ),
       // Title is never highlighted - just plain text
       title: Text(
-        searchResult.language == 'pali'
-            ? searchResult.title.withPaliConjuncts
-            : searchResult.title,
+        labels.title,
         style: typography.resultTitle,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
@@ -623,7 +625,7 @@ class _SearchResultTile extends StatelessWidget {
         children: [
           const SizedBox(height: 4),
           Text(
-            searchResult.subtitle,
+            labels.path,
             style: typography.resultSubtitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

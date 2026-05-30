@@ -6,8 +6,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../utils/content_icons.dart';
-import '../../../core/utils/pali_conjunct_transformer.dart';
+import '../../utils/content_text_formatter.dart';
+import '../../../domain/entities/content/content_language.dart';
 import '../../models/reader_tab.dart';
+import '../../providers/content_language_provider.dart';
 import '../../providers/tab_lifecycle_provider.dart';
 import '../../providers/tab_provider.dart';
 
@@ -422,7 +424,7 @@ class _ScrollChevron extends StatelessWidget {
   }
 }
 
-class _TabItem extends StatelessWidget {
+class _TabItem extends ConsumerWidget {
   final ReaderTab tab;
   final bool isActive;
   final VoidCallback onTap;
@@ -437,7 +439,7 @@ class _TabItem extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final ci = contentIcon(
@@ -445,6 +447,15 @@ class _TabItem extends StatelessWidget {
       isTreatise: tab.isTreatise,
       colorScheme: colors,
     );
+
+    // Tab labels follow the Content Language setting. Fall back across the
+    // tab's stored names (older persisted tabs may only carry `label`).
+    final contentLanguage = ref.watch(effectiveContentLanguageProvider);
+    final rawLabel = switch (contentLanguage) {
+      ContentLanguage.pali => tab.paliName ?? tab.label,
+      ContentLanguage.sinhala => tab.sinhalaName ?? tab.paliName ?? tab.label,
+    };
+    final displayLabel = formatContentLabel(rawLabel, contentLanguage);
     return Material(
       // Per-tab Material so this tab's hover/press ink is painted and
       // clipped here. Without it the ink lands on a distant ancestor
@@ -491,16 +502,15 @@ class _TabItem extends StatelessWidget {
               ),
               const SizedBox(width: 8),
 
-              // Tab label — apply Pali conjunct transformation for bound
-              // letters. Tab labels are always derived from paliName (see
-              // ReaderTab.fromNode), so the transformation always applies.
+              // Tab label follows the Content Language setting (computed
+              // above). The tooltip shows that same single Content Language
+              // name — useful when a long name is ellipsized. Only one name
+              // now: the Content Language wins, so no second Pali/Sinhala part.
               Expanded(
                 child: Tooltip(
-                  message: tab.paliName != null
-                      ? '${tab.paliName!.withPaliConjuncts} / ${tab.sinhalaName ?? ''}'
-                      : tab.fullName,
+                  message: displayLabel,
                   child: Text(
-                    tab.label.withPaliConjuncts,
+                    displayLabel,
                     style: isActive
                         ? context.typography.tabLabelActive
                         : context.typography.tabLabelInactive,

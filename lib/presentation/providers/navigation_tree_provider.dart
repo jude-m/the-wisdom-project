@@ -1,11 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/constants.dart';
 import '../../data/datasources/tree_local_datasource.dart';
 import '../../data/repositories/navigation_tree_repository_impl.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
-import '../../domain/entities/navigation/navigation_language.dart';
 import '../../domain/repositories/navigation_tree_repository.dart';
 import '../../domain/usecases/load_navigation_tree_usecase.dart';
 
@@ -51,76 +48,42 @@ final selectedNodeProvider = StateProvider<String?>((ref) => null);
 // This separates "selection" from "scroll request"
 final scrollToNodeRequestProvider = StateProvider<String?>((ref) => null);
 
-// State for navigation language preference (persisted to SharedPreferences)
-final navigationLanguageProvider =
-    StateNotifierProvider<NavigationLanguageNotifier, NavigationLanguage>(
-  (ref) => NavigationLanguageNotifier(),
-);
+// The former "navigation language" preference now lives in
+// content_language_provider.dart as `contentLanguageProvider` /
+// `effectiveContentLanguageProvider` — it applies app-wide (tree, breadcrumbs,
+// search, dialogs, tabs), not just to the tree, and its options are
+// edition-driven.
 
-/// Manages the navigation language preference with persistence across
-/// app restarts / web reloads. See [NavigationLanguage] for supported values.
-class NavigationLanguageNotifier extends StateNotifier<NavigationLanguage> {
-  static const String _storageKey = 'navigation_language';
+// Flat key → node index, built once when the tree loads. Lets [nodeByKeyProvider]
+// (and the ancestor walk) do O(1) lookups instead of an O(N) recursive scan of
+// the whole tree per call — important because search-result tiles look up their
+// node + every ancestor on each build while scrolling. Empty while the tree is
+// loading or on error. Rebuilds only when the tree itself changes.
+final nodeIndexProvider = Provider<Map<String, TipitakaTreeNode>>((ref) {
+  final treeAsync = ref.watch(navigationTreeProvider);
 
-  NavigationLanguageNotifier() : super(NavigationLanguage.sinhala);
-
-  /// Load saved language preference from storage. Called once at startup.
-  Future<void> loadSavedLanguage() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString(_storageKey);
-      if (saved != null) {
-        state = NavigationLanguage.values.firstWhere(
-          (e) => e.name == saved,
-          orElse: () => NavigationLanguage.sinhala,
-        );
+  return treeAsync.maybeWhen(
+    data: (rootNodes) {
+      final index = <String, TipitakaTreeNode>{};
+      void visit(List<TipitakaTreeNode> nodes) {
+        for (final node in nodes) {
+          index[node.nodeKey] = node;
+          visit(node.childNodes);
+        }
       }
-    } catch (e) {
-      // Keep default if load fails
-      debugPrint('Failed to load navigation language: $e');
-    }
-  }
 
-  /// Update the language and persist the choice.
-  Future<void> setLanguage(NavigationLanguage language) async {
-    state = language;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_storageKey, language.name);
-    } catch (e) {
-      // UI still updates even if persistence fails
-      debugPrint('Failed to save navigation language: $e');
-    }
-  }
-}
+      visit(rootNodes);
+      return index;
+    },
+    orElse: () => const {},
+  );
+});
 
-// Helper provider to get a node by key
+// Helper provider to get a node by key (O(1) via [nodeIndexProvider]).
 // Uses autoDispose to clean up when no listeners remain (prevents memory leaks).
 final nodeByKeyProvider =
     Provider.autoDispose.family<TipitakaTreeNode?, String>((ref, nodeKey) {
-  final treeAsync = ref.watch(navigationTreeProvider);
-
-  return treeAsync.when(
-    data: (rootNodes) {
-      // Search for node recursively
-      TipitakaTreeNode? findNode(List<TipitakaTreeNode> nodes) {
-        for (var node in nodes) {
-          if (node.nodeKey == nodeKey) {
-            return node;
-          }
-          final found = findNode(node.childNodes);
-          if (found != null) {
-            return found;
-          }
-        }
-        return null;
-      }
-
-      return findNode(rootNodes);
-    },
-    loading: () => null,
-    error: (_, __) => null,
-  );
+  return ref.watch(nodeIndexProvider)[nodeKey];
 });
 
 /// Provider that finds the previous readable node in tree order before [nodeKey].

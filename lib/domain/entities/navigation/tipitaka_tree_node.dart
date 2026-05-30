@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import '../../../core/constants/constants.dart';
-import 'navigation_language.dart';
+import '../content/content_language.dart';
 
 part 'tipitaka_tree_node.freezed.dart';
 
@@ -44,11 +44,11 @@ class TipitakaTreeNode with _$TipitakaTreeNode {
 
   // TODO: Some nodes (e.g. ap-pat / Paṭṭhāna) lack Sinhala translations.
   // Fallback to the other language when the selected one is empty.
-  String getDisplayName(NavigationLanguage language) {
+  String getDisplayName(ContentLanguage language) {
     switch (language) {
-      case NavigationLanguage.pali:
+      case ContentLanguage.pali:
         return paliName.isEmpty ? sinhalaName : paliName;
-      case NavigationLanguage.sinhala:
+      case ContentLanguage.sinhala:
         return sinhalaName.isEmpty ? paliName : sinhalaName;
     }
   }

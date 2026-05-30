@@ -12,7 +12,7 @@ import 'presentation/keyboard/app_shortcuts.dart';
 import 'presentation/screens/reader_screen.dart';
 import 'presentation/providers/search_provider.dart';
 import 'presentation/providers/platform_providers.dart';
-import 'presentation/providers/navigation_tree_provider.dart';
+import 'presentation/providers/app_language_provider.dart';
 import 'presentation/providers/tab_provider.dart'
     show activeTabIndexPersistenceProvider;
 import 'presentation/providers/navigator_visibility_provider.dart'
@@ -152,7 +152,9 @@ class _MyAppState extends ConsumerState<MyApp> {
     Future.microtask(() {
       ref.read(themeNotifierProvider.notifier).loadSavedTheme();
       ref.read(fontScaleProvider.notifier).loadSavedScale();
-      ref.read(navigationLanguageProvider.notifier).loadSavedLanguage();
+      // App Language and Content Language load synchronously in their notifier
+      // constructors (the KeyValueStore is ready by then), so no startup call
+      // is needed here.
       // Instantiate the active-tab persistence listener once so changes to
       // activeTabIndexProvider get written to disk for the rest of the
       // session. Tabs themselves persist via TabsNotifier directly.
@@ -166,6 +168,11 @@ class _MyAppState extends ConsumerState<MyApp> {
   Widget build(BuildContext context) {
     // Watch current theme
     final themeData = ref.watch(currentThemeDataProvider);
+
+    // Watch the user's UI language ("App Language"). This drives which ARB
+    // translations AppLocalizations serves. Defaults to the device locale
+    // until the user explicitly picks one (see appLanguageProvider).
+    final appLanguage = ref.watch(appLanguageProvider);
 
     return MaterialApp(
       title: 'The Wisdom Project',
@@ -182,6 +189,10 @@ class _MyAppState extends ConsumerState<MyApp> {
         Locale('en'), // English
         Locale('si'), // Sinhala
       ],
+      // The selected UI language. When null, Flutter would fall back to the
+      // device locale; we resolve that ourselves in appLanguageProvider so the
+      // settings UI always reflects the effective choice.
+      locale: appLanguage.locale,
 
       // Theme - Single theme based on user preference
       theme: themeData,

@@ -37,7 +37,11 @@
 
   "settings": "සැකසීම්",
 
-  "navigationLanguage": "සංචාලන භාෂාව",
+  "theme": "තේමාව",
+
+  "appLanguage": "යෙදුම් භාෂාව",
+
+  "contentLanguage": "අන්තර්ගත භාෂාව",
 
   "fontSize": "අක්ෂර ප්‍රමාණය",
 

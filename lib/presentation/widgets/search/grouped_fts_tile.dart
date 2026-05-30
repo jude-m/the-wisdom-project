@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_typography.dart';
-import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/search_result.dart';
 import '../../../domain/entities/search/search_result_type.dart';
 import '../../providers/search_provider.dart';
+import '../../utils/search_result_labels.dart';
 import 'highlighted_fts_search_text.dart';
 import 'secondary_match_tile.dart';
 
@@ -56,7 +56,7 @@ class GroupedFTSTile extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Primary result tile (looks like standard _SearchResultTile)
-        _buildPrimaryTile(context, theme),
+        _buildPrimaryTile(context, ref, theme),
 
         // "See X more" / "Collapse" link (only if there are secondary matches)
         if (group.hasSecondaryMatches)
@@ -70,9 +70,14 @@ class GroupedFTSTile extends ConsumerWidget {
   }
 
   /// Builds the primary result tile (identical to _SearchResultTile appearance)
-  Widget _buildPrimaryTile(BuildContext context, ThemeData theme) {
+  Widget _buildPrimaryTile(
+      BuildContext context, WidgetRef ref, ThemeData theme) {
     final result = group.primaryMatch;
     final typography = context.typography;
+
+    // Title + navigation path in the active Content Language (same pipeline as
+    // the breadcrumbs and tree), instead of the query-matched language.
+    final labels = searchResultLabels(ref, result);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -91,9 +96,7 @@ class GroupedFTSTile extends ConsumerWidget {
         ),
       ),
       title: Text(
-        result.language == 'pali'
-            ? result.title.withPaliConjuncts
-            : result.title,
+        labels.title,
         style: typography.resultTitle,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
@@ -103,7 +106,7 @@ class GroupedFTSTile extends ConsumerWidget {
         children: [
           const SizedBox(height: 4),
           Text(
-            result.subtitle,
+            labels.path,
             style: typography.resultSubtitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

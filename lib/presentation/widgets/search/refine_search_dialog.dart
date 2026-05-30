@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
+import '../../../domain/entities/content/content_language.dart';
 import '../../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../../../domain/entities/search/scope_operations.dart';
+import '../../providers/content_language_provider.dart';
 import '../../providers/navigation_tree_provider.dart';
 import '../../providers/overlay_stack_provider.dart';
 import '../../providers/search_provider.dart';
+import '../../utils/content_text_formatter.dart';
 
 /// Dialog for refining search with hierarchical scope selection.
 ///
@@ -89,6 +92,10 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
     final treeAsync = ref.watch(navigationTreeProvider);
     // Watch the scope so UI rebuilds on changes
     final scope = ref.watch(searchStateProvider.select((s) => s.scope));
+    // Resolve the Content Language once here, then thread it down so each tree
+    // row doesn't independently watch it. (Watching here already rebuilds the
+    // whole dialog on change — the per-row Builder added nothing.)
+    final language = ref.watch(effectiveContentLanguageProvider);
 
     return Dialog(
       child: ConstrainedBox(
@@ -109,7 +116,8 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
               // Scope section
               Expanded(
                 child: treeAsync.when(
-                  data: (tree) => _buildScopeSection(theme, tree, scope),
+                  data: (tree) =>
+                      _buildScopeSection(theme, tree, scope, language),
                   loading: () => const Center(
                     child: CircularProgressIndicator(),
                   ),
@@ -156,6 +164,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
     ThemeData theme,
     List<TipitakaTreeNode> tree,
     Set<String> scope,
+    ContentLanguage language,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,7 +208,8 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
               child: SingleChildScrollView(
                 child: Column(
                   children: tree
-                      .map((node) => _buildTreeNode(theme, node, 0, scope, tree))
+                      .map((node) =>
+                          _buildTreeNode(theme, node, 0, scope, tree, language))
                       .toList(),
                 ),
               ),
@@ -216,6 +226,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
     int depth,
     Set<String> scope,
     List<TipitakaTreeNode> tree,
+    ContentLanguage language,
   ) {
     // Only show first 3 levels (Pitaka, Nikaya, Vagga)
     if (depth > 2) return const SizedBox.shrink();
@@ -271,14 +282,17 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
                   },
                 ),
 
-                // Node name
+                // Node name — follows the Content Language setting (resolved
+                // once in build() and threaded down via [language]).
                 Expanded(
                   child: Text(
-                    node.sinhalaName.isNotEmpty
-                        ? node.sinhalaName
-                        : node.paliName,
+                    formatContentLabel(
+                      node.getDisplayName(language),
+                      language,
+                    ),
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -291,7 +305,8 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
         // Children
         if (hasChildren && isExpanded)
           ...node.childNodes
-              .map((child) => _buildTreeNode(theme, child, depth + 1, scope, tree)),
+              .map((child) =>
+                  _buildTreeNode(theme, child, depth + 1, scope, tree, language)),
       ],
     );
   }

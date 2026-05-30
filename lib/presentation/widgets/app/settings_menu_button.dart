@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/localization/app_language.dart';
+import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_fonts.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/theme_notifier.dart';
-import '../../../domain/entities/navigation/navigation_language.dart';
-import '../../providers/navigation_tree_provider.dart';
+import '../../../domain/entities/content/content_language.dart';
+import '../../providers/app_language_provider.dart';
+import '../../providers/content_language_provider.dart';
 
 /// Settings menu button for AppBar
 class SettingsMenuButton extends ConsumerWidget {
@@ -12,9 +15,10 @@ class SettingsMenuButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     return PopupMenuButton<String>(
       icon: const Icon(Icons.settings),
-      tooltip: 'Settings',
+      tooltip: l10n.settings,
       onSelected: (value) {
         // Menu items are handled by their own callbacks
       },
@@ -26,7 +30,7 @@ class SettingsMenuButton extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Theme',
+                l10n.theme,
                 style: context.typography.menuSectionLabel,
               ),
               const SizedBox(height: 8),
@@ -44,7 +48,7 @@ class SettingsMenuButton extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Font Size',
+                l10n.fontSize,
                 style: context.typography.menuSectionLabel,
               ),
               const SizedBox(height: 4),
@@ -55,22 +59,41 @@ class SettingsMenuButton extends ConsumerWidget {
 
         const PopupMenuDivider(),
 
-        // Language selector
+        // App Language selector — UI localization (English / Sinhala).
         PopupMenuItem<String>(
           enabled: false,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Navigation Language',
+                l10n.appLanguage,
                 style: context.typography.menuSectionLabel,
               ),
               const SizedBox(height: 8),
-              _LanguageSelector(),
+              _AppLanguageSelector(),
             ],
           ),
         ),
 
+        const PopupMenuDivider(),
+
+        // Content Language selector — which text/translation labels appear in
+        // (tree, breadcrumbs, search, dialogs, tabs). Options come from the
+        // active edition.
+        PopupMenuItem<String>(
+          enabled: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.contentLanguage,
+                style: context.typography.menuSectionLabel,
+              ),
+              const SizedBox(height: 8),
+              _ContentLanguageSelector(),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -214,31 +237,78 @@ class _FontSizeSelector extends ConsumerWidget {
   }
 }
 
-/// Language selection buttons
-class _LanguageSelector extends ConsumerWidget {
+/// App Language (UI localization) selector.
+///
+/// Options are self-labelled in their own language — standard for a language
+/// picker — so a user can always find their language regardless of the current
+/// UI language.
+class _AppLanguageSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentLanguage = ref.watch(navigationLanguageProvider);
+    final current = ref.watch(appLanguageProvider);
 
-    return SegmentedButton<NavigationLanguage>(
+    return SegmentedButton<AppLanguage>(
       segments: const [
         ButtonSegment(
-          value: NavigationLanguage.pali,
-          label: Text('Pali'),
+          value: AppLanguage.english,
+          label: Text('English'),
         ),
         ButtonSegment(
-          value: NavigationLanguage.sinhala,
+          value: AppLanguage.sinhala,
           label: Text('සිංහල'),
         ),
       ],
-      selected: {currentLanguage},
-      onSelectionChanged: (Set<NavigationLanguage> newSelection) {
-        final notifier = ref.read(navigationLanguageProvider.notifier);
-        notifier.setLanguage(newSelection.first);
+      selected: {current},
+      onSelectionChanged: (newSelection) {
+        ref.read(appLanguageProvider.notifier).setLanguage(newSelection.first);
       },
       style: const ButtonStyle(
         visualDensity: VisualDensity.compact,
       ),
     );
+  }
+}
+
+/// Content Language selector.
+///
+/// The available options come from the active edition (BJT → Pali, Sinhala).
+/// Labels are localized so they follow the App Language. `selected` reads the
+/// *effective* value (clamped to the edition), while changes write the raw
+/// preference.
+class _ContentLanguageSelector extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final available = ref.watch(availableContentLanguagesProvider);
+    final current = ref.watch(effectiveContentLanguageProvider);
+
+    return SegmentedButton<ContentLanguage>(
+      segments: [
+        for (final language in available)
+          ButtonSegment(
+            value: language,
+            label: Text(_contentLanguageLabel(language, l10n)),
+          ),
+      ],
+      selected: {current},
+      onSelectionChanged: (newSelection) {
+        ref
+            .read(contentLanguageProvider.notifier)
+            .setLanguage(newSelection.first);
+      },
+      style: const ButtonStyle(
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+
+  /// Maps a [ContentLanguage] to its localized label.
+  String _contentLanguageLabel(ContentLanguage language, AppLocalizations l10n) {
+    switch (language) {
+      case ContentLanguage.pali:
+        return l10n.paliLanguageLabel;
+      case ContentLanguage.sinhala:
+        return l10n.sinhalaLanguageLabel;
+    }
   }
 }

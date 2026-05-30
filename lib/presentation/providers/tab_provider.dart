@@ -403,9 +403,15 @@ final openTabFromSearchResultProvider =
     // sutta that happens to share the same page
     final newTab = ReaderTab.fromNode(
       nodeKey: result.nodeKey,
-      paliName:
-          result.title, // For search results, title may differ by language
-      sinhalaName: result.title,
+      // Seed both names from the tree node so the tab label can follow the
+      // Content Language setting (just like tree-opened tabs). Fall back to
+      // the result's matched title only when the node isn't in the tree.
+      paliName: (node != null && node.paliName.isNotEmpty)
+          ? node.paliName
+          : result.title,
+      sinhalaName: (node != null && node.sinhalaName.isNotEmpty)
+          ? node.sinhalaName
+          : result.title,
       contentFileId: result.contentFileId,
       pageIndex: result.pageIndex,
       entryStart: entryStart,
