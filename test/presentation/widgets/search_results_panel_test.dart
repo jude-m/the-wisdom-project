@@ -18,6 +18,8 @@ import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
 
+import '../../helpers/pump_app.dart';
+
 /// Fake implementation for testing — allows injecting arbitrary SearchState.
 ///
 /// Implements only the methods the panel actually calls. Anything else
@@ -53,6 +55,10 @@ Future<void> _pumpPanel(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        // The result tile re-derives its labels in the active Content
+        // Language (`searchResultLabels`), which reads keyValueStoreProvider —
+        // defaultTestOverrides() supplies an in-memory store for it.
+        ...defaultTestOverrides(),
         searchStateProvider.overrideWith((ref) => FakeSearchStateNotifier(state)),
       ],
       child: MaterialApp(

@@ -9,7 +9,13 @@ import 'package:the_wisdom_project/presentation/widgets/navigation/tab_bar_widge
 import '../../helpers/pump_app.dart';
 
 void main() {
-  // Helper to create a test tab
+  // Helper to create a test tab.
+  //
+  // The tab bar now renders its label in the active Content Language
+  // (default: Sinhala → `sinhalaName`, see `_TabItem`). We set both
+  // `paliName` and `sinhalaName` to `label` so the displayed text equals
+  // `label` regardless of the Content Language — these tests are about
+  // rendering/scrolling, not language resolution.
   ReaderTab createTab({
     required String label,
     String? contentFileId,
@@ -20,7 +26,7 @@ void main() {
       contentFileId: contentFileId,
       nodeKey: 'node-$label',
       paliName: label,
-      sinhalaName: 'Sinhala $label',
+      sinhalaName: label,
     );
   }
 

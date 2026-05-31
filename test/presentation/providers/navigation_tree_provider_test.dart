@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:the_wisdom_project/core/constants/constants.dart';
-import 'package:the_wisdom_project/domain/entities/navigation/navigation_language.dart';
+import 'package:the_wisdom_project/domain/entities/content/content_language.dart';
 import 'package:the_wisdom_project/domain/entities/navigation/tipitaka_tree_node.dart';
+import 'package:the_wisdom_project/presentation/providers/content_language_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 
 import '../../helpers/mocks.mocks.dart';
@@ -239,11 +240,16 @@ void main() {
     });
   });
 
-  group('navigationLanguageProvider -', () {
+  // The former `navigationLanguageProvider` was split out of the tree feature
+  // into the app-wide `contentLanguageProvider` (see content_language_provider.dart).
+  // It's now a StateNotifierProvider backed by the KeyValueStore, so we use
+  // `createTestContainer()` (supplies an in-memory store) and the public
+  // `setLanguage()` method instead of poking `.state` directly.
+  group('contentLanguageProvider -', () {
     late ProviderContainer container;
 
     setUp(() {
-      container = ProviderContainer();
+      container = createTestContainer();
     });
 
     tearDown(() {
@@ -252,32 +258,32 @@ void main() {
 
     test('should default to Sinhala', () {
       // ASSERT
-      expect(container.read(navigationLanguageProvider),
-          equals(NavigationLanguage.sinhala));
+      expect(container.read(contentLanguageProvider),
+          equals(ContentLanguage.sinhala));
     });
 
-    test('should toggle to Pali', () {
+    test('should toggle to Pali', () async {
       // ACT
-      container.read(navigationLanguageProvider.notifier).state =
-          NavigationLanguage.pali;
+      await container
+          .read(contentLanguageProvider.notifier)
+          .setLanguage(ContentLanguage.pali);
 
       // ASSERT
-      expect(container.read(navigationLanguageProvider),
-          equals(NavigationLanguage.pali));
+      expect(container.read(contentLanguageProvider),
+          equals(ContentLanguage.pali));
     });
 
-    test('should toggle back to Sinhala', () {
+    test('should toggle back to Sinhala', () async {
       // ARRANGE
-      container.read(navigationLanguageProvider.notifier).state =
-          NavigationLanguage.pali;
+      final notifier = container.read(contentLanguageProvider.notifier);
+      await notifier.setLanguage(ContentLanguage.pali);
 
       // ACT
-      container.read(navigationLanguageProvider.notifier).state =
-          NavigationLanguage.sinhala;
+      await notifier.setLanguage(ContentLanguage.sinhala);
 
       // ASSERT
-      expect(container.read(navigationLanguageProvider),
-          equals(NavigationLanguage.sinhala));
+      expect(container.read(contentLanguageProvider),
+          equals(ContentLanguage.sinhala));
     });
   });
 
