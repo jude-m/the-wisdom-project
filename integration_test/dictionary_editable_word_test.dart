@@ -164,17 +164,20 @@ void main() {
         final tab = tabAtBeginning(container, 'mn-1-1-1');
         await openTab(tester, container, tab);
 
-        // ASSERT: Tab header shows Pali name with conjunct transformation.
+        // ASSERT: Tab header shows the node name in the active Content
+        // Language. The default Content Language is Sinhala, and Sinhala
+        // labels are shown as-is (no Pali conjunct transformation), so the
+        // tab displays the full Sinhala name.
         // Scope to TabBarWidget — the same text also appears in the reading
         // pane's sutta title, so an unscoped find.text would match twice.
-        final tabLabel = applyConjunctConsonants(tab.label);
+        final tabLabel = tab.sinhalaName!;
         expect(
           find.descendant(
             of: find.byType(TabBarWidget),
             matching: find.text(tabLabel),
           ),
           findsOneWidget,
-          reason: 'Tab label should display with Pali conjunct formatting',
+          reason: 'Tab label should display the Sinhala content name',
         );
 
         // STEP 1: Tap "භික්ඛවෙ" in the Pali text

@@ -109,8 +109,10 @@ void main() {
           await tester.pumpAndSettle();
         }
 
-        // STEP 2: Tap Tab B to switch (simulating real user action)
-        await tester.tap(find.text('DN 2'));
+        // STEP 2: Tap Tab B to switch (simulating real user action).
+        // Tab labels follow the Content Language (default Sinhala), so the tab
+        // displays tabB.sinhalaName — not its 'DN 2' label.
+        await tester.tap(find.text(tabB.sinhalaName!));
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
         // Verify Tab A's position was saved when we switched away
@@ -136,7 +138,7 @@ void main() {
         }
 
         // STEP 4: Tap Tab A to switch back (simulating real user action)
-        await tester.tap(find.text('DN 1'));
+        await tester.tap(find.text(tabA.sinhalaName!));
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
         // ASSERT - Each tab should have its own scroll position preserved
@@ -153,7 +155,7 @@ void main() {
             reason: 'Tab B should have larger scroll position than Tab A');
 
         // STEP 5: Tap Tab B again to verify its position is also preserved
-        await tester.tap(find.text('DN 2'));
+        await tester.tap(find.text(tabB.sinhalaName!));
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
         // Verify Tab B's scroll position is still preserved

@@ -5,8 +5,9 @@ import 'package:integration_test/integration_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
-import 'package:the_wisdom_project/domain/entities/navigation/navigation_language.dart';
+import 'package:the_wisdom_project/domain/entities/content/content_language.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
+import 'package:the_wisdom_project/presentation/providers/content_language_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/navigation/breadcrumb_widget.dart';
@@ -322,9 +323,11 @@ void main() {
         expect(textBefore, contains(sinhalaName),
             reason: 'Default language is Sinhala');
 
-        // ACT: Switch to Pali
-        container.read(navigationLanguageProvider.notifier).state =
-            NavigationLanguage.pali;
+        // ACT: Switch Content Language to Pali. The breadcrumb and tree both
+        // watch effectiveContentLanguageProvider, which derives from this.
+        container
+            .read(contentLanguageProvider.notifier)
+            .setLanguage(ContentLanguage.pali);
         await tester.pumpAndSettle();
 
         // ASSERT: Now shows Pali names (with conjunct transformation applied)

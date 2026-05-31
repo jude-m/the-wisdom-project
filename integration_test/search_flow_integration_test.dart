@@ -11,11 +11,16 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
+import 'package:the_wisdom_project/domain/entities/content/content_language.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
+import 'package:the_wisdom_project/presentation/providers/content_language_provider.dart';
+import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
+import 'package:the_wisdom_project/presentation/utils/content_text_formatter.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/dictionary_search_result_tile.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/highlighted_fts_search_text.dart';
@@ -131,17 +136,61 @@ void main() {
         // (either in titles, FTS snippets, or definitions).
         expect(find.textContaining('වාසව'), findsWidgets);
 
-        // Verify that Pali title results display with conjunct transformation.
-        // Title results for "වාසව" include Pali sutta names that contain
-        // consonant clusters — these should be rendered with ZWJ (U+200D).
+        // Search-result titles are re-derived from the matched tree node in the
+        // active Content Language (see `searchResultLabels`) — not taken from
+        // the repository's query-matched string. So the *same* title result is
+        // verified against BOTH language branches off its node: first Sinhala
+        // (the default), then Pali after an in-place language switch.
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(MaterialApp)),
+        );
+
         final titleResults =
             grouped.getResultsByType(SearchResultType.title);
         final paliTitleResult =
             titleResults.where((r) => r.language == 'pali').firstOrNull;
         if (paliTitleResult != null) {
-          final transformedTitle =
-              applyConjunctConsonants(paliTitleResult.title);
-          expect(find.textContaining(transformedTitle), findsWidgets,
+          // The node is language-independent (it carries both names), so read
+          // it once and reuse it for both branches.
+          final node =
+              container.read(nodeByKeyProvider(paliTitleResult.nodeKey));
+
+          // --- Sinhala branch (the default Content Language) ---
+          // The app boots in Sinhala, so the title must show the node's Sinhala
+          // name verbatim. formatContentLabel must NOT apply Pali conjunct
+          // ligatures to Sinhala text, so the stored name appears exactly as-is
+          // — this guards against conjuncts incorrectly leaking onto Sinhala.
+          if (node != null) {
+            final expectedSinhalaTitle = formatContentLabel(
+              node.getDisplayName(ContentLanguage.sinhala),
+              ContentLanguage.sinhala,
+            );
+            expect(find.textContaining(expectedSinhalaTitle), findsWidgets,
+                reason:
+                    'In the default (Sinhala) Content Language, the title '
+                    'should show the node\'s Sinhala name, unchanged');
+          }
+
+          // --- Pali branch ---
+          // Switch the Content Language to Pali; the tiles watch the language
+          // provider, so they re-render in place. Pali-script sutta names must
+          // now render with their consonant ligatures (ZWJ, U+200D).
+          container
+              .read(contentLanguageProvider.notifier)
+              .setLanguage(ContentLanguage.pali);
+          await tester.pumpAndSettle();
+
+          // Mirror the production pipeline exactly: the tile shows the node's
+          // name in the active Content Language, run through formatContentLabel
+          // (which applies Pali conjuncts on the Pali branch). Fall back to the
+          // repo title only if the node isn't in the tree.
+          final expectedPaliTitle = node != null
+              ? formatContentLabel(
+                  node.getDisplayName(ContentLanguage.pali),
+                  ContentLanguage.pali,
+                )
+              : applyConjunctConsonants(paliTitleResult.title);
+          expect(find.textContaining(expectedPaliTitle), findsWidgets,
               reason:
                   'Pali title results should display with conjunct '
                   'transformation');
