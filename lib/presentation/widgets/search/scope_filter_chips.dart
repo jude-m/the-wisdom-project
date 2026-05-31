@@ -5,6 +5,7 @@ import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/search/scope_operations.dart';
 import '../../../domain/entities/search/search_scope_chip.dart';
+import '../../providers/content_language_provider.dart';
 import '../../providers/search_provider.dart';
 import 'refine_search_dialog.dart';
 
@@ -48,6 +49,15 @@ class _ScopeFilterChipsState extends ConsumerState<ScopeFilterChips> {
     final hasCustomScope =
         ScopeOperations.hasCustomSelections(searchState.scope);
     final isAllSelected = searchState.isAllSelected;
+
+    // A single-language narrowing is a saved user preference (the default is
+    // both languages on), so surface it on the Refine chip alongside custom
+    // scope. Guarded on availableContentLanguages: an edition that ships only
+    // one language never shows the toggle, so it must never look "narrowed".
+    final availableLanguages = ref.watch(availableContentLanguagesProvider);
+    final languageNarrowed = availableLanguages.length >= 2 &&
+        !(searchState.searchInPali && searchState.searchInSinhala);
+    final hasActiveFilters = hasCustomScope || languageNarrowed;
 
     return SizedBox(
       height: 48,
@@ -105,7 +115,7 @@ class _ScopeFilterChipsState extends ConsumerState<ScopeFilterChips> {
             Padding(
               padding: const EdgeInsets.only(right: 6),
               child: _RefineChip(
-                hasActiveFilters: hasCustomScope,
+                hasActiveFilters: hasActiveFilters,
                 theme: theme,
                 onTap: () => RefineSearchDialog.show(context),
               ),

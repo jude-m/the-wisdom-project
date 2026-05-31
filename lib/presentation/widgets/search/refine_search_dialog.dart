@@ -113,6 +113,11 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
               _buildHeader(theme),
               const SizedBox(height: 16),
 
+              // Language toggle (පාළි / සිංහල) — which language(s) the search
+              // looks in. Sits above the scope tree, applies to Title + FTS.
+              _buildLanguageSection(theme, AppLocalizations.of(context)),
+              const SizedBox(height: 16),
+
               // Scope section
               Expanded(
                 child: treeAsync.when(
@@ -158,6 +163,133 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
         ),
       ],
     );
+  }
+
+  /// Language toggle row — which language(s) the Title/FTS search looks in.
+  ///
+  /// A [SegmentedButton] with `emptySelectionAllowed: false` enforces the
+  /// "at least one always on" rule for free: tapping the last selected segment
+  /// is a no-op, so the user can never search in zero languages. The options
+  /// are edition-driven (`availableContentLanguagesProvider`), so an edition
+  /// that lacks a language simply won't show that button.
+  Widget _buildLanguageSection(ThemeData theme, AppLocalizations l10n) {
+    final available = ref.watch(availableContentLanguagesProvider);
+    // Nothing to toggle if the edition exposes fewer than two languages.
+    if (available.length < 2) return const SizedBox.shrink();
+
+    final searchInPali =
+        ref.watch(searchStateProvider.select((s) => s.searchInPali));
+    final searchInSinhala =
+        ref.watch(searchStateProvider.select((s) => s.searchInSinhala));
+
+    // Current selection as a Set, clamped to available languages. The fallback
+    // to "all available" guards SegmentedButton's non-empty assert (the toggle
+    // itself can't produce an empty set, but a stale state could).
+    final selected = <ContentLanguage>{
+      if (searchInPali) ContentLanguage.pali,
+      if (searchInSinhala) ContentLanguage.sinhala,
+    }.intersection(available.toSet());
+    final effectiveSelected = selected.isEmpty ? available.toSet() : selected;
+
+    // When exactly one language is selected, that segment locks: it can't be
+    // toggled off. We render this as a dimmed, non-tappable segment (see the
+    // style + `enabled` below) so the "at least one always on" rule is *visible*
+    // — instead of SegmentedButton's silent no-op when you tap the last segment.
+    final lockLast = effectiveSelected.length == 1;
+    final cs = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'LANGUAGE',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        // No width wrapper → the bar shrink-wraps to its labels (content width),
+        // left-aligned by the Column, instead of stretching across the dialog.
+        SegmentedButton<ContentLanguage>(
+          showSelectedIcon: false,
+          multiSelectionEnabled: true,
+          emptySelectionAllowed: false,
+          // Restyle the default M3 segmented look to match the quick-filter
+          // pills (_ScopeChip uses these same colorScheme tokens), so the
+          // language toggle reads as part of the app's filter family — while
+          // its connected shape still signals it behaves differently (the
+          // locked-last-segment rule) than the always-tappable scope chips.
+          // WidgetStateProperty resolves each color per state.
+          style: ButtonStyle(
+            // Trim the default 48dp tap-target padding so it sits as a compact
+            // chip-height bar rather than a chunky button.
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              final isSelected = states.contains(WidgetState.selected);
+              // Selected + disabled = the locked language: dim its fill so it
+              // clearly reads "on, but you can't turn this off".
+              if (isSelected && states.contains(WidgetState.disabled)) {
+                return cs.secondary.withValues(alpha: 0.45);
+              }
+              return isSelected ? cs.secondary : cs.surfaceContainerLow;
+            }),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              final isSelected = states.contains(WidgetState.selected);
+              if (isSelected && states.contains(WidgetState.disabled)) {
+                return cs.onSecondary.withValues(alpha: 0.7);
+              }
+              return isSelected ? cs.onSecondary : cs.onSurfaceVariant;
+            }),
+            // `side` colors BOTH the outer border and the inter-segment divider
+            // from one resolved BorderSide (segmented_button.dart) — they can't
+            // be styled separately. We copy the quick-filter pill border
+            // (_ScopeChip: outline / 1px) so the unselected, clickable segment
+            // reads as an identical surfaceContainerLow chip. Trade-off: when
+            // both languages are selected the divider over the brown `secondary`
+            // fill is faint, because outline ≈ secondary in luminance.
+            side: WidgetStateProperty.all(
+              BorderSide(color: cs.outline),
+            ),
+            // Echo the quick-filter pill roundness while staying one connected bar.
+            shape: WidgetStateProperty.all(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(100),
+              ),
+            ),
+          ),
+          segments: available.map((lang) {
+            final isSelected = effectiveSelected.contains(lang);
+            return ButtonSegment<ContentLanguage>(
+              value: lang,
+              label: Text(_languageLabel(lang, l10n)),
+              // Lock the lone selected segment: disabling it makes the tap a
+              // no-op AND renders the dimmed style above (visible lock).
+              enabled: !(lockLast && isSelected),
+            );
+          }).toList(),
+          selected: effectiveSelected,
+          onSelectionChanged: (newSelection) {
+            // Single source of truth: searchStateProvider.
+            // setLanguageFilter triggers a re-search + recount.
+            ref.read(searchStateProvider.notifier).setLanguageFilter(
+                  pali: newSelection.contains(ContentLanguage.pali),
+                  sinhala: newSelection.contains(ContentLanguage.sinhala),
+                );
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Localized label for a content language (reuses the settings-menu ARB keys).
+  String _languageLabel(ContentLanguage language, AppLocalizations l10n) {
+    switch (language) {
+      case ContentLanguage.pali:
+        return l10n.paliLanguageLabel;
+      case ContentLanguage.sinhala:
+        return l10n.sinhalaLanguageLabel;
+    }
   }
 
   Widget _buildScopeSection(

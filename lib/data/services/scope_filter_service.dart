@@ -24,4 +24,21 @@ class ScopeFilterService {
   /// Returns empty list if [scope] is empty (no parameters needed).
   static List<String> getWhereParams(Set<String> scope) =>
       ScopeFilterSql.getWhereParams(scope);
+
+  /// Builds SQL WHERE clause fragment for the language filter (පාළි / සිංහල
+  /// toggle). Returns `null` when [language] is null (= search both languages).
+  static String? buildLanguageClause(
+    String? language, {
+    String tableAlias = 'm',
+    String columnName = 'language',
+  }) =>
+      ScopeFilterSql.buildLanguageClause(
+        language,
+        tableAlias: tableAlias,
+        columnName: columnName,
+      );
+
+  /// The bound parameter(s) for the language filter (empty when no filter).
+  static List<String> getLanguageParams(String? language) =>
+      ScopeFilterSql.getLanguageParams(language);
 }

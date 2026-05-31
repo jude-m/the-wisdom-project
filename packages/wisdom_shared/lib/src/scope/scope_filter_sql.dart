@@ -52,4 +52,28 @@ class ScopeFilterSql {
         .map((pattern) => '$pattern%')
         .toList();
   }
+
+  /// Builds the SQL WHERE clause fragment for the language filter (the
+  /// පාළි / සිංහල search toggle), or `null` when [language] is null
+  /// (= search both languages, the default).
+  ///
+  /// Like [buildWhereClause], the column lives on the meta table, so the
+  /// caller prefixes this with `' AND '` and joins that table as [tableAlias].
+  ///
+  /// IMPORTANT: the DB stores Sinhala as `'sinh'` (not `'sinhala'`) and Pali as
+  /// `'pali'`. Keeping this clause here means that column contract lives in one
+  /// place for both the Flutter client and the Dart server.
+  static String? buildLanguageClause(
+    String? language, {
+    String tableAlias = 'm',
+    String columnName = 'language',
+  }) {
+    if (language == null) return null;
+    return '$tableAlias.$columnName = ?';
+  }
+
+  /// The bound parameter(s) for the language filter: a single-element list with
+  /// the DB language code, or empty when [language] is null (no filter).
+  static List<String> getLanguageParams(String? language) =>
+      language == null ? const [] : [language];
 }

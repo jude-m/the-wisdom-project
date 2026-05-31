@@ -90,6 +90,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     bool isPhraseSearch = true,
     bool isAnywhereInText = false,
     int proximityDistance = 10,
+    String? language,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -106,6 +107,7 @@ class FTSDataSourceImpl implements FTSDataSource {
         isPhraseSearch: isPhraseSearch,
         isAnywhereInText: isAnywhereInText,
         proximityDistance: proximityDistance,
+        language: language,
         limit: limit,
         offset: offset,
       );
@@ -126,6 +128,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     bool isPhraseSearch = true,
     bool isAnywhereInText = false,
     int proximityDistance = 10,
+    String? language,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -172,15 +175,23 @@ class FTSDataSourceImpl implements FTSDataSource {
       if (scopeWhereClause != null) {
         buffer.write(' AND $scopeWhereClause');
       }
+      // Optional language filter (පාළි / සිංහල toggle). Same shared builder as
+      // scope above; 'language' lives on the meta table, already joined as `m`.
+      final languageClause = ScopeFilterService.buildLanguageClause(language);
+      if (languageClause != null) {
+        buffer.write(' AND $languageClause');
+      }
       buffer.write('''
         )
         SELECT * FROM ranked ORDER BY score LIMIT ? OFFSET ?
       ''');
 
-      // Build args
+      // Build args — order MUST match the '?' placeholders above:
+      // MATCH, [scope...], [language], LIMIT, OFFSET.
       final args = <Object>[
         ftsQuery,
         if (scopeWhereClause != null) ...scopeArgs,
+        ...ScopeFilterService.getLanguageParams(language),
         limit,
         offset,
       ];
@@ -208,6 +219,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     bool isPhraseSearch = true,
     bool isAnywhereInText = false,
     int proximityDistance = 10,
+    String? language,
   }) async {
     await initializeEditions({editionId});
 
@@ -229,12 +241,14 @@ class FTSDataSourceImpl implements FTSDataSource {
         proximityDistance: proximityDistance,
       );
 
-      // Build query with optional scope filter
+      // Build query with optional scope and/or language filters.
+      // Either filter lives on the meta table, so we only join `m` when needed
+      // (a bare MATCH count is cheaper).
       final buffer = StringBuffer();
       final args = <Object>[ftsQuery];
+      final needsMetaJoin = scope.isNotEmpty || language != null;
 
-      // If scope is specified, we need to join with meta table
-      if (scope.isNotEmpty) {
+      if (needsMetaJoin) {
         buffer.write('''
           SELECT COUNT(*) as count
           FROM $ftsTable t
@@ -242,13 +256,22 @@ class FTSDataSourceImpl implements FTSDataSource {
           WHERE $ftsTable MATCH ?
         ''');
 
-        final scopeWhereClause = ScopeFilterService.buildWhereClause(scope);
-        if (scopeWhereClause != null) {
-          buffer.write(' AND $scopeWhereClause');
-          args.addAll(ScopeFilterService.getWhereParams(scope));
+        if (scope.isNotEmpty) {
+          final scopeWhereClause = ScopeFilterService.buildWhereClause(scope);
+          if (scopeWhereClause != null) {
+            buffer.write(' AND $scopeWhereClause');
+            args.addAll(ScopeFilterService.getWhereParams(scope));
+          }
+        }
+
+        // Language filter (පාළි / සිංහල toggle) — mirror searchFullText.
+        final languageClause = ScopeFilterService.buildLanguageClause(language);
+        if (languageClause != null) {
+          buffer.write(' AND $languageClause');
+          args.addAll(ScopeFilterService.getLanguageParams(language));
         }
       } else {
-        // No scope filter - simple count query
+        // No filters - simple count query
         buffer.write(
           'SELECT COUNT(*) as count FROM $ftsTable WHERE $ftsTable MATCH ?',
         );

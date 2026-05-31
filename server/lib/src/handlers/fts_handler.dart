@@ -41,6 +41,16 @@ class FtsHandler {
       final proximityDistance = int.tryParse(params['proximityDistance'] ?? '') ?? 10;
       final limit = int.tryParse(params['limit'] ?? '') ?? 50;
       final offset = int.tryParse(params['offset'] ?? '') ?? 0;
+      // Language filter (පාළි / සිංහල toggle): 'pali' / 'sinh', or absent = both.
+      // Whitelist the value: this is an HTTP boundary, so an unknown language
+      // degrades to "no filter" (both languages) instead of silently matching
+      // nothing via `m.language = '<garbage>'`.
+      const allowedLanguages = {'pali', 'sinh'};
+      final language = params['language'];
+      final hasLanguageFilter =
+          language != null && allowedLanguages.contains(language);
+      // Only the whitelisted value reaches SQL; anything else → no filter.
+      final effectiveLanguage = hasLanguageFilter ? language : null;
 
       // Build FTS5 query string
       final ftsQuery = buildFtsQuery(
@@ -72,14 +82,23 @@ class FtsHandler {
       if (scopeClause != null) {
         sql.write(' AND $scopeClause');
       }
+      // 'language' lives on the meta table, already joined as `m` above. Same
+      // shared builder the client uses, so the SQL/column contract is single-sourced.
+      final languageClause = ScopeFilterSql.buildLanguageClause(effectiveLanguage);
+      if (languageClause != null) {
+        sql.write(' AND $languageClause');
+      }
       sql.write('''
         )
         SELECT * FROM ranked ORDER BY score LIMIT ? OFFSET ?
       ''');
 
+      // Arg order MUST match the '?' placeholders: MATCH, [scope...],
+      // [language], LIMIT, OFFSET.
       final args = [
         ftsQuery,
         ...scopeParams,
+        ...ScopeFilterSql.getLanguageParams(effectiveLanguage),
         limit,
         offset,
       ];
@@ -136,6 +155,12 @@ class FtsHandler {
       final isPhraseSearch = params['isPhraseSearch'] != 'false';
       final isAnywhereInText = params['isAnywhereInText'] == 'true';
       final proximityDistance = int.tryParse(params['proximityDistance'] ?? '') ?? 10;
+      // Whitelist as in _search: unknown language → no filter, not an empty count.
+      const allowedLanguages = {'pali', 'sinh'};
+      final language = params['language'];
+      final hasLanguageFilter =
+          language != null && allowedLanguages.contains(language);
+      final effectiveLanguage = hasLanguageFilter ? language : null;
 
       final ftsQuery = buildFtsQuery(
         query,
@@ -154,16 +179,26 @@ class FtsHandler {
       final scopeClause = ScopeFilterSql.buildWhereClause(scope);
       final scopeParams = ScopeFilterSql.getWhereParams(scope);
 
-      if (scope.isNotEmpty) {
+      // Either filter lives on the meta table, so join `m` only when needed
+      // (a bare MATCH count is cheaper). Mirror searchFullText's filter so the
+      // tab badge matches the rows shown.
+      final needsMetaJoin = scope.isNotEmpty || hasLanguageFilter;
+      if (needsMetaJoin) {
         sql.write('''
           SELECT COUNT(*) as count
           FROM $ftsTable t
           JOIN $metaTable m ON t.rowid = m.id
           WHERE $ftsTable MATCH ?
         ''');
-        if (scopeClause != null) {
+        if (scope.isNotEmpty && scopeClause != null) {
           sql.write(' AND $scopeClause');
           args.addAll(scopeParams);
+        }
+        final languageClause =
+            ScopeFilterSql.buildLanguageClause(effectiveLanguage);
+        if (languageClause != null) {
+          sql.write(' AND $languageClause');
+          args.addAll(ScopeFilterSql.getLanguageParams(effectiveLanguage));
         }
       } else {
         sql.write(

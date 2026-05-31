@@ -30,6 +30,7 @@ class FTSRemoteDataSourceImpl implements FTSDataSource {
     bool isPhraseSearch = true,
     bool isAnywhereInText = false,
     int proximityDistance = 10,
+    String? language,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -42,6 +43,11 @@ class FTSRemoteDataSourceImpl implements FTSDataSource {
         'isPhraseSearch': isPhraseSearch.toString(),
         'isAnywhereInText': isAnywhereInText.toString(),
         'proximityDistance': proximityDistance.toString(),
+        // Language filter (පාළි / සිංහල toggle): 'pali' / 'sinh'. The server
+        // honours this (see server fts_handler.dart). Deploy the server with or
+        // before the web client, else the old server ignores the param and
+        // returns both languages while the client still filters titles/labels.
+        if (language != null) 'language': language,
         'limit': limit.toString(),
         'offset': offset.toString(),
       },
@@ -70,6 +76,7 @@ class FTSRemoteDataSourceImpl implements FTSDataSource {
     bool isPhraseSearch = true,
     bool isAnywhereInText = false,
     int proximityDistance = 10,
+    String? language,
   }) async {
     final uri = Uri.parse('$_baseUrl/api/fts/count').replace(
       queryParameters: {
@@ -80,6 +87,7 @@ class FTSRemoteDataSourceImpl implements FTSDataSource {
         'isPhraseSearch': isPhraseSearch.toString(),
         'isAnywhereInText': isAnywhereInText.toString(),
         'proximityDistance': proximityDistance.toString(),
+        if (language != null) 'language': language,
       },
     );
 

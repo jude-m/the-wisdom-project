@@ -6,6 +6,7 @@ import '../../domain/entities/failure.dart';
 import '../../domain/entities/search/grouped_search_result.dart';
 import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_query.dart';
+import '../../domain/entities/search/search_language_scope.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../../domain/entities/search/scope_operations.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
@@ -77,6 +78,13 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           final nodeMap = _buildNodeMap(tree);
           final resultsByType = <SearchResultType, List<SearchResult>>{};
 
+          // Derive the language scope ONCE; it drives both the title gating and
+          // the FTS filter below — one source of truth for the two toggles.
+          final languageScope = SearchLanguageScope.fromFlags(
+            searchInPali: query.searchInPali,
+            searchInSinhala: query.searchInSinhala,
+          );
+
           // 1. Title matches (from navigation tree - in memory, fast)
           resultsByType[SearchResultType.title] = _searchTitles(
             nodeMap: nodeMap,
@@ -84,6 +92,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             editionId: 'bjt', // TODO: Support multiple editions
             scope: query.scope,
             isExactMatch: query.isExactMatch,
+            languageScope: languageScope,
             limit: maxPerCategory,
           );
 
@@ -100,6 +109,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             isPhraseSearch: query.isPhraseSearch,
             isAnywhereInText: query.isAnywhereInText,
             proximityDistance: query.proximityDistance,
+            language: _ftsLanguageFilter(languageScope),
             limit: overfetchLimit,
             offset: 0,
           );
@@ -153,6 +163,10 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
         (failure) async => Left(failure),
         (tree) async {
           final nodeMap = _buildNodeMap(tree);
+          final languageScope = SearchLanguageScope.fromFlags(
+            searchInPali: query.searchInPali,
+            searchInSinhala: query.searchInSinhala,
+          );
 
           switch (resultType) {
             case SearchResultType.topResults:
@@ -168,6 +182,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 editionId: 'bjt',
                 scope: query.scope,
                 isExactMatch: query.isExactMatch,
+                languageScope: languageScope,
                 limit: query.limit,
               ));
 
@@ -181,6 +196,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 isPhraseSearch: query.isPhraseSearch,
                 isAnywhereInText: query.isAnywhereInText,
                 proximityDistance: query.proximityDistance,
+                language: _ftsLanguageFilter(languageScope),
                 limit: query.limit,
                 offset: query.offset,
               );
@@ -233,6 +249,10 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
         (tree) async {
           final nodeMap = _buildNodeMap(tree);
           final count = <SearchResultType, int>{};
+          final languageScope = SearchLanguageScope.fromFlags(
+            searchInPali: query.searchInPali,
+            searchInSinhala: query.searchInSinhala,
+          );
 
           // Title count (from navigation tree - in memory, fast)
           count[SearchResultType.title] = _searchTitles(
@@ -241,9 +261,11 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             editionId: 'bjt',
             scope: query.scope,
             isExactMatch: query.isExactMatch,
+            languageScope: languageScope,
           ).length;
 
-          // Content count (efficient SQL COUNT)
+          // Content count (efficient SQL COUNT) — same language filter as the
+          // FTS search above, so the tab badge matches the rows shown.
           count[SearchResultType.fullText] =
               await _ftsDataSource.countFullTextMatches(
             query.queryText,
@@ -253,6 +275,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             isPhraseSearch: query.isPhraseSearch,
             isAnywhereInText: query.isAnywhereInText,
             proximityDistance: query.proximityDistance,
+            language: _ftsLanguageFilter(languageScope),
           );
 
           // Definition count (from dictionary)
@@ -314,12 +337,17 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   ///
   /// [scope] - Tree node keys (e.g., 'sp', 'dn', 'dn-1') for filtering.
   /// Empty set = search all content.
+  ///
+  /// [languageScope] - The පාළි / සිංහල toggle as a single derived scope. A name
+  /// field is only tested when the scope includes that language, so narrowing to
+  /// one language drops results that matched only the *other* language's name.
   List<SearchResult> _searchTitles({
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
     required String editionId,
     Set<String> scope = const {},
     bool isExactMatch = false,
+    SearchLanguageScope languageScope = SearchLanguageScope.both,
     int? limit,
   }) {
     final results = <SearchResult>[];
@@ -361,9 +389,14 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       final sinhalaName =
           normalizeText(node.sinhalaName, toLowerCase: true).replaceAll('.', '');
 
-      // Match normalized query against both Pali and Sinhala names
-      final paliMatched = matchesQuery(paliName);
-      final sinhalaMatched = matchesQuery(sinhalaName);
+      // Match normalized query against each name, but only when the language
+      // scope includes that language. Narrowed to one language, a node that
+      // matched only the other language's name is excluded.
+      // (both → both true; pali → only pali; sinhala → only sinhala.)
+      final searchPali = languageScope != SearchLanguageScope.sinhala;
+      final searchSinhala = languageScope != SearchLanguageScope.pali;
+      final paliMatched = searchPali && matchesQuery(paliName);
+      final sinhalaMatched = searchSinhala && matchesQuery(sinhalaName);
 
       // Check both name match AND scope match
       if ((paliMatched || sinhalaMatched) &&
@@ -445,6 +478,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     bool isPhraseSearch = true,
     bool isAnywhereInText = false,
     int proximityDistance = 10,
+    String? language,
     int? limit,
     int offset = 0,
   }) async {
@@ -456,6 +490,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       isPhraseSearch: isPhraseSearch,
       isAnywhereInText: isAnywhereInText,
       proximityDistance: proximityDistance,
+      language: language,
       limit: limit ?? 50,
       offset: offset,
     );
@@ -523,6 +558,19 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   // ============================================================================
   // PRIVATE HELPER METHODS - Utilities
   // ============================================================================
+
+  /// Maps a [SearchLanguageScope] to the FTS `language` filter value (the DB
+  /// code). This is the ONE place the DB codes live; the scope enum itself
+  /// stays database-agnostic so the presentation layer can reuse it.
+  ///
+  /// - [SearchLanguageScope.both]    → null  (search both languages — default)
+  /// - [SearchLanguageScope.pali]    → 'pali'
+  /// - [SearchLanguageScope.sinhala] → 'sinh'  (DB stores Sinhala as 'sinh')
+  String? _ftsLanguageFilter(SearchLanguageScope scope) => switch (scope) {
+        SearchLanguageScope.both => null,
+        SearchLanguageScope.pali => 'pali',
+        SearchLanguageScope.sinhala => 'sinh',
+      };
 
   /// Limits results to maxGroups unique nodeKeys (suttas).
   /// Returns all results belonging to the first maxGroups groups.

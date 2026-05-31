@@ -114,6 +114,10 @@ abstract class FTSDataSource {
   ///
   /// [proximityDistance] - Distance for NEAR/n proximity (1-100).
   /// Only used when isPhraseSearch is false and isAnywhereInText is false.
+  ///
+  /// [language] - When non-null ('pali' or 'sinh'), restricts matches to that
+  /// language's text only. Null (default) searches both languages. Driven by
+  /// the පාළි / සිංහල search toggles in the refine dialog.
   Future<List<FTSMatch>> searchFullText(
     String query, {
     required Set<String> editionIds,
@@ -122,6 +126,7 @@ abstract class FTSDataSource {
     bool isPhraseSearch = true,
     bool isAnywhereInText = false,
     int proximityDistance = 10,
+    String? language,
     int limit = 50,
     int offset = 0,
   });
@@ -139,6 +144,10 @@ abstract class FTSDataSource {
   ///
   /// [proximityDistance] - Distance for NEAR/n proximity (1-100).
   /// Only used when isPhraseSearch is false and isAnywhereInText is false.
+  ///
+  /// [language] - When non-null ('pali' or 'sinh'), counts only that language's
+  /// matches. Null (default) counts both. Must mirror the filter used by
+  /// [searchFullText] so the tab badge matches the visible rows.
   Future<int> countFullTextMatches(
     String query, {
     required String editionId,
@@ -147,6 +156,7 @@ abstract class FTSDataSource {
     bool isPhraseSearch = true,
     bool isAnywhereInText = false,
     int proximityDistance = 10,
+    String? language,
   });
 
   /// Get search suggestions from one or more editions

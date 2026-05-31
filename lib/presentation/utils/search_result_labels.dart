@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/search/search_result.dart';
-import '../providers/content_language_provider.dart';
 import '../providers/navigation_tree_provider.dart';
+import '../providers/search_display_language_provider.dart';
 import 'content_text_formatter.dart';
 
 /// A search result's display labels, rendered in the active Content Language.
@@ -25,13 +25,18 @@ typedef SearchResultLabels = ({String title, String path});
 /// like `breadcrumbPathProvider` does.
 ///
 /// Call this from inside a `ConsumerWidget.build`: it uses `ref.watch`, so the
-/// tile re-renders the instant the Content Language changes — even for results
-/// already on screen.
+/// tile re-renders the instant the language changes — even for results already
+/// on screen.
+///
+/// The language comes from [effectiveSearchDisplayLanguageProvider], not the
+/// raw Content Language: with both පාළි / සිංහල toggles on it *is* the reading
+/// preference, but when the search is narrowed to one language the labels follow
+/// that language so they contain the matched term.
 ///
 /// Falls back to the repository-built strings when the node isn't in the tree
 /// (e.g. dictionary results, which carry an empty `nodeKey`).
 SearchResultLabels searchResultLabels(WidgetRef ref, SearchResult result) {
-  final language = ref.watch(effectiveContentLanguageProvider);
+  final language = ref.watch(effectiveSearchDisplayLanguageProvider);
 
   // The result's own node. Null for dictionary results / unknown keys.
   final node = ref.watch(nodeByKeyProvider(result.nodeKey));
