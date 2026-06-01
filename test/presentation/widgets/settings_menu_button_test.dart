@@ -77,7 +77,7 @@ void main() {
       // updates the provider but does NOT dismiss the popup — the menu stays
       // open and we can switch directly back to Sinhala without re-opening.
       // (The English-locale Content Language labels are 'Pali' / 'Sinhala'.)
-      await tester.tap(find.text('Pali').first);
+      await tester.tap(find.text('Pali'));
       await tester.pumpAndSettle();
       expect(container.read(contentLanguageProvider), ContentLanguage.pali);
 

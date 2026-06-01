@@ -5,6 +5,7 @@ import 'package:the_wisdom_project/core/constants/constants.dart';
 import 'package:the_wisdom_project/data/repositories/text_search_repository_impl.dart';
 import 'package:the_wisdom_project/domain/entities/failure.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
+import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_query.dart';
 import 'package:the_wisdom_project/data/datasources/fts_datasource.dart';
 import 'package:the_wisdom_project/domain/entities/navigation/tipitaka_tree_node.dart';
@@ -1878,6 +1879,344 @@ void main() {
           },
           (results) => fail('Expected failure but got success'),
         );
+      });
+    });
+
+    // ========================================================================
+    // LANGUAGE FILTER (පාළි / සිංහල toggle)
+    //
+    // Two halves of the SearchLanguageScope refactor, verified at the repo:
+    //   1. Title gating — _searchTitles only tests a name field when the scope
+    //      includes that language (in-memory, no DB).
+    //   2. FTS passthrough — the right DB code ('pali'/'sinh'/null) reaches the
+    //      datasource, on BOTH the search path AND the count path (badge parity).
+    // ========================================================================
+    group('language filter (පාළි / සිංහල toggle)', () {
+      // Each node matches the query 'metta' in EXACTLY one language's name.
+      // Matching is plain substring (after normalize + lowercase), so Latin
+      // text in the Sinhala field is fine here — the gating logic doesn't care
+      // about script, only about which field it's allowed to look at.
+      final treeOneLangEach = [
+        const TipitakaTreeNode(
+          nodeKey: 'pali-only',
+          paliName: 'Mettasutta', // contains 'metta'
+          sinhalaName: 'Karuna', // does NOT contain 'metta'
+          hierarchyLevel: 2,
+          entryPageIndex: 0,
+          entryIndexInPage: 0,
+          parentNodeKey: null,
+          contentFileId: 'dn-1',
+        ),
+        const TipitakaTreeNode(
+          nodeKey: 'sinhala-only',
+          paliName: 'Karuna', // does NOT contain 'metta'
+          sinhalaName: 'Metta', // contains 'metta'
+          hierarchyLevel: 2,
+          entryPageIndex: 0,
+          entryIndexInPage: 0,
+          parentNodeKey: null,
+          contentFileId: 'dn-2',
+        ),
+      ];
+
+      // Stub searchFullText to return nothing — these title tests only care
+      // about the in-memory name gating. NOTE: we match `language` with a
+      // matcher so calls carrying 'pali'/'sinh' (not just null) are stubbed too.
+      void stubFtsEmpty() {
+        when(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          isPhraseSearch: anyNamed('isPhraseSearch'),
+          isAnywhereInText: anyNamed('isAnywhereInText'),
+          proximityDistance: anyNamed('proximityDistance'),
+          language: anyNamed('language'),
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).thenAnswer((_) async => []);
+      }
+
+      Set<String> titleNodeKeys(dynamic categorized) =>
+          (categorized.resultsByType[SearchResultType.title]!
+                  as List<SearchResult>)
+              .map((r) => r.nodeKey)
+              .toSet();
+
+      // ---- Title gating ------------------------------------------------------
+
+      test('Pali-only includes the Pali-name match, drops the Sinhala-name one',
+          () async {
+        const query = SearchQuery(
+          queryText: 'metta',
+          searchInPali: true,
+          searchInSinhala: false,
+        );
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeOneLangEach));
+        stubFtsEmpty();
+
+        final result = await repository.searchTopResults(query, maxPerCategory: 10);
+
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) =>
+              expect(titleNodeKeys(categorized), {'pali-only'}),
+        );
+      });
+
+      test('Sinhala-only includes the Sinhala-name match, drops the Pali one',
+          () async {
+        const query = SearchQuery(
+          queryText: 'metta',
+          searchInPali: false,
+          searchInSinhala: true,
+        );
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeOneLangEach));
+        stubFtsEmpty();
+
+        final result = await repository.searchTopResults(query, maxPerCategory: 10);
+
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) =>
+              expect(titleNodeKeys(categorized), {'sinhala-only'}),
+        );
+      });
+
+      test('both languages on includes matches from either name', () async {
+        const query = SearchQuery(queryText: 'metta'); // both default true
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeOneLangEach));
+        stubFtsEmpty();
+
+        final result = await repository.searchTopResults(query, maxPerCategory: 10);
+
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) => expect(
+            titleNodeKeys(categorized),
+            {'pali-only', 'sinhala-only'},
+          ),
+        );
+      });
+
+      test('a node matching BOTH names yields exactly one result (dedup)',
+          () async {
+        const query = SearchQuery(queryText: 'metta');
+        final treeBoth = [
+          const TipitakaTreeNode(
+            nodeKey: 'both',
+            paliName: 'Metta A', // contains 'metta'
+            sinhalaName: 'Metta B', // also contains 'metta'
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'dn-1',
+          ),
+        ];
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeBoth));
+        stubFtsEmpty();
+
+        final result = await repository.searchTopResults(query, maxPerCategory: 10);
+
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) {
+            final titles =
+                categorized.resultsByType[SearchResultType.title]!;
+            expect(titles.length, 1);
+            // Prefers the Sinhala name + tags 'sinhala' when both matched.
+            expect(titles.first.title, 'Metta B');
+            expect(titles.first.language, 'sinhala');
+          },
+        );
+      });
+
+      test('language gating composes with scope as AND, not OR', () async {
+        // Pali-only AND Sutta scope: a node must pass BOTH to survive.
+        const query = SearchQuery(
+          queryText: 'metta',
+          searchInPali: true,
+          searchInSinhala: false,
+          scope: {TipitakaNodeKeys.suttaPitaka},
+        );
+        final treeScoped = [
+          // Pali match, in Sutta scope → kept.
+          const TipitakaTreeNode(
+            nodeKey: 'keep',
+            paliName: 'Mettasutta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'dn-1', // Sutta
+          ),
+          // Pali match, but Vinaya scope → dropped by scope.
+          const TipitakaTreeNode(
+            nodeKey: 'wrong-scope',
+            paliName: 'Mettasutta',
+            sinhalaName: '',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'vin-1', // Vinaya
+          ),
+          // Sinhala-only match, in Sutta scope → dropped by language.
+          const TipitakaTreeNode(
+            nodeKey: 'wrong-lang',
+            paliName: 'Karuna',
+            sinhalaName: 'Metta',
+            hierarchyLevel: 2,
+            entryPageIndex: 0,
+            entryIndexInPage: 0,
+            parentNodeKey: null,
+            contentFileId: 'dn-2', // Sutta
+          ),
+        ];
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(treeScoped));
+        stubFtsEmpty();
+
+        final result = await repository.searchTopResults(query, maxPerCategory: 10);
+
+        result.fold(
+          (failure) => fail('Expected success but got failure'),
+          (categorized) => expect(titleNodeKeys(categorized), {'keep'}),
+        );
+      });
+
+      // ---- FTS filter-value passthrough -------------------------------------
+
+      final passthroughTree = [
+        const TipitakaTreeNode(
+          nodeKey: 'n1',
+          paliName: 'x',
+          sinhalaName: 'x',
+          hierarchyLevel: 2,
+          entryPageIndex: 0,
+          entryIndexInPage: 0,
+          parentNodeKey: null,
+          contentFileId: 'dn-1',
+        ),
+      ];
+
+      test('both on → searchFullText receives language: null (search both)',
+          () async {
+        const query = SearchQuery(queryText: 'dhamma'); // both default true
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(passthroughTree));
+        stubFtsEmpty();
+
+        await repository.searchByResultType(query, SearchResultType.fullText);
+
+        verify(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          isPhraseSearch: anyNamed('isPhraseSearch'),
+          isAnywhereInText: anyNamed('isAnywhereInText'),
+          proximityDistance: anyNamed('proximityDistance'),
+          language: null,
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).called(1);
+      });
+
+      test('Pali-only → searchFullText receives language: pali', () async {
+        const query = SearchQuery(
+          queryText: 'dhamma',
+          searchInPali: true,
+          searchInSinhala: false,
+        );
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(passthroughTree));
+        stubFtsEmpty();
+
+        await repository.searchByResultType(query, SearchResultType.fullText);
+
+        verify(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          isPhraseSearch: anyNamed('isPhraseSearch'),
+          isAnywhereInText: anyNamed('isAnywhereInText'),
+          proximityDistance: anyNamed('proximityDistance'),
+          language: 'pali',
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).called(1);
+      });
+
+      test('Sinhala-only → searchFullText receives the DB code sinh (not sinhala)',
+          () async {
+        const query = SearchQuery(
+          queryText: 'dhamma',
+          searchInPali: false,
+          searchInSinhala: true,
+        );
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(passthroughTree));
+        stubFtsEmpty();
+
+        await repository.searchByResultType(query, SearchResultType.fullText);
+
+        verify(mockFTSDataSource.searchFullText(
+          any,
+          editionIds: anyNamed('editionIds'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          isPhraseSearch: anyNamed('isPhraseSearch'),
+          isAnywhereInText: anyNamed('isAnywhereInText'),
+          proximityDistance: anyNamed('proximityDistance'),
+          language: 'sinh', // ← guards the 'sinh' vs 'sinhala' contract
+          limit: anyNamed('limit'),
+          offset: anyNamed('offset'),
+        )).called(1);
+      });
+
+      test('countByResultType passes the SAME language to countFullTextMatches '
+          '(tab-badge parity)', () async {
+        // The single most important regression guard: if the count path used a
+        // different language than the search path, the badge would disagree
+        // with the visible rows.
+        const query = SearchQuery(
+          queryText: 'dhamma',
+          searchInPali: false,
+          searchInSinhala: true,
+        );
+        when(mockTreeRepository.loadNavigationTree())
+            .thenAnswer((_) async => Right(passthroughTree));
+        when(mockFTSDataSource.countFullTextMatches(
+          any,
+          editionId: anyNamed('editionId'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          isPhraseSearch: anyNamed('isPhraseSearch'),
+          isAnywhereInText: anyNamed('isAnywhereInText'),
+          proximityDistance: anyNamed('proximityDistance'),
+          language: anyNamed('language'),
+        )).thenAnswer((_) async => 0);
+
+        await repository.countByResultType(query);
+
+        verify(mockFTSDataSource.countFullTextMatches(
+          any,
+          editionId: anyNamed('editionId'),
+          scope: anyNamed('scope'),
+          isExactMatch: anyNamed('isExactMatch'),
+          isPhraseSearch: anyNamed('isPhraseSearch'),
+          isAnywhereInText: anyNamed('isAnywhereInText'),
+          proximityDistance: anyNamed('proximityDistance'),
+          language: 'sinh',
+        )).called(1);
       });
     });
   });

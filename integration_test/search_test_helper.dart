@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
+import 'package:the_wisdom_project/domain/entities/content/content_language.dart';
 import 'package:the_wisdom_project/domain/entities/dictionary/dictionary_filter_operations.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
@@ -299,6 +300,54 @@ extension SearchTestHelpers on WidgetTester {
     await tap(find.text('Done'));
     await pumpAndSettle();
     await waitForSearchResults();
+  }
+
+  // ---- Search-language (පාළි / සිංහල) toggle ----
+
+  /// Open the Refine dialog, set which language(s) the search looks in via the
+  /// language SegmentedButton, then close with "Done".
+  ///
+  /// Order matters: we turn the requested languages ON before turning the others
+  /// OFF, so we never hit the "last selected segment is locked" state mid-way.
+  /// At least one of [pali] / [sinhala] must be true.
+  Future<void> setSearchLanguages({
+    required bool pali,
+    required bool sinhala,
+  }) async {
+    await tap(find.text('Refine'));
+    await pumpAndSettle();
+
+    // Turn requested-ON languages on first (re-reading state each time, since a
+    // tap updates the flags synchronously).
+    if (pali && !getSearchState().searchInPali) {
+      await _tapLanguageSegment('Pali');
+    }
+    if (sinhala && !getSearchState().searchInSinhala) {
+      await _tapLanguageSegment('Sinhala');
+    }
+    // Then turn the others off.
+    if (!pali && getSearchState().searchInPali) {
+      await _tapLanguageSegment('Pali');
+    }
+    if (!sinhala && getSearchState().searchInSinhala) {
+      await _tapLanguageSegment('Sinhala');
+    }
+
+    await tap(find.text('Done'));
+    await pumpAndSettle();
+    await waitForSearchResults();
+  }
+
+  /// Tap a language segment by its label, scoped to the language SegmentedButton
+  /// so it never collides with a tree-node name. A `pump()` is enough because
+  /// `setLanguageFilter` updates the flags synchronously in the tap callback.
+  Future<void> _tapLanguageSegment(String label) async {
+    final segment = find.descendant(
+      of: find.byType(SegmentedButton<ContentLanguage>),
+      matching: find.text(label),
+    );
+    await tap(segment, warnIfMissed: false);
+    await pump();
   }
 
   // ---- Dictionary filter helpers ----

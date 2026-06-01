@@ -103,17 +103,42 @@ ok "Deploying $GIT_SHA${GIT_DIRTY} (built $BUILT_AT)"
 [[ "$DRY_RUN" == true ]] && warn "DRY-RUN mode — will stop before rsync"
 
 # ---------------------------------------------------------------- Phase 1: analyze
-phase "Phase 1/7: flutter analyze"
-flutter analyze || die "analyze failed"
-ok "analyze green"
+phase "Phase 1/7: flutter analyze (app)"
+flutter analyze || die "app analyze failed"
+ok "app analyze green"
+
+# Pure-Dart packages (wisdom_shared, server) ship to the server too, but
+# `flutter analyze` only covers the app package. Analyze each shipped Dart
+# package with `dart analyze` so their lib code is linted as well. pub get
+# first so imports resolve (idempotent when deps are already fetched).
+for pkg in packages/wisdom_shared server; do
+  phase "Phase 1/7: dart analyze ($pkg)"
+  ( cd "$pkg" && dart pub get >/dev/null && dart analyze ) || die "$pkg analyze failed"
+  ok "$pkg analyze green"
+done
 
 # ---------------------------------------------------------------- Phase 2: unit tests
 if [[ "$SKIP_TESTS" == true ]]; then
   phase "Phase 2/7: unit tests — SKIPPED (--skip-tests)"
 else
-  phase "Phase 2/7: flutter test"
-  flutter test || die "unit tests failed"
-  ok "unit tests green"
+  phase "Phase 2/7: flutter test (app)"
+  flutter test || die "app unit tests failed"
+  ok "app unit tests green"
+
+  # Pure-Dart packages (wisdom_shared, server) are rsynced to the server below,
+  # but `flutter test` only runs the app package — each package is its own test
+  # target. Run their `dart test` suites here so shared logic can't regress
+  # unnoticed. A package with no tests yet (e.g. server today) is skipped.
+  for pkg in packages/wisdom_shared server; do
+    if [[ -n "$(find "$pkg/test" -name '*_test.dart' -print -quit 2>/dev/null)" ]]; then
+      phase "Phase 2/7: dart test ($pkg)"
+      ( cd "$pkg" && dart pub get >/dev/null && dart test ) \
+        || die "$pkg tests failed"
+      ok "$pkg tests green"
+    else
+      warn "Phase 2/7: dart test ($pkg) — no tests found, skipping"
+    fi
+  done
 fi
 
 # ---------------------------------------------------------------- Phase 3: build
