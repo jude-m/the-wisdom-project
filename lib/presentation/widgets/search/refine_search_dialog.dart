@@ -96,6 +96,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
     // row doesn't independently watch it. (Watching here already rebuilds the
     // whole dialog on change — the per-row Builder added nothing.)
     final language = ref.watch(effectiveContentLanguageProvider);
+    final l10n = AppLocalizations.of(context);
 
     return Dialog(
       child: ConstrainedBox(
@@ -110,24 +111,24 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Header
-              _buildHeader(theme),
+              _buildHeader(theme, l10n),
               const SizedBox(height: 16),
 
               // Language toggle (පාළි / සිංහල) — which language(s) the search
               // looks in. Sits above the scope tree, applies to Title + FTS.
-              _buildLanguageSection(theme, AppLocalizations.of(context)),
+              _buildLanguageSection(theme, l10n),
               const SizedBox(height: 16),
 
               // Scope section
               Expanded(
                 child: treeAsync.when(
                   data: (tree) =>
-                      _buildScopeSection(theme, tree, scope, language),
+                      _buildScopeSection(theme, tree, scope, language, l10n),
                   loading: () => const Center(
                     child: CircularProgressIndicator(),
                   ),
-                  error: (error, _) => Center(
-                    child: Text('Error loading tree: $error'),
+                  error: (_, __) => Center(
+                    child: Text(l10n.errorLoadingTree),
                   ),
                 ),
               ),
@@ -135,7 +136,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
               const SizedBox(height: 16),
 
               // Action buttons
-              _buildActionButtons(theme, AppLocalizations.of(context)),
+              _buildActionButtons(theme, l10n),
             ],
           ),
         ),
@@ -143,7 +144,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
+  Widget _buildHeader(ThemeData theme, AppLocalizations l10n) {
     return Row(
       children: [
         Icon(
@@ -152,14 +153,14 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
         ),
         const SizedBox(width: 8),
         Text(
-          'Refine Search',
+          l10n.refineSearch,
           style: theme.textTheme.titleLarge,
         ),
         const Spacer(),
         IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
-          tooltip: 'Close',
+          tooltip: l10n.close,
         ),
       ],
     );
@@ -202,7 +203,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'LANGUAGE',
+          l10n.searchLanguageLabel.toUpperCase(),
           style: theme.textTheme.labelMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w600,
@@ -297,6 +298,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
     List<TipitakaTreeNode> tree,
     Set<String> scope,
     ContentLanguage language,
+    AppLocalizations l10n,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,7 +306,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
         Row(
           children: [
             Text(
-              'SCOPE',
+              l10n.scope.toUpperCase(),
               style: theme.textTheme.labelMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
@@ -317,7 +319,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
                   ref.read(searchStateProvider.notifier).setScope({});
                 },
                 child: Text(
-                  'Clear',
+                  l10n.clear,
                   style: TextStyle(
                     fontSize: 12,
                     color: theme.colorScheme.primary,

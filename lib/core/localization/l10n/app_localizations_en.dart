@@ -67,6 +67,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get theme => 'Theme';
 
   @override
+  String get themeLight => 'Light';
+
+  @override
   String get appLanguage => 'App Language';
 
   @override
@@ -112,6 +115,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scope => 'Scope';
 
   @override
+  String get searchLanguageLabel => 'Language';
+
+  @override
+  String get searchTabTopResults => 'Top Results';
+
+  @override
+  String get searchTabTitles => 'Titles';
+
+  @override
+  String get searchTabFullText => 'Full text';
+
+  @override
+  String get searchTabDefinitions => 'Definitions';
+
+  @override
+  String get recentSearches => 'Recent searches';
+
+  @override
+  String viewMore(int count) {
+    return 'View $count more';
+  }
+
+  @override
+  String get showLess => 'Show Less';
+
+  @override
   String get wordProximity => 'Word Proximity';
 
   @override
@@ -133,6 +162,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get clear => 'Clear';
+
+  @override
+  String get clearAll => 'Clear All';
 
   @override
   String get scopeAll => 'All';
@@ -195,6 +227,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nextMatch => 'Next match';
+
+  @override
+  String get backspace => 'Backspace';
 
   @override
   String get dictFilterAll => 'All';

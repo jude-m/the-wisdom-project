@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/search_result.dart';
@@ -149,8 +150,9 @@ class GroupedFTSTile extends ConsumerWidget {
           children: [
             Text(
               isExpanded
-                  ? 'Show Less'
-                  : 'View ${group.secondaryMatchCount} more',
+                  ? AppLocalizations.of(context).showLess
+                  : AppLocalizations.of(context)
+                      .viewMore(group.secondaryMatchCount),
               style: context.typography.linkLabel,
             ),
             const SizedBox(width: 4),

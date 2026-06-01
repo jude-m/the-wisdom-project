@@ -96,6 +96,11 @@
     "description": "Label for the theme setting in the settings menu"
   },
 
+  "themeLight": "Light",
+  "@themeLight": {
+    "description": "Label for the light theme option in the theme selector"
+  },
+
   "appLanguage": "App Language",
   "@appLanguage": {
     "description": "Label for the app/UI language setting (pure localization of interface labels)"
@@ -171,6 +176,51 @@
     "description": "Label for the scope section in refine dialog"
   },
 
+  "searchLanguageLabel": "Language",
+  "@searchLanguageLabel": {
+    "description": "Header above the Pali/Sinhala toggle in the Refine Search dialog that chooses which language(s) the search looks in"
+  },
+
+  "searchTabTopResults": "Top Results",
+  "@searchTabTopResults": {
+    "description": "Search results tab + section header: combined best matches across all categories"
+  },
+
+  "searchTabTitles": "Titles",
+  "@searchTabTitles": {
+    "description": "Search results tab + section header: matches in sutta/section/commentary titles"
+  },
+
+  "searchTabFullText": "Full text",
+  "@searchTabFullText": {
+    "description": "Search results tab + section header: matches in the body content of texts"
+  },
+
+  "searchTabDefinitions": "Definitions",
+  "@searchTabDefinitions": {
+    "description": "Search results tab + section header: dictionary definition matches"
+  },
+
+  "recentSearches": "Recent searches",
+  "@recentSearches": {
+    "description": "Header above the list of the user's recent search queries"
+  },
+
+  "viewMore": "View {count} more",
+  "@viewMore": {
+    "description": "Expand link revealing additional secondary matches from the same text",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "showLess": "Show Less",
+  "@showLess": {
+    "description": "Collapse link that hides the expanded secondary matches again"
+  },
+
   "wordProximity": "Word Proximity",
   "@wordProximity": {
     "description": "Label for the word proximity section in refine dialog"
@@ -209,6 +259,11 @@
   "clear": "Clear",
   "@clear": {
     "description": "Button label to clear selections"
+  },
+
+  "clearAll": "Clear All",
+  "@clearAll": {
+    "description": "Label for the action that clears all recent searches"
   },
 
   "scopeAll": "All",
@@ -314,6 +369,11 @@
   "nextMatch": "Next match",
   "@nextMatch": {
     "description": "Tooltip for next match button in in-page search"
+  },
+
+  "backspace": "Backspace",
+  "@backspace": {
+    "description": "Tooltip for the backspace key on the dictionary search keyboard"
   },
 
   "dictFilterAll": "All",

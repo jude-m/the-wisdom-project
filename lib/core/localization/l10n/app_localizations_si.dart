@@ -18,7 +18,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get readerTitle => 'පාඨකය';
 
   @override
-  String get layoutPaliOnly => 'පාලි පමණයි';
+  String get layoutPaliOnly => 'පාළි පමණයි';
 
   @override
   String get layoutSinhalaOnly => 'සිංහල පමණයි';
@@ -30,7 +30,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get layoutStacked => 'ගොඩගැසූ';
 
   @override
-  String get paliLanguageLabel => 'පාලි';
+  String get paliLanguageLabel => 'පාළි';
 
   @override
   String get sinhalaLanguageLabel => 'සිංහල';
@@ -61,10 +61,13 @@ class AppLocalizationsSi extends AppLocalizations {
   String get collapseAll => 'සියල්ල හකුළන්න';
 
   @override
-  String get settings => 'සැකසීම්';
+  String get settings => 'සැකසුම්';
 
   @override
   String get theme => 'තේමාව';
+
+  @override
+  String get themeLight => 'ආලෝකවත්';
 
   @override
   String get appLanguage => 'යෙදුම් භාෂාව';
@@ -91,16 +94,16 @@ class AppLocalizationsSi extends AppLocalizations {
   String get close => 'වසන්න';
 
   @override
-  String get searchHint => 'සෙවුම් පදය ඇතුලත් කරන්න';
+  String get searchHint => 'සෙවුම් පදය ඇතුළත් කරන්න';
 
   @override
   String get isExactMatchToggle => 'එම වචනයම සොයන්න';
 
   @override
-  String get refineSearch => 'සූක්ෂම සෙවීම';
+  String get refineSearch => 'සෙවුම සීමා කිරීම';
 
   @override
-  String get refine => 'සූක්ෂම';
+  String get refine => 'සීමා කිරීම';
 
   @override
   String get expand => 'විහිදන්න';
@@ -112,7 +115,33 @@ class AppLocalizationsSi extends AppLocalizations {
   String get scope => 'පරාසය';
 
   @override
-  String get wordProximity => 'වචන ආසන්නතාව';
+  String get searchLanguageLabel => 'සෙවුම් භාෂා සීමා කරන්න';
+
+  @override
+  String get searchTabTopResults => 'ප්‍රමුඛ ප්‍රතිඵල';
+
+  @override
+  String get searchTabTitles => 'පෙළ';
+
+  @override
+  String get searchTabFullText => 'අන්තර්ගතය';
+
+  @override
+  String get searchTabDefinitions => 'අර්ථ';
+
+  @override
+  String get recentSearches => 'මෑත සෙවුම්';
+
+  @override
+  String viewMore(int count) {
+    return 'තවත් $countක්';
+  }
+
+  @override
+  String get showLess => 'අඩුවෙන් පෙන්වන්න';
+
+  @override
+  String get wordProximity => 'වචන අතර දුර';
 
   @override
   String get phraseSearch => 'වාක්‍ය ඛණ්ඩ සෙවීම (පිළිවෙලට ඇති වචන)';
@@ -133,6 +162,9 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get clear => 'ඉවත් කරන්න';
+
+  @override
+  String get clearAll => 'සියල්ල ඉවත් කරන්න';
 
   @override
   String get scopeAll => 'සියල්ල';
@@ -171,7 +203,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get errorLoadingDefinitions => 'අර්ථ දැක්වීම් පූරණය කිරීමේ දෝෂයකි';
 
   @override
-  String get commentary => 'අටුවාව';
+  String get commentary => 'අට්ඨකථා';
 
   @override
   String get rootText => 'මූල පාඨය';
@@ -197,6 +229,9 @@ class AppLocalizationsSi extends AppLocalizations {
   String get nextMatch => 'ඊළඟ ගැලපීම';
 
   @override
+  String get backspace => 'මකන්න';
+
+  @override
   String get dictFilterAll => 'සියල්ල';
 
   @override
@@ -206,7 +241,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get dictFilterEnglish => 'ඉංග්‍රීසි';
 
   @override
-  String get dictRefineTitle => 'ශබ්දකෝෂ සූක්ෂම කිරීම';
+  String get dictRefineTitle => 'ශබ්දකෝෂ තෝරන්න';
 
   @override
   String get dictRefineSectionLabel => 'ශබ්දකෝෂ';
@@ -252,7 +287,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get statusNoTreeContent => 'අන්තර්ගතයක් නොමැත';
 
   @override
-  String get updateBannerTitle => 'නව සංස්කරණයක් තිබේ';
+  String get updateBannerTitle => 'නව අනුවාදයක් තිබේ';
 
   @override
   String get updateBannerRefreshAction => 'නැවුම් කරන්න';

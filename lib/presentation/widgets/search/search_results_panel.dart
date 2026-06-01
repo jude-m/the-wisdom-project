@@ -131,7 +131,10 @@ class SearchResultsPanel extends ConsumerWidget {
                     children: [
                       // Section header
                       _sectionHeader(
-                          context, resultType.displayName.toUpperCase()),
+                          context,
+                          resultType
+                              .displayLabel(AppLocalizations.of(context))
+                              .toUpperCase()),
                       // Use appropriate tile type for each result type
                       if (resultType == SearchResultType.fullText)
                         ..._buildGroupedFTSResults(
@@ -236,7 +239,7 @@ class SearchResultsPanel extends ConsumerWidget {
           return StatusMessageView(
             variant: StatusVariant.empty,
             title: l10n.statusNoResultsForCategory(
-              selectedResultType.displayName.toLowerCase(),
+              selectedResultType.displayLabel(l10n).toLowerCase(),
             ),
           );
         }
@@ -413,7 +416,7 @@ class _PanelHeader extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.close),
             onPressed: onClose,
-            tooltip: 'Close',
+            tooltip: AppLocalizations.of(context).close,
           ),
           // Show dictionary filter chips on Definitions tab,
           // scope filter chips on all other tabs
@@ -458,6 +461,7 @@ class _SearchResultsTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Container(
       decoration: BoxDecoration(
@@ -503,7 +507,7 @@ class _SearchResultsTabBar extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          resultType.displayName,
+                          resultType.displayLabel(l10n),
                           textAlign: TextAlign.center,
                           overflow: TextOverflow.ellipsis,
                           style: (isSelected

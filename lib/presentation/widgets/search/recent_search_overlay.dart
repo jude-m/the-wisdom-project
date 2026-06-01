@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../providers/search_provider.dart';
@@ -86,7 +87,8 @@ class RecentSearchOverlay extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(context, ref, 'RECENT SEARCHES'),
+        _sectionHeader(
+            context, ref, AppLocalizations.of(context).recentSearches.toUpperCase()),
         ...recentSearches.map((search) => ListTile(
               dense: true,
               leading: Icon(
@@ -181,7 +183,7 @@ class _ClearAllButtonState extends State<_ClearAllButton> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           child: Text(
-            'Clear All',
+            AppLocalizations.of(context).clearAll,
             style: _hovered
                 ? baseStyle.copyWith(color: theme.colorScheme.primary)
                 : baseStyle,

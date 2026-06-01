@@ -212,6 +212,12 @@ abstract class AppLocalizations {
   /// **'Theme'**
   String get theme;
 
+  /// Label for the light theme option in the theme selector
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get themeLight;
+
   /// Label for the app/UI language setting (pure localization of interface labels)
   ///
   /// In en, this message translates to:
@@ -302,6 +308,54 @@ abstract class AppLocalizations {
   /// **'Scope'**
   String get scope;
 
+  /// Header above the Pali/Sinhala toggle in the Refine Search dialog that chooses which language(s) the search looks in
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get searchLanguageLabel;
+
+  /// Search results tab + section header: combined best matches across all categories
+  ///
+  /// In en, this message translates to:
+  /// **'Top Results'**
+  String get searchTabTopResults;
+
+  /// Search results tab + section header: matches in sutta/section/commentary titles
+  ///
+  /// In en, this message translates to:
+  /// **'Titles'**
+  String get searchTabTitles;
+
+  /// Search results tab + section header: matches in the body content of texts
+  ///
+  /// In en, this message translates to:
+  /// **'Full text'**
+  String get searchTabFullText;
+
+  /// Search results tab + section header: dictionary definition matches
+  ///
+  /// In en, this message translates to:
+  /// **'Definitions'**
+  String get searchTabDefinitions;
+
+  /// Header above the list of the user's recent search queries
+  ///
+  /// In en, this message translates to:
+  /// **'Recent searches'**
+  String get recentSearches;
+
+  /// Expand link revealing additional secondary matches from the same text
+  ///
+  /// In en, this message translates to:
+  /// **'View {count} more'**
+  String viewMore(int count);
+
+  /// Collapse link that hides the expanded secondary matches again
+  ///
+  /// In en, this message translates to:
+  /// **'Show Less'**
+  String get showLess;
+
   /// Label for the word proximity section in refine dialog
   ///
   /// In en, this message translates to:
@@ -343,6 +397,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear'**
   String get clear;
+
+  /// Label for the action that clears all recent searches
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All'**
+  String get clearAll;
 
   /// Label for 'All' scope chip (no filter)
   ///
@@ -463,6 +523,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Next match'**
   String get nextMatch;
+
+  /// Tooltip for the backspace key on the dictionary search keyboard
+  ///
+  /// In en, this message translates to:
+  /// **'Backspace'**
+  String get backspace;
 
   /// Label for 'All' dictionary filter chip (no filter)
   ///

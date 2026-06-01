@@ -121,13 +121,16 @@ class _ThemeSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentTheme = ref.watch(themeNotifierProvider);
+    final l10n = AppLocalizations.of(context);
 
     return SegmentedButton<AppThemeMode>(
-      segments: const [
+      // Not `const`: the label now reads from localizations, so the list
+      // can't be a compile-time constant.
+      segments: [
         ButtonSegment(
           value: AppThemeMode.light,
-          label: Text('Light'),
-          icon: Icon(Icons.light_mode, size: 16),
+          label: Text(l10n.themeLight),
+          icon: const Icon(Icons.light_mode, size: 16),
         ),
         // ButtonSegment(
         //   value: AppThemeMode.dark,
@@ -166,6 +169,7 @@ class _FontSizeSelector extends ConsumerWidget {
     final colors = Theme.of(context).colorScheme;
     final isDefault = (scale - notifier.platformDefault).abs() < 0.01;
     final percentage = (scale * 100).round();
+    final l10n = AppLocalizations.of(context);
 
     return Column(
       children: [
@@ -239,7 +243,7 @@ class _FontSizeSelector extends ConsumerWidget {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: Text(
-                  'Reset',
+                  l10n.reset,
                   style: TextStyle(
                     fontFamily: AppFonts.ui,
                     fontSize: AppFonts.labelFontSize,

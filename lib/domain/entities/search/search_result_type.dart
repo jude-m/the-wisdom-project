@@ -1,3 +1,5 @@
+import '../../../core/localization/l10n/app_localizations.dart';
+
 /// Represents the category of a search result
 /// Used for grouping and filtering search results
 enum SearchResultType {
@@ -16,7 +18,11 @@ enum SearchResultType {
 
 /// Extension methods for SearchCategory
 extension SearchResultTypeExtension on SearchResultType {
-  /// Get display name for UI
+  /// Get display name for UI.
+  ///
+  /// Kept as the canonical English label (used by tests / non-localized
+  /// contexts). For anything shown to the user, prefer [displayLabel], which
+  /// routes through the active locale.
   String get displayName {
     switch (this) {
       case SearchResultType.topResults:
@@ -27,6 +33,24 @@ extension SearchResultTypeExtension on SearchResultType {
         return 'Full text';
       case SearchResultType.definition:
         return 'Definitions';
+    }
+  }
+
+  /// Localized display label for UI (the search tabs and their matching
+  /// section sub-headers share this single token, so both follow the locale).
+  ///
+  /// Mirrors [displayName] but resolves against [AppLocalizations]. Same
+  /// pattern as [SearchScopeChip.label].
+  String displayLabel(AppLocalizations l10n) {
+    switch (this) {
+      case SearchResultType.topResults:
+        return l10n.searchTabTopResults;
+      case SearchResultType.title:
+        return l10n.searchTabTitles;
+      case SearchResultType.fullText:
+        return l10n.searchTabFullText;
+      case SearchResultType.definition:
+        return l10n.searchTabDefinitions;
     }
   }
 

@@ -349,7 +349,7 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
                                       _wordFocusNode.requestFocus();
                                       _onWordChanged(_wordController.text);
                                     },
-                                    tooltip: 'Backspace',
+                                    tooltip: AppLocalizations.of(context).backspace,
                                   ),
                                 ),
                               ),
@@ -393,7 +393,7 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
                             IconButton(
                               icon: const Icon(Icons.close),
                               onPressed: widget.onClose,
-                              tooltip: 'Close',
+                              tooltip: AppLocalizations.of(context).close,
                             ),
                           ],
                         ),

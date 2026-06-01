@@ -220,7 +220,7 @@ class _RefineChip extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              'Refine',
+              AppLocalizations.of(context).refine,
               style: hasActiveFilters
                   ? typography.chipLabelSelected.copyWith(
                       color: theme.colorScheme.onPrimaryContainer,

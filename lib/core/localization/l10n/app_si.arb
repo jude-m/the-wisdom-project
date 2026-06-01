@@ -7,7 +7,7 @@
 
   "readerTitle": "පාඨකය",
 
-  "layoutPaliOnly": "පාලි පමණයි",
+  "layoutPaliOnly": "පාළි පමණයි",
 
   "layoutSinhalaOnly": "සිංහල පමණයි",
 
@@ -15,7 +15,7 @@
 
   "layoutStacked": "ගොඩගැසූ",
 
-  "paliLanguageLabel": "පාලි",
+  "paliLanguageLabel": "පාළි",
 
   "sinhalaLanguageLabel": "සිංහල",
 
@@ -35,9 +35,11 @@
 
   "collapseAll": "සියල්ල හකුළන්න",
 
-  "settings": "සැකසීම්",
+  "settings": "සැකසුම්",
 
   "theme": "තේමාව",
+
+  "themeLight": "ආලෝකවත්",
 
   "appLanguage": "යෙදුම් භාෂාව",
 
@@ -55,13 +57,13 @@
 
   "close": "වසන්න",
 
-  "searchHint": "සෙවුම් පදය ඇතුලත් කරන්න",
+  "searchHint": "සෙවුම් පදය ඇතුළත් කරන්න",
 
   "isExactMatchToggle": "එම වචනයම සොයන්න",
 
-  "refineSearch": "සූක්ෂම සෙවීම",
+  "refineSearch": "සෙවුම සීමා කිරීම",
 
-  "refine": "සූක්ෂම",
+  "refine": "සීමා කිරීම",
 
   "expand": "විහිදන්න",
 
@@ -69,7 +71,23 @@
 
   "scope": "පරාසය",
 
-  "wordProximity": "වචන ආසන්නතාව",
+  "searchLanguageLabel": "සෙවුම් භාෂා සීමා කරන්න",
+
+  "searchTabTopResults": "ප්‍රමුඛ ප්‍රතිඵල",
+
+  "searchTabTitles": "පෙළ",
+
+  "searchTabFullText": "අන්තර්ගතය",
+
+  "searchTabDefinitions": "අර්ථ",
+
+  "recentSearches": "මෑත සෙවුම්",
+
+  "viewMore": "තවත් {count}ක්",
+
+  "showLess": "අඩුවෙන් පෙන්වන්න",
+
+  "wordProximity": "වචන අතර දුර",
 
   "phraseSearch": "වාක්‍ය ඛණ්ඩ සෙවීම (පිළිවෙලට ඇති වචන)",
 
@@ -82,6 +100,8 @@
   "reset": "යළි සකසන්න",
 
   "clear": "ඉවත් කරන්න",
+
+  "clearAll": "සියල්ල ඉවත් කරන්න",
 
   "scopeAll": "සියල්ල",
 
@@ -107,7 +127,7 @@
 
   "errorLoadingDefinitions": "අර්ථ දැක්වීම් පූරණය කිරීමේ දෝෂයකි",
 
-  "commentary": "අටුවාව",
+  "commentary": "අට්ඨකථා",
 
   "rootText": "මූල පාඨය",
 
@@ -123,13 +143,15 @@
 
   "nextMatch": "ඊළඟ ගැලපීම",
 
+  "backspace": "මකන්න",
+
   "dictFilterAll": "සියල්ල",
 
   "dictFilterSinhala": "සිංහල",
 
   "dictFilterEnglish": "ඉංග්‍රීසි",
 
-  "dictRefineTitle": "ශබ්දකෝෂ සූක්ෂම කිරීම",
+  "dictRefineTitle": "ශබ්දකෝෂ තෝරන්න",
 
   "dictRefineSectionLabel": "ශබ්දකෝෂ",
 
@@ -157,7 +179,7 @@
 
   "statusNoTreeContent": "අන්තර්ගතයක් නොමැත",
 
-  "updateBannerTitle": "නව සංස්කරණයක් තිබේ",
+  "updateBannerTitle": "නව අනුවාදයක් තිබේ",
 
   "updateBannerRefreshAction": "නැවුම් කරන්න",
 
