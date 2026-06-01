@@ -18,29 +18,12 @@ enum SearchResultType {
 
 /// Extension methods for SearchCategory
 extension SearchResultTypeExtension on SearchResultType {
-  /// Get display name for UI.
-  ///
-  /// Kept as the canonical English label (used by tests / non-localized
-  /// contexts). For anything shown to the user, prefer [displayLabel], which
-  /// routes through the active locale.
-  String get displayName {
-    switch (this) {
-      case SearchResultType.topResults:
-        return 'Top Results';
-      case SearchResultType.title:
-        return 'Titles';
-      case SearchResultType.fullText:
-        return 'Full text';
-      case SearchResultType.definition:
-        return 'Definitions';
-    }
-  }
-
   /// Localized display label for UI (the search tabs and their matching
   /// section sub-headers share this single token, so both follow the locale).
   ///
-  /// Mirrors [displayName] but resolves against [AppLocalizations]. Same
-  /// pattern as [SearchScopeChip.label].
+  /// Resolves against [AppLocalizations]. Same pattern as
+  /// [SearchScopeChip.label]. The canonical English strings live in
+  /// `app_en.arb` (e.g. `searchTabTitles`).
   String displayLabel(AppLocalizations l10n) {
     switch (this) {
       case SearchResultType.topResults:
