@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show SelectedContent;
 import '../../../core/constants/constants.dart';
+import '../../../core/utils/responsive_utils.dart';
 import '../../../domain/entities/bjt/bjt_page.dart';
 import '../../models/in_page_search_state.dart';
 import 'entry_key_registry.dart';
@@ -60,47 +61,50 @@ class SingleColumnPane extends StatelessWidget {
         // Clear all highlights when tapping empty space
         onTap: onTapEmpty,
         behavior: HitTestBehavior.translucent,
-        child: ListView.builder(
-          controller: scrollController,
-          padding: const EdgeInsets.all(24.0),
-          itemCount: pages.length + 1, // +1 for top spacer
-          itemBuilder: (context, index) {
-            // First item is a spacer so content doesn't hide behind button group
-            if (index == 0) {
-              return const SizedBox(
-                  height: PaneWidthConstants.readerActionButtonGroupHeight);
-            }
-            // Adjust index for pages (index-1 since spacer is at 0)
-            final pageIndex = index - 1;
-            final absolutePageIndex = absolutePageStart + pageIndex;
-            final page = pages[pageIndex];
-            // On first page, skip entries before entryStart
-            final actualEntryStart = pageIndex == 0 ? entryStart : 0;
-            final section = languageCode == 'pi'
-                ? page.paliSection
-                : page.sinhalaSection;
-            final entries =
-                section.entries.skip(actualEntryStart).toList();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ReaderEntryBuilder.buildPageNumber(context, page.pageNumber),
-                const SizedBox(height: 16),
-                ...ReaderEntryBuilder.buildEntries(
-                  context,
-                  entries,
-                  enableDictionaryLookup: enableDictionaryLookup,
-                  searchState: searchState,
-                  absolutePageIndex: absolutePageIndex,
-                  entryStartOffset: actualEntryStart,
-                  languageCode: languageCode,
-                  onWordTap: onWordTap,
-                  entryKeyRegistry: entryKeyRegistry,
-                ),
-                const SizedBox(height: 32), // Space between pages
-              ],
-            );
-          },
+        // LayoutBuilder exposes the pane's own width so the reading column can
+        // be capped and centered on wide screens (calmer margins), while
+        // medium/small panes keep the standard uniform padding.
+        child: LayoutBuilder(
+          builder: (context, constraints) => ListView.builder(
+            controller: scrollController,
+            padding: ResponsiveUtils.readingColumnPadding(constraints.maxWidth),
+            itemCount: pages.length + 1, // +1 for top spacer
+            itemBuilder: (context, index) {
+              // First item is a spacer so content doesn't hide behind button group
+              if (index == 0) {
+                return const SizedBox(
+                    height: PaneWidthConstants.readerActionButtonGroupHeight);
+              }
+              // Adjust index for pages (index-1 since spacer is at 0)
+              final pageIndex = index - 1;
+              final absolutePageIndex = absolutePageStart + pageIndex;
+              final page = pages[pageIndex];
+              // On first page, skip entries before entryStart
+              final actualEntryStart = pageIndex == 0 ? entryStart : 0;
+              final section =
+                  languageCode == 'pi' ? page.paliSection : page.sinhalaSection;
+              final entries = section.entries.skip(actualEntryStart).toList();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ReaderEntryBuilder.buildPageNumber(context, page.pageNumber),
+                  const SizedBox(height: 16),
+                  ...ReaderEntryBuilder.buildEntries(
+                    context,
+                    entries,
+                    enableDictionaryLookup: enableDictionaryLookup,
+                    searchState: searchState,
+                    absolutePageIndex: absolutePageIndex,
+                    entryStartOffset: actualEntryStart,
+                    languageCode: languageCode,
+                    onWordTap: onWordTap,
+                    entryKeyRegistry: entryKeyRegistry,
+                  ),
+                  const SizedBox(height: 32), // Space between pages
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

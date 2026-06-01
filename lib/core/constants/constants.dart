@@ -36,6 +36,17 @@ class PaneWidthConstants {
   // Reader content padding (used for scroll area and divider overlay alignment)
   static const double readerContentPadding = 24.0;
 
+  // Comfortable reading-column width for the single-script panes (Pali-only,
+  // Sinhala-only, stacked). On wide panes the text is capped to this width and
+  // the leftover space becomes equal left/right margins for a calmer measure.
+  // 1240px matches the tripitaka.online reading measure (gutters land within a
+  // few px of theirs on a 14" MacBook Pro at near-full-width / navigator
+  // collapsed); tuned live on real Sinhala text. The margins only engage once
+  // the reader pane exceeds readingColumnMaxWidth + readerContentPadding*2
+  // (= 1288px), so a narrow window or an open navigator sidebar keeps the plain
+  // uniform 24px. Side-by-side is unaffected.
+  static const double readingColumnMaxWidth = 1240.0;
+
   // Height reserved for the floating action button group at the top of the reader.
   // Used as a spacer in the ListView so content doesn't hide behind it.
   static const double readerActionButtonGroupHeight = 44.0;

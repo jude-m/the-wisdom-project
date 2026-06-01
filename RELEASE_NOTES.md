@@ -16,6 +16,8 @@
     - Keep each note short; the banner is a glance, not a changelog page
 -->
 
-## Current release
+## Current release - 2 June 2026
 
-- Fixed: අකුරු වල පැහැදිලි බව සඳ​හා Font sizes සහ weight එක වැඩි කර ඇත. 
+- New: Sinhala language support
+- New: Pali/Sinhala environment language change. eg: Navigator language
+- New: Pali/Sinhala search filter  
