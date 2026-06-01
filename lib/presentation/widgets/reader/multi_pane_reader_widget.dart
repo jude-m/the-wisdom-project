@@ -93,7 +93,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   static const _matchScrollMaxRetries = 10;
 
   // Emblem shown in the first-run "select a sutta" hint.
-  static const _selectSuttaEmblemAsset = 'assets/icons/urna_hair_relic.png';
+  static const _selectSuttaEmblemAsset = 'assets/icons/app_logo.png';
 
   @override
   void initState() {
@@ -623,7 +623,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
                     return StatusMessageView(
                       variant: StatusVariant.info,
                       imageAsset: _selectSuttaEmblemAsset,
-                      imageSize: 80,
+                      imageSize: 100,
                       title: AppLocalizations.of(context).statusSelectSuttaToRead,
                     );
                   }

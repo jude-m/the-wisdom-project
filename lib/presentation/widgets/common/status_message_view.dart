@@ -64,9 +64,9 @@ class StatusMessageView extends StatelessWidget {
   final IconData? iconOverride;
 
   /// Optional asset image used as the leading visual instead of an icon.
-  /// Must be a flat "template" shape — it is tinted with the variant's icon
-  /// colour. Takes precedence over [iconOverride] and is ignored when
-  /// [variant] is [StatusVariant.loading]. Use sparingly, for the same
+  /// Rendered as-is (full colour, no tint), so it can be a logo or any
+  /// other artwork. Takes precedence over [iconOverride] and is ignored
+  /// when [variant] is [StatusVariant.loading]. Use sparingly, for the same
   /// visual-consistency reason as [iconOverride].
   final String? imageAsset;
 
@@ -119,20 +119,21 @@ class StatusMessageView extends StatelessWidget {
         child: CircularProgressIndicator(strokeWidth: 3),
       );
     } else if (imageAsset != null) {
-      // Decode the bitmap at display resolution rather than its intrinsic
-      // size, so a large source PNG doesn't sit in the image cache full-size.
+      // Supersample: decode at 2x the display's physical pixel size rather
+      // than the source's full 1024px (keeps the image cache small) but with
+      // enough headroom that FilterQuality.medium can mipmap-downscale to the
+      // final size cleanly. Decoding straight to 1:1 aliases a detailed logo
+      // (e.g. a grungy brush ring) into speckle.
       final cacheExtent =
-          (imageSize * MediaQuery.devicePixelRatioOf(context)).round();
-      // srcIn paints the variant colour through the asset's alpha,
-      // so the shape tints correctly in light & dark themes.
+          (imageSize * MediaQuery.devicePixelRatioOf(context) * 2).round();
+      // Rendered full-colour (no tint) so logos/artwork show as authored.
       leading = Image.asset(
         imageAsset!,
         width: imageSize,
         height: imageSize,
         cacheWidth: cacheExtent,
         cacheHeight: cacheExtent,
-        color: _iconColor(variant, colorScheme),
-        colorBlendMode: BlendMode.srcIn,
+        filterQuality: FilterQuality.medium,
       );
     } else {
       leading = Icon(

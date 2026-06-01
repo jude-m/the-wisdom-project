@@ -435,7 +435,7 @@ void main() {
         final image = widget.image;
         final asset = image is ResizeImage ? image.imageProvider : image;
         return asset is AssetImage &&
-            asset.assetName == 'assets/icons/urna_hair_relic.png';
+            asset.assetName == 'assets/icons/app_logo.png';
       });
       expect(emblem, findsOneWidget);
       // Must not show the generic info_outline — override should win.
