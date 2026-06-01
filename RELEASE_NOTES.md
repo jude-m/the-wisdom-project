@@ -19,5 +19,5 @@
 ## Current release - 2 June 2026
 
 - New: Sinhala language support
-- New: Pali/Sinhala environment language change. eg: Navigator language
+- New: Pali/Sinhala content language change. eg: Navigator language, Search results
 - New: Pali/Sinhala search filter  
