@@ -170,19 +170,19 @@ class AppLocalizationsSi extends AppLocalizations {
   String get scopeAll => 'සියල්ල';
 
   @override
-  String get scopeSutta => 'සුත්ත';
+  String get scopeSutta => 'සූත්‍ර';
 
   @override
   String get scopeVinaya => 'විනය';
 
   @override
-  String get scopeAbhidhamma => 'අභිධම්ම';
+  String get scopeAbhidhamma => 'අභිධර්ම';
 
   @override
   String get scopeCommentaries => 'අට්ඨකථා';
 
   @override
-  String get scopeTreatises => 'ග්‍රන්ථ';
+  String get scopeTreatises => 'වෙනත්';
 
   @override
   String get searchAsPhrase => 'සම්පුර්ණ වාක්‍යක් ලෙස';
@@ -203,10 +203,10 @@ class AppLocalizationsSi extends AppLocalizations {
   String get errorLoadingDefinitions => 'අර්ථ දැක්වීම් පූරණය කිරීමේ දෝෂයකි';
 
   @override
-  String get commentary => 'අට්ඨකථා';
+  String get commentary => 'අට්ඨකථාව වෙත';
 
   @override
-  String get rootText => 'මූල පාඨය';
+  String get rootText => 'මූලය වෙත';
 
   @override
   String get scrollToBeginning => 'ආරම්භයට යන්න';

@@ -105,15 +105,15 @@
 
   "scopeAll": "සියල්ල",
 
-  "scopeSutta": "සුත්ත",
+  "scopeSutta": "සූත්‍ර",
 
   "scopeVinaya": "විනය",
 
-  "scopeAbhidhamma": "අභිධම්ම",
+  "scopeAbhidhamma": "අභිධර්ම",
 
   "scopeCommentaries": "අට්ඨකථා",
 
-  "scopeTreatises": "ග්‍රන්ථ",
+  "scopeTreatises": "වෙනත්",
 
   "searchAsPhrase": "සම්පුර්ණ වාක්‍යක් ලෙස",
 
@@ -127,9 +127,9 @@
 
   "errorLoadingDefinitions": "අර්ථ දැක්වීම් පූරණය කිරීමේ දෝෂයකි",
 
-  "commentary": "අට්ඨකථා",
+  "commentary": "අට්ඨකථාව වෙත",
 
-  "rootText": "මූල පාඨය",
+  "rootText": "මූලය වෙත",
 
   "scrollToBeginning": "ආරම්භයට යන්න",
 
