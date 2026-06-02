@@ -11,6 +11,7 @@
 /// nothing gates pointer events.
 ///
 /// Run with: `flutter test test/presentation/widgets/reader/reader_action_button_group_test.dart`
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

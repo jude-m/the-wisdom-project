@@ -56,12 +56,12 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: MaterialApp(
+          child: const MaterialApp(
             // The menu now resolves its section labels via AppLocalizations,
             // so the delegates must be wired up.
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: const Scaffold(
+            home: Scaffold(
               body: SettingsMenuButton(),
             ),
           ),
