@@ -85,6 +85,22 @@ class _SearchBarState extends ConsumerState<SearchBar> {
     if (mounted) setState(() {});
 
     if (_focusNode.hasFocus) {
+      // Browser address-bar behaviour: when the bar gains focus and already
+      // has a query, highlight the whole thing so the next keystroke replaces
+      // it. Deferred to a post-frame callback so it runs AFTER a tap places the
+      // caret — otherwise that caret placement would collapse the selection.
+      // (Clicking a second time while already focused doesn't re-fire this, so
+      // the cursor still places normally on subsequent clicks.)
+      if (_controller.text.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !_focusNode.hasFocus) return;
+          _controller.selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _controller.text.length,
+          );
+        });
+      }
+
       // Load recent searches
       await ref.read(searchStateProvider.notifier).onFocus();
 

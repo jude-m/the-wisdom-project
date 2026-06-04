@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/in_page_search_focus_provider.dart';
 import '../providers/in_page_search_provider.dart';
 import '../providers/last_selected_text_provider.dart';
 import '../providers/main_search_focus_provider.dart';
@@ -31,27 +32,27 @@ class DismissTopOverlayAction extends ContextAction<DismissTopOverlayIntent> {
   }
 }
 
-/// Opens the in-page search bar for the currently active tab.
+/// Opens the in-page search bar for the currently active tab — or, when it's
+/// already visible, snaps focus back to its input (Chrome / VS Code muscle
+/// memory) instead of bluntly re-running the idempotent open.
 ///
 /// Suppressed when the main FTS search bar holds focus, so Ctrl/Cmd+F
 /// doesn't yank a typing user out of the global search.
-///
-/// TODO(in-page-search-refocus): when Ctrl/Cmd+F is pressed while the
-/// in-page search bar is already visible, this re-runs openSearch() which
-/// is idempotent — but Chrome / VS Code muscle memory expects focus to
-/// snap back to the existing input. To match that, we need an
-/// `inPageSearchFocusNodeProvider` (mirror of `mainSearchFocusNodeProvider`)
-/// published by the in-page search widget's TextField; this action would
-/// then call `requestFocus()` on it when the bar is already open. Defer
-/// until we next touch the in-page search widget for another reason — the
-/// current behaviour isn't wrong, just blunt.
 class OpenInPageSearchAction extends ContextAction<OpenInPageSearchIntent> {
   final WidgetRef ref;
   OpenInPageSearchAction(this.ref);
 
   @override
   Object? invoke(OpenInPageSearchIntent intent, [BuildContext? context]) {
-    ref.read(inPageSearchStatesProvider.notifier).openSearch();
+    final isVisible = ref.read(activeInPageSearchStateProvider).isVisible;
+    if (isVisible) {
+      // Already open — jump focus back to the existing input. Mirrors
+      // OpenMainSearchAction. The node is owned by the provider (the bar just
+      // borrows it), so it's always available while the bar is mounted.
+      ref.read(inPageSearchFocusNodeProvider).requestFocus();
+    } else {
+      ref.read(inPageSearchStatesProvider.notifier).openSearch();
+    }
     return null;
   }
 

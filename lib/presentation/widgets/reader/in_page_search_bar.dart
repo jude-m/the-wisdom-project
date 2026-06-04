@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/localization/l10n/app_localizations.dart';
+import '../../providers/in_page_search_focus_provider.dart';
 import '../../providers/in_page_search_provider.dart';
 
 /// Chrome-style floating search bar for in-page search.
@@ -23,32 +24,61 @@ class InPageSearchBar extends ConsumerStatefulWidget {
 
 class _InPageSearchBarState extends ConsumerState<InPageSearchBar> {
   final _controller = TextEditingController();
-  final _focusNode = FocusNode();
+
+  // Borrowed from inPageSearchFocusNodeProvider, not created here. The provider
+  // owns the node's lifecycle (creation + disposal), so this widget never
+  // creates, disposes, publishes, or clears it — it just attaches it to the
+  // TextField and listens for focus changes. Captured once in initState so
+  // dispose() can detach the listener without touching `ref` (using `ref`
+  // after teardown throws).
+  late final FocusNode _focusNode;
 
   @override
   void initState() {
     super.initState();
+    // Borrow the session-lived focus node owned by the provider.
+    _focusNode = ref.read(inPageSearchFocusNodeProvider);
+
     // Restore previous query text from state
     final searchState = ref.read(activeInPageSearchStateProvider);
     if (searchState.rawQuery.isNotEmpty) {
       _controller.text = searchState.rawQuery;
     }
-    // Auto-focus the text field when search bar opens
+    _focusNode.addListener(_onFocusChange);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Auto-focus the text field when the search bar opens.
       _focusNode.requestFocus();
     });
-    _focusNode.addListener(_onFocusChange);
   }
 
   void _onFocusChange() {
     if (mounted) setState(() {});
+
+    // Browser address-bar behaviour: when the bar gains focus and already has a
+    // query, highlight it all so the next keystroke replaces it. Deferred to a
+    // post-frame callback so it runs AFTER a tap places the caret — otherwise
+    // that caret placement would collapse the selection.
+    if (_focusNode.hasFocus && _controller.text.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_focusNode.hasFocus) return;
+        _controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _controller.text.length,
+        );
+      });
+    }
   }
 
   @override
   void dispose() {
+    // Detach only what we attached. The node itself is owned by
+    // inPageSearchFocusNodeProvider, so we neither dispose it nor write to the
+    // provider here — which is what previously re-entered Riverpod's scheduler
+    // mid-teardown and crashed. We still own (and dispose) the controller.
     _focusNode.removeListener(_onFocusChange);
     _controller.dispose();
-    _focusNode.dispose();
     super.dispose();
   }
 
