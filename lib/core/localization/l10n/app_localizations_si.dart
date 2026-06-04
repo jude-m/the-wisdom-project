@@ -67,7 +67,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get theme => 'තේමාව';
 
   @override
-  String get themeLight => 'ආලෝකවත්';
+  String get themeLight => 'ශ්වේ​ත';
 
   @override
   String get appLanguage => 'යෙදුම් භාෂාව';
@@ -106,7 +106,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get refine => 'සීමා කිරීම';
 
   @override
-  String get expand => 'විහිදන්න';
+  String get expand => 'ඉහළ​ට';
 
   @override
   String get collapse => 'හකුළන්න';
@@ -134,11 +134,11 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String viewMore(int count) {
-    return 'තවත් $countක්';
+    return 'මෙහිම තවත් ගැළපී​ම් $countක් ඇත';
   }
 
   @override
-  String get showLess => 'අඩුවෙන් පෙන්වන්න';
+  String get showLess => 'හකුළන්න';
 
   @override
   String get wordProximity => 'වචන අතර දුර';
@@ -229,7 +229,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get nextMatch => 'ඊළඟ ගැලපීම';
 
   @override
-  String get backspace => 'මකන්න';
+  String get backspace => 'අකුරු මකන්න';
 
   @override
   String get dictFilterAll => 'සියල්ල';

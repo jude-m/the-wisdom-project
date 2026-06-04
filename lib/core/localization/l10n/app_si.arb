@@ -39,7 +39,7 @@
 
   "theme": "තේමාව",
 
-  "themeLight": "ආලෝකවත්",
+  "themeLight": "ශ්වේ​ත",
 
   "appLanguage": "යෙදුම් භාෂාව",
 
@@ -65,7 +65,7 @@
 
   "refine": "සීමා කිරීම",
 
-  "expand": "විහිදන්න",
+  "expand": "ඉහළ​ට",
 
   "collapse": "හකුළන්න",
 
@@ -83,9 +83,9 @@
 
   "recentSearches": "මෑත සෙවුම්",
 
-  "viewMore": "තවත් {count}ක්",
+  "viewMore": "මෙහිම තවත් ගැළපී​ම් {count}ක් ඇත",
 
-  "showLess": "අඩුවෙන් පෙන්වන්න",
+  "showLess": "හකුළන්න",
 
   "wordProximity": "වචන අතර දුර",
 
@@ -143,7 +143,7 @@
 
   "nextMatch": "ඊළඟ ගැලපීම",
 
-  "backspace": "මකන්න",
+  "backspace": "අකුරු මකන්න",
 
   "dictFilterAll": "සියල්ල",
 
@@ -181,7 +181,7 @@
 
   "updateBannerTitle": "නව අනුවාදයක් තිබේ",
 
-  "updateBannerRefreshAction": "නැවුම් කරන්න",
+  "updateBannerRefreshAction": "රීලෝ​ඩ් කරන්න",
 
   "updateBannerDismissTooltip": "ඉවත් කරන්න"
 }
