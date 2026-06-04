@@ -688,9 +688,17 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
         // a capped width (Chrome/Safari/VS Code pattern — close button lands
         // where the eye expects it). Breakpoint comes from ResponsiveUtils so
         // it stays in sync with the rest of the app's layout decisions.
-        // ValueKey ensures a fresh widget instance per tab (resets controller text).
+        // The inner ValueKey on InPageSearchBar (below) gives a fresh widget
+        // instance per tab so the controller text resets; the outer key on the
+        // Positioned is a separate concern — see its note.
         if (searchState.isVisible)
           Positioned(
+            // Stable key so the Stack matches this child by identity. Without
+            // it, inserting this child shifts the keyless Positioned wrappers
+            // below by one slot, and the FAB's (opacity-1) AnimatedOpacity
+            // element gets reused to render the Mode 1 pills for a frame —
+            // making the top pills flash in on every open.
+            key: const ValueKey('in-page-search-bar'),
             top: 8,
             right: 16,
             left: ResponsiveUtils.isMobile(context) ? 16 : null,
@@ -700,7 +708,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
               ),
               child: InPageSearchBar(
                 key: ValueKey(
-                  'search_bar_${ref.watch(activeTabIndexProvider)}',
+                  'search-bar-${ref.watch(activeTabIndexProvider)}',
                 ),
               ),
             ),
@@ -710,6 +718,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
         // IgnorePointer disables taps on the invisible widget.
         if (hasContent)
           Positioned(
+            // Keyed so reconciliation pins this to the Mode 1 element no matter
+            // what conditional siblings appear/disappear above it (see the
+            // search-bar key note above).
+            key: const ValueKey('reader-actions-top'),
             top: 12,
             right: 16,
             child: IgnorePointer(
@@ -748,6 +760,9 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
         // Contains layout selector + action buttons when expanded.
         if (hasContent)
           Positioned(
+            // Keyed so reconciliation pins this to the Mode 2 (FAB) element —
+            // see the search-bar key note above.
+            key: const ValueKey('reader-actions-fab'),
             bottom: 24,
             right: 16,
             child: IgnorePointer(
@@ -777,7 +792,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           ),
         // Non-modal dictionary bottom sheet overlay
         // Only mounted when a word is selected (conditional mounting for performance)
-        if (selectedWord != null) const DictionaryBottomSheet(),
+        if (selectedWord != null)
+          const DictionaryBottomSheet(key: ValueKey('dictionary-sheet')),
       ],
     );
   }
