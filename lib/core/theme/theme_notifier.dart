@@ -125,12 +125,17 @@ final currentThemeDataProvider = Provider<ThemeData>((ref) {
   final mode = ref.watch(themeNotifierProvider);
   final fontScale = ref.watch(fontScaleProvider);
 
-  switch (mode) {
-    case AppThemeMode.light:
-      return AppTheme.light(fontScale: fontScale);
-    case AppThemeMode.dark:
-      return AppTheme.dark(fontScale: fontScale);
-    case AppThemeMode.warm:
-      return AppTheme.warm(fontScale: fontScale);
-  }
+  final theme = switch (mode) {
+    AppThemeMode.light => AppTheme.light(fontScale: fontScale),
+    AppThemeMode.dark => AppTheme.dark(fontScale: fontScale),
+    AppThemeMode.warm => AppTheme.warm(fontScale: fontScale),
+  };
+
+  // Add a hover delay before tooltips appear; Flutter's default waitDuration
+  // is Duration.zero, so they otherwise fire the instant the pointer lands.
+  return theme.copyWith(
+    tooltipTheme: const TooltipThemeData(
+      waitDuration: Duration(milliseconds: 750),
+    ),
+  );
 });
