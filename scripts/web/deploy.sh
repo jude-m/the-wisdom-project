@@ -250,7 +250,9 @@ build_notes_json() {
     line="${line#"${line%%[![:space:]]*}"}"
     line="${line%"${line##*[![:space:]]}"}"
     # Track when we enter the "Current release" section. Stop at the next H2.
-    if [[ "$line" == "## Current release" ]]; then
+    # Prefix match (note the trailing *) so an optional date suffix on the
+    # heading — e.g. "## Current release - 2 June 2026" — still matches.
+    if [[ "$line" == "## Current release"* ]]; then
       in_release=true
       continue
     fi
