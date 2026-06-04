@@ -106,7 +106,7 @@ void main() {
     ) async {
       container.read(tabsProvider.notifier).addTab(tab);
       container.read(activeTabIndexProvider.notifier).state = 0;
-      await tester.pumpAndSettle(const Duration(seconds: 2));
+      await pumpForSettle(tester, const Duration(seconds: 2));
     }
 
     // =================================================================
@@ -143,7 +143,7 @@ void main() {
 
         // Expand the FAB to reveal the scroll-to-top action
         await tester.tap(find.byIcon(Icons.more_vert));
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // ASSERT: vertical_align_top icon now visible inside the expanded FAB
         expect(find.byIcon(Icons.vertical_align_top), findsOneWidget,
@@ -151,7 +151,7 @@ void main() {
 
         // ACT: Tap the scroll-to-top button
         await tester.tap(find.byIcon(Icons.vertical_align_top));
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // ASSERT: Pagination reset to node's beginning (page 0, entry 4)
         expect(container.read(activePageStartProvider), 0,
@@ -195,7 +195,7 @@ void main() {
 
         // ACT: Tap the button
         await tester.tap(find.byIcon(Icons.skip_previous));
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // ASSERT: Now at the previous sutta (dn-1)
         expect(container.read(activeNodeKeyProvider), 'dn-1',
@@ -218,21 +218,21 @@ void main() {
         // --- First tap: dn-1-1 → dn-1 ---
         expect(find.byIcon(Icons.skip_previous), findsOneWidget);
         await tester.tap(find.byIcon(Icons.skip_previous));
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
         expect(container.read(activeNodeKeyProvider), 'dn-1',
             reason: 'First tap: should navigate to dn-1');
 
         // --- Second tap: dn-1 → dn ---
         expect(find.byIcon(Icons.skip_previous), findsOneWidget);
         await tester.tap(find.byIcon(Icons.skip_previous));
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
         expect(container.read(activeNodeKeyProvider), 'dn',
             reason: 'Second tap: should navigate to dn');
 
         // --- Third tap: dn → sp ---
         expect(find.byIcon(Icons.skip_previous), findsOneWidget);
         await tester.tap(find.byIcon(Icons.skip_previous));
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
         expect(container.read(activeNodeKeyProvider), 'sp',
             reason: 'Third tap: should navigate to sp');
       },
@@ -258,7 +258,7 @@ void main() {
         // ACT: Tap the previous sutta button
         expect(find.byIcon(Icons.skip_previous), findsOneWidget);
         await tester.tap(find.byIcon(Icons.skip_previous));
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // ASSERT: Now at dn-1-10, in a different content file (dn-1-6)
         expect(container.read(activeNodeKeyProvider), 'dn-1-10',
@@ -312,7 +312,7 @@ void main() {
 
         // ACT: Navigate to previous
         await tester.tap(find.byIcon(Icons.skip_previous));
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // ASSERT: Tab entity updated to the previous node's data
         final tabsAfter = container.read(tabsProvider);
@@ -342,7 +342,7 @@ void main() {
 
         // ACT: Navigate to previous
         await tester.tap(find.byIcon(Icons.skip_previous));
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // ASSERT: Navigator selection updated to dn-1
         expect(container.read(selectedNodeProvider), 'dn-1',
@@ -430,7 +430,7 @@ void main() {
 
         // Expand the FAB to reveal the scroll-to-top action
         await tester.tap(find.byIcon(Icons.more_vert));
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // ASSERT: vertical_align_top icon now visible inside the expanded FAB
         expect(find.byIcon(Icons.vertical_align_top), findsOneWidget,
@@ -439,7 +439,7 @@ void main() {
 
         // ACT: Tap the scroll-to-top button
         await tester.tap(find.byIcon(Icons.vertical_align_top));
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // ASSERT: Back at the top, button reverts to skip_previous (Mode 1)
         expect(find.byIcon(Icons.skip_previous), findsOneWidget,

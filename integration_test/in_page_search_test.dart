@@ -56,7 +56,7 @@ void main() {
 
       // Wait for the real navigation tree to load from assets
       await container.read(navigationTreeProvider.future);
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       return container;
     }
@@ -84,7 +84,7 @@ void main() {
       container.read(tabsProvider.notifier).addTab(tab);
       container.read(activeTabIndexProvider.notifier).state =
           container.read(tabsProvider).length - 1;
-      await tester.pumpAndSettle(const Duration(seconds: 2));
+      await pumpForSettle(tester, const Duration(seconds: 2));
     }
 
     /// Opens the in-page search bar.
@@ -108,7 +108,7 @@ void main() {
       ProviderContainer container,
     ) async {
       container.read(inPageSearchStatesProvider.notifier).openSearch();
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
     }
 
     /// Types [query] into the in-page search TextField and waits for the
@@ -124,7 +124,7 @@ void main() {
       await tester.enterText(textField, query);
       await tester.pump(); // Trigger onChanged
       await tester.pump(const Duration(milliseconds: 400)); // Debounce
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
     }
 
     /// Reads the in-page search state for [tabIndex] from the provider.
@@ -170,19 +170,19 @@ void main() {
 
         // Navigate NEXT → index becomes 1
         await tester.tap(find.byIcon(Icons.keyboard_arrow_down));
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
         expect(readSearchState(container, 0).currentMatchIndex, 1,
             reason: 'Next should advance to match index 1');
 
         // Navigate PREVIOUS → back to index 0
         await tester.tap(find.byIcon(Icons.keyboard_arrow_up));
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
         expect(readSearchState(container, 0).currentMatchIndex, 0,
             reason: 'Previous should go back to match index 0');
 
         // Navigate PREVIOUS from 0 → wraps to last match
         await tester.tap(find.byIcon(Icons.keyboard_arrow_up));
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
         expect(
           readSearchState(container, 0).currentMatchIndex,
           matchCount - 1,
@@ -262,7 +262,7 @@ void main() {
 
         // Switch back to Tab A
         container.read(activeTabIndexProvider.notifier).state = 0;
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // Tab A's state should be fully preserved
         final stateARestored = readSearchState(container, 0);
@@ -277,7 +277,7 @@ void main() {
 
         // Switch to Tab B
         container.read(activeTabIndexProvider.notifier).state = 1;
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // Tab B's state should be fully preserved
         final stateBRestored = readSearchState(container, 1);
@@ -319,7 +319,7 @@ void main() {
         // AND that the viewport actually scrolls down to follow each match.
         for (var i = 1; i <= 3; i++) {
           await tester.tap(find.byIcon(Icons.keyboard_arrow_down));
-          await tester.pumpAndSettle();
+          await pumpForSettle(tester);
           expect(readSearchState(container, 0).currentMatchIndex, i,
               reason: 'After $i next-taps, currentMatchIndex should be $i');
         }
@@ -346,7 +346,7 @@ void main() {
         // Navigate back to match 0 — viewport must scroll up symmetrically.
         for (var i = 0; i < 3; i++) {
           await tester.tap(find.byIcon(Icons.keyboard_arrow_up));
-          await tester.pumpAndSettle();
+          await pumpForSettle(tester);
         }
         expect(readSearchState(container, 0).currentMatchIndex, 0);
 
@@ -360,7 +360,7 @@ void main() {
 
         // Wrap to the LAST match (previous from 0 → last match at end of sutta)
         await tester.tap(find.byIcon(Icons.keyboard_arrow_up));
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // Verify we reached the last match
         expect(readSearchState(container, 0).currentMatchIndex, matchCount - 1,
@@ -385,7 +385,7 @@ void main() {
         // Give the bounded retry inside _scrollToCurrentMatch time to wait
         // for the ListView.builder to lazy-build the target entry, then
         // run Scrollable.ensureVisible.
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
 
         final offsetAtLast = controller.offset;
         expect(
@@ -426,7 +426,7 @@ void main() {
           matching: find.byIcon(Icons.close),
         );
         await tester.tap(closeBtn);
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // Search bar widget should be gone
         expect(find.byType(InPageSearchBar), findsNothing,
@@ -463,7 +463,7 @@ void main() {
           matching: find.byIcon(Icons.clear),
         );
         await tester.tap(clearBtn);
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // Query and matches should be cleared
         final state = readSearchState(container, 0);
@@ -497,7 +497,7 @@ void main() {
 
         // Close the search bar so Icons.close only appears in tab bar
         container.read(inPageSearchStatesProvider.notifier).closeSearch();
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // Open Tab B (no search on this tab)
         final tabB = tabFromNode(container, 'dn-1-2');
@@ -511,7 +511,7 @@ void main() {
         expect(tabCloseButtons, findsNWidgets(2),
             reason: 'Should find 2 tab close buttons');
         await tester.tap(tabCloseButtons.last); // Close Tab B (rightmost)
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // Only Tab A should remain
         expect(container.read(tabsProvider).length, 1);
@@ -542,7 +542,7 @@ void main() {
 
         // Close the search bar so Icons.close only appears in tab bar
         container.read(inPageSearchStatesProvider.notifier).closeSearch();
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // Close the only tab
         final tabCloseBtn = find.descendant(
@@ -550,7 +550,7 @@ void main() {
           matching: find.byIcon(Icons.close),
         );
         await tester.tap(tabCloseBtn);
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // All search state should be cleared
         final allStates = container.read(inPageSearchStatesProvider);

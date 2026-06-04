@@ -1,4 +1,4 @@
-/// Shared Riverpod overrides for integration tests.
+/// Shared Riverpod overrides and pump helpers for integration tests.
 ///
 /// The reader-side providers (tabs, active tab index, navigator visibility)
 /// hydrate from [KeyValueStore] on construction and throw if no override is
@@ -13,7 +13,9 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:the_wisdom_project/core/storage/key_value_store.dart';
 import 'package:the_wisdom_project/core/storage/key_value_store_provider.dart';
 
@@ -85,3 +87,48 @@ class InMemoryKeyValueStore implements KeyValueStore {
 Override keyValueStoreOverride() => keyValueStoreProvider.overrideWithValue(
       InMemoryKeyValueStore(),
     );
+
+/// How long [pumpForSettle] waits before giving up. Comfortably longer than the
+/// ~10-second database-lock window we observe in the combined suite — so a
+/// transient lock still lets the test finish and PASS — but far shorter than
+/// pumpAndSettle's 10-minute default that otherwise hangs the whole run.
+const _settleTimeout = Duration(seconds: 15);
+
+/// A bounded, non-throwing stand-in for [WidgetTester.pumpAndSettle].
+///
+/// `pumpAndSettle` pumps frames until the framework stops scheduling them, but
+/// THROWS if frames are still scheduled after its timeout (10 minutes by
+/// default). In this integration suite, when the shared SQLite database is
+/// under contention, a perpetual [CircularProgressIndicator] (the dictionary
+/// sheet's loading state) or the reader's self-rescheduling page-load loop can
+/// keep scheduling frames indefinitely — so the real `pumpAndSettle` hangs for
+/// the full 10 minutes and then fails the run with a confusing
+/// "pumpAndSettle timed out".
+///
+/// This wrapper behaves IDENTICALLY to `pumpAndSettle` when the tree settles
+/// normally: it forwards [step] unchanged, so debounce timers (e.g. the
+/// dictionary edit's 300 ms debounce, crossed by a 1-second step) still fire.
+/// It only differs in the stuck case — it caps the wait at [_settleTimeout]
+/// and SWALLOWS the timeout instead of throwing. Tests assert on
+/// provider/widget state immediately afterwards, so a genuine stall surfaces
+/// as a fast, readable assertion failure rather than a 10-minute hang.
+///
+/// Pass [step] exactly as you would the first positional argument to
+/// `pumpAndSettle` (defaults to 100 ms, matching `pumpAndSettle`'s default).
+Future<void> pumpForSettle(
+  WidgetTester tester, [
+  Duration step = const Duration(milliseconds: 100),
+]) async {
+  try {
+    await tester.pumpAndSettle(
+      step,
+      EnginePhase.sendSemanticsUpdate,
+      _settleTimeout,
+    );
+  } on FlutterError catch (error) {
+    // Only swallow the settle timeout. Real build/layout errors are also
+    // FlutterErrors, so rethrow anything that isn't the timeout — otherwise we
+    // would hide genuine failures.
+    if (!error.message.contains('pumpAndSettle timed out')) rethrow;
+  }
+}

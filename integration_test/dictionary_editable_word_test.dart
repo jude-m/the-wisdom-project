@@ -149,7 +149,7 @@ void main() {
     ) async {
       container.read(tabsProvider.notifier).addTab(tab);
       container.read(activeTabIndexProvider.notifier).state = 0;
-      await tester.pumpAndSettle(const Duration(seconds: 2));
+      await pumpForSettle(tester, const Duration(seconds: 2));
     }
 
     // =================================================================
@@ -185,7 +185,7 @@ void main() {
         expect(recognizer, isNotNull,
             reason: 'Should find TapGestureRecognizer for භික්ඛවෙ');
         recognizer!.onTap!();
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
 
         // ASSERT: Dictionary bottom sheet is visible
         expect(find.byType(DictionaryBottomSheet), findsOneWidget,
@@ -212,7 +212,7 @@ void main() {
         await tester.pump();
 
         // Wait for 300ms debounce + lookup
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
 
         // ASSERT: TextField shows භික්ඛ (with conjunct ZWJ formatting).
         // The backspace button removes one code unit at a time, preserving
@@ -245,7 +245,7 @@ void main() {
         // Tap a word to open sheet
         final recognizer = findWordRecognizer(tester, 'භික්ඛවෙ');
         recognizer!.onTap!();
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
 
         // Target the Scrollable inside the sheet (not DictionaryBottomSheet
         // itself, whose LayoutBuilder center falls on content text spans).
@@ -259,7 +259,7 @@ void main() {
         // Drag the sheet up to max via its Scrollable (DraggableScrollableSheet
         // intercepts scroll events to expand before scrolling content)
         await tester.drag(sheetScrollable, const Offset(0, -500));
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // ASSERT: TextField (pinned header) is still visible after expansion
         expect(findDictionaryTextField(), findsOneWidget,
@@ -270,7 +270,7 @@ void main() {
 
         // Now scroll through results (fling up in the sheet content)
         await tester.fling(sheetScrollable, const Offset(0, -300), 800);
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // ASSERT: Header is STILL visible (pinned) even after scrolling content
         expect(findDictionaryTextField(), findsOneWidget,
@@ -291,7 +291,7 @@ void main() {
         await tester.pump();
         await tester.tap(findBackspaceButton());
         await tester.pump();
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
 
         // ASSERT: Header still visible after content change
         expect(findDictionaryTextField(), findsOneWidget,
@@ -314,11 +314,11 @@ void main() {
         // Tap a word to open sheet
         final recognizer = findWordRecognizer(tester, 'භික්ඛවෙ');
         recognizer!.onTap!();
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
 
         // Clear the text field and type Singlish
         await tester.tap(findDictionaryTextField());
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // Select all and delete
         final textField =
@@ -328,7 +328,7 @@ void main() {
 
         // Type Singlish "abhinandhathi"
         await tester.enterText(findDictionaryTextField(), 'abhinandhathi');
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
 
         // ASSERT: Singlish "abhinandhathi" → අභිනන්දති via conversion.
         // Verify the lookup returned results (not the "no results" state)
@@ -363,7 +363,7 @@ void main() {
             break;
           }
           await tester.fling(sheetScrollable, const Offset(0, -300), 800);
-          await tester.pumpAndSettle();
+          await pumpForSettle(tester);
         }
 
         expect(found, isTrue,
@@ -390,7 +390,7 @@ void main() {
         expect(recognizer, isNotNull,
             reason: 'Should find TapGestureRecognizer for භගවා');
         recognizer!.onTap!();
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
 
         // ASSERT: Dictionary bottom sheet is visible
         expect(find.byType(DictionaryBottomSheet), findsOneWidget,
@@ -436,7 +436,7 @@ void main() {
         expect(tuneButton, findsOneWidget,
             reason: 'Tune icon button should be in the sheet header');
         await tester.tap(tuneButton);
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // ASSERT: Refine dictionary dialog is visible
         expect(find.byType(RefineDictionaryDialog), findsOneWidget,
@@ -445,7 +445,7 @@ void main() {
         // STEP 3: Tap "Digital Pali Dictionary" to select only DPD.
         // Since "All" is the default, clicking a leaf focuses on just that one.
         await tester.tap(find.text('Digital Pali Dictionary'));
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // ASSERT: Only DPD checkbox should be checked.
         // Verify the provider state reflects only DPD selected.
@@ -459,7 +459,7 @@ void main() {
         await tester.tap(find.text(AppLocalizations.of(
           tester.element(find.byType(RefineDictionaryDialog)),
         ).done));
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
 
         // ASSERT: Only DPD entries should be returned by the lookup
         // (asserted against the provider data rather than the lazily-built
@@ -474,12 +474,12 @@ void main() {
         // Since DPD's entire group (English) is NOT fully selected — only
         // DPD is — tapping DPD deselects it, resulting in empty set = "All".
         await tester.tap(tuneButton);
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // Tap "Digital Pali Dictionary" again — this deselects DPD.
         // With no dictionaries selected, state normalizes to {} = "All".
         await tester.tap(find.text('Digital Pali Dictionary'));
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // ASSERT: All dictionaries should now be selected (empty set = All)
         final filterAfterRestore =
@@ -504,7 +504,7 @@ void main() {
         await tester.tap(find.text(AppLocalizations.of(
           tester.element(find.byType(RefineDictionaryDialog)),
         ).done));
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
 
         // ASSERT: Results from multiple dictionaries should be returned again
         final restoredBadges = dictIdsFromProvider();

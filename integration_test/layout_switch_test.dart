@@ -57,7 +57,7 @@ void main() {
 
       // Wait for the real navigation tree to load from assets.
       await container.read(navigationTreeProvider.future);
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       return container;
     }
@@ -83,7 +83,7 @@ void main() {
       container.read(tabsProvider.notifier).addTab(tab);
       container.read(activeTabIndexProvider.notifier).state =
           container.read(tabsProvider).length - 1;
-      await tester.pumpAndSettle(const Duration(seconds: 2));
+      await pumpForSettle(tester, const Duration(seconds: 2));
     }
 
     // Reads the per-tab in-page search state from the provider.
@@ -165,7 +165,7 @@ void main() {
                 })>
             switchTo(ReaderLayout layout) async {
           container.read(updateActiveTabLayoutProvider)(layout);
-          await tester.pumpAndSettle(const Duration(seconds: 1));
+          await pumpForSettle(tester, const Duration(seconds: 1));
           final t = container.read(tabsProvider)[0];
           return (
             pageStart: t.pageStart,
@@ -191,7 +191,7 @@ void main() {
         // can run ~1000px tall for long passages, so we use 1200 to keep
         // headroom even though sideBySide entries are usually shorter.
         controller.jumpTo(1200);
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
 
         // sideBySide → stacked. Listener captures sideBySide's top entry
         // at offset=600 and writes it into pagination. That captured
@@ -240,7 +240,7 @@ void main() {
         // cross at least one entry boundary so posB ≠ posA holds even
         // when the current top entry is a long one.
         controller.jumpTo(1200);
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
 
         // Precondition guard for Phase 3's load-bearing assertion below.
         // `ScrollController.jumpTo` silently clamps to `maxScrollExtent` —
@@ -353,7 +353,7 @@ void main() {
             .updateQuery('එවං');
         // 300 ms debounce + buffer, then settle for the match computation.
         await tester.pump(const Duration(milliseconds: 400));
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         final paliOnlyState = readSearchState(container, 0);
         final paliCount = paliOnlyState.matchCount;
@@ -369,7 +369,7 @@ void main() {
         // ONLY the Sinhala entries, dropping all Pali matches from the set.
         container
             .read(updateActiveTabLayoutProvider)(ReaderLayout.sinhalaOnly);
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         final sinhalaState = readSearchState(container, 0);
         final sinhalaCount = sinhalaState.matchCount;
@@ -389,7 +389,7 @@ void main() {
         // load-bearing assertion (see test header).
         container
             .read(updateActiveTabLayoutProvider)(ReaderLayout.sideBySide);
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         final sideBySideState = readSearchState(container, 0);
         expect(
@@ -404,7 +404,7 @@ void main() {
         // still report sideBySide's count (or whatever was cached).
         container
             .read(updateActiveTabLayoutProvider)(ReaderLayout.paliOnly);
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         final restoredState = readSearchState(container, 0);
         expect(
@@ -486,7 +486,7 @@ void main() {
         // entries (10 total in dn-1-1).
         container
             .read(updateActiveTabLayoutProvider)(ReaderLayout.sideBySide);
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // Drive search via the notifier (same pattern as the recompute
         // test above). openSearch first so the visibility flag flips
@@ -496,7 +496,7 @@ void main() {
             .read(inPageSearchStatesProvider.notifier)
             .updateQuery('සීල');
         await tester.pump(const Duration(milliseconds: 400));
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         final matchCount = readSearchState(container, 0).matchCount;
         expect(
@@ -511,7 +511,7 @@ void main() {
         for (var i = 0; i < 4; i++) {
           container.read(inPageSearchStatesProvider.notifier).nextMatch();
         }
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
         expect(readSearchState(container, 0).currentMatchIndex, 4);
 
         // Close search BEFORE switching layout. The layout pill in the
@@ -520,14 +520,14 @@ void main() {
         // recomputeActiveTabMatches drop-matches branch when the layout
         // listener fires next.
         container.read(inPageSearchStatesProvider.notifier).closeSearch();
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // Switch to stacked. Listener captures top entry → narrow
         // pagination reset → jumpTo(0) → load forward to fill viewport.
         // Matches dropped (search hidden).
         container
             .read(updateActiveTabLayoutProvider)(ReaderLayout.stacked);
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
 
         expect(
           readSearchState(container, 0).matches, isEmpty,
@@ -540,7 +540,7 @@ void main() {
         // state listener fires _scrollToCurrentMatch on match[0], which
         // expands pageStart backward to page 2 and rebuilds.
         container.read(inPageSearchStatesProvider.notifier).openSearch();
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         expect(
           readSearchState(container, 0).matchCount, 10,
@@ -582,7 +582,7 @@ void main() {
         // (page 2 entry 1) — well beyond default cacheExtent (~250px).
         for (var i = 0; i < 5; i++) {
           container.read(inPageSearchStatesProvider.notifier).nextMatch();
-          await tester.pumpAndSettle(const Duration(milliseconds: 500));
+          await pumpForSettle(tester, const Duration(milliseconds: 500));
         }
         expect(
           readSearchState(container, 0).currentMatchIndex, 5,
@@ -640,7 +640,7 @@ void main() {
         //    back to the landscape orientation default (sideBySide).
         final idxA =
             container.read(openTabFromNodeKeyProvider)('dn-1-1');
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
         expect(idxA, isNonNegative, reason: 'dn-1-1 should open');
         expect(
           container.read(tabsProvider)[idxA].layout,
@@ -651,7 +651,7 @@ void main() {
         // 2. User changes the layout → must update BOTH the active tab and
         //    the global last-used value.
         container.read(updateActiveTabLayoutProvider)(ReaderLayout.sinhalaOnly);
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
         expect(
           container.read(tabsProvider)[idxA].layout,
           ReaderLayout.sinhalaOnly,
@@ -668,7 +668,7 @@ void main() {
         //    (sinhalaOnly is neither orientation's default).
         final idxLandscape =
             container.read(openTabFromNodeKeyProvider)('dn-1-1');
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
         expect(
           container.read(tabsProvider)[idxLandscape].layout,
           ReaderLayout.sinhalaOnly,
@@ -677,7 +677,7 @@ void main() {
 
         final idxPortrait = container
             .read(openTabFromNodeKeyProvider)('dn-1-1', isPortraitMode: true);
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
         expect(
           container.read(tabsProvider)[idxPortrait].layout,
           ReaderLayout.sinhalaOnly,
@@ -692,7 +692,7 @@ void main() {
         final idxYesterday = container.read(tabsProvider).length - 1;
 
         container.read(switchTabProvider)(idxYesterday);
-        await tester.pumpAndSettle(const Duration(seconds: 1));
+        await pumpForSettle(tester, const Duration(seconds: 1));
 
         expect(
           container.read(tabsProvider)[idxYesterday].layout,

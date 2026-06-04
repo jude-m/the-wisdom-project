@@ -77,7 +77,7 @@ void main() {
 
       // Wait for the real navigation tree to load from assets
       await container.read(navigationTreeProvider.future);
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       return container;
     }
@@ -111,7 +111,7 @@ void main() {
       container.read(tabsProvider.notifier).addTab(tab);
       container.read(activeTabIndexProvider.notifier).state =
           container.read(tabsProvider).length - 1;
-      await tester.pumpAndSettle(const Duration(seconds: 2));
+      await pumpForSettle(tester, const Duration(seconds: 2));
     }
 
     // -----------------------------------------------------------------
@@ -249,7 +249,7 @@ void main() {
         final parentRecognizer =
             spans.first.recognizer as TapGestureRecognizer;
         parentRecognizer.onTap!();
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // ASSERT: New tab was created
         final tabs = container.read(tabsProvider);
@@ -292,7 +292,7 @@ void main() {
         // ACT: Tap first parent to navigate to root
         final spans = getBreadcrumbSpans(tester);
         (spans.first.recognizer as TapGestureRecognizer).onTap!();
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // ASSERT: Breadcrumb now shows shorter path (just root)
         final textAfter = getBreadcrumbText(tester);
@@ -328,7 +328,7 @@ void main() {
         container
             .read(contentLanguageProvider.notifier)
             .setLanguage(ContentLanguage.pali);
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // ASSERT: Now shows Pali names (with conjunct transformation applied)
         final textAfter = getBreadcrumbText(tester);
@@ -377,7 +377,7 @@ void main() {
         final dnText = find.text(dnNode!.sinhalaName);
         if (dnText.evaluate().isNotEmpty) {
           await tester.tap(dnText.first);
-          await tester.pumpAndSettle(const Duration(seconds: 2));
+          await pumpForSettle(tester, const Duration(seconds: 2));
 
           // ASSERT: Tab created with correct data
           final tabs = container.read(tabsProvider);

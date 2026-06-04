@@ -130,7 +130,7 @@ Future<void> _waitForSearchResults(WidgetTester tester) async {
   while (DateTime.now().isBefore(deadline)) {
     await tester.pump(const Duration(milliseconds: 250));
     if (find.byType(CircularProgressIndicator).evaluate().isEmpty) {
-      await tester.pumpAndSettle(const Duration(milliseconds: 200));
+      await pumpForSettle(tester, const Duration(milliseconds: 200));
       return;
     }
   }
@@ -178,7 +178,7 @@ void main() {
 
         // Wait for the navigation tree to load (needed for nodeByKeyProvider)
         await container.read(navigationTreeProvider.future);
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // ================================================================
         // STEP 1: Search "mahaasathi" → verify counts
@@ -205,14 +205,14 @@ void main() {
         //         → FTS highlight set for tab 0, 1 tab open
         // ================================================================
         await tester.tap(find.text('Full text'));
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
         await _waitForSearchResults(tester);
 
         // Tap the first ListTile (search result)
         final ftsListTiles = find.byType(ListTile);
         expect(ftsListTiles, findsWidgets, reason: 'Step 2: FTS results visible');
         await tester.tap(ftsListTiles.first);
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // Verify: 1 tab open, FTS highlight set for tab 0
         expect(
@@ -234,11 +234,11 @@ void main() {
         // Panel was dismissed in step 2 but results are still loaded.
         // Re-focus the search bar to reopen the panel (sets isPanelDismissed: false).
         await tester.tap(find.byType(TextField));
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // Switch to Titles tab in search results (results already loaded)
         await tester.tap(find.text('Titles'));
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
         await _waitForSearchResults(tester);
 
         // Tap the first Title result
@@ -249,7 +249,7 @@ void main() {
           reason: 'Step 3: Title results visible',
         );
         await tester.tap(titleListTiles.first);
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // Verify: 2 tabs open
         expect(
@@ -277,7 +277,7 @@ void main() {
         //         → activeFtsHighlightProvider != null
         // ================================================================
         container.read(switchTabProvider)(0);
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         expect(
           container.read(activeTabIndexProvider),
@@ -301,7 +301,7 @@ void main() {
           greaterThanOrEqualTo(0),
           reason: 'Step 5: Node dn-2-9 should be found in tree',
         );
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         expect(
           container.read(tabsProvider).length,
@@ -320,7 +320,7 @@ void main() {
         //         → activeFtsHighlightProvider != null (highlight persisted)
         // ================================================================
         container.read(switchTabProvider)(0);
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         expect(
           container.read(activeFtsHighlightProvider),
@@ -360,7 +360,7 @@ void main() {
           reason: 'Step 8: Should find 3 close buttons (one per tab)',
         );
         await tester.tap(closeButtons.first);
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
         // Verify: 2 tabs remaining, map still empty, active index in bounds
         final remainingTabs = container.read(tabsProvider);

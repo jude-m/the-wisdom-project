@@ -146,7 +146,7 @@ void main() {
               .overrideWith((ref) async => const <TipitakaTreeNode>[]),
         ],
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       expect(find.text('No content available'), findsOneWidget);
       // Tree empty uses folder_off_outlined; the variant's default
@@ -171,7 +171,7 @@ void main() {
           ),
         ],
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       expect(find.text('Error loading navigation tree'), findsOneWidget);
       expect(find.text('Please try again in a moment.'), findsOneWidget);
@@ -196,7 +196,7 @@ void main() {
           ),
         ],
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       expect(find.text('Cannot reach the server'), findsOneWidget);
       expect(
@@ -252,7 +252,7 @@ void main() {
           searchStateProvider.overrideWith((ref) => notifier),
         ],
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       expect(find.text('Enter a valid search query'), findsOneWidget);
       expect(find.byIcon(Icons.edit_note), findsOneWidget);
@@ -274,7 +274,7 @@ void main() {
           searchStateProvider.overrideWith((ref) => notifier),
         ],
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       // displayName is "Titles" (plural), lowercased into the placeholder.
       expect(find.text('No titles found'), findsOneWidget);
@@ -302,7 +302,7 @@ void main() {
           searchStateProvider.overrideWith((ref) => notifier),
         ],
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       expect(find.text('Error loading results'), findsOneWidget);
       expect(find.text('Please try again in a moment.'), findsOneWidget);
@@ -333,7 +333,7 @@ void main() {
           searchStateProvider.overrideWith((ref) => notifier),
         ],
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       expect(find.text('Cannot reach the server'), findsOneWidget);
       expect(
@@ -388,7 +388,7 @@ void main() {
           searchStateProvider.overrideWith((ref) => notifier),
         ],
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       expect(find.text('Enter a valid search query'), findsOneWidget);
       expect(find.byIcon(Icons.edit_note), findsOneWidget);
@@ -414,7 +414,7 @@ void main() {
               .overrideWith((ref) => const AsyncValue<BJTDocument?>.data(null)),
         ],
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       expect(
         find.text('Select a sutta from the tree to begin reading'),
@@ -472,7 +472,7 @@ void main() {
           ),
         ],
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       expect(find.text('Error loading content'), findsOneWidget);
       expect(find.text('Please try again in a moment.'), findsOneWidget);
@@ -497,7 +497,7 @@ void main() {
           ),
         ],
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       expect(find.text('Cannot reach the server'), findsOneWidget);
       expect(
@@ -522,7 +522,7 @@ void main() {
           ),
         ],
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       expect(find.text('No content to display'), findsOneWidget);
       // Reader empty state uses the menu_book override, not search_off —
@@ -605,7 +605,7 @@ void main() {
         entriesValue:
             const AsyncValue<List<DictionaryEntry>>.data(<DictionaryEntry>[]),
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       expect(find.text('No definitions found'), findsOneWidget);
       expect(find.byIcon(Icons.search_off), findsOneWidget);
@@ -620,7 +620,7 @@ void main() {
           StackTrace.current,
         ),
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       expect(find.text('Error loading definitions'), findsOneWidget);
       expect(find.text('Please try again in a moment.'), findsOneWidget);
@@ -636,7 +636,7 @@ void main() {
           StackTrace.current,
         ),
       );
-      await tester.pumpAndSettle();
+      await pumpForSettle(tester);
 
       expect(find.text('Cannot reach the server'), findsOneWidget);
       expect(

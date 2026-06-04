@@ -26,6 +26,7 @@ import 'package:the_wisdom_project/presentation/widgets/search/search_results_pa
 import 'package:the_wisdom_project/presentation/widgets/search/highlighted_fts_search_text.dart';
 
 import 'search_test_helper.dart';
+import 'test_overrides.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -178,7 +179,7 @@ void main() {
           container
               .read(contentLanguageProvider.notifier)
               .setLanguage(ContentLanguage.pali);
-          await tester.pumpAndSettle();
+          await pumpForSettle(tester);
 
           // Mirror the production pipeline exactly: the tile shows the node's
           // name in the active Content Language, run through formatContentLabel
@@ -434,13 +435,13 @@ void main() {
         final listTile = find.byType(ListTile);
         if (listTile.evaluate().isNotEmpty) {
           await tester.tap(listTile.first);
-          await tester.pumpAndSettle();
+          await pumpForSettle(tester);
         }
 
         // Clear and refocus the search bar to show recent searches.
         await tester.clearSearch();
         await tester.tap(find.byType(TextField));
-        await tester.pumpAndSettle();
+        await pumpForSettle(tester);
 
         // The recent search overlay should show "මහාසති".
         expect(find.textContaining('මහාසති'), findsWidgets);
