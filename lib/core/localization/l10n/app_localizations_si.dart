@@ -290,7 +290,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get updateBannerTitle => 'නව අනුවාදයක් තිබේ';
 
   @override
-  String get updateBannerRefreshAction => 'නැවුම් කරන්න';
+  String get updateBannerRefreshAction => 'රීලෝ​ඩ් කරන්න';
 
   @override
   String get updateBannerDismissTooltip => 'ඉවත් කරන්න';
