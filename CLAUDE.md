@@ -29,7 +29,7 @@ The Wisdom Project - a Tipitaka and commentary browsing app with parallel Pali/S
 
 ## DO
 - When writing plans in Plan mode - save the filename with the title of plan instead of a random name and save it in the docs folder.
-- Before running `flutter test` ask for user confirmation
+- Before running `flutter test` ask for confirmation — EXCEPT when the session/work is about modifying tests or test-related code, where you should run the affected tests automatically without asking (default `-d macos` for integration tests).
 - full permission for grep commands in /Users/judemahipalamudali/Desktop/Dev/the-wisdom-project
 - full permission to read from tipitaka.lk project that in the Dev folder available locally.
 - full permission to proceed with web links specifically provided by the user.
