@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:the_wisdom_project/core/storage/key_value_store_provider.dart';
+import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
+import 'package:the_wisdom_project/domain/entities/content/content_language.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
+import 'package:the_wisdom_project/presentation/providers/content_language_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/navigation/tab_bar_widget.dart';
 
@@ -98,6 +101,65 @@ void main() {
 
       // ASSERT - One description icon per tab (both tabs render).
       expect(find.byIcon(Symbols.description_sharp), findsNWidgets(2));
+    });
+  });
+
+  // ============================================================
+  // Content Language label rendering (test plan 2.1)
+  // ============================================================
+  group('Content Language label rendering', () {
+    // A tab whose Pali and Sinhala names differ, and whose Pali name carries a
+    // consonant cluster (ධම්ම) so the conjunct transform visibly changes it.
+    ReaderTab bilingualTab() => const ReaderTab(
+          label: 'fallback-label',
+          fullName: 'Dhamma / Sinhala name',
+          contentFileId: 'dn-1',
+          nodeKey: 'node-bilingual',
+          paliName: 'ධම්ම',
+          sinhalaName: 'දම් නම',
+        );
+
+    testWidgets('Sinhala (default) → shows the raw sinhalaName, no conjuncts',
+        (tester) async {
+      await tester.pumpApp(
+        const TabBarWidget(),
+        overrides: [
+          tabsProvider.overrideWith((ref) {
+            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
+            notifier.addTab(bilingualTab());
+            return notifier;
+          }),
+          activeTabIndexProvider.overrideWith((ref) => 0),
+        ],
+      );
+      await tester.pumpAndSettle();
+
+      // Default Content Language is Sinhala → the sinhalaName is shown verbatim.
+      expect(find.text('දම් නම'), findsOneWidget);
+    });
+
+    testWidgets('Pali → shows paliName with conjunct ligatures applied',
+        (tester) async {
+      await tester.pumpApp(
+        const TabBarWidget(),
+        overrides: [
+          tabsProvider.overrideWith((ref) {
+            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
+            notifier.addTab(bilingualTab());
+            return notifier;
+          }),
+          activeTabIndexProvider.overrideWith((ref) => 0),
+          // Pin the reading language to Pali for this tab bar.
+          effectiveContentLanguageProvider
+              .overrideWithValue(ContentLanguage.pali),
+        ],
+      );
+      await tester.pumpAndSettle();
+
+      // The label is transformed (ZWJ inserted) → matches the transformer
+      // output, and NOT the raw Pali string.
+      expect(find.text(applyConjunctConsonants('ධම්ම')), findsOneWidget);
+      expect(find.text('ධම්ම'), findsNothing);
     });
   });
 
