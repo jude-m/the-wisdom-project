@@ -339,3 +339,51 @@
    tree.
 
 ✻ Crunched for 6m 41s
+
+  ════════════════════════════════════════
+  ADDENDUM (added 2026-06-05) — Interaction-jank investigation
+  ════════════════════════════════════════
+
+  Context: the original audit above was a static code review optimised for
+  cold-start / UI-thread stalls. A follow-up investigation into reported
+  INTERACTION jank (font-size changes and divider dragging janking "like
+  crazy", worst on low-/mid-end web) surfaced one finding that outranks
+  everything above for that class of symptom but was NOT in the original
+  list. Ranked #1 for perceived interaction smoothness on the reader.
+
+  #: 1 (interaction)
+  Issue: Font scale is routed through the GLOBAL ThemeData. fontScaleProvider
+    -> currentThemeDataProvider (lib/core/theme/theme_notifier.dart:124-132)
+    rebuilds a brand-new ThemeData on any scale change, and MaterialApp.theme
+    watches it (lib/main.dart:170,198). The font-size slider
+    (lib/presentation/widgets/app/settings_menu_button.dart:205) calls
+    setScale on every drag tick (no onChangeEnd / no debounce — only the
+    step-rounding dedupes equal values).
+  How exactly it affects performance: Each effective font-scale step swaps
+    MaterialApp.theme, so EVERY widget in the tree re-inherits
+    Theme.of(context) and re-lays-out its text. Font size travels through the
+    single most global object in the app. In the reader's "both" mode this
+    compounds with the eager Column (see both_mode_lazy_builder.md) — all
+    ~1000 entry widgets re-layout at once, and on CanvasKit web every Sinhala
+    glyph re-rasterises into the glyph atlas. Net: dragging the font slider
+    triggers an app-wide relayout per step → visible jank, worst on low-/mid
+    web. This is fixable rebuild waste, NOT a CanvasKit floor.
+  How to prevent: Stop sending font scale through global ThemeData. Keep
+    ThemeData font-scale-independent and have reader text widgets read
+    fontScaleProvider at the leaf (scoped select-watch) so a scale change
+    repaints only the text, not the whole app. Add onChangeEnd / debounce to
+    the slider (or apply on release) so mid-drag ticks don't each trigger an
+    app-wide relayout. Pairs naturally with the both-mode lazy ListView
+    migration (both_mode_lazy_builder.md), which caps the relayout at the
+    ~15 visible rows.
+  What is the gain: Eliminates the dominant interaction-jank source — the
+    font slider goes from whole-app relayout per step to text-only repaint.
+    Largest single perceived-smoothness win for the reading screen; directly
+    resolves the reported "font size janks like crazy" symptom.
+  Effort: Low-Medium
+  Impact to existing flows: Medium — changes how text sizing is applied
+    app-wide. Needs a pass to confirm every surface that currently relies on
+    the theme's scaled text styles still scales correctly (reader + non-reader
+    surfaces like settings/menus). Best landed together with the both-mode
+    lazy builder.
+  ────────────────────────────────────────

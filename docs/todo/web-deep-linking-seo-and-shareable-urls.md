@@ -45,6 +45,77 @@ anywhere.
 
 ---
 
+## Architectural alternatives — shelf-SSR is the MVP, not the destination
+
+> Added 2026-06-06 after reviewing the 2026 Dart web landscape
+> (Jaspr, HTML-in-Canvas). Read this before committing to the
+> three-layer shelf-SSR plan below.
+
+The plan in this doc (server-render HTML on our shelf server, let
+Flutter "take over" for humans) is a **legitimate MVP, but a
+workaround — not the proper architecture.** The reason: **Flutter
+CanvasKit cannot *hydrate* server HTML.** It boots, discards our
+server-rendered DOM, and paints a `<canvas>` on top. So we'd run
+**two renderers of the same content** — an HTML template on the
+server and Flutter widgets on the client — that must be kept in sync
+forever (drift = cloaking risk), plus a visible content flash when the
+canvas swaps in. Bots get correct HTML (the proper part); humans get a
+workaround.
+
+Three options, cheapest → most correct:
+
+### Option A — Shelf-SSR (this doc): the MVP / stopgap
+- Bots and LLM crawlers get real HTML. SEO works.
+- Humans still get the heavy CanvasKit experience + a canvas swap.
+- Two renderers to keep in sync.
+- **Lowest effort.** Good for getting indexed *fast* while we decide
+  on the durable surface. This is what the three layers below build.
+
+### Option B — Jaspr: the proper SSR + hydration answer (Dart-native)
+[Jaspr](https://jaspr.site) is a Flutter-like component framework that
+renders natively to HTML/CSS/DOM with **real SSR + hydration + SSG** —
+the architecture Flutter can't do, but in Dart.
+- Real HTML for **everyone** (bots *and* low-end human readers) →
+  fixes SEO *and* the weak-device web perf problem in one move.
+- **Reuses our code**: "up to 100% shared business logic, models, and
+  validation." Our `packages/wisdom_shared/` (FTS query builder, scope
+  SQL, dictionary helpers) and domain models drop straight in; the
+  Dart shelf API stays as the data source.
+- Flutter-like mental model — no React/JS ecosystem context-switch.
+- **Production-proven**: Google rebuilt dart.dev, flutter.dev, and
+  docs.flutter.dev on Jaspr (3,900+ pages, 1M+ MAU).
+- **Status caveat**: pre-1.0 (`0.23.x` as of 2026-06). It's an
+  ordinary pub.dev package (not gated behind a Flutter SDK channel),
+  actively maintained by a verified publisher — but the API can still
+  have breaking changes before 1.0. Production-*used*, not yet
+  "1.0 stable." Pin the version.
+- **Cost**: a second UI codebase (Flutter for the 5 native apps +
+  Jaspr for web). Real — but it's still *Dart*, sharing our models, so
+  the usual "maintain a foreign JS app" objection mostly evaporates.
+
+### Option C — HTML-in-Canvas: the in-Flutter future (watch, don't bank)
+A Chrome API surfaced at Google I/O 2026 that lets the canvas embed
+real HTML elements cheaply — would give Flutter Web crawlable text,
+native selection/copy, accessibility, and translation **without
+leaving Flutter** (keeps the single codebase).
+- **Status**: Chrome *origin trial* (experimental), Chrome-only,
+  heading toward cross-browser standardization. Timeline uncertain.
+- **Do not stake a launch on it.** Track it as the path that could
+  make Options A/B unnecessary for the single-codebase ideal.
+
+### Recommendation
+For the stated goal — *be the default Google/LLM-indexed home for
+Tipitaka* — the content web should be **real HTML, not canvas**. The
+durable answer is **Option B (Jaspr)**: it solves SEO and weak-device
+perf together, in Dart, reusing `wisdom_shared`. **Option A (this
+doc's three layers)** stays valuable as the **fast stopgap** to get
+indexed while Jaspr is evaluated/built — the two aren't mutually
+exclusive (ship A now, migrate the human surface to B later).
+**Option C** is the keep-one-codebase bet for *later*, not a 2026
+plan. Keep Flutter for the 5 native apps regardless.
+
+---
+
 ## The three-layer solution
 
 Each layer is independently shippable and addresses a different
