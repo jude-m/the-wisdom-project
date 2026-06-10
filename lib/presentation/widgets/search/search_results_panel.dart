@@ -132,8 +132,8 @@ class SearchResultsPanel extends ConsumerWidget {
                       // Section header
                       _sectionHeader(
                           context,
-                          resultType
-                              .displayLabel(AppLocalizations.of(context))
+                          searchResultTypeLabel(
+                                  resultType, AppLocalizations.of(context))
                               .toUpperCase()),
                       // Use appropriate tile type for each result type
                       if (resultType == SearchResultType.fullText)
@@ -239,7 +239,7 @@ class SearchResultsPanel extends ConsumerWidget {
           return StatusMessageView(
             variant: StatusVariant.empty,
             title: l10n.statusNoResultsForCategory(
-              selectedResultType.displayLabel(l10n).toLowerCase(),
+              searchResultTypeLabel(selectedResultType, l10n).toLowerCase(),
             ),
           );
         }
@@ -507,7 +507,7 @@ class _SearchResultsTabBar extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          resultType.displayLabel(l10n),
+                          searchResultTypeLabel(resultType, l10n),
                           textAlign: TextAlign.center,
                           overflow: TextOverflow.ellipsis,
                           style: (isSelected

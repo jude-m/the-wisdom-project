@@ -1,9 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/localization/l10n/app_localizations.dart';
 import '../../domain/entities/search/search_result.dart';
+import '../../domain/entities/search/search_result_type.dart';
 import '../providers/navigation_tree_provider.dart';
 import '../providers/search_display_language_provider.dart';
 import 'content_text_formatter.dart';
+
+/// Resolves a [SearchResultType]'s localized label in the presentation layer.
+///
+/// The search tabs and their matching section sub-headers share this single
+/// token, so both follow the locale. The enum itself (domain) stays pure; the
+/// l10n lookup lives here. The canonical English strings live in `app_en.arb`
+/// (e.g. `searchTabTitles`).
+String searchResultTypeLabel(SearchResultType type, AppLocalizations l10n) =>
+    switch (type) {
+      SearchResultType.topResults => l10n.searchTabTopResults,
+      SearchResultType.title => l10n.searchTabTitles,
+      SearchResultType.fullText => l10n.searchTabFullText,
+      SearchResultType.definition => l10n.searchTabDefinitions,
+    };
 
 /// A search result's display labels, rendered in the active Content Language.
 ///

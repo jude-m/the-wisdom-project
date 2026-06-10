@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 import 'dictionary_info.dart';
 
 /// Pure-function operations for dictionary filter state.
@@ -49,10 +47,15 @@ class DictionaryFilterOperations {
     if (ids.isEmpty) return false;
     // Check if the selection exactly matches any chip group
     for (final group in chipKeyGroups) {
-      if (setEquals(ids, group)) return false;
+      if (_setEquals(ids, group)) return false;
     }
     return true;
   }
+
+  /// Set equality (same length + same members). Replaces Flutter's `setEquals`
+  /// so this domain helper stays Flutter-free.
+  static bool _setEquals(Set<String> a, Set<String> b) =>
+      a.length == b.length && a.containsAll(b);
 
   /// Toggle a group of keys in/out of the current selection.
   ///

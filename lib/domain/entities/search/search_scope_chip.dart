@@ -1,6 +1,3 @@
-import 'package:flutter/widgets.dart';
-import '../../../core/localization/l10n/app_localizations.dart';
-
 /// Represents a search scope chip for quick scope selection.
 ///
 /// Search scope chips are predefined shortcuts that select specific
@@ -9,27 +6,21 @@ import '../../../core/localization/l10n/app_localizations.dart';
 ///
 /// Each chip maps to one or more tree node keys which are used
 /// for scope filtering.
+///
+/// Pure domain data: the chip carries only its stable [id] and [nodeKeys].
+/// The localized label is resolved in the presentation layer — see
+/// `scopeChipLabel` in `presentation/utils/scope_chip_labels.dart`.
 class SearchScopeChip {
-  /// Unique identifier for this chip
+  /// Unique identifier for this chip (also the key for its localized label).
   final String id;
 
   /// Tree node keys this chip selects (e.g., {'sp'} for Sutta Pitaka)
   final Set<String> nodeKeys;
 
-  /// Function to get localized label from AppLocalizations
-  final String Function(AppLocalizations) getLabel;
-
   const SearchScopeChip({
     required this.id,
     required this.nodeKeys,
-    required this.getLabel,
   });
-
-  /// Get the display label for this chip
-  String label(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return getLabel(l10n);
-  }
 }
 
 /// Predefined search scope chips for the search UI.
@@ -41,63 +32,13 @@ class SearchScopeChip {
 ///
 /// Selecting a chip sets the search scope to the chip's nodeKeys.
 /// The "All" state is represented by an empty scope set.
-final List<SearchScopeChip> searchScopeChips = [
-  SearchScopeChip(
-    id: 'sutta',
-    nodeKeys: const {'sp'},
-    getLabel: (l10n) => l10n.scopeSutta,
-  ),
-  SearchScopeChip(
-    id: 'vinaya',
-    nodeKeys: const {'vp'},
-    getLabel: (l10n) => l10n.scopeVinaya,
-  ),
-  SearchScopeChip(
-    id: 'abhidhamma',
-    nodeKeys: const {'ap'},
-    getLabel: (l10n) => l10n.scopeAbhidhamma,
-  ),
+const List<SearchScopeChip> searchScopeChips = [
+  SearchScopeChip(id: 'sutta', nodeKeys: {'sp'}),
+  SearchScopeChip(id: 'vinaya', nodeKeys: {'vp'}),
+  SearchScopeChip(id: 'abhidhamma', nodeKeys: {'ap'}),
   SearchScopeChip(
     id: 'commentaries',
-    nodeKeys: const {'atta-vp', 'atta-sp', 'atta-ap'},
-    getLabel: (l10n) => l10n.scopeCommentaries,
+    nodeKeys: {'atta-vp', 'atta-sp', 'atta-ap'},
   ),
-  SearchScopeChip(
-    id: 'treatises',
-    nodeKeys: const {'anya'},
-    getLabel: (l10n) => l10n.scopeTreatises,
-  ),
+  SearchScopeChip(id: 'treatises', nodeKeys: {'anya'}),
 ];
-
-/// Extension for chip lookup operations.
-///
-/// Note: Scope-related operations (validation, normalization) are in [ScopeUtils].
-/// This extension only handles chip lookup by various criteria.
-extension SearchScopeChipListX on List<SearchScopeChip> {
-  /// Find a chip that exactly matches the given node keys.
-  /// Returns null if no chip matches.
-  SearchScopeChip? findByNodeKeys(Set<String> nodeKeys) {
-    for (final chip in this) {
-      if (chip.nodeKeys.length == nodeKeys.length &&
-          chip.nodeKeys.containsAll(nodeKeys)) {
-        return chip;
-      }
-    }
-    return null;
-  }
-
-  /// Check if the given node keys match any chip exactly.
-  bool matchesAnyChip(Set<String> nodeKeys) {
-    return findByNodeKeys(nodeKeys) != null;
-  }
-
-  /// Find a chip by its id.
-  SearchScopeChip? findById(String id) {
-    for (final chip in this) {
-      if (chip.id == id) {
-        return chip;
-      }
-    }
-    return null;
-  }
-}

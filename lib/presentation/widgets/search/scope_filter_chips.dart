@@ -7,6 +7,7 @@ import '../../../domain/entities/search/scope_operations.dart';
 import '../../../domain/entities/search/search_scope_chip.dart';
 import '../../providers/content_language_provider.dart';
 import '../../providers/search_provider.dart';
+import '../../utils/scope_chip_labels.dart';
 import 'refine_search_dialog.dart';
 
 /// Horizontally scrollable scope filter chips for search results.
@@ -100,7 +101,7 @@ class _ScopeFilterChipsState extends ConsumerState<ScopeFilterChips> {
               return Padding(
                 padding: const EdgeInsets.only(right: 6),
                 child: _ScopeChip(
-                  label: chip.label(context),
+                  label: scopeChipLabel(chip, l10n),
                   isSelected: isSelected,
                   theme: theme,
                   // Use toggleScopeKeys with extracted nodeKeys
