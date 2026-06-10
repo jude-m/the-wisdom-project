@@ -148,7 +148,7 @@ class _CardBody extends StatelessWidget {
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.onPrimaryContainer,
-                    foregroundColor: colors.primaryContainer,
+                    foregroundColor: colors.onPrimary,
                     elevation: 3,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,

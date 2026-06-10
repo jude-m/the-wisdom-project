@@ -179,6 +179,14 @@ class TreeNodeWidget extends ConsumerWidget {
           animationDuration: Duration.zero,
           color: isSelected ? colorScheme.surfaceContainer : Colors.transparent,
           child: InkWell(
+            // The M3 hover state-layer fades in AND out over this duration.
+            // The default is tiny (~tens of ms), so on a fast mouse sweep each
+            // row's highlight vanishes before the eye registers it and you see
+            // no trail. ~150ms makes the fade-OUT linger, so several rows are
+            // mid-fade at once during a sweep — the "weight" the web has via
+            // `transition: background-color 150ms`. Independent of the Material's
+            // animationDuration: zero above (that only swaps the selected bg).
+            hoverDuration: const Duration(milliseconds: 150),
             onTap: () {
               ref.read(selectNodeProvider)(node.nodeKey);
 
