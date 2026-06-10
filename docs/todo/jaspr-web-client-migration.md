@@ -107,7 +107,7 @@ months to the rewrite.** It is throwaway-or-grow. It must answer:
 - Does it **feel faster** than Flutter web on a throttled device?
 
 ### Stack & scaffold
-- New Jaspr package `web_client/` in the monorepo (beside `server/`). Do **not**
+- New Jaspr package `web_client_prototype/` in the monorepo (beside `server/`). Do **not**
   touch the Flutter app or extract shared packages yet — for the prototype,
   import the handful of needed Dart files from `lib/` directly or copy them.
 - Deps: `jaspr`, `jaspr_riverpod`, `jaspr_router`; dev: `jaspr_builder`,
@@ -168,7 +168,7 @@ dart run bin/server.dart            # listens on :8080, assets default ../assets
   (workspace URL + tabs as pure client state).
 
 ### Build order
-- [ ] Scaffold `web_client/` Jaspr server-mode app; "hello sutta" SSR page.
+- [ ] Scaffold `web_client_prototype/` Jaspr server-mode app; "hello sutta" SSR page.
 - [ ] Wire the data layer to the local shelf API; render one real sutta
       server-side (confirm view-source shows the Sinhala text).
 - [ ] Port `Entry` marker rendering → HTML spans; single + side-by-side CSS grid.
