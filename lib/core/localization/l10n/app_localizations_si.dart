@@ -134,7 +134,7 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String viewMore(int count) {
-    return 'මෙහිම තවත් ගැළපී​ම් $countක් ඇත';
+    return 'තවත් ගැළපී​ම් $countක් ඇත';
   }
 
   @override
