@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_fonts.dart';
 import 'app_typography.dart';
+import 'dictionary_badge_theme.dart';
 import 'text_entry_theme.dart';
 
 /// Application theme builder
@@ -88,6 +89,8 @@ class AppTheme {
           fontScale: fontScale,
         ),
         AppTypography.fromColorScheme(colorScheme, fontScale: fontScale),
+        // Dictionary badge colours — one shared palette across all themes.
+        DictionaryBadgeColors.standard(),
       ],
     );
   }
@@ -145,6 +148,8 @@ class AppTheme {
           fontScale: fontScale,
         ),
         AppTypography.fromColorScheme(colorScheme, fontScale: fontScale),
+        // Dictionary badge colours — one shared palette across all themes.
+        DictionaryBadgeColors.standard(),
       ],
     );
   }
@@ -202,6 +207,8 @@ class AppTheme {
           fontScale: fontScale,
         ),
         AppTypography.fromColorScheme(colorScheme, fontScale: fontScale),
+        // Dictionary badge colours — one shared palette across all themes.
+        DictionaryBadgeColors.standard(),
       ],
     );
   }

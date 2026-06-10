@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/constants.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/dictionary_badge_theme.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../domain/entities/dictionary/dictionary_entry.dart';
@@ -577,7 +578,9 @@ class _DictionaryEntryTile extends StatelessWidget {
     final dictInfo = DictionaryInfo.getById(entry.dictionaryId);
     final theme = Theme.of(context);
     final typography = context.typography;
-    final dictColor = DictionaryInfo.getColor(entry.dictionaryId, theme);
+    // Badge colour from the theme's shared dictionary badge palette.
+    final dictColor = context.dictionaryBadgeColors
+        .colorFor(entry.dictionaryId, theme.colorScheme.primary);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),

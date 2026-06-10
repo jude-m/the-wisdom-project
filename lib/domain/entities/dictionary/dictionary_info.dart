@@ -1,7 +1,4 @@
-import 'package:flutter/material.dart';
-
 /// Static metadata about available dictionaries
-@immutable
 class DictionaryInfo {
   final String id;
   final String name;
@@ -93,23 +90,4 @@ class DictionaryInfo {
   /// Get abbreviation for a dictionary ID
   static String getAbbreviation(String id) =>
       all[id]?.abbreviation ?? id;
-
-  /// Returns the color associated with a dictionary ID for UI display
-  ///
-  /// Each dictionary has a distinctive color used in badges and UI elements.
-  /// Returns the theme's primary color as fallback if the dictionary is not found.
-  static Color getColor(String dictId, ThemeData theme) {
-    return switch (dictId) {
-      'DPD' => Colors.blue,
-      'PTS' => Colors.purple,
-      'BUS' || 'BUE' => Colors.green,
-      'MS' => Colors.teal,
-      'VRI' => Colors.orange,
-      'CR' => Colors.red,
-      'DPDC' => Colors.indigo,
-      'ND' => Colors.brown,
-      'PN' => Colors.amber,
-      _ => theme.colorScheme.primary,
-    };
-  }
 }

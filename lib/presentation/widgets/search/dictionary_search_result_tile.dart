@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/dictionary_badge_theme.dart';
 import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../core/utils/string_extensions.dart';
 import '../../../domain/entities/dictionary/dictionary_info.dart';
@@ -28,7 +29,9 @@ class DictionarySearchResultTile extends StatelessWidget {
     final theme = Theme.of(context);
     final typography = context.typography;
     final dictInfo = DictionaryInfo.getById(result.editionId);
-    final dictColor = DictionaryInfo.getColor(result.editionId, theme);
+    // Badge colour from the theme's shared dictionary badge palette.
+    final dictColor = context.dictionaryBadgeColors
+        .colorFor(result.editionId, theme.colorScheme.primary);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

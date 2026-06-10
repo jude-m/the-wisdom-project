@@ -1,6 +1,6 @@
 # Phase 1 — Make the Domain Layer Flutter-Free
 
-> Status: **In progress** — Files 1, 3, 4 done (2026-06-09); **File 2 remaining.**
+> Status: **Done** — all 4 files complete (Files 1/3/4 2026-06-09; File 2 2026-06-10).
 > Captured: 2026-06-06.
 > Parent: [`web-rewrite-clean-architecture-audit.md`](./web-rewrite-clean-architecture-audit.md) (§4, Phase 1).
 > Decision-independent: this is worth doing **regardless** of the eventual web
@@ -13,13 +13,13 @@
 | # | Domain file | State |
 |---|---|---|
 | 1 | `dictionary_filter_operations.dart` | ✅ Done |
-| 2 | `dictionary_info.dart` | ⏳ Remaining (the `ThemeExtension` work) |
+| 2 | `dictionary_info.dart` | ✅ Done (`ThemeExtension`, light only) |
 | 3 | `search_result_type.dart` | ✅ Done |
 | 4 | `search_scope_chip.dart` | ✅ Done |
 
-**Verification so far:** `grep "AppLocalizations" lib/domain` → **0**;
-`flutter analyze lib` → **No issues found**. The only remaining
-`package:flutter` in `lib/domain` is `dictionary_info.dart` (File 2).
+**Verification:** `grep "AppLocalizations" lib/domain` → **0**;
+`grep "package:flutter" lib/domain` → **0** (File 2 removed the last one);
+`flutter analyze lib` → **No issues found**. **Phase 1 complete.**
 
 What landed:
 - **File 1** — dropped `flutter/foundation`; replaced `setEquals` with a private
@@ -32,6 +32,19 @@ What landed:
   unused `SearchScopeChipListX` extension. New helper
   `presentation/utils/scope_chip_labels.dart` (`scopeChipLabel(...)`). 1 call
   site updated in `scope_filter_chips.dart`. The chip list is now `const`.
+- **File 2** (2026-06-10) — deleted `getColor` and dropped `flutter/material`
+  *and* `@immutable` (no `package:meta` added — `meta` isn't a direct dep;
+  matches plain-class File 1), so `dictionary_info.dart` now has **zero
+  imports**. Badge colours moved to a new
+  `core/theme/dictionary_badge_theme.dart` (`DictionaryBadgeColors`
+  `ThemeExtension` with `colorFor(id, fallback)`). **One shared palette**
+  (`DictionaryBadgeColors.standard()`, 9 colours as private consts in that file)
+  registered in **all 3 theme builders**, accessed via a `BuildContext`
+  extension `context.dictionaryBadgeColors` with a `?? standard()` fallback —
+  same structure as `TextEntryTheme`. 2 call sites
+  (`dictionary_search_result_tile.dart`, `dictionary_bottom_sheet.dart`) call
+  `context.dictionaryBadgeColors.colorFor(id, colorScheme.primary)`. Pixels
+  unchanged.
 - No tests written/modified (per project convention). Existing
   `scope_filter_chips_test.dart` still asserts `searchScopeChips.length == 5`
   (still true).
@@ -100,6 +113,22 @@ needs no new dependency — preferred.)*
 ---
 
 ## File 2 — `dictionary_info.dart` → ThemeExtension (Option B, chosen)
+
+> ✅ **Shipped 2026-06-10 — deltas from the original sketch below:**
+> - Domain **drops `@immutable`** entirely instead of importing
+>   `package:meta/meta.dart` (`meta` isn't a direct dependency; the class is
+>   already `const` + all-`final`). `dictionary_info.dart` now has **zero imports**.
+> - **One shared palette, not per-theme.** The 9 colours live as private consts
+>   in `dictionary_badge_theme.dart` (not in `app_colors.dart`); a single
+>   `DictionaryBadgeColors.standard()` is registered identically in **all 3**
+>   theme builders. Chosen over per-theme `.light/.dark/.warm` to cut complexity
+>   and keep badges consistent across themes.
+> - Call sites use a `BuildContext` accessor with a built-in fallback —
+>   `context.dictionaryBadgeColors.colorFor(id, colorScheme.primary)` — mirroring
+>   `TextEntryThemeExtension`. No `!`, no per-call null-check.
+>
+> The 2a–2e sketch below is the original design, kept for rationale — read it
+> through the deltas above.
 
 This is the largest change. The colour leaves the domain entirely and becomes a
 proper **design token** via a `ThemeExtension`, matching the existing
