@@ -1,0 +1,30 @@
+name: web_client_prototype
+description: Jaspr web prototype for The Wisdom Project — de-risks multi-tab + SSR/hydration.
+publish_to: none
+version: 0.0.1
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  characters: ^1.4.0
+  http: ^1.2.0
+  # Jaspr family pinned exactly: pre-1.0 framework, see jaspr-web-client-migration.md.
+  jaspr: 0.23.1
+  jaspr_riverpod: 0.4.5
+  jaspr_router: 0.8.2
+  # riverpod 3.3.x changed an internal Vsync type that jaspr_riverpod 0.4.5
+  # touches — pin to the version current when 0.4.5 was published.
+  riverpod: 3.2.1
+  # VM-safe package:web drop-in (same one jaspr uses) so island code that
+  # touches the DOM still compiles for the SSR server build.
+  universal_web: ^1.1.0
+
+dev_dependencies:
+  build_runner: ^2.10.0
+  build_web_compilers: ^4.8.0
+  jaspr_builder: ^0.23.1
+  lints: ^5.0.0
+
+jaspr:
+  mode: server
