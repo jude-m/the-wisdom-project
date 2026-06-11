@@ -13,6 +13,11 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
 
+# Run asynchronously: the session starts immediately while this provisions the
+# Flutter SDK and dependencies in the background. Timeout is generous to cover a
+# cold SDK download (~1GB) on a fresh container.
+echo '{"async": true, "asyncTimeout": 600000}'
+
 FLUTTER_VERSION="3.44.1"
 FLUTTER_HOME="${HOME}/.flutter-sdk"
 FLUTTER_BIN="${FLUTTER_HOME}/flutter/bin"
