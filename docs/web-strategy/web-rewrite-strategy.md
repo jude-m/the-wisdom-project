@@ -175,6 +175,29 @@ Native `<details>`/`<summary>` gives a collapsible tree out of the box — no
 framework, works on the slowest device, fully crawlable. The tree source is the
 same one `navigation_tree_provider` consumes.
 
+### Multi-tab: app-only, by design (decided 2026-06-12)
+The Flutter app's multi-tab reader (several suttas open at once, switch
+instantly, per-tab scroll restore, MRU keep-alive) is **not portable to the
+static site, and we deliberately don't try.** Each sutta is its own
+pre-rendered HTML file at its own URL; plain HTML/CSS has no memory across page
+loads, so "keep N suttas mounted and switch without reloading" is by definition
+an in-memory single-page session. The only way to do it statically is to bolt
+on JS (`fetch` fragments + `localStorage` + scroll bookkeeping) — i.e. rebuild a
+mini-SPA, exactly the complexity this whole strategy exists to avoid.
+
+What we use instead:
+- **The browser's own tabs.** Middle-/Ctrl-click a sutta link → a real browser
+  tab with real per-tab scroll and persistence, for free. buddhadust.net relies
+  entirely on this. The browser *is* the multi-tab system.
+- **CSS-only in-page view tabs** (optional, zero JS) for *one* sutta — switch
+  Pali / Sinhala / side-by-side via the radio-button `:checked` sibling trick.
+  This switches *views of one document*, not multiple documents.
+- **An "Open in the full app" link** (`/app/sutta/<id>?layout=…`) for readers
+  who want the real tabbed reader — the path-split bridge documented below.
+
+Division of labour: multi-*document* tabs live in the Flutter app (`/app`), its
+whole reason to exist; the static site (`/`) stays a pile of honest documents.
+
 ### Text rendering
 Reuse the `**bold**`/`__underline__`/`{footnote}` → HTML logic from
 `wisdom_shared` (already exercised by the prototype). This is the only renderer
