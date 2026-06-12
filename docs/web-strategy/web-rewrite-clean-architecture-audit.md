@@ -3,7 +3,8 @@
 > Status: **Study + Plan** — analysis only, no code changed.
 > Captured: 2026-06-06.
 > Companion to: [`jaspr-web-client-migration.md`](./jaspr-web-client-migration.md),
-> [`web-deep-linking-seo-and-shareable-urls.md`](./web-deep-linking-seo-and-shareable-urls.md).
+> [`web-rewrite-strategy.md`](./web-rewrite-strategy.md),
+> [`../todo/deep-linking-and-shareable-urls.md`](../todo/deep-linking-and-shareable-urls.md).
 >
 > Question this answers: *"If we eventually replace the Flutter-web surface
 > with a purpose-built web client, how badly is Clean Architecture broken

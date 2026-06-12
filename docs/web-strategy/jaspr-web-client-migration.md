@@ -4,9 +4,9 @@
 > is condensed into the *Background* section below; the body is now an
 > executable spec for the multi-tab de-risking prototype.
 > Captured: 2026-06-06 · Updated: 2026-06-09 · Owner: TBD.
-> Related: [`web-deep-linking-seo-and-shareable-urls.md`](./web-deep-linking-seo-and-shareable-urls.md)
-> (SEO/SSR), [`both_mode_lazy_builder.md`](./both_mode_lazy_builder.md),
-> [`top10-perf-and-bonus.txt`](./top10-perf-and-bonus.txt) (Flutter-web perf —
+> Related: [`web-rewrite-strategy.md`](./web-rewrite-strategy.md)
+> (SEO/SSR + static-site direction), [`../todo/both_mode_lazy_builder.md`](../todo/both_mode_lazy_builder.md),
+> [`../todo/top10-perf-and-bonus.txt`](../todo/top10-perf-and-bonus.txt) (Flutter-web perf —
 > several items become moot on a Jaspr web surface).
 
 ---
