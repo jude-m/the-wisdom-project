@@ -2,16 +2,29 @@
 # Build and serve The Wisdom Project for web testing on macOS.
 #
 # Usage:
-#   ./scripts/web/run_mac.sh [--port 8080] [--skip-build] [--debug] [--clean]
+#   ./scripts/web/run_mac.sh             # debug build (default)
+#   ./scripts/web/run_mac.sh --debug     # same as above
+#   ./scripts/web/run_mac.sh --profile   # profile build (perf measurement)
+#   ./scripts/web/run_mac.sh --release   # release build (production-equivalent)
+#   ./scripts/web/run_mac.sh [--port 8080] [--skip-build] [--clean]
 #
 # This script:
 # 1. Builds the Flutter web app (unless --skip-build)
 # 2. Starts the Dart server serving both API + web files
 # 3. Opens http://localhost:PORT in your browser
 #
-# --debug builds with `flutter build web --debug` so kDebugMode is true and
-# debugPrint output appears in the browser DevTools console (F12 → Console).
-# Default is a release build.
+# Debug is the default (kDebugMode true, debugPrint visible in the browser
+# DevTools console at F12 → Console), matching the native run scripts.
+#
+# --profile builds with `flutter build web --profile`. Use this for
+# performance measurement: realistic frame timings (debug is far slower and
+# not representative) while still allowing Chrome DevTools profiling. Pair it
+# with Chrome DevTools → Performance → CPU 6× throttle to emulate an older
+# machine.
+#
+# --release builds with `flutter build web --release` for a
+# production-equivalent bundle (smaller, fastest) when you need to sanity-check
+# the real deployed build locally.
 #
 # --clean runs `flutter clean` + `flutter pub get` before building. Use this
 # when cached build artifacts are stale — e.g. after changing fonts in
@@ -21,7 +34,7 @@ set -e
 
 PORT=8080
 SKIP_BUILD=false
-DEBUG=false
+BUILD_MODE="debug"
 CLEAN=false
 
 # Parse arguments
@@ -36,7 +49,15 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --debug)
-      DEBUG=true
+      BUILD_MODE="debug"
+      shift
+      ;;
+    --profile)
+      BUILD_MODE="profile"
+      shift
+      ;;
+    --release)
+      BUILD_MODE="release"
       shift
       ;;
     --clean)
@@ -45,7 +66,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: ./scripts/web/run_mac.sh [--port 8080] [--skip-build] [--debug] [--clean]"
+      echo "Usage: ./scripts/web/run_mac.sh [--port 8080] [--skip-build] [--debug] [--profile] [--release] [--clean]"
       exit 1
       ;;
   esac
@@ -63,13 +84,20 @@ if [ "$SKIP_BUILD" = false ]; then
     echo ""
   fi
 
-  if [ "$DEBUG" = true ]; then
-    echo "Building Flutter web app (DEBUG — debugPrint enabled)..."
-    flutter build web --debug
-  else
-    echo "Building Flutter web app (release)..."
-    flutter build web --release
-  fi
+  case "$BUILD_MODE" in
+    debug)
+      echo "Building Flutter web app (DEBUG — debugPrint enabled)..."
+      flutter build web --debug
+      ;;
+    profile)
+      echo "Building Flutter web app (PROFILE — performance profiling)..."
+      flutter build web --profile
+      ;;
+    release)
+      echo "Building Flutter web app (release)..."
+      flutter build web --release
+      ;;
+  esac
 
   # Remove server-only assets from web build (databases + text JSON files).
   # On web these are served by the API — bundling them wastes ~600 MB.

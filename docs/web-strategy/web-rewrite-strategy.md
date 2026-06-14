@@ -155,6 +155,20 @@ Option B (Jaspr)** to a someday-maybe; **track Option C**. Keep Flutter for the
 rich web app ever *does* move to Jaspr, the data→HTML rendering logic A′ builds
 is directly reusable.
 
+### App↔site boundary: share the core, not the HTML (2026-06-14)
+The generated HTML is a **build output of the web surface, not a content source for
+the app.** Feeding the same HTML into the Flutter app (WebView / `flutter_html`) to
+collapse the two pipelines was rejected — it forfeits the app's native text selection,
+word-tap dictionary, and in-page search, and the 4 layouts are CSS on the web but
+Flutter widgets in the app regardless. The shared seam is the **structured content +
+`wisdom_shared` logic** both renderers already consume (→ native widgets for the app,
+→ HTML/CSS for the site), not the rendered HTML.
+
+Companion app decision: the app's **reading unit moves to a single sutta** (micro-suttas
+grouped by vagga), dropping continuous cross-sutta scroll (C7). A bounded sutta is only
+tens of entries, so the app renders it eagerly — cheap *and* preserving cross-page text
+selection — which is why the `../done/both_mode_lazy_builder.md` lazy migration was dropped.
+
 ---
 
 ## The static HTML site (Option A′) — concrete shape
