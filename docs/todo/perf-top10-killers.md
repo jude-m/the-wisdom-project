@@ -3,8 +3,10 @@
 > **Status:** Backlog (perf TODO worklist — pick items from here to plan/implement)
 > **Source:** Full-project performance code review (static, traced through `lib/`),
 > plus an interaction-jank investigation addendum (2026-06-05).
-> **Related:** `docs/todo/perf-search_label_and_tree_lookup_followups.md`
-> — the old item **#4** (`_buildNodeMap` rebuilt per search) now lives there as its item 2.
+> **Related:**
+> - `docs/todo/perf-fts-snippet-text-loading.md` — full plan for **#2** (per-hit JSON reload).
+> - `docs/todo/perf-search_label_and_tree_lookup_followups.md` — the old item **#4**
+>   (`_buildNodeMap` rebuilt per search) now lives there as its item 2.
 
 All findings are based on actual code paths. Each item lists where it lives, how it
 hurts, the fix, the expected gain, effort, and blast-radius on existing flows.
@@ -16,7 +18,7 @@ hurts, the fix, the expected gain, effort, and blast-radius on existing flows.
 | # | Issue | Effort | Impact to flows |
 |---|---|---|---|
 | 1 | Tree navigator full re-render on every expand / select / language change | Medium | Low |
-| 2 | `_loadTextForMatch` re-reads & re-parses the whole sutta JSON per FTS hit | Medium | None |
+| 2 | — *moved to `perf-fts-snippet-text-loading.md` (own plan)* | — | — |
 | 3 | All JSON parsing runs on the UI isolate (tree.json 4.18 MB; every sutta) | Medium | None |
 | 4 | — *moved to `perf-search_label_and_tree_lookup_followups.md` (item 2)* | — | — |
 | 5 | Search widgets watch the entire `searchStateProvider` | Low–Medium | None |
@@ -53,22 +55,13 @@ Tipitaka has thousands of nodes.
 - **Effort:** Medium
 - **Impact to existing flows:** Low — pure rebuild-locality fix; no public API change.
 
-### 2. `_loadTextForMatch` re-reads & re-parses the entire sutta JSON for every single FTS hit
+### 2. — Moved out of this list
 
-**Where:** `lib/data/repositories/text_search_repository_impl.dart:466-522`, awaited
-inside a `for` loop.
-
-- **How it affects performance:** Native search returns up to 50 matches. If 50 matches
-  all come from `dn-1.json` (200–400 KB), the file is loaded + `json.decode`d 50 times —
-  sequentially, on the main isolate. That's the biggest blocker between "user hits Enter"
-  and "results appear".
-- **How to prevent:** (a) Group matches by filename, load each JSON once, then attach
-  `matchedText` to every match for that file. (b) Optionally cache parsed JSON in an
-  `LRUCache` (the LRU class already exists in `lib/data/cache/lru_cache.dart`).
-  (c) Move JSON parse to `compute()`.
-- **Gain:** Search results render 5–20× faster; UI thread stops freezing while results load.
-- **Effort:** Medium
-- **Impact to existing flows:** None — purely internal to the FTS repo.
+This was `TextSearchRepositoryImpl._loadTextForMatch` re-reading & re-parsing the whole
+sutta JSON for every FTS hit. It now has a dedicated implementation plan in
+`docs/todo/perf-fts-snippet-text-loading.md`, which covers both the native/client fix
+(group-by-file + parse-once + LRU + optional isolate) and the remote/web server path.
+Tracked there to keep the detailed plan in one place.
 
 ### 3. All JSON parsing happens on the UI isolate
 
@@ -256,7 +249,8 @@ group inside a `SingleChildScrollView`. Reader `SingleColumnPane` and `StackedPa
 In rough order of perceived user impact:
 
 1. **#2 + #3** ship as a bundled "search & sutta-open are fast" upgrade — they remove the
-   worst UI-thread stalls users see today. (Old #4 moved to
+   worst UI-thread stalls users see today. (#2 now has its own plan in
+   `perf-fts-snippet-text-loading.md`; old #4 moved to
    `perf-search_label_and_tree_lookup_followups.md`, item 2.)
 2. **#1 + #5** make the two most-touched UIs (tree navigator and search panel) feel
    responsive instead of mushy.
