@@ -45,6 +45,14 @@
 
   "contentLanguage": "අන්තර්ගත භාෂාව",
 
+  "paliLetters": "පාළි අකුරු",
+
+  "paliStandardLigatures": "සුලබ බැඳි අකුරු",
+
+  "paliSpecialLetters": "විශේෂ පාළි අකුරු",
+
+  "paliTouching": "පාළි බැඳි අකුරු",
+
   "fontSize": "අක්ෂර ප්‍රමාණය",
 
   "fontSizeSmall": "කුඩා",

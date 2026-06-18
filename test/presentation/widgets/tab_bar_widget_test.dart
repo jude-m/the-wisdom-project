@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:the_wisdom_project/core/storage/key_value_store_provider.dart';
 import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
+import 'package:the_wisdom_project/core/utils/pali_letter_options.dart';
 import 'package:the_wisdom_project/domain/entities/content/content_language.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/content_language_provider.dart';
@@ -158,7 +159,10 @@ void main() {
 
       // The label is transformed (ZWJ inserted) → matches the transformer
       // output, and NOT the raw Pali string.
-      expect(find.text(applyConjunctConsonants('ධම්ම')), findsOneWidget);
+      expect(
+        find.text(beautifyPaliText('ධම්ම', PaliLetterOptions.defaults)),
+        findsOneWidget,
+      );
       expect(find.text('ධම්ම'), findsNothing);
     });
   });

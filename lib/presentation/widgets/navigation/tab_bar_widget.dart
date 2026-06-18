@@ -10,6 +10,7 @@ import '../../utils/content_text_formatter.dart';
 import '../../../domain/entities/content/content_language.dart';
 import '../../models/reader_tab.dart';
 import '../../providers/content_language_provider.dart';
+import '../../providers/pali_letter_options_provider.dart';
 import '../../providers/tab_lifecycle_provider.dart';
 import '../../providers/tab_provider.dart';
 
@@ -451,11 +452,12 @@ class _TabItem extends ConsumerWidget {
     // Tab labels follow the Content Language setting. Fall back across the
     // tab's stored names (older persisted tabs may only carry `label`).
     final contentLanguage = ref.watch(effectiveContentLanguageProvider);
+    final options = ref.watch(paliLetterOptionsProvider);
     final rawLabel = switch (contentLanguage) {
       ContentLanguage.pali => tab.paliName ?? tab.label,
       ContentLanguage.sinhala => tab.sinhalaName ?? tab.paliName ?? tab.label,
     };
-    final displayLabel = formatContentLabel(rawLabel, contentLanguage);
+    final displayLabel = formatContentLabel(rawLabel, contentLanguage, options);
     return Material(
       // Per-tab Material so this tab's hover/press ink is painted and
       // clipped here. Without it the ink lands on a distant ancestor

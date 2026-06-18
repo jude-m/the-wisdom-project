@@ -129,7 +129,7 @@ on `rawText` every access.
 ### 7. `withPaliConjuncts` re-runs on every rebuild for every label
 
 **Where:** `applyConjunctConsonants` (`lib/core/utils/pali_conjunct_transformer.dart:59-108`)
-executes 5 `replaceAll` + 2 `replaceAllMapped` (Bandi pattern applied twice) per call.
+executes 5 `replaceAll` + 2 `replaceAllMapped` (touching pattern applied twice) per call.
 Used by `TreeNodeWidget` (line 156), `_SearchResultTile` (line 615), `GroupedFTSTile`
 (line 95), `_BreadcrumbWidget`, `_TabItem`, etc., none of which cache the result.
 

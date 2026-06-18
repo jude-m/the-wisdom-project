@@ -8,6 +8,7 @@ import '../../../core/theme/theme_notifier.dart';
 import '../../../domain/entities/content/content_language.dart';
 import '../../providers/app_language_provider.dart';
 import '../../providers/content_language_provider.dart';
+import '../../providers/pali_letter_options_provider.dart';
 
 /// Settings menu button for AppBar
 class SettingsMenuButton extends ConsumerWidget {
@@ -79,6 +80,21 @@ class SettingsMenuButton extends ConsumerWidget {
               _MenuSectionLabel((l10n) => l10n.contentLanguage),
               const SizedBox(height: 8),
               _ContentLanguageSelector(),
+            ],
+          ),
+        ),
+
+        const PopupMenuDivider(),
+
+        // Pali Letters — the three conjunct display switches (Pali-only).
+        PopupMenuItem<String>(
+          enabled: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _MenuSectionLabel((l10n) => l10n.paliLetters),
+              const SizedBox(height: 4),
+              _PaliLettersSection(),
             ],
           ),
         ),
@@ -331,5 +347,73 @@ class _ContentLanguageSelector extends ConsumerWidget {
       case ContentLanguage.sinhala:
         return l10n.sinhalaLanguageLabel;
     }
+  }
+}
+
+/// The three Pali-letter (conjunct) display switches.
+///
+/// Like the other selectors here, this is a [ConsumerWidget] so the switches
+/// reflect live provider state even though the popup's `itemBuilder` runs once.
+/// Each switch flips one boolean provider; every text surface watches the
+/// combined [paliLetterOptionsProvider], so the reading pane and all labels
+/// update the instant a switch is toggled.
+class _PaliLettersSection extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _PaliLetterSwitch(
+          label: l10n.paliStandardLigatures,
+          value: ref.watch(standardLigaturesProvider),
+          onToggle: () => ref.read(standardLigaturesProvider.notifier).toggle(),
+        ),
+        _PaliLetterSwitch(
+          label: l10n.paliSpecialLetters,
+          value: ref.watch(specialConjunctsProvider),
+          onToggle: () => ref.read(specialConjunctsProvider.notifier).toggle(),
+        ),
+        _PaliLetterSwitch(
+          label: l10n.paliTouching,
+          value: ref.watch(touchingProvider),
+          onToggle: () => ref.read(touchingProvider.notifier).toggle(),
+        ),
+      ],
+    );
+  }
+}
+
+/// A single compact label + [Switch] row used inside [_PaliLettersSection].
+class _PaliLetterSwitch extends StatelessWidget {
+  const _PaliLetterSwitch({
+    required this.label,
+    required this.value,
+    required this.onToggle,
+  });
+
+  final String label;
+  final bool value;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        Switch(
+          value: value,
+          // The new value is always !value, so we ignore the arg and toggle.
+          onChanged: (_) => onToggle(),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ],
+    );
   }
 }

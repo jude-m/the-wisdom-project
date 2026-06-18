@@ -76,6 +76,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get contentLanguage => 'Content Language';
 
   @override
+  String get paliLetters => 'Pali Letters';
+
+  @override
+  String get paliStandardLigatures => 'Standard ligatures';
+
+  @override
+  String get paliSpecialLetters => 'Special Pali letters';
+
+  @override
+  String get paliTouching => 'Touching letters';
+
+  @override
   String get fontSize => 'Font Size';
 
   @override

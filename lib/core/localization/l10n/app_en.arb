@@ -111,6 +111,26 @@
     "description": "Label for the content language setting — which text/translation is shown for data labels (tree, breadcrumbs, search, dialogs, tabs)"
   },
 
+  "paliLetters": "Pali Letters",
+  "@paliLetters": {
+    "description": "Section header for the Pali letter (conjunct) display switches in the settings menu"
+  },
+
+  "paliStandardLigatures": "Standard ligatures",
+  "@paliStandardLigatures": {
+    "description": "Switch 3 — toggles standard ligatures (rakaransaya, yansaya, repaya and the common conjunct pairs) for Pali text. Default on."
+  },
+
+  "paliSpecialLetters": "Special Pali letters",
+  "@paliSpecialLetters": {
+    "description": "Switch 2 — toggles the rare old-Pali ligatures that need UN-type fonts. Default off."
+  },
+
+  "paliTouching": "Touching letters",
+  "@paliTouching": {
+    "description": "Switch 1 — toggles the touching join (ZWJ before hal) for remaining clusters plus long-to-short vowel shortening. Default on."
+  },
+
   "fontSize": "Font Size",
   "@fontSize": {
     "description": "Label for font size setting"

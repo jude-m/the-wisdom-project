@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/pali_conjunct_transformer.dart';
+import '../../../core/utils/pali_letter_options.dart';
 import '../../../core/utils/search_match_finder.dart';
 import '../../../core/utils/text_utils.dart';
+import '../../providers/pali_letter_options_provider.dart';
 
 /// Displays text with search query matches highlighted.
 ///
@@ -10,7 +13,7 @@ import '../../../core/utils/text_utils.dart';
 /// - **Exact phrase**: Entire query as single match
 /// - **Phrase with prefix**: Adjacent words with prefix matching
 /// - **Separate words**: Each word highlighted independently
-class HighlightedFtsSearchText extends StatelessWidget {
+class HighlightedFtsSearchText extends ConsumerWidget {
   /// The text content to display and highlight matches within.
   final String matchedText;
 
@@ -41,9 +44,12 @@ class HighlightedFtsSearchText extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    return _buildHighlightedText(context, matchedText, theme);
+    // The Pali-letter switches; only used on the Pali branch. Watching here
+    // rebuilds the snippet live when a switch flips.
+    final options = ref.watch(paliLetterOptionsProvider);
+    return _buildHighlightedText(context, matchedText, theme, options);
   }
 
   /// Main entry point for building highlighted text.
@@ -51,6 +57,7 @@ class HighlightedFtsSearchText extends StatelessWidget {
     BuildContext context,
     String matchedText,
     ThemeData theme,
+    PaliLetterOptions options,
   ) {
     final baseStyle = context.typography.resultMatchedText;
 
@@ -75,7 +82,7 @@ class HighlightedFtsSearchText extends StatelessWidget {
     final List<({int start, int end})> displayRanges;
     if (language == 'pali') {
       (displaySnippet, displayRanges) =
-          applyConjunctsWithRangeMapping(snippet, rawRanges);
+          applyConjunctsWithRangeMapping(snippet, rawRanges, options);
     } else {
       displaySnippet = snippet;
       displayRanges = rawRanges;

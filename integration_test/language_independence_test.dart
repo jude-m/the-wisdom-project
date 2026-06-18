@@ -7,6 +7,7 @@ import 'package:the_wisdom_project/core/localization/l10n/app_localizations_en.d
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations_si.dart';
 import 'package:the_wisdom_project/core/localization/app_language.dart';
 import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
+import 'package:the_wisdom_project/core/utils/pali_letter_options.dart';
 import 'package:the_wisdom_project/domain/entities/content/content_language.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/app_language_provider.dart';
@@ -99,7 +100,8 @@ void main() {
         // (dn-1-1 = බ්‍රහ්මජාලසුත්තං), so the Content-Language switch is visible.
         final leaf = container.read(nodeByKeyProvider('dn-1-1'))!;
         final sinhalaName = leaf.sinhalaName;
-        final paliTransformed = applyConjunctConsonants(leaf.paliName);
+        final paliTransformed =
+            beautifyPaliText(leaf.paliName, PaliLetterOptions.defaults);
 
         container.read(tabsProvider.notifier).addTab(
               tabAtBeginning(container, 'dn-1-1'),

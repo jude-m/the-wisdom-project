@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
+import 'package:the_wisdom_project/core/utils/pali_letter_options.dart';
 import 'package:the_wisdom_project/domain/entities/content/content_language.dart';
 import 'package:the_wisdom_project/domain/entities/navigation/tipitaka_tree_node.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
@@ -130,7 +131,8 @@ void main() {
       // two-language rendering is owned by the seam (1.1) + the Sinhala case
       // above, so we don't re-assert the transformed title here.
       final expectedPath =
-          '${applyConjunctConsonants('සුත්ත')} > ${applyConjunctConsonants('සංයුත්ත')}';
+          '${beautifyPaliText('සුත්ත', PaliLetterOptions.defaults)} > '
+          '${beautifyPaliText('සංයුත්ත', PaliLetterOptions.defaults)}';
       expect(find.text(expectedPath), findsOneWidget);
     });
 
@@ -174,7 +176,10 @@ void main() {
       container.read(_testLang.notifier).state = ContentLanguage.pali;
       await tester.pumpAndSettle();
 
-      expect(find.text(applyConjunctConsonants('ධම්ම')), findsOneWidget);
+      expect(
+        find.text(beautifyPaliText('ධම්ම', PaliLetterOptions.defaults)),
+        findsOneWidget,
+      );
       expect(find.text('දම් පෙළ'), findsNothing);
     });
   });

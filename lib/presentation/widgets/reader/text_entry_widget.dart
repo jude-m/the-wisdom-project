@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/pali_conjunct_transformer.dart';
+import '../../../core/utils/pali_letter_options.dart';
 import '../../../core/utils/search_match_finder.dart';
 import '../../../core/utils/text_utils.dart';
 import '../../providers/dictionary_provider.dart' show dictionaryHighlightProvider;
 import '../../providers/fts_highlight_provider.dart';
+import '../../providers/pali_letter_options_provider.dart';
 
 /// Callback type for word tap events
 /// [word] - The tapped word
@@ -91,9 +93,15 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
   /// Cached word matches for the current text
   List<RegExpMatch> _wordMatches = [];
 
-  /// Cached display text (computed once per text change)
+  /// The Pali-letter switches this entry was last rendered with. Resolved in
+  /// [initState] and kept in sync by `build` (via `ref.watch`). Part of the
+  /// display-text cache key so flipping a switch recomputes the conjuncts.
+  PaliLetterOptions _options = PaliLetterOptions.defaults;
+
+  /// Cached display text (computed once per text + options change)
   String? _cachedDisplayText;
   String? _lastText;
+  PaliLetterOptions? _lastOptions;
 
   /// Cached marked ranges mapped to display coordinates
   List<({int start, int end})>? _cachedDisplayMarkedRanges;
@@ -106,15 +114,18 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
   /// Get display text with conjunct transformation applied for Pali text.
   /// Uses caching to avoid recomputing on every access.
   String get _displayText {
-    // Return cached if text unchanged
-    if (_lastText == widget.text && _cachedDisplayText != null) {
+    // Return cached if neither the text nor the switches changed
+    if (_lastText == widget.text &&
+        _lastOptions == _options &&
+        _cachedDisplayText != null) {
       return _cachedDisplayText!;
     }
 
     // Compute and cache
     _lastText = widget.text;
+    _lastOptions = _options;
     _cachedDisplayText =
-        widget.enableTap ? widget.text.withPaliConjuncts : widget.text;
+        widget.enableTap ? widget.text.withPaliLetters(_options) : widget.text;
     // Invalidate marked ranges cache (depends on display text)
     _cachedDisplayMarkedRanges = null;
     return _cachedDisplayText!;
@@ -131,7 +142,7 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
     } else if (widget.enableTap) {
       // Pali text — conjunct transformation may shift positions.
       // Use buildConjunctPositionMap directly with the already-cached
-      // _displayText to avoid a redundant applyConjunctConsonants call.
+      // _displayText to avoid a redundant beautifyPaliText call.
       final posMap = buildConjunctPositionMap(widget.text, _displayText);
       _cachedDisplayMarkedRanges = [
         for (final r in widget.markedRanges)
@@ -148,6 +159,10 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
   @override
   void initState() {
     super.initState();
+    // Resolve the Pali-letter switches before building recognizers, which
+    // depend on the conjunct-transformed display text. build() keeps this in
+    // sync with the provider via ref.watch.
+    _options = ref.read(paliLetterOptionsProvider);
     // Create recognizers on init
     _createRecognizers();
   }
@@ -220,6 +235,16 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // Keep cached display text + recognizers in sync with the Pali-letter
+    // switches. When a switch flips, recompute (the getter reacts to the new
+    // _options) and rebuild recognizers, mirroring the didUpdateWidget path.
+    final options = ref.watch(paliLetterOptionsProvider);
+    if (options != _options) {
+      _options = options;
+      _disposeRecognizers();
+      _createRecognizers();
+    }
+
     // Watch the global highlight state to rebuild when highlighting changes
     // Store the result to use in _buildTextSpan
     final highlightState = ref.watch(dictionaryHighlightProvider);

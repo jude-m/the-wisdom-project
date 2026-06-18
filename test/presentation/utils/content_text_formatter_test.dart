@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
+import 'package:the_wisdom_project/core/utils/pali_letter_options.dart';
 import 'package:the_wisdom_project/domain/entities/content/content_language.dart';
 import 'package:the_wisdom_project/presentation/utils/content_text_formatter.dart';
 
@@ -15,11 +16,14 @@ void main() {
 
     test('Pali branch routes through the conjunct transformer (and changes it)',
         () {
-      final result =
-          formatContentLabel(sampleWithConjunct, ContentLanguage.pali);
+      final result = formatContentLabel(
+          sampleWithConjunct, ContentLanguage.pali, PaliLetterOptions.defaults);
 
       // Matches the production transformer exactly...
-      expect(result, equals(sampleWithConjunct.withPaliConjuncts));
+      expect(
+        result,
+        equals(beautifyPaliText(sampleWithConjunct, PaliLetterOptions.defaults)),
+      );
       // ...and is genuinely different from the raw input (the branch is real,
       // not an accidental no-op).
       expect(result, isNot(equals(sampleWithConjunct)));
@@ -27,8 +31,8 @@ void main() {
 
     test('Sinhala branch returns the text unchanged (never applies conjuncts)',
         () {
-      final result =
-          formatContentLabel(sampleWithConjunct, ContentLanguage.sinhala);
+      final result = formatContentLabel(sampleWithConjunct,
+          ContentLanguage.sinhala, PaliLetterOptions.defaults);
 
       // Conjuncts must NEVER bind a Sinhala translation, so the same input that
       // changed under Pali is returned verbatim here.

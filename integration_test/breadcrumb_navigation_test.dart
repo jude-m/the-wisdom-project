@@ -5,6 +5,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
+import 'package:the_wisdom_project/core/utils/pali_letter_options.dart';
 import 'package:the_wisdom_project/domain/entities/content/content_language.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/content_language_provider.dart';
@@ -332,7 +333,9 @@ void main() {
 
         // ASSERT: Now shows Pali names (with conjunct transformation applied)
         final textAfter = getBreadcrumbText(tester);
-        expect(textAfter, contains(applyConjunctConsonants(paliName)),
+        expect(
+            textAfter,
+            contains(beautifyPaliText(paliName, PaliLetterOptions.defaults)),
             reason: 'After switching to Pali, breadcrumb should show Pali names');
         expect(textAfter, isNot(contains(sinhalaName)),
             reason: 'Sinhala names should no longer appear');
@@ -342,7 +345,7 @@ void main() {
         // with conjunct transformation in the tree.
         final dnNode = container.read(nodeByKeyProvider('dn'));
         final dnPaliTransformed =
-            applyConjunctConsonants(dnNode!.paliName);
+            beautifyPaliText(dnNode!.paliName, PaliLetterOptions.defaults);
         expect(find.text(dnPaliTransformed), findsOneWidget,
             reason:
                 'Tree navigator should show Pali names with conjuncts '

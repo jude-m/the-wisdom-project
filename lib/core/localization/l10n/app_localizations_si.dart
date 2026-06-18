@@ -76,6 +76,18 @@ class AppLocalizationsSi extends AppLocalizations {
   String get contentLanguage => 'අන්තර්ගත භාෂාව';
 
   @override
+  String get paliLetters => 'පාළි අකුරු';
+
+  @override
+  String get paliStandardLigatures => 'සුලබ බැඳි අකුරු';
+
+  @override
+  String get paliSpecialLetters => 'විශේෂ පාළි අකුරු';
+
+  @override
+  String get paliTouching => 'පාළි බැඳි අකුරු';
+
+  @override
   String get fontSize => 'අක්ෂර ප්‍රමාණය';
 
   @override

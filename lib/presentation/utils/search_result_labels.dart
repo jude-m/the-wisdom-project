@@ -4,6 +4,7 @@ import '../../core/localization/l10n/app_localizations.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../../domain/entities/search/search_result_type.dart';
 import '../providers/navigation_tree_provider.dart';
+import '../providers/pali_letter_options_provider.dart';
 import '../providers/search_display_language_provider.dart';
 import 'content_text_formatter.dart';
 
@@ -54,6 +55,9 @@ typedef SearchResultLabels = ({String title, String path});
 SearchResultLabels searchResultLabels(WidgetRef ref, SearchResult result) {
   final language = ref.watch(effectiveSearchDisplayLanguageProvider);
 
+  // The Pali-letter switches — re-renders labels when a switch flips.
+  final options = ref.watch(paliLetterOptionsProvider);
+
   // The result's own node. Null for dictionary results / unknown keys.
   final node = ref.watch(nodeByKeyProvider(result.nodeKey));
   if (node == null) {
@@ -62,7 +66,8 @@ SearchResultLabels searchResultLabels(WidgetRef ref, SearchResult result) {
 
   // Title: the node's own name, routed through the shared formatter (which
   // applies Pali conjunct ligatures only when the language is Pali).
-  final title = formatContentLabel(node.getDisplayName(language), language);
+  final title =
+      formatContentLabel(node.getDisplayName(language), language, options);
 
   // Path: the node's ancestors. ancestorKeysProvider returns root → leaf
   // *including* the node itself, so we drop the last key — the title already
@@ -75,7 +80,8 @@ SearchResultLabels searchResultLabels(WidgetRef ref, SearchResult result) {
     final ancestor = ref.watch(nodeByKeyProvider(key));
     return ancestor == null
         ? key
-        : formatContentLabel(ancestor.getDisplayName(language), language);
+        : formatContentLabel(
+            ancestor.getDisplayName(language), language, options);
   }).join(' > ');
 
   // Keep the repo-built path rather than an empty string for root-level nodes.

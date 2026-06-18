@@ -18,6 +18,12 @@ abstract class KeyValueStore {
   /// Write an int for [key].
   Future<void> setInt(String key, int value);
 
+  /// Read a bool for [key], or null if absent / wrong type.
+  bool? getBool(String key);
+
+  /// Write a bool for [key].
+  Future<void> setBool(String key, bool value);
+
   /// Decode a JSON object stored under [key].
   /// Returns null if the key is absent or the stored value can't be parsed
   /// as a JSON object. On parse failure, the corrupted entry is removed

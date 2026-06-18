@@ -30,4 +30,16 @@ class StorageKeys {
   /// labels (tree, breadcrumbs, search, dialogs, tabs). Validated against the
   /// active edition's available languages at read time.
   static const contentLanguage = 'content_language_v1';
+
+  /// Bool — Switch 3 (standard ligatures: rakaransaya + yansaya + repaya + the
+  /// 8 common pairs) for Pali display. Default true. Absent → fall back to true.
+  static const paliStandardLigatures = 'pali_standard_ligatures_v1';
+
+  /// Bool — Switch 2 (special / rare old-Pali ligatures, 7 pairs) for Pali
+  /// display. Default false. Absent → fall back to false.
+  static const paliSpecialConjuncts = 'pali_special_conjuncts_v1';
+
+  /// Bool — Switch 1 (touching join + long→short vowel) for Pali
+  /// display. Default true. Absent → fall back to true.
+  static const paliTouching = 'pali_touching_v1';
 }

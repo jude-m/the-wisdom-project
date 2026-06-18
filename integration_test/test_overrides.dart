@@ -39,6 +39,14 @@ class InMemoryKeyValueStore implements KeyValueStore {
   }
 
   @override
+  bool? getBool(String key) => _values[key] as bool?;
+
+  @override
+  Future<void> setBool(String key, bool value) async {
+    _values[key] = value;
+  }
+
+  @override
   Map<String, dynamic>? getJsonObject(String key) {
     final raw = _values[key] as String?;
     if (raw == null || raw.isEmpty) return null;

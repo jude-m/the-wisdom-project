@@ -38,7 +38,7 @@ import 'test_overrides.dart';
 
 /// Recursively searches [span] for a [TextSpan] whose text matches [target]
 /// and has a [TapGestureRecognizer] attached.
-/// Strips ZWJ/ZWNJ before comparing because [applyConjunctConsonants] inserts
+/// Strips ZWJ/ZWNJ before comparing because beautifyPaliText inserts
 /// them into the rendered text for proper Pali typography.
 TapGestureRecognizer? _findRecognizerInSpan(InlineSpan span, String target) {
   if (span is TextSpan) {
@@ -216,7 +216,7 @@ void main() {
 
         // ASSERT: TextField shows භික්ඛ (with conjunct ZWJ formatting).
         // The backspace button removes one code unit at a time, preserving
-        // the ZWJ characters inserted by applyConjunctConsonants.
+        // the ZWJ characters inserted by beautifyPaliText.
         final textField =
             tester.widget<TextField>(findDictionaryTextField());
         expect(

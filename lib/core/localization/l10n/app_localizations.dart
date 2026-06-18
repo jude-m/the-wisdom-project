@@ -230,6 +230,30 @@ abstract class AppLocalizations {
   /// **'Content Language'**
   String get contentLanguage;
 
+  /// Section header for the Pali letter (conjunct) display switches in the settings menu
+  ///
+  /// In en, this message translates to:
+  /// **'Pali Letters'**
+  String get paliLetters;
+
+  /// Switch 3 — toggles standard ligatures (rakaransaya, yansaya, repaya and the common conjunct pairs) for Pali text. Default on.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard ligatures'**
+  String get paliStandardLigatures;
+
+  /// Switch 2 — toggles the rare old-Pali ligatures that need UN-type fonts. Default off.
+  ///
+  /// In en, this message translates to:
+  /// **'Special Pali letters'**
+  String get paliSpecialLetters;
+
+  /// Switch 1 — toggles the touching join (ZWJ before hal) for remaining clusters plus long-to-short vowel shortening. Default on.
+  ///
+  /// In en, this message translates to:
+  /// **'Touching letters'**
+  String get paliTouching;
+
   /// Label for font size setting
   ///
   /// In en, this message translates to:

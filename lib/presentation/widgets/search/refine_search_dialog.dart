@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
+import '../../../core/utils/pali_letter_options.dart';
 import '../../../domain/entities/content/content_language.dart';
 import '../../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../../../domain/entities/search/scope_operations.dart';
 import '../../providers/content_language_provider.dart';
 import '../../providers/navigation_tree_provider.dart';
 import '../../providers/overlay_stack_provider.dart';
+import '../../providers/pali_letter_options_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../utils/content_text_formatter.dart';
 
@@ -96,6 +98,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
     // row doesn't independently watch it. (Watching here already rebuilds the
     // whole dialog on change — the per-row Builder added nothing.)
     final language = ref.watch(effectiveContentLanguageProvider);
+    final options = ref.watch(paliLetterOptionsProvider);
     final l10n = AppLocalizations.of(context);
 
     return Dialog(
@@ -122,8 +125,8 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
               // Scope section
               Expanded(
                 child: treeAsync.when(
-                  data: (tree) =>
-                      _buildScopeSection(theme, tree, scope, language, l10n),
+                  data: (tree) => _buildScopeSection(
+                      theme, tree, scope, language, options, l10n),
                   loading: () => const Center(
                     child: CircularProgressIndicator(),
                   ),
@@ -298,6 +301,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
     List<TipitakaTreeNode> tree,
     Set<String> scope,
     ContentLanguage language,
+    PaliLetterOptions options,
     AppLocalizations l10n,
   ) {
     return Column(
@@ -342,8 +346,8 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
               child: SingleChildScrollView(
                 child: Column(
                   children: tree
-                      .map((node) =>
-                          _buildTreeNode(theme, node, 0, scope, tree, language))
+                      .map((node) => _buildTreeNode(
+                          theme, node, 0, scope, tree, language, options))
                       .toList(),
                 ),
               ),
@@ -361,6 +365,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
     Set<String> scope,
     List<TipitakaTreeNode> tree,
     ContentLanguage language,
+    PaliLetterOptions options,
   ) {
     // Only show first 3 levels (Pitaka, Nikaya, Vagga)
     if (depth > 2) return const SizedBox.shrink();
@@ -423,6 +428,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
                     formatContentLabel(
                       node.getDisplayName(language),
                       language,
+                      options,
                     ),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight:
@@ -438,9 +444,8 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
 
         // Children
         if (hasChildren && isExpanded)
-          ...node.childNodes
-              .map((child) =>
-                  _buildTreeNode(theme, child, depth + 1, scope, tree, language)),
+          ...node.childNodes.map((child) => _buildTreeNode(
+              theme, child, depth + 1, scope, tree, language, options)),
       ],
     );
   }

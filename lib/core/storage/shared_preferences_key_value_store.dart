@@ -27,6 +27,12 @@ class SharedPreferencesKeyValueStore implements KeyValueStore {
   Future<void> setInt(String key, int value) => _prefs.setInt(key, value);
 
   @override
+  bool? getBool(String key) => _prefs.getBool(key);
+
+  @override
+  Future<void> setBool(String key, bool value) => _prefs.setBool(key, value);
+
+  @override
   Map<String, dynamic>? getJsonObject(String key) {
     final raw = _prefs.getString(key);
     if (raw == null || raw.isEmpty) return null;

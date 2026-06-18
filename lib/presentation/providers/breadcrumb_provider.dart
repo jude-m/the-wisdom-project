@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/content_text_formatter.dart';
 import 'content_language_provider.dart';
 import 'navigation_tree_provider.dart';
+import 'pali_letter_options_provider.dart';
 import 'tab_provider.dart';
 
 /// Derived provider that builds the breadcrumb segments for the active tab.
@@ -25,6 +26,9 @@ final breadcrumbPathProvider =
   // Watch the Content Language — re-renders names when the setting changes.
   final language = ref.watch(effectiveContentLanguageProvider);
 
+  // Watch the Pali-letter switches — re-renders names when a switch flips.
+  final options = ref.watch(paliLetterOptionsProvider);
+
   // Map each key to its display name in the selected Content Language, routed
   // through the shared formatter (applies Pali conjuncts only when Pali).
   return keys.map((key) {
@@ -32,7 +36,8 @@ final breadcrumbPathProvider =
     if (node == null) return (nodeKey: key, displayName: key);
     return (
       nodeKey: key,
-      displayName: formatContentLabel(node.getDisplayName(language), language),
+      displayName:
+          formatContentLabel(node.getDisplayName(language), language, options),
     );
   }).toList();
 });

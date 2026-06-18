@@ -9,6 +9,7 @@ import '../../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../../providers/content_language_provider.dart';
 import '../../providers/navigation_tree_provider.dart';
 import '../../providers/navigator_visibility_provider.dart';
+import '../../providers/pali_letter_options_provider.dart';
 import '../../providers/tab_provider.dart';
 import '../common/status_message_view.dart';
 
@@ -147,6 +148,7 @@ class TreeNodeWidget extends ConsumerWidget {
     final expandedNodes = ref.watch(expandedNodesProvider);
     final selectedNode = ref.watch(selectedNodeProvider);
     final contentLanguage = ref.watch(effectiveContentLanguageProvider);
+    final options = ref.watch(paliLetterOptionsProvider);
 
     final isExpanded = expandedNodes.contains(node.nodeKey);
     final isSelected = selectedNode == node.nodeKey;
@@ -154,6 +156,7 @@ class TreeNodeWidget extends ConsumerWidget {
     final displayName = formatContentLabel(
       node.getDisplayName(contentLanguage),
       contentLanguage,
+      options,
     );
     final ci = contentIcon(
       isCommentary: node.isCommentary,

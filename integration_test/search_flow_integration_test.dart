@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
+import 'package:the_wisdom_project/core/utils/pali_letter_options.dart';
 import 'package:the_wisdom_project/domain/entities/content/content_language.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/presentation/providers/content_language_provider.dart';
@@ -165,6 +166,7 @@ void main() {
             final expectedSinhalaTitle = formatContentLabel(
               node.getDisplayName(ContentLanguage.sinhala),
               ContentLanguage.sinhala,
+              PaliLetterOptions.defaults,
             );
             expect(find.textContaining(expectedSinhalaTitle), findsWidgets,
                 reason:
@@ -189,8 +191,10 @@ void main() {
               ? formatContentLabel(
                   node.getDisplayName(ContentLanguage.pali),
                   ContentLanguage.pali,
+                  PaliLetterOptions.defaults,
                 )
-              : applyConjunctConsonants(paliTitleResult.title);
+              : beautifyPaliText(
+                  paliTitleResult.title, PaliLetterOptions.defaults);
           expect(find.textContaining(expectedPaliTitle), findsWidgets,
               reason:
                   'Pali title results should display with conjunct '
@@ -640,7 +644,8 @@ void main() {
         // Use the first result — it's always rendered by ListView (top of list).
         // Results further down may not be built due to lazy rendering.
         final firstResult = defResults!.first;
-        final transformedTitle = applyConjunctConsonants(firstResult.title);
+        final transformedTitle =
+            beautifyPaliText(firstResult.title, PaliLetterOptions.defaults);
         expect(find.textContaining(transformedTitle), findsWidgets,
             reason:
                 'First dictionary result title should display with Pali '
