@@ -94,9 +94,22 @@ Inventory of tree traversals related to the new `nodeIndexProvider`:
   cannot use `nodeIndexProvider` because the repository has no Riverpod `Ref`
   (its own TODO ~line 573 admits this). So there are now **two identical index
   implementations** (presentation + data).
-  **Proper fix (architectural, own ticket):** host *one* index lower down —
-  compute it once when the tree loads and pass it in, or cache `_buildNodeMap`'s
-  result instead of rebuilding per search. Not a quick cleanup.
+  **The index already exists in the data layer — and is already exposed**
+  (detail surfaced by the top-10 perf audit, its item #4).
+  `NavigationTreeRepositoryImpl` keeps a cached `_nodeIndex`
+  (`navigation_tree_repository_impl.dart:12`, built once in `loadTree` via
+  `_buildNodeIndex`), and the `NavigationTreeRepository` **interface already
+  declares `getNodeByKey(String)`** (interface line 24, impl line 41) backed by
+  that cached index. So `nodeIndexProvider` (presentation) is itself a duplicate
+  of a map the data layer already maintains *and serves*.
+
+  **Proper fix (no `Ref` needed — stays in the data layer):** have
+  `TextSearchRepositoryImpl` depend on `NavigationTreeRepository` and call
+  `getNodeByKey` (or add a `nodeIndex` getter to the interface) instead of
+  rebuilding `_buildNodeMap` per search — a data-layer→data-layer dependency.
+  This is **likely Low effort**, not the larger architectural job the layering
+  framing implied. Fallback, if wiring the dependency is awkward: just cache
+  `_buildNodeMap`'s result instead of rebuilding it on every call.
 
 ### ⚪ Not applicable (a key→node map wouldn't help)
 - **`previousReadableNodeProvider`** (`navigation_tree_provider.dart`) — needs
@@ -105,8 +118,10 @@ Inventory of tree traversals related to the new `nodeIndexProvider`:
 - **`scope_operations.dart`** (descendants / ancestors-selected set math) —
   domain pure functions, no `Ref`, operate on tree *structure* not key lookups.
 - **`navigation_tree_repository_impl.dart` ~line 140 — `indexNode`** — runs once
-  at tree construction, not a hot lookup. (Natural home if a single canonical
-  index is ever consolidated.)
+  at tree construction, not a hot lookup. It already populates the cached
+  `_nodeIndex` that `getNodeByKey` serves, so the "single canonical index" the
+  🔴 item wants is largely already here — consolidation is *wiring the search
+  repo to it*, not building a new index.
 
 ---
 
@@ -116,5 +131,8 @@ Inventory of tree traversals related to the new `nodeIndexProvider`:
    `in_page_search_provider._findNodeWithParent` — quick, contained.
 2. **(medium)** Simplify the search repo to stop computing discarded
    title/subtitle for tree-backed results; remove the stale TODO (item 1).
-3. **(larger, optional)** Consolidate the duplicated flat node index into one
-   shared layer so the repo doesn't rebuild it per search (item 2 🔴).
+3. **(small–medium)** Point the search repo at the data layer's *existing*
+   cached index — have `TextSearchRepositoryImpl` use
+   `NavigationTreeRepository.getNodeByKey` instead of rebuilding `_buildNodeMap`
+   per search (item 2 🔴). Lighter than first thought: the index and its
+   accessor already exist.
