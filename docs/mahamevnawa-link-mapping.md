@@ -73,6 +73,33 @@ differently (e.g. the mixed singleton/plural vagga SN `4-1-17`).
      (`4-4-2-4-<sinhala-title>`) instead of the code form (`an4_…`); we match on its
      **leading numeric coordinate** (e.g. `an-4-4-2-4` → `/sutta/8936`).
 
+### Khuddaka Nikāya (books 1–9) — position-trusted, link-corroborated
+
+Mahamevnawa serves only the **first 9 Khuddaka books** as per-sutta pages. Each is a
+**verified 1:1 enumeration** — the leaf counts agree exactly (khp 9, dhp 26, ud 80, iti
+112, snp 72, vv 85, pv 51, thag 264, thig 73) — so the build pins each book by name and
+aligns its leaves by **position** (`strict_pool`, one book at a time). Here the `link`
+field can only **corroborate**, never veto, because Mahamevnawa's link numbering is
+structurally incompatible with BJT in several books *without meaning wrong content*:
+
+   - an **extra grouping level BJT flattens** — a lone vagga under Itivuttaka's
+     Catukkanipāta or Theragāthā's higher nipātas (`kn-iti-4-1` → link `kn1_4-4-1-1`);
+   - **nipātas named by verse-count, not sequential ordinal** (BJT Theragāthā nipāta 16 ↔
+     link `kn5_20`, the Vīsatinipāta);
+   - **single-sutta nipātas served as one header page** with no sutta number (Therīgāthā
+     `kn6_4` — whose page nonetheless carries the Bhaddā Kāpilānī verses, verified);
+   - **Theragāthā pages with no `link` at all**.
+
+So a Khuddaka pair is **link-confirmed** when the BJT tail is an ordered subsequence of the
+link anchored at the sutta number, and otherwise **kept by trusted position**. Counts must
+still agree exactly per book (a mismatch would skip the book), so position is reliable.
+
+**One Mahamevnawa-only surplus leaf is skipped:** `12933` (*Suttanipāta* Pārāyana
+*pārāyanatthutigāthā*), a closing section Mahamevnawa breaks out as its own page while BJT
+folds it into the preceding **Piṅgiya** sutta. Dropping it makes Suttanipāta a clean
+**72 ↔ 72**. Because its presence shifts Mahamevnawa's own numbering, the *anugītigāthā*
+right after it links as `5-18` vs BJT `5-17` — kept anyway by position.
+
 ## The deliverable — a concrete 1-to-1 map
 
 `tools/mahamevnawa_map/bjt-to-mahamevnawa.json`
@@ -82,7 +109,7 @@ differently (e.g. the mixed singleton/plural vagga SN `4-1-17`).
   "map": { "dn-1-1": 17, "mn-1-1-1": 265, "sn-2-8-1-7": 2924, ... } }
 ```
 
-**2975 concrete one-to-one mappings.** Coverage:
+**3747 concrete one-to-one mappings.** Coverage:
 
 | Nikāya | BJT suttas | mapped 1:1 | skipped |
 |--------|-----------:|-----------:|--------:|
@@ -90,14 +117,23 @@ differently (e.g. the mixed singleton/plural vagga SN `4-1-17`).
 | Majjhima  |  152 |  152 |   0 |
 | Saṃyutta  | 2190 | 1707 | 483 |
 | Aṅguttara | 1849 | 1082 | 767 |
+| Khuddaka (books 1–9) |  772 |  772 |   0 |
 
-Of the kept pairs, **2883 are link-confirmed** and **92 are linkless clean suttas**
-(title-verified). **288** of the confirmed pairs were *recovered by position + link* —
-the spelling-variant and unnamed-sutta cases from Stage 1, each kept **only** because
-the link vouched for it. **34 proposed pairs were dropped** by the link check —
-*peyyāla* / bundled pages (e.g. `විනයපෙය්‍යාලං`, the plural-named `...සුත්තානි` groups)
-plus a few positional slots that drifted where the editions bundle differently; see
-`link-dropped.txt`.
+The Khuddaka row counts **books 1–9 only** (Khuddakapāṭha, Dhammapada, Udāna, Itivuttaka,
+Suttanipāta, Vimānavatthu, Petavatthu, Theragāthā, Therīgāthā). **Books 10–18** (Apadāna,
+Jātaka, Buddhavaṃsa, Cariyāpiṭaka, both Niddesas, Paṭisambhidāmagga, Nettippakaraṇa,
+Peṭakopadesa) have **no translated text on Mahamevnawa yet** → out of scope (neither mapped
+nor listed as skipped).
+
+Of the kept pairs, **3396 are link-confirmed** and **351 rest on verified positional
+alignment** — a clean page whose Mahamevnawa link is simply absent, or (in Khuddaka) a page
+whose link numbering is structurally incompatible with BJT (see the Khuddaka section above).
+**512** of the confirmed pairs were *recovered by position + link* — the spelling-variant
+and unnamed-sutta cases, each kept **only** because the link vouched for it. **34 proposed
+pairs were dropped** by the link check — *peyyāla* / bundled pages (e.g. `විනයපෙය්‍යාලං`,
+the plural-named `...සුත්තානි` groups) plus a few positional slots that drifted where the
+editions bundle differently; see `link-dropped.txt`. (All 34 are SN/AN — no Khuddaka pair
+is dropped.)
 
 **Why the rest are skipped:** they are written to `unmatched.txt` **grouped by reason**,
 with a header explaining each group:
@@ -123,14 +159,18 @@ alignment inside mismatched regions (still link-gated) — a worthwhile follow-u
 
 ## Validation
 
-- **Link field:** every kept pair with a link agrees with it (the map is built
-  from that agreement). The **288** position-only recoveries are kept *only* on that
+- **Link field:** every kept pair with a *confirming* link agrees with it (the map is built
+  from that agreement). The **512** position-only recoveries are kept *only* on that
   agreement — their titles differ by design, so the link is their sole and sufficient
   proof: Mahamevnawa's own back-reference to the BJT coordinate.
 - **Live page titles (independent):** a random 50-pair sample fetched each live
   page's title and fold-compared it to the BJT title — **50/50 correct**.
-- **Injectivity:** the map is 1:1 in both directions — **2975 distinct BJT keys**
-  map to **2975 distinct Mahamevnawa ids** (no target is claimed twice).
+- **Khuddaka position-trusted pairs (independent):** the pairs whose link numbering is
+  incompatible were title/content spot-checked against the live page — e.g. `kn-thag-16-1`
+  → *Adhimutta*, `kn-thig-13-1` → *Ambapālī*, and `kn-thig-4-1` → page `13592`, whose body
+  carries the *Bhaddā Kāpilānī* verses under its nipāta heading.
+- **Injectivity:** the map is 1:1 in both directions — **3747 distinct BJT keys**
+  map to **3747 distinct Mahamevnawa ids** (no target is claimed twice).
 
 ## How the app should use it
 

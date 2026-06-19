@@ -44,6 +44,18 @@ See link_verdict() for two edge cases: vagga-less SN samyuttas (Mahamevnawa inse
 vagga 1, so the BJT vagga is implicitly 1) and slug-format links ("4-4-2-4-<title>",
 matched on the leading coordinate).
 
+KHUDDAKA NIKAYA (books 1-9). Mahamevnawa serves only the first 9 Khuddaka books as
+per-sutta pages (Khuddakapatha, Dhammapada, Udana, Itivuttaka, Suttanipata, Vimanavatthu,
+Petavatthu, Theragatha, Therigatha); books 10-18 (Apadana, Jataka, ...) have no translated
+text yet, so they are OUT OF SCOPE. Each of the 9 is a verified 1:1 enumeration (leaf counts
+agree exactly), so they are aligned by POSITION per book (strict_pool) with the book pinned
+by name. Here the link only CORROBORATES, never vetoes: Mahamevnawa's link numbering is
+structurally incompatible with BJT in several books (an extra 'vagga' BJT flattens, nipatas
+named by verse-count not ordinal, single-sutta nipatas served as header pages, Theragatha
+pages with no link at all) without meaning wrong content -- see the `nik == 'kn'` branch in
+link_verdict(). One Mahamevnawa-only surplus leaf is skipped (12933, snp Parayanatthutigatha,
+which BJT folds into the Pingiya sutta) -> see MAHA_SKIP.
+
 Run:  python3 build_map.py          (uses maha-tree-cache.json + maha-links-cache.json)
       python3 build_map.py --fetch  (re-download the tree from tripitaka.online)
 """
@@ -120,11 +132,18 @@ def first_data(node):
         if r is not None: return r
     return None
 
+# Mahamevnawa leaves with NO BJT counterpart (edition-specific extras) -> never propose.
+# 12933 = Suttanipata Parayana 'paaraayanatthutigaathaa', a closing section Mahamevnawa
+# breaks out as its own page while BJT folds it into the preceding Pingiya sutta. Skipping
+# it makes snp a clean 72<->72. (Its presence also shifts Mahamevnawa's OWN numbering, so
+# the anugiti right after it links as 5-18 vs BJT 5-17 -> that one pair is link-dropped.)
+MAHA_SKIP = {'12933'}
+
 def maha_leaves(node, out):
     ch = node.get('children')
     if ch:
         for c in ch: maha_leaves(c, out)
-    elif 'data' in node:
+    elif 'data' in node and node['data'] not in MAHA_SKIP:
         out.append(node)
     return out
 
@@ -225,6 +244,38 @@ maha_by_nik = {NIK[n['label']]: n for n in maha_roots}
 for nik in ['dn', 'mn', 'sn', 'an']:           # Sutta Pitaka nikayas Mahamevnawa covers
     match_level(children[nik], maha_by_nik[nik]['children'])
 
+# ---- Khuddaka Nikaya: books 1-9 only ---------------------------------------------------
+# Mahamevnawa serves only the first 9 Khuddaka books as per-sutta pages. Books 10-18
+# (Apadana, Jataka, Buddhavamsa, Cariyapitaka, Maha/Cula Niddesa, Patisambhidamagga,
+# Nettippakarana, Petakopadesa) have no translated text yet (0 children in /api/tree), so
+# they are OUT OF SCOPE here -- neither mapped nor listed as unmatched.
+#
+# Each of the 9 books is a VERIFIED 1:1 enumeration (leaf counts agree exactly: khp 9,
+# dhp 26, ud 80, iti 112, snp 72*, vv 85, pv 51, thag 264, thig 73; *after the 12933 skip),
+# so we align each book's leaves by POSITION with strict_pool and let Stage 2 use the link
+# only as a VETO. An ABSENT link does NOT disqualify a Khuddaka pair (Theragatha pages carry
+# no link at all) -- see kn_trusted handling in the confirm step below.
+KHUDDAKA_BOOKS = [                              # (BJT book key, Mahamevnawa book label), in order
+    ('kn-khp',  'ඛුද්දකපාඨ පාළි'),
+    ('kn-dhp',  'ධම්මපදය'),
+    ('kn-ud',   'උදාන පාළි'),
+    ('kn-iti',  'ඉතිවුත්තක පාළි'),
+    ('kn-snp',  'සුත්ත නිපාතය'),
+    ('kn-vv',   'විමානවත්ථු'),
+    ('kn-pv',   'පේතවත්ථු'),
+    ('kn-thag', 'ථේර ගාථා'),
+    ('kn-thig', 'ථේරී ගාථා'),
+]
+kn_trusted = set()                             # kn keys whose pair is trusted by POSITION
+kn_books_maha = {b['label']: b for b in maha_by_nik['kn']['children']}
+for bcode, mlabel in KHUDDAKA_BOOKS:
+    mbook = kn_books_maha.get(mlabel)
+    if mbook is None:
+        print(f'WARN: Mahamevnawa Khuddaka book {mlabel!r} not found in tree'); continue
+    before = set(pairs)
+    strict_pool([bcode], [mbook])              # flatten, count-check, zip by position
+    kn_trusted |= set(pairs) - before
+
 # ---------------------------------------------------------------- CONFIRM via link field
 # The title matcher only PROPOSES pairs. We confirm every one against Mahamevnawa's
 # own `link` field (its declared back-reference to the BJT coordinate). Across all
@@ -264,6 +315,26 @@ def link_verdict(bjt_key, link):
     nik = bjt_key.split('-')[0]
     if not link: return 'nolink'
     b, l = nums(bjt_key), nums(link)
+    if nik == 'kn':
+        # Khuddaka: the BOOK is pinned by the tree walk and each mapped book is a VERIFIED
+        # 1:1 enumeration (leaf counts agree exactly), so POSITION is authoritative and the
+        # link only CORROBORATES -- we never CONTRADICT here. Mahamevnawa's link numbering is
+        # structurally incompatible with BJT in several books, in ways that don't mean wrong
+        # content: it keeps an extra 'vagga' BJT flattens (iti Catukka, thag higher nipatas:
+        # kn-iti-4-1 -> kn1_4-4-1-1), names nipatas by VERSE COUNT not sequential ordinal (BJT
+        # thag nipata 16 -> link kn5_20), serves a single-therii nipata as a header page with
+        # NO sutta number (thig kn6_4), and counts the skipped 12933 (snp anugiti links 5-18
+        # vs 5-17). So we 'confirm' only when the BJT tail is an ordered SUBSEQUENCE of the
+        # link anchored at the sutta number; otherwise 'nolink' -> kept by trusted position.
+        ok = bool(b) and bool(l) and l[-1] == b[-1]
+        if ok:
+            j = len(l) - 1
+            for x in reversed(b):
+                while j >= 0 and l[j] != x: j -= 1
+                if j < 0:
+                    ok = False; break
+                j -= 1
+        return 'confirm' if ok else 'nolink'
     if re.match(r'^\d', link):                # slug-format link "4-4-2-4-<url-title>"
         lead = nums(re.match(r'^[\d-]+', link).group())   # leading coordinate only
         return 'confirm' if lead == b else 'contradict'
@@ -281,12 +352,13 @@ for k, i in pairs.items():
     v = link_verdict(k, links.get(str(i)))
     if v == 'contradict':                              # link points elsewhere -> drop
         dropped.append((k, i, links.get(str(i)))); miss(k, 'link-elsewhere')
-    elif k in positional_only and v != 'confirm':      # title-variant guess, link absent
-        miss(k, 'positional-unconfirmed')              # -> not confirmed, leave unmatched
-    else:                                              # 'confirm', or title-match 'nolink'
-        kept[k] = i
+    elif k in positional_only and v != 'confirm' and k not in kn_trusted:
+        miss(k, 'positional-unconfirmed')              # title-variant guess, link absent -> drop
+    else:                                              # 'confirm'; title-match 'nolink'; or a
+        kept[k] = i                                    # trusted Khuddaka pair whose page has no link
         if v == 'nolink': nolink.append(k)
-        if k in positional_only: recovered.append(k)   # title differed, link confirmed it
+        if k in positional_only and v == 'confirm':
+            recovered.append(k)                        # title differed, link confirmed it
 pairs = kept
 OUT_DROP = os.path.join(HERE, 'link-dropped.txt')      # pairs the link field rejected
 open(OUT_DROP, 'w').write('\n'.join(
@@ -295,8 +367,10 @@ open(OUT_DROP, 'w').write('\n'.join(
 # ---------------------------------------------------------------- write outputs
 pairs = dict(sorted(pairs.items(), key=lambda kv: keysort(kv[0])))
 out = {
-    'description': 'BJT sutta key -> Mahamevnawa (tripitaka.online) sutta id. '
-                   'Concrete 1:1, each confirmed against Mahamevnawa\'s own link field.',
+    'description': 'BJT sutta key -> Mahamevnawa (tripitaka.online) sutta id. Concrete 1:1. '
+                   'The 4 main nikayas and most of Khuddaka (books 1-9) are confirmed against '
+                   "Mahamevnawa's own link field; the remaining Khuddaka pairs are verified "
+                   'positional alignment where its link numbering is structurally incompatible.',
     'source': 'https://www.tripitaka.online',
     'urlPattern': SUTTA_URL,
     'count': len(pairs),
@@ -334,6 +408,8 @@ with open(OUT_MISS, 'w') as f:
     f.write(f'# {len(unmatched)} BJT suttas with NO clean 1:1 on Mahamevnawa, grouped by reason.\n')
     f.write('# Regenerated by build_map.py on every run -- do not hand-edit (edits are overwritten).\n')
     f.write('# Nearly all are peyyala: repetition series Mahamevnawa bundles onto fewer pages.\n')
+    f.write('# Scope: DN, MN and Khuddaka books 1-9 are FULLY mapped (absent here). Khuddaka books\n')
+    f.write('# 10-18 (Apadana, Jataka, ...) have no Mahamevnawa text yet -> out of scope, not listed.\n')
     seen = set()
     for code, desc in REASONS:
         seen.add(code)
@@ -354,10 +430,11 @@ def nik(k): return k.split('-')[0]
 from collections import Counter
 mc, uc = Counter(nik(k) for k in pairs), Counter(nik(k) for k in unmatched)
 tot = {n: len(bjt_leaves(n, [])) for n in ['dn', 'mn', 'sn', 'an']}
+tot['kn'] = sum(len(bjt_leaves(c, [])) for c, _ in KHUDDAKA_BOOKS)   # books 1-9 only
 print(f'Concrete 1:1 mappings : {len(pairs)}')
 print(f'Skipped (no clean 1:1): {len(unmatched)}')
-print('  nik | leaves | mapped | skipped')
-for n in ['dn', 'mn', 'sn', 'an']:
+print('  nik | leaves | mapped | skipped     (kn counts Khuddaka books 1-9 only; 10-18 out of scope)')
+for n in ['dn', 'mn', 'sn', 'an', 'kn']:
     print(f'  {n:3} | {tot[n]:6} | {mc[n]:6} | {uc[n]:6}')
 print(f'\nWrote {OUT_MAP}')
 print(f'Wrote {OUT_MISS}')
