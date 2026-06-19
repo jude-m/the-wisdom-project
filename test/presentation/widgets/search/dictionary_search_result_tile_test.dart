@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:the_wisdom_project/core/storage/key_value_store_provider.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/dictionary_search_result_tile.dart';
+
+import '../../../helpers/fake_key_value_store.dart';
 
 void main() {
   // Test data - a dictionary search result
@@ -20,16 +24,26 @@ void main() {
     language: 'en',
   );
 
-  /// Helper to wrap the widget in a MaterialApp
+  /// Helper to wrap the widget in a MaterialApp.
+  ///
+  /// DictionarySearchResultTile is now a ConsumerWidget that reads
+  /// `paliLetterOptionsProvider`, so it must be pumped inside a ProviderScope.
+  /// We override `keyValueStoreProvider` with an in-memory store so the
+  /// settings notifiers hydrate to their defaults without touching disk.
   Widget buildTestWidget({
     required SearchResult result,
     VoidCallback? onTap,
   }) {
-    return MaterialApp(
-      home: Scaffold(
-        body: DictionarySearchResultTile(
-          result: result,
-          onTap: onTap,
+    return ProviderScope(
+      overrides: [
+        keyValueStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: DictionarySearchResultTile(
+            result: result,
+            onTap: onTap,
+          ),
         ),
       ),
     );
