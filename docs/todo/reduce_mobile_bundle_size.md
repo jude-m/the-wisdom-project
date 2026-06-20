@@ -126,8 +126,12 @@ the 340 MB of JSON vanishes entirely.
 Two code paths read `assets/text/{filename}.json` via `rootBundle` today. Both
 must switch to the new content table before the assets can be dropped:
 
-1. **Search snippets** — `_loadTextForMatch` in
-   `lib/data/repositories/text_search_repository_impl.dart` (one entry per match).
+1. **Search snippets** — `_searchFullText` in
+   `lib/data/repositories/text_search_repository_impl.dart`, via the interim
+   group-once loader (`_loadFileJson` + `_extractEntryText`, memoised in
+   `_fileJsonCache`). Was a per-match `_loadTextForMatch`; replaced 2026-06-19 by the
+   memo-cache quick win. See **Snippet-path teardown** below for what to delete when
+   repointing.
 2. **Reader** — `BJTDocumentLocalDataSourceImpl.loadDocument` in
    `lib/data/datasources/bjt_document_local_datasource.dart` →
    `BJTDocumentParser` (the whole document).
@@ -185,13 +189,50 @@ CREATE TABLE bjt_content (
 4. Extend `tools/bjt-fts-populate.js` to populate `bjt_content` (compress per
    page) alongside the existing `_fts` / `_meta` tables.
 5. Add a local content datasource that reads + decompresses from `bjt_content`.
-6. Repoint snippet path (`_loadTextForMatch`) and reader
-   (`BJTDocumentLocalDataSourceImpl`) at the content datasource.
+6. Repoint snippet path (now `_loadFileJson`/`_extractEntryText` in `_searchFullText`)
+   and reader (`BJTDocumentLocalDataSourceImpl`) at the content datasource — see
+   **Snippet-path teardown** below for the exact deletions.
 7. Remove `- assets/text/` from `pubspec.yaml`. Keep the files in the repo.
 8. Verify offline reading + search snippets on a real device. Check first-launch
    DB copy time (`_initializeEdition` copies the asset DB to the documents dir;
    a bigger DB = bigger one-time copy + double on-disk during install).
 9. (Web unaffected — `getWebOverrides()` already routes web to the server.)
+
+### Snippet-path teardown (step 6 detail)
+
+The interim memo-cache fix (`docs/todo/perf-fts-snippet-text-loading.md`, shipped
+2026-06-19) is deliberately isolated, so repointing the snippet path at the content
+table is a clean ~2-method + 1-field deletion, not a rewrite. The call-site shape
+(`matchedText ?? <load> ?? ''`, grouped before the loop) is already what the batched
+DB query wants — you replace the *loader*, not the loop. Delete / replace:
+
+**Client — `lib/data/repositories/text_search_repository_impl.dart`**
+- [ ] `_fileJsonCache` field (`LRUCache(20)`) — gone; SQLite's page cache handles
+      reuse, nothing heavy left to memoise.
+- [ ] `_loadFileJson(...)` — gone (no file read / `json.decode`).
+- [ ] `_extractEntryText(...)` — gone (replaced by the row `SELECT` + page inflate).
+- [ ] In `_searchFullText`: the `filesToLoad` grouping + pre-loop decode → replace
+      with one batched lookup (`WHERE (filename,pageIndex,language) IN (...)`,
+      decompress, pick `entryIndex`) for all `matchedText == null` hits, then index
+      the rows in the loop. Keep the web-prefill skip and the `?? ''` degradation.
+- [ ] `import '../cache/lru_cache.dart'` — drop iff nothing else uses `LRUCache`.
+- [ ] Preserve the language fallback order (matched lang first, then the other) in
+      the row pick so snippets stay byte-for-byte identical.
+
+**Server — `server/lib/src/handlers/fts_handler.dart`**
+- [ ] `_loadTextForMatch`, `_loadJsonFile`, and the unbounded `_jsonCache` map →
+      replace with the same SQL against `bjt_content`. Native and web then run
+      identical queries; the per-request enrichment loop becomes the batched
+      `IN (...)`.
+
+**Becomes moot (don't build):**
+- [ ] Top-10 #2 Phase 3 (decode off the UI isolate) — a row lookup never janks.
+- [ ] Track B #4 (windowed payload) — windowing becomes a substring on the fetched
+      row, decoupled from any file parse.
+
+**Verify after teardown:** snippet + highlighting parity for the same query,
+missing-row degrades to an empty snippet, and the native search path no longer reads
+`assets/text/*.json` at runtime.
 
 ## Quick Win (do regardless)
 

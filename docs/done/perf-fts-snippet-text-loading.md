@@ -1,8 +1,10 @@
 # FTS Snippet Text Loading — Per-Hit JSON Reload Fix
 
-> **Status:** Plan (ready to implement — pick a phase)
+> **Status:** ✅ Done — Track A Phase 1 + Phase 2 shipped 2026-06-19. Phase 3
+> (isolate) deferred by design (measure first). Track B (server) was already
+> satisfied before this work — see below.
 > **Source:** `perf-top10-killers.md` item **#2**, expanded into a full plan.
-> **Date:** 2026-06-18
+> **Date:** 2026-06-18 (plan) · 2026-06-19 (implemented)
 > **Related:**
 > - `docs/todo/perf-top10-killers.md` — parent backlog (this is its #2).
 > - `docs/todo/perf-search_label_and_tree_lookup_followups.md` — item 1 (repo
@@ -10,6 +12,26 @@
 >   the same search path; land them together if convenient.
 > - Project direction: per-page **content table in SQLite** as the single runtime
 >   source of truth (see "Strategic endgame" below) — that is the eventual root fix.
+
+---
+
+## Implementation status (2026-06-19)
+
+| Item | Status | Notes |
+|---|---|---|
+| **Track A · Phase 1** — group by file, parse once | ✅ Shipped | `_loadTextForMatch` split into cached `_loadFileJson` + pure `_extractEntryText`; distinct files loaded once before the result loop in `_searchFullText`. |
+| **Track A · Phase 2** — cross-search LRU cache | ✅ Shipped | `_fileJsonCache = LRUCache(20)` field on `TextSearchRepositoryImpl`, reusing existing `lib/data/cache/lru_cache.dart`. Landed together with Phase 1. |
+| **Track A · Phase 3** — decode off the UI isolate | ⏸️ Deferred (by design) | Phase 1 already collapses N decodes → distinct-file count. Revisit only if a cold first search still janks in `--profile`. Shares the isolate helper with top-10 #3. |
+| **Track B · server** — group/cache server-side | ✅ Already satisfied | `server/.../fts_handler.dart` already memoises parsed files in a process-wide `_jsonCache` (`_loadJsonFile`) — *better* than "once per request": once per process. No change made. |
+| **Track B · #4** — windowed snippet payload | ❌ Out of scope | Interacts with the B2 highlighter; tracked as a separate measured change. |
+
+**Files touched:** `lib/data/repositories/text_search_repository_impl.dart` only.
+`flutter analyze` clean. Tests not written (project convention — separate
+test-writer pass; coverage targets listed under [Testing](#testing)).
+
+**Parity preserved:** identical `matchedText ?? <load> ?? ''` fallback chain,
+pali-first language fallback, and "missing file → empty snippet for that hit
+only" degradation. Same `SearchResult` output for any query.
 
 ---
 
@@ -115,7 +137,7 @@ So #2 is the one results-pane item whose fix matters identically on the client
 This track changes only the native path (`match.matchedText == null`). Land it in
 phases; Phase 1 is the big win and is self-contained.
 
-### Phase 1 — Group by file, parse once per search
+### Phase 1 — Group by file, parse once per search ✅ Shipped 2026-06-19
 
 Split the current "read + parse + extract" method into a loader and a pure
 extractor, then load each **distinct** filename once before the loop.
@@ -194,7 +216,7 @@ else references it.
 > `pageIndex`/`entryIndex` (lines 502-504); `_loadTextForMatch` split it again.
 > `_extractEntryText` takes the ints directly, so the double-split goes away.
 
-### Phase 2 — Cross-search LRU cache of parsed files
+### Phase 2 — Cross-search LRU cache of parsed files ✅ Shipped 2026-06-19
 
 Searches repeat (refine query, switch tabs, paginate). Cache parsed files so a
 second search touching the same file skips the decode entirely. Reuse the existing
@@ -222,7 +244,7 @@ Future<Map<String, dynamic>?> _loadFileJson(String filename) async {
 > a snippet. A targeted raw-JSON LRU here is lighter and avoids coupling; revisit
 > unification only if the duplicate parse paths become a problem.
 
-### Phase 3 — (optional) Move the decode off the UI isolate
+### Phase 3 — (optional) Move the decode off the UI isolate ⏸️ Deferred
 
 `json.decode` of a 200–400 KB file is CPU-bound. After Phase 1 the count is small,
 so measure before adding complexity. If a cold first search still janks:
@@ -250,7 +272,14 @@ both are tackled.
 
 ---
 
-## The fix — Track B: remote / web server
+## The fix — Track B: remote / web server ✅ Already satisfied
+
+> **Found during implementation (2026-06-19):** the server *already* does this.
+> `FtsHandler._loadJsonFile` (`server/lib/src/handlers/fts_handler.dart`) memoises
+> every parsed file in a process-wide `_jsonCache`, so each file is decoded **once
+> per process** — strictly better than the plan's "once per request." Points 1–3
+> below were therefore already in place; no server change was made. Point 4
+> (windowed payload) remains out of scope. The text below is kept as the rationale.
 
 The server is what populates `match.matchedText` for the web build. Apply the same
 discipline there:
@@ -289,6 +318,12 @@ batched `WHERE (file,page,entry) IN (...)` query and this document closes out.
 
 Until then, the JSON grouping + LRU here is the low-risk interim win — and it is the
 exact behavior the DB version replaces, so nothing done now is wasted.
+
+> **Teardown checklist moved to the endgame doc.** The step-by-step list of what to
+> delete from here when the content DB lands now lives with the migration that
+> triggers it — see **Snippet-path teardown** in
+> `docs/todo/reduce_mobile_bundle_size.md`. (This doc archives to *done* once the
+> interim fix ships, so the checklist shouldn't ride along with it.)
 
 ---
 

@@ -16,6 +16,7 @@ import '../../domain/repositories/navigation_tree_repository.dart';
 import '../../domain/repositories/dictionary_repository.dart';
 import '../../core/utils/text_utils.dart';
 import '../../domain/repositories/text_search_repository.dart';
+import '../cache/lru_cache.dart';
 import '../datasources/fts_datasource.dart';
 
 /// Implementation of TextSearchRepository using FTS database and navigation tree
@@ -47,6 +48,23 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   /// ```
   /// Overfetching chosen for better performance (single query, no window functions).
   static const int _groupedSearchOverfetchMultiplier = 7;
+
+  /// Caches parsed sutta JSON files across searches (native only).
+  ///
+  /// FTS snippet text isn't stored in the index, so on native we read it from
+  /// the bundled JSON. Memoising parsed files here means a repeated, refined, or
+  /// paginated query that touches the same file skips the expensive
+  /// `json.decode` — the dominant cost between "Enter" and "results appear."
+  ///
+  /// No TTL by design: the Tipitaka corpus is immutable, so cached files never
+  /// go stale (see [LRUCache]). Capacity bounds memory — each entry is a parsed
+  /// map sourced from a ~200–400 KB file; [_fileJsonCacheCapacity] is a safe
+  /// starting point. On web this is never populated: the server pre-fills
+  /// `matchedText`, so the `match.matchedText == null` guard below skips the
+  /// load entirely.
+  static const int _fileJsonCacheCapacity = 20;
+  final LRUCache<String, Map<String, dynamic>> _fileJsonCache =
+      LRUCache(_fileJsonCacheCapacity);
 
   // ============================================================================
   // PUBLIC API
@@ -495,6 +513,24 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       offset: offset,
     );
 
+    // FTS rows carry only metadata (filename, eind, language) — not the snippet
+    // text the result preview needs. On native we read that text from the
+    // bundled JSON; load each DISTINCT file exactly once here, BEFORE the loop,
+    // so 50 hits clustered in a handful of files cost a few decodes instead of
+    // one full-file decode per hit (the old per-hit reload).
+    //
+    // Files the server already pre-filled (web: match.matchedText != null) are
+    // skipped — their snippet travels inline in the response.
+    final filesToLoad = ftsMatches
+        .where((m) => m.matchedText == null)
+        .map((m) => m.filename)
+        .toSet();
+    final parsedFiles = <String, Map<String, dynamic>>{};
+    for (final filename in filesToLoad) {
+      final fileJson = await _loadFileJson(filename);
+      if (fileJson != null) parsedFiles[filename] = fileJson;
+    }
+
     final results = <SearchResult>[];
 
     for (final match in ftsMatches) {
@@ -508,20 +544,18 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       final node = nodeMap[match.nodeKey];
 
       if (node != null) {
-        // FTS results only contain metadata (filename, eind, language) — not
-        // the actual text content needed for the search result preview snippet.
-        //
-        // On web: the server pre-loads the text from JSON files and attaches it
-        //   as match.matchedText before sending the response (since the JSON
-        //   files are not bundled in the web build).
-        // On native: match.matchedText is null, so we fall through to
-        //   _loadTextForMatch() which reads from bundled assets via rootBundle.
+        // Snippet text resolution (same fallback chain as before, just sourced
+        // from the pre-parsed map instead of a fresh per-hit file read):
+        //   web    → match.matchedText (server pre-filled).
+        //   native → extract from the file parsed above.
+        //   either → '' if unavailable, so a single missing/corrupt file
+        //            degrades only its own hits and never fails the search.
+        final fileJson = parsedFiles[match.filename];
         final matchedText = match.matchedText ??
-            await _loadTextForMatch(
-              match.filename,
-              match.eind,
-              match.language,
-            ) ??
+            (fileJson != null
+                ? _extractEntryText(
+                    fileJson, pageIndex, entryIndex, match.language)
+                : null) ??
             '';
 
         // Prefer Sinhala title if language is sinh, otherwise use Pali
@@ -643,54 +677,64 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     return parts.join(' > ');
   }
 
-  /// Load actual text content from JSON file for a given entry
-  /// [language] should be 'pali' or 'sinh' - the language where the match was found
-  Future<String?> _loadTextForMatch(
-    String filename,
-    String eind,
-    String language,
-  ) async {
-    try {
-      final eindParts = eind.split('-');
-      final pageIndex = int.parse(eindParts[0]);
-      final entryIndex = int.parse(eindParts[1]);
+  /// Loads and decodes a sutta JSON file from the asset bundle, memoised across
+  /// searches by [_fileJsonCache].
+  ///
+  /// Returns null (and logs once) if the file is missing or can't be parsed, so
+  /// a single bad file never fails the whole search — its hits just get an empty
+  /// snippet. Split out from extraction so the (expensive) read + decode happens
+  /// once per distinct file, while [_extractEntryText] runs per hit with no I/O.
+  Future<Map<String, dynamic>?> _loadFileJson(String filename) async {
+    final cached = _fileJsonCache.get(filename);
+    if (cached != null) return cached;
 
+    try {
       final jsonString =
           await rootBundle.loadString('assets/text/$filename.json');
       final jsonData = json.decode(jsonString) as Map<String, dynamic>;
-
-      final pages = jsonData['pages'] as List<dynamic>?;
-      if (pages == null || pageIndex >= pages.length) {
-        return null;
-      }
-
-      final page = pages[pageIndex] as Map<String, dynamic>;
-
-      // Try matched language first, then fallback
-      final langOrder =
-          language == 'pali' ? ['pali', 'sinh'] : ['sinh', 'pali'];
-      for (final lang in langOrder) {
-        final langData = page[lang] as Map<String, dynamic>?;
-        if (langData != null) {
-          final entries = langData['entries'] as List<dynamic>?;
-          if (entries != null && entryIndex < entries.length) {
-            final entry = entries[entryIndex] as Map<String, dynamic>;
-            final text = entry['text'] as String?;
-            if (text != null && text.isNotEmpty) {
-              return text;
-            }
-          }
-        }
-      }
+      _fileJsonCache.put(filename, jsonData);
+      return jsonData;
     } catch (e, stackTrace) {
       // Log the error for debugging - text loading is optional but
-      // failures should be traceable during development
+      // failures should be traceable during development.
       developer.log(
-        'Failed to load text for match: $filename/$eind',
+        'Failed to load text file: $filename',
         error: e,
         stackTrace: stackTrace,
         name: 'TextSearchRepository',
       );
+      return null;
+    }
+  }
+
+  /// Extracts a single entry's text from an already-parsed sutta file.
+  ///
+  /// Pure: no I/O, no decode — just indexes into the in-memory map, so it is
+  /// cheap to call once per hit. [language] is the matched language ('pali' or
+  /// 'sinh'); it is tried first, then the other is used as a fallback — the same
+  /// order the old per-hit loader used. Returns null if the position is out of
+  /// range or no non-empty text exists for either language.
+  String? _extractEntryText(
+    Map<String, dynamic> jsonData,
+    int pageIndex,
+    int entryIndex,
+    String language,
+  ) {
+    final pages = jsonData['pages'] as List<dynamic>?;
+    if (pages == null || pageIndex >= pages.length) return null;
+
+    final page = pages[pageIndex] as Map<String, dynamic>;
+
+    // Try matched language first, then fallback to the other.
+    final langOrder = language == 'pali' ? ['pali', 'sinh'] : ['sinh', 'pali'];
+    for (final lang in langOrder) {
+      final langData = page[lang] as Map<String, dynamic>?;
+      final entries = langData?['entries'] as List<dynamic>?;
+      if (entries != null && entryIndex < entries.length) {
+        final entry = entries[entryIndex] as Map<String, dynamic>;
+        final text = entry['text'] as String?;
+        if (text != null && text.isNotEmpty) return text;
+      }
     }
     return null;
   }
