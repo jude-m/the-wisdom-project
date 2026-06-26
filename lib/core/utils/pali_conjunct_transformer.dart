@@ -41,22 +41,50 @@ const _commonConjunctPairs = [
   ['න', 'ධ'], // න + ධ  → න්ධ
 ];
 
-/// **Switch 2** — special / rare old-Pali ligatures (7). Ornate forms found in
-/// old Pali books that need UN-type fonts; join with `hal + ZWJ`. This list is
-/// **exactly** tipitaka.lk's `paliConjuncts`.
+/// **Switch 2** — special / rare old-Pali ligatures. Ornate forms found in old
+/// Pali books that need UN-type fonts; join with `hal + ZWJ`. The full set is
+/// **exactly** tipitaka.lk's `paliConjuncts` (7 pairs) — but only **4** are
+/// active here; see the font-coverage note below.
 ///
-/// Two characters are DELIBERATELY excluded from this list — do not "helpfully"
-/// re-add them (see the plan doc, §3):
+/// ⚠️ FONT COVERAGE — three pairs are commented out (ඤ්ජ, ඤ්ඡ, ණ්ඩ):
+/// our bundled reading font has **no fused glyph** for them. HarfBuzz-verified
+/// (same shaper Flutter uses) across all 8 bundled faces — Noto Serif + Noto
+/// Sans Sinhala × Regular/Medium/SemiBold/Bold, identical result: forcing the
+/// ligated form (`hal + ZWJ`) yields 3 glyphs `…halantsinh + space + …`, i.e. a
+/// **visible hal-kirīma** + separated letters (ණ ් ⎵ ඩ) — *worse* than leaving
+/// Switch 2 off. There is no `nnaddasinh` / `nyajasinh` / `nyachasinh`; the ණ
+/// (`nna`) row only ligates with rakaransaya/repaya. Keeping them OUT of this
+/// list lets them fall through to Switch 1 (touching), whose `ZWJ + hal` glyphs
+/// the font DOES contain (`nnatouchsinh`, `nyatouchsinh`, …) — clean render.
+///
+/// WHY NOT FILE UPSTREAM (decided 2026-06): these aren't Noto *bugs*. Noto is a
+/// modern Sinhala font that intentionally supports two renderings of a Pali
+/// cluster — open (default) and touching (via ZWJ, our Switch 1) — and omits
+/// the third, the full traditional weld. For two of the three, that weld is
+/// *impossible* for a modern Sinhala font anyway: ණ්ඩ and ඤ්ජ each have a native
+/// single-codepoint prenasalized twin the font already draws (ණ්ඩ↔ඬ U+0DAC
+/// `nnddasinh`; ඤ්ජ↔ඦ U+0DA6 `nyjasinh`), so welding the cluster would collide
+/// with — impersonate — an existing native letter. Only ඤ්ඡ has no twin (cha is
+/// a voiceless aspirate, no native ⁿcha), so it's Pali-only; even so it's a
+/// niche Pali-typography ask, not a Sinhala gap, so we let it ride too. Bonus:
+/// in Noto the touching fallback stays visually DISTINCT from the single twin
+/// letter (2 glyphs vs 1), so the egg/cry minimal pair (අණ්ඩ vs අඬ) remains
+/// legible — arguably better than the traditional weld, which merges them.
+/// Re-enable a commented line only if a *bundled* font gains its weld glyph.
+///
+/// Two further characters are DELIBERATELY excluded (a different reason — they
+/// are never in tipitaka.lk's list at all) — do not "helpfully" re-add them
+/// (see the plan doc, §3):
 ///   • ම්බ — rare; tipitaka.lk excludes it and there is already a dedicated
 ///     prenasalized letter ඹ for "mb". (Switch 1 still binds it via touching.)
 ///   • ඞ්ග → ඟ — NOT a joiner but a single-codepoint *prenasalized* substitution
 ///     that can change meaning (cf. කන්ද "hill" vs කඳ "trunk"). Out of scope.
 const _specialConjunctPairs = [
   ['ඤ', 'ච'], // ඤ + ච  → ඤ්ච
-  ['ඤ', 'ජ'], // ඤ + ජ  → ඤ්ජ
-  ['ඤ', 'ඡ'], // ඤ + ඡ  → ඤ්ඡ
+  // ['ඤ', 'ජ'], // ඤ + ජ  → ඤ්ජ  — disabled: no glyph in bundled Noto (see above)
+  // ['ඤ', 'ඡ'], // ඤ + ඡ  → ඤ්ඡ  — disabled: no glyph in bundled Noto (see above)
   ['ට', 'ඨ'], // ට + ඨ  → ට්ඨ
-  ['ණ', 'ඩ'], // ණ + ඩ  → ණ්ඩ
+  // ['ණ', 'ඩ'], // ණ + ඩ  → ණ්ඩ  — disabled: no glyph in bundled Noto (see above)
   ['ද', 'ධ'], // ද + ධ  → ද්ධ
   ['ද', 'ව'], // ද + ව  → ද්ව
 ];
