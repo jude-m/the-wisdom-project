@@ -16,8 +16,6 @@
     - Keep each note short; the banner is a glance, not a changelog page
 -->
 
-## Current release - 2 June 2026
+## Current release - 19 June 2026
 
-- New: Sinhala language support
-- New: Pali/Sinhala content language change. eg: Navigator language, Search results
-- New: Pali/Sinhala search filter  
+- New: පාළි බැඳි අකුරු, සුලබ අකුරු හා විශේෂ අකුරු - settings බලන්න 
