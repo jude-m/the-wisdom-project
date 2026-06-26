@@ -5,6 +5,7 @@ import '../widgets/navigation/tree_navigator_widget.dart';
 import '../widgets/reader/multi_pane_reader_widget.dart';
 import '../widgets/navigation/tab_bar_widget.dart';
 import '../widgets/app/settings_menu_button.dart';
+import '../widgets/ask/ask_button.dart';
 import '../widgets/search/search_bar.dart' as app;
 import '../widgets/search/search_results_panel.dart';
 import '../widgets/common/resizable_divider.dart';
@@ -137,6 +138,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         actions: const [
           // Search bar (fixed width with overlay dropdown)
           app.SearchBar(),
+
+          // AI Q&A — opens a chat dialog (stub-backed for now)
+          AskButton(),
 
           // Settings menu
           SettingsMenuButton(),
