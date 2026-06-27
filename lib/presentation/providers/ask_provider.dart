@@ -1,27 +1,42 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/datasources/ask_datasource.dart';
+import '../../data/datasources/ask_remote_datasource.dart';
 import '../../data/datasources/ask_stub_datasource.dart';
-// Phase 4 swap — uncomment when the Python /ask backend is up:
-// import '../../data/datasources/ask_remote_datasource.dart';
 import '../../data/repositories/ask_repository_impl.dart';
 import '../../domain/entities/ask/chat_message.dart';
 import '../../domain/repositories/ask_repository.dart';
 import 'ask_chat_state.dart';
 
 /// Where the `/ask` backend lives. Native needs an absolute URL (unlike the
-/// web content server's same-origin ''). Override per environment.
-final askBaseUrlProvider = Provider<String>((ref) => '');
+/// web content server's same-origin '').
+///
+/// Defaults to the local `ask_server` dev instance on :8081 (8080 is taken by
+/// the Dart web content server). Override at build/run time with
+/// `--dart-define=ASK_BASE_URL=https://ask.thewisdomproject.app`.
+/// On the Android emulator, the host machine is reachable as 10.0.2.2.
+final askBaseUrlProvider = Provider<String>(
+  (ref) => const String.fromEnvironment(
+    'ASK_BASE_URL',
+    defaultValue: 'http://localhost:8081',
+  ),
+);
 
 /// The Q&A data source.
 ///
-/// PHASE 1 (now): the stub — a canned answer, no backend.
-/// PHASE 4: swap the body to
-///   `return AskRemoteDataSourceImpl(baseUrl: ref.watch(askBaseUrlProvider));`
-/// That one line is the entire payoff of building stub-first — nothing above
-/// this provider changes.
+/// - Base URL configured → the real HTTP datasource (talks to `ask_server`).
+/// - Base URL blank (`--dart-define=ASK_BASE_URL=`) → the canned stub, so the
+///   dialog still works with no backend running (capability gate, plan
+///   cross-cutting #1).
+///
+/// Swapping these is the whole payoff of building stub-first: nothing above this
+/// provider (repository, notifier, UI) changes.
 final askDataSourceProvider = Provider<AskDataSource>((ref) {
-  return AskStubDataSource();
+  final baseUrl = ref.watch(askBaseUrlProvider);
+  if (baseUrl.isEmpty) {
+    return AskStubDataSource();
+  }
+  return AskRemoteDataSourceImpl(baseUrl: baseUrl);
 });
 
 /// The Q&A repository (datasource → Either<Failure, AskAnswer>).

@@ -1,0 +1,8 @@
+# Service — stub mode needs ONLY these two (no API key, no google-genai):
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+
+# Live mode + ingest. google-genai is lazy-imported, so stub-only deployments
+# can omit it. Pin/verify the version against current File Search docs at build
+# time (design Appendix A).
+google-genai>=1.0

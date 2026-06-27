@@ -1,0 +1,10 @@
+# Python (service-local; the repo root .gitignore only covers *.pyc)
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.egg-info/
+
+# A local bilara-data checkout, if placed inside this folder
+/bilara-data/
