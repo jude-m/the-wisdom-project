@@ -221,6 +221,11 @@
     "description": "Search results tab + section header: dictionary definition matches"
   },
 
+  "searchTabReference": "Reference",
+  "@searchTabReference": {
+    "description": "Label for a canonical-reference jump result (e.g. typing 'SN 15.3'). Pinned above results, not shown as a browsable tab."
+  },
+
   "recentSearches": "Recent searches",
   "@recentSearches": {
     "description": "Header above the list of the user's recent search queries"

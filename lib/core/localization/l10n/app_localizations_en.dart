@@ -142,6 +142,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchTabDefinitions => 'Definitions';
 
   @override
+  String get searchTabReference => 'Reference';
+
+  @override
   String get recentSearches => 'Recent searches';
 
   @override

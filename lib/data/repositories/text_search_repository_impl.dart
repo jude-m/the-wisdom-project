@@ -193,6 +193,13 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
               throw StateError(
                 'Use searchTopResults for SearchResultType.topResults',
               );
+            case SearchResultType.reference:
+              // Reference jumps are resolved in-memory by
+              // referenceSearchResultProvider, never via FTS (resolver plan,
+              // Part C). Excluded from the tab bar, so this is unreachable.
+              throw StateError(
+                'SearchResultType.reference is not an FTS category',
+              );
             case SearchResultType.title:
               return Right(_searchTitles(
                 nodeMap: nodeMap,

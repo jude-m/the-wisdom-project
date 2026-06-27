@@ -16,4 +16,8 @@ enum SearchResultType {
 
   /// Dictionary word definitions (future feature)
   definition,
+
+  /// A canonical-reference jump (e.g. typing "SN 15.3" → open that sutta).
+  /// Resolved in-memory via the SuttaCentral↔BJT concordance, not FTS.
+  reference,
 }

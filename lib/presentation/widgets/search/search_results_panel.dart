@@ -8,6 +8,7 @@ import '../../../domain/entities/search/search_result_type.dart';
 import '../../../domain/entities/search/search_result.dart';
 import '../../providers/dictionary_provider.dart'
     show selectedDictionaryWordProvider;
+import '../../providers/reference_search_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../utils/search_result_labels.dart';
 import '../common/status_message_view.dart';
@@ -56,6 +57,10 @@ class SearchResultsPanel extends ConsumerWidget {
                   .selectResultType(renameType);
             },
           ),
+          // Pinned canonical-reference jump (e.g. "SN 15.3" → open that sutta).
+          // In-memory lookup, so it appears instantly above the FTS results,
+          // independent of the active tab or whether FTS has finished loading.
+          _ReferenceResultRow(onResultTap: onResultTap),
           // Results list - different view for "All" tab vs specific category
           Expanded(
             child: searchState.selectedResultType == SearchResultType.topResults
@@ -481,7 +486,9 @@ class _SearchResultsTabBar extends StatelessWidget {
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: SearchResultType.values.map((resultType) {
+          children: SearchResultType.values
+              .where((type) => type != SearchResultType.reference)
+              .map((resultType) {
             final isSelected = resultType == selectedResultType;
             final count = countByResultType[resultType];
 
@@ -649,6 +656,86 @@ class _SearchResultTile extends ConsumerWidget {
         ],
       ),
       onTap: onTap,
+    );
+  }
+}
+
+/// Watches [referenceSearchResultProvider] and renders a pinned "jump to this
+/// sutta" tile when the current query is a canonical reference (e.g. "SN 15.3");
+/// otherwise nothing. Kept above the FTS results so a reference jump is always
+/// the first thing offered.
+class _ReferenceResultRow extends ConsumerWidget {
+  final void Function(SearchResult result)? onResultTap;
+
+  const _ReferenceResultRow({this.onResultTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final result = ref.watch(referenceSearchResultProvider);
+    if (result == null) return const SizedBox.shrink();
+    return _ReferenceResultTile(
+      result: result,
+      onTap: () => onResultTap?.call(result),
+    );
+  }
+}
+
+/// Distinct tile for a canonical-reference jump: a "SN 15.3" badge plus the
+/// resolved sutta's name + path (re-derived from `nodeKey`, so it follows the
+/// Content Language like every other result), and a jump affordance. Tapping
+/// reuses the standard [onResultTap] open-in-tab path.
+class _ReferenceResultTile extends ConsumerWidget {
+  final SearchResult result;
+  final VoidCallback? onTap;
+
+  const _ReferenceResultTile({required this.result, this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final typography = context.typography;
+    final labels = searchResultLabels(ref, result);
+
+    return Material(
+      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.22),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            result.title, // the display reference, e.g. "SN 15.3"
+            style: typography.badgeLabel
+                .copyWith(color: theme.colorScheme.onPrimary),
+          ),
+        ),
+        title: Text(
+          labels.title,
+          style: typography.resultTitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: labels.path.isEmpty
+            ? null
+            : Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  labels.path,
+                  style: typography.resultSubtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+        trailing: Icon(
+          Icons.arrow_forward,
+          size: 18,
+          color: theme.colorScheme.primary,
+        ),
+        onTap: onTap,
+      ),
     );
   }
 }

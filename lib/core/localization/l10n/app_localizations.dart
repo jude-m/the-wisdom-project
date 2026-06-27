@@ -362,6 +362,12 @@ abstract class AppLocalizations {
   /// **'Definitions'**
   String get searchTabDefinitions;
 
+  /// Label for a canonical-reference jump result (e.g. typing 'SN 15.3'). Pinned above results, not shown as a browsable tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Reference'**
+  String get searchTabReference;
+
   /// Header above the list of the user's recent search queries
   ///
   /// In en, this message translates to:

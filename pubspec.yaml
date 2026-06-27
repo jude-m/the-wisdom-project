@@ -113,6 +113,7 @@ flutter:
     - assets/data/tree.json
     - assets/data/file-map.json
     - assets/data/footnote-abbreviations.json
+    - assets/data/sc-to-bjt.json
     # Text content files - 285 JSON files (native only; web fetches via API)
     - assets/text/
     # Full-text search database - BJT edition (native only; web uses API)

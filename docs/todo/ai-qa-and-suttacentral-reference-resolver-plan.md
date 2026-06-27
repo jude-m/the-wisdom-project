@@ -1,6 +1,12 @@
 # AI Q&A Integration & SuttaCentral Reference Resolver — Design & Plan
 
-> **Status:** Design / plan — not yet started.
+> **Status:** Steps 1–5 **BUILT** (2026-06-27) — Q&A stub vertical → Python
+> `/ask` backend → remote wiring → resolver core → search-by-reference; the last
+> two on a **3-entry verified seed** (`sn15.1–3`). **Deferred:** the full
+> concordance **build tool** (`tools/suttacentral_map/`) that grows the seed to
+> all suttas, and **Part D** RAG deep-links. Per-step state is in the Build-order
+> section; concordance evidence in
+> [`suttacentral-bjt-concordance-findings.md`](./suttacentral-bjt-concordance-findings.md).
 > **Captured:** 2026-06-27.
 > **Companion to** [`wisdom-project-rag-qa-design.md`](./wisdom-project-rag-qa-design.md)
 > (the upstream NotebookLM-style RAG design). That doc decides *what* the AI
@@ -470,22 +476,28 @@ Net: chat → `shared_preferences`; resolver → in-memory JSON map; hybrid (lat
 
 ## Build order (each step ships value independently)
 
-1. **Q&A stub vertical** — entities → `AskDataSource` interface →
+1. ✅ **DONE — Q&A stub vertical** — entities → `AskDataSource` interface →
    `AskStubDataSourceImpl` (canned answer) → repository → provider → button +
    dialog. **Working chat UI today, zero backend.** *(Part A)*
-2. **Python `/ask` backend + ingest** — per the companion design doc (both
-   trees → File Search store; `/ask` = detect → rewrite → generation →
-   citations). *(separate deployable)*
-3. **Swap stub → remote** — one line in `askDataSourceProvider`. The swap *is*
-   the proof the architecture is right. *(Part A complete)*
-4. **Resolver core** — `tools/suttacentral_map/` build → `sc-to-bjt.json` →
-   `parseRef` / `resolveToNodeKey` in `wisdom_shared`. *(Part B)*
-5. **Search by reference** — `SearchResultType.reference` + the pre-FTS check.
-   *(Part C — ships independently of RAG)*
-6. **RAG deep-links** — `deeplinkFor` → `go_router /sutta/<textId>` (depends on
-   the deep-linking doc's `go_router` migration). *(Part D)*
-7. **v1.1** — FTS4 hybrid (reusing the existing FTS path), metadata `filters`,
-   multi-turn follow-ups; **v2** — segment-level deep-links.
+2. ✅ **DONE — Python `/ask` backend + ingest** — built at **`ask_server/`**
+   (FastAPI, stub-first, lazy Gemini import). Live Gemini call shapes are still
+   unverified (no key yet). *(separate deployable)*
+3. ✅ **DONE — Swap stub → remote** — `askDataSourceProvider` selects
+   `AskRemoteDataSourceImpl` (default `http://localhost:8081`). *(Part A complete)*
+4. ◑ **PARTIAL — Resolver core** — the **runtime** half is done: pure `parseRef`
+   / `resolveToNodeKey` (+ `nodeKeyForUid` / `displayRef`) in `wisdom_shared`,
+   loaded from a committed `assets/data/sc-to-bjt.json`. The **build tool**
+   `tools/suttacentral_map/` is **deferred**; `sc-to-bjt.json` ships as a 3-entry
+   hand-verified **seed** (`sn15.1–3 → sn-2-3-1-{1,2,3}`). Growing it is data
+   only — no code change. *(Part B)*
+5. ✅ **DONE — Search by reference** — `SearchResultType.reference` (excluded
+   from the tab bar) + a pinned in-memory reference tile above FTS results
+   (`referenceSearchResultProvider` + `_ReferenceResultRow`), reusing the normal
+   tap→open path. Resolves any uid in the seed. *(Part C — ships independently of RAG)*
+6. ⏳ **NEXT — RAG deep-links** — `deeplinkFor` → `go_router /sutta/<textId>`
+   (depends on the deep-linking doc's `go_router` migration). *(Part D)*
+7. ⏳ **LATER — v1.1** — FTS4 hybrid (reusing the existing FTS path), metadata
+   `filters`, multi-turn follow-ups; **v2** — segment-level deep-links.
 
 ---
 

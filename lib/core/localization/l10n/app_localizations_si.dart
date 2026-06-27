@@ -142,6 +142,9 @@ class AppLocalizationsSi extends AppLocalizations {
   String get searchTabDefinitions => 'අර්ථ';
 
   @override
+  String get searchTabReference => 'යොමුව';
+
+  @override
   String get recentSearches => 'මෑත සෙවුම්';
 
   @override
