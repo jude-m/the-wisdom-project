@@ -38,6 +38,7 @@ class Citation(BaseModel):
 
     uid: str                          # "sn15.3" | "pli-tv-bu-vb-np18"
     ref: str                          # "SN 15.3" (display form)
+    title: Optional[str] = None       # heading minus ref, "Chapter One A Mustard Seed"
     kind: str = "canon"               # "note" reserved for Sujato notes (§5.2)
     snippet: Optional[str] = None     # English source span (verification preview)
     deeplink: Optional[str] = None    # resolved later (resolver plan, Part D)

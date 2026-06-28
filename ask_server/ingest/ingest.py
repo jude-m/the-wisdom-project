@@ -92,9 +92,12 @@ def run(args: argparse.Namespace) -> int:
         return 2
 
     paths = discover(bilara_dir)
+    if args.filter:
+        paths = [p for p in paths if args.filter in p]
     if args.limit:
         paths = paths[: args.limit]
-    print(f"discovered {len(paths)} unit files under {bilara_dir}")
+    scope = f" matching {args.filter!r}" if args.filter else ""
+    print(f"discovered {len(paths)} unit files{scope} under {bilara_dir}")
 
     if args.dry_run:
         for path in paths:
@@ -210,6 +213,12 @@ def main() -> int:
     )
     ap.add_argument(
         "--limit", type=int, default=0, help="process at most N files (0 = all)"
+    )
+    ap.add_argument(
+        "--filter",
+        default=None,
+        help="only ingest unit files whose path contains this substring, e.g. "
+        "'sn/sn15/' for the Anamatagga Saṁyutta (SN 15) pilot",
     )
     ap.add_argument(
         "--backoff",

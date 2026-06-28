@@ -1,6 +1,6 @@
 # AI Q&A Integration & SuttaCentral Reference Resolver — Design & Plan
 
-> **Status:** Steps 1–5 **BUILT** (2026-06-27) — Q&A stub vertical → Python
+> **Status:** Steps 1–5 **BUILT**, backend now **LIVE end-to-end** (2026-06-27) — Q&A stub vertical → Python
 > `/ask` backend → remote wiring → resolver core → search-by-reference; the last
 > two on a **3-entry verified seed** (`sn15.1–3`). **Deferred:** the full
 > concordance **build tool** (`tools/suttacentral_map/`) that grows the seed to
@@ -479,9 +479,18 @@ Net: chat → `shared_preferences`; resolver → in-memory JSON map; hybrid (lat
 1. ✅ **DONE — Q&A stub vertical** — entities → `AskDataSource` interface →
    `AskStubDataSourceImpl` (canned answer) → repository → provider → button +
    dialog. **Working chat UI today, zero backend.** *(Part A)*
-2. ✅ **DONE — Python `/ask` backend + ingest** — built at **`ask_server/`**
-   (FastAPI, stub-first, lazy Gemini import). Live Gemini call shapes are still
-   unverified (no key yet). *(separate deployable)*
+2. ✅ **DONE + LIVE-VERIFIED — Python `/ask` backend + ingest** — built at
+   **`ask_server/`** (FastAPI, stub-first, lazy Gemini import). **Verified live
+   end-to-end 2026-06-27** against `google-genai 2.10.0`: File Search `create` /
+   `upload_to_file_search_store` / `documents.list` + `grounding_metadata`
+   parsing all matched the reference shapes (design Appendix A) — no drift, works
+   on the free tier. Pilot ingest of **SN 15 (Anamatagga, 20 suttas)** returns
+   grounded multi-sutta answers; queried successfully from the live Flutter app
+   (wired to `:8081`). Two changes landed during validation: a reusable
+   **`--filter`** flag for targeted pilot ingests (e.g. `--filter 'sn/sn15/'`),
+   and a fix for a **`kind` serialization gap** — the live path dropped the
+   Pydantic-defaulted `kind` the app requires, now set explicitly in
+   `_to_citations`. *(separate deployable)*
 3. ✅ **DONE — Swap stub → remote** — `askDataSourceProvider` selects
    `AskRemoteDataSourceImpl` (default `http://localhost:8081`). *(Part A complete)*
 4. ◑ **PARTIAL — Resolver core** — the **runtime** half is done: pure `parseRef`

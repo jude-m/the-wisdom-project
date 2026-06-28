@@ -9,6 +9,8 @@ Run locally (stub mode, no key needed):
 """
 from __future__ import annotations
 
+import logging
+
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -16,6 +18,10 @@ from .config import Settings, load_settings
 from .contracts import AskRequest, AskResponse
 
 settings: Settings = load_settings()
+
+# "ask" logger — like pipeline's "ask.pipeline", it propagates to uvicorn's
+# console handler, so anything logged here shows up in the server terminal.
+log = logging.getLogger("ask")
 
 app = FastAPI(title="Wisdom Project — /ask", version="0.1.0")
 
@@ -56,6 +62,7 @@ def health() -> dict:
         "status": "ok",
         "mode": "stub" if settings.stub else "live",
         "model": None if settings.stub else settings.model,
+        "models": None if settings.stub else list(settings.models),
         "store_configured": bool(settings.store),
     }
 
@@ -79,6 +86,12 @@ def ask(req: AskRequest, _: None = Depends(require_token)) -> AskResponse:
         # Config problems (e.g. no store) → 503: the service isn't ready.
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 — surface upstream failures as 502
+        # Log the full traceback to the server console. We convert the error to
+        # an HTTPException for the client, but FastAPI treats that as a normal
+        # response — so WITHOUT this line the console only shows the bare "502"
+        # access log and the real cause (SDK error, bad response, etc.) is
+        # invisible. log.exception() includes the stack trace.
+        log.exception("ask failed for question=%r", req.question)
         raise HTTPException(
             status_code=502, detail=f"ask backend error: {exc}"
         ) from exc

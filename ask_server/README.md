@@ -82,6 +82,20 @@ python -m ingest.ingest --dry-run --limit 5        # prints uid + derived metada
 
 ---
 
+**Pilot a single section** — the `--filter` flag ingests only unit files whose
+path contains a substring; ideal for a cheap **live** smoke test before the full
+corpus:
+
+```bash
+python -m ingest.ingest --filter 'sn/sn15/' --display-name tipitaka-pilot-sn15
+# → just the 20 SN 15 (Anamatagga) suttas, into their own store
+```
+
+> **Live-verified 2026-06-27** (`google-genai 2.10.0`, free tier): the ingest +
+> `/ask` round-trip works end-to-end — File Search `create`/`upload`/`documents.list`
+> and `grounding_metadata` citation parsing all match the reference code, and the
+> SN 15 pilot answers grounded saṁsāra questions correctly from the Flutter app.
+
 ## The `/ask` contract (stable — protect this)
 
 `POST /ask`
@@ -100,11 +114,19 @@ Response
   "answer": "string (same language as question)",
   "lang":   "si | en",
   "citations": [
-    {"uid": "sn15.3", "ref": "SN 15.3", "kind": "canon",
-     "snippet": "English source span", "deeplink": null}
+    {"uid": "sn15.3", "ref": "SN 15.3", "title": "Linked Discourses Chapter One Tears",
+     "kind": "canon",
+     "snippet": "…short preview span around the match…", "deeplink": null}
   ]
 }
 ```
+
+`title` is the sutta heading (collection name + chapter + name) with just the
+number dropped — it's already shown as `ref` — so the app can show a consistent
+bold heading per source; `null` when a chunk carried no heading. `snippet` is a short window sliced around the query terms over the
+body only (FTS-`snippet()`-style), not the full chunk — tune its length with
+`ASK_SNIPPET_CHARS` (default 220). The deep link opens the full text. See
+`docs/done/ask/source-snippet-shortening-plan.md`.
 
 `deeplink` is `null` until the SuttaCentral→BJT resolver lands (plan Part D).
 `kind` is always `"canon"` for now; `"note"` is reserved (design §5.2) so adding
@@ -156,5 +178,16 @@ app's origin.
 - **Deep-links** — `pipeline._deeplink_for` returns `null`; the resolver
   (plan Part B/D) fills it.
 - **FTS4 hybrid, multi-turn history, metadata filters beyond `basket`** — v1.1.
-- **Verify at build time** (design Appendix A): model names, File Search pricing
-  / tier caps, `grounding_metadata` field shapes, and metadata-filter syntax.
+- **Model ladder** — generation walks `config.DEFAULT_MODELS`
+  (`gemini-3.1-flash-lite` → `gemini-3.5-flash` → `gemini-3-flash-preview` →
+  `gemini-2.5-flash` → `gemini-2.5-flash-lite`), all free-tier +
+  File-Search-capable, falling to the next rung on a 429 (rate limit) or 503
+  (high demand) (`pipeline._is_retryable`). Override with `ASK_MODELS` (whole
+  ladder, CSV) or
+  `ASK_MODEL` (pin the primary; defaults still trail it). `GET /health` echoes
+  the active ladder.
+- **Verified 2026-06-28** (`google-genai 2.10.0`): the ladder models support the
+  File Search tool and have a free tier; `create`/`upload`/`documents.list` and
+  `grounding_metadata` shapes work as written. **Still to verify at scale**
+  (design Appendix A): the `metadata_filter` (basket) syntax and per-tier
+  file-count / storage caps.

@@ -13,16 +13,20 @@ generation, empty history. The "intelligent" retrieval-breadth / fan-out work
 """
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 
 from .config import Settings
 from .contracts import AskRequest, AskResponse, Citation, HistoryTurn
 from .lang import is_sinhala
 from .refs import REF_IN_PROSE, known_uid, ref_from_uid, uid_from_ref
+from .snippet import make_snippet, split_heading
 
 # Locked Sinhala renderings fed into the system prompt (design §5.3). Extend as
 # the glossary is finalised (design §14, open decision).
 GLOSSARY = "saṁsāra→සංසාරය; transmigration→සංසරණය; charnel ground→සොහොන් බිම"
+
+log = logging.getLogger("ask.pipeline")
 
 SYSTEM = (
     "Answer questions about the Pali Canon using ONLY the retrieved passages.\n"
@@ -90,6 +94,23 @@ def _search_queries(search_q: str) -> list[str]:
     return [search_q]
 
 
+def _is_retryable(exc: Exception) -> bool:
+    """True for transient server-side errors worth retrying on the NEXT model rung:
+    429 RESOURCE_EXHAUSTED (rate limit / quota) and 503 UNAVAILABLE (the model is
+    "experiencing high demand" — common on the popular free flash tiers). Any other
+    error (400 / 404 / auth / malformed request) fails fast: a different model
+    won't fare better.
+
+    The google-genai SDK raises ClientError/ServerError(APIError) with
+    `.code`/`.status`; we also string-match as a version-proof backstop."""
+    if getattr(exc, "code", None) in (429, 503):
+        return True
+    if (getattr(exc, "status", "") or "").upper() in ("RESOURCE_EXHAUSTED", "UNAVAILABLE"):
+        return True
+    text = str(exc).upper()
+    return any(s in text for s in ("RESOURCE_EXHAUSTED", "UNAVAILABLE", "429", "503"))
+
+
 def _generate(cfg: Settings, search_q: str, is_si: bool, basket: str | None):
     file_search: dict = {"file_search_store_names": [cfg.store]}
     if basket:
@@ -97,14 +118,31 @@ def _generate(cfg: Settings, search_q: str, is_si: bool, basket: str | None):
         # Filter syntax varies by SDK version — confirm at build time (Appendix A).
         file_search["metadata_filter"] = f'basket="{basket}"'
 
-    return _client().models.generate_content(
-        model=cfg.model,
-        contents=search_q,
-        config={
-            "system_instruction": _system_instruction(is_si),
-            "tools": [{"file_search": file_search}],
-        },
-    )
+    config = {
+        "system_instruction": _system_instruction(is_si),
+        "tools": [{"file_search": file_search}],
+    }
+
+    # Walk the model ladder (cfg.models / config.DEFAULT_MODELS). Fall through to
+    # the next rung only on a transient server error (429 rate limit / 503 high
+    # demand) — any other error fails fast, since a malformed request won't fare
+    # better on a different model.
+    last_exc: Exception | None = None
+    for i, model in enumerate(cfg.models):
+        try:
+            return _client().models.generate_content(
+                model=model, contents=search_q, config=config
+            )
+        except Exception as exc:  # noqa: BLE001 — re-raised unless it's transient
+            is_last = i == len(cfg.models) - 1
+            if not _is_retryable(exc) or is_last:
+                raise
+            log.warning(
+                "ask: model %s unavailable (%s); falling back to %s",
+                model, getattr(exc, "code", "?"), cfg.models[i + 1],
+            )
+            last_exc = exc
+    raise last_exc  # pragma: no cover — the last rung always raises above
 
 
 def _deeplink_for(uid: str) -> str | None:
@@ -113,7 +151,7 @@ def _deeplink_for(uid: str) -> str | None:
     return None
 
 
-def _to_citations(answer_text: str, resp) -> list[Citation]:
+def _to_citations(answer_text: str, resp, search_q: str, snippet_chars: int) -> list[Citation]:
     """Synthesise citations from grounding_metadata + linkify refs in prose."""
     cites: dict[str, Citation] = {}
 
@@ -125,10 +163,20 @@ def _to_citations(answer_text: str, resp) -> list[Citation]:
         uid = getattr(rc, "title", None) if rc else None
         if not uid:
             continue
+        # The chunk text is "<heading>\n<whole sutta>". Split off the heading as
+        # a consistent bold `title` (shown on its own line), then window only the
+        # body around the query for the snippet — the deep link opens the full
+        # text. Passing ref drops the heading's spelled-out reference so it isn't
+        # duplicated next to the citation's own ref.
+        ref = ref_from_uid(uid)
+        title, body = split_heading(getattr(rc, "text", "") or "", ref)
+        snippet = make_snippet(body, search_q, snippet_chars)
         cites[uid] = Citation(
             uid=uid,
-            ref=ref_from_uid(uid),
-            snippet=getattr(rc, "text", None),
+            ref=ref,
+            title=title,
+            kind="canon",
+            snippet=snippet or None,
             deeplink=_deeplink_for(uid),
         )
 
@@ -139,6 +187,7 @@ def _to_citations(answer_text: str, resp) -> list[Citation]:
             cites[uid] = Citation(
                 uid=uid,
                 ref=match.group(),
+                kind="canon",
                 deeplink=_deeplink_for(uid),
             )
 
@@ -164,5 +213,5 @@ def answer(cfg: Settings, req: AskRequest) -> AskResponse:
     return AskResponse(
         answer=text,
         lang="si" if is_si else "en",
-        citations=_to_citations(text, resp),
+        citations=_to_citations(text, resp, search_q, cfg.snippet_chars),
     )

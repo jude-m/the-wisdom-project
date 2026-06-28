@@ -249,19 +249,34 @@ class _MessageBubble extends StatelessWidget {
               const SizedBox(height: 4),
               for (final citation in message.citations)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: RichText(
-                    text: TextSpan(
-                      style: textTheme.bodySmall,
-                      children: [
-                        TextSpan(
-                          text: citation.ref,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Heading line: bold ref + sutta title, e.g.
+                      // "SN 15.6  Chapter One A Mustard Seed".
+                      RichText(
+                        text: TextSpan(
+                          style: textTheme.bodySmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                          children: [
+                            TextSpan(text: citation.ref),
+                            if (citation.title != null)
+                              TextSpan(text: '  ${citation.title}'),
+                          ],
                         ),
-                        if (citation.snippet != null)
-                          TextSpan(text: ' — ${citation.snippet}'),
-                      ],
-                    ),
+                      ),
+                      // Snippet on its own line, in the muted body colour.
+                      if (citation.snippet != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            citation.snippet!,
+                            style: textTheme.bodySmall
+                                ?.copyWith(color: colors.onSurfaceVariant),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
             ],

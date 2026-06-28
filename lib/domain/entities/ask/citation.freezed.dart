@@ -26,6 +26,10 @@ mixin _$Citation {
   /// Human-readable reference shown to the user, e.g. "SN 15.3".
   String get ref => throw _privateConstructorUsedError;
 
+  /// Sutta heading minus the ref prefix, e.g. "Chapter One A Mustard Seed".
+  /// Shown bold next to [ref]; null when the chunk carried no heading.
+  String? get title => throw _privateConstructorUsedError;
+
   /// "canon" today; "note" reserved for Sujato's notes (design §5.2).
   /// Kept from day one so adding notes later needs no contract change.
   String get kind => throw _privateConstructorUsedError;
@@ -54,7 +58,12 @@ abstract class $CitationCopyWith<$Res> {
       _$CitationCopyWithImpl<$Res, Citation>;
   @useResult
   $Res call(
-      {String uid, String ref, String kind, String? snippet, String? deeplink});
+      {String uid,
+      String ref,
+      String? title,
+      String kind,
+      String? snippet,
+      String? deeplink});
 }
 
 /// @nodoc
@@ -74,6 +83,7 @@ class _$CitationCopyWithImpl<$Res, $Val extends Citation>
   $Res call({
     Object? uid = null,
     Object? ref = null,
+    Object? title = freezed,
     Object? kind = null,
     Object? snippet = freezed,
     Object? deeplink = freezed,
@@ -87,6 +97,10 @@ class _$CitationCopyWithImpl<$Res, $Val extends Citation>
           ? _value.ref
           : ref // ignore: cast_nullable_to_non_nullable
               as String,
+      title: freezed == title
+          ? _value.title
+          : title // ignore: cast_nullable_to_non_nullable
+              as String?,
       kind: null == kind
           ? _value.kind
           : kind // ignore: cast_nullable_to_non_nullable
@@ -112,7 +126,12 @@ abstract class _$$CitationImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {String uid, String ref, String kind, String? snippet, String? deeplink});
+      {String uid,
+      String ref,
+      String? title,
+      String kind,
+      String? snippet,
+      String? deeplink});
 }
 
 /// @nodoc
@@ -130,6 +149,7 @@ class __$$CitationImplCopyWithImpl<$Res>
   $Res call({
     Object? uid = null,
     Object? ref = null,
+    Object? title = freezed,
     Object? kind = null,
     Object? snippet = freezed,
     Object? deeplink = freezed,
@@ -143,6 +163,10 @@ class __$$CitationImplCopyWithImpl<$Res>
           ? _value.ref
           : ref // ignore: cast_nullable_to_non_nullable
               as String,
+      title: freezed == title
+          ? _value.title
+          : title // ignore: cast_nullable_to_non_nullable
+              as String?,
       kind: null == kind
           ? _value.kind
           : kind // ignore: cast_nullable_to_non_nullable
@@ -165,6 +189,7 @@ class _$CitationImpl implements _Citation {
   const _$CitationImpl(
       {required this.uid,
       required this.ref,
+      this.title,
       this.kind = 'canon',
       this.snippet,
       this.deeplink});
@@ -179,6 +204,11 @@ class _$CitationImpl implements _Citation {
   /// Human-readable reference shown to the user, e.g. "SN 15.3".
   @override
   final String ref;
+
+  /// Sutta heading minus the ref prefix, e.g. "Chapter One A Mustard Seed".
+  /// Shown bold next to [ref]; null when the chunk carried no heading.
+  @override
+  final String? title;
 
   /// "canon" today; "note" reserved for Sujato's notes (design §5.2).
   /// Kept from day one so adding notes later needs no contract change.
@@ -198,7 +228,7 @@ class _$CitationImpl implements _Citation {
 
   @override
   String toString() {
-    return 'Citation(uid: $uid, ref: $ref, kind: $kind, snippet: $snippet, deeplink: $deeplink)';
+    return 'Citation(uid: $uid, ref: $ref, title: $title, kind: $kind, snippet: $snippet, deeplink: $deeplink)';
   }
 
   @override
@@ -208,6 +238,7 @@ class _$CitationImpl implements _Citation {
             other is _$CitationImpl &&
             (identical(other.uid, uid) || other.uid == uid) &&
             (identical(other.ref, ref) || other.ref == ref) &&
+            (identical(other.title, title) || other.title == title) &&
             (identical(other.kind, kind) || other.kind == kind) &&
             (identical(other.snippet, snippet) || other.snippet == snippet) &&
             (identical(other.deeplink, deeplink) ||
@@ -217,7 +248,7 @@ class _$CitationImpl implements _Citation {
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
-      Object.hash(runtimeType, uid, ref, kind, snippet, deeplink);
+      Object.hash(runtimeType, uid, ref, title, kind, snippet, deeplink);
 
   /// Create a copy of Citation
   /// with the given fields replaced by the non-null parameter values.
@@ -239,6 +270,7 @@ abstract class _Citation implements Citation {
   const factory _Citation(
       {required final String uid,
       required final String ref,
+      final String? title,
       final String kind,
       final String? snippet,
       final String? deeplink}) = _$CitationImpl;
@@ -253,6 +285,11 @@ abstract class _Citation implements Citation {
   /// Human-readable reference shown to the user, e.g. "SN 15.3".
   @override
   String get ref;
+
+  /// Sutta heading minus the ref prefix, e.g. "Chapter One A Mustard Seed".
+  /// Shown bold next to [ref]; null when the chunk carried no heading.
+  @override
+  String? get title;
 
   /// "canon" today; "note" reserved for Sujato's notes (design §5.2).
   /// Kept from day one so adding notes later needs no contract change.

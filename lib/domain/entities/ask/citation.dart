@@ -16,6 +16,10 @@ class Citation with _$Citation {
     /// Human-readable reference shown to the user, e.g. "SN 15.3".
     required String ref,
 
+    /// Sutta heading minus the ref prefix, e.g. "Chapter One A Mustard Seed".
+    /// Shown bold next to [ref]; null when the chunk carried no heading.
+    String? title,
+
     /// "canon" today; "note" reserved for Sujato's notes (design §5.2).
     /// Kept from day one so adding notes later needs no contract change.
     @Default('canon') String kind,

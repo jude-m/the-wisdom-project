@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:dartz/dartz.dart';
 
 import '../../domain/entities/ask/ask_answer.dart';
@@ -27,10 +29,15 @@ class AskRepositoryImpl implements AskRepository {
         filters: filters,
       );
       return Right(answer);
-    } catch (e) {
+    } catch (e, stack) {
       // Network errors (offline / backend down) and backend errors both land
       // here. We avoid importing dart:io (SocketException) so this stays
       // web-safe; the message reads sensibly for either case.
+      //
+      // The user-facing copy stays generic, but log the real cause — for a
+      // backend 5xx the datasource embeds the response body (which carries the
+      // server's "ask backend error: …" detail), so this line shows exactly why.
+      developer.log('ask failed', name: 'ask', error: e, stackTrace: stack);
       return Left(Failure.dataLoadFailure(
         message: 'Could not get an answer right now. Please try again.',
         error: e,
