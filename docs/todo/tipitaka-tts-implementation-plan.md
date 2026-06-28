@@ -325,6 +325,57 @@ def tts(text: str = Body(..., embed=True)):     # romanized text in
 4. **Sinhala romanizer (Stage 1.2)** — resolved: `@pnfo/singlish-search` `sinhalaToRomanConvert` (MIT, rule-based, Dart-portable). Remaining: a quality-gate listen on Sinhala output. Pali (Stage 1.1) uses `@pnfo/pali-converter`.
 5. **Capitalization — resolved:** model charset is all-lowercase; lowercase both romanizers' output. Confirm the female voice (multi-v2.0) language coverage (Pali too, or Sinhala only) if you want a female Pali option.
 6. **Transport** — Stage 1 starts with JSON + base64; move to binary + segments sidecar if/when payload size matters.
+7. **Deployment host (§7)** — confirm the model-server placement: **A) GCP Cloud Run scale-to-zero** (leaning) vs **B) co-locate on the web-server box**; and that the **audio cache uses Cloudflare R2** (zero-egress), not GCS.
+
+---
+
+## 7. Deployment & cost (hosting strategy)
+
+**Context:** no sponsors yet — optimize for **nimble / near-zero idle cost**, not peak throughput. The decisive fact is that pnfo's VITS is a **small CPU model** (tens of MB; sub-second to a few seconds per sentence on CPU), **not a GPU LLM** — so it lives in a cheap deployment bracket with options a GPU model can't use. *(All free-tier/pricing figures below are approximate and were current as of mid-2026 — confirm on each provider's page before committing.)*
+
+### 7.1 What goes where
+
+| Component | Host | Why |
+| --- | --- | --- |
+| Web / content server | **Always-on box** (the project needs one regardless) | Always warm, flat cost, no cold start |
+| Gateway (Node) | Box, or co-located / serverless | Lightweight: normalize / romanize / chunk / encode |
+| **Model server** (Python + torch + coqui) | **GCP Cloud Run, scale-to-zero** | Heavy at *load*, light at *run*; bursty / occasional → free while idle |
+| **Audio cache** (Stage 2 output) | **Cloudflare R2** | Free storage + **zero egress** |
+
+Two equally valid placements for the model server — pick on cold-start tolerance:
+- **A — Cloud Run scale-to-zero** *(leaning)*: $0 while sleeping, free tier likely covers all synths; the cost is cold-start latency on the first uncached request.
+- **B — co-locate on the box**: marginal cost ~$0 (box already paid for), always warm / no cold start; the cost is synth CPU spikes sharing the box — cap them with the Stage 1.5 worker/queue. Caching makes spikes rare.
+
+The clean **gateway ↔ model** seam (§1) means the model can move between A and B later with **no client change**.
+
+### 7.2 Model server — GCP Cloud Run (not AI Studio)
+
+- **Not Google AI Studio, and not Google's own TTS.** AI Studio only serves Google's *own* models (Gemini) — you cannot host pnfo's VITS there. Google's own TTS is also unusable for this app: **no Pali**, and wrong pronunciation of Buddhist terms / long vowels / niggahīta. pnfo's domain-trained model is the whole point. Deploy pnfo's container yourself; optionally in a **separate GCP project** for clean billing / key / quota isolation (the `ask_server` Dockerfile already targets Cloud Run — same pattern).
+- **Scale-to-zero = idle is free.** No requests → zero containers → **$0**. A mostly-sleeping service is the *intended* case, not a problem.
+- **Free tier (approx):** ~2M requests, ~180k vCPU-seconds, ~360k GiB-seconds / month. At ~2 vCPU-sec + ~4 GiB-sec per synth, that's roughly **tens of thousands of free synths/month** — a study app with caching likely lives entirely inside it.
+- **The one catch — cold start (latency, not money):** the first request after idle must load torch + the checkpoint → **several seconds to ~30s**. Mitigate by (a) leaning on the Stage 2 cache / pre-warm so cold starts only hit rare first-time content, (b) keeping the image lean + startup-CPU-boost, or (c) `min-instances=1` — but that pays ~24/7 and defeats scale-to-zero (at which point option B / the box wins).
+- **Break-even vs an always-on box:** ~100k synth requests/month. Below → serverless wins; above → box. Caching shrinks real synth volume so far that both converge toward ~free.
+
+### 7.3 Audio cache — Cloudflare R2 (not GCS)
+
+CDN cost is **two meters**: *storage* (what you keep — cheap, ignore it) and *egress* (what you serve — scales with listeners; the meter that produces surprise bills). Optimize for egress.
+
+- **Cloudflare R2:** 10 GB free storage + **zero egress, ever** + 10M reads / 1M writes free per month. Zero-egress is the whole reason — serving a popular sutta a million times stays $0.
+- **Do NOT store audio on Google Cloud Storage** despite the model running on GCP — GCS charges egress (~$0.08–0.12/GB), exactly the meter to avoid. Keep them split: Cloud Run **writes** new clips to R2; **all playback is served from R2**. GCP only ever sees the rare cold synth.
+- **Serve from an R2 public bucket on a custom domain** (the sanctioned media path), not by proxying heavy media through Cloudflare's free CDN plan (acceptable-use limits on media).
+- **Sizing:** speech at **Opus ~32 kbps** (or mp3 64 kbps), mono ≈ **15–30 MB/hour** → 10 GB ≈ **350–650 hours**. Stage 2's warm set is tens of hours, so storage is a non-issue — don't optimize it, and don't pre-render the whole Tipitaka (keep the lazy long tail).
+
+### 7.4 Endgame — on-device (Stage 3)
+
+The ultimate zero-server-cost path: dictionary single-word (highest volume) synthesized on the phone via sherpa-onnx → **$0 marginal cost forever, offline.** The server deployment above carries Stages 1–2 until then.
+
+### 7.5 Recommended nimble setup (no sponsors)
+
+1. **Model → Cloud Run, `--min-instances=0`** (free while sleeping); accept cold-start on uncached first-plays.
+2. **Audio → Cloudflare R2** public bucket on a custom domain (free storage, zero egress).
+3. **Encode Opus ~32 kbps**; cache only genuinely popular content (Stage 2 lazy long tail).
+4. **Web / content server → the box** you already run; optionally co-locate the gateway there.
+5. Keep the **gateway ↔ model** seam clean so the model can move (box ⇄ Cloud Run) with no client change.
 
 ---
 
