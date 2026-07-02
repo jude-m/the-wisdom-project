@@ -308,4 +308,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updateBannerDismissTooltip => 'Dismiss';
+
+  @override
+  String get askTitle => 'Ask the Canon';
+
+  @override
+  String get askNewChat => 'New chat';
+
+  @override
+  String get askEmptyState => 'Ask anything about the Pali Canon.';
+
+  @override
+  String get askInputHint => 'Ask a question about the suttas…';
+
+  @override
+  String get askSend => 'Send';
+
+  @override
+  String get askThinking => 'Thinking…';
+
+  @override
+  String get askSources => 'Sources';
+
+  @override
+  String get askRetry => 'Retry';
+
+  @override
+  String get askErrorOffline =>
+      'Can\'t reach the answer service. Check your connection and try again.';
+
+  @override
+  String get askErrorTimeout =>
+      'That took too long — the model may be busy. Please try again.';
+
+  @override
+  String get askErrorRateLimited =>
+      'You\'ve reached the question limit for now. Please try again later.';
+
+  @override
+  String get askErrorServiceBusy =>
+      'The answer service is busy or starting up. Please try again shortly.';
+
+  @override
+  String get askErrorNotAuthorised =>
+      'This version of the app can\'t use the answer service.';
+
+  @override
+  String get askErrorCannotAnswer =>
+      'I couldn\'t answer that. Try rephrasing your question.';
+
+  @override
+  String get askErrorServerError => 'Something went wrong. Please try again.';
 }

@@ -11,11 +11,14 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
+from . import errors
 from .config import Settings, load_settings
 from .contracts import AskRequest, AskResponse
+from .errors import AskError
 
 settings: Settings = load_settings()
 
@@ -35,6 +38,14 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(AskError)
+async def _ask_error_handler(request: Request, exc: AskError) -> JSONResponse:
+    """Render a classified failure as the structured `{"error": {...}}` envelope
+    (plan §3.2). Handled exceptions still pass back out through CORSMiddleware, so
+    the cross-origin Flutter web client can read the body."""
+    return exc.to_response()
+
+
 def require_token(x_app_token: str | None = Header(default=None)) -> None:
     """Optional shared-secret gate (cross-cutting #2 — the money endpoint).
 
@@ -44,7 +55,9 @@ def require_token(x_app_token: str | None = Header(default=None)) -> None:
     abusable.
     """
     if settings.app_token and x_app_token != settings.app_token:
-        raise HTTPException(status_code=401, detail="invalid or missing app token")
+        raise AskError(
+            401, "not_authorised", errors.NOT_AUTHORISED_MSG, retriable=False
+        )
 
 
 @app.get("/")
@@ -70,7 +83,9 @@ def health() -> dict:
 @app.post("/ask", response_model=AskResponse)
 def ask(req: AskRequest, _: None = Depends(require_token)) -> AskResponse:
     if not req.question.strip():
-        raise HTTPException(status_code=400, detail="question must not be empty")
+        # Client-prevented (send is disabled on empty input); a 400 here is a
+        # belt-and-braces guard the correct client never trips.
+        raise AskError(400, "bad_request", errors.BAD_REQUEST_MSG, retriable=False)
 
     if settings.stub:
         from .stub import canned_answer
@@ -82,16 +97,20 @@ def ask(req: AskRequest, _: None = Depends(require_token)) -> AskResponse:
         from . import pipeline
 
         return pipeline.answer(settings, req)
+    except AskError:
+        # Already classified inside the pipeline (e.g. the empty-answer guard) —
+        # re-raise untouched so the handler renders its envelope as-is.
+        raise
     except RuntimeError as exc:
-        # Config problems (e.g. no store) → 503: the service isn't ready.
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001 — surface upstream failures as 502
-        # Log the full traceback to the server console. We convert the error to
-        # an HTTPException for the client, but FastAPI treats that as a normal
-        # response — so WITHOUT this line the console only shows the bare "502"
-        # access log and the real cause (SDK error, bad response, etc.) is
-        # invisible. log.exception() includes the stack trace.
-        log.exception("ask failed for question=%r", req.question)
-        raise HTTPException(
-            status_code=502, detail=f"ask backend error: {exc}"
+        # Config problems (e.g. ASK_STORE unset) → 503: the service isn't ready.
+        log.warning("ask not ready: %s", exc)
+        raise AskError(
+            503, "service_unavailable", errors.SERVICE_BUSY_MSG, retriable=True
         ) from exc
+    except Exception as exc:  # noqa: BLE001 — classify upstream failures
+        # Log the FULL traceback to the server console (never to the client —
+        # Finding #6). Without this line, converting to an envelope would leave
+        # the console showing only the bare status; the real cause (SDK error,
+        # bad response, etc.) would be invisible. Then map to a safe status.
+        log.exception("ask failed for question=%r", req.question)
+        raise errors.classify_upstream(exc) from exc

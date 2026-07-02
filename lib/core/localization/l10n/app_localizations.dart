@@ -679,6 +679,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dismiss'**
   String get updateBannerDismissTooltip;
+
+  /// Title of the AI Q&A chat dialog and tooltip on the button that opens it
+  ///
+  /// In en, this message translates to:
+  /// **'Ask the Canon'**
+  String get askTitle;
+
+  /// Button that clears the Q&A transcript to start a fresh conversation
+  ///
+  /// In en, this message translates to:
+  /// **'New chat'**
+  String get askNewChat;
+
+  /// Placeholder shown in the Q&A dialog before the first question is asked
+  ///
+  /// In en, this message translates to:
+  /// **'Ask anything about the Pali Canon.'**
+  String get askEmptyState;
+
+  /// Hint text inside the Q&A question input field
+  ///
+  /// In en, this message translates to:
+  /// **'Ask a question about the suttas…'**
+  String get askInputHint;
+
+  /// Tooltip on the send button in the Q&A dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get askSend;
+
+  /// Loading row shown in the Q&A dialog while waiting for an answer
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get askThinking;
+
+  /// Header above the list of source citations under an answer
+  ///
+  /// In en, this message translates to:
+  /// **'Sources'**
+  String get askSources;
+
+  /// Button to re-send the last question after a retriable Q&A error
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get askRetry;
+
+  /// Q&A error when the answer service can't be reached (offline / unreachable)
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach the answer service. Check your connection and try again.'**
+  String get askErrorOffline;
+
+  /// Q&A error when the request exceeded the client timeout or the gateway timed out
+  ///
+  /// In en, this message translates to:
+  /// **'That took too long — the model may be busy. Please try again.'**
+  String get askErrorTimeout;
+
+  /// Q&A error when the rate limit / quota is exhausted; retry later
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve reached the question limit for now. Please try again later.'**
+  String get askErrorRateLimited;
+
+  /// Q&A error when the service is unavailable, cold-starting, or upstream is overloaded
+  ///
+  /// In en, this message translates to:
+  /// **'The answer service is busy or starting up. Please try again shortly.'**
+  String get askErrorServiceBusy;
+
+  /// Q&A error when the app is not authorised (401/403) — a build issue, not user-fixable, so no retry
+  ///
+  /// In en, this message translates to:
+  /// **'This version of the app can\'t use the answer service.'**
+  String get askErrorNotAuthorised;
+
+  /// Q&A error when the model can't answer (safety block / empty answer); the user should rephrase
+  ///
+  /// In en, this message translates to:
+  /// **'I couldn\'t answer that. Try rephrasing your question.'**
+  String get askErrorCannotAnswer;
+
+  /// Generic Q&A error for a server fault or a malformed response; retry
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again.'**
+  String get askErrorServerError;
 }
 
 class _AppLocalizationsDelegate

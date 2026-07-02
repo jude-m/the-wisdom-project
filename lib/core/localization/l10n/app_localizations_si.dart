@@ -309,4 +309,56 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get updateBannerDismissTooltip => 'ඉවත් කරන්න';
+
+  @override
+  String get askTitle => 'ත්‍රිපිටකයෙන් අසන්න';
+
+  @override
+  String get askNewChat => 'නව සංවාදය';
+
+  @override
+  String get askEmptyState => 'පාළි ත්‍රිපිටකය පිළිබඳ ඕනෑම දෙයක් අසන්න.';
+
+  @override
+  String get askInputHint => 'සූත්‍ර පිළිබඳ ප්‍රශ්නයක් අසන්න…';
+
+  @override
+  String get askSend => 'යවන්න';
+
+  @override
+  String get askThinking => 'සිතමින්…';
+
+  @override
+  String get askSources => 'මූලාශ්‍ර';
+
+  @override
+  String get askRetry => 'නැවත උත්සාහ කරන්න';
+
+  @override
+  String get askErrorOffline =>
+      'පිළිතුරු සේවාව වෙත සම්බන්ධ විය නොහැක. ඔබගේ සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get askErrorTimeout =>
+      'එයට වැඩි වේලාවක් ගත විය — ආකෘතිය කාර්යබහුල විය හැක. කරුණාකර නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get askErrorRateLimited =>
+      'දැනට ප්‍රශ්න සීමාවට ළඟා වී ඇත. කරුණාකර පසුව නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get askErrorServiceBusy =>
+      'පිළිතුරු සේවාව කාර්යබහුලයි හෝ ආරම්භ වෙමින් පවතී. කරුණාකර මොහොතකින් නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get askErrorNotAuthorised =>
+      'මෙම යෙදුමේ මෙම අනුවාදයට පිළිතුරු සේවාව භාවිත කළ නොහැක.';
+
+  @override
+  String get askErrorCannotAnswer =>
+      'එයට පිළිතුරු දිය නොහැකි විය. ඔබගේ ප්‍රශ්නය වෙනස් ආකාරයකින් අසන්න.';
+
+  @override
+  String get askErrorServerError =>
+      'යම් දෝෂයක් සිදු විය. කරුණාකර නැවත උත්සාහ කරන්න.';
 }

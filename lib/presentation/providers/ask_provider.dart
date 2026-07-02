@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/datasources/api_client.dart';
 import '../../data/datasources/ask_datasource.dart';
 import '../../data/datasources/ask_remote_datasource.dart';
 import '../../data/datasources/ask_stub_datasource.dart';
@@ -22,9 +23,19 @@ final askBaseUrlProvider = Provider<String>(
   ),
 );
 
+/// Optional shared secret sent as the `X-App-Token` header (review Finding #2 —
+/// the money endpoint's abuse gate). Unset for local dev; provide with
+/// `--dart-define=ASK_APP_TOKEN=…` to match the backend's `ASK_APP_TOKEN`.
+/// Empty → null (no header), so the open local backend still works.
+final askAppTokenProvider = Provider<String?>((ref) {
+  const token = String.fromEnvironment('ASK_APP_TOKEN');
+  return token.isEmpty ? null : token;
+});
+
 /// The Q&A data source.
 ///
-/// - Base URL configured → the real HTTP datasource (talks to `ask_server`).
+/// - Base URL configured → the real HTTP datasource over an [ApiClient] (which
+///   owns the timeout, the app-token header, and status → typed exceptions).
 /// - Base URL blank (`--dart-define=ASK_BASE_URL=`) → the canned stub, so the
 ///   dialog still works with no backend running (capability gate, plan
 ///   cross-cutting #1).
@@ -36,7 +47,11 @@ final askDataSourceProvider = Provider<AskDataSource>((ref) {
   if (baseUrl.isEmpty) {
     return AskStubDataSource();
   }
-  return AskRemoteDataSourceImpl(baseUrl: baseUrl);
+  final client = ApiClient(
+    baseUrl: baseUrl,
+    appToken: ref.watch(askAppTokenProvider),
+  );
+  return AskRemoteDataSourceImpl(client: client);
 });
 
 /// The Q&A repository (datasource → Either<Failure, AskAnswer>).
@@ -63,7 +78,8 @@ class AskChatNotifier extends StateNotifier<AskChatState> {
     final text = question.trim();
     if (text.isEmpty || state.isLoading) return;
 
-    // 1) Add the user's message and enter the loading state.
+    // Add the user's message and enter the loading state (clearing any prior
+    // error), then run the request.
     state = state.copyWith(
       messages: [
         ...state.messages,
@@ -71,16 +87,34 @@ class AskChatNotifier extends StateNotifier<AskChatState> {
       ],
       isLoading: true,
       error: null,
+      errorType: null,
     );
+    await _run(text);
+  }
 
-    // 2) Ask. (Prototype sends no history.)
+  /// Retry the last question after a retriable failure — re-runs the call
+  /// WITHOUT appending a duplicate user turn (on failure the transcript's last
+  /// message is the unanswered question). No-op if that isn't the case.
+  Future<void> retry() async {
+    if (state.isLoading || state.messages.isEmpty) return;
+    final last = state.messages.last;
+    if (!last.isUser) return;
+
+    state = state.copyWith(isLoading: true, error: null, errorType: null);
+    await _run(last.content);
+  }
+
+  /// Run one `/ask` call for [text] and fold the result into the transcript.
+  /// Shared by [send] and [retry].
+  Future<void> _run(String text) async {
+    // Prototype sends no history (design §5.8).
     final result = await _repository.ask(text);
 
-    // 3) Fold the result back into the transcript.
     state = result.fold(
       (failure) => state.copyWith(
         isLoading: false,
-        error: failure.userMessage,
+        error: failure.userMessage, // English fallback; UI re-localises by type
+        errorType: failure.apiType,
       ),
       (answer) => state.copyWith(
         isLoading: false,

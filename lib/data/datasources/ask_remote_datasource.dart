@@ -1,35 +1,22 @@
-import 'dart:async';
-import 'dart:convert';
-
-import 'package:http/http.dart' as http;
-
 import '../../domain/entities/ask/ask_answer.dart';
 import '../../domain/entities/ask/ask_filters.dart';
 import '../../domain/entities/ask/chat_message.dart';
+import 'api_client.dart';
 import 'ask_datasource.dart';
 
 /// Real [AskDataSource] — POSTs to the stateless `/ask` backend (design §7).
 ///
-/// Mirrors the shape of `FTSRemoteDataSourceImpl` (an `http.Client` + a base
-/// URL). NOT wired yet: `ask_provider.dart` uses `AskStubDataSource` until the
-/// Python service exists; flip one line there to switch over.
+/// This is now pure JSON↔entity: transport concerns (base URL, timeout,
+/// app-token header, status → typed exceptions) live in the injected
+/// [ApiClient]. Errors it throws ([ApiException]) are turned into a `Failure`
+/// by `AskRepositoryImpl` via `mapAskError`.
 ///
-/// Note: unlike the web content server (same-origin `''`), this needs an
-/// absolute [baseUrl] because native talks to it too.
+/// Note: unlike the web content server (same-origin `''`), the [ApiClient] here
+/// is built with an absolute base URL because native talks to it too.
 class AskRemoteDataSourceImpl implements AskDataSource {
-  final http.Client _client;
-  final String _baseUrl;
+  final ApiClient _client;
 
-  /// Generous ceiling for one grounded answer. The capable flash models can take
-  /// ~35–45s for a long answer (and the backend may try a fallback rung or two
-  /// first when the primary model is overloaded), so we wait rather than fail a
-  /// good answer. Past this we surface a clear "took too long" message instead
-  /// of hanging indefinitely.
-  static const _timeout = Duration(seconds: 120);
-
-  AskRemoteDataSourceImpl({required String baseUrl, http.Client? client})
-      : _baseUrl = baseUrl,
-        _client = client ?? http.Client();
+  AskRemoteDataSourceImpl({required ApiClient client}) : _client = client;
 
   @override
   Future<AskAnswer> ask(
@@ -37,32 +24,12 @@ class AskRemoteDataSourceImpl implements AskDataSource {
     List<ChatMessage> history = const [],
     AskFilters? filters,
   }) async {
-    final response = await _client
-        .post(
-          Uri.parse('$_baseUrl/ask'),
-          headers: const {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'question': question,
-            // §7: history carries role + content only.
-            'history': history.map((m) => m.toHistoryJson()).toList(),
-            if (filters != null) 'filters': filters.toJson(),
-          }),
-        )
-        .timeout(
-          _timeout,
-          onTimeout: () => throw TimeoutException(
-            'The answer took longer than ${_timeout.inSeconds}s. The model may '
-            'be busy — please try again.',
-            _timeout,
-          ),
-        );
-
-    if (response.statusCode != 200) {
-      throw Exception('ask failed (${response.statusCode}): ${response.body}');
-    }
-
-    return AskAnswer.fromJson(
-      jsonDecode(response.body) as Map<String, dynamic>,
-    );
+    final json = await _client.postJson('/ask', {
+      'question': question,
+      // §7: history carries role + content only.
+      'history': history.map((m) => m.toHistoryJson()).toList(),
+      if (filters != null) 'filters': filters.toJson(),
+    });
+    return AskAnswer.fromJson(json);
   }
 }

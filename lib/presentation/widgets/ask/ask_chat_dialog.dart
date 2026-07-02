@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/localization/l10n/app_localizations.dart';
+import '../../../domain/entities/api_error_type.dart';
 import '../../../domain/entities/ask/chat_message.dart';
+import '../../providers/ask_chat_state.dart';
 import '../../providers/ask_provider.dart';
+import 'ask_error_messages.dart';
 
 /// Minimal chat dialog for the AI Q&A feature.
 ///
 /// Deliberately bare-bones (per "make it work first"): a scrolling transcript,
 /// a text field, and a send button. No streaming, no threads, no tappable
 /// citation links yet — citations render as a plain "Sources" list.
-///
-/// TODO(i18n): move the hard-coded English strings into ARB (app_en.arb /
-/// app_si.arb) once the feature is past the stub stage.
 class AskChatDialog extends ConsumerStatefulWidget {
   const AskChatDialog({super.key});
 
@@ -55,6 +56,21 @@ class _AskChatDialogState extends ConsumerState<AskChatDialog> {
   Widget build(BuildContext context) {
     final state = ref.watch(askChatProvider);
     final colors = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
+
+    // When the model can't answer, retrying the same text won't help — restore
+    // the user's question to the input so they can edit and rephrase it (plan
+    // §4.4). Only fill an empty field, so we never clobber what they're typing.
+    ref.listen<AskChatState>(askChatProvider, (prev, next) {
+      final becameCannotAnswer = next.errorType == ApiErrorType.cannotAnswer &&
+          prev?.errorType != ApiErrorType.cannotAnswer;
+      if (becameCannotAnswer &&
+          _controller.text.isEmpty &&
+          next.messages.isNotEmpty &&
+          next.messages.last.isUser) {
+        _controller.text = next.messages.last.content;
+      }
+    });
 
     return Dialog(
       child: ConstrainedBox(
@@ -69,22 +85,22 @@ class _AskChatDialogState extends ConsumerState<AskChatDialog> {
                 children: [
                   Icon(Icons.auto_awesome, color: colors.primary, size: 20),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Ask the Canon',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                      l10n.askTitle,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 16),
                     ),
                   ),
                   if (state.messages.isNotEmpty)
                     TextButton(
                       onPressed: () =>
                           ref.read(askChatProvider.notifier).clear(),
-                      child: const Text('New chat'),
+                      child: Text(l10n.askNewChat),
                     ),
                   IconButton(
                     icon: const Icon(Icons.close),
-                    tooltip: 'Close',
+                    tooltip: l10n.close,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -111,15 +127,28 @@ class _AskChatDialogState extends ConsumerState<AskChatDialog> {
             ),
 
             // ── Error (if any) ──────────────────────────────────────
-            if (state.error != null)
+            // Message is chosen from the error KIND (offline vs quota vs timeout
+            // vs …), and a Retry button appears only for retriable kinds.
+            if (state.errorType != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    state.error!,
-                    style: TextStyle(color: colors.error, fontSize: 12),
-                  ),
+                padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        askErrorMessage(l10n, state.errorType!),
+                        style: TextStyle(color: colors.error, fontSize: 12),
+                      ),
+                    ),
+                    if (canRetryType(state.errorType!))
+                      TextButton(
+                        onPressed: state.isLoading
+                            ? null
+                            : () => ref.read(askChatProvider.notifier).retry(),
+                        child: Text(l10n.askRetry),
+                      ),
+                  ],
                 ),
               ),
 
@@ -138,9 +167,9 @@ class _AskChatDialogState extends ConsumerState<AskChatDialog> {
                       maxLines: 4,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _send(),
-                      decoration: const InputDecoration(
-                        hintText: 'Ask a question about the suttas…',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        hintText: l10n.askInputHint,
+                        border: const OutlineInputBorder(),
                         isDense: true,
                       ),
                     ),
@@ -150,7 +179,7 @@ class _AskChatDialogState extends ConsumerState<AskChatDialog> {
                   IconButton.filled(
                     onPressed: state.isLoading ? null : _send,
                     icon: const Icon(Icons.send),
-                    tooltip: 'Send',
+                    tooltip: l10n.askSend,
                   ),
                 ],
               ),
@@ -173,8 +202,7 @@ class _EmptyState extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Text(
-          'Ask anything about the Pali Canon.\n\n'
-          '(This is a stub — answers are canned until the backend is connected.)',
+          AppLocalizations.of(context).askEmptyState,
           textAlign: TextAlign.center,
           style: TextStyle(color: colors.onSurfaceVariant),
         ),
@@ -189,17 +217,17 @@ class _ThinkingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
       child: Row(
         children: [
-          SizedBox(
+          const SizedBox(
             width: 16,
             height: 16,
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
-          SizedBox(width: 12),
-          Text('Thinking…'),
+          const SizedBox(width: 12),
+          Text(AppLocalizations.of(context).askThinking),
         ],
       ),
     );
@@ -242,7 +270,7 @@ class _MessageBubble extends StatelessWidget {
               const Divider(height: 1),
               const SizedBox(height: 8),
               Text(
-                'Sources',
+                AppLocalizations.of(context).askSources,
                 style: textTheme.labelSmall
                     ?.copyWith(color: colors.onSurfaceVariant),
               ),

@@ -303,7 +303,7 @@ When local-DB or image errors need richer UI treatment, add `DbException` /
 - ✅ **`userMessage` prefix → DECIDED:** add a verbatim-message `Failure` variant
   (`Failure.apiFailure`, `userMessage` returns the message as-is). Settled in the
   ask plan (§4.7); reuse it here unchanged.
-- ✅ **`Failure` category enum → DECIDED:** one general `ApiErrorKind` enum on
+- ✅ **`Failure` category enum → DECIDED:** one general `ApiErrorType` enum on
   `apiFailure` (Stage 3 is effectively pulled forward by the ask pilot). Reuse it;
   do not add per-source variants.
 - **`ApiClient` home:** start in `lib/data/datasources/`; promote to

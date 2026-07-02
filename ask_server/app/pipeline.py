@@ -18,6 +18,7 @@ from functools import lru_cache
 
 from .config import Settings
 from .contracts import AskRequest, AskResponse, Citation, HistoryTurn
+from .errors import CANNOT_ANSWER_MSG, SERVER_ERROR_MSG, AskError
 from .lang import is_sinhala
 from .refs import REF_IN_PROSE, known_uid, ref_from_uid, uid_from_ref
 from .snippet import make_snippet, split_heading
@@ -77,11 +78,31 @@ def _rewrite(
         lines.extend(f"{turn.role}: {turn.content}" for turn in history)
         lines.append("")
     lines.append(f"Latest question: {question}")
+    prompt = "\n".join(lines)
 
-    resp = _client().models.generate_content(
-        model=cfg.rewrite_model, contents="\n".join(lines)
+    # Give the rewrite the same fallback ladder as generation (Finding #5): lead
+    # with the (optionally cheaper) rewrite model, then fall through to the
+    # generation rungs on a transient error. A throttled rewrite model must not
+    # fail the whole Sinhala request while generation would have recovered — and
+    # we never silently fall back to the raw Sinhala query (it retrieves poorly
+    # against an English corpus). Both an exhausted ladder AND an empty rewrite
+    # surface a clear error instead of degrading.
+    rewrite_ladder = (cfg.rewrite_model,) + tuple(
+        m for m in cfg.models if m != cfg.rewrite_model
     )
-    return (getattr(resp, "text", None) or question).strip()
+    resp = _call_with_ladder(
+        rewrite_ladder,
+        lambda model: _client().models.generate_content(model=model, contents=prompt),
+        label="rewrite",
+    )
+    rewritten = (getattr(resp, "text", None) or "").strip()
+    if not rewritten:
+        # The model returned no query text (a blank completion or a safety block
+        # on the rewrite prompt). Using the raw Sinhala query would retrieve
+        # poorly, so surface a clear retriable error rather than degrade quietly.
+        log.warning("ask: rewrite produced empty text; not falling back to raw query")
+        raise AskError(502, "server_error", SERVER_ERROR_MSG, retriable=True)
+    return rewritten
 
 
 def _search_queries(search_q: str) -> list[str]:
@@ -111,6 +132,34 @@ def _is_retryable(exc: Exception) -> bool:
     return any(s in text for s in ("RESOURCE_EXHAUSTED", "UNAVAILABLE", "429", "503"))
 
 
+def _call_with_ladder(models, make_call, label: str):
+    """Walk a model ladder, retrying the NEXT rung only on a transient error
+    (429 rate limit / 503 high demand). Any other error fails fast — a malformed
+    request won't fare better on a different model.
+
+    Shared by BOTH `_generate` and `_rewrite` (Finding #5): before this, the
+    rewrite call — which every Sinhala question hits first — had no fallback, so a
+    throttled rewrite model failed the whole request while generation would have
+    happily fallen back. Extracting the loop makes robustness symmetric; when all
+    rungs are exhausted it raises the last exception (classified upstream into a
+    rateLimited / serviceBusy envelope) rather than silently degrading.
+    """
+    last_exc: Exception | None = None
+    for i, model in enumerate(models):
+        try:
+            return make_call(model)
+        except Exception as exc:  # noqa: BLE001 — re-raised unless it's transient
+            is_last = i == len(models) - 1
+            if not _is_retryable(exc) or is_last:
+                raise
+            log.warning(
+                "ask: %s model %s unavailable (%s); falling back to %s",
+                label, model, getattr(exc, "code", "?"), models[i + 1],
+            )
+            last_exc = exc
+    raise last_exc  # pragma: no cover — the last rung always raises above
+
+
 def _generate(cfg: Settings, search_q: str, is_si: bool, basket: str | None):
     file_search: dict = {"file_search_store_names": [cfg.store]}
     if basket:
@@ -123,26 +172,15 @@ def _generate(cfg: Settings, search_q: str, is_si: bool, basket: str | None):
         "tools": [{"file_search": file_search}],
     }
 
-    # Walk the model ladder (cfg.models / config.DEFAULT_MODELS). Fall through to
-    # the next rung only on a transient server error (429 rate limit / 503 high
-    # demand) — any other error fails fast, since a malformed request won't fare
-    # better on a different model.
-    last_exc: Exception | None = None
-    for i, model in enumerate(cfg.models):
-        try:
-            return _client().models.generate_content(
-                model=model, contents=search_q, config=config
-            )
-        except Exception as exc:  # noqa: BLE001 — re-raised unless it's transient
-            is_last = i == len(cfg.models) - 1
-            if not _is_retryable(exc) or is_last:
-                raise
-            log.warning(
-                "ask: model %s unavailable (%s); falling back to %s",
-                model, getattr(exc, "code", "?"), cfg.models[i + 1],
-            )
-            last_exc = exc
-    raise last_exc  # pragma: no cover — the last rung always raises above
+    # Walk the generation ladder (cfg.models / config.DEFAULT_MODELS), falling
+    # through on transient errors only — see `_call_with_ladder`.
+    return _call_with_ladder(
+        cfg.models,
+        lambda model: _client().models.generate_content(
+            model=model, contents=search_q, config=config
+        ),
+        label="generate",
+    )
 
 
 def _deeplink_for(uid: str) -> str | None:
@@ -210,6 +248,12 @@ def answer(cfg: Settings, req: AskRequest) -> AskResponse:
     resp = _generate(cfg, _search_queries(search_q)[0], is_si, basket)
 
     text = getattr(resp, "text", "") or ""
+    if not text.strip():
+        # Blank generation or a safety block with no candidates — a 200 with an
+        # empty answer would surface as an empty chat bubble. Treat it as a
+        # non-200 "rephrase" error instead (plan §3.4: errors stay non-200).
+        raise AskError(422, "cannot_answer", CANNOT_ANSWER_MSG, retriable=False)
+
     return AskResponse(
         answer=text,
         lang="si" if is_si else "en",

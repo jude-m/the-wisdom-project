@@ -23,8 +23,14 @@ mixin _$AskChatState {
   /// client-side cost guardrail) and shows a "thinking…" row.
   bool get isLoading => throw _privateConstructorUsedError;
 
-  /// User-facing error from the last attempt, or null.
+  /// User-facing error message from the last attempt, or null. Kept as an
+  /// English fallback / for logging; the dialog prefers [errorType] and
+  /// re-localises by category (see ask_error_messages.dart).
   String? get error => throw _privateConstructorUsedError;
+
+  /// Category of the last error, or null. Drives the localised message and
+  /// whether the dialog offers a Retry (see [ApiErrorType]).
+  ApiErrorType? get errorType => throw _privateConstructorUsedError;
 
   /// Create a copy of AskChatState
   /// with the given fields replaced by the non-null parameter values.
@@ -39,7 +45,11 @@ abstract class $AskChatStateCopyWith<$Res> {
           AskChatState value, $Res Function(AskChatState) then) =
       _$AskChatStateCopyWithImpl<$Res, AskChatState>;
   @useResult
-  $Res call({List<ChatMessage> messages, bool isLoading, String? error});
+  $Res call(
+      {List<ChatMessage> messages,
+      bool isLoading,
+      String? error,
+      ApiErrorType? errorType});
 }
 
 /// @nodoc
@@ -60,6 +70,7 @@ class _$AskChatStateCopyWithImpl<$Res, $Val extends AskChatState>
     Object? messages = null,
     Object? isLoading = null,
     Object? error = freezed,
+    Object? errorType = freezed,
   }) {
     return _then(_value.copyWith(
       messages: null == messages
@@ -74,6 +85,10 @@ class _$AskChatStateCopyWithImpl<$Res, $Val extends AskChatState>
           ? _value.error
           : error // ignore: cast_nullable_to_non_nullable
               as String?,
+      errorType: freezed == errorType
+          ? _value.errorType
+          : errorType // ignore: cast_nullable_to_non_nullable
+              as ApiErrorType?,
     ) as $Val);
   }
 }
@@ -86,7 +101,11 @@ abstract class _$$AskChatStateImplCopyWith<$Res>
       __$$AskChatStateImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({List<ChatMessage> messages, bool isLoading, String? error});
+  $Res call(
+      {List<ChatMessage> messages,
+      bool isLoading,
+      String? error,
+      ApiErrorType? errorType});
 }
 
 /// @nodoc
@@ -105,6 +124,7 @@ class __$$AskChatStateImplCopyWithImpl<$Res>
     Object? messages = null,
     Object? isLoading = null,
     Object? error = freezed,
+    Object? errorType = freezed,
   }) {
     return _then(_$AskChatStateImpl(
       messages: null == messages
@@ -119,6 +139,10 @@ class __$$AskChatStateImplCopyWithImpl<$Res>
           ? _value.error
           : error // ignore: cast_nullable_to_non_nullable
               as String?,
+      errorType: freezed == errorType
+          ? _value.errorType
+          : errorType // ignore: cast_nullable_to_non_nullable
+              as ApiErrorType?,
     ));
   }
 }
@@ -129,7 +153,8 @@ class _$AskChatStateImpl implements _AskChatState {
   const _$AskChatStateImpl(
       {final List<ChatMessage> messages = const [],
       this.isLoading = false,
-      this.error})
+      this.error,
+      this.errorType})
       : _messages = messages;
 
   /// Full transcript, oldest first. Assistant turns carry their citations.
@@ -150,13 +175,20 @@ class _$AskChatStateImpl implements _AskChatState {
   @JsonKey()
   final bool isLoading;
 
-  /// User-facing error from the last attempt, or null.
+  /// User-facing error message from the last attempt, or null. Kept as an
+  /// English fallback / for logging; the dialog prefers [errorType] and
+  /// re-localises by category (see ask_error_messages.dart).
   @override
   final String? error;
 
+  /// Category of the last error, or null. Drives the localised message and
+  /// whether the dialog offers a Retry (see [ApiErrorType]).
+  @override
+  final ApiErrorType? errorType;
+
   @override
   String toString() {
-    return 'AskChatState(messages: $messages, isLoading: $isLoading, error: $error)';
+    return 'AskChatState(messages: $messages, isLoading: $isLoading, error: $error, errorType: $errorType)';
   }
 
   @override
@@ -167,12 +199,18 @@ class _$AskChatStateImpl implements _AskChatState {
             const DeepCollectionEquality().equals(other._messages, _messages) &&
             (identical(other.isLoading, isLoading) ||
                 other.isLoading == isLoading) &&
-            (identical(other.error, error) || other.error == error));
+            (identical(other.error, error) || other.error == error) &&
+            (identical(other.errorType, errorType) ||
+                other.errorType == errorType));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType,
-      const DeepCollectionEquality().hash(_messages), isLoading, error);
+  int get hashCode => Object.hash(
+      runtimeType,
+      const DeepCollectionEquality().hash(_messages),
+      isLoading,
+      error,
+      errorType);
 
   /// Create a copy of AskChatState
   /// with the given fields replaced by the non-null parameter values.
@@ -187,7 +225,8 @@ abstract class _AskChatState implements AskChatState {
   const factory _AskChatState(
       {final List<ChatMessage> messages,
       final bool isLoading,
-      final String? error}) = _$AskChatStateImpl;
+      final String? error,
+      final ApiErrorType? errorType}) = _$AskChatStateImpl;
 
   /// Full transcript, oldest first. Assistant turns carry their citations.
   @override
@@ -198,9 +237,16 @@ abstract class _AskChatState implements AskChatState {
   @override
   bool get isLoading;
 
-  /// User-facing error from the last attempt, or null.
+  /// User-facing error message from the last attempt, or null. Kept as an
+  /// English fallback / for logging; the dialog prefers [errorType] and
+  /// re-localises by category (see ask_error_messages.dart).
   @override
   String? get error;
+
+  /// Category of the last error, or null. Drives the localised message and
+  /// whether the dialog offers a Retry (see [ApiErrorType]).
+  @override
+  ApiErrorType? get errorType;
 
   /// Create a copy of AskChatState
   /// with the given fields replaced by the non-null parameter values.

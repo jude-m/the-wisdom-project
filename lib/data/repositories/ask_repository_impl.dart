@@ -8,6 +8,7 @@ import '../../domain/entities/ask/chat_message.dart';
 import '../../domain/entities/failure.dart';
 import '../../domain/repositories/ask_repository.dart';
 import '../datasources/ask_datasource.dart';
+import 'ask_error_mapper.dart';
 
 /// Wraps an [AskDataSource], turning thrown errors into [Failure]s so the
 /// presentation layer only ever deals with `Either<Failure, AskAnswer>`.
@@ -30,18 +31,15 @@ class AskRepositoryImpl implements AskRepository {
       );
       return Right(answer);
     } catch (e, stack) {
-      // Network errors (offline / backend down) and backend errors both land
-      // here. We avoid importing dart:io (SocketException) so this stays
-      // web-safe; the message reads sensibly for either case.
+      // Typed transport errors ([ApiException]) and any unexpected error both
+      // land here. `mapAskError` turns them into a `Failure.apiFailure` whose
+      // `kind` lets the UI show the right message + affordance (offline vs
+      // quota vs timeout vs …), instead of one flattened sentence.
       //
-      // The user-facing copy stays generic, but log the real cause — for a
-      // backend 5xx the datasource embeds the response body (which carries the
-      // server's "ask backend error: …" detail), so this line shows exactly why.
+      // The real cause is logged here; the user-facing copy is chosen upstream
+      // from the kind. (The `Failure` still carries the original error for logs.)
       developer.log('ask failed', name: 'ask', error: e, stackTrace: stack);
-      return Left(Failure.dataLoadFailure(
-        message: 'Could not get an answer right now. Please try again.',
-        error: e,
-      ));
+      return Left(mapAskError(e));
     }
   }
 }

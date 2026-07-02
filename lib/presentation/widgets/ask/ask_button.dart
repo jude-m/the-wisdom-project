@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/l10n/app_localizations.dart';
 import 'ask_chat_dialog.dart';
 
 /// AppBar action that opens the AI Q&A chat dialog.
-///
-/// TODO(i18n): localize the tooltip via ARB once the feature graduates from a
-/// stub (kept hard-coded for now per "make it work first").
 class AskButton extends StatelessWidget {
   const AskButton({super.key});
 
@@ -13,7 +11,7 @@ class AskButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       icon: const Icon(Icons.auto_awesome_outlined),
-      tooltip: 'Ask the Canon',
+      tooltip: AppLocalizations.of(context).askTitle,
       onPressed: () => AskChatDialog.show(context),
     );
   }
