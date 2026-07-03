@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/datasources/api_client.dart';
 import '../../data/datasources/research_datasource.dart';
 import '../../data/datasources/research_remote_datasource.dart';
-import '../../data/datasources/research_stub_datasource.dart';
 import '../../data/repositories/research_repository_impl.dart';
 import '../../domain/entities/research/chat_message.dart';
 import '../../domain/repositories/research_repository.dart';
@@ -32,23 +31,18 @@ final researchAppTokenProvider = Provider<String?>((ref) {
   return token.isEmpty ? null : token;
 });
 
-/// The Q&A data source.
+/// The Q&A data source — always the real HTTP datasource over an [ApiClient]
+/// (which owns the timeout, the app-token header, and status → typed
+/// exceptions).
 ///
-/// - Base URL configured → the real HTTP datasource over an [ApiClient] (which
-///   owns the timeout, the app-token header, and status → typed exceptions).
-/// - Base URL blank (`--dart-define=RESEARCH_BASE_URL=`) → the canned stub, so the
-///   dialog still works with no backend running (capability gate, plan
-///   cross-cutting #1).
-///
-/// Swapping these is the whole payoff of building stub-first: nothing above this
-/// provider (repository, notifier, UI) changes.
+/// There is no offline/stub fallback: if the backend is unset or unreachable,
+/// the call fails and `mapResearchError` turns it into a clean, localised
+/// "can't reach the answer service" message with a Retry (see
+/// research_error_messages.dart). A blank base URL therefore just reads as the
+/// service being down — the honest signal, not a fake answer.
 final researchDataSourceProvider = Provider<ResearchDataSource>((ref) {
-  final baseUrl = ref.watch(researchBaseUrlProvider);
-  if (baseUrl.isEmpty) {
-    return ResearchStubDataSource();
-  }
   final client = ApiClient(
-    baseUrl: baseUrl,
+    baseUrl: ref.watch(researchBaseUrlProvider),
     appToken: ref.watch(researchAppTokenProvider),
   );
   return ResearchRemoteDataSourceImpl(client: client);

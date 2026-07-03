@@ -4,9 +4,10 @@ import '../../domain/entities/research/chat_message.dart';
 
 /// Data source for the `/research` backend.
 ///
-/// Exactly one implementation type is active per run — the stub (dev) or the
-/// remote HTTP client (real). There is deliberately NO local implementation:
-/// the feature is inherently online (see the integration plan §1).
+/// One implementation: the remote HTTP client. There is deliberately NO local
+/// (offline) implementation — the feature is inherently online (see the
+/// integration plan §1); when the backend is unreachable the call surfaces a
+/// clean error rather than a canned answer.
 abstract class ResearchDataSource {
   Future<ResearchAnswer> research(
     String question, {
