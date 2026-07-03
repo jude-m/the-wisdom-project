@@ -506,78 +506,78 @@
     "description": "Tooltip on the close (×) icon of the update banner"
   },
 
-  "askTitle": "Ask the Canon",
-  "@askTitle": {
+  "researchTitle": "Research the Canon",
+  "@researchTitle": {
     "description": "Title of the AI Q&A chat dialog and tooltip on the button that opens it"
   },
 
-  "askNewChat": "New chat",
-  "@askNewChat": {
+  "researchNewChat": "New chat",
+  "@researchNewChat": {
     "description": "Button that clears the Q&A transcript to start a fresh conversation"
   },
 
-  "askEmptyState": "Ask anything about the Pali Canon.",
-  "@askEmptyState": {
+  "researchEmptyState": "Ask anything about the Pali Canon.",
+  "@researchEmptyState": {
     "description": "Placeholder shown in the Q&A dialog before the first question is asked"
   },
 
-  "askInputHint": "Ask a question about the suttas…",
-  "@askInputHint": {
+  "researchInputHint": "Ask a question about the suttas…",
+  "@researchInputHint": {
     "description": "Hint text inside the Q&A question input field"
   },
 
-  "askSend": "Send",
-  "@askSend": {
+  "researchSend": "Send",
+  "@researchSend": {
     "description": "Tooltip on the send button in the Q&A dialog"
   },
 
-  "askThinking": "Thinking…",
-  "@askThinking": {
+  "researchThinking": "Thinking…",
+  "@researchThinking": {
     "description": "Loading row shown in the Q&A dialog while waiting for an answer"
   },
 
-  "askSources": "Sources",
-  "@askSources": {
+  "researchSources": "Sources",
+  "@researchSources": {
     "description": "Header above the list of source citations under an answer"
   },
 
-  "askRetry": "Retry",
-  "@askRetry": {
+  "researchRetry": "Retry",
+  "@researchRetry": {
     "description": "Button to re-send the last question after a retriable Q&A error"
   },
 
-  "askErrorOffline": "Can't reach the answer service. Check your connection and try again.",
-  "@askErrorOffline": {
+  "researchErrorOffline": "Can't reach the answer service. Check your connection and try again.",
+  "@researchErrorOffline": {
     "description": "Q&A error when the answer service can't be reached (offline / unreachable)"
   },
 
-  "askErrorTimeout": "That took too long — the model may be busy. Please try again.",
-  "@askErrorTimeout": {
+  "researchErrorTimeout": "That took too long — the model may be busy. Please try again.",
+  "@researchErrorTimeout": {
     "description": "Q&A error when the request exceeded the client timeout or the gateway timed out"
   },
 
-  "askErrorRateLimited": "You've reached the question limit for now. Please try again later.",
-  "@askErrorRateLimited": {
+  "researchErrorRateLimited": "You've reached the question limit for now. Please try again later.",
+  "@researchErrorRateLimited": {
     "description": "Q&A error when the rate limit / quota is exhausted; retry later"
   },
 
-  "askErrorServiceBusy": "The answer service is busy or starting up. Please try again shortly.",
-  "@askErrorServiceBusy": {
+  "researchErrorServiceBusy": "The answer service is busy or starting up. Please try again shortly.",
+  "@researchErrorServiceBusy": {
     "description": "Q&A error when the service is unavailable, cold-starting, or upstream is overloaded"
   },
 
-  "askErrorNotAuthorised": "This version of the app can't use the answer service.",
-  "@askErrorNotAuthorised": {
+  "researchErrorNotAuthorised": "This version of the app can't use the answer service.",
+  "@researchErrorNotAuthorised": {
     "description": "Q&A error when the app is not authorised (401/403) — a build issue, not user-fixable, so no retry"
   },
 
-  "askErrorCannotAnswer": "I couldn't answer that. Try rephrasing your question.",
-  "@askErrorCannotAnswer": {
+  "researchErrorCannotAnswer": "I couldn't answer that. Try rephrasing your question.",
+  "@researchErrorCannotAnswer": {
     "description": "Q&A error when the model can't answer (safety block / empty answer); the user should rephrase"
   },
 
-  "askErrorServerError": "Something went wrong. Please try again.",
-  "@askErrorServerError": {
+  "researchErrorServerError": "Something went wrong. Please try again.",
+  "@researchErrorServerError": {
     "description": "Generic Q&A error for a server fault or a malformed response; retry"
   }
 }

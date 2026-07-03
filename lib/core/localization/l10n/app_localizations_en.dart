@@ -310,53 +310,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateBannerDismissTooltip => 'Dismiss';
 
   @override
-  String get askTitle => 'Ask the Canon';
+  String get researchTitle => 'Research the Canon';
 
   @override
-  String get askNewChat => 'New chat';
+  String get researchNewChat => 'New chat';
 
   @override
-  String get askEmptyState => 'Ask anything about the Pali Canon.';
+  String get researchEmptyState => 'Ask anything about the Pali Canon.';
 
   @override
-  String get askInputHint => 'Ask a question about the suttas…';
+  String get researchInputHint => 'Ask a question about the suttas…';
 
   @override
-  String get askSend => 'Send';
+  String get researchSend => 'Send';
 
   @override
-  String get askThinking => 'Thinking…';
+  String get researchThinking => 'Thinking…';
 
   @override
-  String get askSources => 'Sources';
+  String get researchSources => 'Sources';
 
   @override
-  String get askRetry => 'Retry';
+  String get researchRetry => 'Retry';
 
   @override
-  String get askErrorOffline =>
+  String get researchErrorOffline =>
       'Can\'t reach the answer service. Check your connection and try again.';
 
   @override
-  String get askErrorTimeout =>
+  String get researchErrorTimeout =>
       'That took too long — the model may be busy. Please try again.';
 
   @override
-  String get askErrorRateLimited =>
+  String get researchErrorRateLimited =>
       'You\'ve reached the question limit for now. Please try again later.';
 
   @override
-  String get askErrorServiceBusy =>
+  String get researchErrorServiceBusy =>
       'The answer service is busy or starting up. Please try again shortly.';
 
   @override
-  String get askErrorNotAuthorised =>
+  String get researchErrorNotAuthorised =>
       'This version of the app can\'t use the answer service.';
 
   @override
-  String get askErrorCannotAnswer =>
+  String get researchErrorCannotAnswer =>
       'I couldn\'t answer that. Try rephrasing your question.';
 
   @override
-  String get askErrorServerError => 'Something went wrong. Please try again.';
+  String get researchErrorServerError =>
+      'Something went wrong. Please try again.';
 }

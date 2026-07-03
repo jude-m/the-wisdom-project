@@ -11,7 +11,7 @@ import 'package:http/http.dart' as http;
 /// to the domain `Failure` — status codes never leak above the repository.
 ///
 /// Framework-free so it can later move to `wisdom_shared`. Introduced for the
-/// ask feature (the error-handling gold-standard pilot); the other remote
+/// research feature (the error-handling gold-standard pilot); the other remote
 /// datasources adopt it in a follow-up refactor — see
 /// `docs/todo/refactor/generic-server-call-and-error-handling-standard.md`.
 class ApiClient {

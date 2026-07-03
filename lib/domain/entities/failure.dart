@@ -42,7 +42,7 @@ class Failure with _$Failure {
   /// Carries a machine-readable [type] that drives BOTH the user message and the
   /// UI affordance (retry vs rephrase vs none), and returns its [message]
   /// **verbatim** from [userMessage] — no `"Failed to load data: "` prefix,
-  /// because these messages are already user-ready. General, not ask-specific.
+  /// because these messages are already user-ready. General, not research-specific.
   const factory Failure.apiFailure({
     required String message,
     required ApiErrorType type,
