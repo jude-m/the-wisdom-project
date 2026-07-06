@@ -162,6 +162,18 @@ START: "I don't want to run servers"
   Start at the default, move branches cheaply if needed.
 - **File Search ≠ content store.** It answers questions over its own corpus; it
   does not deliver BJT documents and is not part of this tree.
+- **RAG retrieval store = Gemini File Search — decided 2026-07-03.** Compared vs
+  **pgvector**, **Pinecone**, and **embedded indexes**. Wins on the project's "no
+  recurring cost / no ops / no sponsors" constraints: indexing the whole
+  ~3M-token corpus is **~$1 one-time**, then **$0 recurring** (storage +
+  query-embedding free; you pay only Gemini *generation* tokens, which are
+  unavoidable on every option). **Rejected:** *Pinecone* (free tier funnels to a
+  **$50/mo** floor and pauses idle indexes) and *pgvector / managed Postgres*
+  (rented free tier **plus** you own the retrieval pipeline and DB ops).
+  **Named fallback if Google ever drops free storage:** an embedded
+  `sqlite-vec` / LanceDB index bundled in the container or on R2 — same
+  $0-recurring / zero-ops profile, rebuildable from `bilara-data` (git = source
+  of truth) for ~$1. No true lock-in either way.
 
 ---
 
