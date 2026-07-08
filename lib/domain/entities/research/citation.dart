@@ -28,8 +28,10 @@ class Citation with _$Citation {
     /// verification preview the deep link would open).
     String? snippet,
 
-    /// In-app deep link. Null until the SuttaCentral→BJT resolver lands
-    /// (see the resolver plan, Part D). Not rendered as a tappable link in v1.
+    /// Wire-level deep link — the server keeps this null (decided 2026-07-06):
+    /// the app resolves [uid] → BJT nodeKey client-side via the shared
+    /// resolver (see `docs/todo/deep-linking-and-shareable-urls.md`). Kept in
+    /// the contract for future non-app consumers of `/research`.
     String? deeplink,
   }) = _Citation;
 

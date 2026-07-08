@@ -331,6 +331,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get researchSources => 'Sources';
 
   @override
+  String get researchCitedSource => 'Cited source';
+
+  @override
+  String get researchOpenInReader => 'Open in reader';
+
+  @override
+  String get researchCitationNotLinked =>
+      'This source isn\'t linked to this edition yet.';
+
+  @override
+  String get researchCopyLink => 'Copy link';
+
+  @override
+  String get researchLinkCopied => 'Link copied';
+
+  @override
   String get researchRetry => 'Retry';
 
   @override

@@ -434,18 +434,24 @@ final openTabFromSearchResultProvider =
 
 /// Opens a new tab for the given tree node key.
 ///
-/// Centralizes the tab-from-node creation used by the tree navigator and
-/// breadcrumb widget. Callers pass [isPortraitMode] (derived from
-/// BuildContext) since providers can't access context.
+/// Centralizes the tab-from-node creation used by the tree navigator,
+/// breadcrumb widget and deep links. Callers pass [isPortraitMode] (derived
+/// from BuildContext) since providers can't access context.
+///
+/// [pageIndex]/[entryStart] optionally override the node's own start
+/// coordinates — used by deep links carrying an entry-level position
+/// (`?e=<page>.<entry>`). Ignored for non-readable (container) nodes.
 ///
 /// Returns the new tab index, or -1 if the node was not found.
 ///
 /// **Side effects NOT included** (caller-specific):
 /// - Tree navigator: calls `selectNodeProvider` before, closes nav on mobile after
 /// - Breadcrumb: calls `syncNavigatorToActiveTabProvider` after
-final openTabFromNodeKeyProvider =
-    Provider<int Function(String nodeKey, {bool isPortraitMode})>((ref) {
-  return (String nodeKey, {bool isPortraitMode = false}) {
+final openTabFromNodeKeyProvider = Provider<
+    int Function(String nodeKey,
+        {bool isPortraitMode, int? pageIndex, int? entryStart})>((ref) {
+  return (String nodeKey,
+      {bool isPortraitMode = false, int? pageIndex, int? entryStart}) {
     final node = ref.read(nodeByKeyProvider(nodeKey));
     if (node == null) return -1;
 
@@ -458,8 +464,9 @@ final openTabFromNodeKeyProvider =
       paliName: node.paliName,
       sinhalaName: node.sinhalaName,
       contentFileId: node.isReadableContent ? node.contentFileId : null,
-      pageIndex: node.isReadableContent ? node.entryPageIndex : 0,
-      entryStart: node.isReadableContent ? node.entryIndexInPage : 0,
+      pageIndex: node.isReadableContent ? (pageIndex ?? node.entryPageIndex) : 0,
+      entryStart:
+          node.isReadableContent ? (entryStart ?? node.entryIndexInPage) : 0,
       layout: layout,
     );
 

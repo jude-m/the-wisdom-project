@@ -541,6 +541,31 @@
     "description": "Header above the list of source citations under an answer"
   },
 
+  "researchCitedSource": "Cited source",
+  "@researchCitedSource": {
+    "description": "Small label at the top of the bottom sheet showing one citation's details"
+  },
+
+  "researchOpenInReader": "Open in reader",
+  "@researchOpenInReader": {
+    "description": "Button in the citation sheet that opens the cited text in a reader tab"
+  },
+
+  "researchCitationNotLinked": "This source isn't linked to this edition yet.",
+  "@researchCitationNotLinked": {
+    "description": "Shown in the citation sheet when the cited source has no concordance entry to open in the reader"
+  },
+
+  "researchCopyLink": "Copy link",
+  "@researchCopyLink": {
+    "description": "Button in the citation sheet that copies the shareable URL for the cited text"
+  },
+
+  "researchLinkCopied": "Link copied",
+  "@researchLinkCopied": {
+    "description": "Copy-link button label swapped in after copying succeeds (shown in place of 'Copy link'; not a snackbar — one would be hidden under the modal sheet)"
+  },
+
   "researchRetry": "Retry",
   "@researchRetry": {
     "description": "Button to re-send the last question after a retriable Q&A error"

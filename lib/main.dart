@@ -17,6 +17,7 @@ import 'presentation/providers/tab_provider.dart'
     show activeTabIndexPersistenceProvider;
 import 'presentation/providers/navigator_visibility_provider.dart'
     show navigatorVisiblePersistenceProvider;
+import 'presentation/widgets/app/deep_link_listener.dart';
 import 'presentation/widgets/app/overlay_stack_sync.dart';
 import 'presentation/widgets/app/update_available_banner.dart';
 import 'core/theme/theme_notifier.dart';
@@ -213,15 +214,20 @@ class _MyAppState extends ConsumerState<MyApp> {
       // OverlayStackSync sits inside it and feeds the LIFO overlay stack that
       // the ESC handler pops from — keeps overlay visibility providers as the
       // single source of truth without each overlay knowing about keyboard.
+      // DeepLinkListener wraps everything: it receives incoming links
+      // (sammaditthi:// scheme, future Universal/App Links, and the web
+      // start URL) and opens the linked sutta in a reader tab.
       builder: (context, child) {
-        return AppShortcuts(
-          child: OverlayStackSync(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                child ?? const SizedBox.shrink(),
-                const Positioned.fill(child: UpdateAvailableBanner()),
-              ],
+        return DeepLinkListener(
+          child: AppShortcuts(
+            child: OverlayStackSync(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  child ?? const SizedBox.shrink(),
+                  const Positioned.fill(child: UpdateAvailableBanner()),
+                ],
+              ),
             ),
           ),
         );

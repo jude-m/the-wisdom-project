@@ -332,6 +332,22 @@ class AppLocalizationsSi extends AppLocalizations {
   String get researchSources => 'මූලාශ්‍ර';
 
   @override
+  String get researchCitedSource => 'උපුටා දැක්වූ මූලාශ්‍රය';
+
+  @override
+  String get researchOpenInReader => 'කියවනයේ විවෘත කරන්න';
+
+  @override
+  String get researchCitationNotLinked =>
+      'මෙම මූලාශ්‍රය තවම මෙම සංස්කරණයට සම්බන්ධ කර නොමැත.';
+
+  @override
+  String get researchCopyLink => 'සබැඳිය පිටපත් කරන්න';
+
+  @override
+  String get researchLinkCopied => 'සබැඳිය පිටපත් විය';
+
+  @override
   String get researchRetry => 'නැවත උත්සාහ කරන්න';
 
   @override

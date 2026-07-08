@@ -160,19 +160,29 @@ boundary is a bundling seam.)
 
 ---
 
-## 5. Verified seed entries (shipping in Step 4 now)
+## 5. Verified seed entries
 
-Hand-verified by **leaf-title match** against SC's known sutta names. This is the
-entire `assets/data/sc-to-bjt.json` seed for now — same shape the full build tool
-will emit, just small:
+**Grown to all of SN 15 (20 entries) on 2026-07-06** for the RAG-citation pilot
+(Part D of the plan doc) — hand-verified by **leaf-title match** against SC's
+known sutta names. Positions align 1:1 (Tiṇakaṭṭha-vagga `sn-2-3-1-{1..10}` =
+`sn15.1–10`, Duggata-vagga `sn-2-3-2-{1..10}` = `sn15.11–20`). 18/20 titles
+match exactly; **two are known alternate-title pairs** (position + subject
+confirmed, not contradictions):
 
-| SC uid | BJT nodeKey | BJT leaf title | SC sutta |
-|---|---|---|---|
-| `sn15.1` | `sn-2-3-1-1` | තිණකට්ඨසුත්තං | Tiṇakaṭṭha |
-| `sn15.2` | `sn-2-3-1-2` | පඨවීසුත්තං | Pathavī |
-| `sn15.3` | `sn-2-3-1-3` | අස්සුසුත්තං | Assu ("stream of tears") — matches the `ask_server` stub citation |
+| SC uid | BJT nodeKey | BJT leaf title | SC sutta | Note |
+|---|---|---|---|---|
+| `sn15.1` | `sn-2-3-1-1` | තිණකට්ඨසුත්තං | Tiṇakaṭṭha | exact |
+| `sn15.3` | `sn-2-3-1-3` | අස්සුසුත්තං | Assu ("stream of tears") | exact — the `ask_server` stub citation |
+| `sn15.4` | `sn-2-3-1-4` | **මාතුථඤ්ඤසුත්තං** | **Khīra** | alternate titles: both = "mother's milk" sutta |
+| `sn15.10` | `sn-2-3-1-10` | **එකපුග්ගලසුත්තං** | **Puggala** | alternate titles: "one person" sutta |
+| … | … | *(remaining 16 exact-match rows in `assets/data/sc-to-bjt.json`)* | | |
 
-Everything else (rest of SN 15, other saṁyuttas, DN/MN/KN, Vinaya `pli-tv-*`) is
+**Lesson for the build tool:** even inside one clean saṁyutta, exact-title
+matching yields 18/20 — the confirm step needs an *alternate-title tolerance*
+(or a small manual-override list) so near-misses like Khīra/Mātuthañña are
+flagged for review rather than silently dropped.
+
+Everything else (other saṁyuttas, DN/MN/KN, Vinaya `pli-tv-*`) is
 **deferred to the build tool**. The resolver code does not care how large the map
 is, so the seed grows by swapping the JSON — no code change.
 

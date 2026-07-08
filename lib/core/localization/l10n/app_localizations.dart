@@ -722,6 +722,36 @@ abstract class AppLocalizations {
   /// **'Sources'**
   String get researchSources;
 
+  /// Small label at the top of the bottom sheet showing one citation's details
+  ///
+  /// In en, this message translates to:
+  /// **'Cited source'**
+  String get researchCitedSource;
+
+  /// Button in the citation sheet that opens the cited text in a reader tab
+  ///
+  /// In en, this message translates to:
+  /// **'Open in reader'**
+  String get researchOpenInReader;
+
+  /// Shown in the citation sheet when the cited source has no concordance entry to open in the reader
+  ///
+  /// In en, this message translates to:
+  /// **'This source isn\'t linked to this edition yet.'**
+  String get researchCitationNotLinked;
+
+  /// Button in the citation sheet that copies the shareable URL for the cited text
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link'**
+  String get researchCopyLink;
+
+  /// Copy-link button label swapped in after copying succeeds (shown in place of 'Copy link'; not a snackbar — one would be hidden under the modal sheet)
+  ///
+  /// In en, this message translates to:
+  /// **'Link copied'**
+  String get researchLinkCopied;
+
   /// Button to re-send the last question after a retriable Q&A error
   ///
   /// In en, this message translates to:

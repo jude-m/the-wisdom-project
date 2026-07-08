@@ -186,13 +186,19 @@ The Flutter app binds only to this; keep it stable across retrieval-layer change
       "title":    "Linked Discourses Chapter One Tears", // heading minus the number; shown bold per source, null if none
       "kind":     "canon",                  // "canon" now; "note" reserved for Sujato's notes (§5.2)
       "snippet":  "English source span used to ground this point",
-      "deeplink": "app://sutta/sn15.3"     // scheme TBD (§14)
+      "deeplink": null                     // DECIDED 2026-07-06: stays null; app resolves uid client-side
     }
   ]
 }
 ```
 
-`deeplink` comes from the single pluggable `deeplinkFor(uid)`; changing the scheme must not change the contract shape. **Cheap insurance:** include `kind` from day one (always `"canon"` in the prototype). It costs nothing now and means the app is already structured to render a second source type when notes are added (§5.2) — no contract change, no app release.
+**Deep-link decision (2026-07-06):** the server sends `deeplink: null` and the
+**app resolves `uid` client-side** (`uid → nodeKeyForUid() → /tipitaka/<nodeKey>`)
+via the shared Dart resolver it already loads for search-by-reference — no
+Python duplicate of the concordance. The universal-link scheme itself is settled
+in [`deep-linking-and-shareable-urls.md`](./deep-linking-and-shareable-urls.md).
+The field stays in the contract so a server-side URL (for non-app consumers of
+`/research`) can be added later with no contract change. **Cheap insurance:** include `kind` from day one (always `"canon"` in the prototype). It costs nothing now and means the app is already structured to render a second source type when notes are added (§5.2) — no contract change, no app release.
 
 ---
 
@@ -362,7 +368,12 @@ Outcomes: **pass** → ship. **Fail on recall** → swap the retrieval layer for
 - **Retrieval-breadth policy (§5.9b):** the locator/thematic threshold, top-k per class, fan-out budget. Tune against §12.
 - **Backend framework / host (§5.7):** FastAPI on Cloud Run or a Cloud Function — implementer's call.
 - **Model versions:** pick current Flash-class + rewrite/translation models at build time.
-- **Deep-link scheme (§5.2, §5.5):** URI scheme TBD; must route both uid families; sutta/section-level for v1, segment-level v2.
+- **Deep-link scheme (§5.2, §5.5):** ~~TBD~~ **DECIDED 2026-07-06** — universal
+  `https://<host>/tipitaka/<nodeKey>` links (see
+  [`deep-linking-and-shareable-urls.md`](./deep-linking-and-shareable-urls.md));
+  the app resolves `uid → nodeKey` client-side, server `deeplink` stays null.
+  Both uid families route once the concordance covers them; sutta/section-level
+  for v1, segment-level v2.
 - **History window (post-prototype, §5.8):** how many turns the client attaches once follow-ups are on.
 - **Glossary contents (§5.3):** which locked Sinhala renderings go in the system prompt.
 - **Snippet language in Sinhala answers (§5.5):** English source span (recommended) vs translated preview.

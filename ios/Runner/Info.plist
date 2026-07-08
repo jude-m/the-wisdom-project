@@ -45,5 +45,23 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- sammaditthi:// custom URL scheme — dev/QA deep-link side door
+	     (shared links are https via Universal Links once the domain is live;
+	     see docs/todo/deep-linking-and-shareable-urls.md). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>lk.sammaditthi.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>sammaditthi</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Deep links are handled by the app_links plugin (DeepLinkListener);
+	     disable Flutter's built-in deep-link navigation so it never races it. -->
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 </dict>
 </plist>

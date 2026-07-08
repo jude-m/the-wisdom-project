@@ -2,9 +2,12 @@
 
 > **Status:** Steps 1–5 **BUILT**, backend now **LIVE end-to-end** (2026-06-27) — Q&A stub vertical → Python
 > `/research` backend → remote wiring → resolver core → search-by-reference; the last
-> two on a **3-entry verified seed** (`sn15.1–3`). **Deferred:** the full
-> concordance **build tool** (`tools/suttacentral_map/`) that grows the seed to
-> all suttas, and **Part D** RAG deep-links. Per-step state is in the Build-order
+> two on a **3-entry verified seed** (`sn15.1–3`). **Part D (RAG deep-links) in
+> progress since 2026-07-06** under the rewritten
+> [`deep-linking-and-shareable-urls.md`](./deep-linking-and-shareable-urls.md)
+> plan (seed growing to all of SN 15). **Deferred:** the full concordance
+> **build tool** (`tools/suttacentral_map/`) that grows the seed to
+> all suttas. Per-step state is in the Build-order
 > section; concordance evidence in
 > [`suttacentral-bjt-concordance-findings.md`](./suttacentral-bjt-concordance-findings.md).
 > **Captured:** 2026-06-27.
@@ -30,8 +33,8 @@ Three deliverables that share **one new core component**:
    exists. *"Make it work first."*
 2. **SuttaCentral ↔ BJT reference resolver** — the **shared core**. A pure-Dart
    resolver (in `wisdom_shared`) + a build-time concordance asset that maps a
-   SuttaCentral uid (`sn15.3`) to our BJT tree node (`sn-2-4-3`). Sibling of the
-   existing `tools/mahamevnawa_map/`.
+   SuttaCentral uid (`sn15.3`) to our BJT tree node (`sn-2-3-1-3`). Sibling of
+   the existing `tools/mahamevnawa_map/`.
 3. **Two consumers of the resolver:**
    - **Search by canonical reference** *(new, independently valuable)* — type
      `SN 15.3` in the search box → jump straight to the sutta. Doesn't work today.
@@ -52,7 +55,7 @@ resolver then unlocks reference-search and deep-links, in that order.
                   ▼                                               ▼
       ┌───────────────────────┐                     ┌──────────────────────────┐
       │ Search by reference   │ (Part C, new)       │ RAG citation deep-links  │ (Part D, next phase)
-      │ "SN 15.3" → open sutta│                     │ tap citation → /sutta/…  │
+      │ "SN 15.3" → open sutta│                     │ tap citation→ /tipitaka/…│
       └───────────────────────┘                     └──────────────────────────┘
 
       ┌──────────────────────────────────────────────────────────────────────┐
@@ -288,11 +291,14 @@ contract already supports adding all three later with no entity change.
 A SuttaCentral uid is **flat**: `sn15.3` = saṁyutta 15 (Anamatagga), sutta 3,
 where saṁyuttas are numbered 1–56 continuously. Our BJT tree is **nested**:
 `assets/data/file-map.json` keys SN as `sn-1 … sn-5` — the **five vaggas**
-(Sagāthā, Nidāna, Khandha, Saḷāyatana, Mahā) — with saṁyuttas nested underneath
-(`sn-2-4-…`). Anamatagga is the 4th saṁyutta of the Nidānavagga, so:
+(Sagāthā, Nidāna, Khandha, Saḷāyatana, Mahā) — with saṁyuttas nested underneath,
+**plus a vagga level inside each saṁyutta**, and BJT **bundles SN 12+13 into one
+node** so the saṁyutta positions shift (both proven in the
+[findings doc](./suttacentral-bjt-concordance-findings.md) §4):
 
 ```
-sn15.3   →   sn-2-4-3        (NOT sn-15-3)
+sn15.3   →   sn-2-3-1-3      (leaf-title-confirmed: අස්සුසුත්තං / Assu)
+             (this doc originally said sn-2-4-3 — wrong on two counts; see findings §0)
 ```
 
 This is the same flat-vs-nested gap the `mahamevnawa-link-mapping.md` tool
@@ -395,16 +401,24 @@ RAG answers contain, so reference-search and citation-linking stay consistent.
 
 ---
 
-## Part D — Consumer 2: RAG citation deep-links (next phase)
+## Part D — Consumer 2: RAG citation deep-links (**IN PROGRESS 2026-07-06**)
 
-Deferred per the "make it work first" decision; specified here so Part A's
-entities are shaped correctly now.
+Decisions locked 2026-07-06 — see the rewritten
+[`deep-linking-and-shareable-urls.md`](./deep-linking-and-shareable-urls.md)
+(the active plan this part now follows). What changed vs the original sketch:
 
-- `deeplinkFor(uid)` = `resolveToNodeKey(uid)` → the app's `textId` → a
-  `go_router` route **`/sutta/<textId>`**, exactly the scheme the
-  [`deep-linking-and-shareable-urls.md`](./deep-linking-and-shareable-urls.md)
-  plan introduces. RAG must **not** invent its own URI scheme — it resolves into
-  that one, so a tapped citation behaves identically to a shared link.
+- **Resolution is client-side, not server-side.** The server's wire `deeplink`
+  stays `null`; the app maps `citation.uid → nodeKeyForUid(uid)` via the
+  already-loaded shared resolver. No Python duplicate of the concordance.
+- **Identity is the nodeKey, not `textId`.** The canonical link is
+  **`/tipitaka/<nodeKey>`** (`ReaderTab.textId` turned out to be declared but
+  never populated; the app navigates by nodeKey). ~~go_router route~~ —
+  go_router is deferred; a `TipitakaLink` codec (`wisdom_shared`) + LinkOpener
+  provider handle both in-app citation taps and OS-delivered URLs, so a tapped
+  citation still behaves identically to a shared link.
+- **UI:** tapping a cited source opens a **bottom sheet** (ref + title +
+  snippet) with **Open in reader** when the uid resolves; a graceful
+  "not linked yet" note otherwise (seed coverage grows over time).
 - **Granularity:** v1 is **sutta-level** (open the file/page for SN 15.3).
   Segment-level (`sn15.3:1.4` → the exact BJT paragraph) is genuinely hard —
   BJT paragraphs ≠ SC segments and our BJT entries aren't SC-segment-tagged yet
@@ -503,8 +517,11 @@ Net: chat → `shared_preferences`; resolver → in-memory JSON map; hybrid (lat
    from the tab bar) + a pinned in-memory reference tile above FTS results
    (`referenceSearchResultProvider` + `_ReferenceResultRow`), reusing the normal
    tap→open path. Resolves any uid in the seed. *(Part C — ships independently of RAG)*
-6. ⏳ **NEXT — RAG deep-links** — `deeplinkFor` → `go_router /sutta/<textId>`
-   (depends on the deep-linking doc's `go_router` migration). *(Part D)*
+6. ◑ **IN PROGRESS (2026-07-06) — RAG deep-links** — citation `uid` resolved
+   client-side → `TipitakaLink` → LinkOpener → reader tab; bottom-sheet citation UI;
+   universal `/tipitaka/<nodeKey>` URLs + `app_links`/`Uri.base` receiving; seed
+   grown to all of SN 15. go_router **not** required (deferred — see the
+   deep-linking plan). *(Part D)*
 7. ⏳ **LATER — v1.1** — FTS4 hybrid (reusing the existing FTS path), metadata
    `filters`, multi-turn follow-ups; **v2** — segment-level deep-links.
 
@@ -540,5 +557,5 @@ Net: chat → `shared_preferences`; resolver → in-memory JSON map; hybrid (lat
 | Cross-edition concordance (proven) | `tools/mahamevnawa_map/build_map.py`, `docs/todo/mahamevnawa-link-mapping.md` |
 | Cross-edition alignment slot | `lib/domain/entities/content/entry.dart` (`segmentId`) |
 | Search result → navigation | `lib/domain/entities/search/search_result.dart` (`nodeKey`) |
-| Routing target for deep-links | `docs/todo/deep-linking-and-shareable-urls.md` (`/sutta/<textId>`) |
+| Routing target for deep-links | `docs/todo/deep-linking-and-shareable-urls.md` (`/tipitaka/<nodeKey>`) |
 | Shared client/server logic home | `packages/wisdom_shared/` |

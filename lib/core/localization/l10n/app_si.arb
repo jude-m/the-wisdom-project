@@ -209,6 +209,16 @@
 
   "researchSources": "මූලාශ්‍ර",
 
+  "researchCitedSource": "උපුටා දැක්වූ මූලාශ්‍රය",
+
+  "researchOpenInReader": "කියවනයේ විවෘත කරන්න",
+
+  "researchCitationNotLinked": "මෙම මූලාශ්‍රය තවම මෙම සංස්කරණයට සම්බන්ධ කර නොමැත.",
+
+  "researchCopyLink": "සබැඳිය පිටපත් කරන්න",
+
+  "researchLinkCopied": "සබැඳිය පිටපත් විය",
+
   "researchRetry": "නැවත උත්සාහ කරන්න",
 
   "researchErrorOffline": "පිළිතුරු සේවාව වෙත සම්බන්ධ විය නොහැක. ඔබගේ සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.",

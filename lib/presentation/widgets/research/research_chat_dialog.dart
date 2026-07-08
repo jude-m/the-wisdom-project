@@ -4,15 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../domain/entities/api_error_type.dart';
 import '../../../domain/entities/research/chat_message.dart';
+import '../../../domain/entities/research/citation.dart';
 import '../../providers/research_chat_state.dart';
 import '../../providers/research_provider.dart';
+import 'citation_source_sheet.dart';
 import 'research_error_messages.dart';
 
 /// Minimal chat dialog for the AI Q&A feature.
 ///
 /// Deliberately bare-bones (per "make it work first"): a scrolling transcript,
-/// a text field, and a send button. No streaming, no threads, no tappable
-/// citation links yet — citations render as a plain "Sources" list.
+/// a text field, and a send button. No streaming, no threads. Citations render
+/// as a tappable "Sources" list → [CitationSourceSheet] → open in reader.
 class ResearchChatDialog extends ConsumerStatefulWidget {
   const ResearchChatDialog({super.key});
 
@@ -234,6 +236,72 @@ class _ThinkingRow extends StatelessWidget {
   }
 }
 
+/// One tappable citation row: bold ref + title, snippet preview underneath.
+/// Tapping opens [CitationSourceSheet]; if the user chooses "Open in reader"
+/// there, the chat dialog is dismissed so the new reader tab is visible.
+class _CitationRow extends StatelessWidget {
+  const _CitationRow({required this.citation});
+
+  final Citation citation;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () async {
+        final openedInReader =
+            await CitationSourceSheet.show(context, citation);
+        if (openedInReader == true && context.mounted) {
+          Navigator.of(context).pop(); // close the chat dialog → show reader
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(top: 2, bottom: 8, left: 2, right: 2),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Heading line: bold ref + sutta title, e.g.
+                  // "SN 15.6  Chapter One A Mustard Seed".
+                  // Text.rich (not RichText) so system text scaling applies.
+                  Text.rich(
+                    TextSpan(
+                      style: textTheme.bodySmall
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                      children: [
+                        TextSpan(text: citation.ref),
+                        if (citation.title != null)
+                          TextSpan(text: '  ${citation.title}'),
+                      ],
+                    ),
+                  ),
+                  // Snippet on its own line, in the muted body colour.
+                  if (citation.snippet != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        citation.snippet!,
+                        style: textTheme.bodySmall
+                            ?.copyWith(color: colors.onSurfaceVariant),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: colors.onSurfaceVariant),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// One chat bubble — user (right) or assistant (left, with sources).
 class _MessageBubble extends StatelessWidget {
   const _MessageBubble({required this.message});
@@ -263,8 +331,9 @@ class _MessageBubble extends StatelessWidget {
           children: [
             SelectableText(message.content),
 
-            // Citations as a plain "Sources" list — no tappable links yet
-            // (deep-linking is a later phase; see the resolver plan, Part D).
+            // Citations under the answer. Each row opens the cited-source
+            // bottom sheet (snippet + "Open in reader" when the uid resolves
+            // — see the resolver plan, Part D).
             if (message.citations.isNotEmpty) ...[
               const SizedBox(height: 10),
               const Divider(height: 1),
@@ -276,37 +345,7 @@ class _MessageBubble extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               for (final citation in message.citations)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Heading line: bold ref + sutta title, e.g.
-                      // "SN 15.6  Chapter One A Mustard Seed".
-                      RichText(
-                        text: TextSpan(
-                          style: textTheme.bodySmall
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                          children: [
-                            TextSpan(text: citation.ref),
-                            if (citation.title != null)
-                              TextSpan(text: '  ${citation.title}'),
-                          ],
-                        ),
-                      ),
-                      // Snippet on its own line, in the muted body colour.
-                      if (citation.snippet != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            citation.snippet!,
-                            style: textTheme.bodySmall
-                                ?.copyWith(color: colors.onSurfaceVariant),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+                _CitationRow(citation: citation),
             ],
           ],
         ),

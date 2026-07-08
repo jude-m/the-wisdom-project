@@ -8,6 +8,11 @@
 > [`web-rewrite-clean-architecture-audit.md`](./web-rewrite-clean-architecture-audit.md),
 > [`jaspr-web-client-migration.md`](./jaspr-web-client-migration.md),
 > [`jaspr-prototype-findings.md`](./jaspr-prototype-findings.md).
+>
+> ⚠️ **URL examples below predate two 2026-07-06 decisions** (locked in the
+> deep-linking plan + `static-html-prototype-plan.md`): the path segment is now
+> **`/tipitaka/`** (not `/sutta/`), and identity is the **bare `nodeKey`**
+> (not `textId`, no slug). Read `/sutta/<textId>`-style examples accordingly.
 
 ## TL;DR — the decision (2026-06-11)
 
