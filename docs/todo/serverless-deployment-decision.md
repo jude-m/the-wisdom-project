@@ -30,7 +30,11 @@ ask path"), so its serverless-ness is *independent* — it is influenced only
 
 1. **"Make the `ask` server serverless so the server isn't my problem."** → It is
    already ~90% there: stateless, 12-factor env config, Cloud-Run-ready Dockerfile.
-   A clean Cloud Run fit, $0 idle. *Settled: yes.*
+   A clean Cloud Run fit, $0 idle. *Settled: yes.* The existing Dockerfile deploys
+   to **Cloud Run as-is — no FastAPI rewrite**; wrapping it into *Cloud Functions
+   for Firebase* buys nothing (2nd-gen Functions run **on** Cloud Run underneath,
+   so cold-start is identical), and cold start (~1–3 s, softened by the lazy
+   `google-genai` import) is minor next to the multi-second Gemini call.
 2. **Cost mechanics** — `max-instances` is a cost ceiling (not a user cap);
    `concurrency` is per-instance (3 × 40 = 120 simultaneous); Firebase App Check is
    free (web reCAPTCHA has a free-then-paid tier); **Gemini File Search has no
@@ -157,6 +161,13 @@ START: "I don't want to run servers"
   offline is the hard anchor (`reduce_mobile_bundle_size.md` rejects server-fetch
   for mobile).
 - **`ask` never reads SQLite.** Its serverless-ness is independent of the tree.
+- **The research server is mandatory — there is no client-direct path.** Gemini
+  File Search (the retrieval engine this feature rests on) is
+  Gemini-Developer-API-only and needs a raw API key; Firebase's native client SDK
+  (Firebase AI Logic / `firebase_ai`) does **not** expose File Search — only
+  Google Search / Maps grounding. So you cannot move the RAG call into the app to
+  delete the server, *even after adopting Firebase*. Adding **Firestore for notes
+  is orthogonal** (client → Firestore direct, no server) and doesn't change this.
 - **Escape hatches:** the **`/ask` contract** + the **local/remote datasource
   seam** (`getWebOverrides()`) make every branch swappable later — no lock-in.
   Start at the default, move branches cheaply if needed.
@@ -183,10 +194,23 @@ These were part of the original ask and don't change which branch you pick:
 
 - **Cost ceiling:** set `--max-instances` low (e.g. 3) — a hard bill cap.
 - **Abuse / "money endpoint":** `max-instances` (now) → **Firebase App Check**
-  (only-my-app, stronger than the existing static `X-App-Token`) → **per-IP
-  throttle** (Upstash Redis + `slowapi`, keyed on `X-Forwarded-For`) →
-  **Cloud Armor** only if real abuse justifies the Load-Balancer cost (~$18+/mo,
-  the one thing that breaks $0).
+  (only-my-app; the true floor — no user identity, protects the bill even for
+  token-less requests) → **Firebase Auth ID token** (verify with `firebase-admin`)
+  keyed to a **silent anonymous UID by default**, unlocking best-effort
+  **per-user daily quotas** in Firestore → **per-IP throttle** (Upstash Redis +
+  `slowapi`, keyed on `X-Forwarded-For`) → **Cloud Armor** only if real abuse
+  justifies the Load-Balancer cost (~$18+/mo, the one thing that breaks $0).
+  - *Quotas cover every sign-in method, but never require a login.* App Check
+    needs no identity; anonymous auth mints a real UID + verifiable ID token
+    **silently** (no login screen). So a user who keeps notes local (e.g. an
+    Excel sheet) is still rate-limited without ever signing in — **rate limiting
+    must never depend on the user having chosen cloud notes.** Google/Apple
+    sign-in is **opt-in, only for cloud note sync**; `linkWithCredential` later
+    upgrades the same anonymous UID in place (history preserved).
+  - *Anonymous is the weak rung:* its UID is cheap to re-mint (sign in again /
+    reinstall resets the counter), so give anonymous a **lower cap** and lean on
+    **App Check** as the real floor; stable Google/Apple UIDs are where per-user
+    limits actually bite.
 - **Model switching:** a **fallback ladder** — try the configured model, on `429`
   fail over to the next; models are config/data (already are via `ASK_MODEL`).
   Rotating *models within one account* to use each free tier is fine; rotating
@@ -216,6 +240,17 @@ These were part of the original ask and don't change which branch you pick:
 - Gemini File Search indexing price, free-tier request limits, per-tier storage /
   file-count caps (design Appendix A still lists basket `metadata_filter` syntax
   and full-corpus caps as open).
-- Cloud Run free-tier quotas and `min-instances=1` monthly cost.
+- Cloud Run free-tier quotas and `min-instances=1` monthly cost. Note the free
+  tier is **2M invocations per _month_** (not per day); the real cost ceiling is
+  **Gemini generation tokens**, not free invocations.
+- Artifact Registry: both images fit the **0.5 GB free tier _compressed_**
+  (measured ~315 MB total; 751 MB raw assets → ~140 MB gzipped — AR bills
+  compressed layers, not the uncompressed size `docker images` shows). Add a
+  keep-last-N cleanup policy so old versions don't accumulate.
 - Turso / D1 free-tier limits (both restructured recently).
 - Firebase App Check web (reCAPTCHA Enterprise) free allotment.
+- Firebase Auth free (Spark) plan ceiling: **3,000 daily active users** (anonymous
+  counts as Tier-1). Not a token cap — anonymous accounts cap at 100M, creation is
+  throttled 100/hr/IP (free anti-abuse on re-minting). Past 3,000 DAU → Blaze
+  (50k MAU free). Firestore for notes has its own Spark daily caps (~50k reads /
+  20k writes per day, 1 GiB).

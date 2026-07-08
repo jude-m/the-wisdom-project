@@ -103,6 +103,11 @@ settles it for us:
   config, and grounding parsing — losing the "fully managed" benefit that
   justified the stack. ([File Search docs](https://ai.google.dev/gemini-api/docs/file-search),
   GA since Nov 2025.)
+- **Firebase doesn't change this.** Firebase's native client SDK (Firebase AI
+  Logic / `firebase_ai`) *also* does **not** expose File Search — only Google
+  Search / Maps grounding — and File Search needs a raw API key that can't ship in
+  a client. So even full Firebase adoption (Auth + Firestore for notes) keeps the
+  server mandatory; Firestore for notes is a separate, server-free path.
 
 **Verdict:** the `/research` service is a **separate Python `google-genai`
 deployable** (FastAPI on Cloud Run, or one Cloud Function — implementer's call).
