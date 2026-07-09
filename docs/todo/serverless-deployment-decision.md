@@ -153,6 +153,124 @@ START: "I don't want to run servers"
   rest → Dart). `ask` is tiny and rides for free — *unless* you specifically want
   its isolation/independent scale, then keep it serverless.
 
+### B3 · free-box variant — Oracle Always Free A1 (exploration notes, NOT decided)
+
+> Captured 2026-07-08 from a design chat. A *concrete instantiation of B3* on a $0
+> box — **not** a decision. B1 (Cloud Run) is still the recommended default (§7).
+> Shape considered: **Ampere A1 (ARM64), 2 OCPU / 12 GB, Always Free.**
+
+- **Resource fit — a non-event.** DBs ~262 MB on disk (95 MB FTS + 167 MB dict);
+  SQLite reads pages via the OS cache, it does **not** load the DB into RAM →
+  resident set stays low-hundreds-of-MB (~4% of 12 GB), 2 ARM cores idle on a
+  read-only FTS/dict load. Could host content + research + Caddy and still leave
+  ~11 GB free. **The constraint here is ops, never capacity.**
+- **ARM64:** Dart, Python, `sqlite3` all fine on `linux-arm64`; images must be
+  arm64 — the dev Mac is Apple Silicon (arm64) so local builds match natively.
+  Host needs `libsqlite3` present (the Dart `sqlite3` pkg binds to it).
+- **Fold-in (★):** one box → Caddy: `/research/*` → uvicorn (`research_server/`),
+  rest → Dart. Research server rides free.
+
+**Custom domain — yes, straightforward:**
+- Reserve the instance's public IP (*Reserved*, not ephemeral, so DNS never breaks).
+- `A` record → IP; **Caddy auto-provisions Let's Encrypt TLS** (no manual certbot).
+- Two one-time footguns: open 80/443 in the **VCN security list** *and* the host's
+  default **iptables** (Oracle Ubuntu images drop traffic locally even after the
+  security list is opened — the classic "can't reach my server").
+- ⚠️ Verify at build time: IPv4 may become billable (industry trend); Oracle
+  Always Free still bundles it as of writing.
+
+**Longevity — indefinite, but 3 real loss-modes (none a clock):**
+- *Idle reclamation* — Oracle reclaims Always Free compute it reads as idle
+  (7-day **95th-pct** CPU/net/mem all <20%). A health-check ping does **NOT** beat
+  this — nor do a couple of daily users or a 30-min daily UI test; the percentile
+  is built to ignore short bursts (would need >72 min/day sustained ≥20% CPU). The
+  cheap real lever is **holding >2.4 GB resident memory** (anon heap / tmpfs / big
+  SQLite `cache_size` — OS page cache does *not* count), else accept + auto-restart
+  in an uncrowded region (a daily UI test is a good *canary* for that, not life-support).
+- *A1 capacity slot* — stopping/terminating may forfeit the 2-OCPU/12-GB shape
+  (free A1 is scarce → "Out of host capacity"). Don't tear down casually.
+- *Account standing* — payment flags / dormant unverified accounts get reclaimed.
+- **De-risk:** upgrade to **Pay-As-You-Go** — Always Free stays free but PAYG is
+  **exempt from idle reclamation** and more stable; cost is a card on file + a
+  budget alert. Recommended if the app relies on it.
+
+**Update 2026-07-09 (verified online):**
+- Free A1 was **quietly halved 4/24 → 2/12** (~15 Jun 2026; allotment now 1,500
+  OCPU-hrs + 9,000 GB-hrs/mo). **PAYG reportedly still gets 4/24 free** (Oracle
+  hasn't confirmed publicly).
+- Rate $0.01/OCPU-hr + $0.0015/GB-hr → a 4/24 box 24×7 = **$0 inside the PAYG
+  allotment**, ~**$55/mo** if fully metered; 2/12 24×7 just fits the free allotment ($0).
+- **Fit:** the 3 services (Dart + Python + small TTS ≈ 1.3 GB) sit easily in 2/12
+  — but no PAYG means no idle-immunity (see reclamation above). **Supabase +
+  PowerSync self-host is ~14 containers, not 5 → don't; use their cloud free tiers.**
+
+**TTS / audio / images — stay on R2, do NOT migrate onto the box.** Reinforces the
+R2 call in
+[`tipitaka-tts-implementation-plan.md`](./tipitaka-tts-implementation-plan.md); the
+box existing makes this *stronger*, not weaker:
+- Box = dynamic query APIs (small requests, in-process SQLite, ~zero bandwidth).
+  Static media = a bandwidth+storage problem → R2's **zero egress** + edge cache
+  beats routing large audio through one VM in one region. (A1's 10 TB/mo egress
+  wouldn't fall over — R2 is simply the right tool.)
+- **Keep the box disposable.** B3-on-free-A1's whole appeal is a cheap replaceable
+  node; the moment it holds the only copy of the audio corpus, losing the instance
+  (capacity loss above) becomes painful. R2 keeps state off the ephemeral thing.
+- **Open call — the one live Pali-word TTS endpoint:** now that a box exists it
+  *could* fold in behind Caddy (same ★). Depends what it is: thin proxy to an
+  external TTS API → fold onto box; local synthesis model → single-word on 2 ARM
+  cores is *probably* fine but benchmark first, else leave on Cloud Run.
+
+Net layout under this variant:
+
+| Thing | Where |
+|---|---|
+| Content API (Dart) | box |
+| Research Q&A (Python) | box (behind Caddy) |
+| Pre-rendered Sinhala audio + cached Pali words + images | **R2** |
+| Live Pali-word TTS | box *or* Cloud Run (see open call) |
+
+### B1 vs B3 · "Firebase vs the box" — the fork is *only* compute host
+
+> Captured 2026-07-08, same chat. Framing note, not a decision.
+
+**Firebase is a suite, not one rival host — most of it is orthogonal and used on
+*either* branch:**
+
+| Firebase piece | Role | Tied to where servers run? |
+|---|---|---|
+| **App Check** | abuse floor ("only my app") | ❌ verified via `firebase-admin` on *any* backend, box included |
+| **Auth** (silent anonymous) | UID for per-user quotas | ❌ token verification is compute-agnostic |
+| **Firestore** | cloud notes | ❌ client → Firestore direct, no server at all |
+| **Hosting** | Flutter web static + CDN | ❌ can serve web + reverse-proxy `/research` to either host |
+
+So the App Check + Auth ladder (§6), Firestore notes, and R2 media are **shared
+infra** in both worlds. The only thing that actually forks is **where the two
+server processes run — free Oracle box (B3) vs Cloud Run (B1)**:
+
+| Axis | Oracle A1 box (B3) | Cloud Run + Firebase (B1) |
+|---|---|---|
+| Monthly cost | genuinely **$0**, flat | $0 if scale-to-zero; ~few $/mo warm (`min-instances=1`); needs **Blaze** (card), metered |
+| Ops | ❌ **you own the box** (patch/uptime/TLS/firewall) | ✅ fully managed — the "hands-free" goal |
+| Cold start | ✅ none, always warm | ~1–3 s on scale-to-zero (buy off = money) |
+| Content reads | ✅ in-process SQLite, µs | same, but pays cold-start on wake |
+| Spikes | ❌ fixed 2 OCPU, single point of failure | ✅ auto-scales (capped by `max-instances`) |
+| Surprise bill | ✅ **impossible** (fixed box → slow, not costly) | metered; `max-instances` is the cap |
+| Longevity risk | idle-reclaim / capacity / account standing | as stable as GCP |
+
+**Two things that dominate the read:**
+- **Gemini generation tokens are the real cost, and they're identical on both
+  hosts** — so the compute-host choice barely moves the dollar total. This is an
+  **ops-burden + cold-start** decision, not a money one.
+- The **"money endpoint" fear tilts slightly *toward* the box** — a fixed-cost box
+  literally can't run up an infra bill (a flood makes it slow, not expensive). The
+  App Check/Auth/quota ladder guards the Gemini spend either way.
+
+**Not either/or → the likely real shape is a hybrid:** Firebase for
+App Check / Auth / Firestore / Hosting (managed, free-tier, low-maintenance) +
+compute wherever preferred. The box earns its place only if *ownership* appeals;
+if it reads as a chore, Cloud Run is strictly less work for ≈ the same money — which
+is why **B1 stays the §7 default**.
+
 ---
 
 ## 5. Constants (true on every branch — don't re-litigate)
