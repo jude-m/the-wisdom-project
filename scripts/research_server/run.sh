@@ -56,11 +56,19 @@ if [ ! -x "$UVICORN" ]; then
 fi
 
 # Free the port so a re-run doesn't hit "address already in use".
+# uvicorn --reload leaves a worker child that Ctrl+C doesn't always kill, so we
+# send SIGTERM, then WAIT until the port is genuinely released (up to ~5s),
+# escalating to SIGKILL — a fixed sleep is racy and occasionally too short.
 PIDS=$(lsof -ti:"$PORT" 2>/dev/null || true)
 if [ -n "$PIDS" ]; then
   echo "Stopping process on port $PORT (PID: $PIDS)..."
   echo "$PIDS" | xargs kill 2>/dev/null || true
-  sleep 1
+  for _ in $(seq 1 10); do
+    sleep 0.5
+    PIDS=$(lsof -ti:"$PORT" 2>/dev/null || true)
+    [ -z "$PIDS" ] && break          # port free → done
+    echo "$PIDS" | xargs kill -9 2>/dev/null || true
+  done
 fi
 
 echo "Starting research_server on http://localhost:$PORT (env: .env${RELOAD:+, auto-reload})"
