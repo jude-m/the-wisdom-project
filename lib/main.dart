@@ -9,7 +9,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'core/storage/key_value_store_provider.dart';
 import 'core/storage/shared_preferences_key_value_store.dart';
 import 'presentation/keyboard/app_shortcuts.dart';
-import 'presentation/screens/reader_screen.dart';
+import 'presentation/screens/app_shell.dart';
 import 'presentation/providers/search_provider.dart';
 import 'presentation/providers/platform_providers.dart';
 import 'presentation/providers/app_language_provider.dart';
@@ -233,8 +233,9 @@ class _MyAppState extends ConsumerState<MyApp> {
         );
       },
 
-      // Home screen
-      home: const ReaderScreen(),
+      // Top-level shell: navigation rail / bottom bar around the
+      // Home / Reader / Research / Notes sections. Launches on Reader.
+      home: const AppShell(),
     );
   }
 }

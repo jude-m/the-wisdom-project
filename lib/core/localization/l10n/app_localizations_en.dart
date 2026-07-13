@@ -310,6 +310,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateBannerDismissTooltip => 'Dismiss';
 
   @override
+  String get navHome => 'Home';
+
+  @override
+  String get navReader => 'Reader';
+
+  @override
+  String get navResearch => 'Research';
+
+  @override
+  String get navNotes => 'Notes';
+
+  @override
   String get researchTitle => 'Research the Canon';
 
   @override

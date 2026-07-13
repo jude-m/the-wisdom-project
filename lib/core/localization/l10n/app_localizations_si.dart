@@ -311,6 +311,18 @@ class AppLocalizationsSi extends AppLocalizations {
   String get updateBannerDismissTooltip => 'ඉවත් කරන්න';
 
   @override
+  String get navHome => 'මුල් පිටුව';
+
+  @override
+  String get navReader => 'ත්‍රිපිටකය';
+
+  @override
+  String get navResearch => 'ගවේෂණය';
+
+  @override
+  String get navNotes => 'සටහන්';
+
+  @override
   String get researchTitle => 'ත්‍රිපිටකයෙන් අසන්න';
 
   @override

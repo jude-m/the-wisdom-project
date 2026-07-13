@@ -680,6 +680,30 @@ abstract class AppLocalizations {
   /// **'Dismiss'**
   String get updateBannerDismissTooltip;
 
+  /// Label of the Home destination in the navigation rail / bottom navigation bar
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get navHome;
+
+  /// Label of the Reader (Tipitaka reading) destination in the navigation rail / bottom navigation bar
+  ///
+  /// In en, this message translates to:
+  /// **'Reader'**
+  String get navReader;
+
+  /// Label of the Research (AI Q&A) destination in the navigation rail / bottom navigation bar
+  ///
+  /// In en, this message translates to:
+  /// **'Research'**
+  String get navResearch;
+
+  /// Label of the Notes destination in the navigation rail / bottom navigation bar
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get navNotes;
+
   /// Title of the AI Q&A chat dialog and tooltip on the button that opens it
   ///
   /// In en, this message translates to:

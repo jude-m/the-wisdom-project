@@ -506,6 +506,26 @@
     "description": "Tooltip on the close (×) icon of the update banner"
   },
 
+  "navHome": "Home",
+  "@navHome": {
+    "description": "Label of the Home destination in the navigation rail / bottom navigation bar"
+  },
+
+  "navReader": "Reader",
+  "@navReader": {
+    "description": "Label of the Reader (Tipitaka reading) destination in the navigation rail / bottom navigation bar"
+  },
+
+  "navResearch": "Research",
+  "@navResearch": {
+    "description": "Label of the Research (AI Q&A) destination in the navigation rail / bottom navigation bar"
+  },
+
+  "navNotes": "Notes",
+  "@navNotes": {
+    "description": "Label of the Notes destination in the navigation rail / bottom navigation bar"
+  },
+
   "researchTitle": "Research the Canon",
   "@researchTitle": {
     "description": "Title of the AI Q&A chat dialog and tooltip on the button that opens it"

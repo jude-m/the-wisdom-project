@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wisdom_shared/wisdom_shared.dart';
 
+import 'app_section_provider.dart';
 import 'navigation_tree_provider.dart';
 import 'navigator_sync_provider.dart';
 import 'tab_provider.dart';
@@ -55,6 +56,9 @@ final openTipitakaLinkProvider =
     );
     if (newIndex == -1) return false;
 
+    // The tab opened into the Reader section — make that section visible,
+    // whichever section (Home/Research/Notes) the link was opened from.
+    ref.read(selectedAppSectionProvider.notifier).state = AppSection.reader;
     ref.read(syncNavigatorToActiveTabProvider)();
     return true;
   };

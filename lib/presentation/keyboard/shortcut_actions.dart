@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/app_section_provider.dart';
 import '../providers/in_page_search_focus_provider.dart';
 import '../providers/in_page_search_provider.dart';
 import '../providers/last_selected_text_provider.dart';
@@ -37,7 +38,10 @@ class DismissTopOverlayAction extends ContextAction<DismissTopOverlayIntent> {
 /// memory) instead of bluntly re-running the idempotent open.
 ///
 /// Suppressed when the main FTS search bar holds focus, so Ctrl/Cmd+F
-/// doesn't yank a typing user out of the global search.
+/// doesn't yank a typing user out of the global search — and when a
+/// non-Reader section is showing, so the shortcut can't open the search
+/// bar inside the hidden Reader (openSearch() is provider state, which,
+/// unlike focus, isn't blocked by IndexedStack).
 class OpenInPageSearchAction extends ContextAction<OpenInPageSearchIntent> {
   final WidgetRef ref;
   OpenInPageSearchAction(this.ref);
@@ -58,6 +62,10 @@ class OpenInPageSearchAction extends ContextAction<OpenInPageSearchIntent> {
 
   @override
   bool isEnabled(OpenInPageSearchIntent intent, [BuildContext? context]) {
+    if (ref.read(selectedAppSectionProvider) != AppSection.reader) {
+      // In-page search lives in the Reader — don't mutate it invisibly.
+      return false;
+    }
     final searchBarNode = ref.read(mainSearchFocusNodeProvider);
     if (searchBarNode != null && searchBarNode.hasFocus) {
       // Main FTS bar is focused — let the user keep typing.
