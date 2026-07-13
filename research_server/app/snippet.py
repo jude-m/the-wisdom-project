@@ -11,6 +11,7 @@ Plan: docs/done/research/source-snippet-shortening-plan.md (§4, Option 1).
 from __future__ import annotations
 
 import re
+import unicodedata
 
 # Tiny English stopword set so scoring keys on content words ("eon", "mustard"),
 # not glue ("the", "of", "is"). Deliberately small — the corpus is English
@@ -20,7 +21,12 @@ _STOPWORDS = frozenset(
     "this was were what when where which who why will with you your".split()
 )
 
-_WORD = re.compile(r"[A-Za-z]+")
+# Unicode-letter word matcher (not ASCII-only): keeps diacritic tokens whole so a
+# proper noun like "Sāvatthī" or a Pali term like "saṁsāra" is ONE token whose
+# ASCII fold ("savatthi" / "samsara") can match. `[^\W\d_]` = letters, no digits
+# or underscore. Positions from this run over the ORIGINAL text, so highlight
+# spans stay valid even though matching compares folded forms.
+_LETTERS = re.compile(r"[^\W\d_]+", re.UNICODE)
 # Sentence-ish split: end punctuation followed by whitespace. Pali prose is full
 # of '.' '?' '"' so this is plenty to pick a window from.
 _SENT_SPLIT = re.compile(r"(?<=[.?!])\s+")
@@ -28,6 +34,41 @@ _WS = re.compile(r"\s+")
 
 # How far we'll nudge a cut to land on a word boundary instead of mid-word.
 _SNAP = 24
+
+# Room reserved for the "… " / " …" affixes so a wrapped window stays within
+# max_chars. The `**…**` bold markers added afterwards are display-invisible and
+# deliberately NOT counted against the budget.
+_ELLIPSIS_RESERVE = 4
+
+
+def _fold(s: str) -> str:
+    """ASCII-fold: drop diacritics so 'Sāvatthī' folds to 'savatthi'.
+
+    NFKD splits a letter into base + combining marks; we keep the base and drop
+    the marks. Lets diacritic-heavy source (proper nouns; Bodhi-style Pali) match
+    a query term written either way, without touching the returned text.
+    """
+    nfkd = unicodedata.normalize("NFKD", s)
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
+def _bold_terms(window: str, terms: set[str]) -> str:
+    """Wrap each matched query term in `**…**` so the client renders it bold.
+
+    Matches on the ORIGINAL window (folded per-word for the membership test), then
+    wraps back-to-front so earlier offsets stay valid. The markers are invisible
+    display markup — see `_ELLIPSIS_RESERVE`.
+    """
+    if not terms:
+        return window
+    spans = [
+        (m.start(), m.end())
+        for m in _LETTERS.finditer(window)
+        if _fold(m.group().lower()) in terms
+    ]
+    for start, end in reversed(spans):
+        window = f"{window[:start]}**{window[start:end]}**{window[end:]}"
+    return window
 
 
 def make_snippet(text: str, query: str, max_chars: int = 220) -> str:
@@ -41,12 +82,18 @@ def make_snippet(text: str, query: str, max_chars: int = 220) -> str:
     text = _WS.sub(" ", (text or "").strip())
     if not text:
         return ""
-    if len(text) <= max_chars:
-        return text
 
     terms = _query_terms(query)
+    if len(text) <= max_chars:
+        # Whole chunk fits — no "…" affixes, so no budget reservation needed;
+        # still bold any matched terms.
+        return _bold_terms(text, terms)
+
+    # Windows gain "…" affixes, so grow/trim against a reserved budget so the
+    # wrapped result honours max_chars (fix 3).
+    budget = max(1, max_chars - _ELLIPSIS_RESERVE)
     if not terms:
-        return _head(text, max_chars)
+        return _head(text, budget)
 
     sentences = _SENT_SPLIT.split(text)
     best_i, best_score = 0, 0
@@ -55,18 +102,18 @@ def make_snippet(text: str, query: str, max_chars: int = 220) -> str:
         if score > best_score:  # first sentence wins ties (>, not >=)
             best_i, best_score = i, score
     if best_score == 0:
-        return _head(text, max_chars)
+        return _head(text, budget)
 
     # Grow a window of whole sentences around the best one, forward-biased.
     lo = hi = best_i
     length = len(sentences[best_i])
     while True:
         grew = False
-        if hi + 1 < len(sentences) and length + 1 + len(sentences[hi + 1]) <= max_chars:
+        if hi + 1 < len(sentences) and length + 1 + len(sentences[hi + 1]) <= budget:
             hi += 1
             length += 1 + len(sentences[hi])
             grew = True
-        if lo - 1 >= 0 and length + 1 + len(sentences[lo - 1]) <= max_chars:
+        if lo - 1 >= 0 and length + 1 + len(sentences[lo - 1]) <= budget:
             lo -= 1
             length += 1 + len(sentences[lo])
             grew = True
@@ -75,11 +122,11 @@ def make_snippet(text: str, query: str, max_chars: int = 220) -> str:
 
     window = " ".join(sentences[lo : hi + 1])
     left, right = lo > 0, hi < len(sentences) - 1
-    # A single sentence can still exceed max_chars → trim around the first term.
-    if len(window) > max_chars:
-        window, tl, tr = _trim_around_terms(window, terms, max_chars)
+    # A single sentence can still exceed the budget → trim around the first term.
+    if len(window) > budget:
+        window, tl, tr = _trim_around_terms(window, terms, budget)
         left, right = left or tl, right or tr
-    return _wrap(window, left=left, right=right)
+    return _bold_terms(_wrap(window, left=left, right=right), terms)
 
 
 def split_heading(text: str, ref: str | None = None) -> tuple[str | None, str]:
@@ -125,14 +172,18 @@ def _ref_number(ref: str | None) -> str | None:
 
 
 def _query_terms(query: str) -> set[str]:
-    return {
-        w for w in _WORD.findall((query or "").lower())
-        if len(w) > 2 and w not in _STOPWORDS
-    }
+    """Folded content terms from the query (>2 chars, stopwords dropped)."""
+    terms: set[str] = set()
+    for w in _LETTERS.findall((query or "").lower()):
+        folded = _fold(w)
+        if len(folded) > 2 and folded not in _STOPWORDS:
+            terms.add(folded)
+    return terms
 
 
 def _words(text: str) -> set[str]:
-    return set(_WORD.findall(text.lower()))
+    """Folded word set of a text span, for scoring against `_query_terms`."""
+    return {_fold(w) for w in _LETTERS.findall(text.lower())}
 
 
 def _head(text: str, max_chars: int) -> str:
@@ -144,7 +195,7 @@ def _head(text: str, max_chars: int) -> str:
 def _trim_around_terms(s: str, terms: set[str], max_chars: int) -> tuple[str, bool, bool]:
     """Trim an over-long string to a `max_chars` window centred on the first term."""
     pos = next(
-        (m.start() for m in _WORD.finditer(s.lower()) if m.group() in terms),
+        (m.start() for m in _LETTERS.finditer(s) if _fold(m.group().lower()) in terms),
         0,
     )
     start = max(0, pos - max_chars // 2)

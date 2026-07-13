@@ -207,9 +207,11 @@
 
   "researchThinking": "සිතමින්…",
 
-  "researchSources": "මූලාශ්‍ර",
-
   "researchCitedSource": "උපුටා දැක්වූ මූලාශ්‍රය",
+
+  "researchMatchedPassage": "ගැළපෙන කොටස · SuttaCentral",
+
+  "researchOtherSources": "වෙනත් මූලාශ්‍ර",
 
   "researchOpenInReader": "කියවනයේ විවෘත කරන්න",
 

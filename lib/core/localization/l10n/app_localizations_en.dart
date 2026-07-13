@@ -328,10 +328,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get researchThinking => 'Thinking…';
 
   @override
-  String get researchSources => 'Sources';
+  String get researchCitedSource => 'Cited source';
 
   @override
-  String get researchCitedSource => 'Cited source';
+  String get researchMatchedPassage => 'Matched passage · SuttaCentral';
+
+  @override
+  String get researchOtherSources => 'Other sources';
 
   @override
   String get researchOpenInReader => 'Open in reader';

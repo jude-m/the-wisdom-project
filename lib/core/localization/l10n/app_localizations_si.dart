@@ -329,10 +329,13 @@ class AppLocalizationsSi extends AppLocalizations {
   String get researchThinking => 'සිතමින්…';
 
   @override
-  String get researchSources => 'මූලාශ්‍ර';
+  String get researchCitedSource => 'උපුටා දැක්වූ මූලාශ්‍රය';
 
   @override
-  String get researchCitedSource => 'උපුටා දැක්වූ මූලාශ්‍රය';
+  String get researchMatchedPassage => 'ගැළපෙන කොටස · SuttaCentral';
+
+  @override
+  String get researchOtherSources => 'වෙනත් මූලාශ්‍ර';
 
   @override
   String get researchOpenInReader => 'කියවනයේ විවෘත කරන්න';

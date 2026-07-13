@@ -536,14 +536,19 @@
     "description": "Loading row shown in the Q&A dialog while waiting for an answer"
   },
 
-  "researchSources": "Sources",
-  "@researchSources": {
-    "description": "Header above the list of source citations under an answer"
-  },
-
   "researchCitedSource": "Cited source",
   "@researchCitedSource": {
     "description": "Small label at the top of the bottom sheet showing one citation's details"
+  },
+
+  "researchMatchedPassage": "Matched passage · SuttaCentral",
+  "@researchMatchedPassage": {
+    "description": "Label above the English SuttaCentral snippet in the citation peek — the passage the answer was grounded on"
+  },
+
+  "researchOtherSources": "Other sources",
+  "@researchOtherSources": {
+    "description": "Heading above chips for sources the answer was grounded on but did not cite inline"
   },
 
   "researchOpenInReader": "Open in reader",

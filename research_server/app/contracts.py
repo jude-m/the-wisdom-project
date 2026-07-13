@@ -40,12 +40,18 @@ class Citation(BaseModel):
     ref: str                          # "SN 15.3" (display form)
     title: Optional[str] = None       # heading minus ref, "Chapter One A Mustard Seed"
     kind: str = "canon"               # "note" reserved for Sujato notes (§5.2)
-    snippet: Optional[str] = None     # English source span (verification preview)
+    snippet: Optional[str] = None     # SuttaCentral English span; matched terms in **bold**
     deeplink: Optional[str] = None    # resolved later (resolver plan, Part D)
 
 
 class ResearchResponse(BaseModel):
-    """`POST /research` response. Mirrors lib/domain/entities/research/research_answer.dart."""
+    """`POST /research` response. Mirrors lib/domain/entities/research/research_answer.dart.
+
+    `answer` prose carries inline `[[cite:uid]]` markers at each grounded span
+    (from `grounding_supports`); the app renders a tappable chip in place and, as
+    a fallback, a trailing chip row when no markers are present. Each marker's uid
+    is present in `citations`.
+    """
 
     answer: str
     lang: Literal["si", "en"]

@@ -14,6 +14,7 @@ generation, empty history. The "intelligent" retrieval-breadth / fan-out work
 from __future__ import annotations
 
 import logging
+import re
 from functools import lru_cache
 
 from .config import Settings
@@ -35,6 +36,11 @@ SYSTEM = (
     "If the passages don't contain the answer, say so. Never invent a reference.\n"
     "If coverage may be partial, say so. For disputed meanings, present the range "
     "of readings rather than a verdict.\n"
+    # Keep the markup within the small subset the app's answer renderer handles
+    # (research_answer_view.dart): short paragraphs, **bold**, *italic*, '- '
+    # bullets. Headings/tables/nested lists would render as raw text.
+    "Format with simple Markdown only: short paragraphs, **bold**, *italic*, and "
+    "'- ' bullets. Do not use headings, tables, or nested lists.\n"
     "Answer in {lang}.{glossary_hint}"
 )
 
@@ -189,14 +195,119 @@ def _deeplink_for(uid: str) -> str | None:
     return None
 
 
+# In-band inline-citation marker baked into the answer prose at each grounded
+# span, e.g. "…abandons[[cite:mn9]], while…". The app parses these out and
+# renders a tappable chip in place (research_answer_view.dart). Kept lowercase
+# (uid form) so it never collides with the prose linkifier's uppercase refs.
+CITE_TOKEN = "[[cite:{uid}]]"
+
+
+def _grounding_metadata(resp):
+    """The first candidate's grounding_metadata, or None."""
+    candidates = getattr(resp, "candidates", None) or []
+    return getattr(candidates[0], "grounding_metadata", None) if candidates else None
+
+
+def _grounding_chunks(resp) -> list:
+    return list(getattr(_grounding_metadata(resp), "grounding_chunks", None) or [])
+
+
+def _chunk_uid(chunks: list, index: int) -> str | None:
+    """The uid (retrieved_context.title) of grounding chunk `index`, if any."""
+    if not 0 <= index < len(chunks):
+        return None
+    rc = getattr(chunks[index], "retrieved_context", None)
+    return getattr(rc, "title", None) if rc else None
+
+
+def _byte_to_char(text: str, byte_index: int) -> int:
+    """Map a UTF-8 byte offset (Gemini reports segment indices in bytes) to a
+    Python str index. Clamps to the ends; tolerates a split multibyte boundary."""
+    if byte_index <= 0:
+        return 0
+    encoded = text.encode("utf-8")
+    if byte_index >= len(encoded):
+        return len(text)
+    return len(encoded[:byte_index].decode("utf-8", errors="ignore"))
+
+
+def _inject_citation_tokens(text: str, resp) -> str:
+    """Insert `[[cite:uid]]` markers at each grounding support's end offset, so
+    the app renders an inline chip exactly where the model grounded a claim.
+
+    Fallback only (used when the prose named no linkable ref). No
+    `grounding_supports` → text unchanged; the client then surfaces the sources
+    under its "Other sources" heading instead (design §5.5).
+    """
+    gm = _grounding_metadata(resp)
+    supports = getattr(gm, "grounding_supports", None) or []
+    if not supports:
+        return text
+
+    # `segment.end_index` is relative to the part named by `segment.part_index`,
+    # but we map offsets against `resp.text` (all parts concatenated). Those agree
+    # only for a single-part answer; for multi-part, skip injection (degrades to
+    # "Other sources") rather than place markers at the wrong offset.
+    candidates = getattr(resp, "candidates", None) or []
+    content = getattr(candidates[0], "content", None) if candidates else None
+    if len(getattr(content, "parts", None) or []) > 1:
+        return text
+
+    chunks = _grounding_chunks(resp)
+
+    # Collect (char_pos, [uids]); insert back-to-front so earlier offsets stay
+    # valid. A support citing several chunks yields several adjacent chips.
+    insertions: list[tuple[int, list[str]]] = []
+    for sup in supports:
+        seg = getattr(sup, "segment", None)
+        end = getattr(seg, "end_index", None) if seg else None
+        if end is None:
+            continue
+        uids: list[str] = []
+        for idx in getattr(sup, "grounding_chunk_indices", None) or []:
+            uid = _chunk_uid(chunks, idx)
+            if uid and uid not in uids:
+                uids.append(uid)
+        if uids:
+            insertions.append((_byte_to_char(text, end), uids))
+
+    for char_pos, uids in sorted(insertions, key=lambda pair: pair[0], reverse=True):
+        token = "".join(CITE_TOKEN.format(uid=uid) for uid in uids)
+        text = text[:char_pos] + token + text[char_pos:]
+    return text
+
+
+# A parenthesis group that, after linkifying, wraps ONLY chip tokens and their
+# separators (comma / "and" / "&" / ";") — we drop those parens so the chip reads
+# cleanly ("…දේශනා කර ඇත 📖SN 15.11.") instead of "(📖SN 15.11)".
+_PARENS_OF_CITES = re.compile(
+    r"\(\s*((?:\[\[cite:[^\]]+\]\](?:\s*(?:,|;|&|and)\s*)?)+)\)"
+)
+
+
+def _linkify_prose_refs(text: str) -> str:
+    """Turn the canonical refs the model wrote in prose (e.g. "(SN 15.11)") into
+    inline `[[cite:uid]]` chips, for known uids only.
+
+    This is the PRIMARY chip source: a ref the model chose to write is exactly
+    where the reader expects a tappable citation, and it survives even when
+    Gemini returns no `grounding_supports`. Unknown refs are left as plain text
+    (the linkifier already drops hallucinations from the citation list).
+    """
+    def _repl(m: "re.Match[str]") -> str:
+        uid = uid_from_ref(m.group())
+        return CITE_TOKEN.format(uid=uid) if uid and known_uid(uid) else m.group()
+
+    linked = REF_IN_PROSE.sub(_repl, text)
+    return _PARENS_OF_CITES.sub(lambda m: m.group(1).strip(), linked)
+
+
 def _to_citations(answer_text: str, resp, search_q: str, snippet_chars: int) -> list[Citation]:
     """Synthesise citations from grounding_metadata + linkify refs in prose."""
     cites: dict[str, Citation] = {}
 
     # 1) Passages actually used to ground the answer (grounding_metadata).
-    candidates = getattr(resp, "candidates", None) or []
-    gm = getattr(candidates[0], "grounding_metadata", None) if candidates else None
-    for chunk in getattr(gm, "grounding_chunks", None) or []:
+    for chunk in _grounding_chunks(resp):
         rc = getattr(chunk, "retrieved_context", None)
         uid = getattr(rc, "title", None) if rc else None
         if not uid:
@@ -254,8 +365,17 @@ def answer(cfg: Settings, req: ResearchRequest) -> ResearchResponse:
         # non-200 "rephrase" error instead (plan §3.4: errors stay non-200).
         raise ResearchError(422, "cannot_answer", CANNOT_ANSWER_MSG, retriable=False)
 
+    # Build citations from the ORIGINAL text, then produce the display answer with
+    # inline `[[cite:uid]]` chips. PREFER the refs the model wrote in prose
+    # ("(SN 15.11)") — that's what the reader sees and expects to tap, and it
+    # works even when Gemini returns no grounding_supports. Only when the model
+    # named no linkable ref do we fall back to grounding-support placement.
+    citations = _to_citations(text, resp, search_q, cfg.snippet_chars)
+    answer_text = _linkify_prose_refs(text)
+    if "[[cite:" not in answer_text:
+        answer_text = _inject_citation_tokens(text, resp)
     return ResearchResponse(
-        answer=text,
+        answer=answer_text,
         lang="si" if is_si else "en",
-        citations=_to_citations(text, resp, search_q, cfg.snippet_chars),
+        citations=citations,
     )

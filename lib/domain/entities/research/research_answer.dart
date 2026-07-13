@@ -8,7 +8,10 @@ part 'research_answer.g.dart';
 @freezed
 class ResearchAnswer with _$ResearchAnswer {
   const factory ResearchAnswer({
-    /// The answer prose, in the same language as the question.
+    /// The answer prose, in the same language as the question. Carries inline
+    /// `[[cite:uid]]` markers at each grounded span — the answer renderer
+    /// (`research_answer_view.dart`) parses these into tappable citation chips.
+    /// Also uses the small Markdown subset `**bold**` / `*italic*` / `- ` bullets.
     required String answer,
 
     /// "si" | "en".

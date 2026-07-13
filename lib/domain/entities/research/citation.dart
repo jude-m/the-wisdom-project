@@ -24,8 +24,9 @@ class Citation with _$Citation {
     /// Kept from day one so adding notes later needs no contract change.
     @Default('canon') String kind,
 
-    /// English source span used to ground this point (doubles as the
-    /// verification preview the deep link would open).
+    /// SuttaCentral English source span that grounded this point — the "why it
+    /// was cited" provenance shown in the peek sheet. Matched query terms are
+    /// wrapped in `**…**` (rendered bold); see `make_snippet` on the server.
     String? snippet,
 
     /// Wire-level deep link — the server keeps this null (decided 2026-07-06):

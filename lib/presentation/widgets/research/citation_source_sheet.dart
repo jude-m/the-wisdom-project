@@ -6,22 +6,32 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../domain/entities/research/citation.dart';
 import '../../providers/deep_link_provider.dart';
+import '../../providers/document_provider.dart';
+import '../../providers/navigation_tree_provider.dart';
 import '../../providers/reference_search_provider.dart';
+import '../reader/reader_entry_builder.dart';
 
-/// Bottom sheet showing one cited source in full: reference + title, the
-/// grounding snippet, and — when the SuttaCentral uid resolves to a BJT node
-/// via the shared concordance — "Open in reader" and "Copy link" actions.
+/// Bottom-sheet "peek" for one cited source. Two complementary blocks:
 ///
-/// Unresolved citations (the concordance grows over time) still show the
-/// snippet, with a gentle "not linked yet" note instead of the buttons.
+/// - **Matched passage (SuttaCentral, English)** — `citation.snippet`, the span
+///   the answer was grounded on, with matched terms in **bold**. This is the
+///   *why it was cited* provenance; the RAG corpus is English-only.
+/// - **From the sutta (BJT, Sinhala)** — the opening of the resolved BJT sutta,
+///   under its Sinhala title. This is *what "Open in reader" will show* (the app
+///   holds no English). The two blocks intentionally aren't aligned — they do
+///   different jobs — so no cross-edition alignment is attempted.
+///
+/// Unresolved citations (the concordance grows over time) still show the English
+/// snippet, with a gentle "not linked yet" note instead of the Sinhala block and
+/// the action buttons.
 class CitationSourceSheet extends ConsumerStatefulWidget {
   const CitationSourceSheet({super.key, required this.citation});
 
   final Citation citation;
 
   /// Opens the sheet. Resolves with `true` when the user chose
-  /// "Open in reader" — the caller should then dismiss the chat dialog so the
-  /// newly opened reader tab is visible.
+  /// "Open in reader" — the caller should then dismiss its host (the chat
+  /// dialog pops so the newly opened reader tab is visible).
   static Future<bool?> show(BuildContext context, Citation citation) {
     return showModalBottomSheet<bool>(
       context: context,
@@ -123,19 +133,36 @@ class _CitationSourceSheetState extends ConsumerState<CitationSourceSheet> {
             ],
           ),
 
-          // ── Snippet (scrolls when long) ──────────────────────────
-          if (citation.snippet != null) ...[
-            const SizedBox(height: 8),
-            Flexible(
-              child: SingleChildScrollView(
-                child: SelectableText(
-                  citation.snippet!,
-                  style: textTheme.bodyMedium
-                      ?.copyWith(color: colors.onSurfaceVariant, height: 1.5),
-                ),
+          // ── Scrollable body: English snippet + Sinhala opening ──
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // English (SuttaCentral) — the matched span, bold on matches.
+                  if (citation.snippet != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      l10n.researchMatchedPassage,
+                      style: textTheme.labelSmall
+                          ?.copyWith(color: colors.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 4),
+                    SelectableText.rich(
+                      TextSpan(
+                        style: textTheme.bodyMedium?.copyWith(
+                            color: colors.onSurfaceVariant, height: 1.5),
+                        children: _boldSpans(citation.snippet!),
+                      ),
+                    ),
+                  ],
+
+                  // Sinhala (BJT) — the opening of the resolved sutta.
+                  if (nodeKey != null) _SinhalaSourcePreview(nodeKey: nodeKey),
+                ],
               ),
             ),
-          ],
+          ),
           const SizedBox(height: 16),
 
           // ── Actions ─────────────────────────────────────────────
@@ -160,6 +187,93 @@ class _CitationSourceSheetState extends ConsumerState<CitationSourceSheet> {
             ),
         ],
       ),
+    );
+  }
+}
+
+final _boldMarker = RegExp(r'\*\*(.+?)\*\*');
+
+/// Splits `**bold**`-marked snippet text into spans. The snippet only ever
+/// carries `**` (from `make_snippet`), so a single-marker parse is enough.
+List<InlineSpan> _boldSpans(String text) {
+  final spans = <InlineSpan>[];
+  var last = 0;
+  for (final m in _boldMarker.allMatches(text)) {
+    if (m.start > last) spans.add(TextSpan(text: text.substring(last, m.start)));
+    spans.add(TextSpan(
+      text: m.group(1),
+      style: const TextStyle(fontWeight: FontWeight.bold),
+    ));
+    last = m.end;
+  }
+  if (last < text.length) spans.add(TextSpan(text: text.substring(last)));
+  return spans;
+}
+
+/// The BJT-Sinhala opening of the resolved sutta, under its Sinhala title —
+/// the "what you'll open" preview. Loads the node's document and renders the
+/// first few Sinhala entries with the reader's own entry styling.
+class _SinhalaSourcePreview extends ConsumerWidget {
+  const _SinhalaSourcePreview({required this.nodeKey});
+
+  final String nodeKey;
+
+  /// How many entries from the sutta's start to preview (a display cap, not a
+  /// search) — enough to give a taste, not the whole sutta.
+  static const _maxEntries = 4;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final node = ref.watch(nodeByKeyProvider(nodeKey));
+    if (node == null || !node.isReadableContent) return const SizedBox.shrink();
+
+    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
+    final docAsync = ref.watch(bjtDocumentProvider(node.contentFileId!));
+
+    return docAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: SizedBox(
+          height: 16,
+          width: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (doc) {
+        final page = doc.getPageByIndex(node.entryPageIndex);
+        final entries = page?.sinhalaSection.entries ?? const [];
+        if (entries.isEmpty) return const SizedBox.shrink();
+
+        final start = node.entryIndexInPage.clamp(0, entries.length);
+        final preview =
+            entries.sublist(start, (start + _maxEntries).clamp(0, entries.length));
+        // A sutta starting at the last entry slices to nothing — don't render a
+        // lone title with no body.
+        if (preview.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 18),
+            // Sinhala title of the BJT sutta — what "Open in reader" opens.
+            Text(
+              node.sinhalaName,
+              style: textTheme.labelMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            for (final entry in preview)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: ReaderEntryBuilder.buildEntry(context, entry),
+              ),
+          ],
+        );
+      },
     );
   }
 }

@@ -716,17 +716,23 @@ abstract class AppLocalizations {
   /// **'Thinking…'**
   String get researchThinking;
 
-  /// Header above the list of source citations under an answer
-  ///
-  /// In en, this message translates to:
-  /// **'Sources'**
-  String get researchSources;
-
   /// Small label at the top of the bottom sheet showing one citation's details
   ///
   /// In en, this message translates to:
   /// **'Cited source'**
   String get researchCitedSource;
+
+  /// Label above the English SuttaCentral snippet in the citation peek — the passage the answer was grounded on
+  ///
+  /// In en, this message translates to:
+  /// **'Matched passage · SuttaCentral'**
+  String get researchMatchedPassage;
+
+  /// Heading above chips for sources the answer was grounded on but did not cite inline
+  ///
+  /// In en, this message translates to:
+  /// **'Other sources'**
+  String get researchOtherSources;
 
   /// Button in the citation sheet that opens the cited text in a reader tab
   ///
