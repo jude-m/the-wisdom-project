@@ -42,4 +42,14 @@ class StorageKeys {
   /// Bool — Switch 1 (touching join + long→short vowel) for Pali
   /// display. Default true. Absent → fall back to true.
   static const paliTouching = 'pali_touching_v1';
+
+  /// JSON list of [ChatSummary] objects — the Research section's "Recent"
+  /// chats index, newest first. Transcripts live under [researchChatPrefix].
+  static const researchChatIndex = 'research_chat_index_v1';
+
+  /// Prefix for the per-chat transcript keys
+  /// (`research_chat_v1_<sessionId>` → JSON list of [ChatMessage]).
+  /// The version sits in the prefix so a schema break renames every
+  /// transcript key at once.
+  static const researchChatPrefix = 'research_chat_v1_';
 }

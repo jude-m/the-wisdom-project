@@ -20,7 +20,10 @@ ResearchAnswer _$ResearchAnswerFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$ResearchAnswer {
-  /// The answer prose, in the same language as the question.
+  /// The answer prose, in the same language as the question. Carries inline
+  /// `[[cite:uid]]` markers at each grounded span — the answer renderer
+  /// (`research_answer_view.dart`) parses these into tappable citation chips.
+  /// Also uses the small Markdown subset `**bold**` / `*italic*` / `- ` bullets.
   String get answer => throw _privateConstructorUsedError;
 
   /// "si" | "en".
@@ -141,7 +144,10 @@ class _$ResearchAnswerImpl implements _ResearchAnswer {
   factory _$ResearchAnswerImpl.fromJson(Map<String, dynamic> json) =>
       _$$ResearchAnswerImplFromJson(json);
 
-  /// The answer prose, in the same language as the question.
+  /// The answer prose, in the same language as the question. Carries inline
+  /// `[[cite:uid]]` markers at each grounded span — the answer renderer
+  /// (`research_answer_view.dart`) parses these into tappable citation chips.
+  /// Also uses the small Markdown subset `**bold**` / `*italic*` / `- ` bullets.
   @override
   final String answer;
 
@@ -208,7 +214,10 @@ abstract class _ResearchAnswer implements ResearchAnswer {
   factory _ResearchAnswer.fromJson(Map<String, dynamic> json) =
       _$ResearchAnswerImpl.fromJson;
 
-  /// The answer prose, in the same language as the question.
+  /// The answer prose, in the same language as the question. Carries inline
+  /// `[[cite:uid]]` markers at each grounded span — the answer renderer
+  /// (`research_answer_view.dart`) parses these into tappable citation chips.
+  /// Also uses the small Markdown subset `**bold**` / `*italic*` / `- ` bullets.
   @override
   String get answer;
 

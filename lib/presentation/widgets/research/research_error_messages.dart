@@ -15,10 +15,10 @@ String researchErrorMessage(AppLocalizations l10n, ApiErrorType type) =>
       ApiErrorType.serverError => l10n.researchErrorServerError,
     };
 
-/// Whether the dialog should offer a one-tap Retry for this type.
+/// Whether the chat view should offer a one-tap Retry for this type.
 ///
 /// `notAuthorised` is a build/config problem — retrying is a lie. `cannotAnswer`
-/// needs the user to *rephrase*, not re-send the identical text (the dialog
+/// needs the user to *rephrase*, not re-send the identical text (the chat view
 /// restores their question to the input instead). Everything else is retriable.
 bool canRetryType(ApiErrorType type) => switch (type) {
       ApiErrorType.notAuthorised || ApiErrorType.cannotAnswer => false,

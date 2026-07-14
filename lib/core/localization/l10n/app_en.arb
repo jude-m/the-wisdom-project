@@ -526,11 +526,6 @@
     "description": "Label of the Notes destination in the navigation rail / bottom navigation bar"
   },
 
-  "researchTitle": "Research the Canon",
-  "@researchTitle": {
-    "description": "Title of the AI Q&A chat dialog and tooltip on the button that opens it"
-  },
-
   "researchNewChat": "New chat",
   "@researchNewChat": {
     "description": "Button that clears the Q&A transcript to start a fresh conversation"
@@ -629,5 +624,64 @@
   "researchErrorServerError": "Something went wrong. Please try again.",
   "@researchErrorServerError": {
     "description": "Generic Q&A error for a server fault or a malformed response; retry"
+  },
+
+  "researchQuestionNotAnswered": "This question wasn't answered.",
+  "@researchQuestionNotAnswered": {
+    "description": "Neutral notice (paired with Retry) when reopening a chat whose last question never received an answer — the original error was transient state and is gone"
+  },
+
+  "researchRecent": "Recent",
+  "@researchRecent": {
+    "description": "Header above the list of saved research chats"
+  },
+
+  "researchNoRecentChats": "No chats yet",
+  "@researchNoRecentChats": {
+    "description": "Placeholder in the Recent panel when no chats have been saved"
+  },
+
+  "researchChatLimitReached": "This chat has reached its length limit. Start a new chat to continue.",
+  "@researchChatLimitReached": {
+    "description": "Banner shown in place of the input once a chat has used all its turns"
+  },
+
+  "researchDeleteChat": "Delete chat",
+  "@researchDeleteChat": {
+    "description": "Tooltip/label for deleting a saved chat from the Recent panel"
+  },
+
+  "relativeTimeJustNow": "Just now",
+  "@relativeTimeJustNow": {
+    "description": "Relative timestamp for under a minute ago"
+  },
+
+  "relativeTimeMinutesAgo": "{count, plural, =1{1 minute ago} other{{count} minutes ago}}",
+  "@relativeTimeMinutesAgo": {
+    "description": "Relative timestamp, minutes granularity",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
+  "relativeTimeHoursAgo": "{count, plural, =1{1 hour ago} other{{count} hours ago}}",
+  "@relativeTimeHoursAgo": {
+    "description": "Relative timestamp, hours granularity",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
+  "relativeTimeYesterday": "Yesterday",
+  "@relativeTimeYesterday": {
+    "description": "Relative timestamp for one calendar day ago"
+  },
+
+  "relativeTimeDaysAgo": "{count, plural, other{{count} days ago}}",
+  "@relativeTimeDaysAgo": {
+    "description": "Relative timestamp, days granularity (2–6 days; older shows a date)",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
   }
 }

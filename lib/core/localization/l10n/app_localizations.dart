@@ -704,12 +704,6 @@ abstract class AppLocalizations {
   /// **'Notes'**
   String get navNotes;
 
-  /// Title of the AI Q&A chat dialog and tooltip on the button that opens it
-  ///
-  /// In en, this message translates to:
-  /// **'Research the Canon'**
-  String get researchTitle;
-
   /// Button that clears the Q&A transcript to start a fresh conversation
   ///
   /// In en, this message translates to:
@@ -829,6 +823,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Something went wrong. Please try again.'**
   String get researchErrorServerError;
+
+  /// Neutral notice (paired with Retry) when reopening a chat whose last question never received an answer — the original error was transient state and is gone
+  ///
+  /// In en, this message translates to:
+  /// **'This question wasn\'t answered.'**
+  String get researchQuestionNotAnswered;
+
+  /// Header above the list of saved research chats
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get researchRecent;
+
+  /// Placeholder in the Recent panel when no chats have been saved
+  ///
+  /// In en, this message translates to:
+  /// **'No chats yet'**
+  String get researchNoRecentChats;
+
+  /// Banner shown in place of the input once a chat has used all its turns
+  ///
+  /// In en, this message translates to:
+  /// **'This chat has reached its length limit. Start a new chat to continue.'**
+  String get researchChatLimitReached;
+
+  /// Tooltip/label for deleting a saved chat from the Recent panel
+  ///
+  /// In en, this message translates to:
+  /// **'Delete chat'**
+  String get researchDeleteChat;
+
+  /// Relative timestamp for under a minute ago
+  ///
+  /// In en, this message translates to:
+  /// **'Just now'**
+  String get relativeTimeJustNow;
+
+  /// Relative timestamp, minutes granularity
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 minute ago} other{{count} minutes ago}}'**
+  String relativeTimeMinutesAgo(int count);
+
+  /// Relative timestamp, hours granularity
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 hour ago} other{{count} hours ago}}'**
+  String relativeTimeHoursAgo(int count);
+
+  /// Relative timestamp for one calendar day ago
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get relativeTimeYesterday;
+
+  /// Relative timestamp, days granularity (2–6 days; older shows a date)
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, other{{count} days ago}}'**
+  String relativeTimeDaysAgo(int count);
 }
 
 class _AppLocalizationsDelegate

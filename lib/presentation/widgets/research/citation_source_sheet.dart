@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wisdom_shared/wisdom_shared.dart';
 
+import '../../../core/constants/constants.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../domain/entities/research/citation.dart';
 import '../../providers/deep_link_provider.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/navigation_tree_provider.dart';
 import '../../providers/reference_search_provider.dart';
+import '../../providers/research_provider.dart';
 import '../reader/reader_entry_builder.dart';
 
 /// Bottom-sheet "peek" for one cited source. Two complementary blocks:
@@ -29,14 +31,22 @@ class CitationSourceSheet extends ConsumerStatefulWidget {
 
   final Citation citation;
 
-  /// Opens the sheet. Resolves with `true` when the user chose
-  /// "Open in reader" — the caller should then dismiss its host (the chat
-  /// dialog pops so the newly opened reader tab is visible).
-  static Future<bool?> show(BuildContext context, Citation citation) {
-    return showModalBottomSheet<bool>(
+  /// Opens the sheet. "Open in reader" switches the app to the Reader
+  /// section itself (via the deep-link provider), so there is nothing to
+  /// report back to the caller.
+  static Future<void> show(BuildContext context, Citation citation) {
+    return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      // Rise at the answer column's width, not the whole app width. The
+      // sheet centers within the nearest Navigator — the Research screen's
+      // chat-area navigator (_ChatArea) — so with the column's own max
+      // width it lands exactly over the answers. On mobile the screen is
+      // narrower than this, so the constraint is inert there.
+      constraints: const BoxConstraints(
+        maxWidth: PaneWidthConstants.researchContentMaxWidth,
+      ),
       builder: (_) => CitationSourceSheet(citation: citation),
     );
   }
@@ -54,15 +64,14 @@ class _CitationSourceSheetState extends ConsumerState<CitationSourceSheet> {
   Future<void> _openInReader(String nodeKey) async {
     final isPortrait =
         MediaQuery.of(context).orientation == Orientation.portrait;
-    // Await the result: on a concordance-vs-tree miss the open fails, and
-    // popping `true` regardless would also close the chat dialog with nothing
-    // to show. The tree is already loaded here, so this resolves instantly.
-    final opened = await ref.read(openTipitakaLinkProvider)(
+    // Await the open (the tree is already loaded, so it resolves instantly)
+    // so the Reader section is showing by the time the sheet slides away.
+    await ref.read(openTipitakaLinkProvider)(
       TipitakaLink(nodeKey: nodeKey),
       isPortraitMode: isPortrait,
     );
     if (!mounted) return;
-    Navigator.of(context).pop(opened);
+    Navigator.of(context).pop();
   }
 
   Future<void> _copyLink(String nodeKey) async {
@@ -79,6 +88,13 @@ class _CitationSourceSheetState extends ConsumerState<CitationSourceSheet> {
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final citation = widget.citation;
+
+    // On desktop the modal barrier only spans the chat-area navigator, so
+    // the history panel stays clickable — if the user switches or deletes
+    // the chat underneath, this peek no longer belongs to what's shown.
+    ref.listen(researchChatProvider.select((s) => s.sessionId), (prev, next) {
+      if (prev != next) Navigator.of(context).pop();
+    });
 
     // uid → BJT nodeKey via the shared concordance (same resolver instance
     // search-by-reference uses). Null while loading or when uncovered.
@@ -128,7 +144,7 @@ class _CitationSourceSheetState extends ConsumerState<CitationSourceSheet> {
               IconButton(
                 icon: const Icon(Icons.close),
                 tooltip: l10n.close,
-                onPressed: () => Navigator.of(context).pop(false),
+                onPressed: () => Navigator.of(context).pop(),
               ),
             ],
           ),

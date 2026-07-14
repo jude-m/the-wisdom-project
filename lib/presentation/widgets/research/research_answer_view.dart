@@ -8,16 +8,14 @@ import 'citation_source_sheet.dart';
 /// (`**bold**`, `*italic*`, `- ` bullets, blank-line paragraphs) with inline
 /// `[[cite:uid]]` citation chips that open the [CitationSourceSheet] "peek".
 ///
-/// Kept as its OWN widget (not buried in the chat dialog) on purpose: the
-/// research feature will soon move from a modal dialog to a full-screen
-/// "Dhamma AI" tab, and this renderer + the peek are the durable pieces — they
-/// drop into that shell unchanged. See the answer-renderer plan.
+/// Deliberately knows nothing about its host: "Open in reader" inside the
+/// peek switches the app to the Reader section via the deep-link provider,
+/// so the Research chat view drops this in with no wiring.
 class ResearchAnswerView extends StatelessWidget {
   const ResearchAnswerView({
     super.key,
     required this.answer,
     required this.citations,
-    this.onCitationOpenedInReader,
   });
 
   /// Answer prose from `/research`, carrying inline `[[cite:uid]]` markers plus
@@ -26,11 +24,6 @@ class ResearchAnswerView extends StatelessWidget {
 
   /// Sources for the answer — chips are looked up here by uid.
   final List<Citation> citations;
-
-  /// Invoked after the user chose "Open in reader" in the peek sheet, so the
-  /// host can dismiss itself (the chat dialog pops so the reader tab shows).
-  /// The future full-screen tab can leave this null — it already switched tabs.
-  final VoidCallback? onCitationOpenedInReader;
 
   /// One inline token: a citation marker, `**bold**`, or `*italic*`. Bold is
   /// listed before italic so `**x**` matches the bold arm, not two italics.
@@ -94,9 +87,7 @@ class ResearchAnswerView extends StatelessWidget {
           spacing: 6,
           runSpacing: 6,
           children: [
-            for (final c in sources)
-              _CitationChip(
-                  citation: c, onOpenedInReader: onCitationOpenedInReader),
+            for (final c in sources) _CitationChip(citation: c),
           ],
         ),
       ],
@@ -186,10 +177,7 @@ class ResearchAnswerView extends StatelessWidget {
         if (citation != null) {
           spans.add(WidgetSpan(
             alignment: PlaceholderAlignment.middle,
-            child: _CitationChip(
-              citation: citation,
-              onOpenedInReader: onCitationOpenedInReader,
-            ),
+            child: _CitationChip(citation: citation),
           ));
         }
       } else if (bold != null) {
@@ -215,17 +203,14 @@ class ResearchAnswerView extends StatelessWidget {
 }
 
 /// The inline citation pill: a book glyph + the reference (e.g. "SN 12.2").
-/// Tapping opens the [CitationSourceSheet] peek; if the user chooses "Open in
-/// reader" there, [onOpenedInReader] fires so the host can dismiss itself.
+/// Tapping opens the [CitationSourceSheet] peek.
 class _CitationChip extends StatelessWidget {
-  const _CitationChip({required this.citation, this.onOpenedInReader});
+  const _CitationChip({required this.citation});
 
   final Citation citation;
-  final VoidCallback? onOpenedInReader;
 
-  Future<void> _open(BuildContext context) async {
-    final openedInReader = await CitationSourceSheet.show(context, citation);
-    if (openedInReader == true) onOpenedInReader?.call();
+  void _open(BuildContext context) {
+    CitationSourceSheet.show(context, citation);
   }
 
   @override

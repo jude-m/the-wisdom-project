@@ -34,12 +34,15 @@ mixin _$Citation {
   /// Kept from day one so adding notes later needs no contract change.
   String get kind => throw _privateConstructorUsedError;
 
-  /// English source span used to ground this point (doubles as the
-  /// verification preview the deep link would open).
+  /// SuttaCentral English source span that grounded this point — the "why it
+  /// was cited" provenance shown in the peek sheet. Matched query terms are
+  /// wrapped in `**…**` (rendered bold); see `make_snippet` on the server.
   String? get snippet => throw _privateConstructorUsedError;
 
-  /// In-app deep link. Null until the SuttaCentral→BJT resolver lands
-  /// (see the resolver plan, Part D). Not rendered as a tappable link in v1.
+  /// Wire-level deep link — the server keeps this null (decided 2026-07-06):
+  /// the app resolves [uid] → BJT nodeKey client-side via the shared
+  /// resolver (see `docs/todo/deep-linking-and-shareable-urls.md`). Kept in
+  /// the contract for future non-app consumers of `/research`.
   String? get deeplink => throw _privateConstructorUsedError;
 
   /// Serializes this Citation to a JSON map.
@@ -216,13 +219,16 @@ class _$CitationImpl implements _Citation {
   @JsonKey()
   final String kind;
 
-  /// English source span used to ground this point (doubles as the
-  /// verification preview the deep link would open).
+  /// SuttaCentral English source span that grounded this point — the "why it
+  /// was cited" provenance shown in the peek sheet. Matched query terms are
+  /// wrapped in `**…**` (rendered bold); see `make_snippet` on the server.
   @override
   final String? snippet;
 
-  /// In-app deep link. Null until the SuttaCentral→BJT resolver lands
-  /// (see the resolver plan, Part D). Not rendered as a tappable link in v1.
+  /// Wire-level deep link — the server keeps this null (decided 2026-07-06):
+  /// the app resolves [uid] → BJT nodeKey client-side via the shared
+  /// resolver (see `docs/todo/deep-linking-and-shareable-urls.md`). Kept in
+  /// the contract for future non-app consumers of `/research`.
   @override
   final String? deeplink;
 
@@ -296,13 +302,16 @@ abstract class _Citation implements Citation {
   @override
   String get kind;
 
-  /// English source span used to ground this point (doubles as the
-  /// verification preview the deep link would open).
+  /// SuttaCentral English source span that grounded this point — the "why it
+  /// was cited" provenance shown in the peek sheet. Matched query terms are
+  /// wrapped in `**…**` (rendered bold); see `make_snippet` on the server.
   @override
   String? get snippet;
 
-  /// In-app deep link. Null until the SuttaCentral→BJT resolver lands
-  /// (see the resolver plan, Part D). Not rendered as a tappable link in v1.
+  /// Wire-level deep link — the server keeps this null (decided 2026-07-06):
+  /// the app resolves [uid] → BJT nodeKey client-side via the shared
+  /// resolver (see `docs/todo/deep-linking-and-shareable-urls.md`). Kept in
+  /// the contract for future non-app consumers of `/research`.
   @override
   String? get deeplink;
 

@@ -323,9 +323,6 @@ class AppLocalizationsSi extends AppLocalizations {
   String get navNotes => 'සටහන්';
 
   @override
-  String get researchTitle => 'ත්‍රිපිටකයෙන් අසන්න';
-
-  @override
   String get researchNewChat => 'නව සංවාදය';
 
   @override
@@ -392,4 +389,58 @@ class AppLocalizationsSi extends AppLocalizations {
   @override
   String get researchErrorServerError =>
       'යම් දෝෂයක් සිදු විය. කරුණාකර නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get researchQuestionNotAnswered => 'මෙම ප්‍රශ්නයට පිළිතුරක් නොලැබුණි.';
+
+  @override
+  String get researchRecent => 'මෑත සංවාද';
+
+  @override
+  String get researchNoRecentChats => 'තවම සංවාද නොමැත';
+
+  @override
+  String get researchChatLimitReached =>
+      'මෙම සංවාදය එහි දිග සීමාවට ළඟා වී ඇත. දිගටම කරගෙන යාමට නව සංවාදයක් අරඹන්න.';
+
+  @override
+  String get researchDeleteChat => 'සංවාදය මකන්න';
+
+  @override
+  String get relativeTimeJustNow => 'මේ දැන්';
+
+  @override
+  String relativeTimeMinutesAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'මිනිත්තු $countකට පෙර',
+      one: 'මිනිත්තුවකට පෙර',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String relativeTimeHoursAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'පැය $countකට පෙර',
+      one: 'පැයකට පෙර',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get relativeTimeYesterday => 'ඊයේ';
+
+  @override
+  String relativeTimeDaysAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'දින $countකට පෙර',
+    );
+    return '$_temp0';
+  }
 }

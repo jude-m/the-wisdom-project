@@ -16,6 +16,11 @@ final _privateConstructorUsedError = UnsupportedError(
 
 /// @nodoc
 mixin _$ResearchChatState {
+  /// Id of the saved chat this transcript belongs to, or null for a fresh
+  /// chat that hasn't sent its first message yet (unsent chats are never
+  /// persisted, so "New chat" spam can't pollute the Recent list).
+  String? get sessionId => throw _privateConstructorUsedError;
+
   /// Full transcript, oldest first. Assistant turns carry their citations.
   List<ChatMessage> get messages => throw _privateConstructorUsedError;
 
@@ -46,7 +51,8 @@ abstract class $ResearchChatStateCopyWith<$Res> {
       _$ResearchChatStateCopyWithImpl<$Res, ResearchChatState>;
   @useResult
   $Res call(
-      {List<ChatMessage> messages,
+      {String? sessionId,
+      List<ChatMessage> messages,
       bool isLoading,
       String? error,
       ApiErrorType? errorType});
@@ -67,12 +73,17 @@ class _$ResearchChatStateCopyWithImpl<$Res, $Val extends ResearchChatState>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
+    Object? sessionId = freezed,
     Object? messages = null,
     Object? isLoading = null,
     Object? error = freezed,
     Object? errorType = freezed,
   }) {
     return _then(_value.copyWith(
+      sessionId: freezed == sessionId
+          ? _value.sessionId
+          : sessionId // ignore: cast_nullable_to_non_nullable
+              as String?,
       messages: null == messages
           ? _value.messages
           : messages // ignore: cast_nullable_to_non_nullable
@@ -102,7 +113,8 @@ abstract class _$$ResearchChatStateImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {List<ChatMessage> messages,
+      {String? sessionId,
+      List<ChatMessage> messages,
       bool isLoading,
       String? error,
       ApiErrorType? errorType});
@@ -121,12 +133,17 @@ class __$$ResearchChatStateImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
+    Object? sessionId = freezed,
     Object? messages = null,
     Object? isLoading = null,
     Object? error = freezed,
     Object? errorType = freezed,
   }) {
     return _then(_$ResearchChatStateImpl(
+      sessionId: freezed == sessionId
+          ? _value.sessionId
+          : sessionId // ignore: cast_nullable_to_non_nullable
+              as String?,
       messages: null == messages
           ? _value._messages
           : messages // ignore: cast_nullable_to_non_nullable
@@ -149,13 +166,21 @@ class __$$ResearchChatStateImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$ResearchChatStateImpl implements _ResearchChatState {
+class _$ResearchChatStateImpl extends _ResearchChatState {
   const _$ResearchChatStateImpl(
-      {final List<ChatMessage> messages = const [],
+      {this.sessionId,
+      final List<ChatMessage> messages = const [],
       this.isLoading = false,
       this.error,
       this.errorType})
-      : _messages = messages;
+      : _messages = messages,
+        super._();
+
+  /// Id of the saved chat this transcript belongs to, or null for a fresh
+  /// chat that hasn't sent its first message yet (unsent chats are never
+  /// persisted, so "New chat" spam can't pollute the Recent list).
+  @override
+  final String? sessionId;
 
   /// Full transcript, oldest first. Assistant turns carry their citations.
   final List<ChatMessage> _messages;
@@ -188,7 +213,7 @@ class _$ResearchChatStateImpl implements _ResearchChatState {
 
   @override
   String toString() {
-    return 'ResearchChatState(messages: $messages, isLoading: $isLoading, error: $error, errorType: $errorType)';
+    return 'ResearchChatState(sessionId: $sessionId, messages: $messages, isLoading: $isLoading, error: $error, errorType: $errorType)';
   }
 
   @override
@@ -196,6 +221,8 @@ class _$ResearchChatStateImpl implements _ResearchChatState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$ResearchChatStateImpl &&
+            (identical(other.sessionId, sessionId) ||
+                other.sessionId == sessionId) &&
             const DeepCollectionEquality().equals(other._messages, _messages) &&
             (identical(other.isLoading, isLoading) ||
                 other.isLoading == isLoading) &&
@@ -207,6 +234,7 @@ class _$ResearchChatStateImpl implements _ResearchChatState {
   @override
   int get hashCode => Object.hash(
       runtimeType,
+      sessionId,
       const DeepCollectionEquality().hash(_messages),
       isLoading,
       error,
@@ -222,12 +250,20 @@ class _$ResearchChatStateImpl implements _ResearchChatState {
           this, _$identity);
 }
 
-abstract class _ResearchChatState implements ResearchChatState {
+abstract class _ResearchChatState extends ResearchChatState {
   const factory _ResearchChatState(
-      {final List<ChatMessage> messages,
+      {final String? sessionId,
+      final List<ChatMessage> messages,
       final bool isLoading,
       final String? error,
       final ApiErrorType? errorType}) = _$ResearchChatStateImpl;
+  const _ResearchChatState._() : super._();
+
+  /// Id of the saved chat this transcript belongs to, or null for a fresh
+  /// chat that hasn't sent its first message yet (unsent chats are never
+  /// persisted, so "New chat" spam can't pollute the Recent list).
+  @override
+  String? get sessionId;
 
   /// Full transcript, oldest first. Assistant turns carry their citations.
   @override

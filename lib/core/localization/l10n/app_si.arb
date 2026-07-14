@@ -203,8 +203,6 @@
 
   "navNotes": "සටහන්",
 
-  "researchTitle": "ත්‍රිපිටකයෙන් අසන්න",
-
   "researchNewChat": "නව සංවාදය",
 
   "researchEmptyState": "පාළි ත්‍රිපිටකය පිළිබඳ ඕනෑම දෙයක් අසන්න.",
@@ -243,5 +241,25 @@
 
   "researchErrorCannotAnswer": "එයට පිළිතුරු දිය නොහැකි විය. ඔබගේ ප්‍රශ්නය වෙනස් ආකාරයකින් අසන්න.",
 
-  "researchErrorServerError": "යම් දෝෂයක් සිදු විය. කරුණාකර නැවත උත්සාහ කරන්න."
+  "researchErrorServerError": "යම් දෝෂයක් සිදු විය. කරුණාකර නැවත උත්සාහ කරන්න.",
+
+  "researchQuestionNotAnswered": "මෙම ප්‍රශ්නයට පිළිතුරක් නොලැබුණි.",
+
+  "researchRecent": "මෑත සංවාද",
+
+  "researchNoRecentChats": "තවම සංවාද නොමැත",
+
+  "researchChatLimitReached": "මෙම සංවාදය එහි දිග සීමාවට ළඟා වී ඇත. දිගටම කරගෙන යාමට නව සංවාදයක් අරඹන්න.",
+
+  "researchDeleteChat": "සංවාදය මකන්න",
+
+  "relativeTimeJustNow": "මේ දැන්",
+
+  "relativeTimeMinutesAgo": "{count, plural, =1{මිනිත්තුවකට පෙර} other{මිනිත්තු {count}කට පෙර}}",
+
+  "relativeTimeHoursAgo": "{count, plural, =1{පැයකට පෙර} other{පැය {count}කට පෙර}}",
+
+  "relativeTimeYesterday": "ඊයේ",
+
+  "relativeTimeDaysAgo": "{count, plural, other{දින {count}කට පෙර}}"
 }

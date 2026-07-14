@@ -322,9 +322,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navNotes => 'Notes';
 
   @override
-  String get researchTitle => 'Research the Canon';
-
-  @override
   String get researchNewChat => 'New chat';
 
   @override
@@ -391,4 +388,58 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get researchErrorServerError =>
       'Something went wrong. Please try again.';
+
+  @override
+  String get researchQuestionNotAnswered => 'This question wasn\'t answered.';
+
+  @override
+  String get researchRecent => 'Recent';
+
+  @override
+  String get researchNoRecentChats => 'No chats yet';
+
+  @override
+  String get researchChatLimitReached =>
+      'This chat has reached its length limit. Start a new chat to continue.';
+
+  @override
+  String get researchDeleteChat => 'Delete chat';
+
+  @override
+  String get relativeTimeJustNow => 'Just now';
+
+  @override
+  String relativeTimeMinutesAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count minutes ago',
+      one: '1 minute ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String relativeTimeHoursAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hours ago',
+      one: '1 hour ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get relativeTimeYesterday => 'Yesterday';
+
+  @override
+  String relativeTimeDaysAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days ago',
+    );
+    return '$_temp0';
+  }
 }
