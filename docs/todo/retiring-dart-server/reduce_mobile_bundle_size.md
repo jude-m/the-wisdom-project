@@ -1,5 +1,32 @@
 # Faster Reads (and a Smaller App): Move Text from JSON into SQLite
 
+> **UPDATE 2026-07-16 — CONFIRMED, and promoted to the keystone of a server-free
+> architecture.** Decisions from a follow-up study:
+>
+> - **Same file, not a new DB.** `bjt_content` is a sibling of the **contentless**
+>   `bjt_fts` in one `.db` (they share an update lifecycle). Keep FTS contentless +
+>   **compressed** blobs + manual snippet — do *not* switch to FTS5 external-content
+>   (it needs uncompressed text and would kill the size win). `dict.db` stays a
+>   **separate** file (independent, rare updates).
+> - **One engine everywhere: [Drift](https://pub.dev/packages/drift)** replaces raw
+>   `sqflite`. Native FFI on mobile/desktop, **wasm + OPFS in the browser**. Bundles
+>   *one* SQLite version on every platform (kills per-OS FTS variance). Adopt it
+>   *thin* — raw SQL via `customSelect` for this read-only canon; reserve the
+>   query-builder for future *writable* tables (bookmarks/history).
+> - **Web reads this DB CLIENT-SIDE** (Drift wasm/OPFS), not from a server →
+>   **retires the Dart content server**, Flutter web becomes fully static. The
+>   "Relationship to a Next.js Web Rewrite" section below is **superseded** (it
+>   assumed server-side reads + a Next.js backend — both dropped).
+> - **Delivery: download-once to OPFS on web** (offline), refreshed via **monthly
+>   batched** rebuilds (confirmed acceptable). Content+FTS co-versioned via a small
+>   manifest + content-hashed filenames; `dict.db` versioned separately.
+> - **Verify first (flag):** FTS5 in the Drift wasm build — high confidence
+>   (standard `unicode61` tokenizer; prebuilt `sqlite3.wasm` ships
+>   `SQLITE_ENABLE_FTS5`) but confirm with a one-file spike (open real `bjt-fts.db`
+>   on web, run a `MATCH`).
+> - Companion: [`serverless-deployment-decision.md`](../serverless-deployment-decision.md)
+>   — now largely moot (zero always-on infra; the research server is the only backend).
+
 ## Goal
 
 **Primary goal: speed.** Stop loading + parsing whole JSON files at read time.
@@ -196,7 +223,8 @@ CREATE TABLE bjt_content (
 8. Verify offline reading + search snippets on a real device. Check first-launch
    DB copy time (`_initializeEdition` copies the asset DB to the documents dir;
    a bigger DB = bigger one-time copy + double on-disk during install).
-9. (Web unaffected — `getWebOverrides()` already routes web to the server.)
+9. **Web now reads this DB client-side** (Drift wasm/OPFS) — see the top banner.
+   The old `getWebOverrides()` → server route is being retired, not extended.
 
 ### Snippet-path teardown (step 6 detail)
 
@@ -256,6 +284,12 @@ snippet perf nit with zero size cost and is independent of this migration.
   markers, page metadata), not just the bare `text`.
 
 ## Relationship to a Next.js Web Rewrite (single source of truth)
+
+> **SUPERSEDED 2026-07-16 (see top banner).** Two premises here are now dropped:
+> the web client is **not** a Next.js rewrite, and the web does **not** read the DB
+> server-side. The content DB is still the single source of truth — but *both*
+> platforms read it the same way: **locally, via Drift** (native on mobile, wasm +
+> OPFS on web). Kept below for the schema-neutrality reasoning, which still holds.
 
 Confirmed direction:
 

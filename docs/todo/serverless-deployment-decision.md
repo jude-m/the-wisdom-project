@@ -8,8 +8,19 @@
 > `/ask` backend this started with),
 > [`ai-qa-and-suttacentral-reference-resolver-plan.md`](./ai-qa-and-suttacentral-reference-resolver-plan.md)
 > (Flutter integration), and
-> [`reduce_mobile_bundle_size.md`](./reduce_mobile_bundle_size.md) (the
+> [`reduce_mobile_bundle_size.md`](./retiring-dart-server/reduce_mobile_bundle_size.md) (the
 > content-DB / single-source plan that this decision leans on).
+
+> **UPDATE 2026-07-16 — the content-server hinge is dissolved; the B1/B2/B3 tree
+> below is largely moot.** Follow-up study: **retire the content server.** All
+> read-only canon data (content + FTS + dict) moves **client-side into SQLite via
+> [Drift](https://pub.dev/packages/drift)** — native FFI on mobile/desktop, wasm +
+> OPFS in the browser (Flutter web becomes fully static). The DBs ship as static
+> files on the CDN, so "where does its SQLite live" no longer has a server answer.
+> The **research (RAG) server stays** — the one backend, still scale-to-zero.
+> Notes → **Firestore** (direct client). **Net: zero always-on infrastructure.**
+> Content refreshes as monthly batched rebuilds. Details:
+> [`reduce_mobile_bundle_size.md`](./retiring-dart-server/reduce_mobile_bundle_size.md).
 
 ---
 

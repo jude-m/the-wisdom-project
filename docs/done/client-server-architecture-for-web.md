@@ -1,5 +1,14 @@
 # Client-Server Architecture for Web Deployment
 
+> **SUPERSEDED 2026-07-16.** This Dart `shelf` content server is slated for
+> **retirement.** Reversed decision: the web app no longer calls a server — it
+> reads the canon DBs **client-side in the browser** via
+> [Drift](https://pub.dev/packages/drift) (sqlite3 wasm + OPFS), same engine as
+> native. No always-on server; Flutter web ships fully static. Kept for history and
+> the datasource-split groundwork (Phase 1) it still informs. See
+> [`reduce_mobile_bundle_size.md`](../todo/retiring-dart-server/reduce_mobile_bundle_size.md) and
+> [`serverless-deployment-decision.md`](../todo/serverless-deployment-decision.md).
+
 ## Goal
 Build a Dart server that hosts the databases and content files, and make the Flutter web app call the server API instead of bundling 260MB+ of assets. Native apps (iOS/Android/desktop) stay unchanged.
 

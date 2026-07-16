@@ -322,7 +322,7 @@ exact behavior the DB version replaces, so nothing done now is wasted.
 > **Teardown checklist moved to the endgame doc.** The step-by-step list of what to
 > delete from here when the content DB lands now lives with the migration that
 > triggers it — see **Snippet-path teardown** in
-> `docs/todo/reduce_mobile_bundle_size.md`. (This doc archives to *done* once the
+> `docs/todo/retiring-dart-server/reduce_mobile_bundle_size.md`. (This doc archives to *done* once the
 > interim fix ships, so the checklist shouldn't ride along with it.)
 
 ---
