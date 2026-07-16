@@ -334,7 +334,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get researchSend => 'Send';
 
   @override
-  String get researchThinking => 'Thinking…';
+  String get researchModeFast => 'Fast';
+
+  @override
+  String get researchModeFastHint => 'Fastest answers';
+
+  @override
+  String get researchModeThinking => 'Thinking';
+
+  @override
+  String get researchModeThinkingHint => 'Deeper reasoning';
+
+  @override
+  String get researchModeTooltip => 'Answer mode';
+
+  @override
+  String get researchBusyFast => 'Answering…';
+
+  @override
+  String get researchBusyThinking => 'Thinking…';
 
   @override
   String get researchCitedSource => 'Cited source';

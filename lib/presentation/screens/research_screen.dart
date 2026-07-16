@@ -6,6 +6,7 @@ import '../../core/utils/responsive_utils.dart';
 import '../providers/research_provider.dart';
 import '../widgets/research/chat_history_panel.dart';
 import '../widgets/research/research_chat_view.dart';
+import '../widgets/research/research_mode_selector.dart';
 
 /// The Research section: a multi-chat AI Q&A UI (Stage 2 of the app-shell
 /// plan, superseding the v1 ResearchChatDialog).
@@ -22,6 +23,15 @@ class ResearchScreen extends ConsumerWidget {
 
   static const _panelWidth = 280.0;
 
+  /// The Fast/Thinking switch, shown top-right of the app bar. One shared list
+  /// so the desktop and mobile layouts stay identical (and can't drift).
+  static const _appBarActions = [
+    Padding(
+      padding: EdgeInsets.only(right: 12),
+      child: ResearchModeSelector(),
+    ),
+  ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
@@ -34,6 +44,7 @@ class ResearchScreen extends ConsumerWidget {
           // Match the Reader app bar's resting tone.
           backgroundColor: colors.surfaceContainerLow,
           title: Text(l10n.navResearch),
+          actions: _appBarActions,
         ),
         body: Row(
           children: [
@@ -87,6 +98,7 @@ class ResearchScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+        actions: _appBarActions,
       ),
       // The AppBar gets its hamburger automatically from this drawer.
       drawer: Drawer(

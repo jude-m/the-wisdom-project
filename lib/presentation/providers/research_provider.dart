@@ -9,9 +9,11 @@ import '../../data/repositories/research_repository_impl.dart';
 import '../../domain/entities/research/chat_message.dart';
 import '../../domain/entities/research/chat_summary.dart';
 import '../../domain/entities/research/research_answer.dart';
+import '../../domain/entities/research/research_mode.dart';
 import '../../domain/repositories/chat_history_repository.dart';
 import '../../domain/repositories/research_repository.dart';
 import 'research_chat_state.dart';
+import 'research_mode_provider.dart';
 
 /// Where the `/research` backend lives. Native needs an absolute URL (unlike the
 /// web content server's same-origin '').
@@ -91,11 +93,13 @@ class ResearchChatNotifier extends StateNotifier<ResearchChatState> {
   final ResearchRepository _repository;
   final ChatHistoryRepository _historyRepo;
 
-  /// Session ids with a `/research` call still in flight. Lets [openChat]
-  /// restore the loading state when the user navigates away from a waiting
-  /// chat and back — otherwise the reopened chat would re-enable send and a
-  /// second question could interleave with the pending answer.
-  final Set<String> _pendingSessions = {};
+  /// Sessions with a `/research` call still in flight, mapped to the mode that
+  /// call is running under. Lets [openChat] restore both the loading state AND
+  /// the correct busy label ("Answering…" / "Thinking…") when the user
+  /// navigates away from a waiting chat and back — otherwise the reopened chat
+  /// would re-enable send (a second question could interleave with the pending
+  /// answer) and could mislabel the wait.
+  final Map<String, ResearchMode> _pendingSessions = {};
 
   /// Send a question: optimistically append the user's turn, call the repo,
   /// then append the answer (or surface an error). Prior turns go along as
@@ -114,6 +118,11 @@ class ResearchChatNotifier extends StateNotifier<ResearchChatState> {
     final sessionId =
         state.sessionId ?? DateTime.now().microsecondsSinceEpoch.toString();
     final history = state.messages; // Prior turns; [text] rides separately.
+    // Global Fast/Thinking choice, captured here for the same reason as
+    // [sessionId]/[history]: the user could flip the mode while the persist
+    // write below yields, but this question must be answered with the tier
+    // that was active when they hit send.
+    final mode = _ref.read(researchModeProvider);
 
     state = state.copyWith(
       sessionId: sessionId,
@@ -122,6 +131,7 @@ class ResearchChatNotifier extends StateNotifier<ResearchChatState> {
         ChatMessage(role: ChatRole.user, content: text),
       ],
       isLoading: true,
+      inFlightMode: mode,
       error: null,
       errorType: null,
     );
@@ -129,7 +139,7 @@ class ResearchChatNotifier extends StateNotifier<ResearchChatState> {
     // entry and survives a crash or a chat switch while the answer is
     // still in flight.
     await _persist();
-    await _run(text, sessionId: sessionId, history: history);
+    await _run(text, sessionId: sessionId, history: history, mode: mode);
   }
 
   /// Retry the last question after a retriable failure — re-runs the call
@@ -140,30 +150,39 @@ class ResearchChatNotifier extends StateNotifier<ResearchChatState> {
     final last = state.messages.last;
     if (!last.isUser) return;
 
-    state = state.copyWith(isLoading: true, error: null, errorType: null);
+    final mode = _ref.read(researchModeProvider);
+    state = state.copyWith(
+      isLoading: true,
+      inFlightMode: mode,
+      error: null,
+      errorType: null,
+    );
     // No await between reading state and _run here, so capturing inline is
     // race-free (unlike send, which persists first).
     await _run(
       last.content,
       sessionId: state.sessionId,
       history: state.messages.sublist(0, state.messages.length - 1),
+      mode: mode,
     );
   }
 
   /// Run one `/research` call for [text] and fold the result into the
   /// transcript. Shared by [send] and [retry], whose job it is to capture
-  /// [sessionId] (the chat the question belongs to) and [history] (everything
+  /// [sessionId] (the chat the question belongs to), [history] (everything
   /// before the in-flight question — at most 4 Q&A pairs given the turn cap;
-  /// citations are stripped on the wire by ChatMessage.toHistoryJson) before
-  /// any await: the live state may already be a different chat by the time
-  /// this runs.
+  /// citations are stripped on the wire by ChatMessage.toHistoryJson) and
+  /// [mode] (the Fast/Thinking tier active at send time) before any await: the
+  /// live state may already be a different chat by the time this runs.
   Future<void> _run(
     String text, {
     required String? sessionId,
     required List<ChatMessage> history,
+    required ResearchMode mode,
   }) async {
-    if (sessionId != null) _pendingSessions.add(sessionId);
-    final result = await _repository.research(text, history: history);
+    if (sessionId != null) _pendingSessions[sessionId] = mode;
+    final result =
+        await _repository.research(text, history: history, mode: mode);
     if (sessionId != null) _pendingSessions.remove(sessionId);
 
     // The user may have opened another chat (or started a new one) while the
@@ -224,12 +243,15 @@ class ResearchChatNotifier extends StateNotifier<ResearchChatState> {
   Future<void> openChat(String id) async {
     if (state.sessionId == id) return;
     final messages = await _historyRepo.getMessages(id);
+    final pendingMode = _pendingSessions[id];
     state = ResearchChatState(
       sessionId: id,
       messages: messages,
-      // Reopening a chat whose answer is still in flight: keep the thinking
-      // row up and send disabled — the answer folds in when it arrives.
-      isLoading: _pendingSessions.contains(id),
+      // Reopening a chat whose answer is still in flight: keep the busy row up
+      // and send disabled — the answer folds in when it arrives — and label it
+      // with the mode that request is actually running under.
+      isLoading: pendingMode != null,
+      inFlightMode: pendingMode ?? ResearchMode.fast,
     );
   }
 

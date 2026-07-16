@@ -31,6 +31,9 @@ class ResearchRequest(BaseModel):
     question: str
     history: list[HistoryTurn] = Field(default_factory=list)
     filters: Optional[Filters] = None
+    # Which model tier answers (config.models_for_mode). Absent → "fast", so an
+    # older client that never sends it keeps today's fast-tier behaviour.
+    mode: Literal["fast", "thinking"] = "fast"
 
 
 class Citation(BaseModel):

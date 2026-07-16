@@ -335,7 +335,25 @@ class AppLocalizationsSi extends AppLocalizations {
   String get researchSend => 'යවන්න';
 
   @override
-  String get researchThinking => 'සිතමින්…';
+  String get researchModeFast => 'වේගවත්';
+
+  @override
+  String get researchModeFastHint => 'වේගවත්ම පිළිතුරු';
+
+  @override
+  String get researchModeThinking => 'ගැඹුරු';
+
+  @override
+  String get researchModeThinkingHint => 'ගැඹුරු තර්කනය';
+
+  @override
+  String get researchModeTooltip => 'පිළිතුරු ආකාරය';
+
+  @override
+  String get researchBusyFast => 'පිළිතුරු දෙමින්…';
+
+  @override
+  String get researchBusyThinking => 'සිතමින්…';
 
   @override
   String get researchCitedSource => 'උපුටා දැක්වූ මූලාශ්‍රය';

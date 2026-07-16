@@ -546,9 +546,39 @@
     "description": "Tooltip on the send button in the Q&A dialog"
   },
 
-  "researchThinking": "Thinking…",
-  "@researchThinking": {
-    "description": "Loading row shown in the Q&A dialog while waiting for an answer"
+  "researchModeFast": "Fast",
+  "@researchModeFast": {
+    "description": "Label for the Fast answer mode in the Research mode switch (flash-lite model tier)"
+  },
+
+  "researchModeFastHint": "Fastest answers",
+  "@researchModeFastHint": {
+    "description": "One-line hint under the Fast option in the Research mode menu"
+  },
+
+  "researchModeThinking": "Thinking",
+  "@researchModeThinking": {
+    "description": "Label for the Thinking answer mode in the Research mode switch (full-flash model tier)"
+  },
+
+  "researchModeThinkingHint": "Deeper reasoning",
+  "@researchModeThinkingHint": {
+    "description": "One-line hint under the Thinking option in the Research mode menu"
+  },
+
+  "researchModeTooltip": "Answer mode",
+  "@researchModeTooltip": {
+    "description": "Tooltip on the Fast/Thinking mode switch button in the Research header"
+  },
+
+  "researchBusyFast": "Answering…",
+  "@researchBusyFast": {
+    "description": "In-flight loading row label shown while waiting for an answer in Fast mode"
+  },
+
+  "researchBusyThinking": "Thinking…",
+  "@researchBusyThinking": {
+    "description": "In-flight loading row label shown while waiting for an answer in Thinking mode"
   },
 
   "researchCitedSource": "Cited source",

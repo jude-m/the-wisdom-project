@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 
 import '../entities/research/research_answer.dart';
 import '../entities/research/research_filters.dart';
+import '../entities/research/research_mode.dart';
 import '../entities/research/chat_message.dart';
 import '../entities/failure.dart';
 
@@ -13,11 +14,13 @@ import '../entities/failure.dart';
 abstract class ResearchRepository {
   /// Ask a grounded question about the canon.
   ///
-  /// [history] is empty in the prototype (design §5.8); the contract keeps the
-  /// field so multi-turn follow-ups need no signature change later.
+  /// [history] carries the prior turns for multi-turn follow-ups. [mode] picks
+  /// the model tier (Fast vs Thinking); defaults to fast so existing callers
+  /// need no change.
   Future<Either<Failure, ResearchAnswer>> research(
     String question, {
     List<ChatMessage> history = const [],
     ResearchFilters? filters,
+    ResearchMode mode = ResearchMode.fast,
   });
 }

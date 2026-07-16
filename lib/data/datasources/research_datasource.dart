@@ -1,5 +1,6 @@
 import '../../domain/entities/research/research_answer.dart';
 import '../../domain/entities/research/research_filters.dart';
+import '../../domain/entities/research/research_mode.dart';
 import '../../domain/entities/research/chat_message.dart';
 
 /// Data source for the `/research` backend.
@@ -13,5 +14,6 @@ abstract class ResearchDataSource {
     String question, {
     List<ChatMessage> history = const [],
     ResearchFilters? filters,
+    ResearchMode mode = ResearchMode.fast,
   });
 }

@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 
 import '../../domain/entities/research/research_answer.dart';
 import '../../domain/entities/research/research_filters.dart';
+import '../../domain/entities/research/research_mode.dart';
 import '../../domain/entities/research/chat_message.dart';
 import '../../domain/entities/failure.dart';
 import '../../domain/repositories/research_repository.dart';
@@ -22,12 +23,14 @@ class ResearchRepositoryImpl implements ResearchRepository {
     String question, {
     List<ChatMessage> history = const [],
     ResearchFilters? filters,
+    ResearchMode mode = ResearchMode.fast,
   }) async {
     try {
       final answer = await _dataSource.research(
         question,
         history: history,
         filters: filters,
+        mode: mode,
       );
       return Right(answer);
     } catch (e, stack) {

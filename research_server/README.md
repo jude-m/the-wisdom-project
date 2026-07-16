@@ -178,14 +178,16 @@ app's origin.
 - **Deep-links** — `pipeline._deeplink_for` returns `null`; the resolver
   (plan Part B/D) fills it.
 - **FTS4 hybrid, multi-turn history, metadata filters beyond `basket`** — v1.1.
-- **Model ladder** — generation walks `config.DEFAULT_MODELS`
-  (`gemini-3.1-flash-lite` → `gemini-3.5-flash` → `gemini-3-flash-preview` →
-  `gemini-2.5-flash` → `gemini-2.5-flash-lite`), all free-tier +
-  File-Search-capable, falling to the next rung on a 429 (rate limit) or 503
-  (high demand) (`pipeline._is_retryable`). Override with `RESEARCH_MODELS` (whole
-  ladder, CSV) or
-  `RESEARCH_MODEL` (pin the primary; defaults still trail it). `GET /health` echoes
-  the active ladder.
+- **Model tiers** — the app's Fast/Thinking switch (`ResearchRequest.mode`)
+  routes to one of two fallback ladders (`config.FAST_MODELS` / `THINKING_MODELS`,
+  via `Settings.models_for_mode`): FAST (`gemini-3.1-flash-lite` →
+  `gemini-2.5-flash-lite`) and THINKING (`gemini-3.5-flash` →
+  `gemini-3-flash-preview` → `gemini-2.5-flash`), all free-tier +
+  File-Search-capable, each falling to the next rung on a 429 (rate limit) or 503
+  (high demand) (`pipeline._is_retryable`). The query rewrite always uses the fast
+  tier. Override a whole tier with `RESEARCH_FAST_MODELS` /
+  `RESEARCH_THINKING_MODELS` (CSV, highest priority first); `GET /health` echoes
+  both tiers.
 - **Verified 2026-06-28** (`google-genai 2.10.0`): the ladder models support the
   File Search tool and have a free tier; `create`/`upload`/`documents.list` and
   `grounding_metadata` shapes work as written. **Still to verify at scale**

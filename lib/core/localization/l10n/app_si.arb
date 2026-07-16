@@ -211,7 +211,19 @@
 
   "researchSend": "යවන්න",
 
-  "researchThinking": "සිතමින්…",
+  "researchModeFast": "වේගවත්",
+
+  "researchModeFastHint": "වේගවත්ම පිළිතුරු",
+
+  "researchModeThinking": "ගැඹුරු",
+
+  "researchModeThinkingHint": "ගැඹුරු තර්කනය",
+
+  "researchModeTooltip": "පිළිතුරු ආකාරය",
+
+  "researchBusyFast": "පිළිතුරු දෙමින්…",
+
+  "researchBusyThinking": "සිතමින්…",
 
   "researchCitedSource": "උපුටා දැක්වූ මූලාශ්‍රය",
 

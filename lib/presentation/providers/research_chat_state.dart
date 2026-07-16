@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../domain/entities/api_error_type.dart';
 import '../../domain/entities/research/chat_message.dart';
+import '../../domain/entities/research/research_mode.dart';
 
 part 'research_chat_state.freezed.dart';
 
@@ -27,8 +28,16 @@ class ResearchChatState with _$ResearchChatState {
     @Default([]) List<ChatMessage> messages,
 
     /// True while a question is in flight — disables the send button (a real
-    /// client-side cost guardrail) and shows a "thinking…" row.
+    /// client-side cost guardrail) and shows the busy row.
     @Default(false) bool isLoading,
+
+    /// The Fast/Thinking mode the in-flight request is running under, pinned at
+    /// send time. The busy row's label ("Answering…" / "Thinking…") reads THIS,
+    /// not the live global mode, so flipping the switch mid-request can't
+    /// relabel the answer already running (mirrors how send() pins the mode it
+    /// sends to the backend). Only meaningful while [isLoading]; not persisted —
+    /// openChat restores it from the pending-session map, defaulting to fast.
+    @Default(ResearchMode.fast) ResearchMode inFlightMode,
 
     /// User-facing error message from the last attempt, or null. Kept as an
     /// English fallback / for logging; the chat view prefers [errorType] and

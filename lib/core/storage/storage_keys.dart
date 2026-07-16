@@ -52,4 +52,9 @@ class StorageKeys {
   /// The version sits in the prefix so a schema break renames every
   /// transcript key at once.
   static const researchChatPrefix = 'research_chat_v1_';
+
+  /// String ([ResearchMode.name]) — the Fast/Thinking model tier the user last
+  /// chose for the Research section. Global (one setting across all chats).
+  /// Absent → [ResearchMode.fast].
+  static const researchMode = 'research_mode_v1';
 }

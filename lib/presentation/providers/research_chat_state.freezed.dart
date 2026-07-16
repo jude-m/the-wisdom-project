@@ -25,16 +25,24 @@ mixin _$ResearchChatState {
   List<ChatMessage> get messages => throw _privateConstructorUsedError;
 
   /// True while a question is in flight — disables the send button (a real
-  /// client-side cost guardrail) and shows a "thinking…" row.
+  /// client-side cost guardrail) and shows the busy row.
   bool get isLoading => throw _privateConstructorUsedError;
 
+  /// The Fast/Thinking mode the in-flight request is running under, pinned at
+  /// send time. The busy row's label ("Answering…" / "Thinking…") reads THIS,
+  /// not the live global mode, so flipping the switch mid-request can't
+  /// relabel the answer already running (mirrors how send() pins the mode it
+  /// sends to the backend). Only meaningful while [isLoading]; not persisted —
+  /// openChat restores it from the pending-session map, defaulting to fast.
+  ResearchMode get inFlightMode => throw _privateConstructorUsedError;
+
   /// User-facing error message from the last attempt, or null. Kept as an
-  /// English fallback / for logging; the dialog prefers [errorType] and
+  /// English fallback / for logging; the chat view prefers [errorType] and
   /// re-localises by category (see research_error_messages.dart).
   String? get error => throw _privateConstructorUsedError;
 
   /// Category of the last error, or null. Drives the localised message and
-  /// whether the dialog offers a Retry (see [ApiErrorType]).
+  /// whether the chat view offers a Retry (see [ApiErrorType]).
   ApiErrorType? get errorType => throw _privateConstructorUsedError;
 
   /// Create a copy of ResearchChatState
@@ -54,6 +62,7 @@ abstract class $ResearchChatStateCopyWith<$Res> {
       {String? sessionId,
       List<ChatMessage> messages,
       bool isLoading,
+      ResearchMode inFlightMode,
       String? error,
       ApiErrorType? errorType});
 }
@@ -76,6 +85,7 @@ class _$ResearchChatStateCopyWithImpl<$Res, $Val extends ResearchChatState>
     Object? sessionId = freezed,
     Object? messages = null,
     Object? isLoading = null,
+    Object? inFlightMode = null,
     Object? error = freezed,
     Object? errorType = freezed,
   }) {
@@ -92,6 +102,10 @@ class _$ResearchChatStateCopyWithImpl<$Res, $Val extends ResearchChatState>
           ? _value.isLoading
           : isLoading // ignore: cast_nullable_to_non_nullable
               as bool,
+      inFlightMode: null == inFlightMode
+          ? _value.inFlightMode
+          : inFlightMode // ignore: cast_nullable_to_non_nullable
+              as ResearchMode,
       error: freezed == error
           ? _value.error
           : error // ignore: cast_nullable_to_non_nullable
@@ -116,6 +130,7 @@ abstract class _$$ResearchChatStateImplCopyWith<$Res>
       {String? sessionId,
       List<ChatMessage> messages,
       bool isLoading,
+      ResearchMode inFlightMode,
       String? error,
       ApiErrorType? errorType});
 }
@@ -136,6 +151,7 @@ class __$$ResearchChatStateImplCopyWithImpl<$Res>
     Object? sessionId = freezed,
     Object? messages = null,
     Object? isLoading = null,
+    Object? inFlightMode = null,
     Object? error = freezed,
     Object? errorType = freezed,
   }) {
@@ -152,6 +168,10 @@ class __$$ResearchChatStateImplCopyWithImpl<$Res>
           ? _value.isLoading
           : isLoading // ignore: cast_nullable_to_non_nullable
               as bool,
+      inFlightMode: null == inFlightMode
+          ? _value.inFlightMode
+          : inFlightMode // ignore: cast_nullable_to_non_nullable
+              as ResearchMode,
       error: freezed == error
           ? _value.error
           : error // ignore: cast_nullable_to_non_nullable
@@ -171,6 +191,7 @@ class _$ResearchChatStateImpl extends _ResearchChatState {
       {this.sessionId,
       final List<ChatMessage> messages = const [],
       this.isLoading = false,
+      this.inFlightMode = ResearchMode.fast,
       this.error,
       this.errorType})
       : _messages = messages,
@@ -195,25 +216,35 @@ class _$ResearchChatStateImpl extends _ResearchChatState {
   }
 
   /// True while a question is in flight — disables the send button (a real
-  /// client-side cost guardrail) and shows a "thinking…" row.
+  /// client-side cost guardrail) and shows the busy row.
   @override
   @JsonKey()
   final bool isLoading;
 
+  /// The Fast/Thinking mode the in-flight request is running under, pinned at
+  /// send time. The busy row's label ("Answering…" / "Thinking…") reads THIS,
+  /// not the live global mode, so flipping the switch mid-request can't
+  /// relabel the answer already running (mirrors how send() pins the mode it
+  /// sends to the backend). Only meaningful while [isLoading]; not persisted —
+  /// openChat restores it from the pending-session map, defaulting to fast.
+  @override
+  @JsonKey()
+  final ResearchMode inFlightMode;
+
   /// User-facing error message from the last attempt, or null. Kept as an
-  /// English fallback / for logging; the dialog prefers [errorType] and
+  /// English fallback / for logging; the chat view prefers [errorType] and
   /// re-localises by category (see research_error_messages.dart).
   @override
   final String? error;
 
   /// Category of the last error, or null. Drives the localised message and
-  /// whether the dialog offers a Retry (see [ApiErrorType]).
+  /// whether the chat view offers a Retry (see [ApiErrorType]).
   @override
   final ApiErrorType? errorType;
 
   @override
   String toString() {
-    return 'ResearchChatState(sessionId: $sessionId, messages: $messages, isLoading: $isLoading, error: $error, errorType: $errorType)';
+    return 'ResearchChatState(sessionId: $sessionId, messages: $messages, isLoading: $isLoading, inFlightMode: $inFlightMode, error: $error, errorType: $errorType)';
   }
 
   @override
@@ -226,6 +257,8 @@ class _$ResearchChatStateImpl extends _ResearchChatState {
             const DeepCollectionEquality().equals(other._messages, _messages) &&
             (identical(other.isLoading, isLoading) ||
                 other.isLoading == isLoading) &&
+            (identical(other.inFlightMode, inFlightMode) ||
+                other.inFlightMode == inFlightMode) &&
             (identical(other.error, error) || other.error == error) &&
             (identical(other.errorType, errorType) ||
                 other.errorType == errorType));
@@ -237,6 +270,7 @@ class _$ResearchChatStateImpl extends _ResearchChatState {
       sessionId,
       const DeepCollectionEquality().hash(_messages),
       isLoading,
+      inFlightMode,
       error,
       errorType);
 
@@ -255,6 +289,7 @@ abstract class _ResearchChatState extends ResearchChatState {
       {final String? sessionId,
       final List<ChatMessage> messages,
       final bool isLoading,
+      final ResearchMode inFlightMode,
       final String? error,
       final ApiErrorType? errorType}) = _$ResearchChatStateImpl;
   const _ResearchChatState._() : super._();
@@ -270,18 +305,27 @@ abstract class _ResearchChatState extends ResearchChatState {
   List<ChatMessage> get messages;
 
   /// True while a question is in flight — disables the send button (a real
-  /// client-side cost guardrail) and shows a "thinking…" row.
+  /// client-side cost guardrail) and shows the busy row.
   @override
   bool get isLoading;
 
+  /// The Fast/Thinking mode the in-flight request is running under, pinned at
+  /// send time. The busy row's label ("Answering…" / "Thinking…") reads THIS,
+  /// not the live global mode, so flipping the switch mid-request can't
+  /// relabel the answer already running (mirrors how send() pins the mode it
+  /// sends to the backend). Only meaningful while [isLoading]; not persisted —
+  /// openChat restores it from the pending-session map, defaulting to fast.
+  @override
+  ResearchMode get inFlightMode;
+
   /// User-facing error message from the last attempt, or null. Kept as an
-  /// English fallback / for logging; the dialog prefers [errorType] and
+  /// English fallback / for logging; the chat view prefers [errorType] and
   /// re-localises by category (see research_error_messages.dart).
   @override
   String? get error;
 
   /// Category of the last error, or null. Drives the localised message and
-  /// whether the dialog offers a Retry (see [ApiErrorType]).
+  /// whether the chat view offers a Retry (see [ApiErrorType]).
   @override
   ApiErrorType? get errorType;
 

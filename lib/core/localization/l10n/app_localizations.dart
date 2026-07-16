@@ -728,11 +728,47 @@ abstract class AppLocalizations {
   /// **'Send'**
   String get researchSend;
 
-  /// Loading row shown in the Q&A dialog while waiting for an answer
+  /// Label for the Fast answer mode in the Research mode switch (flash-lite model tier)
+  ///
+  /// In en, this message translates to:
+  /// **'Fast'**
+  String get researchModeFast;
+
+  /// One-line hint under the Fast option in the Research mode menu
+  ///
+  /// In en, this message translates to:
+  /// **'Fastest answers'**
+  String get researchModeFastHint;
+
+  /// Label for the Thinking answer mode in the Research mode switch (full-flash model tier)
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking'**
+  String get researchModeThinking;
+
+  /// One-line hint under the Thinking option in the Research mode menu
+  ///
+  /// In en, this message translates to:
+  /// **'Deeper reasoning'**
+  String get researchModeThinkingHint;
+
+  /// Tooltip on the Fast/Thinking mode switch button in the Research header
+  ///
+  /// In en, this message translates to:
+  /// **'Answer mode'**
+  String get researchModeTooltip;
+
+  /// In-flight loading row label shown while waiting for an answer in Fast mode
+  ///
+  /// In en, this message translates to:
+  /// **'Answering…'**
+  String get researchBusyFast;
+
+  /// In-flight loading row label shown while waiting for an answer in Thinking mode
   ///
   /// In en, this message translates to:
   /// **'Thinking…'**
-  String get researchThinking;
+  String get researchBusyThinking;
 
   /// Small label at the top of the bottom sheet showing one citation's details
   ///

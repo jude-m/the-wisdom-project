@@ -22,8 +22,35 @@ from .errors import ResearchError
 
 settings: Settings = load_settings()
 
-# "research" logger — like pipeline's "research.pipeline", it propagates to uvicorn's
-# console handler, so anything logged here shows up in the server terminal.
+# uvicorn configures only its OWN loggers, never the root one, so our "research.*"
+# records propagate to a root with no handlers and land on logging.lastResort —
+# which is WARNING-level. That is why the ladder's fall-through warnings reached
+# the console while everything milder was dropped on the floor: an INFO line was
+# invisible. Configure the root here so the pipeline's START / per-rung / DONE
+# lines actually print (and reach Cloud Run's stdout, which captures the stream).
+# basicConfig is a no-op if a handler is already installed, so a host that brings
+# its own logging setup still wins.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)-7s %(message)s",
+    datefmt="%H:%M:%S",
+)
+
+# Root-level INFO also switches on every third-party library's INFO stream. httpx —
+# which the Gemini SDK calls through — narrates one "HTTP Request: <long google
+# url>" line per model call, restating the per-rung line next to it with less
+# information. Keep the libraries at WARNING so the research.* narrative stays the
+# readable thing in the console; a genuine transport failure still gets through.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+# google_genai repeats "AFC is enabled with max remote calls: 10" on every single
+# call. Automatic function calling is irrelevant here — file_search runs server-side
+# at Google, not as a local Python function — so the line is pure noise between the
+# per-rung lines it interleaves with.
+logging.getLogger("google_genai").setLevel(logging.WARNING)
+
+# "research" logger — like pipeline's "research.pipeline", it propagates to the root
+# handler configured above, so anything logged here shows up in the server terminal.
 log = logging.getLogger("research")
 
 app = FastAPI(title="Wisdom Project — /research", version="0.1.0")
@@ -74,8 +101,11 @@ def health() -> dict:
     return {
         "status": "ok",
         "mode": "stub" if settings.stub else "live",
+        # The two tiers the Fast/Thinking switch routes between — exactly what a
+        # request runs. `model` = the fast primary (the default/rewrite lead).
         "model": None if settings.stub else settings.model,
-        "models": None if settings.stub else list(settings.models),
+        "fast_models": None if settings.stub else list(settings.fast_models),
+        "thinking_models": None if settings.stub else list(settings.thinking_models),
         "store_configured": bool(settings.store),
     }
 

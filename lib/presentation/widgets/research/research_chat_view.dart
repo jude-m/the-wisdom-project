@@ -11,6 +11,7 @@ import '../../providers/research_provider.dart';
 import '../common/status_message_view.dart';
 import 'research_answer_view.dart';
 import 'research_error_messages.dart';
+import 'research_mode_ui.dart';
 
 /// Maximum width of the conversation column — full-bleed text is hard to
 /// read on desktop, so the transcript and the input row are centered like
@@ -22,7 +23,7 @@ const _kContentMaxWidth = PaneWidthConstants.researchContentMaxWidth;
 /// input. The Research section wraps this in its responsive shell (history
 /// panel on desktop, drawer on mobile).
 ///
-/// Optimistic sends, a "thinking" row while in flight, typed error messages
+/// Optimistic sends, a mode-aware busy row while in flight, typed error messages
 /// with Retry, and restoring an unanswerable question into the input for
 /// rephrasing. Assistant answers render via [ResearchAnswerView] with inline
 /// citation chips → peek → reader (the deep-link provider switches the app
@@ -139,7 +140,7 @@ class _ResearchChatViewState extends ConsumerState<ResearchChatView> {
                           state.messages.length + (state.isLoading ? 1 : 0),
                       itemBuilder: (context, index) {
                         if (index >= state.messages.length) {
-                          return const _ThinkingRow();
+                          return const _BusyRow();
                         }
                         return _MessageTurn(message: state.messages[index]);
                       },
@@ -270,12 +271,20 @@ class _CenteredBottomRow extends StatelessWidget {
   }
 }
 
-/// The "thinking…" row shown while waiting for an answer.
-class _ThinkingRow extends StatelessWidget {
-  const _ThinkingRow();
+/// The in-flight "busy" row shown while waiting for an answer. Its label is
+/// mode-aware — "Answering…" in Fast, "Thinking…" in Thinking — which also
+/// quietly signals the longer wait the Thinking tier takes. It reads the mode
+/// pinned on the chat state at send time ([ResearchChatState.inFlightMode]), so
+/// flipping the switch mid-answer never relabels the request already running.
+class _BusyRow extends ConsumerWidget {
+  const _BusyRow();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final mode =
+        ref.watch(researchChatProvider.select((s) => s.inFlightMode));
+    final label = mode.busyLabel(l10n);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
       child: Row(
@@ -286,7 +295,7 @@ class _ThinkingRow extends StatelessWidget {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           const SizedBox(width: 12),
-          Text(AppLocalizations.of(context).researchThinking),
+          Text(label),
         ],
       ),
     );
