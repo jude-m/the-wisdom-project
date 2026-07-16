@@ -238,7 +238,7 @@ Net layout under this variant:
 
 | Firebase piece | Role | Tied to where servers run? |
 |---|---|---|
-| **App Check** | abuse floor ("only my app") | ❌ verified via `firebase-admin` on *any* backend, box included |
+| **App Check** | abuse floor ("only my app") | ❌ verified via `firebase-admin` on *any* backend, box included (macOS plugin is flaky — §6) |
 | **Auth** (silent anonymous) | UID for per-user quotas | ❌ token verification is compute-agnostic |
 | **Firestore** | cloud notes | ❌ client → Firestore direct, no server at all |
 | **Hosting** | Flutter web static + CDN | ❌ can serve web + reverse-proxy `/research` to either host |
@@ -311,13 +311,36 @@ is why **B1 stays the §7 default**.
 These were part of the original ask and don't change which branch you pick:
 
 - **Cost ceiling:** set `--max-instances` low (e.g. 3) — a hard bill cap.
-- **Abuse / "money endpoint":** `max-instances` (now) → **Firebase App Check**
-  (only-my-app; the true floor — no user identity, protects the bill even for
-  token-less requests) → **Firebase Auth ID token** (verify with `firebase-admin`)
+- **Abuse / "money endpoint":** `X-App-Token` + `max-instances` (**live today** —
+  a shared secret, extractable from the binary by anyone who cares) → **Firebase
+  App Check** (only-my-app; the true floor — no user identity, protects the bill
+  even for token-less requests; **not built**) → **Firebase Auth ID token**
+  (verify with `firebase-admin`)
   keyed to a **silent anonymous UID by default**, unlocking best-effort
   **per-user daily quotas** in Firestore → **per-IP throttle** (Upstash Redis +
   `slowapi`, keyed on `X-Forwarded-For`) → **Cloud Armor** only if real abuse
   justifies the Load-Balancer cost (~$18+/mo, the one thing that breaks $0).
+  - *How the App Check rung lands* (the "verified on any backend" claim above,
+    made concrete): server — `app_check.verify_token()` from `firebase-admin` as
+    a FastAPI dependency reading the `X-Firebase-AppCheck` header, 401 on
+    failure; add `firebase-admin` to `research_server/requirements.txt`. IAM —
+    the service account needs the **Firebase App Check Token Verifier** role
+    (already granted if the Admin SDK is initialised with the Firebase console's
+    service-account credentials). Client — `firebase_app_check` in
+    `pubspec.yaml`, attach the token in `research_remote_datasource.dart`, which
+    already sets `X-App-Token`.
+  - *macOS is the weak platform — and it's our default run target.* Checked
+    2026-07-16: macOS **is** supported on paper (App Attest macOS 14+,
+    DeviceCheck ~12.5+), but the Flutter plugin is not — flutterfire#17057 (open
+    since Feb 2025, `blocked: firebase-sdk`) throws AppAttest errors even when
+    `AppleProvider.deviceCheck` is explicitly configured, with no clean fallback;
+    #10934 / #13202 are the same bug. Use the **debug provider** for macOS dev,
+    and never read a passing macOS build as evidence App Check works. The rung
+    this doc calls "the true floor" is least trustworthy exactly where we test.
+  - *OPEN — does App Check replace `X-App-Token`, or sit beside it?* The ladder
+    implies replace. The macOS bug argues for keeping the shared secret as a
+    fallback — but a fallback anyone can extract **is** the floor, which cancels
+    the upgrade. Decide deliberately; don't let it default.
   - *Quotas cover every sign-in method, but never require a login.* App Check
     needs no identity; anonymous auth mints a real UID + verifiable ID token
     **silently** (no login screen). So a user who keeps notes local (e.g. an
