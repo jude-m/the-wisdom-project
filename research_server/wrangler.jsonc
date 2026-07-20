@@ -1,0 +1,27 @@
+{
+  "name": "wisdom-research",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  // Dev port map: 8081 = Dart content server, 8082 = research server.
+  "dev": {
+    "port": 8082
+  },
+  "vars": {
+    // Stub by default: a fresh deploy answers canned replies with no key.
+    // Live needs RESEARCH_STUB=0 + RESEARCH_STORE here and the GEMINI_API_KEY
+    // secret (`wrangler secret put GEMINI_API_KEY`). Locally use .dev.vars.
+    "RESEARCH_STUB": "0",
+    "RESEARCH_STORE": "fileSearchStores/tipitakapilotsn15-ry6rxdcmw8z7"
+  },
+  // Pin the Worker to a US region so outbound Gemini calls egress from a
+  // Gemini-supported location. Cloudflare's global anycast egress otherwise
+  // lands some requests on IPs Google's free tier geo-blocks
+  // ("User location is not supported for the API use").
+  "placement": {
+    "mode": "targeted",
+    "region": "gcp:us-east4"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

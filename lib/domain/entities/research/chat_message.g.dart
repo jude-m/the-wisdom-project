@@ -14,6 +14,7 @@ _$ChatMessageImpl _$$ChatMessageImplFromJson(Map<String, dynamic> json) =>
               ?.map((e) => Citation.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      model: json['model'] as String?,
     );
 
 Map<String, dynamic> _$$ChatMessageImplToJson(_$ChatMessageImpl instance) =>
@@ -21,4 +22,5 @@ Map<String, dynamic> _$$ChatMessageImplToJson(_$ChatMessageImpl instance) =>
       'role': instance.role,
       'content': instance.content,
       'citations': instance.citations,
+      'model': instance.model,
     };

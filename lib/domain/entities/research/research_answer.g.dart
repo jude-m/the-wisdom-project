@@ -14,6 +14,7 @@ _$ResearchAnswerImpl _$$ResearchAnswerImplFromJson(Map<String, dynamic> json) =>
               ?.map((e) => Citation.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      model: json['model'] as String?,
     );
 
 Map<String, dynamic> _$$ResearchAnswerImplToJson(
@@ -22,4 +23,5 @@ Map<String, dynamic> _$$ResearchAnswerImplToJson(
       'answer': instance.answer,
       'lang': instance.lang,
       'citations': instance.citations,
+      'model': instance.model,
     };

@@ -32,6 +32,11 @@ mixin _$ResearchAnswer {
   /// Sources the answer is grounded on (may be empty).
   List<Citation> get citations => throw _privateConstructorUsedError;
 
+  /// Which Gemini model generated the answer (e.g. "gemini-2.5-flash";
+  /// "stub" for canned replies). Shown quietly in the UI for the curious.
+  /// Nullable: a backend from before this field simply doesn't send it.
+  String? get model => throw _privateConstructorUsedError;
+
   /// Serializes this ResearchAnswer to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -48,7 +53,8 @@ abstract class $ResearchAnswerCopyWith<$Res> {
           ResearchAnswer value, $Res Function(ResearchAnswer) then) =
       _$ResearchAnswerCopyWithImpl<$Res, ResearchAnswer>;
   @useResult
-  $Res call({String answer, String lang, List<Citation> citations});
+  $Res call(
+      {String answer, String lang, List<Citation> citations, String? model});
 }
 
 /// @nodoc
@@ -69,6 +75,7 @@ class _$ResearchAnswerCopyWithImpl<$Res, $Val extends ResearchAnswer>
     Object? answer = null,
     Object? lang = null,
     Object? citations = null,
+    Object? model = freezed,
   }) {
     return _then(_value.copyWith(
       answer: null == answer
@@ -83,6 +90,10 @@ class _$ResearchAnswerCopyWithImpl<$Res, $Val extends ResearchAnswer>
           ? _value.citations
           : citations // ignore: cast_nullable_to_non_nullable
               as List<Citation>,
+      model: freezed == model
+          ? _value.model
+          : model // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -95,7 +106,8 @@ abstract class _$$ResearchAnswerImplCopyWith<$Res>
       __$$ResearchAnswerImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String answer, String lang, List<Citation> citations});
+  $Res call(
+      {String answer, String lang, List<Citation> citations, String? model});
 }
 
 /// @nodoc
@@ -114,6 +126,7 @@ class __$$ResearchAnswerImplCopyWithImpl<$Res>
     Object? answer = null,
     Object? lang = null,
     Object? citations = null,
+    Object? model = freezed,
   }) {
     return _then(_$ResearchAnswerImpl(
       answer: null == answer
@@ -128,6 +141,10 @@ class __$$ResearchAnswerImplCopyWithImpl<$Res>
           ? _value._citations
           : citations // ignore: cast_nullable_to_non_nullable
               as List<Citation>,
+      model: freezed == model
+          ? _value.model
+          : model // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -138,7 +155,8 @@ class _$ResearchAnswerImpl implements _ResearchAnswer {
   const _$ResearchAnswerImpl(
       {required this.answer,
       required this.lang,
-      final List<Citation> citations = const []})
+      final List<Citation> citations = const [],
+      this.model})
       : _citations = citations;
 
   factory _$ResearchAnswerImpl.fromJson(Map<String, dynamic> json) =>
@@ -167,9 +185,15 @@ class _$ResearchAnswerImpl implements _ResearchAnswer {
     return EqualUnmodifiableListView(_citations);
   }
 
+  /// Which Gemini model generated the answer (e.g. "gemini-2.5-flash";
+  /// "stub" for canned replies). Shown quietly in the UI for the curious.
+  /// Nullable: a backend from before this field simply doesn't send it.
+  @override
+  final String? model;
+
   @override
   String toString() {
-    return 'ResearchAnswer(answer: $answer, lang: $lang, citations: $citations)';
+    return 'ResearchAnswer(answer: $answer, lang: $lang, citations: $citations, model: $model)';
   }
 
   @override
@@ -180,13 +204,14 @@ class _$ResearchAnswerImpl implements _ResearchAnswer {
             (identical(other.answer, answer) || other.answer == answer) &&
             (identical(other.lang, lang) || other.lang == lang) &&
             const DeepCollectionEquality()
-                .equals(other._citations, _citations));
+                .equals(other._citations, _citations) &&
+            (identical(other.model, model) || other.model == model));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, answer, lang,
-      const DeepCollectionEquality().hash(_citations));
+      const DeepCollectionEquality().hash(_citations), model);
 
   /// Create a copy of ResearchAnswer
   /// with the given fields replaced by the non-null parameter values.
@@ -209,7 +234,8 @@ abstract class _ResearchAnswer implements ResearchAnswer {
   const factory _ResearchAnswer(
       {required final String answer,
       required final String lang,
-      final List<Citation> citations}) = _$ResearchAnswerImpl;
+      final List<Citation> citations,
+      final String? model}) = _$ResearchAnswerImpl;
 
   factory _ResearchAnswer.fromJson(Map<String, dynamic> json) =
       _$ResearchAnswerImpl.fromJson;
@@ -228,6 +254,12 @@ abstract class _ResearchAnswer implements ResearchAnswer {
   /// Sources the answer is grounded on (may be empty).
   @override
   List<Citation> get citations;
+
+  /// Which Gemini model generated the answer (e.g. "gemini-2.5-flash";
+  /// "stub" for canned replies). Shown quietly in the UI for the curious.
+  /// Nullable: a backend from before this field simply doesn't send it.
+  @override
+  String? get model;
 
   /// Create a copy of ResearchAnswer
   /// with the given fields replaced by the non-null parameter values.

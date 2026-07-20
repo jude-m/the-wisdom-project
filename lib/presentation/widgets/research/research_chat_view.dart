@@ -226,12 +226,18 @@ class _ResearchChatViewState extends ConsumerState<ResearchChatView> {
                     controller: _controller,
                     minLines: 1,
                     maxLines: 4,
+                    // Matches the server's QUESTION_MAX_CHARS (contracts.ts):
+                    // a giant paste stops here instead of bouncing off a 400.
+                    maxLength: 4000,
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _send(),
                     decoration: InputDecoration(
                       hintText: l10n.researchInputHint,
                       border: const OutlineInputBorder(),
                       isDense: true,
+                      // Hide the live "n/4000" counter — typed questions never
+                      // get near the cap; it only exists to stop pastes.
+                      counterText: '',
                     ),
                   ),
                 ),
@@ -355,6 +361,20 @@ class _MessageTurn extends StatelessWidget {
                 style: context.typography.sectionHeader
                     .copyWith(color: colors.onSurfaceVariant),
               ),
+              // Which model answered — quiet provenance for the curious.
+              // Null for chats saved before the backend sent it.
+              if (message.model != null) ...[
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    '· ${message.model}',
+                    overflow: TextOverflow.ellipsis,
+                    style: context.typography.sectionHeader.copyWith(
+                      color: colors.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 8),

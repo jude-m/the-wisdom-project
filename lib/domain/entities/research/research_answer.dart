@@ -19,6 +19,11 @@ class ResearchAnswer with _$ResearchAnswer {
 
     /// Sources the answer is grounded on (may be empty).
     @Default([]) List<Citation> citations,
+
+    /// Which Gemini model generated the answer (e.g. "gemini-2.5-flash";
+    /// "stub" for canned replies). Shown quietly in the UI for the curious.
+    /// Nullable: a backend from before this field simply doesn't send it.
+    String? model,
   }) = _ResearchAnswer;
 
   factory ResearchAnswer.fromJson(Map<String, dynamic> json) =>

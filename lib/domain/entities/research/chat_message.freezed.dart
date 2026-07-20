@@ -27,6 +27,11 @@ mixin _$ChatMessage {
   /// Sources grounding an assistant turn. Empty for user turns.
   List<Citation> get citations => throw _privateConstructorUsedError;
 
+  /// Model that generated an assistant turn (null for user turns and for
+  /// chats saved before this field existed). UI-only, like [citations] —
+  /// NOT sent back as history (see [toHistoryJson]).
+  String? get model => throw _privateConstructorUsedError;
+
   /// Serializes this ChatMessage to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -43,7 +48,8 @@ abstract class $ChatMessageCopyWith<$Res> {
           ChatMessage value, $Res Function(ChatMessage) then) =
       _$ChatMessageCopyWithImpl<$Res, ChatMessage>;
   @useResult
-  $Res call({String role, String content, List<Citation> citations});
+  $Res call(
+      {String role, String content, List<Citation> citations, String? model});
 }
 
 /// @nodoc
@@ -64,6 +70,7 @@ class _$ChatMessageCopyWithImpl<$Res, $Val extends ChatMessage>
     Object? role = null,
     Object? content = null,
     Object? citations = null,
+    Object? model = freezed,
   }) {
     return _then(_value.copyWith(
       role: null == role
@@ -78,6 +85,10 @@ class _$ChatMessageCopyWithImpl<$Res, $Val extends ChatMessage>
           ? _value.citations
           : citations // ignore: cast_nullable_to_non_nullable
               as List<Citation>,
+      model: freezed == model
+          ? _value.model
+          : model // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -90,7 +101,8 @@ abstract class _$$ChatMessageImplCopyWith<$Res>
       __$$ChatMessageImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String role, String content, List<Citation> citations});
+  $Res call(
+      {String role, String content, List<Citation> citations, String? model});
 }
 
 /// @nodoc
@@ -109,6 +121,7 @@ class __$$ChatMessageImplCopyWithImpl<$Res>
     Object? role = null,
     Object? content = null,
     Object? citations = null,
+    Object? model = freezed,
   }) {
     return _then(_$ChatMessageImpl(
       role: null == role
@@ -123,6 +136,10 @@ class __$$ChatMessageImplCopyWithImpl<$Res>
           ? _value._citations
           : citations // ignore: cast_nullable_to_non_nullable
               as List<Citation>,
+      model: freezed == model
+          ? _value.model
+          : model // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -133,7 +150,8 @@ class _$ChatMessageImpl extends _ChatMessage {
   const _$ChatMessageImpl(
       {required this.role,
       required this.content,
-      final List<Citation> citations = const []})
+      final List<Citation> citations = const [],
+      this.model})
       : _citations = citations,
         super._();
 
@@ -158,9 +176,15 @@ class _$ChatMessageImpl extends _ChatMessage {
     return EqualUnmodifiableListView(_citations);
   }
 
+  /// Model that generated an assistant turn (null for user turns and for
+  /// chats saved before this field existed). UI-only, like [citations] —
+  /// NOT sent back as history (see [toHistoryJson]).
+  @override
+  final String? model;
+
   @override
   String toString() {
-    return 'ChatMessage(role: $role, content: $content, citations: $citations)';
+    return 'ChatMessage(role: $role, content: $content, citations: $citations, model: $model)';
   }
 
   @override
@@ -171,13 +195,14 @@ class _$ChatMessageImpl extends _ChatMessage {
             (identical(other.role, role) || other.role == role) &&
             (identical(other.content, content) || other.content == content) &&
             const DeepCollectionEquality()
-                .equals(other._citations, _citations));
+                .equals(other._citations, _citations) &&
+            (identical(other.model, model) || other.model == model));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, role, content,
-      const DeepCollectionEquality().hash(_citations));
+      const DeepCollectionEquality().hash(_citations), model);
 
   /// Create a copy of ChatMessage
   /// with the given fields replaced by the non-null parameter values.
@@ -199,7 +224,8 @@ abstract class _ChatMessage extends ChatMessage {
   const factory _ChatMessage(
       {required final String role,
       required final String content,
-      final List<Citation> citations}) = _$ChatMessageImpl;
+      final List<Citation> citations,
+      final String? model}) = _$ChatMessageImpl;
   const _ChatMessage._() : super._();
 
   factory _ChatMessage.fromJson(Map<String, dynamic> json) =
@@ -214,6 +240,12 @@ abstract class _ChatMessage extends ChatMessage {
   /// Sources grounding an assistant turn. Empty for user turns.
   @override
   List<Citation> get citations;
+
+  /// Model that generated an assistant turn (null for user turns and for
+  /// chats saved before this field existed). UI-only, like [citations] —
+  /// NOT sent back as history (see [toHistoryJson]).
+  @override
+  String? get model;
 
   /// Create a copy of ChatMessage
   /// with the given fields replaced by the non-null parameter values.

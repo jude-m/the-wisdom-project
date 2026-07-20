@@ -409,6 +409,10 @@ class AppLocalizationsSi extends AppLocalizations {
       'යම් දෝෂයක් සිදු විය. කරුණාකර නැවත උත්සාහ කරන්න.';
 
   @override
+  String get researchErrorResourceLimit =>
+      'පිළිතුර සැකසීමට නොහැකි තරම් විශාල විය. කරුණාකර නැවත උත්සාහ කරන්න.';
+
+  @override
   String get researchQuestionNotAnswered => 'මෙම ප්‍රශ්නයට පිළිතුරක් නොලැබුණි.';
 
   @override

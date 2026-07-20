@@ -59,6 +59,13 @@ ApiErrorType _typeFromStatus(ApiStatusException e) {
   };
   if (byCode != null) return byCode;
 
+  // Cloudflare kills a Worker that exceeds its per-request CPU budget and
+  // replies 500 with its own HTML error page (code 1102) — never our JSON
+  // envelope, so it has to be sniffed from the raw body.
+  if (e.statusCode == 500 && _isCpuExceeded(e.body)) {
+    return ApiErrorType.resourceLimit;
+  }
+
   // No structured code → key on the bare status.
   return switch (e.statusCode) {
     429 => ApiErrorType.rateLimited,
@@ -70,6 +77,13 @@ ApiErrorType _typeFromStatus(ApiStatusException e) {
     _ => ApiErrorType.serverError,
   };
 }
+
+/// Cloudflare's 1102 page carries the numeric code and/or the phrase
+/// "Worker exceeded resource limits"; either is a safe signal, since our own
+/// envelope bodies were already consumed by [_errorCode] above.
+bool _isCpuExceeded(String body) =>
+    body.contains('1102') ||
+    body.toLowerCase().contains('exceeded resource limits');
 
 /// Reads `error.code` from the response body, or null if the body isn't our
 /// structured envelope (`{"error": {"code": ...}}`).
@@ -104,4 +118,6 @@ String _fallbackMessage(ApiErrorType type) => switch (type) {
       ApiErrorType.cannotAnswer =>
         "I couldn't answer that. Try rephrasing your question.",
       ApiErrorType.serverError => 'Something went wrong. Please try again.',
+      ApiErrorType.resourceLimit =>
+        'That answer was too heavy to process. Please try again.',
     };

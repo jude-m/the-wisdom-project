@@ -28,6 +28,11 @@ class ChatMessage with _$ChatMessage {
 
     /// Sources grounding an assistant turn. Empty for user turns.
     @Default([]) List<Citation> citations,
+
+    /// Model that generated an assistant turn (null for user turns and for
+    /// chats saved before this field existed). UI-only, like [citations] —
+    /// NOT sent back as history (see [toHistoryJson]).
+    String? model,
   }) = _ChatMessage;
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) =>

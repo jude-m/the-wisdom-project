@@ -254,6 +254,7 @@
   "researchErrorCannotAnswer": "එයට පිළිතුරු දිය නොහැකි විය. ඔබගේ ප්‍රශ්නය වෙනස් ආකාරයකින් අසන්න.",
 
   "researchErrorServerError": "යම් දෝෂයක් සිදු විය. කරුණාකර නැවත උත්සාහ කරන්න.",
+  "researchErrorResourceLimit": "පිළිතුර සැකසීමට නොහැකි තරම් විශාල විය. කරුණාකර නැවත උත්සාහ කරන්න.",
 
   "researchQuestionNotAnswered": "මෙම ප්‍රශ්නයට පිළිතුරක් නොලැබුණි.",
 

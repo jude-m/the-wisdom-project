@@ -37,13 +37,10 @@ mixin _$Citation {
   /// SuttaCentral English source span that grounded this point — the "why it
   /// was cited" provenance shown in the peek sheet. Matched query terms are
   /// wrapped in `**…**` (rendered bold); see `make_snippet` on the server.
+  /// Deep links are NOT on the wire (`deeplink` removed 2026-07-18 — the
+  /// server could never resolve them): the app resolves [uid] → BJT nodeKey
+  /// client-side via the shared resolver.
   String? get snippet => throw _privateConstructorUsedError;
-
-  /// Wire-level deep link — the server keeps this null (decided 2026-07-06):
-  /// the app resolves [uid] → BJT nodeKey client-side via the shared
-  /// resolver (see `docs/todo/deep-linking-and-shareable-urls.md`). Kept in
-  /// the contract for future non-app consumers of `/research`.
-  String? get deeplink => throw _privateConstructorUsedError;
 
   /// Serializes this Citation to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -61,12 +58,7 @@ abstract class $CitationCopyWith<$Res> {
       _$CitationCopyWithImpl<$Res, Citation>;
   @useResult
   $Res call(
-      {String uid,
-      String ref,
-      String? title,
-      String kind,
-      String? snippet,
-      String? deeplink});
+      {String uid, String ref, String? title, String kind, String? snippet});
 }
 
 /// @nodoc
@@ -89,7 +81,6 @@ class _$CitationCopyWithImpl<$Res, $Val extends Citation>
     Object? title = freezed,
     Object? kind = null,
     Object? snippet = freezed,
-    Object? deeplink = freezed,
   }) {
     return _then(_value.copyWith(
       uid: null == uid
@@ -112,10 +103,6 @@ class _$CitationCopyWithImpl<$Res, $Val extends Citation>
           ? _value.snippet
           : snippet // ignore: cast_nullable_to_non_nullable
               as String?,
-      deeplink: freezed == deeplink
-          ? _value.deeplink
-          : deeplink // ignore: cast_nullable_to_non_nullable
-              as String?,
     ) as $Val);
   }
 }
@@ -129,12 +116,7 @@ abstract class _$$CitationImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {String uid,
-      String ref,
-      String? title,
-      String kind,
-      String? snippet,
-      String? deeplink});
+      {String uid, String ref, String? title, String kind, String? snippet});
 }
 
 /// @nodoc
@@ -155,7 +137,6 @@ class __$$CitationImplCopyWithImpl<$Res>
     Object? title = freezed,
     Object? kind = null,
     Object? snippet = freezed,
-    Object? deeplink = freezed,
   }) {
     return _then(_$CitationImpl(
       uid: null == uid
@@ -178,10 +159,6 @@ class __$$CitationImplCopyWithImpl<$Res>
           ? _value.snippet
           : snippet // ignore: cast_nullable_to_non_nullable
               as String?,
-      deeplink: freezed == deeplink
-          ? _value.deeplink
-          : deeplink // ignore: cast_nullable_to_non_nullable
-              as String?,
     ));
   }
 }
@@ -194,8 +171,7 @@ class _$CitationImpl implements _Citation {
       required this.ref,
       this.title,
       this.kind = 'canon',
-      this.snippet,
-      this.deeplink});
+      this.snippet});
 
   factory _$CitationImpl.fromJson(Map<String, dynamic> json) =>
       _$$CitationImplFromJson(json);
@@ -222,19 +198,15 @@ class _$CitationImpl implements _Citation {
   /// SuttaCentral English source span that grounded this point — the "why it
   /// was cited" provenance shown in the peek sheet. Matched query terms are
   /// wrapped in `**…**` (rendered bold); see `make_snippet` on the server.
+  /// Deep links are NOT on the wire (`deeplink` removed 2026-07-18 — the
+  /// server could never resolve them): the app resolves [uid] → BJT nodeKey
+  /// client-side via the shared resolver.
   @override
   final String? snippet;
 
-  /// Wire-level deep link — the server keeps this null (decided 2026-07-06):
-  /// the app resolves [uid] → BJT nodeKey client-side via the shared
-  /// resolver (see `docs/todo/deep-linking-and-shareable-urls.md`). Kept in
-  /// the contract for future non-app consumers of `/research`.
-  @override
-  final String? deeplink;
-
   @override
   String toString() {
-    return 'Citation(uid: $uid, ref: $ref, title: $title, kind: $kind, snippet: $snippet, deeplink: $deeplink)';
+    return 'Citation(uid: $uid, ref: $ref, title: $title, kind: $kind, snippet: $snippet)';
   }
 
   @override
@@ -246,15 +218,12 @@ class _$CitationImpl implements _Citation {
             (identical(other.ref, ref) || other.ref == ref) &&
             (identical(other.title, title) || other.title == title) &&
             (identical(other.kind, kind) || other.kind == kind) &&
-            (identical(other.snippet, snippet) || other.snippet == snippet) &&
-            (identical(other.deeplink, deeplink) ||
-                other.deeplink == deeplink));
+            (identical(other.snippet, snippet) || other.snippet == snippet));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, uid, ref, title, kind, snippet, deeplink);
+  int get hashCode => Object.hash(runtimeType, uid, ref, title, kind, snippet);
 
   /// Create a copy of Citation
   /// with the given fields replaced by the non-null parameter values.
@@ -278,8 +247,7 @@ abstract class _Citation implements Citation {
       required final String ref,
       final String? title,
       final String kind,
-      final String? snippet,
-      final String? deeplink}) = _$CitationImpl;
+      final String? snippet}) = _$CitationImpl;
 
   factory _Citation.fromJson(Map<String, dynamic> json) =
       _$CitationImpl.fromJson;
@@ -305,15 +273,11 @@ abstract class _Citation implements Citation {
   /// SuttaCentral English source span that grounded this point — the "why it
   /// was cited" provenance shown in the peek sheet. Matched query terms are
   /// wrapped in `**…**` (rendered bold); see `make_snippet` on the server.
+  /// Deep links are NOT on the wire (`deeplink` removed 2026-07-18 — the
+  /// server could never resolve them): the app resolves [uid] → BJT nodeKey
+  /// client-side via the shared resolver.
   @override
   String? get snippet;
-
-  /// Wire-level deep link — the server keeps this null (decided 2026-07-06):
-  /// the app resolves [uid] → BJT nodeKey client-side via the shared
-  /// resolver (see `docs/todo/deep-linking-and-shareable-urls.md`). Kept in
-  /// the contract for future non-app consumers of `/research`.
-  @override
-  String? get deeplink;
 
   /// Create a copy of Citation
   /// with the given fields replaced by the non-null parameter values.

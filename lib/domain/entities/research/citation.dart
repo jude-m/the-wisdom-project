@@ -27,13 +27,10 @@ class Citation with _$Citation {
     /// SuttaCentral English source span that grounded this point — the "why it
     /// was cited" provenance shown in the peek sheet. Matched query terms are
     /// wrapped in `**…**` (rendered bold); see `make_snippet` on the server.
+    /// Deep links are NOT on the wire (`deeplink` removed 2026-07-18 — the
+    /// server could never resolve them): the app resolves [uid] → BJT nodeKey
+    /// client-side via the shared resolver.
     String? snippet,
-
-    /// Wire-level deep link — the server keeps this null (decided 2026-07-06):
-    /// the app resolves [uid] → BJT nodeKey client-side via the shared
-    /// resolver (see `docs/todo/deep-linking-and-shareable-urls.md`). Kept in
-    /// the contract for future non-app consumers of `/research`.
-    String? deeplink,
   }) = _Citation;
 
   factory Citation.fromJson(Map<String, dynamic> json) =>

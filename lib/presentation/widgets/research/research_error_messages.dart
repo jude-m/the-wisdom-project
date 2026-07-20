@@ -13,6 +13,7 @@ String researchErrorMessage(AppLocalizations l10n, ApiErrorType type) =>
       ApiErrorType.notAuthorised => l10n.researchErrorNotAuthorised,
       ApiErrorType.cannotAnswer => l10n.researchErrorCannotAnswer,
       ApiErrorType.serverError => l10n.researchErrorServerError,
+      ApiErrorType.resourceLimit => l10n.researchErrorResourceLimit,
     };
 
 /// Whether the chat view should offer a one-tap Retry for this type.
@@ -26,6 +27,7 @@ bool canRetryType(ApiErrorType type) => switch (type) {
       ApiErrorType.timeout ||
       ApiErrorType.rateLimited ||
       ApiErrorType.serviceBusy ||
-      ApiErrorType.serverError =>
+      ApiErrorType.serverError ||
+      ApiErrorType.resourceLimit =>
         true,
     };

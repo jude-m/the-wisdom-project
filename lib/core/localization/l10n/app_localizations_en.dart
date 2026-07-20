@@ -408,6 +408,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Something went wrong. Please try again.';
 
   @override
+  String get researchErrorResourceLimit =>
+      'That answer was too heavy to process. Please try again.';
+
+  @override
   String get researchQuestionNotAnswered => 'This question wasn\'t answered.';
 
   @override

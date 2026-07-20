@@ -860,6 +860,12 @@ abstract class AppLocalizations {
   /// **'Something went wrong. Please try again.'**
   String get researchErrorServerError;
 
+  /// Q&A error when the server was killed for exceeding its compute limit (Cloudflare 1102); retry usually succeeds
+  ///
+  /// In en, this message translates to:
+  /// **'That answer was too heavy to process. Please try again.'**
+  String get researchErrorResourceLimit;
+
   /// Neutral notice (paired with Retry) when reopening a chat whose last question never received an answer — the original error was transient state and is gone
   ///
   /// In en, this message translates to:
