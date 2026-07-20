@@ -12,6 +12,7 @@ import '../../providers/research_provider.dart';
 import '../common/status_message_view.dart';
 import 'research_answer_view.dart';
 import 'research_error_messages.dart';
+import 'research_mode_selector.dart';
 import 'research_mode_ui.dart';
 
 /// Maximum width of the conversation column — full-bleed text is hard to
@@ -39,6 +40,18 @@ class ResearchChatView extends ConsumerStatefulWidget {
 class _ResearchChatViewState extends ConsumerState<ResearchChatView> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
+
+  // Stable identity for the input field. The composer swaps between a single
+  // row (field beside the controls) and two rows (field above them) as the
+  // text wraps — this GlobalKey lets Flutter relocate the SAME field element
+  // across that switch, so focus and the keyboard aren't dropped mid-typing.
+  final _fieldKey = GlobalKey();
+
+  // Width to reserve for the trailing controls (mode chip + send button, plus
+  // gaps) when deciding whether the question still fits on one line beside
+  // them. Measured against this constant — not the live layout — so the
+  // single↔two-row decision can't oscillate near the boundary.
+  static const _kControlsReserve = 190.0;
 
   @override
   void dispose() {
@@ -225,37 +238,117 @@ class _ResearchChatViewState extends ConsumerState<ResearchChatView> {
           )
         else
           _CenteredBottomRow(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: TextField(
+            // The composer is a single rounded pill — same rounding language as
+            // the main search bar (BorderRadius.circular(20)) so the two inputs
+            // feel like one family. The TextField, the Fast/Thinking selector and
+            // the send button all live inside it on one row, with the two
+            // controls grouped on the right (modern chat-composer layout).
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: colors.outlineVariant),
+              ),
+              // Adaptive composer (Gemini-style): the controls sit inline on
+              // the right while the question fits on one line, and drop to a
+              // second row beneath it the moment the text wraps — so a growing
+              // question never fights the chip and send button for the row.
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final inputStyle = Theme.of(context).textTheme.bodyLarge ??
+                      DefaultTextStyle.of(context).style;
+
+                  final textField = TextField(
+                    key: _fieldKey,
                     controller: _controller,
+                    style: inputStyle,
                     minLines: 1,
-                    maxLines: 4,
-                    // Matches the server's QUESTION_MAX_CHARS (contracts.ts):
-                    // a giant paste stops here instead of bouncing off a 400.
+                    // Grows 1 → 5 lines, then holds and scrolls internally so a
+                    // long paragraph stays reviewable without swallowing the
+                    // transcript. maxLength matches the server's
+                    // QUESTION_MAX_CHARS (contracts.ts) — a giant paste stops
+                    // here instead of bouncing off a 400.
+                    maxLines: 5,
                     maxLength: 4000,
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _send(),
                     decoration: InputDecoration(
                       hintText: l10n.researchInputHint,
-                      border: const OutlineInputBorder(),
+                      // The container owns the shape now — no inner outline.
+                      border: InputBorder.none,
                       isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 10,
+                      ),
                       // Hide the live "n/4000" counter — typed questions never
                       // get near the cap; it only exists to stop pastes.
                       counterText: '',
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Disabled while a request is in flight — the cost guardrail.
-                IconButton.filled(
-                  onPressed: state.isLoading ? null : _send,
-                  icon: const Icon(Icons.send),
-                  tooltip: l10n.researchSend,
-                ),
-              ],
+                  );
+
+                  final controls = Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Fast/Thinking mode switch, relocated from the app bar
+                      // into the composer.
+                      const ResearchModeSelector(),
+                      const SizedBox(width: 8),
+                      // Disabled while a request is in flight — the cost guard.
+                      IconButton.filled(
+                        onPressed: state.isLoading ? null : _send,
+                        icon: const Icon(Icons.send),
+                        tooltip: l10n.researchSend,
+                      ),
+                    ],
+                  );
+
+                  // Re-evaluate the fit on every keystroke. Measure the text at
+                  // the width it WOULD have beside the controls (single-row
+                  // width); if it needs more than one line there, go two-row.
+                  return ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _controller,
+                    builder: (context, value, _) {
+                      final singleRowTextWidth =
+                          constraints.maxWidth - _kControlsReserve;
+                      final painter = TextPainter(
+                        text: TextSpan(text: value.text, style: inputStyle),
+                        maxLines: null,
+                        textDirection: Directionality.of(context),
+                      )..layout(
+                          maxWidth:
+                              singleRowTextWidth > 0 ? singleRowTextWidth : 0,
+                        );
+                      final isMultiline =
+                          painter.computeLineMetrics().length > 1;
+
+                      if (isMultiline) {
+                        // Field on top spanning the full width; controls on a
+                        // toolbar row beneath, grouped on the right.
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            textField,
+                            Row(children: [const Spacer(), controls]),
+                          ],
+                        );
+                      }
+
+                      // One line: field and controls share a single row.
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(child: textField),
+                          const SizedBox(width: 8),
+                          controls,
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
       ],

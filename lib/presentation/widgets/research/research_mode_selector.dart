@@ -38,11 +38,14 @@ class ResearchModeSelector extends ConsumerWidget {
             ),
           ),
       ],
-      // The resting chip: current mode + a dropdown caret.
+      // The resting chip: current mode + a dropdown caret. It reads as a raised
+      // pill by being a step LIGHTER than the composer fill it sits inside
+      // (surfaceContainerHigh) — same trick the search scope-filter chips use,
+      // so no border is needed for it to stand out.
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: colors.surfaceContainerHighest,
+          color: colors.surfaceContainerLow,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
