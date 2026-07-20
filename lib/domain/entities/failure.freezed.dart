@@ -24,6 +24,8 @@ mixin _$Failure {
     required TResult Function(String message) notFoundFailure,
     required TResult Function(String message) invalidOperationFailure,
     required TResult Function(String message, Object? error) unexpectedFailure,
+    required TResult Function(String message, ApiErrorType type, Object? error)
+        apiFailure,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -33,6 +35,8 @@ mixin _$Failure {
     TResult? Function(String message)? notFoundFailure,
     TResult? Function(String message)? invalidOperationFailure,
     TResult? Function(String message, Object? error)? unexpectedFailure,
+    TResult? Function(String message, ApiErrorType type, Object? error)?
+        apiFailure,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -42,6 +46,8 @@ mixin _$Failure {
     TResult Function(String message)? notFoundFailure,
     TResult Function(String message)? invalidOperationFailure,
     TResult Function(String message, Object? error)? unexpectedFailure,
+    TResult Function(String message, ApiErrorType type, Object? error)?
+        apiFailure,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -53,6 +59,7 @@ mixin _$Failure {
     required TResult Function(InvalidOperationFailure value)
         invalidOperationFailure,
     required TResult Function(UnexpectedFailure value) unexpectedFailure,
+    required TResult Function(ApiFailure value) apiFailure,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -62,6 +69,7 @@ mixin _$Failure {
     TResult? Function(NotFoundFailure value)? notFoundFailure,
     TResult? Function(InvalidOperationFailure value)? invalidOperationFailure,
     TResult? Function(UnexpectedFailure value)? unexpectedFailure,
+    TResult? Function(ApiFailure value)? apiFailure,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -71,6 +79,7 @@ mixin _$Failure {
     TResult Function(NotFoundFailure value)? notFoundFailure,
     TResult Function(InvalidOperationFailure value)? invalidOperationFailure,
     TResult Function(UnexpectedFailure value)? unexpectedFailure,
+    TResult Function(ApiFailure value)? apiFailure,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -197,6 +206,8 @@ class _$DataLoadFailureImpl extends DataLoadFailure {
     required TResult Function(String message) notFoundFailure,
     required TResult Function(String message) invalidOperationFailure,
     required TResult Function(String message, Object? error) unexpectedFailure,
+    required TResult Function(String message, ApiErrorType type, Object? error)
+        apiFailure,
   }) {
     return dataLoadFailure(message, error);
   }
@@ -209,6 +220,8 @@ class _$DataLoadFailureImpl extends DataLoadFailure {
     TResult? Function(String message)? notFoundFailure,
     TResult? Function(String message)? invalidOperationFailure,
     TResult? Function(String message, Object? error)? unexpectedFailure,
+    TResult? Function(String message, ApiErrorType type, Object? error)?
+        apiFailure,
   }) {
     return dataLoadFailure?.call(message, error);
   }
@@ -221,6 +234,8 @@ class _$DataLoadFailureImpl extends DataLoadFailure {
     TResult Function(String message)? notFoundFailure,
     TResult Function(String message)? invalidOperationFailure,
     TResult Function(String message, Object? error)? unexpectedFailure,
+    TResult Function(String message, ApiErrorType type, Object? error)?
+        apiFailure,
     required TResult orElse(),
   }) {
     if (dataLoadFailure != null) {
@@ -238,6 +253,7 @@ class _$DataLoadFailureImpl extends DataLoadFailure {
     required TResult Function(InvalidOperationFailure value)
         invalidOperationFailure,
     required TResult Function(UnexpectedFailure value) unexpectedFailure,
+    required TResult Function(ApiFailure value) apiFailure,
   }) {
     return dataLoadFailure(this);
   }
@@ -250,6 +266,7 @@ class _$DataLoadFailureImpl extends DataLoadFailure {
     TResult? Function(NotFoundFailure value)? notFoundFailure,
     TResult? Function(InvalidOperationFailure value)? invalidOperationFailure,
     TResult? Function(UnexpectedFailure value)? unexpectedFailure,
+    TResult? Function(ApiFailure value)? apiFailure,
   }) {
     return dataLoadFailure?.call(this);
   }
@@ -262,6 +279,7 @@ class _$DataLoadFailureImpl extends DataLoadFailure {
     TResult Function(NotFoundFailure value)? notFoundFailure,
     TResult Function(InvalidOperationFailure value)? invalidOperationFailure,
     TResult Function(UnexpectedFailure value)? unexpectedFailure,
+    TResult Function(ApiFailure value)? apiFailure,
     required TResult orElse(),
   }) {
     if (dataLoadFailure != null) {
@@ -371,6 +389,8 @@ class _$DataParseFailureImpl extends DataParseFailure {
     required TResult Function(String message) notFoundFailure,
     required TResult Function(String message) invalidOperationFailure,
     required TResult Function(String message, Object? error) unexpectedFailure,
+    required TResult Function(String message, ApiErrorType type, Object? error)
+        apiFailure,
   }) {
     return dataParseFailure(message, error);
   }
@@ -383,6 +403,8 @@ class _$DataParseFailureImpl extends DataParseFailure {
     TResult? Function(String message)? notFoundFailure,
     TResult? Function(String message)? invalidOperationFailure,
     TResult? Function(String message, Object? error)? unexpectedFailure,
+    TResult? Function(String message, ApiErrorType type, Object? error)?
+        apiFailure,
   }) {
     return dataParseFailure?.call(message, error);
   }
@@ -395,6 +417,8 @@ class _$DataParseFailureImpl extends DataParseFailure {
     TResult Function(String message)? notFoundFailure,
     TResult Function(String message)? invalidOperationFailure,
     TResult Function(String message, Object? error)? unexpectedFailure,
+    TResult Function(String message, ApiErrorType type, Object? error)?
+        apiFailure,
     required TResult orElse(),
   }) {
     if (dataParseFailure != null) {
@@ -412,6 +436,7 @@ class _$DataParseFailureImpl extends DataParseFailure {
     required TResult Function(InvalidOperationFailure value)
         invalidOperationFailure,
     required TResult Function(UnexpectedFailure value) unexpectedFailure,
+    required TResult Function(ApiFailure value) apiFailure,
   }) {
     return dataParseFailure(this);
   }
@@ -424,6 +449,7 @@ class _$DataParseFailureImpl extends DataParseFailure {
     TResult? Function(NotFoundFailure value)? notFoundFailure,
     TResult? Function(InvalidOperationFailure value)? invalidOperationFailure,
     TResult? Function(UnexpectedFailure value)? unexpectedFailure,
+    TResult? Function(ApiFailure value)? apiFailure,
   }) {
     return dataParseFailure?.call(this);
   }
@@ -436,6 +462,7 @@ class _$DataParseFailureImpl extends DataParseFailure {
     TResult Function(NotFoundFailure value)? notFoundFailure,
     TResult Function(InvalidOperationFailure value)? invalidOperationFailure,
     TResult Function(UnexpectedFailure value)? unexpectedFailure,
+    TResult Function(ApiFailure value)? apiFailure,
     required TResult orElse(),
   }) {
     if (dataParseFailure != null) {
@@ -539,6 +566,8 @@ class _$NotFoundFailureImpl extends NotFoundFailure {
     required TResult Function(String message) notFoundFailure,
     required TResult Function(String message) invalidOperationFailure,
     required TResult Function(String message, Object? error) unexpectedFailure,
+    required TResult Function(String message, ApiErrorType type, Object? error)
+        apiFailure,
   }) {
     return notFoundFailure(message);
   }
@@ -551,6 +580,8 @@ class _$NotFoundFailureImpl extends NotFoundFailure {
     TResult? Function(String message)? notFoundFailure,
     TResult? Function(String message)? invalidOperationFailure,
     TResult? Function(String message, Object? error)? unexpectedFailure,
+    TResult? Function(String message, ApiErrorType type, Object? error)?
+        apiFailure,
   }) {
     return notFoundFailure?.call(message);
   }
@@ -563,6 +594,8 @@ class _$NotFoundFailureImpl extends NotFoundFailure {
     TResult Function(String message)? notFoundFailure,
     TResult Function(String message)? invalidOperationFailure,
     TResult Function(String message, Object? error)? unexpectedFailure,
+    TResult Function(String message, ApiErrorType type, Object? error)?
+        apiFailure,
     required TResult orElse(),
   }) {
     if (notFoundFailure != null) {
@@ -580,6 +613,7 @@ class _$NotFoundFailureImpl extends NotFoundFailure {
     required TResult Function(InvalidOperationFailure value)
         invalidOperationFailure,
     required TResult Function(UnexpectedFailure value) unexpectedFailure,
+    required TResult Function(ApiFailure value) apiFailure,
   }) {
     return notFoundFailure(this);
   }
@@ -592,6 +626,7 @@ class _$NotFoundFailureImpl extends NotFoundFailure {
     TResult? Function(NotFoundFailure value)? notFoundFailure,
     TResult? Function(InvalidOperationFailure value)? invalidOperationFailure,
     TResult? Function(UnexpectedFailure value)? unexpectedFailure,
+    TResult? Function(ApiFailure value)? apiFailure,
   }) {
     return notFoundFailure?.call(this);
   }
@@ -604,6 +639,7 @@ class _$NotFoundFailureImpl extends NotFoundFailure {
     TResult Function(NotFoundFailure value)? notFoundFailure,
     TResult Function(InvalidOperationFailure value)? invalidOperationFailure,
     TResult Function(UnexpectedFailure value)? unexpectedFailure,
+    TResult Function(ApiFailure value)? apiFailure,
     required TResult orElse(),
   }) {
     if (notFoundFailure != null) {
@@ -707,6 +743,8 @@ class _$InvalidOperationFailureImpl extends InvalidOperationFailure {
     required TResult Function(String message) notFoundFailure,
     required TResult Function(String message) invalidOperationFailure,
     required TResult Function(String message, Object? error) unexpectedFailure,
+    required TResult Function(String message, ApiErrorType type, Object? error)
+        apiFailure,
   }) {
     return invalidOperationFailure(message);
   }
@@ -719,6 +757,8 @@ class _$InvalidOperationFailureImpl extends InvalidOperationFailure {
     TResult? Function(String message)? notFoundFailure,
     TResult? Function(String message)? invalidOperationFailure,
     TResult? Function(String message, Object? error)? unexpectedFailure,
+    TResult? Function(String message, ApiErrorType type, Object? error)?
+        apiFailure,
   }) {
     return invalidOperationFailure?.call(message);
   }
@@ -731,6 +771,8 @@ class _$InvalidOperationFailureImpl extends InvalidOperationFailure {
     TResult Function(String message)? notFoundFailure,
     TResult Function(String message)? invalidOperationFailure,
     TResult Function(String message, Object? error)? unexpectedFailure,
+    TResult Function(String message, ApiErrorType type, Object? error)?
+        apiFailure,
     required TResult orElse(),
   }) {
     if (invalidOperationFailure != null) {
@@ -748,6 +790,7 @@ class _$InvalidOperationFailureImpl extends InvalidOperationFailure {
     required TResult Function(InvalidOperationFailure value)
         invalidOperationFailure,
     required TResult Function(UnexpectedFailure value) unexpectedFailure,
+    required TResult Function(ApiFailure value) apiFailure,
   }) {
     return invalidOperationFailure(this);
   }
@@ -760,6 +803,7 @@ class _$InvalidOperationFailureImpl extends InvalidOperationFailure {
     TResult? Function(NotFoundFailure value)? notFoundFailure,
     TResult? Function(InvalidOperationFailure value)? invalidOperationFailure,
     TResult? Function(UnexpectedFailure value)? unexpectedFailure,
+    TResult? Function(ApiFailure value)? apiFailure,
   }) {
     return invalidOperationFailure?.call(this);
   }
@@ -772,6 +816,7 @@ class _$InvalidOperationFailureImpl extends InvalidOperationFailure {
     TResult Function(NotFoundFailure value)? notFoundFailure,
     TResult Function(InvalidOperationFailure value)? invalidOperationFailure,
     TResult Function(UnexpectedFailure value)? unexpectedFailure,
+    TResult Function(ApiFailure value)? apiFailure,
     required TResult orElse(),
   }) {
     if (invalidOperationFailure != null) {
@@ -880,6 +925,8 @@ class _$UnexpectedFailureImpl extends UnexpectedFailure {
     required TResult Function(String message) notFoundFailure,
     required TResult Function(String message) invalidOperationFailure,
     required TResult Function(String message, Object? error) unexpectedFailure,
+    required TResult Function(String message, ApiErrorType type, Object? error)
+        apiFailure,
   }) {
     return unexpectedFailure(message, error);
   }
@@ -892,6 +939,8 @@ class _$UnexpectedFailureImpl extends UnexpectedFailure {
     TResult? Function(String message)? notFoundFailure,
     TResult? Function(String message)? invalidOperationFailure,
     TResult? Function(String message, Object? error)? unexpectedFailure,
+    TResult? Function(String message, ApiErrorType type, Object? error)?
+        apiFailure,
   }) {
     return unexpectedFailure?.call(message, error);
   }
@@ -904,6 +953,8 @@ class _$UnexpectedFailureImpl extends UnexpectedFailure {
     TResult Function(String message)? notFoundFailure,
     TResult Function(String message)? invalidOperationFailure,
     TResult Function(String message, Object? error)? unexpectedFailure,
+    TResult Function(String message, ApiErrorType type, Object? error)?
+        apiFailure,
     required TResult orElse(),
   }) {
     if (unexpectedFailure != null) {
@@ -921,6 +972,7 @@ class _$UnexpectedFailureImpl extends UnexpectedFailure {
     required TResult Function(InvalidOperationFailure value)
         invalidOperationFailure,
     required TResult Function(UnexpectedFailure value) unexpectedFailure,
+    required TResult Function(ApiFailure value) apiFailure,
   }) {
     return unexpectedFailure(this);
   }
@@ -933,6 +985,7 @@ class _$UnexpectedFailureImpl extends UnexpectedFailure {
     TResult? Function(NotFoundFailure value)? notFoundFailure,
     TResult? Function(InvalidOperationFailure value)? invalidOperationFailure,
     TResult? Function(UnexpectedFailure value)? unexpectedFailure,
+    TResult? Function(ApiFailure value)? apiFailure,
   }) {
     return unexpectedFailure?.call(this);
   }
@@ -945,6 +998,7 @@ class _$UnexpectedFailureImpl extends UnexpectedFailure {
     TResult Function(NotFoundFailure value)? notFoundFailure,
     TResult Function(InvalidOperationFailure value)? invalidOperationFailure,
     TResult Function(UnexpectedFailure value)? unexpectedFailure,
+    TResult Function(ApiFailure value)? apiFailure,
     required TResult orElse(),
   }) {
     if (unexpectedFailure != null) {
@@ -969,5 +1023,199 @@ abstract class UnexpectedFailure extends Failure {
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$UnexpectedFailureImplCopyWith<_$UnexpectedFailureImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$ApiFailureImplCopyWith<$Res>
+    implements $FailureCopyWith<$Res> {
+  factory _$$ApiFailureImplCopyWith(
+          _$ApiFailureImpl value, $Res Function(_$ApiFailureImpl) then) =
+      __$$ApiFailureImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String message, ApiErrorType type, Object? error});
+}
+
+/// @nodoc
+class __$$ApiFailureImplCopyWithImpl<$Res>
+    extends _$FailureCopyWithImpl<$Res, _$ApiFailureImpl>
+    implements _$$ApiFailureImplCopyWith<$Res> {
+  __$$ApiFailureImplCopyWithImpl(
+      _$ApiFailureImpl _value, $Res Function(_$ApiFailureImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of Failure
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? message = null,
+    Object? type = null,
+    Object? error = freezed,
+  }) {
+    return _then(_$ApiFailureImpl(
+      message: null == message
+          ? _value.message
+          : message // ignore: cast_nullable_to_non_nullable
+              as String,
+      type: null == type
+          ? _value.type
+          : type // ignore: cast_nullable_to_non_nullable
+              as ApiErrorType,
+      error: freezed == error ? _value.error : error,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$ApiFailureImpl extends ApiFailure {
+  const _$ApiFailureImpl(
+      {required this.message, required this.type, this.error})
+      : super._();
+
+  @override
+  final String message;
+  @override
+  final ApiErrorType type;
+  @override
+  final Object? error;
+
+  @override
+  String toString() {
+    return 'Failure.apiFailure(message: $message, type: $type, error: $error)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ApiFailureImpl &&
+            (identical(other.message, message) || other.message == message) &&
+            (identical(other.type, type) || other.type == type) &&
+            const DeepCollectionEquality().equals(other.error, error));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, message, type, const DeepCollectionEquality().hash(error));
+
+  /// Create a copy of Failure
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$ApiFailureImplCopyWith<_$ApiFailureImpl> get copyWith =>
+      __$$ApiFailureImplCopyWithImpl<_$ApiFailureImpl>(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String message, Object? error) dataLoadFailure,
+    required TResult Function(String message, Object? error) dataParseFailure,
+    required TResult Function(String message) notFoundFailure,
+    required TResult Function(String message) invalidOperationFailure,
+    required TResult Function(String message, Object? error) unexpectedFailure,
+    required TResult Function(String message, ApiErrorType type, Object? error)
+        apiFailure,
+  }) {
+    return apiFailure(message, type, error);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String message, Object? error)? dataLoadFailure,
+    TResult? Function(String message, Object? error)? dataParseFailure,
+    TResult? Function(String message)? notFoundFailure,
+    TResult? Function(String message)? invalidOperationFailure,
+    TResult? Function(String message, Object? error)? unexpectedFailure,
+    TResult? Function(String message, ApiErrorType type, Object? error)?
+        apiFailure,
+  }) {
+    return apiFailure?.call(message, type, error);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String message, Object? error)? dataLoadFailure,
+    TResult Function(String message, Object? error)? dataParseFailure,
+    TResult Function(String message)? notFoundFailure,
+    TResult Function(String message)? invalidOperationFailure,
+    TResult Function(String message, Object? error)? unexpectedFailure,
+    TResult Function(String message, ApiErrorType type, Object? error)?
+        apiFailure,
+    required TResult orElse(),
+  }) {
+    if (apiFailure != null) {
+      return apiFailure(message, type, error);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(DataLoadFailure value) dataLoadFailure,
+    required TResult Function(DataParseFailure value) dataParseFailure,
+    required TResult Function(NotFoundFailure value) notFoundFailure,
+    required TResult Function(InvalidOperationFailure value)
+        invalidOperationFailure,
+    required TResult Function(UnexpectedFailure value) unexpectedFailure,
+    required TResult Function(ApiFailure value) apiFailure,
+  }) {
+    return apiFailure(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(DataLoadFailure value)? dataLoadFailure,
+    TResult? Function(DataParseFailure value)? dataParseFailure,
+    TResult? Function(NotFoundFailure value)? notFoundFailure,
+    TResult? Function(InvalidOperationFailure value)? invalidOperationFailure,
+    TResult? Function(UnexpectedFailure value)? unexpectedFailure,
+    TResult? Function(ApiFailure value)? apiFailure,
+  }) {
+    return apiFailure?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(DataLoadFailure value)? dataLoadFailure,
+    TResult Function(DataParseFailure value)? dataParseFailure,
+    TResult Function(NotFoundFailure value)? notFoundFailure,
+    TResult Function(InvalidOperationFailure value)? invalidOperationFailure,
+    TResult Function(UnexpectedFailure value)? unexpectedFailure,
+    TResult Function(ApiFailure value)? apiFailure,
+    required TResult orElse(),
+  }) {
+    if (apiFailure != null) {
+      return apiFailure(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class ApiFailure extends Failure {
+  const factory ApiFailure(
+      {required final String message,
+      required final ApiErrorType type,
+      final Object? error}) = _$ApiFailureImpl;
+  const ApiFailure._() : super._();
+
+  @override
+  String get message;
+  ApiErrorType get type;
+  Object? get error;
+
+  /// Create a copy of Failure
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$ApiFailureImplCopyWith<_$ApiFailureImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

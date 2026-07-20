@@ -11,8 +11,23 @@
 # development. Use --profile for performance investigation with DevTools
 # (frame timings, CPU, memory) at near-release speed. Use --release to test
 # against the production build.
+#
+# Research backend: this script ALWAYS points the app at the deployed
+# Cloudflare Worker — even in debug — so "Research the Canon" works out of the
+# box with no local server. (Without the --dart-define below the app defaults
+# to http://localhost:8082, which is unreachable unless research_server is
+# running locally, and shows a "Couldn't connect" error.)
+#
+# Endpoints (for reference):
+#   deployed : https://wisdom-research.bk-anigha.workers.dev
+#   local    : http://localhost:8082   (via scripts/research_server/run.sh)
+# Need the local server instead? Override without editing this file:
+#   RESEARCH_BASE_URL=http://localhost:8082 ./scripts/macos/run.sh
 
 set -e
+
+# Deployed Worker by default; an exported RESEARCH_BASE_URL wins if set.
+RESEARCH_BASE_URL="${RESEARCH_BASE_URL:-https://wisdom-research.bk-anigha.workers.dev}"
 
 # --- Parse args -------------------------------------------------------------
 MODE="--debug"
@@ -33,4 +48,6 @@ done
 cd "$(dirname "$0")/../.."
 
 echo "Running on macOS ($MODE)..."
-flutter run -d macos "$MODE"
+echo "Research backend: $RESEARCH_BASE_URL"
+flutter run -d macos "$MODE" \
+  --dart-define=RESEARCH_BASE_URL="$RESEARCH_BASE_URL"

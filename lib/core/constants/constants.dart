@@ -27,6 +27,11 @@ class PaneWidthConstants {
   // Dictionary bottom sheet (for tablets/desktops)
   static const double dictionarySheetMaxWidth = 800.0;
 
+  // Research chat: the conversation column AND the citation peek sheet share
+  // this width, so the sheet rises centered over the answer it belongs to
+  // rather than spanning the whole app (same idea as the dictionary sheet).
+  static const double researchContentMaxWidth = 760.0;
+
   // Reader split pane (for "both" column mode)
   // Ratio-based (0.0-1.0) for automatic adaptation to window resizing
   static const double readerSplitDefault = 0.5; // 50/50 ratio

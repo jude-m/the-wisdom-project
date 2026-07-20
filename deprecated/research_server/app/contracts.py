@@ -1,0 +1,61 @@
+"""Pydantic models = the wire contract the Flutter app binds to.
+
+Mirror of the §7 contract in docs/todo/wisdom-project-rag-qa-design.md and the
+Dart Freezed entities in lib/domain/entities/research/. Keep these shapes aligned with
+those entities — that alignment is precisely what keeps the backend swappable
+(design §5.7, the "reversibility anchor").
+"""
+from __future__ import annotations
+
+from typing import Literal, Optional
+
+from pydantic import BaseModel, Field
+
+
+class HistoryTurn(BaseModel):
+    """One prior conversation turn. Client-owned; empty in the prototype (§5.8)."""
+
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class Filters(BaseModel):
+    """Optional hard metadata scope (design §5.9c). Only `basket` for now."""
+
+    basket: Optional[str] = None
+
+
+class ResearchRequest(BaseModel):
+    """`POST /research` request body. Matches ResearchRemoteDataSourceImpl in the app."""
+
+    question: str
+    history: list[HistoryTurn] = Field(default_factory=list)
+    filters: Optional[Filters] = None
+    # Which model tier answers (config.models_for_mode). Absent → "fast", so an
+    # older client that never sends it keeps today's fast-tier behaviour.
+    mode: Literal["fast", "thinking"] = "fast"
+
+
+class Citation(BaseModel):
+    """One grounded source. Mirrors lib/domain/entities/research/citation.dart."""
+
+    uid: str                          # "sn15.3" | "pli-tv-bu-vb-np18"
+    ref: str                          # "SN 15.3" (display form)
+    title: Optional[str] = None       # heading minus ref, "Chapter One A Mustard Seed"
+    kind: str = "canon"               # "note" reserved for Sujato notes (§5.2)
+    snippet: Optional[str] = None     # SuttaCentral English span; matched terms in **bold**
+    deeplink: Optional[str] = None    # resolved later (resolver plan, Part D)
+
+
+class ResearchResponse(BaseModel):
+    """`POST /research` response. Mirrors lib/domain/entities/research/research_answer.dart.
+
+    `answer` prose carries inline `[[cite:uid]]` markers at each grounded span
+    (from `grounding_supports`); the app renders a tappable chip in place and, as
+    a fallback, a trailing chip row when no markers are present. Each marker's uid
+    is present in `citations`.
+    """
+
+    answer: str
+    lang: Literal["si", "en"]
+    citations: list[Citation] = Field(default_factory=list)

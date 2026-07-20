@@ -3,7 +3,7 @@
 > Status: **Plan / not started.** Captured 2026-06-12 (revised same day after
 > field research into tipitaka.lk, buddhadust, and SuttaCentral).
 > Scope: an honest static-HTML prototype of the Tipitaka content surface from
-> [`web-rewrite-strategy.md`](./web-rewrite-strategy.md) (Option A′). Proves, on
+> [`static-web-hosting.md`](./static-web-hosting.md) (Option A′). Proves, on
 > one small subtree: static page generation + a zero-JS tree navigator + **all 4
 > reading layouts** + the **per-sutta-page / formulaic-range grouping model**.
 > Search is **out of scope** for this prototype (server-rendered FTS comes later).
@@ -185,11 +185,11 @@ sutta**. SuttaCentral has **one data unit (the range)** and renders two routes
 from it with JavaScript. We get the single-sutta view **without duplicating text
 and without a SPA**:
 
-1. **Distinct / substantial sutta → its own file** `/sutta/<nodeKey>`: full text,
+1. **Distinct / substantial sutta → its own file** `/tipitaka/<nodeKey>`: full text,
    `<title>` = sutta name, canonical self → full per-sutta SEO (C2), shareable
-   (C3), single view (C4); mirrors the app's `/sutta/<id>`. Its container is a
+   (C3), single view (C4); mirrors the app's `/tipitaka/<id>`. Its container is a
    **TOC** (links only); continuous reading via prev/next.
-2. **Micro / grouped sutta → lives *only* in its chapter file** `/sutta/<vaggaKey>`:
+2. **Micro / grouped sutta → lives *only* in its chapter file** `/tipitaka/<vaggaKey>`:
    one page holding the whole run, each sutta `<section class="sutta" id="<nodeKey>">`.
    The navigator's deepest link, the continuous-reading surface (C7), and the SEO
    unit for the run.
@@ -208,8 +208,8 @@ rule turns the URL fragment into a filter:
 /* no #fragment → show all (chapter);  #an-2-64 → show only that sutta */
 .chapter:has(.sutta:target) .sutta:not(:target) { display: none; }
 ```
-- `/sutta/an-2-64-76`          → whole chapter (continuous reading).
-- `/sutta/an-2-64-76#an-2-64`  → just AN 2.64 (single view) — shareable (C3/C4).
+- `/tipitaka/an-2-64-76`          → whole chapter (continuous reading).
+- `/tipitaka/an-2-64-76#an-2-64`  → just AN 2.64 (single view) — shareable (C3/C4).
 - In single view, render a "↩ whole chapter" link (drops `#`) + prev/next (swap
   `#`) — plain anchors, no script.
 - **Graceful degradation:** browsers without `:has()` (pre-2023) show the whole
@@ -217,8 +217,8 @@ rule turns the URL fragment into a filter:
 - This filter is **only for grouped suttas**; distinct suttas are already their own
   file.
 
-**App-parity URL (optional, deferred).** The app uses `/sutta/<id>` for *every*
-sutta. A grouped sutta's clean `/sutta/<nodeKey>` can resolve via a **content-free
+**App-parity URL (optional, deferred).** The app uses `/tipitaka/<id>` for *every*
+sutta. A grouped sutta's clean `/tipitaka/<nodeKey>` can resolve via a **content-free
 redirect** (an empty stub file, or a host rewrite) → `…/<vaggaKey>#<nodeKey>`. No
 text, so no duplication. Exact form rides with the app-vs-web decision (§13).
 
@@ -315,7 +315,13 @@ the reader toggles via the radios. To open *directly* in a layout from a link:
 |---|---|---|
 | **A. Default + radios only** | no URL state | ✅ prototype default; zero JS |
 | **B. `:target` via hash** | CSS `:target` | ⚠️ steals the fragment from sutta anchors; skip |
-| **C. ~8-line enhancement script** | read `?layout=`, check the radio once | ✅ later; page works 100% without it |
+| **C. ~8-line enhancement script** | read `?layout=<ReaderLayout.name>`, check the radio once | ✅ **the locked shareable-link contract** (2026-07-20) — token = the app's `ReaderLayout.name` (`paliOnly`/`sinhalaOnly`/`sideBySide`/`stacked`); page still works 100% without JS (baked default) |
+
+> **Layout in the URL is view state** → it rides in the query (`?layout=`), never
+> the path, matching the app's URL grammar (see
+> [`../todo/deep-linking-and-shareable-urls.md`](../todo/deep-linking-and-shareable-urls.md)).
+> `?layout=` and a grouped sutta's single-view fragment compose cleanly:
+> `…/tipitaka/an-2-64-76?layout=stacked#an-2-64`.
 
 > **Risk — entry alignment.** Side-by-side/stacked pair `pali[i]` with `sinh[i]`.
 > Unequal counts (localized headings; some nodes lack Sinhala — cf. the `ap-pat`
@@ -390,7 +396,7 @@ static_site_generator/
   <details open><summary>ඉතිවුත්තකපාළි</summary>
     <details open><summary>එකකනිපාතො</summary>
       <details><summary>පඨමො වග්ගො</summary>
-        <a href="/sutta/kn-iti-1-1-1">ලොභසුත්තං</a> …
+        <a href="/tipitaka/kn-iti-1-1-1">ලොභසුත්තං</a> …
       </details>
     </details>
   </details>
@@ -404,7 +410,7 @@ static_site_generator/
 ```
 build/
   index.html                         # root TOC of the chosen subtree
-  sutta/
+  tipitaka/
     kn-khp/index.html                # TOC (children distinct → links only)
     kn-khp-5.html  kn-khp-9.html …   # DISTINCT sutta files (text lives ONLY here)
     an-2-64-76.html                  # CHAPTER file (grouped run; text lives ONLY here)
@@ -416,12 +422,12 @@ build/
   grouping.json  (source, not output)
   .manifest.json (source→[outputs] + hashes, for incremental builds)
 ```
-- **Distinct sutta** → `/sutta/<nodeKey>` (own file, full per-sutta SEO); mirrors
-  the app's `/sutta/<id>`.
-- **Chapter (grouped)** → `/sutta/<vaggaKey>`; single view `…#<nodeKey>`.
-- **Higher container** → `/sutta/<containerKey>/` TOC (links only).
+- **Distinct sutta** → `/tipitaka/<nodeKey>` (own file, full per-sutta SEO); mirrors
+  the app's `/tipitaka/<id>`.
+- **Chapter (grouped)** → `/tipitaka/<vaggaKey>`; single view `…#<nodeKey>`.
+- **Higher container** → `/tipitaka/<containerKey>/` TOC (links only).
 - **Every sutta's text is in exactly one file.** Hosting split (static `/`, app
-  `/app/`) lives in `web-rewrite-strategy.md`.
+  `/app/`) lives in `static-web-hosting.md`.
 
 ---
 
@@ -464,8 +470,10 @@ build/
   (243 micro-suttas) → chapter files with working `#fragment` single-views (no
   per-sutta files). Tune the size / run threshold.
 - **P6** Point at `kn-iti-1`; verify nesting + slicing across vaggas.
-- *(Later, separate)* server-rendered FTS search; `?layout=` enhancement (§7-C);
-  scroll-spy; sitemap/robots/JSON-LD from `web-rewrite-strategy.md`.
+- *(Later, separate)* client-side / linked search — **server-rendered FTS is
+  retired with the content server** (see `static-web-hosting.md`); scroll-spy;
+  sitemap/robots/JSON-LD from `static-web-hosting.md`. The `?layout=` enhancement
+  (§7-C) is **now the locked shareable-link contract**, not "later".
 
 ---
 
@@ -474,17 +482,24 @@ build/
 1. **Final grouping lock** *(kept open on purpose)*: the **size / run-length
    threshold** separating *distinct* (own file) from *grouped* (chapter file).
    Tune on real AN1/AN2/SN data in P5 before committing `grouping.json`.
-2. **Shareable-link target — app vs web** *(deferred, C3)*: does a `/sutta/<id>`
-   link open the app (Universal/App Links intercept) or serve the web page? The
-   **URL is identical either way**, so deciding later changes nothing structural.
-   **Bundled here:** the *form* of a grouped sutta's clean `/sutta/<nodeKey>` —
+2. **Shareable-link target — app vs web** *(RESOLVED 2026-07-06, C3)*: **both,
+   per visitor** — the app side is being built now (see the locked
+   `../todo/deep-linking-and-shareable-urls.md`): app installed + link tapped in
+   another app → OS opens the app; otherwise the static page serves. The
+   **URL is identical either way** (`/tipitaka/<nodeKey>`), as this plan required.
+   *(Path segment renamed `/sutta/` → `/tipitaka/` 2026-07-06: commentary links
+   made `/sutta/atta-…` self-contradictory; the umbrella noun follows
+   tipitaka.lk / Access to Insight — see the app plan's Decisions table.)*
+   **Still bundled here:** the *form* of a grouped sutta's clean `/tipitaka/<nodeKey>` —
    content-free redirect stub vs host rewrite → `<vaggaKey>#<nodeKey>`. The static
-   page is always the guaranteed fallback.
-3. **Range-page URL form**: `/sutta/<vaggaKey>` vs a SuttaCentral-style range
-   notation `/sutta/an-1-1-1--10`. *Lean: the vagga key — already in our tree.*
-4. **Slug in URL?** `/sutta/kn-khp-5` vs `/sutta/kn-khp-5-mangala`. Must match the
-   app's choice (`../todo/deep-linking-and-shareable-urls.md` Q1). *Lean: bare key
-   for the prototype.*
+   page is always the guaranteed fallback. Page furniture for later: OG meta tags
+   per sutta (share previews) + an optional dismissible "Open in app" banner
+   (iOS Smart App Banner meta tag) — never a blocking interstitial.
+3. **Range-page URL form**: `/tipitaka/<vaggaKey>` vs a SuttaCentral-style range
+   notation `/tipitaka/an-1-1-1--10`. *Lean: the vagga key — already in our tree.*
+4. **Slug in URL?** *(RESOLVED 2026-07-06)* — **bare nodeKey**, no slug:
+   `/tipitaka/kn-khp-5`. Matches the app's locked choice
+   (`../todo/deep-linking-and-shareable-urls.md`).
 5. **Default layout per page** — Pali-only, or a heuristic? *Lean: Pali-only.*
 6. **Entry alignment** — how common are unequal pali/sinh counts? Measure via the
    P3 warning log before designing real alignment.

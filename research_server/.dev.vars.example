@@ -1,0 +1,11 @@
+# Copy to .dev.vars for local live mode (wrangler dev reads it automatically).
+RESEARCH_STUB=0
+GEMINI_API_KEY=
+RESEARCH_STORE=
+# Optional overrides — see src/config.ts for defaults.
+# RESEARCH_FAST_MODELS=gemini-3.1-flash-lite,gemini-2.5-flash-lite
+# RESEARCH_THINKING_MODELS=gemini-3.5-flash,gemini-3-flash-preview,gemini-2.5-flash
+# RESEARCH_REWRITE_MODEL=
+# RESEARCH_SNIPPET_CHARS=220
+# RESEARCH_CORS_ORIGINS=*
+# RESEARCH_APP_TOKEN=

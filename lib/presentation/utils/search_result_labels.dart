@@ -20,6 +20,7 @@ String searchResultTypeLabel(SearchResultType type, AppLocalizations l10n) =>
       SearchResultType.title => l10n.searchTabTitles,
       SearchResultType.fullText => l10n.searchTabFullText,
       SearchResultType.definition => l10n.searchTabDefinitions,
+      SearchResultType.reference => l10n.searchTabReference,
     };
 
 /// A search result's display labels, rendered in the active Content Language.

@@ -1,6 +1,6 @@
 # Wisdom Project — AI Q&A Feature: Design & Handoff
 
-**Status:** design agreed, prototype-ready
+**Status:** design agreed; backend **live-validated end-to-end 2026-06-27** (SN 15 pilot — see the plan doc's Build-order)
 **Audience:** implementing developer or coding agent
 **One-line:** a NotebookLM-style grounded Q&A over the Pali Canon, in Sinhala or English, with citations that deep-link back into the Wisdom Project app.
 
@@ -111,7 +111,7 @@ Adding them later is **additive, not a re-index**: upload the `comment/` units a
 **Choice:** answer in the language asked. This is purely a system-instruction setting; retrieval is unaffected. The model reads English passages and writes Sinhala when asked — the project already relies on exactly this pattern.
 
 ### 5.5 Citations → deep links (server-side)
-The model never returns URLs, so there is nothing to "find and replace" — citations are **synthesised from `grounding_metadata`** on the server. Each grounding chunk's `retrieved_context.title` is the uid; `title → deeplinkFor(uid)` yields one `{uid, snippet, deeplink}` per source. The `snippet` is the English source span — it doubles as the verification preview (it's what the deep link opens).
+The model never returns URLs, so there is nothing to "find and replace" — citations are **synthesised from `grounding_metadata`** on the server. Each grounding chunk's `retrieved_context.title` is the uid; `title → deeplinkFor(uid)` yields one `{uid, snippet, deeplink}` per source. The `snippet` is a **short window sliced around the query terms** (FTS-`snippet()`-style — see `docs/done/research/source-snippet-shortening-plan.md`), not the whole chunk: a sutta is ~one chunk, so the raw text is the entire sutta. It doubles as the verification preview; the deep link opens the full text.
 
 **Linkifier (complementary):** regex the answer prose for canonical refs (`(SN|MN|DN|AN|…) \d+(\.\d+)?`) — these appear verbatim even in Sinhala answers — and resolve each against the known uid set, dropping refs that don't exist (§11.9). Same `deeplinkFor`. **Render as a footnote/source list, not inline-spliced links** (offset-splicing is fiddly and one span can map to several chunks).
 
@@ -183,15 +183,22 @@ The Flutter app binds only to this; keep it stable across retrieval-layer change
     {
       "uid":      "sn15.3",
       "ref":      "SN 15.3",
+      "title":    "Linked Discourses Chapter One Tears", // heading minus the number; shown bold per source, null if none
       "kind":     "canon",                  // "canon" now; "note" reserved for Sujato's notes (§5.2)
       "snippet":  "English source span used to ground this point",
-      "deeplink": "app://sutta/sn15.3"     // scheme TBD (§14)
+      "deeplink": null                     // DECIDED 2026-07-06: stays null; app resolves uid client-side
     }
   ]
 }
 ```
 
-`deeplink` comes from the single pluggable `deeplinkFor(uid)`; changing the scheme must not change the contract shape. **Cheap insurance:** include `kind` from day one (always `"canon"` in the prototype). It costs nothing now and means the app is already structured to render a second source type when notes are added (§5.2) — no contract change, no app release.
+**Deep-link decision (2026-07-06):** the server sends `deeplink: null` and the
+**app resolves `uid` client-side** (`uid → nodeKeyForUid() → /tipitaka/<nodeKey>`)
+via the shared Dart resolver it already loads for search-by-reference — no
+Python duplicate of the concordance. The universal-link scheme itself is settled
+in [`deep-linking-and-shareable-urls.md`](./deep-linking-and-shareable-urls.md).
+The field stays in the contract so a server-side URL (for non-app consumers of
+`/research`) can be added later with no contract change. **Cheap insurance:** include `kind` from day one (always `"canon"` in the prototype). It costs nothing now and means the app is already structured to render a second source type when notes are added (§5.2) — no contract change, no app release.
 
 ---
 
@@ -200,6 +207,7 @@ The Flutter app binds only to this; keep it stable across retrieval-layer change
 - **Source:** two trees on the `published` branch — `translation/en/sujato/sutta/**` and `translation/en/brahmali/vinaya/**`. (Optionally Sujato notes — §5.2.)
 - **Unit:** one document per text-unit file.
 - **Document text:** heading (`:0.*` segments) + body (remaining non-empty segments, in order), as clean prose — no ids inline for v1 (clean text embeds better). Segment anchors are a v2 concern.
+- **Heading/body boundary is load-bearing:** `load_unit` writes `head\nbody` (heading segments joined, one newline, then the body). The citation `title` is recovered by splitting the grounding chunk on that newline (`snippet.split_heading`), so keep the `head\nbody` shape — dropping the newline would silently blank every source's heading.
 - **`display_name`:** the uid (`sn15.3`, `pli-tv-bu-vb-np18`) — becomes the citation title; both schemes pass through unchanged.
 - **`custom_metadata`:** all derived from the uid (§5.2) — `uid`, `basket`, `nikaya`/`division`, plus `samyutta`/`vagga`/`rule-class` as useful for `filters`; `kind=note` if notes are ingested.
 - **Run mode:** one-time batch over both trees (thousands of files). **Idempotent and resumable** (skip uids already present), with retries/backoff.
@@ -360,15 +368,28 @@ Outcomes: **pass** → ship. **Fail on recall** → swap the retrieval layer for
 - **Retrieval-breadth policy (§5.9b):** the locator/thematic threshold, top-k per class, fan-out budget. Tune against §12.
 - **Backend framework / host (§5.7):** FastAPI on Cloud Run or a Cloud Function — implementer's call.
 - **Model versions:** pick current Flash-class + rewrite/translation models at build time.
-- **Deep-link scheme (§5.2, §5.5):** URI scheme TBD; must route both uid families; sutta/section-level for v1, segment-level v2.
+- **Deep-link scheme (§5.2, §5.5):** ~~TBD~~ **DECIDED 2026-07-06** — universal
+  `https://<host>/tipitaka/<nodeKey>` links (see
+  [`deep-linking-and-shareable-urls.md`](./deep-linking-and-shareable-urls.md));
+  the app resolves `uid → nodeKey` client-side, server `deeplink` stays null.
+  Both uid families route once the concordance covers them; sutta/section-level
+  for v1, segment-level v2.
 - **History window (post-prototype, §5.8):** how many turns the client attaches once follow-ups are on.
 - **Glossary contents (§5.3):** which locked Sinhala renderings go in the system prompt.
 - **Snippet language in Sinhala answers (§5.5):** English source span (recommended) vs translated preview.
 - **FTS4 hybrid timing (§5.6):** v1 or v1.1.
+- **App-facing model-family selector (future idea, not scheduled):** instead of fixing the model server-side, let the user pick a model *family* from a dropdown in the chat UI — e.g. **Lite family → "Fastest answers"** and **general Flash → "Thinking mode"** (slower, more thorough). Builds directly on the existing model ladder (`config.py` `DEFAULT_MODELS`); would add an optional `tier`/`family` field to the `/ask` request (§7) selecting which sub-ladder to walk, with the server keeping its 429/503 fallback *within* the chosen family. Captured so the idea isn't lost.
 
 ---
 
 ## Appendix A — verify at build time
+
+> **Confirmed 2026-06-27** (`google-genai 2.10.0`, free tier): `gemini-2.5-flash`,
+> File Search store `create` / `upload_to_file_search_store` / `documents.list`,
+> `custom_metadata`, and
+> `grounding_metadata.grounding_chunks[].retrieved_context.title/text` all work
+> as the reference code assumes. **Still open:** `metadata_filter` (basket)
+> syntax and per-tier file-count / storage caps at full-corpus scale.
 
 These drift; confirm against current Gemini API docs before relying on them:
 - File Search indexing price, free storage, free query-time embedding.

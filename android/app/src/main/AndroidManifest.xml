@@ -24,6 +24,20 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Deep links are handled by the app_links plugin (DeepLinkListener);
+                 disable Flutter's built-in deep-link navigation so it never races it. -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="false" />
+            <!-- sammaditthi:// custom URL scheme — dev/QA deep-link side door
+                 (shared links are https via App Links once the domain is live;
+                 see docs/todo/deep-linking-and-shareable-urls.md). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="sammaditthi"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

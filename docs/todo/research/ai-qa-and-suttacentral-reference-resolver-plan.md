@@ -1,6 +1,15 @@
 # AI Q&A Integration & SuttaCentral Reference Resolver — Design & Plan
 
-> **Status:** Design / plan — not yet started.
+> **Status:** Steps 1–5 **BUILT**, backend now **LIVE end-to-end** (2026-06-27) — Q&A stub vertical → Python
+> `/research` backend → remote wiring → resolver core → search-by-reference; the last
+> two on a **3-entry verified seed** (`sn15.1–3`). **Part D (RAG deep-links) in
+> progress since 2026-07-06** under the rewritten
+> [`deep-linking-and-shareable-urls.md`](./deep-linking-and-shareable-urls.md)
+> plan (seed growing to all of SN 15). **Deferred:** the full concordance
+> **build tool** (`tools/suttacentral_map/`) that grows the seed to
+> all suttas. Per-step state is in the Build-order
+> section; concordance evidence in
+> [`suttacentral-bjt-concordance-findings.md`](./suttacentral-bjt-concordance-findings.md).
 > **Captured:** 2026-06-27.
 > **Companion to** [`wisdom-project-rag-qa-design.md`](./wisdom-project-rag-qa-design.md)
 > (the upstream NotebookLM-style RAG design). That doc decides *what* the AI
@@ -19,13 +28,13 @@
 Three deliverables that share **one new core component**:
 
 1. **AI Q&A feature** — a button → dialog → chat box that calls a stateless
-   `/ask` backend and shows a grounded answer + citation snippets. Clean
+   `/research` backend and shows a grounded answer + citation snippets. Clean
    architecture, remote-only, **stub-first** so the UI works before any backend
    exists. *"Make it work first."*
 2. **SuttaCentral ↔ BJT reference resolver** — the **shared core**. A pure-Dart
    resolver (in `wisdom_shared`) + a build-time concordance asset that maps a
-   SuttaCentral uid (`sn15.3`) to our BJT tree node (`sn-2-4-3`). Sibling of the
-   existing `tools/mahamevnawa_map/`.
+   SuttaCentral uid (`sn15.3`) to our BJT tree node (`sn-2-3-1-3`). Sibling of
+   the existing `tools/mahamevnawa_map/`.
 3. **Two consumers of the resolver:**
    - **Search by canonical reference** *(new, independently valuable)* — type
      `SN 15.3` in the search box → jump straight to the sutta. Doesn't work today.
@@ -46,7 +55,7 @@ resolver then unlocks reference-search and deep-links, in that order.
                   ▼                                               ▼
       ┌───────────────────────┐                     ┌──────────────────────────┐
       │ Search by reference   │ (Part C, new)       │ RAG citation deep-links  │ (Part D, next phase)
-      │ "SN 15.3" → open sutta│                     │ tap citation → /sutta/…  │
+      │ "SN 15.3" → open sutta│                     │ tap citation→ /tipitaka/…│
       └───────────────────────┘                     └──────────────────────────┘
 
       ┌──────────────────────────────────────────────────────────────────────┐
@@ -69,11 +78,11 @@ key must stay server-side) and the File Search index lives in Google's cloud.
 So:
 
 - The Q&A feature is **remote-only on _every_ platform** — native, desktop, web
-  all hit a backend. There is no `AskLocalDataSource`. This *simplifies* the
+  all hit a backend. There is no `ResearchLocalDataSource`. This *simplifies* the
   clean-architecture mapping (no platform override), but introduces one wiring
   difference: **native currently never talks to a server**, so the Q&A
   datasource needs a **configurable absolute base URL** (e.g.
-  `https://ask.thewisdomproject.app`), not the same-origin `''` trick the
+  `https://research.thewisdomproject.app`), not the same-origin `''` trick the
   content server uses on web.
 - Because of this, the feature **cannot work offline** — unlike everything else
   in the app. It must degrade gracefully (a clear "needs connection" state) and
@@ -94,11 +103,16 @@ settles it for us:
   config, and grounding parsing — losing the "fully managed" benefit that
   justified the stack. ([File Search docs](https://ai.google.dev/gemini-api/docs/file-search),
   GA since Nov 2025.)
+- **Firebase doesn't change this.** Firebase's native client SDK (Firebase AI
+  Logic / `firebase_ai`) *also* does **not** expose File Search — only Google
+  Search / Maps grounding — and File Search needs a raw API key that can't ship in
+  a client. So even full Firebase adoption (Auth + Firestore for notes) keeps the
+  server mandatory; Firestore for notes is a separate, server-free path.
 
-**Verdict:** the `/ask` service is a **separate Python `google-genai`
+**Verdict:** the `/research` service is a **separate Python `google-genai`
 deployable** (FastAPI on Cloud Run, or one Cloud Function — implementer's call).
 Our Dart `server/` stays as-is (web content proxy). The Flutter app binds only
-to the `/ask` JSON contract (§7 of the design doc) and **does not care** what
+to the `/research` JSON contract (§7 of the design doc) and **does not care** what
 language the backend is in — that is the reversibility anchor; protect it.
 
 ---
@@ -112,36 +126,36 @@ Slots into existing conventions almost mechanically. Mirrors the `search` /
 
 ```
 lib/domain/
-  entities/ask/
-    ask_answer.dart        # Freezed: answer, lang, List<Citation>
+  entities/research/
+    research_answer.dart        # Freezed: answer, lang, List<Citation>
     citation.dart          # Freezed: uid, ref, kind, snippet, deeplink
     chat_message.dart      # Freezed: role (user|assistant), content
-    ask_filters.dart       # Freezed: basket? (optional scope)
+    research_filters.dart       # Freezed: basket? (optional scope)
   repositories/
-    ask_repository.dart    # abstract → Future<Either<Failure, AskAnswer>> ask(...)
+    research_repository.dart    # abstract → Future<Either<Failure, ResearchAnswer>> research(...)
 
 lib/data/
   datasources/
-    ask_datasource.dart            # abstract interface (mockable / swappable)
-    ask_remote_datasource.dart     # the ONLY real impl: http POST /ask
-    ask_stub_datasource.dart       # fake impl: returns a canned AskAnswer (Phase 1)
+    research_datasource.dart            # abstract interface (mockable / swappable)
+    research_remote_datasource.dart     # the ONLY real impl: http POST /research
+    research_stub_datasource.dart       # fake impl: returns a canned ResearchAnswer (Phase 1)
   models/
-    ask_response_model.dart        # fromJson/toJson for the §7 wire contract
+    research_response_model.dart        # fromJson/toJson for the §7 wire contract
   repositories/
-    ask_repository_impl.dart       # wraps datasource in try/catch → Either
+    research_repository_impl.dart       # wraps datasource in try/catch → Either
 
 lib/presentation/
-  providers/ask_provider.dart      # baseUrl → datasource → repository → AskChatNotifier
-  widgets/ask/                      # button + dialog + chat box (kept minimal)
+  providers/research_provider.dart      # baseUrl → datasource → repository → ResearchChatNotifier
+  widgets/research/                      # button + dialog + chat box (kept minimal)
 ```
 
-### A.2 The `/ask` contract → entities (1:1)
+### A.2 The `/research` contract → entities (1:1)
 
 The §7 contract maps directly onto Freezed entities. Keep their shapes aligned
 with the contract — that is what keeps the backend swappable.
 
 ```dart
-// lib/domain/entities/ask/citation.dart
+// lib/domain/entities/research/citation.dart
 @freezed
 class Citation with _$Citation {
   const factory Citation({
@@ -155,16 +169,16 @@ class Citation with _$Citation {
   factory Citation.fromJson(Map<String, dynamic> j) => _$CitationFromJson(j);
 }
 
-// lib/domain/entities/ask/ask_answer.dart
+// lib/domain/entities/research/research_answer.dart
 @freezed
-class AskAnswer with _$AskAnswer {
-  const factory AskAnswer({
+class ResearchAnswer with _$ResearchAnswer {
+  const factory ResearchAnswer({
     required String answer,
     required String lang,             // "si" | "en"
     @Default([]) List<Citation> citations,
-  }) = _AskAnswer;
+  }) = _ResearchAnswer;
 
-  factory AskAnswer.fromJson(Map<String, dynamic> j) => _$AskAnswerFromJson(j);
+  factory ResearchAnswer.fromJson(Map<String, dynamic> j) => _$ResearchAnswerFromJson(j);
 }
 ```
 
@@ -180,25 +194,25 @@ Same `http.Client` + base-URL + `_checkResponse` shape as
 with a JSON body instead of a `GET` with query params.
 
 ```dart
-abstract class AskDataSource {
-  Future<AskAnswer> ask(
+abstract class ResearchDataSource {
+  Future<ResearchAnswer> research(
     String question, {
     List<ChatMessage> history = const [],
-    AskFilters? filters,
+    ResearchFilters? filters,
   });
 }
 
-class AskRemoteDataSourceImpl implements AskDataSource {
+class ResearchRemoteDataSourceImpl implements ResearchDataSource {
   final http.Client _client;
   final String _baseUrl;
-  AskRemoteDataSourceImpl({required String baseUrl, http.Client? client})
+  ResearchRemoteDataSourceImpl({required String baseUrl, http.Client? client})
       : _baseUrl = baseUrl, _client = client ?? http.Client();
 
   @override
-  Future<AskAnswer> ask(String question,
-      {List<ChatMessage> history = const [], AskFilters? filters}) async {
+  Future<ResearchAnswer> research(String question,
+      {List<ChatMessage> history = const [], ResearchFilters? filters}) async {
     final res = await _client.post(
-      Uri.parse('$_baseUrl/ask'),
+      Uri.parse('$_baseUrl/research'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'question': question,
@@ -207,33 +221,33 @@ class AskRemoteDataSourceImpl implements AskDataSource {
       }),
     );
     if (res.statusCode != 200) {
-      throw Exception('ask failed (${res.statusCode}): ${res.body}');
+      throw Exception('research failed (${res.statusCode}): ${res.body}');
     }
-    return AskAnswer.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+    return ResearchAnswer.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 }
 ```
 
-### A.4 Repository — `Either<Failure, AskAnswer>`
+### A.4 Repository — `Either<Failure, ResearchAnswer>`
 
 Reuses the existing `Failure` variants (`lib/domain/entities/failure.dart`).
 Network/timeout → `dataLoadFailure`; anything else → `unexpectedFailure`.
 
 ```dart
-class AskRepositoryImpl implements AskRepository {
-  final AskDataSource _ds;
-  AskRepositoryImpl(this._ds);
+class ResearchRepositoryImpl implements ResearchRepository {
+  final ResearchDataSource _ds;
+  ResearchRepositoryImpl(this._ds);
 
   @override
-  Future<Either<Failure, AskAnswer>> ask(String question,
-      {List<ChatMessage> history = const [], AskFilters? filters}) async {
+  Future<Either<Failure, ResearchAnswer>> research(String question,
+      {List<ChatMessage> history = const [], ResearchFilters? filters}) async {
     try {
-      return Right(await _ds.ask(question, history: history, filters: filters));
+      return Right(await _ds.research(question, history: history, filters: filters));
     } on SocketException catch (e) {
       return Left(Failure.dataLoadFailure(
           message: 'No connection to the answer service', error: e));
     } catch (e) {
-      return Left(Failure.unexpectedFailure(message: 'Ask failed', error: e));
+      return Left(Failure.unexpectedFailure(message: 'Research failed', error: e));
     }
   }
 }
@@ -242,24 +256,24 @@ class AskRepositoryImpl implements AskRepository {
 ### A.5 Providers — same `datasource → repository → notifier` chain as `search_provider.dart`
 
 ```dart
-/// Config: where the /ask backend lives. Override per environment.
-final askBaseUrlProvider = Provider<String>((_) => kAskBackendBaseUrl);
+/// Config: where the /research backend lives. Override per environment.
+final researchBaseUrlProvider = Provider<String>((_) => kResearchBackendBaseUrl);
 
 /// Phase 1 wires the stub; Phase 4 swaps this ONE line to the remote impl.
-final askDataSourceProvider = Provider<AskDataSource>((ref) {
-  // return AskStubDataSourceImpl();
-  return AskRemoteDataSourceImpl(baseUrl: ref.watch(askBaseUrlProvider));
+final researchDataSourceProvider = Provider<ResearchDataSource>((ref) {
+  // return ResearchStubDataSourceImpl();
+  return ResearchRemoteDataSourceImpl(baseUrl: ref.watch(researchBaseUrlProvider));
 });
 
-final askRepositoryProvider = Provider<AskRepository>((ref) {
-  return AskRepositoryImpl(ref.watch(askDataSourceProvider));
+final researchRepositoryProvider = Provider<ResearchRepository>((ref) {
+  return ResearchRepositoryImpl(ref.watch(researchDataSourceProvider));
 });
 
 /// Chat state: messages + isLoading + error. isLoading disables the send
 /// button (a real cost guardrail — see §Cross-cutting).
-final askChatProvider =
-    StateNotifierProvider<AskChatNotifier, AskChatState>((ref) {
-  return AskChatNotifier(ref.watch(askRepositoryProvider));
+final researchChatProvider =
+    StateNotifierProvider<ResearchChatNotifier, ResearchChatState>((ref) {
+  return ResearchChatNotifier(ref.watch(researchRepositoryProvider));
 });
 ```
 
@@ -282,11 +296,14 @@ contract already supports adding all three later with no entity change.
 A SuttaCentral uid is **flat**: `sn15.3` = saṁyutta 15 (Anamatagga), sutta 3,
 where saṁyuttas are numbered 1–56 continuously. Our BJT tree is **nested**:
 `assets/data/file-map.json` keys SN as `sn-1 … sn-5` — the **five vaggas**
-(Sagāthā, Nidāna, Khandha, Saḷāyatana, Mahā) — with saṁyuttas nested underneath
-(`sn-2-4-…`). Anamatagga is the 4th saṁyutta of the Nidānavagga, so:
+(Sagāthā, Nidāna, Khandha, Saḷāyatana, Mahā) — with saṁyuttas nested underneath,
+**plus a vagga level inside each saṁyutta**, and BJT **bundles SN 12+13 into one
+node** so the saṁyutta positions shift (both proven in the
+[findings doc](./suttacentral-bjt-concordance-findings.md) §4):
 
 ```
-sn15.3   →   sn-2-4-3        (NOT sn-15-3)
+sn15.3   →   sn-2-3-1-3      (leaf-title-confirmed: අස්සුසුත්තං / Assu)
+             (this doc originally said sn-2-4-3 — wrong on two counts; see findings §0)
 ```
 
 This is the same flat-vs-nested gap the `mahamevnawa-link-mapping.md` tool
@@ -389,16 +406,24 @@ RAG answers contain, so reference-search and citation-linking stay consistent.
 
 ---
 
-## Part D — Consumer 2: RAG citation deep-links (next phase)
+## Part D — Consumer 2: RAG citation deep-links (**IN PROGRESS 2026-07-06**)
 
-Deferred per the "make it work first" decision; specified here so Part A's
-entities are shaped correctly now.
+Decisions locked 2026-07-06 — see the rewritten
+[`deep-linking-and-shareable-urls.md`](./deep-linking-and-shareable-urls.md)
+(the active plan this part now follows). What changed vs the original sketch:
 
-- `deeplinkFor(uid)` = `resolveToNodeKey(uid)` → the app's `textId` → a
-  `go_router` route **`/sutta/<textId>`**, exactly the scheme the
-  [`deep-linking-and-shareable-urls.md`](./deep-linking-and-shareable-urls.md)
-  plan introduces. RAG must **not** invent its own URI scheme — it resolves into
-  that one, so a tapped citation behaves identically to a shared link.
+- **Resolution is client-side, not server-side.** The server's wire `deeplink`
+  stays `null`; the app maps `citation.uid → nodeKeyForUid(uid)` via the
+  already-loaded shared resolver. No Python duplicate of the concordance.
+- **Identity is the nodeKey, not `textId`.** The canonical link is
+  **`/tipitaka/<nodeKey>`** (`ReaderTab.textId` turned out to be declared but
+  never populated; the app navigates by nodeKey). ~~go_router route~~ —
+  go_router is deferred; a `TipitakaLink` codec (`wisdom_shared`) + LinkOpener
+  provider handle both in-app citation taps and OS-delivered URLs, so a tapped
+  citation still behaves identically to a shared link.
+- **UI:** tapping a cited source opens a **bottom sheet** (ref + title +
+  snippet) with **Open in reader** when the uid resolves; a graceful
+  "not linked yet" note otherwise (seed coverage grows over time).
 - **Granularity:** v1 is **sutta-level** (open the file/page for SN 15.3).
   Segment-level (`sn15.3:1.4` → the exact BJT paragraph) is genuinely hard —
   BJT paragraphs ≠ SC segments and our BJT entries aren't SC-segment-tagged yet
@@ -410,12 +435,12 @@ entities are shaped correctly now.
 
 ---
 
-## SQLite strategy — keep it off the ask path entirely
+## SQLite strategy — keep it off the research path entirely
 
 The headline: **in v1 the RAG feature should touch local SQLite essentially
 never**, and the resolver should add **zero** runtime DB load.
 
-- **The answer** is 100% from the backend. The ask path does **no** local DB
+- **The answer** is 100% from the backend. The research path does **no** local DB
   read. Protect that — it is the leanest possible footprint.
 - **Chat history** is small and ephemeral. Follow the existing pattern —
   `RecentSearchesRepositoryImpl` stores history in **`shared_preferences`** as
@@ -448,8 +473,8 @@ Net: chat → `shared_preferences`; resolver → in-memory JSON map; hybrid (lat
    can't work offline. Map network failure to a clear `Failure`; the dialog says
    "needs a connection" rather than spinning. A flag hides the entry-point button
    when no backend is configured.
-2. **`/ask` is a money endpoint.** The backend protects the key, but a public
-   unauthenticated `/ask` lets anyone spend our Gemini quota. Add basic
+2. **`/research` is a money endpoint.** The backend protects the key, but a public
+   unauthenticated `/research` lets anyone spend our Gemini quota. Add basic
    rate-limiting / an app token before it's public (local dev is fine without).
 3. **Client-side cost guardrail.** Disable the send button while a request is
    in-flight (`isLoading`) so impatient tapping doesn't burn the ~1,500/day free
@@ -462,7 +487,7 @@ Net: chat → `shared_preferences`; resolver → in-memory JSON map; hybrid (lat
    when wanted: the datasource (HTTP→model), the repository (exception→`Either`),
    and — highest value — `parseRef` / `resolveToNodeKey` (pure functions, easy
    to table-test, and the resolver is correctness-critical for both consumers).
-7. **Bonus synergy.** Because `/ask` is just an HTTP contract and the resolver
+7. **Bonus synergy.** Because `/research` is just an HTTP contract and the resolver
    lives in `wisdom_shared`, both can later serve the planned static HTML site
    with no Flutter involved.
 
@@ -470,22 +495,40 @@ Net: chat → `shared_preferences`; resolver → in-memory JSON map; hybrid (lat
 
 ## Build order (each step ships value independently)
 
-1. **Q&A stub vertical** — entities → `AskDataSource` interface →
-   `AskStubDataSourceImpl` (canned answer) → repository → provider → button +
+1. ✅ **DONE — Q&A stub vertical** — entities → `ResearchDataSource` interface →
+   `ResearchStubDataSourceImpl` (canned answer) → repository → provider → button +
    dialog. **Working chat UI today, zero backend.** *(Part A)*
-2. **Python `/ask` backend + ingest** — per the companion design doc (both
-   trees → File Search store; `/ask` = detect → rewrite → generation →
-   citations). *(separate deployable)*
-3. **Swap stub → remote** — one line in `askDataSourceProvider`. The swap *is*
-   the proof the architecture is right. *(Part A complete)*
-4. **Resolver core** — `tools/suttacentral_map/` build → `sc-to-bjt.json` →
-   `parseRef` / `resolveToNodeKey` in `wisdom_shared`. *(Part B)*
-5. **Search by reference** — `SearchResultType.reference` + the pre-FTS check.
-   *(Part C — ships independently of RAG)*
-6. **RAG deep-links** — `deeplinkFor` → `go_router /sutta/<textId>` (depends on
-   the deep-linking doc's `go_router` migration). *(Part D)*
-7. **v1.1** — FTS4 hybrid (reusing the existing FTS path), metadata `filters`,
-   multi-turn follow-ups; **v2** — segment-level deep-links.
+2. ✅ **DONE + LIVE-VERIFIED — Python `/research` backend + ingest** — built at
+   **`research_server/`** (FastAPI, stub-first, lazy Gemini import). **Verified live
+   end-to-end 2026-06-27** against `google-genai 2.10.0`: File Search `create` /
+   `upload_to_file_search_store` / `documents.list` + `grounding_metadata`
+   parsing all matched the reference shapes (design Appendix A) — no drift, works
+   on the free tier. Pilot ingest of **SN 15 (Anamatagga, 20 suttas)** returns
+   grounded multi-sutta answers; queried successfully from the live Flutter app
+   (wired to `:8081`). Two changes landed during validation: a reusable
+   **`--filter`** flag for targeted pilot ingests (e.g. `--filter 'sn/sn15/'`),
+   and a fix for a **`kind` serialization gap** — the live path dropped the
+   Pydantic-defaulted `kind` the app requires, now set explicitly in
+   `_to_citations`. *(separate deployable)*
+3. ✅ **DONE — Swap stub → remote** — `researchDataSourceProvider` selects
+   `ResearchRemoteDataSourceImpl` (default `http://localhost:8081`). *(Part A complete)*
+4. ◑ **PARTIAL — Resolver core** — the **runtime** half is done: pure `parseRef`
+   / `resolveToNodeKey` (+ `nodeKeyForUid` / `displayRef`) in `wisdom_shared`,
+   loaded from a committed `assets/data/sc-to-bjt.json`. The **build tool**
+   `tools/suttacentral_map/` is **deferred**; `sc-to-bjt.json` ships as a 3-entry
+   hand-verified **seed** (`sn15.1–3 → sn-2-3-1-{1,2,3}`). Growing it is data
+   only — no code change. *(Part B)*
+5. ✅ **DONE — Search by reference** — `SearchResultType.reference` (excluded
+   from the tab bar) + a pinned in-memory reference tile above FTS results
+   (`referenceSearchResultProvider` + `_ReferenceResultRow`), reusing the normal
+   tap→open path. Resolves any uid in the seed. *(Part C — ships independently of RAG)*
+6. ◑ **IN PROGRESS (2026-07-06) — RAG deep-links** — citation `uid` resolved
+   client-side → `TipitakaLink` → LinkOpener → reader tab; bottom-sheet citation UI;
+   universal `/tipitaka/<nodeKey>` URLs + `app_links`/`Uri.base` receiving; seed
+   grown to all of SN 15. go_router **not** required (deferred — see the
+   deep-linking plan). *(Part D)*
+7. ⏳ **LATER — v1.1** — FTS4 hybrid (reusing the existing FTS path), metadata
+   `filters`, multi-turn follow-ups; **v2** — segment-level deep-links.
 
 ---
 
@@ -519,5 +562,5 @@ Net: chat → `shared_preferences`; resolver → in-memory JSON map; hybrid (lat
 | Cross-edition concordance (proven) | `tools/mahamevnawa_map/build_map.py`, `docs/todo/mahamevnawa-link-mapping.md` |
 | Cross-edition alignment slot | `lib/domain/entities/content/entry.dart` (`segmentId`) |
 | Search result → navigation | `lib/domain/entities/search/search_result.dart` (`nodeKey`) |
-| Routing target for deep-links | `docs/todo/deep-linking-and-shareable-urls.md` (`/sutta/<textId>`) |
+| Routing target for deep-links | `docs/todo/deep-linking-and-shareable-urls.md` (`/tipitaka/<nodeKey>`) |
 | Shared client/server logic home | `packages/wisdom_shared/` |

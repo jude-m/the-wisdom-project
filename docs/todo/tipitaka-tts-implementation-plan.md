@@ -1,26 +1,41 @@
 # Tipitaka Reader — Text-to-Speech: Implementation Plan
 
-**Status:** Build spec for the dev team / coding agent. Stage 1 is detailed and actionable from the get-go. Stages 2–3 are intentionally high-level.
+**Status:** Build spec for the dev team / coding agent. **Reframed 2026-07-05 (see §0):** Pali listening is the *existing human recordings*, **not** TTS; TTS now scopes to **Pali single words (live+cached)** + **the whole Sinhala corpus (pre-rendered)**; sentence-level alignment and on-device are both dropped. The TTS pipeline detail (§2) stands unchanged — it's exactly what Phase 2 and the Sinhala mirror build on.
 
 ---
 
-## 0. Stage interpretation (confirm before building)
+## 0. Scope & phasing (decided 2026-07-05 — read first; supersedes the old stage model)
 
-The stages are read as:
+**Two audio sources, not one.** The original plan assumed TTS synthesizes *everything*. It doesn't. Pali listening **already exists** as human chanting recordings from the tipitaka.lk project (`.m4a` files + **entry-level** timestamp `.txt` labels + `file-map.json`; documented in `tipitaka.lk/how-audio-works.txt`). TTS's job narrows to the gaps:
 
-- **Stage 1 — Always-on live API, no caching.** Every request is synthesized fresh. Split into two sub-stages by language, because Pali and Sinhala are at very different readiness levels:
-  - **Stage 1.1 — Pali only.** The full pipeline end-to-end for all three use cases, Pali only. **Zero open dependencies** — the Pali romanizer is proven and complete (see §2.3). This can ship now.
-  - **Stage 1.2 — Add Sinhala.** Same pipeline, plus the Sinhala romanizer (`@pnfo/singlish-search`, MIT — found and proven, see §2.3) and `lang: si`. No longer blocked; remaining work is wiring + a quality-gate listen.
-- **Stage 2 — Caching + pre-warm a few main suttas.** Add a cache; pre-generate (“warm”) a chosen set of popular suttas so they play instantly without re-synthesis. The long tail stays lazy.
-- **Stage 3 — On-device.** Run the model locally on the phone (no server, offline).
+| Audio need | Source | Granularity |
+| --- | --- | --- |
+| Pali sutta / paragraph listening | **existing human recordings** (already built) | entry (paragraph); finer = **player seek** |
+| Pali single word (tap a word) | **TTS — live + cached** (one model) | the word |
+| Sinhala sutta / paragraph | **TTS — pre-rendered** on the Mac, served static | entry (mirror of the Pali entries) |
+| Sinhala single word | **not needed** (the audience knows Sinhala); worst case reuse the Pali word endpoint | — |
 
-**Why the 1.1/1.2 split is structural, not cosmetic:** Pali is fully solved today (lossless converter, full character coverage, proven on real text). Sinhala has exactly one unresolved piece — its romanizer. Coupling them would let a Sinhala blocker hold Pali hostage for no reason. The architecture, contract, gateway, and model setup are **identical** across 1.1 and 1.2; only the romanizer (and optionally the voice) differ.
+**Why the split (settled in the design conversation):**
+- You **cannot slice a word out of the chanted recordings** — forced alignment on chanting is infeasible (no Pali acoustic model; chanting ≠ speech). So single words **must** be synthesized.
+- Pre-generating a whole robot-voice Pali canon just to harvest word slices is wasteful *and* sounds worse than an isolated synth → **synthesize a word only when tapped, cache it on R2** (organically bounded; never a million files — that was the hard "no per-word files" rule, DPD has >1M headwords).
+- Sinhala has **no recordings at all** → pre-render the whole covered corpus once on the Mac ($0 compute), serve static.
+- **No sentence-level alignment.** Entry (paragraph) is the floor; users scrub the player for anything finer. Sentence-chunking survives only as the model's *input-length ceiling* (§1), not as a highlight tier.
 
-If this mapping is wrong, stop and clarify — it changes Stage 2.
+**Runtime = static files on R2 + exactly ONE live model** — the Pali single-word endpoint (Cloud Run scale-to-zero), which fires only on a cache miss ≈ $0.
+
+**Build phases:**
+- **Phase 1 — Pali sutta/entry playback from the existing recordings.** *No synthesis.* Integrate tipitaka.lk's audio + entry labels + `file-map` into the app: entry-level highlight, tap-entry-to-play, player seek. This is "what we already have," ported in.
+- **Phase 2 — Single-word TTS.** Stand up the TTS pipeline (§2) for the **single-word** case only: tap a Pali word → synthesize (live) → cache on R2 → play. One model, Pali voice.
+- **Sinhala mirror (parallel with / after Phase 2).** The *same* TTS pipeline, run as a **Mac batch**: pre-render every entry's Sinhala audio → R2, mirroring the Pali entry structure. Reuses everything from Phase 2; differs only in the romanizer (`si`) and in running offline in bulk rather than live.
+- **Dropped: on-device** (old Stage 3, see §5) — the audience has low-end phones, and the new architecture already reaches ≈ $0 without it.
+
+**Neither language's romanizer is a blocker** (both found & proven — §2.3): Pali `@pnfo/pali-converter`; Sinhala `@pnfo/singlish-search` (MIT, Dart-portable).
 
 ---
 
 ## 1. Architecture (the spine, true across all stages)
+
+> **Scope (per §0):** this spine serves the **TTS-produced** audio only — **Pali single words** (live) and the **full Sinhala corpus** (pre-rendered batch). **Pali paragraph/sutta listening does not pass through here** — it plays the existing human recordings (entry-level labels + `file-map`). So in the "three use cases" below, the **single-word** row is the live Pali path; the **paragraph / whole-sutta** rows apply to **Sinhala** (run as a Mac batch, not live streaming). Highlighting is **entry-level**; the sentence chunking described below is only the model's input-length ceiling, *not* a highlight tier.
 
 One method, one response shape. The **atomic unit is a *segment*** (any text the caller wants spoken as one playable thing). A **sentence is the chunking *ceiling*, not the unit** — long segments are split down to sentence-sized chunks because the model degrades past ~15 s of input; short ones (a single word) pass through as one chunk.
 
@@ -304,27 +319,93 @@ def tts(text: str = Body(..., embed=True)):     # romanized text in
 - **“Few main suttas on demand” = a warm-up job** that runs the pipeline over a chosen popular set and populates the cache, so first play is instant and pre-reviewed. This is the demoted “batch” idea: same architecture, batch = eager cache-warming; long tail stays lazy.
 - Add **auth + rate-limiting** on the synth path (cost + abuse surface).
 - Bump `modelVersion` in the cache key when pnfo ships a better checkpoint — popular content re-warms lazily, the rest costs nothing until requested.
+- **Under the §0 reframe, this section splits cleanly in two:** the **cache** is exactly the **Pali single-word cache** (lazy, cache-on-tap); the **"warm" batch is the full Sinhala pre-render** run on the Mac — not "a few popular suttas" but the whole covered Sinhala corpus, since Sinhala has no recordings. Pali paragraph/sutta audio is **not** cached here at all — it's the static human recordings.
 
 ---
 
-## 5. STAGE 3 — On-device (high level)
+## 5. On-device — DROPPED (far-future, not planned) (decided 2026-07-05)
 
-- Export the VITS checkpoint to **ONNX**; run via **sherpa-onnx** (maintained Flutter package, iOS + Android, consumes Piper/Coqui VITS).
-- **Reuse the same `normalize → romanize → chunk` library**, ported to Dart — this is exactly why Stage 1 keeps it pure and server-free.
-- Add a new **`TtsEngine`** implementation (on-device) behind the same client interface; the client doesn’t change.
-- Sequence: dictionary single-word first (instant, offline), then whole-sutta offline for power users.
-- Manage the model download (~tens of MB) in-app; validate latency on older devices.
+**Shelved.** The target audience (monks, often on low-end phones) makes on-device synthesis the wrong bet, and the new architecture removes its main rationale: the highest-volume case (Pali single words) is served live+cached from **one** scale-to-zero endpoint, and everything else is pre-rendered static from R2 — so marginal cost is already ≈ $0 without pushing the model onto the phone.
+
+Kept here only as a note of what it *would* entail if ever revived: export the VITS checkpoint to **ONNX** → run via **sherpa-onnx** (Flutter, iOS + Android, consumes Piper/Coqui VITS) → reuse the pure `normalize → romanize → chunk` library (ported to Dart) behind a new on-device **`TtsEngine`** impl, with **no client change**. The two portability rules in §1 keep this option cheap to reopen; nothing else in the plan depends on it.
 
 ---
 
 ## 6. Decisions for the team to confirm
 
-1. **Stage mapping** (§0) — confirm Stage 1 = live-only/no-cache, Stage 2 = cache + warm popular suttas, Stage 3 = on-device.
+1. **Phasing** (§0) — confirm the reframed model: **Phase 1** = Pali sutta/entry from the *existing recordings* (no TTS); **Phase 2** = single-word TTS (Pali live+cached); **Sinhala** = pre-rendered mirror (Mac batch → R2); **sentence-level and on-device both dropped**. (Supersedes the old Stage 1/2/3 "live-TTS-everything" reading.)
 2. **Source script** of Pali in your BJT JSON — assumed **Sinhala script**; confirm (routes the romanizer).
 3. **Paragraph numbers** — assumed **not voiced**; confirm.
 4. **Sinhala romanizer (Stage 1.2)** — resolved: `@pnfo/singlish-search` `sinhalaToRomanConvert` (MIT, rule-based, Dart-portable). Remaining: a quality-gate listen on Sinhala output. Pali (Stage 1.1) uses `@pnfo/pali-converter`.
 5. **Capitalization — resolved:** model charset is all-lowercase; lowercase both romanizers' output. Confirm the female voice (multi-v2.0) language coverage (Pali too, or Sinhala only) if you want a female Pali option.
 6. **Transport** — Stage 1 starts with JSON + base64; move to binary + segments sidecar if/when payload size matters.
+7. **Deployment host (§7)** — confirm the model-server placement: **A) GCP Cloud Run scale-to-zero** (leaning) vs **B) co-locate on the web-server box**; and that the **audio cache uses Cloudflare R2** (zero-egress), not GCS.
+
+---
+
+## 7. Deployment & cost (hosting strategy)
+
+**Context:** no sponsors yet — optimize for **nimble / near-zero idle cost**, not peak throughput. The decisive fact is that pnfo's VITS is a **small CPU model** (tens of MB; sub-second to a few seconds per sentence on CPU), **not a GPU LLM** — so it lives in a cheap deployment bracket with options a GPU model can't use. *(All free-tier/pricing figures below are approximate and were current as of mid-2026 — confirm on each provider's page before committing.)*
+
+### 7.1 What goes where
+
+| Component | Host | Why |
+| --- | --- | --- |
+| Web / content server | **Always-on box** (the project needs one regardless) | Always warm, flat cost, no cold start |
+| Gateway (Node) | Box, or co-located / serverless | Lightweight: normalize / romanize / chunk / encode |
+| **Model server** (Python + torch + coqui) | **GCP Cloud Run, scale-to-zero** | Heavy at *load*, light at *run*; bursty / occasional → free while idle |
+| **Audio cache** (Stage 2 output) | **Cloudflare R2** | Free storage + **zero egress** |
+
+Two equally valid placements for the model server — pick on cold-start tolerance:
+- **A — Cloud Run scale-to-zero** *(leaning)*: $0 while sleeping, free tier likely covers all synths; the cost is cold-start latency on the first uncached request.
+- **B — co-locate on the box**: marginal cost ~$0 (box already paid for), always warm / no cold start; the cost is synth CPU spikes sharing the box — cap them with the Stage 1.5 worker/queue. Caching makes spikes rare.
+
+The clean **gateway ↔ model** seam (§1) means the model can move between A and B later with **no client change**.
+
+### 7.2 Model server — GCP Cloud Run (not AI Studio)
+
+- **Not Google AI Studio, and not Google's own TTS.** AI Studio only serves Google's *own* models (Gemini) — you cannot host pnfo's VITS there. Google's own TTS is also unusable for this app: **no Pali**, and wrong pronunciation of Buddhist terms / long vowels / niggahīta. pnfo's domain-trained model is the whole point. Deploy pnfo's container yourself; optionally in a **separate GCP project** for clean billing / key / quota isolation (the `ask_server` Dockerfile already targets Cloud Run — same pattern).
+- **Scale-to-zero = idle is free.** No requests → zero containers → **$0**. A mostly-sleeping service is the *intended* case, not a problem.
+- **Free tier (approx):** ~2M requests, ~180k vCPU-seconds, ~360k GiB-seconds / month. At ~2 vCPU-sec + ~4 GiB-sec per synth, that's roughly **tens of thousands of free synths/month** — a study app with caching likely lives entirely inside it.
+- **The one catch — cold start (latency, not money):** the first request after idle must load torch + the checkpoint → **several seconds to ~30s**. Mitigate by (a) leaning on the Stage 2 cache / pre-warm so cold starts only hit rare first-time content, (b) keeping the image lean + startup-CPU-boost, or (c) `min-instances=1` — but that pays ~24/7 and defeats scale-to-zero (at which point option B / the box wins).
+- **Break-even vs an always-on box:** ~100k synth requests/month. Below → serverless wins; above → box. Caching shrinks real synth volume so far that both converge toward ~free.
+
+### 7.3 Audio cache — Cloudflare R2 (not GCS)
+
+CDN cost is **two meters**: *storage* (what you keep — cheap, ignore it) and *egress* (what you serve — scales with listeners; the meter that produces surprise bills). Optimize for egress.
+
+- **Cloudflare R2:** 10 GB free storage + **zero egress, ever** + 10M reads / 1M writes free per month. Zero-egress is the whole reason — serving a popular sutta a million times stays $0.
+- **Do NOT store audio on Google Cloud Storage** despite the model running on GCP — GCS charges egress (~$0.08–0.12/GB), exactly the meter to avoid. Keep them split: Cloud Run **writes** new clips to R2; **all playback is served from R2**. GCP only ever sees the rare cold synth.
+- **Serve from an R2 public bucket on a custom domain** (the sanctioned media path), not by proxying heavy media through Cloudflare's free CDN plan (acceptable-use limits on media).
+- **Sizing:** speech at **Opus ~32 kbps** (or mp3 64 kbps), mono ≈ **15–30 MB/hour** → 10 GB ≈ **350–650 hours**. The **whole Sinhala corpus is pre-rendered** (§0), and the recorded corpus is **~12 hours of voice** → the Sinhala mirror is **~180–360 MB** (≈ **2–4% of R2's 10 GB free tier**). Even if the Pali recordings also move onto R2 (~similar duration), both together stay **under ~0.7 GB** — no overage scenario at all, comfortably inside the free tier, egress $0. **Pali single-word clips stay lazy** (cache-on-tap), a tiny bounded set. Storage is a genuine non-issue.
+
+### 7.4 Endgame — pre-rendered static + one live endpoint
+
+The zero-idle-cost end state **is already the design**, not a future stage: **everything pre-rendered lives on R2** (the Pali human recordings + the full Sinhala mirror), served static with zero egress, and the **only live component is the Pali single-word endpoint** on Cloud Run scale-to-zero — it fires just on a cache miss and then never again for that word. No on-device step is needed to reach ≈ $0 marginal cost. (On-device is dropped — §5.)
+
+### 7.5 Recommended nimble setup (no sponsors)
+
+1. **Pali listening → existing human recordings on R2** (no synthesis); serve static — entry-level labels drive highlight + player seek.
+2. **Sinhala → pre-render the whole covered corpus once on the Mac → R2** (static mirror of the Pali entries).
+3. **Pali single word → Cloud Run `--min-instances=0`** (free while sleeping); cache each tapped word to R2; accept cold-start only on the first-ever tap of a given word.
+4. **Audio → Cloudflare R2** public bucket on a custom domain (free/near-free storage, zero egress); **encode Opus ~32 kbps**.
+5. **Web / content server → the box** you already run; optionally co-locate the gateway there.
+6. Keep the **gateway ↔ model** seam clean so the one live model can move (box ⇄ Cloud Run) with no client change.
+
+---
+
+## 8. Model evaluation — keep pnfo VITS, don't chase a newer model (decided 2026-07-04)
+
+**The governing fact:** pnfo's VITS is not valuable for its *architecture* (VITS is a 2021 design, middling by today's standards) — it's valuable because it was **trained on Pali/Sinhala**, so it pronounces the domain (long vowels, gemination ṭṭh, niggahīta ṃ) correctly. **Every newer/"better"/smaller model on the market is trained on English + a few major languages; none know Pali or Sinhala.** So "switch to a better model" really means "re-do the hard Pali/Sinhala training + build a G2P," which is exactly the moat pnfo already handed us.
+
+| Question | Finding |
+| --- | --- |
+| **How hard to train a new one?** | Bottleneck is **data, not compute**. Good TTS wants **10–30+ hrs** of single-speaker, studio-clean audio with accurate transcripts. Compute is cheap (rent a GPU, hours–days). Two paths: **(A) fine-tune the existing pnfo VITS on more data** — moderate, ~1–2 wks, needs the dataset; **(B) new architecture from scratch** — hard, weeks–months, *and* forces building a Pali/Sinhala **G2P** (pnfo VITS avoids this via direct romanized-char tokenization, `use_phonemes:false`). |
+| **Is it "next level"?** | A real naturalness ceiling exists above VITS (StyleTTS2 / flow-matching / codec-LM sound more human) — but the gain is **cosmetic for a reading/study app** (scoped as "clear reading, not chanting"). **Risk is asymmetric:** re-training risks *worse* domain pronunciation — the whole moat — for a small prosody win. Not worth it unless the quality-gate reviewer (§2.6) rejects VITS. |
+| **Audio file size?** | **Independent of model** — size = duration × bitrate. At **Opus 32 kbps** mono: **~6 KB/word, ~120 KB/paragraph, ~2.4 MB per 10-min sutta, ~14 MB/hr.** A non-issue; must not influence model choice. A better/larger model produces the *same-size* file. |
+| **Smaller-but-more-powerful models?** | **Kokoro-82M** (82M params, ~300 MB / ~80 MB int8, Apache-2.0, StyleTTS2-based, #1 TTS Arena Jan 2026, runs on CPU) is the poster child — but supports only ~9 major languages, **no Pali/Sinhala**, needs a G2P it doesn't have, no language-add recipe. Using it = the same hard training project. **Also moot: pnfo VITS is *already* tiny (tens of MB, CPU-fast, ONNX-exportable for on-device Stage 3)** — smaller buys nothing; the only real headroom is naturalness. |
+
+**Decision:** Ship Stage 1 on the existing pnfo VITS. Treat "better model" as a **Phase-2 R&D track gated on two triggers**: (a) the Pali-literate reviewer finds VITS insufficient, **and** (b) a good Pali/Sinhala dataset is secured. Even then, **first move is fine-tuning the existing VITS on more data**, not a new architecture. The highest-leverage quality investment is **more/better training data for the current voice**, not a new model.
 
 ---
 

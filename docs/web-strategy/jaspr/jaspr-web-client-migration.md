@@ -4,8 +4,8 @@
 > is condensed into the *Background* section below; the body is now an
 > executable spec for the multi-tab de-risking prototype.
 > Captured: 2026-06-06 · Updated: 2026-06-09 · Owner: TBD.
-> Related: [`web-rewrite-strategy.md`](./web-rewrite-strategy.md)
-> (SEO/SSR + static-site direction), [`../todo/both_mode_lazy_builder.md`](../todo/both_mode_lazy_builder.md),
+> Related: [`static-web-hosting.md`](../static-web-hosting.md)
+> (SEO/SSR + static-site direction), [`../../done/both_mode_lazy_builder.md`](../../done/both_mode_lazy_builder.md),
 > [`../todo/top10-perf-and-bonus.txt`](../todo/top10-perf-and-bonus.txt) (Flutter-web perf —
 > several items become moot on a Jaspr web surface).
 
@@ -71,7 +71,7 @@ free offscreen keep-alive — choose keep-mounted (memory) vs unmount+restore;
 
 **Backbone (for the real build, not the prototype):** extract the reusable Dart
 (`domain/`, `core/utils/`) into shared packages so both Flutter and Jaspr depend
-on them — and finish the [Phase 1 domain-Flutter-free cleanup](./web-rewrite-phase1-domain-flutter-free.md).
+on them — and finish the [Phase 1 domain-Flutter-free cleanup](../../done/web-rewrite-phase1-domain-flutter-free.md).
 The prototype can skip this by pointing at `lib/` directly or copying the few
 files it needs.
 
@@ -201,7 +201,7 @@ keep-alive and tab↔URL. That's the green light for the full build.
 
 ## Deferred — the full build, after the thesis is proven
 Once the prototype greenlights it, the real project (separate planning) covers:
-shared-package extraction + [Phase 1 cleanup](./web-rewrite-phase1-domain-flutter-free.md);
+shared-package extraction + [Phase 1 cleanup](../../done/web-rewrite-phase1-domain-flutter-free.md);
 reader parity (stacked layout, word-tap dictionary, in-page search, selection
 menu); tree navigator; theming → CSS variables; **SEO** (per-sutta meta,
 JSON-LD, `sitemap.xml` for all ~10k suttas, optional SSG pre-render); prefs via

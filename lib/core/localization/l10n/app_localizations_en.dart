@@ -142,6 +142,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchTabDefinitions => 'Definitions';
 
   @override
+  String get searchTabReference => 'Reference';
+
+  @override
   String get recentSearches => 'Recent searches';
 
   @override
@@ -305,4 +308,165 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updateBannerDismissTooltip => 'Dismiss';
+
+  @override
+  String get navHome => 'Home';
+
+  @override
+  String get navReader => 'Reader';
+
+  @override
+  String get navResearch => 'Research';
+
+  @override
+  String get navNotes => 'Notes';
+
+  @override
+  String get researchNewChat => 'New chat';
+
+  @override
+  String get researchEmptyState => 'Ask anything about the Pali Canon.';
+
+  @override
+  String get researchInputHint => 'Ask a question about the suttas…';
+
+  @override
+  String get researchSend => 'Send';
+
+  @override
+  String get researchModeFast => 'Fast';
+
+  @override
+  String get researchModeFastHint => 'Fastest answers';
+
+  @override
+  String get researchModeThinking => 'Thinking';
+
+  @override
+  String get researchModeThinkingHint => 'Deeper reasoning';
+
+  @override
+  String get researchModeTooltip => 'Answer mode';
+
+  @override
+  String get researchBusyFast => 'Answering…';
+
+  @override
+  String get researchBusyThinking => 'Thinking…';
+
+  @override
+  String get researchCitedSource => 'Cited source';
+
+  @override
+  String get researchMatchedPassage => 'Matched passage · SuttaCentral';
+
+  @override
+  String get researchOtherSources => 'Other sources';
+
+  @override
+  String get researchOpenInReader => 'Open in reader';
+
+  @override
+  String get researchCitationNotLinked =>
+      'This source isn\'t linked to this edition yet.';
+
+  @override
+  String get researchCopyLink => 'Copy link';
+
+  @override
+  String get researchLinkCopied => 'Link copied';
+
+  @override
+  String get researchRetry => 'Retry';
+
+  @override
+  String get researchErrorOffline =>
+      'Couldn\'t connect. Check your internet and try again.';
+
+  @override
+  String get researchErrorTimeout =>
+      'This is taking longer than usual. Please try again.';
+
+  @override
+  String get researchErrorRateLimited =>
+      'Research has had a lot of questions just now. Please try again in a few minutes.';
+
+  @override
+  String get researchErrorRateLimitedThinking =>
+      'Research has had a lot of questions just now. Try again in a few minutes, or switch to Fast mode.';
+
+  @override
+  String get researchErrorServiceBusy =>
+      'Research is busy right now. Please try again in a moment.';
+
+  @override
+  String get researchErrorNotAuthorised =>
+      'Research isn\'t available right now. Please try again later.';
+
+  @override
+  String get researchErrorCannotAnswer =>
+      'I couldn\'t find an answer to that in the canon. Try rephrasing, or ask about a specific teaching.';
+
+  @override
+  String get researchErrorServerError =>
+      'Something went wrong on our end. Please try again.';
+
+  @override
+  String get researchErrorResourceLimit =>
+      'That answer took too much to finish. Please try again — a simpler question may help.';
+
+  @override
+  String get researchQuestionNotAnswered =>
+      'This question wasn\'t answered yet.';
+
+  @override
+  String get researchRecent => 'Recent';
+
+  @override
+  String get researchNoRecentChats => 'No chats yet';
+
+  @override
+  String get researchChatLimitReached =>
+      'This chat has reached its length limit. Start a new chat to continue.';
+
+  @override
+  String get researchDeleteChat => 'Delete chat';
+
+  @override
+  String get relativeTimeJustNow => 'Just now';
+
+  @override
+  String relativeTimeMinutesAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count minutes ago',
+      one: '1 minute ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String relativeTimeHoursAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hours ago',
+      one: '1 hour ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get relativeTimeYesterday => 'Yesterday';
+
+  @override
+  String relativeTimeDaysAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days ago',
+    );
+    return '$_temp0';
+  }
 }

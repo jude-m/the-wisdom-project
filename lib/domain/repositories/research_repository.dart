@@ -1,0 +1,26 @@
+import 'package:dartz/dartz.dart';
+
+import '../entities/research/research_answer.dart';
+import '../entities/research/research_filters.dart';
+import '../entities/research/research_mode.dart';
+import '../entities/research/chat_message.dart';
+import '../entities/failure.dart';
+
+/// Repository interface for the AI Q&A feature.
+///
+/// The whole feature is remote-only — no client can call Gemini directly (the
+/// API key stays server-side), so unlike search/dictionary there is NO local
+/// implementation. See the resolver/integration plan §1.
+abstract class ResearchRepository {
+  /// Ask a grounded question about the canon.
+  ///
+  /// [history] carries the prior turns for multi-turn follow-ups. [mode] picks
+  /// the model tier (Fast vs Thinking); defaults to fast so existing callers
+  /// need no change.
+  Future<Either<Failure, ResearchAnswer>> research(
+    String question, {
+    List<ChatMessage> history = const [],
+    ResearchFilters? filters,
+    ResearchMode mode = ResearchMode.fast,
+  });
+}

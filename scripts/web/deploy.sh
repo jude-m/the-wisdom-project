@@ -27,6 +27,12 @@ readonly SHARE_MOUNT="/Volumes/wisdom-project"
 readonly HEALTHZ_URL="http://${WINDOWS_IP}:${SERVER_PORT}/healthz"
 readonly HEALTH_POLL_TIMEOUT_S=120
 
+# Research backend baked into the web build. The deployed site is served from
+# http://192.168.1.200:8081, which IS in the Worker's CORS allow-list
+# (research_server/wrangler.jsonc → RESEARCH_CORS_ORIGINS), so browser research
+# calls succeed. Override with an exported RESEARCH_BASE_URL.
+RESEARCH_BASE_URL="${RESEARCH_BASE_URL:-https://wisdom-research.bk-anigha.workers.dev}"
+
 # ---------------------------------------------------------------- Args
 SKIP_TESTS=false
 DRY_RUN=false
@@ -152,6 +158,7 @@ phase "Phase 3/7: flutter build web --release"
 # /healthz — drop to 60 during rapid-dev days, raise to 300 (or delete
 # the line, since 300 is the default) once releases slow down.
 flutter build web --release \
+  --dart-define=RESEARCH_BASE_URL="$RESEARCH_BASE_URL" \
   --dart-define=BUILD_SHA="$GIT_SHA" \
   --dart-define=VERSION_CHECK_ENABLED=true \
   --dart-define=VERSION_CHECK_POLL_SECONDS=120 \

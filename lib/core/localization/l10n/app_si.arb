@@ -89,6 +89,8 @@
 
   "searchTabDefinitions": "අර්ථ",
 
+  "searchTabReference": "යොමුව",
+
   "recentSearches": "මෑත සෙවුම්",
 
   "viewMore": "තවත් ගැළපී​ම් {count}ක් ඇත",
@@ -191,5 +193,88 @@
 
   "updateBannerRefreshAction": "රීලෝ​ඩ් කරන්න",
 
-  "updateBannerDismissTooltip": "ඉවත් කරන්න"
+  "updateBannerDismissTooltip": "ඉවත් කරන්න",
+
+  "navHome": "මුල් පිටුව",
+
+  "navReader": "ත්‍රිපිටකය",
+
+  "navResearch": "ගවේෂණය",
+
+  "navNotes": "සටහන්",
+
+  "researchNewChat": "නව සංවාදය",
+
+  "researchEmptyState": "පාළි ත්‍රිපිටකය පිළිබඳ ඕනෑම දෙයක් අසන්න.",
+
+  "researchInputHint": "සූත්‍ර පිළිබඳ ප්‍රශ්නයක් අසන්න…",
+
+  "researchSend": "යවන්න",
+
+  "researchModeFast": "වේගවත්",
+
+  "researchModeFastHint": "වේගවත්ම පිළිතුරු",
+
+  "researchModeThinking": "ගැඹුරු",
+
+  "researchModeThinkingHint": "ගැඹුරු තර්කනය",
+
+  "researchModeTooltip": "පිළිතුරු ආකාරය",
+
+  "researchBusyFast": "පිළිතුරු දෙමින්…",
+
+  "researchBusyThinking": "සිතමින්…",
+
+  "researchCitedSource": "උපුටා දැක්වූ මූලාශ්‍රය",
+
+  "researchMatchedPassage": "ගැළපෙන කොටස · SuttaCentral",
+
+  "researchOtherSources": "වෙනත් මූලාශ්‍ර",
+
+  "researchOpenInReader": "කියවනයේ විවෘත කරන්න",
+
+  "researchCitationNotLinked": "මෙම මූලාශ්‍රය තවම මෙම සංස්කරණයට සම්බන්ධ කර නොමැත.",
+
+  "researchCopyLink": "සබැඳිය පිටපත් කරන්න",
+
+  "researchLinkCopied": "සබැඳිය පිටපත් විය",
+
+  "researchRetry": "නැවත උත්සාහ කරන්න",
+
+  "researchErrorOffline": "සම්බන්ධ විය නොහැකි විය. ඔබගේ අන්තර්ජාල සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.",
+
+  "researchErrorTimeout": "මෙය සුපුරුදුට වඩා වැඩි වේලාවක් ගනිමින් පවතී. කරුණාකර නැවත උත්සාහ කරන්න.",
+
+  "researchErrorRateLimited": "දැන් Research වෙත බොහෝ ප්‍රශ්න පැමිණ ඇත. කරුණාකර මිනිත්තු කිහිපයකින් නැවත උත්සාහ කරන්න.",
+
+  "researchErrorRateLimitedThinking": "දැන් Research වෙත බොහෝ ප්‍රශ්න පැමිණ ඇත. මිනිත්තු කිහිපයකින් නැවත උත්සාහ කරන්න, නැතහොත් Fast ප්‍රකාරයට මාරු වන්න.",
+
+  "researchErrorServiceBusy": "Research දැන් කාර්යබහුලයි. කරුණාකර මොහොතකින් නැවත උත්සාහ කරන්න.",
+
+  "researchErrorNotAuthorised": "Research දැන් ලබා ගත නොහැක. කරුණාකර පසුව නැවත උත්සාහ කරන්න.",
+
+  "researchErrorCannotAnswer": "ත්‍රිපිටකයෙන් එයට පිළිතුරක් සොයා ගත නොහැකි විය. ප්‍රශ්නය වෙනස් ආකාරයකින් අසන්න, නැතහොත් නිශ්චිත ඉගැන්වීමක් ගැන අසන්න.",
+
+  "researchErrorServerError": "අපගේ පැත්තෙන් යම් දෝෂයක් සිදු විය. කරුණාකර නැවත උත්සාහ කරන්න.",
+  "researchErrorResourceLimit": "එම පිළිතුර නිම කිරීමට වැඩි ධාරිතාවක් ගත විය. කරුණාකර නැවත උත්සාහ කරන්න — සරල ප්‍රශ්නයක් උපකාරී විය හැක.",
+
+  "researchQuestionNotAnswered": "මෙම ප්‍රශ්නයට තවම පිළිතුරක් නොලැබුණි.",
+
+  "researchRecent": "මෑත සංවාද",
+
+  "researchNoRecentChats": "තවම සංවාද නොමැත",
+
+  "researchChatLimitReached": "මෙම සංවාදය එහි දිග සීමාවට ළඟා වී ඇත. දිගටම කරගෙන යාමට නව සංවාදයක් අරඹන්න.",
+
+  "researchDeleteChat": "සංවාදය මකන්න",
+
+  "relativeTimeJustNow": "මේ දැන්",
+
+  "relativeTimeMinutesAgo": "{count, plural, =1{මිනිත්තුවකට පෙර} other{මිනිත්තු {count}කට පෙර}}",
+
+  "relativeTimeHoursAgo": "{count, plural, =1{පැයකට පෙර} other{පැය {count}කට පෙර}}",
+
+  "relativeTimeYesterday": "ඊයේ",
+
+  "relativeTimeDaysAgo": "{count, plural, other{දින {count}කට පෙර}}"
 }

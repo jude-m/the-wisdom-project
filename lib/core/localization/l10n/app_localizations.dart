@@ -362,6 +362,12 @@ abstract class AppLocalizations {
   /// **'Definitions'**
   String get searchTabDefinitions;
 
+  /// Label for a canonical-reference jump result (e.g. typing 'SN 15.3'). Pinned above results, not shown as a browsable tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Reference'**
+  String get searchTabReference;
+
   /// Header above the list of the user's recent search queries
   ///
   /// In en, this message translates to:
@@ -673,6 +679,258 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dismiss'**
   String get updateBannerDismissTooltip;
+
+  /// Label of the Home destination in the navigation rail / bottom navigation bar
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get navHome;
+
+  /// Label of the Reader (Tipitaka reading) destination in the navigation rail / bottom navigation bar
+  ///
+  /// In en, this message translates to:
+  /// **'Reader'**
+  String get navReader;
+
+  /// Label of the Research (AI Q&A) destination in the navigation rail / bottom navigation bar
+  ///
+  /// In en, this message translates to:
+  /// **'Research'**
+  String get navResearch;
+
+  /// Label of the Notes destination in the navigation rail / bottom navigation bar
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get navNotes;
+
+  /// Button that clears the Q&A transcript to start a fresh conversation
+  ///
+  /// In en, this message translates to:
+  /// **'New chat'**
+  String get researchNewChat;
+
+  /// Placeholder shown in the Q&A dialog before the first question is asked
+  ///
+  /// In en, this message translates to:
+  /// **'Ask anything about the Pali Canon.'**
+  String get researchEmptyState;
+
+  /// Hint text inside the Q&A question input field
+  ///
+  /// In en, this message translates to:
+  /// **'Ask a question about the suttas…'**
+  String get researchInputHint;
+
+  /// Tooltip on the send button in the Q&A dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get researchSend;
+
+  /// Label for the Fast answer mode in the Research mode switch (flash-lite model tier)
+  ///
+  /// In en, this message translates to:
+  /// **'Fast'**
+  String get researchModeFast;
+
+  /// One-line hint under the Fast option in the Research mode menu
+  ///
+  /// In en, this message translates to:
+  /// **'Fastest answers'**
+  String get researchModeFastHint;
+
+  /// Label for the Thinking answer mode in the Research mode switch (full-flash model tier)
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking'**
+  String get researchModeThinking;
+
+  /// One-line hint under the Thinking option in the Research mode menu
+  ///
+  /// In en, this message translates to:
+  /// **'Deeper reasoning'**
+  String get researchModeThinkingHint;
+
+  /// Tooltip on the Fast/Thinking mode switch button in the Research header
+  ///
+  /// In en, this message translates to:
+  /// **'Answer mode'**
+  String get researchModeTooltip;
+
+  /// In-flight loading row label shown while waiting for an answer in Fast mode
+  ///
+  /// In en, this message translates to:
+  /// **'Answering…'**
+  String get researchBusyFast;
+
+  /// In-flight loading row label shown while waiting for an answer in Thinking mode
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get researchBusyThinking;
+
+  /// Small label at the top of the bottom sheet showing one citation's details
+  ///
+  /// In en, this message translates to:
+  /// **'Cited source'**
+  String get researchCitedSource;
+
+  /// Label above the English SuttaCentral snippet in the citation peek — the passage the answer was grounded on
+  ///
+  /// In en, this message translates to:
+  /// **'Matched passage · SuttaCentral'**
+  String get researchMatchedPassage;
+
+  /// Heading above chips for sources the answer was grounded on but did not cite inline
+  ///
+  /// In en, this message translates to:
+  /// **'Other sources'**
+  String get researchOtherSources;
+
+  /// Button in the citation sheet that opens the cited text in a reader tab
+  ///
+  /// In en, this message translates to:
+  /// **'Open in reader'**
+  String get researchOpenInReader;
+
+  /// Shown in the citation sheet when the cited source has no concordance entry to open in the reader
+  ///
+  /// In en, this message translates to:
+  /// **'This source isn\'t linked to this edition yet.'**
+  String get researchCitationNotLinked;
+
+  /// Button in the citation sheet that copies the shareable URL for the cited text
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link'**
+  String get researchCopyLink;
+
+  /// Copy-link button label swapped in after copying succeeds (shown in place of 'Copy link'; not a snackbar — one would be hidden under the modal sheet)
+  ///
+  /// In en, this message translates to:
+  /// **'Link copied'**
+  String get researchLinkCopied;
+
+  /// Button to re-send the last question after a retriable Q&A error
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get researchRetry;
+
+  /// Q&A error when the answer service can't be reached (offline / unreachable)
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t connect. Check your internet and try again.'**
+  String get researchErrorOffline;
+
+  /// Q&A error when the request exceeded the client timeout or the gateway timed out
+  ///
+  /// In en, this message translates to:
+  /// **'This is taking longer than usual. Please try again.'**
+  String get researchErrorTimeout;
+
+  /// Q&A error when the rate limit / quota is exhausted; retry later. Shown in Fast mode (already the most generous quota, so no mode hint)
+  ///
+  /// In en, this message translates to:
+  /// **'Research has had a lot of questions just now. Please try again in a few minutes.'**
+  String get researchErrorRateLimited;
+
+  /// Q&A rate-limit error shown in Thinking mode; adds a hint to switch to Fast mode, which has more quota
+  ///
+  /// In en, this message translates to:
+  /// **'Research has had a lot of questions just now. Try again in a few minutes, or switch to Fast mode.'**
+  String get researchErrorRateLimitedThinking;
+
+  /// Q&A error when the service is unavailable, cold-starting, or upstream is overloaded
+  ///
+  /// In en, this message translates to:
+  /// **'Research is busy right now. Please try again in a moment.'**
+  String get researchErrorServiceBusy;
+
+  /// Q&A error when the app is not authorised (401/403) — a build issue, not user-fixable, so no retry
+  ///
+  /// In en, this message translates to:
+  /// **'Research isn\'t available right now. Please try again later.'**
+  String get researchErrorNotAuthorised;
+
+  /// Q&A error when the model can't answer (safety block / empty answer); the user should rephrase
+  ///
+  /// In en, this message translates to:
+  /// **'I couldn\'t find an answer to that in the canon. Try rephrasing, or ask about a specific teaching.'**
+  String get researchErrorCannotAnswer;
+
+  /// Generic Q&A error for a server fault or a malformed response; retry
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong on our end. Please try again.'**
+  String get researchErrorServerError;
+
+  /// Q&A error when the server was killed for exceeding its compute limit (Cloudflare 1102); retry usually succeeds
+  ///
+  /// In en, this message translates to:
+  /// **'That answer took too much to finish. Please try again — a simpler question may help.'**
+  String get researchErrorResourceLimit;
+
+  /// Neutral notice (paired with Retry) when reopening a chat whose last question never received an answer — the original error was transient state and is gone
+  ///
+  /// In en, this message translates to:
+  /// **'This question wasn\'t answered yet.'**
+  String get researchQuestionNotAnswered;
+
+  /// Header above the list of saved research chats
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get researchRecent;
+
+  /// Placeholder in the Recent panel when no chats have been saved
+  ///
+  /// In en, this message translates to:
+  /// **'No chats yet'**
+  String get researchNoRecentChats;
+
+  /// Banner shown in place of the input once a chat has used all its turns
+  ///
+  /// In en, this message translates to:
+  /// **'This chat has reached its length limit. Start a new chat to continue.'**
+  String get researchChatLimitReached;
+
+  /// Tooltip/label for deleting a saved chat from the Recent panel
+  ///
+  /// In en, this message translates to:
+  /// **'Delete chat'**
+  String get researchDeleteChat;
+
+  /// Relative timestamp for under a minute ago
+  ///
+  /// In en, this message translates to:
+  /// **'Just now'**
+  String get relativeTimeJustNow;
+
+  /// Relative timestamp, minutes granularity
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 minute ago} other{{count} minutes ago}}'**
+  String relativeTimeMinutesAgo(int count);
+
+  /// Relative timestamp, hours granularity
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 hour ago} other{{count} hours ago}}'**
+  String relativeTimeHoursAgo(int count);
+
+  /// Relative timestamp for one calendar day ago
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get relativeTimeYesterday;
+
+  /// Relative timestamp, days granularity (2–6 days; older shows a date)
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, other{{count} days ago}}'**
+  String relativeTimeDaysAgo(int count);
 }
 
 class _AppLocalizationsDelegate

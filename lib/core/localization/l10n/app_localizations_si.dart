@@ -142,6 +142,9 @@ class AppLocalizationsSi extends AppLocalizations {
   String get searchTabDefinitions => 'අර්ථ';
 
   @override
+  String get searchTabReference => 'යොමුව';
+
+  @override
   String get recentSearches => 'මෑත සෙවුම්';
 
   @override
@@ -306,4 +309,165 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get updateBannerDismissTooltip => 'ඉවත් කරන්න';
+
+  @override
+  String get navHome => 'මුල් පිටුව';
+
+  @override
+  String get navReader => 'ත්‍රිපිටකය';
+
+  @override
+  String get navResearch => 'ගවේෂණය';
+
+  @override
+  String get navNotes => 'සටහන්';
+
+  @override
+  String get researchNewChat => 'නව සංවාදය';
+
+  @override
+  String get researchEmptyState => 'පාළි ත්‍රිපිටකය පිළිබඳ ඕනෑම දෙයක් අසන්න.';
+
+  @override
+  String get researchInputHint => 'සූත්‍ර පිළිබඳ ප්‍රශ්නයක් අසන්න…';
+
+  @override
+  String get researchSend => 'යවන්න';
+
+  @override
+  String get researchModeFast => 'වේගවත්';
+
+  @override
+  String get researchModeFastHint => 'වේගවත්ම පිළිතුරු';
+
+  @override
+  String get researchModeThinking => 'ගැඹුරු';
+
+  @override
+  String get researchModeThinkingHint => 'ගැඹුරු තර්කනය';
+
+  @override
+  String get researchModeTooltip => 'පිළිතුරු ආකාරය';
+
+  @override
+  String get researchBusyFast => 'පිළිතුරු දෙමින්…';
+
+  @override
+  String get researchBusyThinking => 'සිතමින්…';
+
+  @override
+  String get researchCitedSource => 'උපුටා දැක්වූ මූලාශ්‍රය';
+
+  @override
+  String get researchMatchedPassage => 'ගැළපෙන කොටස · SuttaCentral';
+
+  @override
+  String get researchOtherSources => 'වෙනත් මූලාශ්‍ර';
+
+  @override
+  String get researchOpenInReader => 'කියවනයේ විවෘත කරන්න';
+
+  @override
+  String get researchCitationNotLinked =>
+      'මෙම මූලාශ්‍රය තවම මෙම සංස්කරණයට සම්බන්ධ කර නොමැත.';
+
+  @override
+  String get researchCopyLink => 'සබැඳිය පිටපත් කරන්න';
+
+  @override
+  String get researchLinkCopied => 'සබැඳිය පිටපත් විය';
+
+  @override
+  String get researchRetry => 'නැවත උත්සාහ කරන්න';
+
+  @override
+  String get researchErrorOffline =>
+      'සම්බන්ධ විය නොහැකි විය. ඔබගේ අන්තර්ජාල සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get researchErrorTimeout =>
+      'මෙය සුපුරුදුට වඩා වැඩි වේලාවක් ගනිමින් පවතී. කරුණාකර නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get researchErrorRateLimited =>
+      'දැන් Research වෙත බොහෝ ප්‍රශ්න පැමිණ ඇත. කරුණාකර මිනිත්තු කිහිපයකින් නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get researchErrorRateLimitedThinking =>
+      'දැන් Research වෙත බොහෝ ප්‍රශ්න පැමිණ ඇත. මිනිත්තු කිහිපයකින් නැවත උත්සාහ කරන්න, නැතහොත් Fast ප්‍රකාරයට මාරු වන්න.';
+
+  @override
+  String get researchErrorServiceBusy =>
+      'Research දැන් කාර්යබහුලයි. කරුණාකර මොහොතකින් නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get researchErrorNotAuthorised =>
+      'Research දැන් ලබා ගත නොහැක. කරුණාකර පසුව නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get researchErrorCannotAnswer =>
+      'ත්‍රිපිටකයෙන් එයට පිළිතුරක් සොයා ගත නොහැකි විය. ප්‍රශ්නය වෙනස් ආකාරයකින් අසන්න, නැතහොත් නිශ්චිත ඉගැන්වීමක් ගැන අසන්න.';
+
+  @override
+  String get researchErrorServerError =>
+      'අපගේ පැත්තෙන් යම් දෝෂයක් සිදු විය. කරුණාකර නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get researchErrorResourceLimit =>
+      'එම පිළිතුර නිම කිරීමට වැඩි ධාරිතාවක් ගත විය. කරුණාකර නැවත උත්සාහ කරන්න — සරල ප්‍රශ්නයක් උපකාරී විය හැක.';
+
+  @override
+  String get researchQuestionNotAnswered =>
+      'මෙම ප්‍රශ්නයට තවම පිළිතුරක් නොලැබුණි.';
+
+  @override
+  String get researchRecent => 'මෑත සංවාද';
+
+  @override
+  String get researchNoRecentChats => 'තවම සංවාද නොමැත';
+
+  @override
+  String get researchChatLimitReached =>
+      'මෙම සංවාදය එහි දිග සීමාවට ළඟා වී ඇත. දිගටම කරගෙන යාමට නව සංවාදයක් අරඹන්න.';
+
+  @override
+  String get researchDeleteChat => 'සංවාදය මකන්න';
+
+  @override
+  String get relativeTimeJustNow => 'මේ දැන්';
+
+  @override
+  String relativeTimeMinutesAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'මිනිත්තු $countකට පෙර',
+      one: 'මිනිත්තුවකට පෙර',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String relativeTimeHoursAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'පැය $countකට පෙර',
+      one: 'පැයකට පෙර',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get relativeTimeYesterday => 'ඊයේ';
+
+  @override
+  String relativeTimeDaysAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'දින $countකට පෙර',
+    );
+    return '$_temp0';
+  }
 }

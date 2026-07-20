@@ -22,8 +22,17 @@ if not "%~1"=="" if /I not "%~1"=="--debug" if /I not "%~1"=="--release" goto :b
 REM --- Project root is two levels up: scripts\windows\ -> scripts\ -> project
 cd /d "%~dp0..\.."
 
+REM --- Research backend: always the deployed Cloudflare Worker (even in
+REM     debug), so "Research the Canon" works with no local server. Without
+REM     it the app defaults to http://localhost:8082 and shows "Couldn't
+REM     connect". Override: set RESEARCH_BASE_URL before running this script.
+REM       deployed: https://wisdom-research.bk-anigha.workers.dev
+REM       local:    http://localhost:8082 (scripts\research_server\run.sh)
+if not defined RESEARCH_BASE_URL set "RESEARCH_BASE_URL=https://wisdom-research.bk-anigha.workers.dev"
+
 echo Running on Windows (%MODE%)...
-flutter run -d windows %MODE%
+echo Research backend: %RESEARCH_BASE_URL%
+flutter run -d windows %MODE% --dart-define=RESEARCH_BASE_URL=%RESEARCH_BASE_URL%
 goto :eof
 
 :bad_arg

@@ -2,7 +2,7 @@
 
 > Status: **Done** — all 4 files complete (Files 1/3/4 2026-06-09; File 2 2026-06-10).
 > Captured: 2026-06-06.
-> Parent: [`web-rewrite-clean-architecture-audit.md`](./web-rewrite-clean-architecture-audit.md) (§4, Phase 1).
+> Parent: [`web-rewrite-clean-architecture-audit.md`](../web-strategy/jaspr/web-rewrite-clean-architecture-audit.md) (§4, Phase 1).
 > Decision-independent: this is worth doing **regardless** of the eventual web
 > framework (Jaspr vs Next.js). It also improves the native app's layering.
 
