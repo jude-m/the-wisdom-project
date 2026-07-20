@@ -7,6 +7,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/api_error_type.dart';
 import '../../../domain/entities/research/chat_message.dart';
 import '../../providers/research_chat_state.dart';
+import '../../providers/research_mode_provider.dart';
 import '../../providers/research_provider.dart';
 import '../common/status_message_view.dart';
 import 'research_answer_view.dart';
@@ -161,7 +162,13 @@ class _ResearchChatViewState extends ConsumerState<ResearchChatView> {
                 Expanded(
                   child: Text(
                     state.errorType != null
-                        ? researchErrorMessage(l10n, state.errorType!)
+                        ? researchErrorMessage(
+                            l10n,
+                            state.errorType!,
+                            // A retry re-sends under the currently selected
+                            // tier, so the rate-limit hint keys on that mode.
+                            mode: ref.watch(researchModeProvider),
+                          )
                         : l10n.researchQuestionNotAnswered,
                     style: TextStyle(
                       // The neutral notice isn't an error — don't alarm.

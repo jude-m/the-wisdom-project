@@ -106,18 +106,21 @@ String? _errorCode(String body) {
 /// dialog shows the ARB-localised version keyed on the same [ApiErrorType].
 String _fallbackMessage(ApiErrorType type) => switch (type) {
       ApiErrorType.offline =>
-        "Can't reach the answer service. Check your connection and try again.",
+        "Couldn't connect. Check your internet and try again.",
       ApiErrorType.timeout =>
-        'That took too long — the model may be busy. Please try again.',
+        'This is taking longer than usual. Please try again.',
+      // English fallback only; the UI uses the mode-aware localised copy and
+      // adds the "switch to Fast mode" hint in Thinking mode.
       ApiErrorType.rateLimited =>
-        "You've reached the question limit for now. Please try again later.",
+        'Research has had a lot of questions just now. Please try again in a few minutes.',
       ApiErrorType.serviceBusy =>
-        'The answer service is busy or starting up. Please try again shortly.',
+        'Research is busy right now. Please try again in a moment.',
       ApiErrorType.notAuthorised =>
-        "This version of the app can't use the answer service.",
+        "Research isn't available right now. Please try again later.",
       ApiErrorType.cannotAnswer =>
-        "I couldn't answer that. Try rephrasing your question.",
-      ApiErrorType.serverError => 'Something went wrong. Please try again.',
+        "I couldn't find an answer to that in the canon. Try rephrasing, or ask about a specific teaching.",
+      ApiErrorType.serverError =>
+        'Something went wrong on our end. Please try again.',
       ApiErrorType.resourceLimit =>
-        'That answer was too heavy to process. Please try again.',
+        'That answer took too much to finish. Please try again — a simpler question may help.',
     };

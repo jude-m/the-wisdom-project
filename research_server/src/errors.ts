@@ -2,13 +2,18 @@
 // client maps onto its typed ApiErrorType. Raw upstream text never crosses the
 // wire; it stays in the server log.
 
+// User-facing copy mirrors the app's localised strings (app_en.arb) so an API
+// consumer without the app sees the same wording. The client re-localises by
+// error.code, so these are never shown in the app itself. The Thinking-mode
+// "switch to Fast mode" rate-limit hint is client-only (the server is
+// mode-aware but source-agnostic about UI affordances).
 export const MSG = {
-  rateLimited: 'The answer service is at capacity. Please try again later.',
-  serviceBusy: 'The answer service is busy or starting up. Please try again shortly.',
-  notAuthorised: 'This client is not authorised to use the answer service.',
-  cannotAnswer: "I couldn't answer that. Try rephrasing your question.",
+  rateLimited: 'Research has had a lot of questions just now. Please try again in a few minutes.',
+  serviceBusy: 'Research is busy right now. Please try again in a moment.',
+  notAuthorised: "Research isn't available right now. Please try again later.",
+  cannotAnswer: "I couldn't find an answer to that in the canon. Try rephrasing, or ask about a specific teaching.",
   badRequest: 'The request was invalid.',
-  serverError: 'The answer service failed to respond. Please try again.',
+  serverError: 'Something went wrong on our end. Please try again.',
 } as const;
 
 export class ResearchError extends Error {

@@ -821,55 +821,61 @@ abstract class AppLocalizations {
   /// Q&A error when the answer service can't be reached (offline / unreachable)
   ///
   /// In en, this message translates to:
-  /// **'Can\'t reach the answer service. Check your connection and try again.'**
+  /// **'Couldn\'t connect. Check your internet and try again.'**
   String get researchErrorOffline;
 
   /// Q&A error when the request exceeded the client timeout or the gateway timed out
   ///
   /// In en, this message translates to:
-  /// **'That took too long — the model may be busy. Please try again.'**
+  /// **'This is taking longer than usual. Please try again.'**
   String get researchErrorTimeout;
 
-  /// Q&A error when the rate limit / quota is exhausted; retry later
+  /// Q&A error when the rate limit / quota is exhausted; retry later. Shown in Fast mode (already the most generous quota, so no mode hint)
   ///
   /// In en, this message translates to:
-  /// **'You\'ve reached the question limit for now. Please try again later.'**
+  /// **'Research has had a lot of questions just now. Please try again in a few minutes.'**
   String get researchErrorRateLimited;
+
+  /// Q&A rate-limit error shown in Thinking mode; adds a hint to switch to Fast mode, which has more quota
+  ///
+  /// In en, this message translates to:
+  /// **'Research has had a lot of questions just now. Try again in a few minutes, or switch to Fast mode.'**
+  String get researchErrorRateLimitedThinking;
 
   /// Q&A error when the service is unavailable, cold-starting, or upstream is overloaded
   ///
   /// In en, this message translates to:
-  /// **'The answer service is busy or starting up. Please try again shortly.'**
+  /// **'Research is busy right now. Please try again in a moment.'**
   String get researchErrorServiceBusy;
 
   /// Q&A error when the app is not authorised (401/403) — a build issue, not user-fixable, so no retry
   ///
   /// In en, this message translates to:
-  /// **'This version of the app can\'t use the answer service.'**
+  /// **'Research isn\'t available right now. Please try again later.'**
   String get researchErrorNotAuthorised;
 
   /// Q&A error when the model can't answer (safety block / empty answer); the user should rephrase
   ///
   /// In en, this message translates to:
-  /// **'I couldn\'t answer that. Try rephrasing your question.'**
+  /// **'I couldn\'t find an answer to that in the canon. Try rephrasing, or ask about a specific teaching.'**
   String get researchErrorCannotAnswer;
 
   /// Generic Q&A error for a server fault or a malformed response; retry
   ///
   /// In en, this message translates to:
-  /// **'Something went wrong. Please try again.'**
+  /// **'Something went wrong on our end. Please try again.'**
   String get researchErrorServerError;
 
   /// Q&A error when the server was killed for exceeding its compute limit (Cloudflare 1102); retry usually succeeds
   ///
   /// In en, this message translates to:
-  /// **'That answer was too heavy to process. Please try again.'**
+  /// **'That answer took too much to finish. Please try again — a simpler question may help.'**
   String get researchErrorResourceLimit;
 
   /// Neutral notice (paired with Retry) when reopening a chat whose last question never received an answer — the original error was transient state and is gone
   ///
   /// In en, this message translates to:
-  /// **'This question wasn\'t answered.'**
+  /// **'This question wasn\'t answered yet.'**
   String get researchQuestionNotAnswered;
 
   /// Header above the list of saved research chats

@@ -381,38 +381,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get researchErrorOffline =>
-      'Can\'t reach the answer service. Check your connection and try again.';
+      'Couldn\'t connect. Check your internet and try again.';
 
   @override
   String get researchErrorTimeout =>
-      'That took too long — the model may be busy. Please try again.';
+      'This is taking longer than usual. Please try again.';
 
   @override
   String get researchErrorRateLimited =>
-      'You\'ve reached the question limit for now. Please try again later.';
+      'Research has had a lot of questions just now. Please try again in a few minutes.';
+
+  @override
+  String get researchErrorRateLimitedThinking =>
+      'Research has had a lot of questions just now. Try again in a few minutes, or switch to Fast mode.';
 
   @override
   String get researchErrorServiceBusy =>
-      'The answer service is busy or starting up. Please try again shortly.';
+      'Research is busy right now. Please try again in a moment.';
 
   @override
   String get researchErrorNotAuthorised =>
-      'This version of the app can\'t use the answer service.';
+      'Research isn\'t available right now. Please try again later.';
 
   @override
   String get researchErrorCannotAnswer =>
-      'I couldn\'t answer that. Try rephrasing your question.';
+      'I couldn\'t find an answer to that in the canon. Try rephrasing, or ask about a specific teaching.';
 
   @override
   String get researchErrorServerError =>
-      'Something went wrong. Please try again.';
+      'Something went wrong on our end. Please try again.';
 
   @override
   String get researchErrorResourceLimit =>
-      'That answer was too heavy to process. Please try again.';
+      'That answer took too much to finish. Please try again — a simpler question may help.';
 
   @override
-  String get researchQuestionNotAnswered => 'This question wasn\'t answered.';
+  String get researchQuestionNotAnswered =>
+      'This question wasn\'t answered yet.';
 
   @override
   String get researchRecent => 'Recent';

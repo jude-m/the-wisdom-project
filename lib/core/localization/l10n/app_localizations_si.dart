@@ -382,38 +382,43 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get researchErrorOffline =>
-      'පිළිතුරු සේවාව වෙත සම්බන්ධ විය නොහැක. ඔබගේ සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.';
+      'සම්බන්ධ විය නොහැකි විය. ඔබගේ අන්තර්ජාල සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.';
 
   @override
   String get researchErrorTimeout =>
-      'එයට වැඩි වේලාවක් ගත විය — ආකෘතිය කාර්යබහුල විය හැක. කරුණාකර නැවත උත්සාහ කරන්න.';
+      'මෙය සුපුරුදුට වඩා වැඩි වේලාවක් ගනිමින් පවතී. කරුණාකර නැවත උත්සාහ කරන්න.';
 
   @override
   String get researchErrorRateLimited =>
-      'දැනට ප්‍රශ්න සීමාවට ළඟා වී ඇත. කරුණාකර පසුව නැවත උත්සාහ කරන්න.';
+      'දැන් Research වෙත බොහෝ ප්‍රශ්න පැමිණ ඇත. කරුණාකර මිනිත්තු කිහිපයකින් නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get researchErrorRateLimitedThinking =>
+      'දැන් Research වෙත බොහෝ ප්‍රශ්න පැමිණ ඇත. මිනිත්තු කිහිපයකින් නැවත උත්සාහ කරන්න, නැතහොත් Fast ප්‍රකාරයට මාරු වන්න.';
 
   @override
   String get researchErrorServiceBusy =>
-      'පිළිතුරු සේවාව කාර්යබහුලයි හෝ ආරම්භ වෙමින් පවතී. කරුණාකර මොහොතකින් නැවත උත්සාහ කරන්න.';
+      'Research දැන් කාර්යබහුලයි. කරුණාකර මොහොතකින් නැවත උත්සාහ කරන්න.';
 
   @override
   String get researchErrorNotAuthorised =>
-      'මෙම යෙදුමේ මෙම අනුවාදයට පිළිතුරු සේවාව භාවිත කළ නොහැක.';
+      'Research දැන් ලබා ගත නොහැක. කරුණාකර පසුව නැවත උත්සාහ කරන්න.';
 
   @override
   String get researchErrorCannotAnswer =>
-      'එයට පිළිතුරු දිය නොහැකි විය. ඔබගේ ප්‍රශ්නය වෙනස් ආකාරයකින් අසන්න.';
+      'ත්‍රිපිටකයෙන් එයට පිළිතුරක් සොයා ගත නොහැකි විය. ප්‍රශ්නය වෙනස් ආකාරයකින් අසන්න, නැතහොත් නිශ්චිත ඉගැන්වීමක් ගැන අසන්න.';
 
   @override
   String get researchErrorServerError =>
-      'යම් දෝෂයක් සිදු විය. කරුණාකර නැවත උත්සාහ කරන්න.';
+      'අපගේ පැත්තෙන් යම් දෝෂයක් සිදු විය. කරුණාකර නැවත උත්සාහ කරන්න.';
 
   @override
   String get researchErrorResourceLimit =>
-      'පිළිතුර සැකසීමට නොහැකි තරම් විශාල විය. කරුණාකර නැවත උත්සාහ කරන්න.';
+      'එම පිළිතුර නිම කිරීමට වැඩි ධාරිතාවක් ගත විය. කරුණාකර නැවත උත්සාහ කරන්න — සරල ප්‍රශ්නයක් උපකාරී විය හැක.';
 
   @override
-  String get researchQuestionNotAnswered => 'මෙම ප්‍රශ්නයට පිළිතුරක් නොලැබුණි.';
+  String get researchQuestionNotAnswered =>
+      'මෙම ප්‍රශ්නයට තවම පිළිතුරක් නොලැබුණි.';
 
   @override
   String get researchRecent => 'මෑත සංවාද';
