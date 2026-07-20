@@ -37,6 +37,17 @@ SKIP_BUILD=false
 BUILD_MODE="debug"
 CLEAN=false
 
+# Research backend baked into the web build (a compile-time constant read via
+# String.fromEnvironment). Always the deployed Cloudflare Worker by default; an
+# exported RESEARCH_BASE_URL wins.
+#
+# CORS CAVEAT (web only): the browser enforces the Worker's CORS allow-list
+# (RESEARCH_CORS_ORIGINS in research_server/wrangler.jsonc). This dev server is
+# http://localhost:PORT, which is NOT in that list, so research calls will be
+# CORS-blocked in the browser until you add http://localhost:8080 there and
+# redeploy the Worker. Native platforms don't hit this — only the browser does.
+RESEARCH_BASE_URL="${RESEARCH_BASE_URL:-https://wisdom-research.bk-anigha.workers.dev}"
+
 # Parse arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -87,15 +98,18 @@ if [ "$SKIP_BUILD" = false ]; then
   case "$BUILD_MODE" in
     debug)
       echo "Building Flutter web app (DEBUG — debugPrint enabled)..."
-      flutter build web --debug
+      flutter build web --debug \
+        --dart-define=RESEARCH_BASE_URL="$RESEARCH_BASE_URL"
       ;;
     profile)
       echo "Building Flutter web app (PROFILE — performance profiling)..."
-      flutter build web --profile
+      flutter build web --profile \
+        --dart-define=RESEARCH_BASE_URL="$RESEARCH_BASE_URL"
       ;;
     release)
       echo "Building Flutter web app (release)..."
-      flutter build web --release
+      flutter build web --release \
+        --dart-define=RESEARCH_BASE_URL="$RESEARCH_BASE_URL"
       ;;
   esac
 

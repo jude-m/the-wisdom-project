@@ -15,7 +15,9 @@
     // CORS allow-list (browser-only protection). Exact-match against the
     // browser's Origin header — scheme+host+port, NO trailing slash, NO path.
     // Add the real public domain/IP alongside (comma-separated) when hosted.
-    "RESEARCH_CORS_ORIGINS": "http://192.168.1.200:8081"
+    //   192.168.1.200:8081 = deployed Flutter web (Windows content server)
+    //   localhost:8080      = local Flutter web dev (scripts/web/run_mac.sh)
+    "RESEARCH_CORS_ORIGINS": "http://192.168.1.200:8081,http://localhost:8080"
   },
   // Pin the Worker to a US region so outbound Gemini calls egress from a
   // Gemini-supported location. Cloudflare's global anycast egress otherwise
