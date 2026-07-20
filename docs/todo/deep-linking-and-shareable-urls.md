@@ -1,12 +1,12 @@
 # Deep Linking & Shareable Sutta URLs
 
-> Status: **ACTIVE PLAN — decisions locked 2026-07-06** (was Proposal since
+> Status: **ACTIVE PLAN — decisions locked 2026-07-06; reading-layout-in-URL added 2026-07-20** (was Proposal since
 > 2026-05-13). Split out of the former `web-deep-linking-seo-and-shareable-urls.md`
 > on 2026-06-11; the SEO / static HTML half lives in
-> [`../web-strategy/web-rewrite-strategy.md`](../web-strategy/web-rewrite-strategy.md)
+> [`../web-strategy/static-web-hosting.md`](../web-strategy/static-web-hosting.md)
 > and [`../web-strategy/static-html-prototype-plan.md`](../web-strategy/static-html-prototype-plan.md).
 > First consumer: **AI research citations** (tap a cited source → open in reader) —
-> see [`ai-qa-and-suttacentral-reference-resolver-plan.md`](./ai-qa-and-suttacentral-reference-resolver-plan.md) Part D.
+> see [`ai-qa-and-suttacentral-reference-resolver-plan.md`](./research/ai-qa-and-suttacentral-reference-resolver-plan.md) Part D.
 
 ---
 
@@ -34,6 +34,7 @@ One universal HTTPS link, e.g. `https://sammaditthi.app/tipitaka/sn-2-3-1-3?e=12
 | **URL identity** | **`/tipitaka/<nodeKey>`** (BJT tree node key, e.g. `sn-2-3-1-3`) | Matches the static-site plan's committed URLs; covers **all** content (commentary `atta-*`, treatises, Vinaya); maps 1:1 to `openTabFromNodeKeyProvider`. ~~`/sutta/<textId>`~~ **superseded**: `ReaderTab.textId` is declared but never populated anywhere — it was never the app's real navigation identity. |
 | **Path segment** | **`/tipitaka/`** (class `TipitakaLink`) — renamed from `/sutta/` same day | `/sutta/atta-…` (commentary) was self-contradictory inside one URL. "tipitaka" follows the content-noun pattern of scripture-reference sites (Wikipedia `/wiki/`, Bible.com `/bible/`, Access to Insight literally `/tipitaka/`), names the subject for humans + a small SEO keyword plus. Used in the **umbrella sense** (as tipitaka.lk uses it): aṭṭhakathā is strictly outside the Tipiṭaka — accepted, precedent covers it. |
 | **Entry-level target** | Query param **`?e=<pageIndex>.<entryIndexInPage>`** | Path = identity, query = view state. Same coordinates `ReaderTab`/search results already use. Optional; absent → sutta start. |
+| **Reading layout** *(added 2026-07-20)* | Query param **`?layout=<ReaderLayout.name>`** — `paliOnly` / `sinhalaOnly` / `sideBySide` / `stacked` | View state, same slot as `?e=`. Token = the enum's `.name`, i.e. the exact string the app **already persists** (`last_reader_layout_provider.dart`), so URL ⇄ storage ⇄ enum need no mapping table. Optional + lenient: absent or unknown → the reader's own preferred layout (`resolveSeedLayout`); a valid token overrides for that open. Path form (`/…/stacked`) rejected (breaks path=identity; needs a static rewrite); hash form (`#stacked`) rejected (collides with the chapter `#<nodeKey>` single-view filter). |
 | **Edition flexibility** | Not encoded in the URL | The nodeKey is a *tree address*, not "render BJT": when more editions exist (SuttaCentral, A.P. de Zoysa), the app opens the address in the user's main edition. Forcing one later = optional `?edition=` param; an SC-uid alias (`/s/sn15.3` → redirect) = data + one parse rule. Additive either way. |
 | **Router** | **Defer go_router** | The 4 scenarios need link *receiving*, not URL-driven app state. `app_links` (mobile/desktop) + `Uri.base` (web, at startup) feed one LinkOpener that reuses `openTabFromNodeKeyProvider`. go_router's real benefit (address-bar sync in Flutter web) lands on the demoted surface — the static site owns web URLs — and can be adopted later; the codec/opener are exactly what it would call. |
 | **Dev scheme** | **`sammaditthi://`** custom scheme, dev/QA only | Universal/App Links can't be verified against localhost (OS fetches `/.well-known/` over real HTTPS). The scheme tests the whole OS→app→reader pipe today, incl. macOS. **Never appears in shared links.** |
@@ -76,7 +77,10 @@ sides, per the static plan's C3.
 - **Codec** lives in `packages/wisdom_shared/lib/src/links/tipitaka_link.dart` —
   pure Dart, shared with the server and the future static generator. Lenient
   parsing (malformed → `null`, never throw). Accepts `http(s)` on any host,
-  the `/app/` base-href form, and `sammaditthi://`.
+  the `/app/` base-href form, and `sammaditthi://`. Carries
+  `{nodeKey, pageIndex?, entryIndex?, layout?}`; `layout` is the raw
+  `ReaderLayout.name` token so the package stays Flutter-free (it never imports
+  the enum) — the sink resolves token→enum leniently.
 - **LinkOpener** awaits `navigationTreeProvider.future` (cold-start links can
   arrive before the tree loads), validates the node exists, then opens through
   the existing tab machinery — deep links behave exactly like tree/search opens.
@@ -92,7 +96,7 @@ sides, per the static plan's C3.
 |---|---|---|
 | `nodeKey` | ✅ path | Identity (was `textId` — superseded, see Decisions) |
 | `pageIndex` + `entryStart` | ✅ query `e=` | Content-addressable jump |
-| `layout` | ❌ v1 | User preference wins; add `?layout=` later if wanted |
+| `layout` | ✅ query `?layout=` | **Locked v1 2026-07-20** (see Decisions). Optional; absent → the reader's preferred layout. Token = `ReaderLayout.name`. |
 | `splitRatio`, `scrollOffset`, `panes`, `contentFileId` | ❌ | Device/edition-specific view state |
 
 ## Universal / App Links — when the domain is live
@@ -119,7 +123,9 @@ Universal Links = only with the real domain.
 
 1. **`TipitakaLink` codec** in `wisdom_shared` (+ export).
 2. **App wiring** — `LINK_BASE_URL` config, LinkOpener provider,
-   `openTabFromNodeKeyProvider` gains optional explicit `pageIndex`/`entryStart`,
+   `openTabFromNodeKeyProvider` gains optional explicit `pageIndex`/`entryStart`/`layout`
+   (the sink `openTipitakaLinkProvider` maps the codec's raw `layout` token →
+   `ReaderLayout?`, lenient; null → `resolveSeedLayout`),
    `app_links` + `Uri.base` listeners, platform config (`sammaditthi://` on
    iOS/macOS/Android; disable Flutter's built-in deeplink handler).
 3. **Research citations** — citation tap → bottom sheet (cited source: ref +
@@ -129,13 +135,26 @@ Universal Links = only with the real domain.
 4. **Concordance pilot coverage** — grow `sc-to-bjt.json` seed to all of SN 15
    (title-confirmed), matching the ingested pilot corpus. Full build tool stays
    a separate task (see the resolver plan §B.4 / findings doc).
-5. **Later**: share/copy-link on reader tabs, `/.well-known` files + entitlements
+5. **Later**: share/copy-link on reader tabs (the shared URL carries the tab's
+   current `?layout=`), `/.well-known` files + entitlements
    when the domain is live, SC-uid alias URLs, `?edition=` param, go_router if
    Flutter-web address-bar UX ever matters, segment-level anchors (v2).
 
 ## Notes
 
 - Keep parsing **lenient** — unknown/malformed parts → defaults, never throw.
+- **`?layout=` — one token set, both surfaces, backward-compatible.** Token =
+  `ReaderLayout.name`; absent/unknown → the reader's preferred layout
+  (`resolveSeedLayout`), a valid token overrides for that open. The single sink
+  `openTipitakaLinkProvider` (`deep_link_provider.dart`) does the lenient
+  token→enum mapping, so **existing consumers need no change**: the live one —
+  **AI research citations** (`CitationSourceSheet` → `TipitakaLink(nodeKey: …)`,
+  Part D) — passes no layout and keeps opening in the preferred layout. `?layout=`
+  is *produced* by the reader-tab "copy link" (from the tab's current layout) and
+  *consumed* by incoming OS/shared links. The static HTML site honours the same
+  token via the ~8-line enhancement in
+  [`../web-strategy/static-html-prototype-plan.md`](../web-strategy/static-html-prototype-plan.md)
+  §7 (still works with no JS).
 - **Out-of-range `?e=` values** (code-review 2026-07-06, deferred): the reader
   already clamps (`multi_pane_reader_widget` sublist-clamp; entries via
   `.skip()`), so a stale `?e=9999.4` shows the "No content to display" empty

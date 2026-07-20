@@ -3,7 +3,7 @@
 > Status: **Plan / not started.** Captured 2026-06-12 (revised same day after
 > field research into tipitaka.lk, buddhadust, and SuttaCentral).
 > Scope: an honest static-HTML prototype of the Tipitaka content surface from
-> [`web-rewrite-strategy.md`](./web-rewrite-strategy.md) (Option A′). Proves, on
+> [`static-web-hosting.md`](./static-web-hosting.md) (Option A′). Proves, on
 > one small subtree: static page generation + a zero-JS tree navigator + **all 4
 > reading layouts** + the **per-sutta-page / formulaic-range grouping model**.
 > Search is **out of scope** for this prototype (server-rendered FTS comes later).
@@ -315,7 +315,13 @@ the reader toggles via the radios. To open *directly* in a layout from a link:
 |---|---|---|
 | **A. Default + radios only** | no URL state | ✅ prototype default; zero JS |
 | **B. `:target` via hash** | CSS `:target` | ⚠️ steals the fragment from sutta anchors; skip |
-| **C. ~8-line enhancement script** | read `?layout=`, check the radio once | ✅ later; page works 100% without it |
+| **C. ~8-line enhancement script** | read `?layout=<ReaderLayout.name>`, check the radio once | ✅ **the locked shareable-link contract** (2026-07-20) — token = the app's `ReaderLayout.name` (`paliOnly`/`sinhalaOnly`/`sideBySide`/`stacked`); page still works 100% without JS (baked default) |
+
+> **Layout in the URL is view state** → it rides in the query (`?layout=`), never
+> the path, matching the app's URL grammar (see
+> [`../todo/deep-linking-and-shareable-urls.md`](../todo/deep-linking-and-shareable-urls.md)).
+> `?layout=` and a grouped sutta's single-view fragment compose cleanly:
+> `…/tipitaka/an-2-64-76?layout=stacked#an-2-64`.
 
 > **Risk — entry alignment.** Side-by-side/stacked pair `pali[i]` with `sinh[i]`.
 > Unequal counts (localized headings; some nodes lack Sinhala — cf. the `ap-pat`
@@ -421,7 +427,7 @@ build/
 - **Chapter (grouped)** → `/tipitaka/<vaggaKey>`; single view `…#<nodeKey>`.
 - **Higher container** → `/tipitaka/<containerKey>/` TOC (links only).
 - **Every sutta's text is in exactly one file.** Hosting split (static `/`, app
-  `/app/`) lives in `web-rewrite-strategy.md`.
+  `/app/`) lives in `static-web-hosting.md`.
 
 ---
 
@@ -464,8 +470,10 @@ build/
   (243 micro-suttas) → chapter files with working `#fragment` single-views (no
   per-sutta files). Tune the size / run threshold.
 - **P6** Point at `kn-iti-1`; verify nesting + slicing across vaggas.
-- *(Later, separate)* server-rendered FTS search; `?layout=` enhancement (§7-C);
-  scroll-spy; sitemap/robots/JSON-LD from `web-rewrite-strategy.md`.
+- *(Later, separate)* client-side / linked search — **server-rendered FTS is
+  retired with the content server** (see `static-web-hosting.md`); scroll-spy;
+  sitemap/robots/JSON-LD from `static-web-hosting.md`. The `?layout=` enhancement
+  (§7-C) is **now the locked shareable-link contract**, not "later".
 
 ---
 
