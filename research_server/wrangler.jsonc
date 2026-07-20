@@ -11,7 +11,11 @@
     // Live needs RESEARCH_STUB=0 + RESEARCH_STORE here and the GEMINI_API_KEY
     // secret (`wrangler secret put GEMINI_API_KEY`). Locally use .dev.vars.
     "RESEARCH_STUB": "0",
-    "RESEARCH_STORE": "fileSearchStores/tipitakapilotsn15-ry6rxdcmw8z7"
+    "RESEARCH_STORE": "fileSearchStores/tipitakapilotsn15-ry6rxdcmw8z7",
+    // CORS allow-list (browser-only protection). Exact-match against the
+    // browser's Origin header — scheme+host+port, NO trailing slash, NO path.
+    // Add the real public domain/IP alongside (comma-separated) when hosted.
+    "RESEARCH_CORS_ORIGINS": "http://192.168.1.200:8081"
   },
   // Pin the Worker to a US region so outbound Gemini calls egress from a
   // Gemini-supported location. Cloudflare's global anycast egress otherwise

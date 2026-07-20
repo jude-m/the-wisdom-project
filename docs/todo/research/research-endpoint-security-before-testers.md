@@ -4,20 +4,36 @@
 URL into readable JS, so from that day the endpoint is public. Until then
 nothing here is urgent (dev-only exposure).
 
-## Where we are (2026-07-19)
+## Where we are (2026-07-20)
 
-- The live Worker (`wisdom-research.bk-anigha.workers.dev`) has **no gate**:
-  `RESEARCH_APP_TOKEN` is unset (the gate code in `app.ts` exists but stays
-  off without it) and CORS is `*`. Anyone with the URL can spend our Gemini
-  free-tier quota — the risk is the feature going 429 for real users, not
-  money.
+- **Decision (2026-07-20): skip the intermediate `X-App-Token`.** Rather than
+  ship a shared-secret token for the tester window and then rip it out, we go
+  straight to Firebase App Check when it's built. **Trade-off accepted:** until
+  App Check lands there is neither a token nor App Check, so the public Worker
+  URL is guarded only by CORS — and CORS is browser-only, so a script that
+  finds the URL can still burn our Gemini free-tier quota (feature goes 429 for
+  real users; no money at risk). Tolerable for a small LAN tester group, not
+  for a public release.
+- CORS is **pinned** to the tester origin `http://192.168.1.200:8081`
+  (`RESEARCH_CORS_ORIGINS` in `wrangler.jsonc`; no trailing slash — must match
+  the browser's `Origin` header exactly). Add the real domain/IP alongside it
+  (comma-separated) once the web build is hosted somewhere public.
+- The `X-App-Token` gate is **built but dormant** on both sides — server
+  (`app.ts:59` skips it while `RESEARCH_APP_TOKEN` is unset) and client
+  (`research_provider.dart` → `api_client.dart` send the header only when built
+  with `--dart-define=RESEARCH_APP_TOKEN=…`). Nothing to tear out now; the App
+  Check work decides whether this dead plumbing is removed or repurposed —
+  don't let an extractable token quietly become the floor.
 - Server-side input hardening is **done**: basket allowlist (`sutta`|`vinaya`)
   and size caps (question ≤ 4k chars, ≤ 12 history turns of ≤ 8k chars) in
   `contracts.ts`.
-- The client is **already wired**: it sends `X-App-Token` whenever the app is
-  built with `--dart-define=RESEARCH_APP_TOKEN=…` (`api_client.dart`).
 
 ## Tester-day checklist (~10 min, do all of it together)
+
+> Updated 2026-07-20: steps 2–3 (the `X-App-Token`) are **superseded** — we're
+> skipping the intermediate token and going straight to App Check (see the
+> decision above). Step 4 (CORS) is **done** (pinned to the LAN tester origin).
+> The token steps are kept below only in case that decision is reversed.
 
 1. Deploy any pending server code: `cd research_server && npm run deploy`.
 2. Set the token: `openssl rand -hex 32`, then
