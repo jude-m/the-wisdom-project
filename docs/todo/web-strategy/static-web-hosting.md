@@ -82,11 +82,15 @@ Two things ship as **static builds**; one **Worker** stays. Nothing is always-on
 | Surface | Build artifact | Served by | Indexed? |
 |---|---|---|---|
 | Static HTML site (`/`, `/tipitaka/*`) | SSG (`static_site_generator/`) → flat `.html` | **Cloudflare Pages** | ✅ canonical |
-| Flutter web app (`/app/*`) | `flutter build web` — canon DB in **Drift wasm/OPFS**, downloaded once in-browser | **Cloudflare Pages** | ❌ noindex |
+| Flutter web app (`/app/*`) | `flutter build web` (JS/wasm bundle) | **Cloudflare Pages** | ❌ noindex |
+| Canon DBs (content+FTS, `dict.db`) | prebuilt `.db` blobs → **Drift wasm/OPFS**, downloaded once | **Cloudflare R2** (too big for Pages — see 25 MiB note) | ❌ |
 | Research Q&A | TypeScript on **Cloudflare Workers** (scale-to-zero) | Workers | ❌ |
 
 - **No content API on this origin.** Text / FTS / dictionary are *client-side*
   (Drift). The app's only network backend is the research Worker.
+- **The DBs live on R2, not Pages** (per-file size — see the 25 MiB bullet below).
+  The Flutter *bundle* and the static HTML share the one Pages project; the heavy
+  canon blobs sit on R2 (zero egress) and are fetched once into OPFS.
 - **CORS now applies to the research call** (the app on Pages → the Worker on a
   different origin). Today it's pinned to the tester origin, with the App Check
   gate deferred (serverless doc §6). Content reads have *no* API, so *no* CORS.
@@ -104,14 +108,24 @@ All of this is the **free** Pages plan:
 - **File cap = 20,000 files per site.** The **whole canon** (all nikāyas +
   commentaries `atta-*` + Abhidhamma) generates **~14,900 files** under the current
   page model (~12,900 sutta + chapter pages — the ones in `sitemap.xml` — plus
-  ~2,000 container TOC pages). Fits with ~5,000 headroom. Note grouping the
-  formulaic runs (prototype plan §6/§13.1) **saves ~1,450 files** vs
-  one-page-per-micro-sutta — so grouping helps the file budget *and* SEO.
+  ~2,000 container TOC pages). Adding the Flutter web bundle (a few hundred files)
+  lands the one Pages project at **~15,200–15,400 — fits with ~4,600 headroom.**
+  Grouping the formulaic runs (prototype plan §6/§13.1) **saves ~1,450 files** vs
+  one-page-per-micro-sutta — so grouping helps the file budget *and* SEO. (The
+  canon DBs are **not** in this count — they're on R2, next bullet.)
 - **Bandwidth and requests are unlimited** on the static side — Googlebot, GPTBot,
   ClaudeBot and human readers never hit a metered wall. This directly serves the
   SEO / LLM-ingestion / slow-connection goals.
-- **Single-file max 25 MiB** — every generated page is far under (largest is one
-  full commentary node).
+- **Single-file max 25 MiB — this is the one real gotcha.** Every generated HTML
+  page is far under it (largest is one full commentary node). **But the canon
+  databases are not:** the content+FTS DB (~140–165 MB) and `dict.db` (~167 MB)
+  each blow past 25 MiB, so they **cannot be Pages files.** Host the DB blobs on
+  **Cloudflare R2** (no per-file cap, **zero egress**, edge-cached — already the
+  media/audio store, see the TTS plan), fetched **once** into OPFS on first load;
+  after that they're local + offline. Chunked range-loading (sql.js-httpvfs) was
+  **rejected** in favour of download-once (Drift-migration decision). Net: the
+  file-count budget above is HTML + the Flutter bundle only — the heavy DBs live on
+  R2, same Cloudflare account, different service.
 
 ### One Pages project (path-split) — recommended
 

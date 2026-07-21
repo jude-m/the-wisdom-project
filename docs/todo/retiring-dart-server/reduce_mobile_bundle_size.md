@@ -20,6 +20,13 @@
 > - **Delivery: download-once to OPFS on web** (offline), refreshed via **monthly
 >   batched** rebuilds (confirmed acceptable). Content+FTS co-versioned via a small
 >   manifest + content-hashed filenames; `dict.db` versioned separately.
+>   **Host the blobs on Cloudflare R2, not Cloudflare Pages** — the content+FTS DB
+>   (~140–165 MB) and `dict.db` (~167 MB) each exceed **Pages' 25 MiB per-file
+>   limit**, whereas R2 has no per-file cap and **zero egress** (already the
+>   media/audio store). The Flutter bundle + static HTML sit on one Pages project;
+>   only the heavy DBs live on R2. Details in
+>   [`../web-strategy/static-web-hosting.md`](../web-strategy/static-web-hosting.md)
+>   (Free-tier fit).
 > - **Verify first (flag):** FTS5 in the Drift wasm build — high confidence
 >   (standard `unicode61` tokenizer; prebuilt `sqlite3.wasm` ships
 >   `SQLITE_ENABLE_FTS5`) but confirm with a one-file spike (open real `bjt-fts.db`

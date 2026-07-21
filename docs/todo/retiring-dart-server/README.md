@@ -20,6 +20,12 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
 2. **Migrate FTS + dict to Drift** (native + web) — one engine, prove parity on every client.
 3. **Build the content DB** and fold it onto the same Drift path.
 4. **Retire** `server/` and the web remote datasources; make Flutter web static.
+   The static HTML site + Flutter bundle share one **Cloudflare Pages** project;
+   the canon DBs (~140–165 MB content+FTS, ~167 MB `dict.db`) exceed Pages' 25 MiB
+   per-file limit, so they're hosted on **R2** and downloaded once into OPFS — see
+   [`reduce_mobile_bundle_size.md`](./reduce_mobile_bundle_size.md) (delivery bullet)
+   and [`../web-strategy/static-web-hosting.md`](../web-strategy/static-web-hosting.md)
+   (Free-tier fit).
 
 ## Related (outside this folder)
 
