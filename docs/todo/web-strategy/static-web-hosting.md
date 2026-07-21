@@ -3,7 +3,7 @@
 > Status: **Direction decided 2026-06-11; hosting reworked for Cloudflare Pages
 > 2026-07-20** (the Dart content server is being retired).
 > This is the **hosting + deployment + crawl-plumbing** companion to the build
-> spec, [`static-html-prototype-plan.md`](./static-html-prototype-plan.md), which
+> spec, [`static-html-site-plan.md`](./static-html-site-plan.md), which
 > owns the *generator* and the page shape (zero-JS navigator, the 4 reading
 > layouts, per-sutta-vs-grouped file boundaries). To avoid duplication, page-shape
 > detail is **not** repeated here — this doc is only *where the files live and how
@@ -91,6 +91,28 @@ Two things ship as **static builds**; one **Worker** stays. Nothing is always-on
   different origin). Today it's pinned to the tester origin, with the App Check
   gate deferred (serverless doc §6). Content reads have *no* API, so *no* CORS.
 
+### Free-tier fit — files, HTTPS, bandwidth (verified 2026-07-20)
+
+All of this is the **free** Pages plan:
+
+- **HTTPS is automatic and free.** Every project is served over HTTPS on
+  `‹project›.pages.dev` out of the box (Cloudflare wildcard cert). A custom domain
+  (`sammaditthi.app`) gets a **free auto-provisioned SSL cert** (Universal SSL) +
+  HTTP→HTTPS redirect. This is precisely what lets the App-Links `.well-known`
+  files (below) be fetched over real HTTPS — the OS requirement for Universal /
+  App Links.
+- **File cap = 20,000 files per site.** The **whole canon** (all nikāyas +
+  commentaries `atta-*` + Abhidhamma) generates **~14,900 files** under the current
+  page model (~12,900 sutta + chapter pages — the ones in `sitemap.xml` — plus
+  ~2,000 container TOC pages). Fits with ~5,000 headroom. Note grouping the
+  formulaic runs (prototype plan §6/§13.1) **saves ~1,450 files** vs
+  one-page-per-micro-sutta — so grouping helps the file budget *and* SEO.
+- **Bandwidth and requests are unlimited** on the static side — Googlebot, GPTBot,
+  ClaudeBot and human readers never hit a metered wall. This directly serves the
+  SEO / LLM-ingestion / slow-connection goals.
+- **Single-file max 25 MiB** — every generated page is far under (largest is one
+  full commentary node).
+
 ### One Pages project (path-split) — recommended
 
 Preserve the old plan's clean URL scheme, but let **Cloudflare Pages** do the
@@ -147,7 +169,7 @@ The SSG emits all of it as static files:
   (`Book` / `CreativeWork`).
 - **`sitemap.xml`:** one `<url>` per **distinct sutta file + chapter file** (not
   the content-free redirect stubs) — this is what takes Google from "found one
-  page" to "indexed ~10,000 pages."
+  page" to "indexed ~13,000 pages" (full-canon count, §"Free-tier fit" above).
 - **`robots.txt`:** allow crawl, point to the sitemap, `Disallow: /app/`.
 - **Keep the app out of the index:** the Flutter `index.html` gets
   `<meta name="robots" content="noindex">`; static pages canonical to their own

@@ -1,12 +1,13 @@
-# Static HTML Prototype Plan — per-sutta SEO, Tree Navigator, 4 Layouts (no JS framework)
+# Static HTML Site — Build Plan (per-sutta SEO, Tree Navigator, 4 Layouts, no JS framework)
 
-> Status: **Plan / not started.** Captured 2026-06-12 (revised same day after
-> field research into tipitaka.lk, buddhadust, and SuttaCentral).
-> Scope: an honest static-HTML prototype of the Tipitaka content surface from
-> [`static-web-hosting.md`](./static-web-hosting.md) (Option A′). Proves, on
-> one small subtree: static page generation + a zero-JS tree navigator + **all 4
-> reading layouts** + the **per-sutta-page / formulaic-range grouping model**.
-> Search is **out of scope** for this prototype (server-rendered FTS comes later).
+> Status: **Plan / not started — the real build spec, not a throwaway prototype.**
+> Captured 2026-06-12 (revised after field research into tipitaka.lk, buddhadust,
+> and SuttaCentral; grouping model refined 2026-07-20).
+> Scope: the honest static-HTML surface of the Tipitaka content from
+> [`static-web-hosting.md`](./static-web-hosting.md) (Option A′) — **built
+> incrementally, smallest subtree first** (§5). Covers static page generation + a
+> zero-JS tree navigator + **all 4 reading layouts** + the **per-sutta-page /
+> formulaic-range grouping model**. Search is **out of scope here** (deferred).
 
 ---
 
@@ -26,8 +27,17 @@ HTML pages that:
 6. **Regenerate cleanly when the source JSON is corrected** — the source stays
    canonical; the generator is a pure, deterministic, incremental transform.
 
-No app shell, no flashy interactivity. If this prototype is clean, it scales to
-the whole canon unchanged.
+No app shell, no flashy interactivity. The build starts on one small subtree (§5)
+and scales to the whole canon unchanged — same code, more input.
+
+> **Edition scope (locked 2026-07-21): this static site renders BJT only.** Its job
+> is BJT-based discoverability / SEO / fast reading — not an edition browser.
+> **Multi-edition** (SuttaCentral, A.P. de Zoysa) lives in the **app** (Flutter web
+> `/app/*` + native), never here — so the static pages never emit an `?edition=`
+> param and need no `hreflang`/`canonical` edition handling. The URL grammar is
+> shared with the app (the app wears an `/app/` prefix and adds `?edition=`); full
+> model in the deep-linking plan's *"Editions & the two web surfaces"*
+> ([deep-linking-and-shareable-urls.md](../todo/deep-linking-and-shareable-urls.md)).
 
 ---
 
@@ -149,7 +159,7 @@ over the tree + the file's flattened entries.
 
 ---
 
-## 5. Prototype scope — pick a small subtree
+## 5. Build order — start with a small subtree
 
 1. **`kn-khp`** (ඛුද්දකපාඨපාළි) — 1 parent + **9 flat suttas**, 11 pages. The
    base-pipeline smoke test; all 9 are distinct (each gets its own page).
@@ -166,9 +176,14 @@ between (1) and (2); (3) turns on the grouping manifest.
 
 ## 6. Page-generation strategy — per-sutta by default, group only formulaic runs
 
-> **Current direction** (the SuttaCentral model). The *threshold value* and the
-> *famous-sutta allowlist* are to be tuned on real data, and the **shareable-link
-> target (app vs web) is deferred** — see §13. Everything else here is settled.
+> **Model LOCKED 2026-07-21 — per-container *binary*** (the SuttaCentral model,
+> refined). A vagga is **wholly exploded** (every leaf → its own
+> `/tipitaka/<nodeKey>` page) **or wholly grouped** (whole vagga → one chapter file,
+> single-view via `#<nodeKey>`), **never split** — the per-leaf "hoist substantial
+> siblings" mechanism is **retired**. The *threshold value* + *famous-sutta
+> allowlist* still tune on real data (P5); the **shareable-link target (app vs web)
+> is resolved** (both, per visitor — §13.2 + the deep-linking plan). Rationale +
+> numbers in **§13.1**.
 
 We considered three uniform rules and rejected both extremes:
 
@@ -176,7 +191,7 @@ We considered three uniform rules and rejected both extremes:
 |---|---|---|---|---|
 | **Per content-file (1:1)** | ❌ buried (kn-khp hides Maṅgala+Ratana+Mettā on one page) | ✅ fine | ✅ simplest | loses name-search SEO (fails C2) |
 | **Per vagga (uniform)** | ❌ buried (mn10 inside a vagga page) | ✅ ideal | ✅ deterministic | still fails C2 for DN/MN |
-| **Hybrid (chosen)** | ✅ own page → **ranks** | ✅ ranged | ✅ via manifest | wins both — the SuttaCentral model |
+| **Hybrid — per-container binary (chosen)** | ✅ own page → **ranks** | ✅ ranged | ✅ via manifest | wins both — the SuttaCentral model, refined |
 
 ### The rules — a sutta's text lives in exactly one file
 Inspection corrects the model: `/an2.64` is **not** a second file — watch it load
@@ -185,11 +200,11 @@ sutta**. SuttaCentral has **one data unit (the range)** and renders two routes
 from it with JavaScript. We get the single-sutta view **without duplicating text
 and without a SPA**:
 
-1. **Distinct / substantial sutta → its own file** `/tipitaka/<nodeKey>`: full text,
+1. **Leaf of an *exploded* vagga → its own file** `/tipitaka/<nodeKey>`: full text,
    `<title>` = sutta name, canonical self → full per-sutta SEO (C2), shareable
    (C3), single view (C4); mirrors the app's `/tipitaka/<id>`. Its container is a
    **TOC** (links only); continuous reading via prev/next.
-2. **Micro / grouped sutta → lives *only* in its chapter file** `/tipitaka/<vaggaKey>`:
+2. **Leaf of a *grouped* vagga → lives *only* in its chapter file** `/tipitaka/<vaggaKey>`:
    one page holding the whole run, each sutta `<section class="sutta" id="<nodeKey>">`.
    The navigator's deepest link, the continuous-reading surface (C7), and the SEO
    unit for the run.
@@ -230,13 +245,25 @@ file, which you've ruled out. The cost is ~nil: grouped suttas are exactly the o
 nobody searches by individual name. **Distinct / famous suttas keep full per-sutta
 SEO** via their own files (the `/an2.64`-style #1 result lands on those).
 
-### Classifying distinct (own file) vs grouped (chapter file)
-- Substantial suttas (≥ size threshold) → **distinct** (own file). Runs of
-  consecutive small siblings → **grouped** into one chapter file. (kn-khp: ~600–800
-  chars separates substantial from trivial; tune on AN1/AN2 in P5.)
-- A small **allowlist** can force a famous-but-short sutta to be distinct.
+### Classifying explode vs group — per container (vagga), not per leaf
+Decide **per deepest container (vagga)**; every leaf inherits the verdict — a vagga
+is wholly **exploded** or wholly **grouped**, never split.
+- **Group iff the vagga is a uniform micro run** — heuristic **≥ ~6 leaves AND
+  max leaf < ~1500 combined chars**; else **explode**. The `< 1500` clause is the
+  SEO guard: the moment a vagga holds one substantial sutta it fails → explodes →
+  that sutta keeps its own rankable page (never buried). Tune the predicate on
+  AN1/AN2/SN in P5.
+- **~49 "awkward" vaggas** (mostly-micro + one buried substantial sutta, e.g.
+  `sn-1-1-2` = 9 micro + a 12K sutta) are the only editorial calls → decided by
+  hand, **leaning explode** (never bury the big one; the thin micro pages are
+  harmless — nobody name-searches them). A small **allowlist** likewise forces a
+  famous-but-short sutta to explode.
 - **Persist to committed `grouping.json`** (curated, stable → no URL drift); a text
   correction never re-buckets. Re-grouping is an explicit edit.
+- **Why per-container, not per-leaf hoist:** on real data big & micro suttas
+  interleave (119/184 AN, 142/243 SN vaggas size-mixed; `an-4-2-3` = `..D..D.DDD`),
+  so hoisting the big ones out leaves non-contiguous chapter files. Whole-or-nothing
+  keeps every chapter a real contiguous tree range. Full numbers: §13.1.
 
 ### Re-sync — the `source → [outputs]` manifest (satisfies C1)
 - The generator records, per source `assets/text/<fileId>.json`, the **list** of
@@ -313,7 +340,7 @@ the reader toggles via the radios. To open *directly* in a layout from a link:
 
 | Option | How | Verdict |
 |---|---|---|
-| **A. Default + radios only** | no URL state | ✅ prototype default; zero JS |
+| **A. Default + radios only** | no URL state | ✅ v1 default; zero JS |
 | **B. `:target` via hash** | CSS `:target` | ⚠️ steals the fragment from sutta anchors; skip |
 | **C. ~8-line enhancement script** | read `?layout=<ReaderLayout.name>`, check the radio once | ✅ **the locked shareable-link contract** (2026-07-20) — token = the app's `ReaderLayout.name` (`paliOnly`/`sinhalaOnly`/`sideBySide`/`stacked`); page still works 100% without JS (baked default) |
 
@@ -326,7 +353,7 @@ the reader toggles via the radios. To open *directly* in a layout from a link:
 > **Risk — entry alignment.** Side-by-side/stacked pair `pali[i]` with `sinh[i]`.
 > Unequal counts (localized headings; some nodes lack Sinhala — cf. the `ap-pat`
 > TODO in `TipitakaTreeNode`) make naive pairing drift, and this bites hardest on
-> the heaviest commentary pages. Prototype mitigation: pad the short side with
+> the heaviest commentary pages. Mitigation: pad the short side with
 > empty cells and **log a warning** so we measure how often it happens.
 
 ---
@@ -479,9 +506,46 @@ build/
 
 ## 13. Open questions & deferred decisions
 
-1. **Final grouping lock** *(kept open on purpose)*: the **size / run-length
-   threshold** separating *distinct* (own file) from *grouped* (chapter file).
-   Tune on real AN1/AN2/SN data in P5 before committing `grouping.json`.
+1. **Grouping model & threshold** *(model **LOCKED 2026-07-21**; only the threshold
+   value remains for P5 tuning)*:
+
+   **LOCKED: per-container *binary*, replacing §6's per-leaf "hoist"
+   mechanism.** Decide grouping **per deepest container (vagga)**, not per sutta —
+   a vagga is *either* fully **exploded** (every leaf → its own
+   `/tipitaka/<nodeKey>` page) *or* fully **grouped** (whole vagga → one chapter
+   file `/tipitaka/<vaggaKey>`, single-view via `#<nodeKey>`). **Never split a
+   vagga.**
+   - *Why not §6's "hoist the substantial siblings out":* on real data the big and
+     micro suttas are **interleaved**, not separable — **119/184 AN** and
+     **142/243 SN** vaggas are size-mixed, and only ~half have the micro ones
+     contiguous (e.g. `an-4-2-3` = `..D..D.DDD`). Hoisting ⇒ mostly *partial*,
+     often *non-contiguous* chapter files. Whole-or-nothing avoids that entirely.
+   - *Why per-container is safe:* the BJT compilers already package the true
+     formulaic runs as their own vaggas (`an-3-7 කම්මපථ පෙය්යාලං` = 20 uniform
+     micro) or collapse them into one node (`an-3-8 රාග පෙය්යාලං` = 1 leaf).
+     **"Short" ≠ "formulaic"**: a short *named* sutta (`පඨමඅග්ගසුත්තං`, 316c) is
+     unique content, not duplicate → it gets its own page (as Mahamevnawa does),
+     which the "SEO must never be compromised" rule also wants.
+   - *URL consequence — resolves open-Q#3:* the range URL is **always a real tree
+     key** (`sn-2-3-1`), never a synthesized `an-1-1-1--10`. (SuttaCentral must
+     invent range keys — its data is flat segments; our tree already has the
+     container node, so we don't.)
+   - *Classifier (seeds `grouping.json`):* group a container iff it is a uniform
+     micro run — heuristic: **≥ ~6 leaves AND max leaf < ~1500 combined chars**;
+     else explode. **~49 "awkward" vaggas** (mostly-micro + one buried substantial
+     sutta — `sn-1-1-2 නන්දනවග්ග` = 9 micro + one 12K sutta; `an-1-14 එතදග්ගපාළි`,
+     the foremost-disciples list) are the **only** editorial calls → the committed
+     `grouping.json` + a famous-sutta allowlist decide those by hand. Tune the
+     predicate on AN1/AN2/SN in P5.
+   - *Scale (full canon, this model):* ~12,900 sutta + chapter files + ~2,000
+     container TOC pages ≈ **14,900 files**, inside Cloudflare Pages' 20,000-file
+     free cap (see [`static-web-hosting.md`](./static-web-hosting.md)); grouping
+     *saves* ~1,450 files vs one-page-per-micro. The **SN 15 seed explodes cleanly**
+     (both vaggas above threshold) → every SN 15 sutta keeps its own page + citation
+     URL, which the RAG deep-links need.
+
+   **Locked 2026-07-21:** per-container-binary adopted over hoist; §6 body updated
+   to match. Remaining: tune the classifier threshold on AN1/AN2/SN in P5.
 2. **Shareable-link target — app vs web** *(RESOLVED 2026-07-06, C3)*: **both,
    per visitor** — the app side is being built now (see the locked
    `../todo/deep-linking-and-shareable-urls.md`): app installed + link tapped in

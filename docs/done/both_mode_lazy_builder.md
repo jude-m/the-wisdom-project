@@ -1,7 +1,7 @@
 # Both Mode: Migrate from Eager Column to Lazy ListView.builder
 
 > **Status: Won't do (2026-06-14).** Superseded by C4 — the reading unit is moving to a
-> **single sutta** (micro-suttas grouped by vagga; see `web-strategy/static-html-prototype-plan.md`).
+> **single sutta** (micro-suttas grouped by vagga; see `web-strategy/static-html-site-plan.md`).
 > A bounded sutta is only tens of entries, so eager rendering is already cheap *and* keeps
 > cross-page text selection — removing the reason to go lazy. Revert Option B when bounding lands.
 

@@ -4,7 +4,7 @@
 > 2026-05-13). Split out of the former `web-deep-linking-seo-and-shareable-urls.md`
 > on 2026-06-11; the SEO / static HTML half lives in
 > [`../web-strategy/static-web-hosting.md`](../web-strategy/static-web-hosting.md)
-> and [`../web-strategy/static-html-prototype-plan.md`](../web-strategy/static-html-prototype-plan.md).
+> and [`../web-strategy/static-html-site-plan.md`](../web-strategy/static-html-site-plan.md).
 > First consumer: **AI research citations** (tap a cited source → open in reader) —
 > see [`ai-qa-and-suttacentral-reference-resolver-plan.md`](./research/ai-qa-and-suttacentral-reference-resolver-plan.md) Part D.
 
@@ -26,6 +26,9 @@ One universal HTTPS link, e.g. `https://sammaditthi.app/tipitaka/sn-2-3-1-3?e=12
    "Open in app" banner covers that case.
 4. **WhatsApp / Gmail / any app**: tap → app opens directly (OS interception).
    The rich preview thumbnail comes from the static page's OG meta tags.
+   *(Caveat: a few apps open links in their own in-app webview, which can bypass
+   the OS interception — the web page's "Open in app" banner (scenario 3) is the
+   safety net. A normal chat-link tap in WhatsApp does hand off to the app.)*
 
 ## Decisions (locked 2026-07-06)
 
@@ -35,7 +38,7 @@ One universal HTTPS link, e.g. `https://sammaditthi.app/tipitaka/sn-2-3-1-3?e=12
 | **Path segment** | **`/tipitaka/`** (class `TipitakaLink`) — renamed from `/sutta/` same day | `/sutta/atta-…` (commentary) was self-contradictory inside one URL. "tipitaka" follows the content-noun pattern of scripture-reference sites (Wikipedia `/wiki/`, Bible.com `/bible/`, Access to Insight literally `/tipitaka/`), names the subject for humans + a small SEO keyword plus. Used in the **umbrella sense** (as tipitaka.lk uses it): aṭṭhakathā is strictly outside the Tipiṭaka — accepted, precedent covers it. |
 | **Entry-level target** | Query param **`?e=<pageIndex>.<entryIndexInPage>`** | Path = identity, query = view state. Same coordinates `ReaderTab`/search results already use. Optional; absent → sutta start. |
 | **Reading layout** *(added 2026-07-20)* | Query param **`?layout=<ReaderLayout.name>`** — `paliOnly` / `sinhalaOnly` / `sideBySide` / `stacked` | View state, same slot as `?e=`. Token = the enum's `.name`, i.e. the exact string the app **already persists** (`last_reader_layout_provider.dart`), so URL ⇄ storage ⇄ enum need no mapping table. Optional + lenient: absent or unknown → the reader's own preferred layout (`resolveSeedLayout`); a valid token overrides for that open. Path form (`/…/stacked`) rejected (breaks path=identity; needs a static rewrite); hash form (`#stacked`) rejected (collides with the chapter `#<nodeKey>` single-view filter). |
-| **Edition flexibility** | Not encoded in the URL | The nodeKey is a *tree address*, not "render BJT": when more editions exist (SuttaCentral, A.P. de Zoysa), the app opens the address in the user's main edition. Forcing one later = optional `?edition=` param; an SC-uid alias (`/s/sn15.3` → redirect) = data + one parse rule. Additive either way. |
+| **Edition flexibility** | Not in the *path*; optional `?edition=` query, **app surfaces only** *(scope locked 2026-07-21)* | The nodeKey is a *tree address*, not "render BJT". Multi-edition (SuttaCentral, A.P. de Zoysa) is scoped to the **app** (Flutter web `/app/*` + native); the static site is **BJT-only**. So `?edition=` is a query modifier meaningful only under `/app/*` — the static `/tipitaka/*` pages never emit or read it. An SC-uid alias (`/s/sn15.3` → redirect) = data + one parse rule. Full model in **Editions & the two web surfaces** below. |
 | **Router** | **Defer go_router** | The 4 scenarios need link *receiving*, not URL-driven app state. `app_links` (mobile/desktop) + `Uri.base` (web, at startup) feed one LinkOpener that reuses `openTabFromNodeKeyProvider`. go_router's real benefit (address-bar sync in Flutter web) lands on the demoted surface — the static site owns web URLs — and can be adopted later; the codec/opener are exactly what it would call. |
 | **Dev scheme** | **`sammaditthi://`** custom scheme, dev/QA only | Universal/App Links can't be verified against localhost (OS fetches `/.well-known/` over real HTTPS). The scheme tests the whole OS→app→reader pipe today, incl. macOS. **Never appears in shared links.** |
 | **Link base URL** | `--dart-define=LINK_BASE_URL`, default **`http://localhost:8080`** | Same idiom as `RESEARCH_BASE_URL`. 8080 = the Dart content server (SPA fallback), so shared links work in dev and on the LAN Windows box. Production host (`sammaditthi.app`) is config, not code. |
@@ -49,6 +52,101 @@ static HTML site (full text in source). This plan only decides what happens
 when a *human with the app* uses the same URL. The single shared contract
 between the two plans is the URL shape `/tipitaka/<nodeKey>` — identical on both
 sides, per the static plan's C3.
+
+---
+
+## Editions & the two web surfaces (scope locked 2026-07-21)
+
+Two sibling surfaces share **one URL grammar** but split the work:
+
+| Path | Surface | Edition(s) | Indexed? | Renderer |
+|---|---|---|---|---|
+| `/`, `/tipitaka/<nodeKey>` | **Static site** | **BJT only** | ✅ yes — the SEO surface | plain HTML, zero-JS |
+| `/app/…`, `/app/tipitaka/<nodeKey>` | **Flutter web** (the app) | **multi-edition** (BJT, SC, A.P. de Zoysa…) | ❌ no (`robots` Disallow `/app/`) | Flutter SPA (canvas) |
+
+- **Static = BJT-only, by design.** Its motivation is BJT-based discoverability /
+  SEO / fast reading — not an edition browser. This *deletes* all multi-edition SEO
+  machinery (no `hreflang`/`canonical` edition pages) from the static side.
+- **Multi-edition lives only in the app.** Editions are already app-side data
+  (`Edition` entity + registry + per-edition datasource — see
+  [`multi_edition_architecture.md`](./multi_edition_architecture.md)).
+- **`?edition=<editionId>`** (e.g. `sc`, `apz`) is therefore a query modifier only
+  meaningful under `/app/*`; the static site never emits or reads it. Token = the
+  `editionId` the app already stores → URL ⇄ registry, no mapping table (same trick
+  as `?layout=`).
+
+### Flutter-web URLs — same grammar, `/app/` prefix
+
+A full app URL stacks the same modifiers on the same permanent node address:
+
+```
+https://host/app/tipitaka/sn-2-3-1-3?e=12.4&layout=sideBySide&edition=sc
+         └base┘└─── shared grammar ───┘└──────── modifiers ────────┘
+```
+
+- **Landing in (built).** Flutter reads the whole URL once via `Uri.base` at
+  startup → the LinkOpener opens that sutta / position / layout / edition. Clean
+  `/app/tipitaka/…` paths need Flutter's **path-URL strategy** (else the default
+  ugly `#`-hash form) **+** a host **SPA fallback** (`/app/* → /app/index.html`) so
+  deep URLs serve the shell instead of 404. The `TipitakaLink` codec already strips
+  the `/app/` base.
+- **Sharing out (planned).** Flutter web is a SPA, so the **address bar does not
+  auto-track** in-app navigation (no `go_router` — deferred). Sharing is therefore
+  an explicit reader-tab **"copy link / share"** button that *builds* the canonical
+  URL from the tab's state (node + `e` + layout + edition), in the form the
+  **Sharing & resolution** rule picks below — identical on native and web. This is
+  why go_router isn't needed for correctness.
+- **go_router (optional, later).** Adds live address-bar sync + browser
+  back/forward + copy-straight-from-the-bar. Additive; the share button already
+  covers sharing.
+
+### Sharing & resolution *(open sub-decision resolved 2026-07-21)*
+
+**Routing — each URL opens its own surface; no edge compute.** `/tipitaka/*` are
+real static files (served directly); `/app/*` is the Flutter shell via one
+SPA-fallback **rewrite** (`/app/*  /app/index.html  200`) — a static `_redirects`
+line, **not** a Pages Function. Nothing inspects a link to reroute it, so the two
+forms differ only by the `/app/` prefix.
+
+**Static → app link (on every BJT page).** Each static sutta page carries an
+*"Open in the app"* link to `/app/tipitaka/<nodeKey>` with the page's own
+`?e=`/`?layout=` query — a plain `<a href>`, zero-JS, literally the page's own URL
+with the `/app/` prefix added. It's the doorway from the indexed BJT page into the
+full multi-edition reader (and on a phone with the app installed, the OS opens the
+**native** app instead — golden rule 1). No logic needed — it's the mechanical
+reverse of the emit rule.
+
+**Which form to share — web default = static (the "better gift").** When a link
+is bound for the *web* (recipient has no app), the default surface is the
+**static site**: faster, indexed, real WhatsApp preview, degrades best — and it
+*still* opens the native app if installed, *still* offers "Open in app" if not.
+Static is BJT-only, so the emit rule keys on **edition**, not on where you clicked:
+
+| Reading | Share button emits | Web-fallback lands on |
+|---|---|---|
+| **BJT** | `/tipitaka/<nodeKey>` | static site — the better gift |
+| **non-BJT** (SC, A.P. de Zoysa) | `/app/tipitaka/<nodeKey>?edition=…` | Flutter web — the only surface that can render it |
+
+So a BJT reading shared from *anywhere* (static, Flutter web, or native) emits
+`/tipitaka/`; a non-BJT reading can only be `/app/…?edition=` (static can't render
+it). Escape hatch (rare): a secondary "copy app link instead" for someone who
+explicitly wants the Flutter-web form — one smart default, never two co-equal
+buttons.
+
+**Golden rules — invariant of the emit choice** (they live a layer *below* the
+share button, so no emit model can compromise them):
+- *Installed → native app opens* — guaranteed by the App-Links files
+  (`apple-app-site-association` / `assetlinks.json`) claiming **both** `/tipitaka/*`
+  **and** `/app/tipitaka/*`. Every emitted form opens the app when installed.
+- *Deep link → correct in-app location* — guaranteed by the `TipitakaLink` codec:
+  it strips the `/tipitaka/` or `/app/` prefix and reads the same
+  `nodeKey`+`e`+`layout`+`edition`, landing on the exact sutta/position/layout/edition.
+
+The emit choice therefore affects **only** what a *no-app web recipient* sees
+(static vs Flutter shell) — never the installed-app path or in-app navigation.
+*Asterisk (constant, not caused by any model):* a link tapped inside WhatsApp's own
+in-app browser may not auto-fire the Universal Link (OS/WebView limit) — the static
+page's "Open in app" banner is the safety net, one more vote for BJT → `/tipitaka/`.
 
 ---
 
@@ -153,7 +251,7 @@ Universal Links = only with the real domain.
   is *produced* by the reader-tab "copy link" (from the tab's current layout) and
   *consumed* by incoming OS/shared links. The static HTML site honours the same
   token via the ~8-line enhancement in
-  [`../web-strategy/static-html-prototype-plan.md`](../web-strategy/static-html-prototype-plan.md)
+  [`../web-strategy/static-html-site-plan.md`](../web-strategy/static-html-site-plan.md)
   §7 (still works with no JS).
 - **Out-of-range `?e=` values** (code-review 2026-07-06, deferred): the reader
   already clamps (`multi_pane_reader_widget` sublist-clamp; entries via
