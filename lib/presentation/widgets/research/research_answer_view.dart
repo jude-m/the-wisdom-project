@@ -25,22 +25,29 @@ class ResearchAnswerView extends StatelessWidget {
   /// Sources for the answer — chips are looked up here by uid.
   final List<Citation> citations;
 
-  /// One inline token: a citation marker, `**bold**`, or `*italic*`. Bold is
-  /// listed before italic so `**x**` matches the bold arm, not two italics.
+  /// A citation marker: `[[cite:uid]]`. Matches wherever it sits — including
+  /// inside a bold/italic run, which [_inline]'s bold arm would otherwise
+  /// swallow. Used to tally which uids appear inline (so the footer never
+  /// repeats one) and reused as the first arm of [_inline] below.
+  static final RegExp _citeUid = RegExp(r'\[\[cite:([^\]\s]+)\]\]');
+
+  /// One inline token: a citation marker, `**bold**`, or `*italic*`. Composed
+  /// from [_citeUid] so the two can't drift; bold is listed before italic so
+  /// `**x**` matches the bold arm, not two italics. Groups: 1=uid, 2=bold,
+  /// 3=italic.
   static final RegExp _inline =
-      RegExp(r'\[\[cite:([^\]\s]+)\]\]|\*\*(.+?)\*\*|\*(.+?)\*');
+      RegExp('${_citeUid.pattern}' r'|\*\*(.+?)\*\*|\*(.+?)\*');
 
   /// A leading list bullet (`- ` or `* `) at the start of a line.
   static final RegExp _bullet = RegExp(r'^\s*[-*]\s+');
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     final citationsByUid = {for (final c in citations) c.uid: c};
     final blocks = _parseBlocks(answer);
 
     // uids already rendered as inline chips — so we never repeat one below.
-    final inlineUids = _inline
+    final inlineUids = _citeUid
         .allMatches(answer)
         .map((m) => m.group(1))
         .whereType<String>()
@@ -48,41 +55,37 @@ class ResearchAnswerView extends StatelessWidget {
     final otherSources =
         citations.where((c) => !inlineUids.contains(c.uid)).toList();
 
-    final children = <Widget>[];
-    for (var i = 0; i < blocks.length; i++) {
-      if (i > 0) children.add(const SizedBox(height: 8));
-      children.add(_buildBlock(context, blocks[i], citationsByUid));
-    }
-
-    // Sources Gemini grounded on that the answer didn't name inline (cited by
-    // retrieval, not written into the prose). Shown once, at the bottom, under a
-    // heading — never duplicating an inline chip.
-    if (otherSources.isNotEmpty) {
-      children.add(const SizedBox(height: 12));
-      children.add(_buildOtherSources(context, l10n, otherSources));
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: children,
+      // 8 between every block; the footer's own top padding adds 4 more to
+      // reach the 12 it wants below the last block.
+      spacing: 8,
+      children: [
+        for (final block in blocks) _buildBlock(context, block, citationsByUid),
+        // Sources Gemini grounded on that the answer didn't name inline (cited
+        // by retrieval, not written into the prose). Shown once, at the bottom,
+        // under a heading — never duplicating an inline chip.
+        if (otherSources.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: _buildOtherSources(context, otherSources),
+          ),
+      ],
     );
   }
 
-  Widget _buildOtherSources(
-    BuildContext context,
-    AppLocalizations l10n,
-    List<Citation> sources,
-  ) {
+  Widget _buildOtherSources(BuildContext context, List<Citation> sources) {
+    final l10n = AppLocalizations.of(context);
     final textTheme = Theme.of(context).textTheme;
     final colors = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 6,
       children: [
         Text(
           l10n.researchOtherSources,
           style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
         ),
-        const SizedBox(height: 6),
         Wrap(
           spacing: 6,
           runSpacing: 6,
@@ -129,7 +132,7 @@ class ResearchAnswerView extends StatelessWidget {
     Map<String, Citation> citationsByUid,
   ) {
     final textWidget = Text.rich(
-      TextSpan(children: _inlineSpans(context, block.text, citationsByUid)),
+      TextSpan(children: _inlineSpans(block.text, citationsByUid)),
     );
     if (!block.bullet) return textWidget;
 
@@ -154,7 +157,6 @@ class ResearchAnswerView extends StatelessWidget {
   /// Tokenises one block into spans: plain text, bold/italic runs, and a
   /// [_CitationChip] `WidgetSpan` for each `[[cite:uid]]` marker.
   List<InlineSpan> _inlineSpans(
-    BuildContext context,
     String text,
     Map<String, Citation> citationsByUid,
   ) {
@@ -181,14 +183,16 @@ class ResearchAnswerView extends StatelessWidget {
           ));
         }
       } else if (bold != null) {
+        // Recurse into the run so a `[[cite:uid]]` inside `**…**` still becomes
+        // a chip; the children inherit this span's bold style.
         spans.add(TextSpan(
-          text: bold,
           style: const TextStyle(fontWeight: FontWeight.bold),
+          children: _inlineSpans(bold, citationsByUid),
         ));
       } else if (italic != null) {
         spans.add(TextSpan(
-          text: italic,
           style: const TextStyle(fontStyle: FontStyle.italic),
+          children: _inlineSpans(italic, citationsByUid),
         ));
       }
 
@@ -209,10 +213,6 @@ class _CitationChip extends StatelessWidget {
 
   final Citation citation;
 
-  void _open(BuildContext context) {
-    CitationSourceSheet.show(context, citation);
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -226,7 +226,7 @@ class _CitationChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => _open(context),
+          onTap: () => CitationSourceSheet.show(context, citation),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
             child: Row(
