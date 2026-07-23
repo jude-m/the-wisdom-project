@@ -10,8 +10,8 @@
 > crawlers find them.*
 > The demoted Jaspr-rewrite analysis (Options compare, clean-architecture audit,
 > shared-package extraction) now lives in [`jaspr/`](./jaspr/).
-> Companion todo docs: [`../todo/serverless-deployment-decision.md`](../todo/serverless-deployment-decision.md)
-> (backends), [`../todo/deep-linking-and-shareable-urls.md`](../todo/deep-linking-and-shareable-urls.md)
+> Companion todo docs: [`../serverless-deployment-decision.md`](../serverless-deployment-decision.md)
+> (backends), [`./deep-linking-and-shareable-urls.md`](./deep-linking-and-shareable-urls.md)
 > (in-app link receiving + URL grammar).
 >
 > ⚠️ **URL identity** is the bare `nodeKey` under `/tipitaka/` (e.g.
@@ -34,7 +34,7 @@
    — native FFI on mobile/desktop, **wasm + OPFS** in the browser (download-once)
    — so **Flutter web becomes a static bundle too.** The only backend left is the
    scale-to-zero **research (RAG) Worker**. Net: **zero always-on infrastructure**
-   (source: [`../todo/serverless-deployment-decision.md`](../todo/serverless-deployment-decision.md)
+   (source: [`../serverless-deployment-decision.md`](../serverless-deployment-decision.md)
    update 2026-07-16).
 
 Keep Flutter for the native apps **and** the web app. The static site *links into*
@@ -70,7 +70,7 @@ the web but Flutter widgets in the app regardless. The shared seam is the
 Companion app decision: the app's **reading unit is a single sutta** (micro-suttas
 grouped by vagga), dropping continuous cross-sutta scroll. A bounded sutta is only
 tens of entries, so the app renders it eagerly — cheap *and* preserving cross-page
-text selection — which is why the [`../done/both_mode_lazy_builder.md`](../done/both_mode_lazy_builder.md)
+text selection — which is why the [`../../done/both_mode_lazy_builder.md`](../../done/both_mode_lazy_builder.md)
 lazy migration was dropped.
 
 ---
@@ -81,16 +81,17 @@ Two things ship as **static builds**; one **Worker** stays. Nothing is always-on
 
 | Surface | Build artifact | Served by | Indexed? |
 |---|---|---|---|
-| Static HTML site (`/`, `/tipitaka/*`) | SSG (`static_site_generator/`) → flat `.html` | **Cloudflare Pages** | ✅ canonical |
-| Flutter web app (`/app/*`) | `flutter build web` (JS/wasm bundle) | **Cloudflare Pages** | ❌ noindex |
+| Static HTML site (apex: `/`, `/tipitaka/*`) | SSG (`static_site_generator/`) → flat `.html` | **Cloudflare Pages** (own project) | ✅ canonical |
+| Flutter web app (`app.<domain>`) | `flutter build web` (JS/wasm bundle) | **Cloudflare Pages** (own project — see "Project topology") | ❌ noindex |
 | Canon DBs (content+FTS, `dict.db`) | prebuilt `.db` blobs → **Drift wasm/OPFS**, downloaded once | **Cloudflare R2** (too big for Pages — see 25 MiB note) | ❌ |
 | Research Q&A | TypeScript on **Cloudflare Workers** (scale-to-zero) | Workers | ❌ |
 
 - **No content API on this origin.** Text / FTS / dictionary are *client-side*
   (Drift). The app's only network backend is the research Worker.
 - **The DBs live on R2, not Pages** (per-file size — see the 25 MiB bullet below).
-  The Flutter *bundle* and the static HTML share the one Pages project; the heavy
-  canon blobs sit on R2 (zero egress) and are fetched once into OPFS.
+  The Flutter bundle and the static HTML are **separate Pages projects** (see
+  "Project topology"); the heavy canon blobs sit on R2 (zero egress) and are
+  fetched once into OPFS.
 - **CORS now applies to the research call** (the app on Pages → the Worker on a
   different origin). Today it's pinned to the tester origin, with the App Check
   gate deferred (serverless doc §6). Content reads have *no* API, so *no* CORS.
@@ -105,19 +106,28 @@ All of this is the **free** Pages plan:
   HTTP→HTTPS redirect. This is precisely what lets the App-Links `.well-known`
   files (below) be fetched over real HTTPS — the OS requirement for Universal /
   App Links.
-- **File cap = 20,000 files per site.** The **whole canon** (all nikāyas +
-  commentaries `atta-*` + Abhidhamma) generates **~14,900 files** under the current
-  page model (~12,900 sutta + chapter pages — the ones in `sitemap.xml` — plus
-  ~2,000 container TOC pages). Adding the Flutter web bundle (a few hundred files)
-  lands the one Pages project at **~15,200–15,400 — fits with ~4,600 headroom.**
-  Grouping the formulaic runs (prototype plan §6/§13.1) **saves ~1,450 files** vs
-  one-page-per-micro-sutta — so grouping helps the file budget *and* SEO. (The
-  canon DBs are **not** in this count — they're on R2, next bullet.)
+- **File cap = 20,000 files per project (exact numbers 2026-07-23).** The whole
+  corpus (canon + `atta-*` + `anya-*`) generates **16,356 files**: 14,763 real
+  pages (12,758 sutta + 145 chapter + 1,859 container TOC + 1 root) plus **1,593
+  grouped-leaf redirect stubs** — the stubs ride on the P5 stub-vs-Bulk-Redirects
+  gate below; with edge redirects instead, the total is 14,763 (build plan
+  §13.2). Note the invariant: with stubs, the total is *always* leaves (14,351)
+  + containers (2,004) + root —
+  **the grouping threshold does not move the file count at all** (an exploded
+  vagga = 1 TOC + N pages; a grouped one = 1 chapter + N stubs — same N+1).
+  Grouping is a UX/SEO choice, not a file-budget knob. The content project sits
+  at **~82% of the cap with stubs (~74% without), and its corpus is fixed** —
+  remaining additions (nav, sitemaps, CSS, `.well-known`) are dozens of files,
+  not thousands. (Canon DBs
+  are **not** in this count — R2, next bullet. The Flutter bundle isn't either —
+  own project, see "Project topology".)
 - **Bandwidth and requests are unlimited** on the static side — Googlebot, GPTBot,
   ClaudeBot and human readers never hit a metered wall. This directly serves the
   SEO / LLM-ingestion / slow-connection goals.
 - **Single-file max 25 MiB — this is the one real gotcha.** Every generated HTML
-  page is far under it (largest is one full commentary node). **But the canon
+  page is far under it — verified 2026-07-23: the largest text in the corpus is
+  `vp-mv-1` (මහාක්ඛන්ධකං, 455 K chars ≈ ~1 MB raw HTML) and the shared full-tree
+  `nav.html` is ~2 MB raw — both **>10× under the limit**. **But the canon
   databases are not:** the content+FTS DB (~140–165 MB) and `dict.db` (~167 MB)
   each blow past 25 MiB, so they **cannot be Pages files.** Host the DB blobs on
   **Cloudflare R2** (no per-file cap, **zero egress**, edge-cached — already the
@@ -126,34 +136,88 @@ All of this is the **free** Pages plan:
   **rejected** in favour of download-once (Drift-migration decision). Net: the
   file-count budget above is HTML + the Flutter bundle only — the heavy DBs live on
   R2, same Cloudflare account, different service.
+- **`_redirects` rule caps: 2,000 static + 100 dynamic = 2,100 total (verified
+  2026-07-22).** The content project now needs few or zero rules (the app moved
+  to its own project) — but the cap still rules out per-sutta redirect rules for
+  the **1,593 grouped leaves** (and any higher threshold breaks the cap harder).
+  Grouped-leaf clean URLs are therefore never `_redirects` lines — they are
+  **stub HTML files or Bulk Redirects** (P5 decision gate — see "Grouped-leaf
+  clean URLs" below; build plan §6/§13.2).
 
-### One Pages project (path-split) — recommended
+### Project topology — one Pages project per surface (DECIDED 2026-07-23)
 
-Preserve the old plan's clean URL scheme, but let **Cloudflare Pages** do the
-routing the retired shelf server used to do:
+The earlier lean was path-split (`/app/*` inside the content project); **reversed
+2026-07-23**. The 20 K file cap is *per project*, projects are free and unlimited,
+and the surfaces gain nothing from sharing an origin:
 
-- Static site at `/` and `/tipitaka/*`; Flutter web under **`/app/*`**.
-- Build Flutter with **`flutter build web --base-href /app/`** — writes
-  `<base href="/app/">` and confines `flutter_service_worker.js` to `/app/`
-  (a SW that escapes to `/` would cache the static pages and break the
-  "works with no JS / on the slowest connection" promise — verify it stays scoped).
-- **SPA fallback scoped to `/app/`** via a Pages [`_redirects`](https://developers.cloudflare.com/pages/configuration/redirects/)
-  rule (`/app/* /app/index.html 200`) or `_routes.json`. **Not a global
-  404 → index.html** — that would let the Flutter shell swallow the indexed static
-  URLs (the single most important gotcha, same as the old shelf plan).
-- Same origin → the "Open in app" button is a plain same-site link; simplest.
+| Project | Domain | Files (budget of 20 K each) |
+|---|---|---|
+| Static content site | apex (`<domain>`) | ~16.4 K — corpus is fixed, never grows |
+| Flutter web app | `app.<domain>` | a few hundred (until/if retired) |
+| ටීකා (sub-commentaries), when digitized | `tika.<domain>` | ~6–7 K projected (≈ `atta-*` scale) |
 
-### Two projects (subdomain) — the later option
+Why (recorded from the 2026-07-23 discussion):
 
-A second Pages project on `app.<domain>` gives natural cache / service-worker /
-cookie isolation, at the cost of DNS setup and being cross-origin. Reserve it for
-if/when the surfaces need to scale independently; path-split is fine to start.
+- **URL ownership is unambiguous.** The locked shareable URLs
+  (`/tipitaka/<nodeKey>`) belong to the apex static site alone — a link recipient
+  always gets the instant ~20 KB static page, never a multi-MB wasm boot.
+- **Independent deploys + budgets.** An app release doesn't redeploy 16 K content
+  files; a broken app build can never touch the reading site; the Flutter bundle
+  stops eating the content project's file budget.
+- **Service-worker isolation becomes physical, not procedural.** Each subdomain
+  is its own origin, so the Flutter SW *cannot* intercept/cache static pages —
+  the path-split plan needed a "verify it stays scoped" step for exactly this
+  risk; now it's structural. Same for caching: each project gets its own
+  `_headers` tuned to its surface.
+- **Capacity: ටීකා breaks a single project anyway.** Corpus split (measured
+  2026-07-23): canon 9,414 files / 46 M chars, `atta-*` 6,731 files / 57 M chars,
+  `anya-*` 210 files. A ටීකා layer at `atta-*` scale ≈ 6–7 K files would push one
+  project to ~23.5 K — over the cap. Per-corpus projects dissolve the problem
+  with zero new technology, still fully static, still free.
+- **App retirement becomes trivial**: delete one project + one redirect; nothing
+  on the apex changes and no shared link ever breaks.
+
+Costs accepted: subdomains are separate origins, so **no shared browser storage**
+(fine — the static site is near-stateless; the app's Drift/OPFS state is
+app-only), cross-surface links must be **absolute URLs**, one extra DNS record +
+custom domain per project (minutes, one-time, free). The **research-Worker CORS
+pin must include the `app.` origin** when it goes live. The app project carries
+its own SPA fallback (`/* /index.html 200`) — harmless there, and the dangerous
+"global fallback swallows indexed static URLs" gotcha disappears because the
+surfaces no longer share a project.
+
+### Grouped-leaf clean URLs — stub files vs Bulk Redirects (P5 decision gate, 2026-07-23)
+
+Something must answer at each of the 1,593 grouped-leaf URLs
+(`/tipitaka/<leafKey>` → `…/<vaggaKey>#<leafKey>`). The *requirement* is locked
+(exact-sutta links for no-app recipients, 2026-07-22); the *mechanism* is a
+**P5 decision — do NOT generate the stubs without asking the maintainer**:
+
+- **Stub HTML files** (build-plan default): meta-refresh-0 + canonical →
+  chapter. In-repo and portable, work on `*.pages.dev` previews, no zone
+  needed. Cost: +1,593 files and a momentary blank stub before the jump.
+- **Cloudflare Bulk Redirects** (verified 2026-07-23): an account-level
+  redirect list serving **real edge 301s**; target URLs **may carry
+  `#fragment`**; free quota = **10,000 list items / 5 lists — verified on the
+  dev account 2026-07-23** (re-verify on the production wisdom.ops account at
+  creation: dash.cloudflare.com → account → **Bulk Redirects**; the legacy-20
+  issue was old-account rollout lag). Cleaner (−1,593 files, no stub flash),
+  but needs the custom domain
+  as a Cloudflare zone (inert on `*.pages.dev`) and the list lives in the
+  dashboard/API — the generator should emit the leaf→chapter#fragment mapping
+  as CSV either way, so switching mechanisms is a re-upload, not a rebuild.
+
+Fallbacks if a project ever nears 20 K (not expected): Bulk Redirects (above),
+a tiny redirect Worker, or serving a corpus from **R2** (no file-count limit
+at all). None is planned.
 
 ### The nav button (static → app) and the root rule
 
-- **Button:** a plain `<a href="/app/tipitaka/<nodeKey>">Open in the full reader
-  app →</a>`. **No `flutter_bootstrap.js` auto-boot on the static pages** — that
-  auto-swap-into-canvas is exactly what made the rejected "Option A" hacky.
+- **Button:** a plain absolute link,
+  `<a href="https://app.<domain>/tipitaka/<nodeKey>">Open in the full reader
+  app →</a>` (cross-origin now — always absolute). **No `flutter_bootstrap.js`
+  auto-boot on the static pages** — that auto-swap-into-canvas is exactly what
+  made the rejected "Option A" hacky.
 - **Root `/` is the content home *and* the landing page** (carries the app CTA) —
   never a contentless splash, and **never auto-redirect `/` → `/app`**. Auto-redirect
   would hand the strongest SEO/LLM URL to the un-indexable canvas and punish
@@ -180,14 +244,28 @@ The SSG emits all of it as static files:
 
 - **Per page:** `<title>`, `<meta name="description">`, `<link rel="canonical">`
   (self), Open Graph / Twitter Card tags (chat previews), JSON-LD
-  (`Book` / `CreativeWork`).
+  (`Book` / `CreativeWork`), language attributes — `lang="si"` on the page,
+  `lang="pi-Sinh"` (Pali in Sinhala script) on Pali blocks: screen readers +
+  crawler language detection, zero cost (2026-07-22).
 - **`sitemap.xml`:** one `<url>` per **distinct sutta file + chapter file** (not
   the content-free redirect stubs) — this is what takes Google from "found one
   page" to "indexed ~13,000 pages" (full-canon count, §"Free-tier fit" above).
-- **`robots.txt`:** allow crawl, point to the sitemap, `Disallow: /app/`.
-- **Keep the app out of the index:** the Flutter `index.html` gets
-  `<meta name="robots" content="noindex">`; static pages canonical to their own
-  `/tipitaka/...` URL, **never** to `/app/...`.
+  Emit **`<lastmod>` per URL from the build manifest's content hashes**
+  (2026-07-23 — the manifest already knows exactly which outputs changed): after
+  a text correction Google recrawls just the changed pages fast, the C1 payoff.
+- **`robots.txt`:** apex — allow crawl, point to the sitemap (no `/app/` rule
+  needed anymore).
+- **Keep the app out of the index — `noindex`, NOT `Disallow` (fixed 2026-07-23):**
+  the app project sends `X-Robots-Tag: noindex` on every response (one
+  `_headers` rule: `/*` → `X-Robots-Tag: noindex`) and its `robots.txt`
+  **allows** crawling. The earlier `Disallow: /` idea backfires: a robots.txt
+  block stops Google from ever *fetching* the page, so it never sees a noindex —
+  yet every static page links `https://app.<domain>/tipitaka/…` ("Open in app"),
+  so those URLs could still index as bare "indexed, though blocked by
+  robots.txt" entries. Crawl-then-noindex removes them properly. (The Flutter
+  `index.html` may keep `<meta name="robots" content="noindex">` as
+  belt-and-braces.) Static pages canonical to their own apex `/tipitaka/...`
+  URL, **never** to the `app.` origin.
 - **Not cloaking:** the static site shows the *same* HTML to bots and humans;
   the Flutter app is a clearly separate surface the user opts into via the button.
 
@@ -201,8 +279,15 @@ The SSG emits all of it as static files:
    slow-internet ethos — the prototype plan already leaned against it). *Defer* —
    search was out of scope for the prototype anyway.
 2. **Production domain** (`sammaditthi.app`?) — feeds canonical URLs, OG tags, and
-   the App Links `.well-known` files.
-3. **One Pages project (path-split) vs two (subdomain).** *Lean: path-split.*
+   the App Links `.well-known` files. **Production Cloudflare account
+   (2026-07-23): a separate account under wisdom.ops is planned** (today's
+   personal account stays dev — it runs the research Worker). Everything
+   production must land in that ONE account: the Pages projects, the
+   custom-domain zone, R2, and the Worker (Bulk Redirects only fire on a zone
+   in the same account; the Worker needs a re-deploy + CORS re-pin from there).
+3. ~~One Pages project (path-split) vs two (subdomain).~~ **RESOLVED 2026-07-23:
+   one project per surface** — apex = static content, `app.<domain>` = Flutter
+   web, `tika.<domain>` = ටීකා later (see "Project topology" above).
 4. **`LINK_BASE_URL`** for shared links moves from the `:8080` dev server default
    to the Pages production domain (deep-linking plan).
 
@@ -215,7 +300,8 @@ server: ordered prefix routing in `server_app.dart` (`healthz` / `api/` / `app/`
 static), gzip + cache middleware, `/api/…` same-origin (so "no CORS"), and a
 global `index.html` fallback scoped to `/app/`. That is **retired with the content
 server** (canon → client-side Drift; research → Worker). The *intent* carries over
-unchanged — static at `/`, app at `/app/*`, root is the content home, never
-redirect `/` → `/app` — only the **mechanism** changes: Cloudflare Pages static
-hosting + `_redirects`, instead of shelf routing. The old per-sutta HTML was going
+— root is the content home, the app never swallows content URLs — but the
+**mechanism** changed twice: first to Cloudflare Pages path-split (`/app/*` +
+`_redirects`), then **2026-07-23 to one Pages project per surface** (app on
+`app.<domain>` — see "Project topology"). The old per-sutta HTML was going
 to be rendered by a shelf handler *or* SSG; now it is **only** SSG flat files.
