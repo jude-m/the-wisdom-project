@@ -1,7 +1,7 @@
 # Windows Sinhala IME Bug — Investigation & Findings
 
-**Date:** 2026-03-18
-**Status:** Open — Flutter engine-level bug, no Dart-level fix available
+**Date:** 2026-03-18 (updated 2026-07-24)
+**Status:** Open — Root cause identified (engine typo), fix PR #189968 pending merge
 **Affects:** Windows desktop only, Sinhala phonetic keyboard (and other IME-based scripts)
 
 ---
@@ -105,22 +105,62 @@ A minimal Flutter app with just a `TextField` (no state management, no callbacks
 
 ### For developers
 
-| Option | Effort | Correctness |
-|--------|--------|-------------|
-| Singlish input (already available) | None | Full workaround |
-| Test on Flutter master channel | Low | May have incremental fixes |
-| File Sinhala-specific Flutter issue | Low | Helps prioritize upstream fix |
-| Web build (`flutter build web`) | Low | Browser handles IME correctly |
-| Native Win32 text field via platform channel | High | Full fix for Windows |
+| Option | Effort | Status |
+|--------|--------|--------|
+| Singlish input (already available) | None | ✅ Works on all platforms |
+| Use Wijesekara fixed-layout keyboard | None | ✅ Works — fixed-layout keys emit codepoints directly, no IME composing involved |
+| Flutter master channel | Low | ❌ Still broken as of 2026-06-05 (pre-fix PR); retest after PR #189968 merges |
+| Web build (`flutter build web`) | Low | ✅ Browser handles IME correctly |
+| Native Win32 text field via platform channel | High | 🔲 Would fully fix it — not implemented |
+
+---
+
+## Root Cause Identified (2026-07-24)
+
+**A one-line typo in `shell/platform/windows/text_input_plugin.cc`** (lines 330–331):
+
+```cpp
+int composing_base   = base->value.GetInt();
+int composing_extent = base->value.GetInt();  // BUG: reads 'base' instead of 'extent'
+```
+
+The second line should read `extent->value.GetInt()`. Because `composing_base` always equals `composing_extent`, the composing range is always zero-length (collapsed). A collapsed composing range signals "no active composition" to the `TextInputModel`, so it commits the composing region prematurely on every `setEditingState` call. The IME's subsequent replacement of the composing text then lands at the wrong position, dropping characters.
+
+This has been present since IME support was first added for Windows in engine PR #23853 (March 2021).
+
+**Important Dart-level implication:** Because the composing range is always collapsed in the engine, `TextEditingValue.composing` is always `TextRange.empty` from Dart, even during active IME composition. There is no reliable way to detect "user is composing" from Dart code, which is why Dart-level workarounds cannot fix this.
+
+### The Fix
+
+**Flutter PR #189968** — "[Windows] Preserve composing extent in setEditingState"
+- Author: tjcGoogle
+- Opened: 2026-07-24
+- Status: **Open, pending Windows team review**
+- Fix: one-line correction in `text_input_plugin.cc`, with regression test
+- Will enter master → then stable at next Flutter release
+- Tested: still present on Flutter master as of 2026-06-05 (before this PR)
+
+**Monitor this PR for merge: [flutter/flutter#189968](https://github.com/flutter/flutter/pull/189968)**
+
+### Other IME fixes that landed (but do NOT fix character dropping)
+
+- **Engine PR #186353** (merged June 2026, Flutter 3.45+): Fixed Korean IME cursor visual position (`GCS_CURSORPOS` flag). Cursor display only, not character dropping.
+- **Engine PR #29620** (2022): Fixed Sogou IME (`GCS_COMPSTR` + `GCS_RESULTSTR` in same message).
+- **Engine PR #24713** (2021): Added Korean input support (handling `GCS_RESULTSTR` without ending composition).
+- Web-only IME fixes in Flutter 3.35 and 3.44 — Windows unaffected.
+
+### Architecture note
+
+Flutter's Windows embedder uses **IMM32** (Win95-era legacy API), not **TSF** (Text Services Framework, used by all modern Windows apps). Issue #74547 tracks TSF/reconversion support. The composing extent typo lives in the IMM32 path.
 
 ---
 
 ## Action Items
 
-- [ ] File a Sinhala-specific bug on the Flutter repo referencing #72980, #172270, #65574
-- [ ] Test on Flutter master channel to check if recent fixes help
-- [ ] Consider adding a hint/tooltip for Windows users pointing them to Singlish input
-- [ ] Monitor Flutter releases for IME fixes on Windows
+- [x] Test on Flutter master channel — still broken as of 2026-06-05 (pre-fix PR)
+- [ ] **Monitor [flutter/flutter#189968](https://github.com/flutter/flutter/pull/189968)** — merge expected within days/weeks; once merged, switch to master channel and retest Helakuru phonetic input
+- [ ] File Sinhala-specific bug on the Flutter repo (once PR merges, reference it as fixed)
+- [ ] Consider adding a hint/tooltip for Windows users pointing them to Singlish input until fix ships in stable
 
 
 -------------
@@ -195,11 +235,11 @@ Adding this issue to highlight that Sinhala (and likely other South/Southeast As
 ## Environment
 
 ```
-Flutter 3.38.5 • channel stable
-Framework • revision f6ff1529fd (2025-12-11)
-Engine • revision 1527ae0ec5
-Tools • Dart 3.10.4
-Windows 10/11
+Flutter 3.44.1 • channel stable (current as of 2026-07-24)
+Tools • Dart 3.12.1
+Windows 11
+
+Also reproduced on Flutter master (3.45.0-1.0.pre, 2026-06-05) — pre-dates fix PR #189968
 ```
 
 ## Impact
