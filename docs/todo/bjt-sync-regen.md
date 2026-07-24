@@ -85,7 +85,7 @@ git ls-remote https://github.com/pathnirvana/tipitaka.lk.git master
 ```
 
 Returns one line: the current upstream commit SHA. Compare it to the SHA in our
-**receipt** (Step 5). Same → we are up to date, stop. Different → continue.
+**receipt** (Step 6). Same → we are up to date, stop. Different → continue.
 
 This needs **no clone** — it is the cheap check that can run often.
 
@@ -130,9 +130,17 @@ Review this on its own. Never fold it into a bulk copy without looking.
 Copy from the mirror into the vendored copy (#3):
 
 ```
-mirror  public/static/text/*.json      →  wisdom  assets/text/*.json
-mirror  public/static/data/tree.json   →  wisdom  assets/data/tree.json
+mirror  public/static/text/*.json                       →  wisdom  assets/text/*.json
+mirror  public/static/data/tree.json                    →  wisdom  assets/data/tree.json
+mirror  public/static/data/file-map.json                →  wisdom  assets/data/file-map.json
+mirror  public/static/data/footnote-abbreviations.json  →  wisdom  assets/data/footnote-abbreviations.json
 ```
+
+`file-map.json` (audio coverage index) and `footnote-abbreviations.json` (footnote
+source sigla) are vendored too and are `cp`'d the same way — both are declared in
+`pubspec.yaml`, so they must stay in step with upstream. Upstream's
+`footnote-abbreviations-{new,old}.json` are error-check **outputs**, not sources, so
+they are deliberately skipped.
 
 The copy uses `rsync --delete`, so `assets/text` stays a faithful mirror. The guard
 against a wrong/empty `$TIPITAKA_MIRROR` is the **deletion gate** (a magic file-count

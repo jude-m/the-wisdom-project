@@ -27,6 +27,11 @@
 #   TIPITAKA_MIRROR=/path/to/tipitaka.lk-readonly ./scripts/bjt-sync-regen/sync-regen.sh
 #
 # House rules for the mirror: pull only, never commit, never add a remote to it.
+#
+# Exit codes:  0 = synced OK (or --dry-run / --help completed)
+#             10 = already up to date, nothing to do
+#             20 = aborted by you (deletion gate, or copy declined)
+#              1 = error (bad mirror, no network, bad option)
 
 set -euo pipefail
 
@@ -45,8 +50,9 @@ while [[ $# -gt 0 ]]; do
     --dry-run) DRY_RUN=1; shift ;;
     --force)   FORCE=1;   shift ;;
     -h|--help)
-      # Print the header comment block as help, then exit.
-      sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'
+      # Print the header comment block (lines 2..first non-comment) as help, then exit.
+      # Driven by an end-marker, not hardcoded line numbers, so it survives header edits.
+      awk 'NR==1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"
       exit 0
       ;;
     *)
@@ -63,10 +69,22 @@ ROOT="$(pwd)"
 
 # Paths inside the mirror (source) and the app (destination).
 MIRROR_TEXT="$MIRROR/public/static/text"
-MIRROR_TREE="$MIRROR/public/static/data/tree.json"
+MIRROR_DATA="$MIRROR/public/static/data"
+MIRROR_TREE="$MIRROR_DATA/tree.json"
 DEST_TEXT="$ROOT/assets/text"
-DEST_TREE="$ROOT/assets/data/tree.json"
+DEST_DATA="$ROOT/assets/data"
+DEST_TREE="$DEST_DATA/tree.json"
 RECEIPT="$ROOT/scripts/bjt-sync-regen/bjt-provenance.json"
+
+# Data files (public/static/data) we vendor besides the 285 text files. tree.json is
+# guarded loudly on its own (Step 3); the other two are plain metadata the app also
+# ships (both declared in pubspec.yaml). We deliberately SKIP the -new/-old variants of
+# footnote-abbreviations — those are outputs of upstream's dev/footnotes error-check,
+# not sources we ship.
+DATA_FILES=(tree.json file-map.json footnote-abbreviations.json)
+# The same, as repo-relative paths, for the closing report + dirty-tree warning.
+DATA_REPORT_PATHS=()
+for _f in "${DATA_FILES[@]}"; do DATA_REPORT_PATHS+=("assets/data/$_f"); done
 
 # --- Small helpers ----------------------------------------------------------
 hr()  { printf '%s\n' "------------------------------------------------------------"; }
@@ -124,7 +142,9 @@ echo "Upstream: $UPSTREAM_URL ($UPSTREAM_BRANCH)"
 # ---------------------------------------------------------------------------
 step "Step 0 — Heartbeat: is upstream ahead of us?"
 PREV_SHA="$(receipt_sha)"
-REMOTE_SHA="$(git ls-remote "$UPSTREAM_URL" "$UPSTREAM_BRANCH" | awk '{print $1}')"
+# refs/heads/$BRANCH (not the bare name) so a same-named TAG can't add a second line;
+# head -1 is belt-and-braces to keep REMOTE_SHA a single SHA.
+REMOTE_SHA="$(git ls-remote "$UPSTREAM_URL" "refs/heads/$UPSTREAM_BRANCH" | head -1 | awk '{print $1}')"
 
 if [ -z "$REMOTE_SHA" ]; then
   echo "error: could not reach upstream (no network?). Try again later."
@@ -144,7 +164,7 @@ if [ -n "$PREV_SHA" ] && [ "$PREV_SHA" = "$REMOTE_SHA" ]; then
   else
     echo
     echo "Up to date. Nothing to sync. (Use --force to re-copy anyway.)"
-    exit 0
+    exit 10
   fi
 fi
 
@@ -152,8 +172,23 @@ fi
 # Step 1 — Refresh the read-only mirror (fast-forward only)
 # ---------------------------------------------------------------------------
 step "Step 1 — Pull the read-only mirror"
-git -C "$MIRROR" pull --ff-only
-NEW_SHA="$(git -C "$MIRROR" rev-parse HEAD)"
+if [ "$DRY_RUN" = 1 ]; then
+  # A dry run must touch NOTHING — not even the mirror. Use its current HEAD, and note
+  # the preview is against whatever the mirror already has, not necessarily upstream latest.
+  echo "DRY RUN — not pulling the mirror. Previewing against its current HEAD."
+  NEW_SHA="$(git -C "$MIRROR" rev-parse HEAD)"
+else
+  git -C "$MIRROR" pull --ff-only
+  NEW_SHA="$(git -C "$MIRROR" rev-parse HEAD)"
+  # Guard: the SHA we just pulled should match the one the heartbeat asked upstream for.
+  # If not, the mirror tracks a different remote/branch than $UPSTREAM_URL — provenance
+  # would record one repo while we synced from another.
+  if [ "$NEW_SHA" != "$REMOTE_SHA" ]; then
+    echo "warn: mirror HEAD ($NEW_SHA)"
+    echo "      != upstream $UPSTREAM_BRANCH ($REMOTE_SHA) that the heartbeat queried."
+    echo "      Check the mirror tracks $UPSTREAM_URL before trusting the receipt."
+  fi
+fi
 echo "Mirror now at: $NEW_SHA"
 
 # The baseline for our diffs is what we LAST synced (the receipt SHA), not the
@@ -237,18 +272,21 @@ if [ "$HAVE_BASELINE" = 1 ]; then
 fi
 
 # Authoritative deletion check: which files we currently ship would `rsync --delete`
-# actually remove? = files present in assets/text but absent from the mirror. This
-# reads the filesystem (what rsync acts on), so it holds even on a first sync with no
-# git baseline. Canon files disappearing is HIGHLY unlikely — treat any as a red flag.
+# actually remove? = every file present under assets/text but absent from the mirror.
+# We list ALL files (find, any extension, incl. dotfiles and sub-dirs), not just *.json
+# — rsync --delete is that broad, so the gate must be too. Reads the filesystem (what
+# rsync acts on), so it holds even on a first sync with no git baseline. Canon files
+# disappearing is HIGHLY unlikely — treat any as a red flag.
 TO_DELETE="$(comm -23 \
-  <(cd "$DEST_TEXT"   && ls -1 *.json 2>/dev/null | sort) \
-  <(cd "$MIRROR_TEXT" && ls -1 *.json 2>/dev/null | sort) || true)"
+  <(cd "$DEST_TEXT"   && find . -type f 2>/dev/null | sort) \
+  <(cd "$MIRROR_TEXT" && find . -type f 2>/dev/null | sort) || true)"
 DELETE_COUNT="$(printf '%s' "$TO_DELETE" | grep -c . || true)"
 
 if [ "$DRY_RUN" = 1 ]; then
   echo "DRY RUN — not copying. This is what a real run would bring in:"
   echo "  $MIRROR_TEXT/  ->  $DEST_TEXT/   ($MIRROR_JSON_COUNT files, mirrored)"
   echo "  $MIRROR_TREE   ->  $DEST_TREE"
+  echo "  $MIRROR_DATA/{file-map,footnote-abbreviations}.json  ->  $DEST_DATA/"
   if [ "$DELETE_COUNT" -gt 0 ]; then
     echo
     printf '%s\n' "${HILITE} !!  WOULD DELETE $DELETE_COUNT VENDORED FILE(S) — HIGHLY UNUSUAL  !! ${RESET}"
@@ -280,14 +318,24 @@ if [ "$DELETE_COUNT" -gt 0 ]; then
   fi
   if [ "$reply" != "yes" ]; then
     echo "Stopped. Nothing was changed."
-    exit 0
+    exit 20
   fi
+fi
+
+# Warn if the working tree already has local edits to the files we're about to
+# overwrite. The last COMMITTED version is safe in git, but in-progress (uncommitted)
+# edits are not — rsync/cp will clobber them. The copy confirm below lets you back out.
+if [ -n "$(git status --porcelain -- "$DEST_TEXT" "${DATA_REPORT_PATHS[@]}" 2>/dev/null)" ]; then
+  echo
+  printf '%s\n' "${BOLD}Heads up: assets/ has uncommitted local changes that this sync will overwrite.${RESET}"
+  echo "Committed versions are safe in git; in-progress edits are NOT — stash or commit them first to keep them."
 fi
 
 echo
 echo "About to mirror:"
 echo "  $MIRROR_TEXT/  ->  $DEST_TEXT/   ($MIRROR_JSON_COUNT files)"
 echo "  $MIRROR_TREE   ->  $DEST_TREE"
+echo "  $MIRROR_DATA/{file-map,footnote-abbreviations}.json  ->  $DEST_DATA/"
 if [ "$TREE_CHANGED" = 1 ]; then
   echo
   echo "Reminder: tree.json changed (Step 3). Only continue if you reviewed the nodeKey diff."
@@ -295,16 +343,23 @@ fi
 echo
 if ! confirm "Copy these into assets/ now?"; then
   echo "Aborted before copying. Nothing was changed."
-  exit 0
+  exit 20
 fi
 
 # --delete keeps assets a faithful mirror. What makes it safe is the deletion gate
 # above: any file that would be removed hard-stops the run unless explicitly confirmed.
 rsync -a --delete "$MIRROR_TEXT/" "$DEST_TEXT/"
-cp "$MIRROR_TREE" "$DEST_TREE"
+# tree.json + the other vendored data files (the -new/-old variants are skipped).
+for f in "${DATA_FILES[@]}"; do
+  if [ -f "$MIRROR_DATA/$f" ]; then
+    cp "$MIRROR_DATA/$f" "$DEST_DATA/$f"
+  else
+    echo "  WARNING: $f is missing from the mirror — leaving the vendored copy untouched."
+  fi
+done
 
 DEST_COUNT="$(find "$DEST_TEXT" -maxdepth 1 -name '*.json' | wc -l | tr -d ' ')"
-echo "Copied. assets/text now has $DEST_COUNT JSON files; tree.json updated."
+echo "Copied. assets/text now has $DEST_COUNT JSON files; tree.json + data files updated."
 
 # ---------------------------------------------------------------------------
 # Step 5 — Rebuild what depends on the text  (STUBS — not wired up yet)
@@ -376,16 +431,26 @@ else
 fi
 echo
 
-# (b) What this sync changed in the working tree — read back from git, so it reflects
-#     reality (modified / added / deleted), including the receipt just written.
-echo "Changes from this sync (M=modified, A=added, D=deleted):"
+# (b) Pending changes in the synced paths, read back from git (working tree vs last
+#     commit), so it reflects reality — modified / added / deleted — including the
+#     receipt just written. NOTE: this is the working-tree state of these paths, so any
+#     edits you already had before this run show up here too (the dirty-tree warning in
+#     Step 4 flags that up front). The list is capped; the counts are always complete.
+echo "Pending changes in synced paths (M=modified, A=added, D=deleted):"
 REPORT_STAT="$(git -c core.quotepath=false status --porcelain \
-  -- assets/text assets/data/tree.json "$RECEIPT" 2>/dev/null || true)"
+  -- "$DEST_TEXT" "${DATA_REPORT_PATHS[@]}" "$RECEIPT" 2>/dev/null || true)"
 if [ -z "$REPORT_STAT" ]; then
   echo "    (no changes — assets already matched the mirror)"
 else
-  # Porcelain codes → a simple label ('??' untracked shown as A=added).
-  printf '%s\n' "$REPORT_STAT" | awk '{ c=$1; if(c=="??") c="A"; printf "    %s  %s\n", c, $2 }'
+  CAP=40
+  # Porcelain codes → a simple label ('??' untracked shown as A=added). substr keeps the
+  # whole path even if it contains spaces. Cap + overflow line are done inside awk over a
+  # here-string (no `head` pipe → no SIGPIPE/pipefail abort if the list is ever huge).
+  awk -v cap="$CAP" '
+    { c=$1; if(c=="??") c="A"; p=substr($0, index($0,$2))
+      if (NR<=cap) printf "    %s  %s\n", c, p }
+    END { if (NR>cap) printf "    ... and %d more (full counts below).\n", NR-cap }
+  ' <<< "$REPORT_STAT"
   MOD=$(printf '%s\n' "$REPORT_STAT" | awk '$1=="M"{n++}  END{print n+0}')
   DEL=$(printf '%s\n' "$REPORT_STAT" | awk '$1=="D"{n++}  END{print n+0}')
   ADD=$(printf '%s\n' "$REPORT_STAT" | awk '$1=="??"{n++} END{print n+0}')
@@ -397,3 +462,4 @@ hr
 echo "Done. Review the report above, then commit when happy:"
 echo "  git add assets/ scripts/bjt-sync-regen/bjt-provenance.json && git commit -m \"chore(canon): sync BJT text to ${NEW_SHA:0:12}\""
 hr
+exit 0
