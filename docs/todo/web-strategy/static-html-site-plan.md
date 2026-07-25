@@ -408,6 +408,23 @@ the reader toggles via the radios. To open *directly* in a layout from a link:
 > `ap-pat*` can simply ship last. Open-Q #6 is answered; no measurement phase
 > needed.
 
+### Parallel text — canon ↔ commentary cross-link (added 2026-07-25)
+
+Mirrors the app's `parallelTextNodeProvider` (canon ↔ `atta-<nodeKey>`). Build-time
+rule: emit the link **iff the twin key exists in `tree.json`** — prepend `atta-` on a
+canon page, strip it on a commentary page. Pure key test, no new files, no JS.
+
+```html
+<a href="/tipitaka/atta-mn-2-3-6" target="_blank" rel="noopener">අට්ඨකථා</a>
+```
+
+- **`target="_blank"` (maintainer, 2026-07-25)** — new browser tab, matching the
+  app's new-tab behaviour. Reciprocal link on the commentary side (මූල පාඨය).
+- **Coverage (measured 2026-07-25):** 4,627 / 8,355 canon leaves have an exact twin
+  (DN 34/34, MN 152/152, SN 984/2,190, AN 949/1,849, KN 1,768/2,573, VP 355/641,
+  AP 385/916) + 920 / 1,059 canon containers. No twin → no link, never a 404.
+- Bonus: a strong internal-link signal between the two halves of the corpus.
+
 ---
 
 ## 8. Clean-architecture prerequisites (do these to avoid hacks)
@@ -524,6 +541,20 @@ build/
   apex, app on `app.<domain>` — decided 2026-07-23) lives in
   `static-web-hosting.md` → "Project topology".
 
+### Commentary titles & canonical (decided 2026-07-25)
+
+The 6,731 `atta-*` pages carry the **same sutta names** as their canon twins —
+untreated they compete for the same name searches.
+
+- **Distinct `<title>` / `<h1>` / OG title:** canon = `<sutta> — <collection>`;
+  commentary = `<sutta> අට්ඨකථා — <collection>`.
+- **Canonical is always self.** The two are different texts, not duplicates —
+  never point an `atta-*` page at its canon twin.
+- **No `noindex`.** Commentary is unique scripture (57 M of the corpus's ~103 M
+  chars) and is searched in its own right; the title split + the reciprocal
+  cross-link (§7) are enough to keep the canon page the stronger hit for a bare
+  sutta-name query.
+
 ---
 
 ## 11. Build & verify
@@ -545,6 +576,15 @@ build/
    without it.
 7. **Re-sync check:** edit one entry in `an-1.json`, rebuild → only the affected
    output file(s) change in `git status`.
+8. **Determinism check (REQUIRED — added 2026-07-25):** rebuild with **no** input
+   change → **zero** files differ (`git status` clean). Cloudflare's upload dedup
+   is purely **content-hash** based: it skips any file whose hash it already has
+   ([direct-upload docs](https://developers.cloudflare.com/workers/static-assets/direct-upload/)),
+   so a build timestamp, a random build id, or unstable map/set ordering in the
+   HTML makes all 16,356 hashes change and **re-uploads the whole site every
+   deploy**. Byte-identical output when the input is unchanged is a hard
+   requirement, not a nicety. *(Distinct from the `.manifest.json` in §10 — that
+   decides what to **regenerate**; this is what gets **uploaded**.)*
 
 > Per project convention: no test suite is added unless asked. The marker parser
 > (PREREQ-1) is logic the test-writer agent should later cover — a separate task.
@@ -645,6 +685,29 @@ build/
    Exploded thin pages: 1,870 leaves < 800c (only 119 number-only-named) — the
    accepted "harmless thin pages" set; unique scripture, no noindex needed.
    DN/MN group **zero** vaggas — a good sanity signal.
+
+   **Re-examined & rejected again 2026-07-25 — "group *everything*, use `#`
+   fragments throughout"** (measured, not estimated):
+
+   | | Current | Group everything |
+   |---|---|---|
+   | Files | 14,763 (+1,593 stubs) | **2,005** |
+   | Median page | 2,501 chars | 24,070 |
+   | p90 / p99 | 16,647 / — | 150,287 / 550,111 |
+   | Max page | 455,233 (`vp-mv-1`) | **1,766,812** (`vp-mv`) |
+   | Pages > 400 K chars | ~1 | 25 |
+
+   Rejected on three counts: (a) **Google does not index `#fragments` as pages** —
+   12,758 rankable sutta URLs collapse to 2,005, and "සාමඤ්ඤඵල සුත්ත" would have to
+   rank a 1.2 M-char `dn-1` titled with the *vagga* name → kills C2, the site's
+   whole purpose; (b) **page weight** — `dn-1` ≈ 2–3 MB HTML against the "instant
+   ~20 KB page" goal, and `:has(:target)` hides siblings only *after* transfer, so
+   a single micro-sutta still costs the full download; (c) **redirects get ~9×
+   worse** — all 14,351 leaf URLs would need `<container>#<leaf>` redirects, over
+   the Bulk Redirects free quota (10 K) and far over `_redirects` (2 K), vs 1,593
+   today. Underlying point: **the file cap was never the constraint** — 16,356 /
+   20,000 with a corpus that never grows, and deploys are hash-incremental (§11.8),
+   so shrinking the file count buys nothing worth C2.
 2. **Shareable-link target — app vs web** *(RESOLVED 2026-07-06, C3)*: **both,
    per visitor** — the app side is being built now (see the locked
    `../todo/deep-linking-and-shareable-urls.md`): app installed + link tapped in
