@@ -118,10 +118,8 @@ class ResearchChatNotifier extends StateNotifier<ResearchChatState> {
     final sessionId =
         state.sessionId ?? DateTime.now().microsecondsSinceEpoch.toString();
     final history = state.messages; // Prior turns; [text] rides separately.
-    // Global Fast/Thinking choice, captured here for the same reason as
-    // [sessionId]/[history]: the user could flip the mode while the persist
-    // write below yields, but this question must be answered with the tier
-    // that was active when they hit send.
+    // The active tier, captured (like [sessionId]/[history]) before the awaits
+    // so a mid-flight switch flip can't change what this question is filed under.
     final mode = _ref.read(researchModeProvider);
 
     state = state.copyWith(
@@ -138,7 +136,7 @@ class ResearchChatNotifier extends StateNotifier<ResearchChatState> {
     // Persist the question right away — it creates/refreshes the Recent
     // entry and survives a crash or a chat switch while the answer is
     // still in flight.
-    await _persist();
+    await _persist(mode);
     await _run(text, sessionId: sessionId, history: history, mode: mode);
   }
 
@@ -206,7 +204,7 @@ class ResearchChatNotifier extends StateNotifier<ResearchChatState> {
             citations: answer.citations,
             model: answer.model,
           ),
-        ]);
+        ], mode);
       }
       return;
     }
@@ -232,18 +230,28 @@ class ResearchChatNotifier extends StateNotifier<ResearchChatState> {
     );
     // Errors are transient UI state — only a new answer is worth a rewrite
     // (the question itself was persisted in send()).
-    if (result.isRight()) await _persist();
+    if (result.isRight()) await _persist(mode);
   }
 
   /// Start a fresh chat — the "New chat" affordance. The previous chat is
-  /// already persisted turn-by-turn, so nothing to save here.
-  void newChat() => state = const ResearchChatState();
+  /// already persisted turn-by-turn, so nothing to save here. Always resets the
+  /// tier to [ResearchMode.fast]: a new chat begins on Fast regardless of what
+  /// the last chat used (the per-chat tier only comes back when that chat is
+  /// reopened — see [openChat]).
+  void newChat() {
+    state = const ResearchChatState();
+    _ref.read(researchModeProvider.notifier).set(ResearchMode.fast);
+  }
 
   /// Open a saved chat from the Recent panel. Any in-flight answer for the
   /// previous chat keeps running and is filed to its own transcript (see
-  /// [_run]'s session guard).
-  Future<void> openChat(String id) async {
+  /// [_run]'s session guard). Restores the chat's last-used tier
+  /// ([ChatSummary.mode]) into the header, so reopening a Thinking chat comes
+  /// back on Thinking rather than the previous chat's tier.
+  Future<void> openChat(ChatSummary summary) async {
+    final id = summary.id;
     if (state.sessionId == id) return;
+    _ref.read(researchModeProvider.notifier).set(summary.mode);
     final messages = await _historyRepo.getMessages(id);
     final pendingMode = _pendingSessions[id];
     state = ResearchChatState(
@@ -264,16 +272,18 @@ class ResearchChatNotifier extends StateNotifier<ResearchChatState> {
     if (state.sessionId == id) newChat();
   }
 
-  /// Write the live transcript to storage under its session id.
-  Future<void> _persist() async {
+  /// Write the live transcript to storage under its session id, tagged [mode].
+  Future<void> _persist(ResearchMode mode) async {
     final id = state.sessionId;
     if (id == null || state.messages.isEmpty) return;
-    await _saveTranscript(id, state.messages);
+    await _saveTranscript(id, state.messages, mode);
   }
 
-  /// Save [messages] as chat [id] (title = first user question) and refresh
-  /// the Recent panel.
-  Future<void> _saveTranscript(String id, List<ChatMessage> messages) async {
+  /// Save [messages] as chat [id] (title = first user question), tagged with
+  /// [mode], and refresh the Recent panel. [mode] is passed in, not read from
+  /// `state`: [_run]'s background path saves a chat that isn't the live one.
+  Future<void> _saveTranscript(
+      String id, List<ChatMessage> messages, ResearchMode mode) async {
     final firstUserTurn =
         messages.firstWhere((m) => m.isUser, orElse: () => messages.first);
     await _historyRepo.saveChat(
@@ -281,6 +291,9 @@ class ResearchChatNotifier extends StateNotifier<ResearchChatState> {
         id: id,
         title: firstUserTurn.content,
         updatedAt: DateTime.now(),
+        // Record the tier the last question was actually sent under, so
+        // reopening this chat restores that tier — see [openChat].
+        mode: mode,
       ),
       messages,
     );

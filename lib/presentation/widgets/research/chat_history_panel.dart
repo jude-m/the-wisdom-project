@@ -138,7 +138,7 @@ class _ChatTile extends ConsumerWidget {
         },
       ),
       onTap: () {
-        ref.read(researchChatProvider.notifier).openChat(chat.id);
+        ref.read(researchChatProvider.notifier).openChat(chat);
         onChatSelected?.call();
       },
     );

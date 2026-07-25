@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'research_mode.dart';
+
 part 'chat_summary.freezed.dart';
 part 'chat_summary.g.dart';
 
@@ -19,6 +21,13 @@ class ChatSummary with _$ChatSummary {
     /// Last activity — drives newest-first ordering and the relative
     /// timestamp ("2 hours ago") in the list.
     required DateTime updatedAt,
+
+    /// The Fast/Thinking tier this chat last sent a question under, so
+    /// reopening it restores the same tier (a chat is remembered per-tier,
+    /// unlike the "always Fast" new-chat default). Defaults to
+    /// [ResearchMode.fast], which also covers chats saved before this field
+    /// existed (the key is simply absent → Fast on read).
+    @Default(ResearchMode.fast) ResearchMode mode,
   }) = _ChatSummary;
 
   /// Create from JSON for local storage.

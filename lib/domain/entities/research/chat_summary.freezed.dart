@@ -30,6 +30,13 @@ mixin _$ChatSummary {
   /// timestamp ("2 hours ago") in the list.
   DateTime get updatedAt => throw _privateConstructorUsedError;
 
+  /// The Fast/Thinking tier this chat last sent a question under, so
+  /// reopening it restores the same tier (a chat is remembered per-tier,
+  /// unlike the "always Fast" new-chat default). Defaults to
+  /// [ResearchMode.fast], which also covers chats saved before this field
+  /// existed (the key is simply absent → Fast on read).
+  ResearchMode get mode => throw _privateConstructorUsedError;
+
   /// Serializes this ChatSummary to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -46,7 +53,7 @@ abstract class $ChatSummaryCopyWith<$Res> {
           ChatSummary value, $Res Function(ChatSummary) then) =
       _$ChatSummaryCopyWithImpl<$Res, ChatSummary>;
   @useResult
-  $Res call({String id, String title, DateTime updatedAt});
+  $Res call({String id, String title, DateTime updatedAt, ResearchMode mode});
 }
 
 /// @nodoc
@@ -67,6 +74,7 @@ class _$ChatSummaryCopyWithImpl<$Res, $Val extends ChatSummary>
     Object? id = null,
     Object? title = null,
     Object? updatedAt = null,
+    Object? mode = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -81,6 +89,10 @@ class _$ChatSummaryCopyWithImpl<$Res, $Val extends ChatSummary>
           ? _value.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime,
+      mode: null == mode
+          ? _value.mode
+          : mode // ignore: cast_nullable_to_non_nullable
+              as ResearchMode,
     ) as $Val);
   }
 }
@@ -93,7 +105,7 @@ abstract class _$$ChatSummaryImplCopyWith<$Res>
       __$$ChatSummaryImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String id, String title, DateTime updatedAt});
+  $Res call({String id, String title, DateTime updatedAt, ResearchMode mode});
 }
 
 /// @nodoc
@@ -112,6 +124,7 @@ class __$$ChatSummaryImplCopyWithImpl<$Res>
     Object? id = null,
     Object? title = null,
     Object? updatedAt = null,
+    Object? mode = null,
   }) {
     return _then(_$ChatSummaryImpl(
       id: null == id
@@ -126,6 +139,10 @@ class __$$ChatSummaryImplCopyWithImpl<$Res>
           ? _value.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime,
+      mode: null == mode
+          ? _value.mode
+          : mode // ignore: cast_nullable_to_non_nullable
+              as ResearchMode,
     ));
   }
 }
@@ -134,7 +151,10 @@ class __$$ChatSummaryImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$ChatSummaryImpl implements _ChatSummary {
   const _$ChatSummaryImpl(
-      {required this.id, required this.title, required this.updatedAt});
+      {required this.id,
+      required this.title,
+      required this.updatedAt,
+      this.mode = ResearchMode.fast});
 
   factory _$ChatSummaryImpl.fromJson(Map<String, dynamic> json) =>
       _$$ChatSummaryImplFromJson(json);
@@ -152,9 +172,18 @@ class _$ChatSummaryImpl implements _ChatSummary {
   @override
   final DateTime updatedAt;
 
+  /// The Fast/Thinking tier this chat last sent a question under, so
+  /// reopening it restores the same tier (a chat is remembered per-tier,
+  /// unlike the "always Fast" new-chat default). Defaults to
+  /// [ResearchMode.fast], which also covers chats saved before this field
+  /// existed (the key is simply absent → Fast on read).
+  @override
+  @JsonKey()
+  final ResearchMode mode;
+
   @override
   String toString() {
-    return 'ChatSummary(id: $id, title: $title, updatedAt: $updatedAt)';
+    return 'ChatSummary(id: $id, title: $title, updatedAt: $updatedAt, mode: $mode)';
   }
 
   @override
@@ -165,12 +194,13 @@ class _$ChatSummaryImpl implements _ChatSummary {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.title, title) || other.title == title) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.mode, mode) || other.mode == mode));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, title, updatedAt);
+  int get hashCode => Object.hash(runtimeType, id, title, updatedAt, mode);
 
   /// Create a copy of ChatSummary
   /// with the given fields replaced by the non-null parameter values.
@@ -192,7 +222,8 @@ abstract class _ChatSummary implements ChatSummary {
   const factory _ChatSummary(
       {required final String id,
       required final String title,
-      required final DateTime updatedAt}) = _$ChatSummaryImpl;
+      required final DateTime updatedAt,
+      final ResearchMode mode}) = _$ChatSummaryImpl;
 
   factory _ChatSummary.fromJson(Map<String, dynamic> json) =
       _$ChatSummaryImpl.fromJson;
@@ -209,6 +240,14 @@ abstract class _ChatSummary implements ChatSummary {
   /// timestamp ("2 hours ago") in the list.
   @override
   DateTime get updatedAt;
+
+  /// The Fast/Thinking tier this chat last sent a question under, so
+  /// reopening it restores the same tier (a chat is remembered per-tier,
+  /// unlike the "always Fast" new-chat default). Defaults to
+  /// [ResearchMode.fast], which also covers chats saved before this field
+  /// existed (the key is simply absent → Fast on read).
+  @override
+  ResearchMode get mode;
 
   /// Create a copy of ChatSummary
   /// with the given fields replaced by the non-null parameter values.

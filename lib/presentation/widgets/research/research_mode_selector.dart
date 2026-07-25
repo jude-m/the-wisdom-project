@@ -8,8 +8,9 @@ import 'research_mode_ui.dart';
 
 /// The Fast/Thinking mode switch shown in the Research header (the reference
 /// mockup's top-right chip). Tapping it opens a menu of the two modes, each
-/// with a one-line hint and a check on the active one; the choice is global
-/// and persisted ([researchModeProvider]).
+/// with a one-line hint and a check on the active one. The choice applies to
+/// the current chat and is remembered per-chat ([researchModeProvider] seeds
+/// it; the chat's summary stores it) — a new chat always starts on Fast.
 ///
 /// Presentation is deliberately friendly — "Fast" / "Thinking", never raw
 /// Gemini model IDs. The per-tier fallback ladder stays a backend detail.

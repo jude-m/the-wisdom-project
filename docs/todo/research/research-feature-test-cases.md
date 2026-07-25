@@ -7,6 +7,14 @@ so nothing needs re-deriving from the code later.
 
 **Guards column** = which code-review finding the case is a regression guard for (the 14 bugs fixed
 2026-07-14). Those cases are the highest-value ones: the bug existed once, so it can come back.
+Bugs caught in later reviews use a dated `rev <date>` tag instead of a `#N` finding number.
+
+**Addendum 2026-07-25 — per-chat Fast/Thinking tier.** The mode is no longer a global, disk-persisted
+setting; it now rides each chat (`ChatSummary.mode`). `researchModeProvider` is a transient in-memory
+cursor seeded by the chat lifecycle (new chat → Fast, open chat → that chat's tier). New cases below
+carry the `rev 07-25` tag; one guards a review bug where the background-answer save stamped the *live*
+chat's tier onto a different chat's summary. There is deliberately **no** global-persistence case —
+a fresh chat and an app restart both start on Fast by design.
 
 **Priority:** P0 = must have before the feature is trusted · P1 = should have · P2 = nice to have.
 
@@ -18,8 +26,8 @@ so nothing needs re-deriving from the code later.
 |---|---|
 | Domain | `chat_message.dart`, `chat_summary.dart`, `research_answer.dart`, `citation.dart`, `chat_history_repository.dart` (interface) |
 | Data | `chat_history_repository_impl.dart`, `research_repository_impl.dart`, `research_remote_datasource.dart`, `api_client.dart` (error mapping) |
-| State | `research_chat_state.dart`, `research_provider.dart` (`ResearchChatNotifier`) |
-| Widgets | `research_chat_view.dart`, `chat_history_panel.dart`, `research_answer_view.dart`, `citation_source_sheet.dart`, `research_error_messages.dart` |
+| State | `research_chat_state.dart`, `research_provider.dart` (`ResearchChatNotifier`), `research_mode_provider.dart` (`ResearchModeNotifier`) |
+| Widgets | `research_chat_view.dart`, `chat_history_panel.dart`, `research_answer_view.dart`, `citation_source_sheet.dart`, `research_error_messages.dart`, `research_mode_selector.dart` |
 | Screen | `research_screen.dart` (responsive shell + nested `Navigator`) |
 | Cross-feature | citation → `openTipitakaLinkProvider` → Reader section (deep-link chain) |
 | Server | `research_server/` (Python — separate suite, §6) |
@@ -79,6 +87,8 @@ members for tests — test through the public surface; duplicate a literal in th
 | U-ENT-1 | `ChatMessage.toHistoryJson()` | Only `role` + `content` keys — citations stripped from the wire format | — | P0 |
 | U-ENT-2 | `ChatMessage` JSON round-trip with citations | Citations survive save/load (chips survive restart) | — | P0 |
 | U-ENT-3 | `ChatSummary` JSON round-trip | `updatedAt` survives via ISO-8601; `id`/`title` intact | — | P1 |
+| U-ENT-4 | `ChatSummary` round-trip carries `mode` | Both `fast` and `thinking` survive save/load (per-chat tier persists) | rev 07-25 | P0 |
+| U-ENT-5 | `ChatSummary.fromJson` with **no `mode` key** (pre-feature chat) | Defaults to `ResearchMode.fast`, no throw — old saved chats read back as Fast | rev 07-25 | P0 |
 
 ### 4.2 `ChatHistoryRepositoryImpl` — `test/data/repositories/chat_history_repository_impl_test.dart`
 
@@ -129,6 +139,17 @@ Every "while in flight" case = don't complete the fake's `Completer` until the t
 | U-NOT-16 | `deleteChat` active vs non-active | Active → canvas cleared (blank state); non-active → live state untouched; both remove from store | — | P0 |
 | U-NOT-17 | History sent on the wire (fake records it) | Turn N's call carries exactly the turns *before* the in-flight question, in order | — | P0 |
 | U-NOT-18 | 5th question completes | `isAtTurnLimit` true; 6th `send` refused (U-NOT-2 overlap — assert via repository call count) | — | P0 |
+
+**Per-chat Fast/Thinking tier** (read `container.read(researchModeProvider)` for the header cursor and
+the saved `ChatSummary.mode` from the store). The notifier drives the seeding, not the selector widget.
+
+| ID | Scenario | Expect | Guards | Pri |
+|---|---|---|---|---|
+| U-NOT-19 | `send()` stamps the active tier | With `researchModeProvider` = thinking, after the answer lands the saved `ChatSummary.mode` == `thinking` (and the question-time persist already wrote it) | rev 07-25 | P0 |
+| U-NOT-20 | `newChat()` resets the header tier | After `newChat()`, `researchModeProvider` == `fast` regardless of the prior tier (a new chat always starts on Fast) | rev 07-25 | P0 |
+| U-NOT-21 | `openChat(summary)` restores the chat's tier | Opening a summary with `mode: thinking` sets `researchModeProvider` == `thinking`; a `fast` summary → `fast`. Same-id open is still a no-op (tier untouched) | rev 07-25 | P0 |
+| U-NOT-22 | **Switch chats mid-answer — original summary keeps its own tier** | Send in A under Thinking (hold the Completer) → `openChat(B)` (Fast) → release A's answer → A's stored `ChatSummary.mode` is **still `thinking`**, NOT the live chat's `fast` (background save must use the request's tier, not `state.inFlightMode`) | rev 07-25 | P0 |
+| U-NOT-23 | Tier pinned at send time, not re-read at save | Send under Fast (hold the Completer), flip `researchModeProvider` to Thinking mid-flight, release → saved `ChatSummary.mode` == `fast` (mirrors the backend-mode pinning) | rev 07-25 | P1 |
 
 ---
 
@@ -207,6 +228,15 @@ Drive width via `tester.view.physicalSize` (breakpoint: 768 logical px).
 | W-SCR-5 | Wide: citation sheet open, system back (`tester.binding.handlePopRoute()`) | Sheet closes; Research screen itself stays (nested-navigator back contract, the Android-tablet case) | **#5** | P0 |
 | W-SCR-6 | Wide: sheet layout | Sheet constrained to `researchContentMaxWidth`, centered over the chat column (not full window width) | — | P2 |
 
+### 5.6 `ResearchModeSelector` — `test/presentation/widgets/research/research_mode_selector_test.dart`
+
+Override `researchModeProvider` to seed the shown tier; use the real notifier for the tap flow.
+
+| ID | Scenario | Expect | Guards | Pri |
+|---|---|---|---|---|
+| W-MODE-1 | Renders the active tier | Chip shows the current tier's friendly label (Fast/Thinking, never a raw Gemini id); menu marks the active one with a check | rev 07-25 | P1 |
+| W-MODE-2 | Pick a tier from the menu | `researchModeProvider.notifier.set(m)` fires; chip updates to the chosen tier | rev 07-25 | P1 |
+
 ---
 
 ## 6. E2E level — `integration_test/research_flow_test.dart` (run with `-d macos`)
@@ -225,6 +255,7 @@ shared-DB contention — if a run hangs on a spinner, re-run the file **alone** 
 | E2E-5 | **Switch-while-thinking** | Ask in A (hold the Completer) → switch to B → back to A: thinking row still up, send disabled → release answer → appears in A only, transcript ordered Q,A | **#2 #4** | P0 |
 | E2E-6 | **Retry journey** | Ask (fake fails with timeout) → error + Retry → tap Retry (fake succeeds) → answer appended, no duplicate question | — | P1 |
 | E2E-7 | Narrow-window happy path | Resize window below 768 → E2E-1's core via the drawer | — | P2 |
+| E2E-8 | **Per-chat tier restored on reopen** | Ask in A under Thinking → New chat (header back to Fast) → ask B under Fast → reopen A from Recent → header shows **Thinking** again (each chat remembers its own tier) | rev 07-25 | P1 |
 
 **Optional (manual/smoke, not in CI):** one run against the real `research_server` in stub mode
 (`RESEARCH_STUB=1`, `RESEARCH_BASE_URL=http://localhost:8081`) to validate the HTTP contract

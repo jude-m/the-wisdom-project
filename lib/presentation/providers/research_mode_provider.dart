@@ -1,51 +1,32 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/storage/key_value_store.dart';
-import '../../core/storage/key_value_store_provider.dart';
-import '../../core/storage/storage_keys.dart';
 import '../../domain/entities/research/research_mode.dart';
 
-/// Remembers the [ResearchMode] (Fast / Thinking) the user last picked for the
-/// Research section, so every question — and a restart — keeps that choice.
+/// Holds the [ResearchMode] (Fast / Thinking) currently shown in the Research
+/// header — the tier the *next* question will be sent under.
 ///
-/// The mode is **global**, not per-chat: one setting across all chats, which
-/// keeps the multi-chat storage scheme untouched (no per-transcript field).
-/// [ResearchChatNotifier] reads it at send time and passes it to the backend.
+/// This is an in-memory cursor, **not** a persisted global setting. Its value
+/// is seeded by the chat lifecycle, not restored from disk:
+/// - starting a **new chat** resets it to [ResearchMode.fast] (the default),
+/// - **opening a saved chat** sets it to that chat's last-used tier.
 ///
-/// Persistence is per-device via [KeyValueStore] (SharedPreferences /
-/// localStorage). Stores the enum's `name` (e.g. `"thinking"`), matching
-/// [LastReaderLayoutNotifier] and the theme/language notifiers.
+/// The per-chat tier is what actually persists — it rides the chat's
+/// `ChatSummary` in local storage (see [ChatHistoryRepository]). Keeping this
+/// provider transient is why a fresh chat (or an app restart, which starts on a
+/// fresh chat) always begins on Fast regardless of what was picked before.
+///
+/// [ResearchChatNotifier] reads it at send time to pick the tier and to stamp
+/// it onto the chat's summary.
 class ResearchModeNotifier extends StateNotifier<ResearchMode> {
-  ResearchModeNotifier(this._store) : super(_load(_store));
+  ResearchModeNotifier() : super(ResearchMode.fast);
 
-  final KeyValueStore _store;
-
-  /// Reads the saved mode, defaulting to [ResearchMode.fast] when absent or
-  /// unrecognized (an unknown value — e.g. a mode removed in a later version —
-  /// degrades cleanly to the fast default rather than throwing).
-  static ResearchMode _load(KeyValueStore store) {
-    final saved = store.getString(StorageKeys.researchMode);
-    for (final mode in ResearchMode.values) {
-      if (mode.name == saved) return mode;
-    }
-    return ResearchMode.fast;
-  }
-
-  /// Records the user's choice and persists it (per device). No-op if unchanged
-  /// so we don't churn a write on every menu open.
-  void set(ResearchMode mode) {
-    if (mode == state) return;
-    state = mode;
-    _store.setString(StorageKeys.researchMode, mode.name);
-  }
+  /// Set the active tier — the mode switch, and the new-chat/open-chat seeding.
+  void set(ResearchMode mode) => state = mode;
 }
 
-/// App-wide provider for the Research Fast/Thinking mode.
-///
-/// Uses `ref.read` for [keyValueStoreProvider] (a singleton overridden once in
-/// main.dart) and hydrates synchronously in the constructor, so the first read
-/// already reflects what's on disk — no main.dart wiring required.
+/// App-wide provider for the Research Fast/Thinking mode. In-memory only; see
+/// [ResearchModeNotifier] for why it isn't persisted.
 final researchModeProvider =
     StateNotifierProvider<ResearchModeNotifier, ResearchMode>((ref) {
-  return ResearchModeNotifier(ref.read(keyValueStoreProvider));
+  return ResearchModeNotifier();
 });
