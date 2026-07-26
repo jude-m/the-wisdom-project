@@ -46,7 +46,7 @@ One universal HTTPS link, e.g. `https://sammaditthi.app/tipitaka/sn-2-3-1-3?e=12
 | **Path segment** | **`/tipitaka/`** (class `TipitakaLink`) — renamed from `/sutta/` same day | `/sutta/atta-…` (commentary) was self-contradictory inside one URL. "tipitaka" follows the content-noun pattern of scripture-reference sites (Wikipedia `/wiki/`, Bible.com `/bible/`, Access to Insight literally `/tipitaka/`), names the subject for humans + a small SEO keyword plus. Used in the **umbrella sense** (as tipitaka.lk uses it): aṭṭhakathā is strictly outside the Tipiṭaka — accepted, precedent covers it. |
 | **Entry-level target** | Query param **`?e=<pageIndex>.<entryIndexInPage>`** | Path = identity, query = view state. Same coordinates `ReaderTab`/search results already use. Optional; absent → sutta start. |
 | **Reading layout** *(added 2026-07-20)* | Query param **`?layout=<ReaderLayout.name>`** — `paliOnly` / `sinhalaOnly` / `sideBySide` / `stacked` | View state, same slot as `?e=`. Token = the enum's `.name`, i.e. the exact string the app **already persists** (`last_reader_layout_provider.dart`), so URL ⇄ storage ⇄ enum need no mapping table. Optional + lenient: absent or unknown → the reader's own preferred layout (`resolveSeedLayout`); a valid token overrides for that open. Path form (`/…/stacked`) rejected (breaks path=identity; needs a static rewrite); hash form (`#stacked`) rejected (collides with the chapter `#<nodeKey>` single-view filter). |
-| **Edition flexibility** | Not in the *path*; optional `?edition=` query, **app surfaces only** *(scope locked 2026-07-21)* | The nodeKey is a *tree address*, not "render BJT". Multi-edition (SuttaCentral, A.P. de Zoysa) is scoped to the **app** (Flutter web on `app.<domain>` + native); the static site is **BJT-only**. So `?edition=` is a query modifier meaningful only on the app surfaces — the static `/tipitaka/*` pages never emit or read it. An SC-uid alias (`/s/sn15.3` → redirect) = data + one parse rule. Full model in **Editions & the two web surfaces** below. |
+| **Edition flexibility** | Not in the *path*; optional `?edition=` query, **app surfaces only** *(scope locked 2026-07-21)* | The nodeKey is a *tree address*, not "render BJT". Multi-edition (SuttaCentral, A.P. de Zoysa) is scoped to the **app** (Flutter web on `app.<domain>` + native); the static site is **BJT-only**. So `?edition=` is a query modifier meaningful only on the app surfaces — the static `/tipitaka/*` pages never emit or read it. Full model in **Editions & the two web surfaces** below. |
 | **Router** | **Defer go_router** | The 4 scenarios need link *receiving*, not URL-driven app state. `app_links` (mobile/desktop) + `Uri.base` (web, at startup) feed one LinkOpener that reuses `openTabFromNodeKeyProvider`. go_router's real benefit (address-bar sync in Flutter web) lands on the demoted surface — the static site owns web URLs — and can be adopted later; the codec/opener are exactly what it would call. |
 | **Dev scheme** | **`sammaditthi://`** custom scheme, dev/QA only | Universal/App Links can't be verified against localhost (OS fetches `/.well-known/` over real HTTPS). The scheme tests the whole OS→app→reader pipe today, incl. macOS. **Never appears in shared links.** |
 | **Link base URL** | `--dart-define=LINK_BASE_URL`, default **`http://localhost:8080`** | Same idiom as `RESEARCH_BASE_URL`. (8080 was the retired Dart content server's SPA fallback — server gone since 2026-07-16; the default is now just a harmless placeholder until the production domain exists, hosting doc open-Q #4.) Production host (`sammaditthi.app`) is config, not code. |
@@ -255,12 +255,18 @@ Universal Links = only with the real domain.
    a separate task (see the resolver plan §B.4 / findings doc).
 5. **Later**: share/copy-link on reader tabs (the shared URL carries the tab's
    current `?layout=`), `/.well-known` files + entitlements when the domain is
-   live (**both** apex and `app.` origins — see above), SC-uid alias URLs,
-   `?edition=` param, go_router if Flutter-web address-bar UX ever matters,
-   segment-level anchors (v2).
+   live (**both** apex and `app.` origins — see above), `?edition=` param,
+   go_router if Flutter-web address-bar UX ever matters, segment-level anchors
+   (v2).
 
 ## Notes
 
+- **Short/alias URLs — PARKED 2026-07-26.** SC uids (`sn15.3`) resolve
+  **in-app only** (citation → `sc-to-bjt.json` → nodeKey), never as a public URL:
+  no `/s/sn15.3`, no bare `/sn15.3`, no redirect layer. The concordance is
+  unaffected — it still grows to full sutta+Vinaya coverage (~4,000) for the RAG
+  corpus. What changes: the P5 mechanism gate serves **one** feature (the 1,593
+  grouped-leaf links), not two.
 - Keep parsing **lenient** — unknown/malformed parts → defaults, never throw.
 - **Grouped-sutta fragments (found 2026-07-22; fix LOCKED same day — user
   requires exact-sutta deep links even for grouped suttas):** a grouped sutta's

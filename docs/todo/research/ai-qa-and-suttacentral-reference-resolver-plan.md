@@ -334,7 +334,7 @@ site — it is shared canon-addressing logic, exactly what `wisdom_shared` is fo
 String? parseRef(String input);
 
 /// Step 2 — resolve a uid to our BJT tree node key via the concordance.
-/// "sn15.3"  →  "sn-2-4-3"   (null if not in the map)
+/// "sn15.3"  →  "sn-2-3-1-3"   (null if not in the map)
 String? resolveToNodeKey(String uid);
 ```
 
@@ -541,7 +541,7 @@ Net: chat → `shared_preferences`; resolver → in-memory JSON map; hybrid (lat
   a remote-config lookup. Native needs an absolute URL.
 - **`SearchResultType.reference` vs reuse `title`** — new value is clearer;
   confirm it doesn't disturb the tab/badge UI.
-- **Resolver output identity** — node key (`sn-2-4-3`) for search vs `textId`
+- **Resolver output identity** — node key (`sn-2-3-1-3`) for search vs `textId`
   (`sn1-1`) for routing; confirm the existing nodeKey↔textId mapping covers both
   consumers or add a thin adapter.
 - **Concordance coverage policy** — what to do for uids with no clean BJT target
