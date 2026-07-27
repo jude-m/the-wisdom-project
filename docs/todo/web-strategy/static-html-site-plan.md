@@ -454,7 +454,7 @@ Flutter widget. Fix the seam first.
   then share the decode; only the *byte source* differs.
 
 ### PREREQ-3 — Generator is a standalone, Flutter-free Dart package
-- New `static_site_generator/` (sibling of `web_client_prototype/`), plain Dart
+- New top-level `static_site_generator/` (repo root, beside `server/`), plain Dart
   console app. **No `flutter` dependency** — only `wisdom_shared` + `dart:io`.
   Compiling without Flutter is the proof that no UI logic leaked in.
 - Reads `../assets/...` at build time; writes HTML to `static_site_generator/build/`.
