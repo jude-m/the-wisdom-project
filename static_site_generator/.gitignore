@@ -1,0 +1,5 @@
+# Generated HTML — rebuilt from assets/ on every run, never committed.
+build/
+
+# pubspec.lock IS committed, matching server/ and packages/wisdom_shared/.
+# Pinned dependencies are part of reproducible output (§11.8 byte-determinism).

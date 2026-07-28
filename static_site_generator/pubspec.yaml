@@ -1,0 +1,19 @@
+name: static_site_generator
+description: >-
+  Builds the static HTML Tipitaka site from assets/text/*.json + assets/data/tree.json.
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+# NO flutter dependency, deliberately. This package compiling under a plain
+# `dart` SDK is the mechanical proof that no UI logic leaked into the
+# generator — see PREREQ-3 in docs/todo/web-strategy/static-html-site-plan.md.
+dependencies:
+  wisdom_shared:
+    path: ../packages/wisdom_shared
+
+dev_dependencies:
+  lints: ^3.0.0
+  test: ^1.24.0

@@ -11,4 +11,6 @@ export 'src/links/tipitaka_link.dart';
 export 'src/refs/suttacentral_ref_resolver.dart';
 export 'src/scope/scope_filter_sql.dart';
 export 'src/scope/scope_patterns.dart';
+export 'src/text/content_markers.dart';
+export 'src/tree/tipitaka_tree.dart';
 export 'src/utils/csv_parser.dart';

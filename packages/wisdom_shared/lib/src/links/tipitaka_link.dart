@@ -45,8 +45,17 @@ class TipitakaLink {
   /// Query parameter carrying the entry position: `e=<page>[.<entry>]`.
   static const String entryParam = 'e';
 
-  /// nodeKeys are lowercase alphanumeric runs joined by single hyphens.
-  static final RegExp _nodeKeyPattern = RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$');
+  /// nodeKeys are lowercase alphanumeric runs joined by single separators.
+  ///
+  /// Hyphen is the usual one (`sn-2-3-1-3`), but 53 commentary nodes carry a
+  /// **dot** inside a segment — `atta-ap-dhs-2-1-1.1`, `atta-vp-cv-3-2.5`,
+  /// `atta-ap-vbh-6-1.91` — all under `atta-ap-*` / `atta-vp-cv-*`. Rejecting
+  /// them here made deep links to those 50 leaves resolve to null.
+  ///
+  /// This is a *syntactic* guard only; whether the key exists is the tree's
+  /// business, so a well-formed key that names nothing resolves to "not found"
+  /// exactly like a typo'd `sn-99-99` does.
+  static final RegExp _nodeKeyPattern = RegExp(r'^[a-z0-9]+(?:[-.][a-z0-9]+)*$');
 
   /// Parses a URI into a [TipitakaLink], or `null` if it isn't one.
   ///

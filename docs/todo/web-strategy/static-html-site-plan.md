@@ -433,9 +433,22 @@ The biggest "don't fork logic later" item: the marker→display logic lives in a
 Flutter widget. Fix the seam first.
 
 ### PREREQ-1 — Pure-Dart marker parser into `wisdom_shared`
-- **Today:** `**…**`/`__…__`/`{n}` handling is computed inside
-  `lib/presentation/widgets/reader/text_entry_widget.dart` (`markedRanges` +
-  `TapGestureRecognizer`) — fused with Flutter `TextSpan` rendering.
+- **Today:** `**…**`/`__…__`/`{n}` handling lives in
+  `lib/domain/entities/content/entry.dart` — `plainText`, `markedRanges` and
+  `_computeMarkedRanges()`, cached through an `Expando`.
+  `text_entry_widget.dart` only *consumes* `markedRanges` (with a
+  `TapGestureRecognizer`); it computes nothing.
+  > **Corrected 2026-07-27.** This section previously named
+  > `text_entry_widget.dart` as the site of the logic. It isn't, and the shape
+  > differs too: the existing model is **bold ranges over plainText**, not the
+  > typed segment list below. `__underline__` is currently **stripped and
+  > discarded** ("underline — stripped, not rendered"), and `{footnote}` bodies
+  > are skipped entirely — so the extraction is a *widening*, not a move.
+  > **Underline is not a rounding error:** `__` appears **536 times across 74 of
+  > the 285 files** (≈268 spans). It is absent from the first slice (`an-1`,
+  > `kn-khp`, `mn-1` all have 0; `atta-an-1` has 2), so P1 is unaffected — but
+  > every one of those spans is silently dropped today, in the app as well as
+  > the future site. Decide render-vs-drop before P6 goes corpus-wide.
 - **Do:** add `packages/wisdom_shared/lib/src/text/content_markers.dart`:
   ```dart
   /// Splits raw entry text into ordered, typed segments. No Flutter.
@@ -458,6 +471,11 @@ Flutter widget. Fix the seam first.
   console app. **No `flutter` dependency** — only `wisdom_shared` + `dart:io`.
   Compiling without Flutter is the proof that no UI logic leaked in.
 - Reads `../assets/...` at build time; writes HTML to `static_site_generator/build/`.
+- **Toolchain boundary (D9, build plan §3 — 2026-07-27):** Dart owns all corpus
+  logic — `wisdom_shared` runs the *same* marker parser and tree decode in the
+  generator and the app. A Node generator would fork both in TS and drift. Node
+  and Python are allowed only as **post-processing over finished bytes**
+  (`pyftsubset`, `wrangler`, link/HTML checkers, optional minify).
 
 ### PREREQ-4 — Clean layering inside the generator
 ```
@@ -525,7 +543,7 @@ build/
     …
   sitemap.xml                        # distinct files + chapter files (not redirect stubs)
   assets/site.css                    # one small stylesheet (layouts + tree + type)
-  fonts/…                            # Noto Sinhala, font-display: swap (progressive)
+  fonts/…                            # Noto Sinhala WOFF2, font-display: swap — COPIED, not built
   grouping.json  (source, not output)
   .manifest.json (source→[outputs] + hashes, for incremental builds)
 ```
@@ -540,6 +558,9 @@ build/
 - **Every sutta's text is in exactly one file.** Hosting split (static on the
   apex, app on `app.<domain>` — decided 2026-07-23) lives in
   `static-web-hosting.md` → "Project topology".
+- **`fonts/` is a build *input*, not output** (2026-07-27). `subset_fonts.sh`
+  runs by hand (needs `--flavor=woff2` adding), output is committed, generator
+  copies bytes — same pattern as `theme_tokens.json`.
 
 ### Commentary titles & canonical (decided 2026-07-25)
 
@@ -585,6 +606,11 @@ untreated they compete for the same name searches.
    deploy**. Byte-identical output when the input is unchanged is a hard
    requirement, not a nicety. *(Distinct from the `.manifest.json` in §10 — that
    decides what to **regenerate**; this is what gets **uploaded**.)*
+9. **Link + markup check (full-corpus phase):** link checker + HTML validator over
+   `build/`. Node CLIs are fine here — finished output is the seam PREREQ-3 allows.
+10. **Minify only if measured.** CF brotlis at the edge, so pre-minifying saves
+    single digits. If added: run **after** manifest hashing, and step 8 must still
+    come back empty. **Default: don't.**
 
 > Per project convention: no test suite is added unless asked. The marker parser
 > (PREREQ-1) is logic the test-writer agent should later cover — a separate task.
@@ -592,6 +618,16 @@ untreated they compete for the same name searches.
 ---
 
 ## 12. Phasing (small, reviewable steps)
+
+> ⚠️ **SUPERSEDED 2026-07-27 by [`static-html-site-build-plan.md`](static-html-site-build-plan.md).**
+> The first slice moved from `kn-khp` to **`an-1`**, which is size-mixed
+> (12 grouped / 11 exploded containers) — so the grouping classifier can no
+> longer wait until P5 and moves into the first content phase. That reordering
+> cascades through everything below. The build plan carries an old→new mapping
+> table so no phase is lost.
+>
+> **The rest of this document is current** — the grouping model, thresholds, URL
+> grammar and constraints C1–C10 all still govern. Only this section is stale.
 
 - **P0 — PREREQ-1** Extract `parseContentMarkers` into `wisdom_shared`; refactor
   `text_entry_widget.dart` to consume it (app behaviour unchanged).
