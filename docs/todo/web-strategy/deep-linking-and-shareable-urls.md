@@ -7,6 +7,8 @@
 > and [`../web-strategy/static-html-site-plan.md`](../web-strategy/static-html-site-plan.md).
 > First consumer: **AI research citations** (tap a cited source → open in reader) —
 > see [`ai-qa-and-suttacentral-reference-resolver-plan.md`](../research/ai-qa-and-suttacentral-reference-resolver-plan.md) Part D.
+> Test coverage for all four layers of this path is planned separately in
+> [`./deep-link-test-coverage-plan.md`](./deep-link-test-coverage-plan.md) (parked 2026-07-29).
 >
 > **2026-07-23 — app surface moved to a subdomain.** Flutter web is no longer
 > path-split at `/app/*`; it is its own Pages project on **`app.<domain>`**
@@ -265,7 +267,7 @@ Universal Links = only with the real domain.
   **in-app only** (citation → `sc-to-bjt.json` → nodeKey), never as a public URL:
   no `/s/sn15.3`, no bare `/sn15.3`, no redirect layer. The concordance is
   unaffected — it still grows to full sutta+Vinaya coverage (~4,000) for the RAG
-  corpus. What changes: the P5 mechanism gate serves **one** feature (the 1,593
+  corpus. What changes: the P5 mechanism gate serves **one** feature (the 1,603
   grouped-leaf links), not two.
 - Keep parsing **lenient** — unknown/malformed parts → defaults, never throw.
 - **Grouped-sutta fragments (found 2026-07-22; fix LOCKED same day — user
