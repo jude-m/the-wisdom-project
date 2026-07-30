@@ -144,6 +144,82 @@ All of this is the **free** Pages plan:
   **stub HTML files or Bulk Redirects** (P5 decision gate — see "Grouped-leaf
   clean URLs" below; build plan §6/§13.2).
 
+### Build & deploy pipeline — CI builds, `wrangler` direct upload (DECIDED 2026-07-31)
+
+*Who* runs the generator and *how* its output reaches Cloudflare. Nothing above
+this line answered that — the only prior mentions of `wrangler` were a tooling-list
+entry (prototype plan §11) and a table row (build plan §3).
+
+**Generated HTML is never committed.** Measured 2026-07-31 against the P1 output:
+`assets/text/an-1.json` is 588 K and its 110 pages come to 578 K of HTML, so output
+runs **~1:1 with the source JSON** — the full corpus is therefore **~340 MB across
+16,356 files** (~21 K/page) landing on a `.git` already at 694 MB. It is derived
+data: corpus + generator determine it exactly, and byte-determinism holds from P1
+(build plan §11.8). `static_site_generator/build/` stays gitignored. Committing it
+would also make one CSS-token change rewrite the wrapper of all 16,356 files, and
+the real diff would be unreviewable underneath.
+
+**Cloudflare's own build system does not run the generator.** Dart ships in neither
+image (verified 2026-07-31):
+
+| Build image | OS | Preinstalled |
+|---|---|---|
+| Pages v3 | Ubuntu 22.04 | Go 1.24.3, Node 22.16.0, Bun 1.2.15, Python 3.13.3, Ruby 3.4.4, Hugo, Zola |
+| Workers Builds | Ubuntu 24.04 | Go 1.24.3, Node 22.16.0, Bun 1.2.15, Python 3.13.3, Ruby 3.4.4, Hugo |
+
+A `curl` + `unzip` of the SDK zip into `$HOME` from the build command would work —
+no root required, and both images carry `curl` and `unzip` — but this is the wrong
+place for it. Cloudflare would clone 694 MB of history, check out the 340 MB corpus
+and pull ~200 MB of SDK inside a **20-minute hard timeout** on **1 concurrent
+build** (free), all before an 85 ms/110-file generator starts. Untested here, and
+unofficial Dart means an image bump could break the site silently.
+
+**GitHub Actions → `wrangler pages deploy` (direct upload)** is the path. The repo
+is public, so Actions minutes are free and unlimited; `dart-lang/setup-dart` is
+first-class; and the generator has **zero third-party runtime dependencies**
+(`wisdom_shared` declares none; `static_site_generator` has only `lints`/`test`
+under dev), so `dart pub get` cannot break on a transitive update. Direct upload
+bypasses Cloudflare's build system entirely — it consumes **none** of the free
+plan's 500 builds/month — and uploads are hash-incremental, so after the first
+deploy only genuinely-changed pages transfer. That is exactly the property P1's
+determinism work bought (build plan §11.8). A local `wrangler pages deploy build/`
+from a workstation is the same path driven by hand.
+
+```yaml
+# .github/workflows/deploy-static-site.yml — sketch, not yet written
+on:
+  push:
+    branches: [main]
+    paths: ['static_site_generator/**', 'packages/wisdom_shared/**',
+            'assets/text/**', 'assets/data/**']
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4        # shallow — skips the 694 MB history
+      - uses: dart-lang/setup-dart@v1
+        with: { sdk: stable }
+      - run: cd static_site_generator && dart pub get &&
+             dart run bin/generate.dart --out ../build
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          command: pages deploy build --project-name=<apex-project>
+```
+
+**The file cap does not move on migration.** 20,000 files free is the *same* number
+on [Workers static assets](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/)
+(verified 2026-07-31), so the eventual Pages → Workers move — Cloudflare now steers
+new projects to Workers, with Pages supported but no longer where feature work
+lands — buys no headroom whatsoever. Paid raises both to 100,000. This belongs on
+the P5 gate below: stubs park the content project at ~82% of a cap that no platform
+change relieves.
+
+Note the CI side-effect worth collecting: the workflow runner *has* the 340 MB
+corpus, so `tool/verify_corpus_invariants.dart` — today marked "needs the corpus,
+does not run in CI" (build plan §7) — can start running there.
+
 ### Project topology — one Pages project per surface (DECIDED 2026-07-23)
 
 The earlier lean was path-split (`/app/*` inside the content project); **reversed

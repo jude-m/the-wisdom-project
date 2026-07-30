@@ -526,6 +526,11 @@ unchanged by it — these are structure and parity fixes, not behaviour.
   broken links stop being findable by eye.
 - **Measure before minifying** (D9). Adopt only if the brotli'd win is real *and*
   the build-twice diff stays empty. Default: don't.
+- **The output of this phase is never committed** — ~340 MB of HTML, produced by CI
+  and uploaded straight to Cloudflare. `build/` stays gitignored; the pipeline
+  (GitHub Actions → `wrangler` direct upload, and why Cloudflare's own build system
+  doesn't run the generator) is decided in the hosting doc, "Build & deploy
+  pipeline".
 
 ### P7 — Footnotes
 
@@ -567,7 +572,11 @@ The P0 equivalence proofs no longer exist only as prose:
 |---|---|---|
 | `packages/wisdom_shared/test/text/content_markers_test.dart` | 89 cases; the pre-extraction `Entry.plainText` / `_computeMarkedRanges` is duplicated in-test as a **frozen oracle** | ✅ |
 | `packages/wisdom_shared/test/tree/tipitaka_tree_test.dart` | 18 cases on synthetic fixtures — each ordering hazard in isolation, plus the malformed-row guards | ✅ |
-| `static_site_generator/tool/verify_corpus_invariants.dart` | the exhaustive run: 466,127 entries + all 2,005 parents against both frozen oracles | ❌ needs the 340 MB corpus |
+| `static_site_generator/tool/verify_corpus_invariants.dart` | the exhaustive run: 466,127 entries + all 2,005 parents against both frozen oracles | ❌ needs the 340 MB corpus — but see below |
+
+The ❌ is now addressable: the deploy workflow decided 2026-07-31 (hosting doc,
+"Build & deploy pipeline") checks the corpus out on a GitHub Actions runner in
+order to generate the site, so the exhaustive run can ride along in the same job.
 
 The tree test's load-bearing case is **40 index-less siblings** — past the
 32-element cliff where `List.sort` stops being accidentally stable. The real
