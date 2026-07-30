@@ -84,10 +84,10 @@ class StackedPane extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   ReaderEntryBuilder.buildPageNumber(context, page.pageNumber),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppFonts.pageNumberGapPx),
                   ..._buildStackedEntries(
                       context, page, absolutePageIndex, actualEntryStart),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: AppFonts.pageGapPx),
                 ],
               );
             },

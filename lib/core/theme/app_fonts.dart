@@ -140,6 +140,26 @@ abstract class AppFonts {
   static const double gathaLevel2IndentEm = 5.0;
 
   // ============================================
+  // Reader Vertical Rhythm
+  // ============================================
+  // Logical pixels, not em multiples: these are gaps *between* widgets, so
+  // they stay put when the reader changes font size.
+  //
+  // Named here rather than left as literals in the panes because
+  // tools/dump_theme_tokens.dart exports them to the static site's CSS. A
+  // spacing value typed once in the widget tree and again in the dump script
+  // is exactly the silent drift the generated-token pipeline exists to close.
+
+  /// Gap below each rendered entry.
+  static const double entryGapPx = 12.0;
+
+  /// Gap between two printed pages in the reader.
+  static const double pageGapPx = 32.0;
+
+  /// Gap above a page-number label.
+  static const double pageNumberGapPx = 16.0;
+
+  // ============================================
   // Font Scale
   // ============================================
 

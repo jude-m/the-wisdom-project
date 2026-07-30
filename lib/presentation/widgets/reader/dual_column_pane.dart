@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show SelectedContent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/constants.dart';
+import '../../../core/theme/app_fonts.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../domain/entities/bjt/bjt_page.dart';
 import '../../models/in_page_search_state.dart';
@@ -209,7 +210,7 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
 
       // Page number row — same on both sides, no sync needed.
       widgets.add(ReaderEntryBuilder.buildPageNumber(context, page.pageNumber));
-      widgets.add(const SizedBox(height: 16));
+      widgets.add(const SizedBox(height: AppFonts.pageNumberGapPx));
 
       final entryCount = page.paliSection.entries.length - startEntry;
       for (var i = 0; i < entryCount; i++) {
@@ -268,7 +269,7 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
         );
 
         Widget row = Padding(
-          padding: const EdgeInsets.only(bottom: 12.0),
+          padding: const EdgeInsets.only(bottom: AppFonts.entryGapPx),
           child: side,
         );
 
@@ -285,7 +286,7 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
         widgets.add(row);
       }
 
-      widgets.add(const SizedBox(height: 32));
+      widgets.add(const SizedBox(height: AppFonts.pageGapPx));
     }
 
     return widgets;

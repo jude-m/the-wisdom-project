@@ -70,3 +70,10 @@ assets/databases/*.db
 
 # Temporary documents that should be deleted
 TEST_AUDIT_REPORT.md
+
+# Intermediate TTF subsets from assets/fonts/subset_fonts.sh. The script
+# subsets to TTF and then compresses that result to WOFF2; only the WOFF2 is a
+# committed build input (the static site copies it verbatim). pubspec.yaml
+# still bundles the full TTFs, so these are regenerable scratch until that
+# switch is made deliberately.
+assets/fonts/**/*-Subset.ttf

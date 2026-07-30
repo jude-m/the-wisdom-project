@@ -82,7 +82,8 @@ bool _verifyMarkers(CorpusReader reader) {
           _sample(samples, 'plainText  $id  ${_clip(raw)}');
         }
 
-        if (!_sameRanges(ContentMarkers.boldRanges(raw), _oldMarkedRanges(raw))) {
+        if (!_sameRanges(
+            ContentMarkers.boldRanges(raw), _oldMarkedRanges(raw))) {
           rangeDiffs++;
           _sample(samples, 'ranges     $id  ${_clip(raw)}');
         }
@@ -205,15 +206,16 @@ bool _verifyTree(CorpusReader reader) {
   compare('root', oldChildren['root'] ?? const [], tree.rootKeys);
   for (final node in tree.allNodes) {
     if (node.childKeys.isEmpty) continue;
-    compare(node.nodeKey, oldChildren[node.nodeKey] ?? const [], node.childKeys);
+    compare(
+        node.nodeKey, oldChildren[node.nodeKey] ?? const [], node.childKeys);
   }
 
   // §11.8: unstable ordering would re-hash every page on an unchanged corpus.
   String signature(TipitakaTree t) =>
       t.allNodes.map((n) => '${n.nodeKey}:${n.childKeys.join(",")}').join('|');
-  final deterministic =
-      signature(TipitakaTree.fromJson(json.decode(raw) as Map<String, dynamic>)) ==
-          signature(tree);
+  final deterministic = signature(
+          TipitakaTree.fromJson(json.decode(raw) as Map<String, dynamic>)) ==
+      signature(tree);
 
   // The hazard the explicit tiebreak exists for: parents holding at least one
   // key with no trailing integer, where the old comparator returns 0.

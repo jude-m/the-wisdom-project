@@ -213,6 +213,12 @@ Map<String, dynamic> _spacing() => {
       'paragraphIndentEm': AppFonts.paragraphIndentEm,
       'gathaIndentEm': AppFonts.gathaIndentEm,
       'gathaLevel2IndentEm': AppFonts.gathaLevel2IndentEm,
+      // The reader's vertical rhythm, read from the same constants the panes
+      // lay out with — never re-typed here. `AppFonts.pageNumberGapPx` is
+      // deliberately absent: it spaces a page-number chip the static site does
+      // not render, and an exported token with no consumer only invites one.
+      'entryGapPx': AppFonts.entryGapPx,
+      'pageGapPx': AppFonts.pageGapPx,
     };
 
 /// Trims binary floating-point noise (1.0999999999999999 → 1.1) so re-running

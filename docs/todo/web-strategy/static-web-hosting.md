@@ -107,10 +107,10 @@ All of this is the **free** Pages plan:
   files (below) be fetched over real HTTPS — the OS requirement for Universal /
   App Links.
 - **File cap = 20,000 files per project (exact numbers 2026-07-23).** The whole
-  corpus (canon + `atta-*` + `anya-*`) generates **16,356 files**: 14,763 real
-  pages (12,758 sutta + 145 chapter + 1,859 container TOC + 1 root) plus **1,593
+  corpus (canon + `atta-*` + `anya-*`) generates **16,356 files**: 14,753 real
+  pages (12,748 sutta + 146 chapter + 1,858 container TOC + 1 root) plus **1,603
   grouped-leaf redirect stubs** — the stubs ride on the P5 stub-vs-Bulk-Redirects
-  gate below; with edge redirects instead, the total is 14,763 (build plan
+  gate below; with edge redirects instead, the total is 14,753 (build plan
   §13.2). Note the invariant: with stubs, the total is *always* leaves (14,351)
   + containers (2,004) + root —
   **the grouping threshold does not move the file count at all** (an exploded
@@ -139,7 +139,7 @@ All of this is the **free** Pages plan:
 - **`_redirects` rule caps: 2,000 static + 100 dynamic = 2,100 total (verified
   2026-07-22).** The content project now needs few or zero rules (the app moved
   to its own project) — but the cap still rules out per-sutta redirect rules for
-  the **1,593 grouped leaves** (and any higher threshold breaks the cap harder).
+  the **1,603 grouped leaves** (and any higher threshold breaks the cap harder).
   Grouped-leaf clean URLs are therefore never `_redirects` lines — they are
   **stub HTML files or Bulk Redirects** (P5 decision gate — see "Grouped-leaf
   clean URLs" below; build plan §6/§13.2).
@@ -188,20 +188,20 @@ surfaces no longer share a project.
 
 ### Grouped-leaf clean URLs — stub files vs Bulk Redirects (P5 decision gate, 2026-07-23)
 
-Something must answer at each of the 1,593 grouped-leaf URLs
+Something must answer at each of the 1,603 grouped-leaf URLs
 (`/tipitaka/<leafKey>` → `…/<vaggaKey>#<leafKey>`). The *requirement* is locked
 (exact-sutta links for no-app recipients, 2026-07-22); the *mechanism* is a
 **P5 decision — do NOT generate the stubs without asking the maintainer**:
 
 - **Stub HTML files** (build-plan default): meta-refresh-0 + canonical →
   chapter. In-repo and portable, work on `*.pages.dev` previews, no zone
-  needed. Cost: +1,593 files and a momentary blank stub before the jump.
+  needed. Cost: +1,603 files and a momentary blank stub before the jump.
 - **Cloudflare Bulk Redirects** (verified 2026-07-23): an account-level
   redirect list serving **real edge 301s**; target URLs **may carry
   `#fragment`**; free quota = **10,000 list items / 5 lists — verified on the
   dev account 2026-07-23** (re-verify on the production wisdom.ops account at
   creation: dash.cloudflare.com → account → **Bulk Redirects**; the legacy-20
-  issue was old-account rollout lag). Cleaner (−1,593 files, no stub flash),
+  issue was old-account rollout lag). Cleaner (−1,603 files, no stub flash),
   but needs the custom domain
   as a Cloudflare zone (inert on `*.pages.dev`) and the list lives in the
   dashboard/API — the generator should emit the leaf→chapter#fragment mapping

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show SelectedContent;
 import '../../../core/constants/constants.dart';
+import '../../../core/theme/app_fonts.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../domain/entities/bjt/bjt_page.dart';
 import '../../models/in_page_search_state.dart';
@@ -88,7 +89,7 @@ class SingleColumnPane extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ReaderEntryBuilder.buildPageNumber(context, page.pageNumber),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppFonts.pageNumberGapPx),
                   ...ReaderEntryBuilder.buildEntries(
                     context,
                     entries,
@@ -100,7 +101,8 @@ class SingleColumnPane extends StatelessWidget {
                     onWordTap: onWordTap,
                     entryKeyRegistry: entryKeyRegistry,
                   ),
-                  const SizedBox(height: 32), // Space between pages
+                  // Space between pages
+                  const SizedBox(height: AppFonts.pageGapPx),
                 ],
               );
             },

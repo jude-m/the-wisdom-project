@@ -41,23 +41,25 @@ into the first content phase. That single change drives the reordering.
 
 ### D4 — the romanization seam
 
-Titles render Sinhala-only. The generator still routes every title through:
+Titles render Sinhala-only, because `assets/data/tree.json` carries no Latin
+text for any of its 16,355 nodes.
 
-```dart
-/// Romanized (IAST) form of a node title.
-///
-/// Returns null today — D4 (2026-07-27) ships Sinhala-only titles because
-/// assets/data/tree.json carries no Latin text for any of its 16,355 nodes.
-///
-/// When this lands it should emit `data-roman` on the title element and feed
-/// `<meta name="dc.alternative">`. Pali in Sinhala script is phonemically 1:1
-/// with IAST, so the mapping is mechanical — the blocker is deciding where the
-/// data comes from, not how to transliterate.
-String? romanizedTitle(String nodeKey) => null;
-```
+> **Corrected 2026-07-30.** This section used to show a
+> `String? romanizedTitle(String nodeKey) => null;` stub and claim "the
+> generator still routes every title through" it. **It never did, and the stub
+> was never written.** A seam with one implementation, no caller and no data
+> behind it is not a head start — it is a function that has to be re-read and
+> re-decided by whoever picks this up. The single note at
+> `render/page_template.dart` (above `_titleHtml`) carries the same information
+> without pretending the plumbing exists.
 
-One implementation later, not a re-plumb. **SEO cost of waiting is real** — "Mangala
-Sutta" is the string an English speaker types — so this should not sit forever.
+When it lands, the title helpers in `render/page_template.dart` are the one
+place to change: emit `data-roman` on the title element and feed
+`<meta name="dc.alternative">`. Pali in Sinhala script is phonemically 1:1 with
+IAST, so the mapping is mechanical — the blocker is deciding where the data
+comes from, not how to transliterate. **SEO cost of waiting is real** —
+"Mangala Sutta" is the string an English speaker types — so this should not sit
+forever.
 
 ---
 
@@ -118,7 +120,11 @@ all 16,356 files. If adopted: run after manifest hashing, must pass build-twice.
 
 **Fonts are committed build inputs**, like `theme_tokens.json` — run
 `subset_fonts.sh` by hand, commit, generator copies bytes. Keeps Python out of
-the build loop. One fix needed: it emits **TTF**, needs `--flavor=woff2`.
+the build loop. It subsets **once** to TTF and then runs
+`fonttools ttLib.woff2 compress` over that result — woff2 is the same tables in
+a brotli container, so a second `pyftsubset --flavor=woff2` over the *original*
+would redo the whole glyph pass to reach identical outlines, and leave two
+subsets free to drift apart (review D5, 2026-07-30).
 (`--no-recalc-timestamp` is already pyftsubset's default — verified 2026-07-27.)
 
 ---
@@ -134,11 +140,19 @@ Hugo / Jekyll / WordPress all emit.
 ```html
 <meta name="generator" content="wisdom-ssg 0.1.0">
 <meta name="dc.source" content="assets/text/an-1.json">
-<!-- node: an-1-1-1 · slice: pages[3].pali[4..9] · pages[3].sinh[4..9] -->
+<!--
+  node: an-1-1 (chapter)
+  preamble: pages[0].[4..5]
+  an-1-1-1: pages[0].[6..8]
+  an-1-1-2: pages[0].[9..10]
+-->
 ```
 
 The **entry slice** matters more than the filename. When a page renders wrong the
-question is always *"which entries did the slicer grab?"*.
+question is always *"which entries did the slicer grab?"*. One line per sutta on
+the page, plus the container's own preamble. The coordinate is not split per
+language — Pali and Sinhala share an entry index by construction, so naming one
+range says both.
 
 > ⚠️ **No build timestamp anywhere in the output.** §11.8 requires byte-identical
 > output on unchanged input because Cloudflare dedups by content hash. A timestamp
@@ -198,8 +212,12 @@ Each phase ends with something openable in a browser. `an-1` scoped through P5.
     Bold and underline nest (23 + 6 cases) but **never interleave** across the
     whole corpus, so two independent toggles suffice.
   - `__` appears **536× across 74 of 285 files** = **268 spans** (every entry has
-    an even count) — 0 in the `an-1` slice, so P1 is safe, but **decide
-    render-vs-drop before P6**.
+    an even count) — 0 in the `an-1` slice. ✅ **Decided 2026-07-30: dropped, to
+    match the app.** `text_entry_widget.dart` styles `markedRanges` with nothing
+    but `FontWeight.bold` and feeds it from `boldRanges`, so the app strips `__`
+    and prints the text unstyled; the generator briefly emitted `<u>`, which
+    would have underlined 268 spans the app leaves plain. No text is lost either
+    way — only the styling. Revisit **on both surfaces at once**, never one.
   - ✅ **Fixed — footnote segments now carry their ambient style.** Found by the
     corpus script, not by review. `parseContentMarkers` was emitting `{label}`
     as `ContentSegment(text: '', footnoteLabel: …)` with `bold`/`underline`
@@ -264,50 +282,181 @@ This was not a free choice. It was **recovered** from
 Raw also reproduces the CSV's per-row `min_sutta_chars` / `max_sutta_chars`
 exactly (`an-1-1` → min 353, max 862). So raw is the convention that was used.
 
-> ✅ **RATIFIED 2026-07-27: the count is 146, not 145.** The CSV was missing
-> `vp-pct-1-3-5`, which satisfies the rule comfortably (10 leaves, max leaf
-> **781** chars, threshold 1,500) and is structurally identical to its siblings
-> `vp-pct-1-3-1/2/3`, which the CSV *does* include. Its neighbours `-4`, `-6`,
-> `-7` are correctly excluded (max leaves 3,689 / 3,393 / 4,802). Nothing about
-> `-5` distinguishes it, so this was a slip in the original classifier — which
-> was never committed, only its CSV output, exactly the failure mode that made
-> it unreviewable.
-> **Impact:** +1 grouped container ⇒ **−9 files** (10 leaves collapse to 1),
-> so **14,763 → 14,754** (16,356 → **16,347** with stubs). Well inside every
-> budget; the stub invariant and the P5 gate are untouched.
-> The CSV is left as-is — a P1 artefact of the *old* uncommitted script. The
-> committed classifier regenerates it, and 146 is the number it must produce.
+> ✅ **RATIFIED 2026-07-27, root cause found 2026-07-28: the count is 146, not
+> 145 — and the missing row was a *slicing* bug, not a classifier slip.** The
+> CSV omitted `vp-pct-1-3-5`. P0 read its max leaf as **781** chars; under the
+> rule stated above it is **2,157**, which is over the threshold and would
+> *correctly* exclude it. Both numbers are right about different slices:
+> `vp-pct-1-3-5-10` is the last leaf of its vagga, and the old CSV script ran
+> to the next **readable** node, swallowing the following vagga's heading and
+> its first rule's body. §6 of the model doc stated that wrong rule; §5.1 here
+> stated the right one. **The right one is "next node of any kind"** — it is
+> what makes the preamble rule work, and it independently reproduces 146.
+> **Impact:** +1 grouped container ⇒ its 10 leaves stop getting files while its
+> TOC page becomes the chapter page, so **14,763 → 14,753** real pages and
+> **1,593 → 1,603** stubs. **16,356 total is unchanged** — the deltas cancel,
+> which is the stub invariant doing its job. The P5 gate is untouched.
 >
 > Note the earlier claim that `kn-thig-6` is the 145↔146 swing node was
-> measured under the *stripped* convention; under the real one the swing node
-> is `vp-pct-1-3-5`.
+> measured under the *stripped* convention. Under the real one it is the
+> **nearest miss**: its longest leaf measures exactly **1,500**, so the strict
+> `<` is load-bearing to a single character. The nearest grouped container is
+> `atta-an-10-1-1` at 1,490 — a 10-char margin, which
+> `tool/classify_corpus.dart` now prints on every run.
 
-The classifier ships as committed source in P1 (`lib/grouping/`), not as a
-loose script, so this number is reproducible from here on.
+The classifier ships as committed source in P1
+(`lib/domain/grouping_classifier.dart`), and `tool/classify_corpus.dart
+--write-csv` regenerates the CSV from it — so the number is reproducible, and
+the artefact that was previously unreviewable now has the code behind it.
 
-### P1 — The reading page · frames 02 + 04
+### P1 — The reading page · frames 02 + 04 ✅ **done 2026-07-28**
 
+- **PREREQ-5 (unplanned, found in P1)** ✅ — `pali_conjunct_transformer.dart` +
+  `pali_letter_options.dart` moved into `wisdom_shared`. D1 needs
+  `beautifyPaliText` inside the Flutter-free generator, and both files turned
+  out to have **no Flutter imports at all**, so this was a move, not a port.
+  The old paths stay as re-exports, so the 22 importers and their tests are
+  untouched.
 - Generator skeleton (PREREQ-3/4), content slicing, **grouping classifier**
   (early — `an-1` is mixed).
+  - Slicing is verified by **conservation, not by eye**: `an-1`'s 581 source
+    entries render as exactly 581 elements across its 110 pages. Nothing
+    dropped, nothing duplicated — the check to re-run whenever the slicer moves.
 - All 5 entry types → HTML + CSS from `theme_tokens.json`:
   `paragraph` 335,518 · `gatha` 58,031 · `heading` 32,462 (L1–5) ·
   `centered` 31,773 · `unindented` 8,343.
   These are exactly what `text_entry_theme.dart` already styles — the stylesheet
   is a **port of an approved file, not a new design**. The sketch's verse
   `padding-left: 2.4em` is already `AppFonts.gathaIndentEm = 2.4`.
-- Conjunct baking (D1) + un-welded titles (D2).
-- WOFF2 subsetting (D7) — re-run `assets/fonts/subset_fonts.sh` **with
-  `--flavor=woff2` added**, commit the output, have the generator copy it (§3).
-- Provenance block (D8) + romanization seam (D4).
-- Breadcrumb, centered title, in-flow prev/next cards.
+- Conjunct baking (D1) + un-welded titles (D2). The un-weld is
+  character-for-character tipitaka.lk's (`views/Home.vue:118`): it strips only
+  the **touching** ZWJ (`ZWJ + hal`), never the **ligature** ZWJ (`hal + ZWJ`),
+  which is ordinary Sinhala spelling and appears in **8,536 of the tree's
+  32,710 names** (`සූත්‍ර`). Only 2 names carry a touching ZWJ to begin with, so
+  the regex is nearly a no-op.
+  > ⚠️ **Scope corrected 2026-07-30: D2 covers machine-read strings only.**
+  > P1 first applied the un-weld to the `<h1>`, breadcrumb, TOC and pager as
+  > well, which printed a sutta's name one way in the breadcrumb and another
+  > way in the body two lines below it — and diverged from *both* references.
+  > The app welds those very labels (`breadcrumb_provider.dart`,
+  > `tree_navigator_widget.dart`, both watching `paliLetterOptionsProvider`),
+  > and tipitaka.lk un-welds `document.title` alone. Now: `<title>` (plus OG /
+  > JSON-LD at P5) un-welds; **everything a reader looks at goes through
+  > `weldTitle` and matches the app.** The two helpers sit side by side in
+  > `render/entry_renderer.dart` so the split is hard to re-blur.
+- **Title composition (decided 2026-07-28): `<leaf> — <vagga> — <collection>`.**
+  §10's `<sutta> — <collection>` leaves **2,216 leaves with a duplicate
+  `<title>`** (worst bucket: 16 × "අට්ඨමසික්ඛාපදං — පාචිත්තියපාළි"); adding the
+  parent vagga cuts that to 377. Not cosmetic — `an-1`'s **entire** 243 leaves
+  are titled with nothing but a number ("1. 16. 8. 9-24"), in both languages,
+  and 1,165 leaves corpus-wide are. Repeated parts are dropped, so a node
+  directly under its collection does not say it twice.
+- WOFF2 subsetting (D7) ✅ **run and committed 2026-07-30** — `subset_fonts.sh`
+  emits both `-Subset.ttf` (the intermediate) and `-Subset.woff2` (the site),
+  and the generator copies the woff2 — **only the 8 faces the stylesheet
+  declares**, driven off the same `webFontFaces()` list, not a glob (review D6).
+  8 faces, 632 KB total, in `build/fonts/`.
+  > The earlier "`brotli` is not installed" note was stale — it is. Until the
+  > script was actually run, every page declared 8 `@font-face` rules pointing
+  > at files that did not exist and silently fell back to a system Sinhala face,
+  > which is *not* the face the conjuncts were HarfBuzz-verified against. **The
+  > 8 `*-Subset.woff2` are committed build inputs.** The `*-Subset.ttf` are
+  > gitignored: `pubspec.yaml` still bundles the full TTFs, so they are
+  > regenerable scratch until that switch is made deliberately.
+- Provenance block (D8). Romanization (D4) is deferred outright — no stub, see
+  the corrected D4 above.
+- Breadcrumb, centered title, in-flow prev/next cards. Prev/next walks
+  **readable pages only**, so crossing a vagga boundary lands on the next sutta
+  rather than a table of contents (C7); a chapter file is one stop.
 - Grouped chapter: `:has(:target)` single view + the "සම්පූර්ණ පරිච්ඡේදය" context bar.
   ⚠️ Write the filter as `.sutta:not(:target):not(:has(:target))` from the start.
   The naive `.chapter:has(.sutta:target)` form **breaks in P7**: targeting a
   footnote makes it stop matching and every hidden sutta reappears. Costs nothing
-  now; a rewrite later.
+  now; a rewrite later. ✅ written in the guarded form.
 
 **Not in this phase:** sidebar, layout switcher (Pali-only), search, footnotes.
-**Deliverable:** `an-1`'s 24 files browsable — both page types.
+**Deliverable:** ✅ `dart run static_site_generator/bin/generate.dart --root an-1`
+→ **110 files** in 85 ms: 85 sutta pages + 12 chapter pages + 13 container TOCs.
+*(§12's "24 files" was wrong — it counted deepest containers, not pages.)*
+Build-twice diff is empty, so §11.8 holds from the first phase.
+
+#### Post-P1 review pass (2026-07-30)
+
+An audit of the finished phase against C1–C10 and the app. Page count, the 581-
+entry conservation check and the full-corpus 146 / 1,603 / 16,356 are all
+unchanged by it — these are structure and parity fixes, not behaviour.
+
+- **Layers now point one way.** `ContentEntry` / `ContentPage` / `ContentFile`
+  were entities living inside `data/corpus_reader.dart`, so `domain/` and
+  `render/` both imported *up* into `data/`. They moved to
+  `domain/content_file.dart`; the reader keeps only I/O and hashing. Same for
+  `ThemeTokens` — now a pure typed view over a decoded map, with the file read
+  in `bin/generate.dart` (the composition root), so `render/` no longer reaches
+  sideways for it. `grouping/` folded into `domain/` because it is pure policy,
+  not a layer of its own.
+
+  The result is checkable in one line rather than asserted:
+  **no file under `domain/` or `render/` imports `dart:io`, and neither imports
+  `data/`.** `dart:io` now appears in exactly four places — `data/ancestor_dir`,
+  `data/corpus_reader`, `manifest/build_manifest` and `sitegen.dart`.
+
+  ```
+  domain/   pure — entities, slicer, classifier, tokens, hash
+  data/     reads  (-> domain/)
+  render/   pure   (-> domain/)
+  manifest/ writes one file
+  sitegen   the only place they meet
+  ```
+- **`build/` is wiped before each run.** The build only ever *added* files, so a
+  page that stopped existing — a vagga crossing the threshold, a nodeKey shifted
+  by a re-sync — left its old HTML behind for Cloudflare to serve. §11.8's
+  determinism covers building the *same* input twice and says nothing about a
+  changed one, which is exactly when orphans appear. The wipe **refuses any
+  directory that is neither empty nor a previous build** (`.manifest.json` is
+  the marker) — `--out` is one typo from somewhere that matters.
+- **Heading outline is contiguous.** `h${7 - level}` mapped source *sizes*
+  straight onto HTML depths, giving every `an-1` page an `<h1> → <h4> → <h6>`
+  outline with h2, h3 and h5 missing — a skipped-level failure claiming three
+  levels of nesting that are not there. Now the sizes present on a page are
+  ranked largest-first and handed `<h2>`, `<h3>`, … in order; the `l<n>` class
+  still carries the source level, so the stylesheet is untouched. Verified:
+  110 × `<h1>`, 110 × `<h2>`, 158 × `<h3>`, nothing else.
+- **Commentary link is same-tab.** It had `target="_blank"`; the app opens the
+  twin in place, and one link should not behave differently on the two surfaces.
+- **The reader's vertical rhythm is a shared constant.** `entryGapPx` /
+  `pageGapPx` were literals typed into `tools/dump_theme_tokens.dart` *and*
+  into four reader panes — the hand-copy the generated-token pipeline exists to
+  prevent, reintroduced one layer up. Both now live in `AppFonts`; the panes and
+  the dump script read the same constant. `pageNumberGapPx` is deliberately
+  **not** exported: it spaces a chip this surface does not render.
+- **Dropped:** `ContentEntry.plainText` and `.noAudio` (no consumer), the
+  `BuildReport.warnings` list (one producer — `stderr` at the point of
+  detection says the same thing), and ~60 lines of flag parsing and upward
+  directory-walking in `bin/generate.dart` (`Platform.script` answers exactly
+  what the walk was inferring). Every `StateError` refusal now prints as a
+  clean one-line CLI error instead of a Dart stack trace.
+
+#### Carried into P2 by what P1 measured
+
+1. **The layout radios must be siblings of one `.content` wrapper**, not of
+   `.sutta`. §7's selectors (`#L-pali:checked ~ .sutta .si`) never match on a
+   chapter page, where `.sutta` is nested inside `.chapter`. P1 already emits
+   that wrapper, so P2 is `~ .content .si` and the flagged landmine is defused
+   without `:has()`.
+2. **18.9% of paired entries are Pali `gatha` against Sinhala `paragraph`** —
+   43,081 of 228,496, across 245 of the 285 files. §7 only ever quantified
+   *count* misalignment (the 7 `ap-pat*` files). So side-by-side rows routinely
+   pair an italic, 2.4em-indented verse with upright justified prose: style
+   each **cell** by its own entry type, never the row, and expect uneven row
+   heights. `an-1` has zero gatha, which is why P1 never saw it.
+3. **`gatha` asks for italic and no Sinhala italic face exists.** The token says
+   `fontStyle: italic`; `assets/fonts/noto-serif-sinhala/` ships only
+   Regular/Medium/SemiBold/Bold. Browsers synthesise an oblique by default. P1
+   emits the token faithfully; if the app turns out to render upright, the knob
+   is `font-synthesis: style none`.
+4. **`paragraphIndent` is a dead token** — `text_entry_theme.dart:54` computes
+   it and *nothing in the app consumes it*. The CSS deliberately does not apply
+   it; honouring the token would make the site the odd one out.
 
 ### P2 — Layouts + container TOC · frames 03 + 06
 
@@ -316,6 +465,9 @@ loose script, so this number is reproducible from here on.
   ⚠️ §7's selectors (`#L-pali:checked ~ .sutta .si`) assume `.sutta` is a
   **sibling** of the radios, but §6 nests `.sutta` inside `.chapter` — so on every
   chapter page the rules never match. Needs `:has()` or a restructure.
+  ✅ **Already defused** — see "Carried into P2" item 1 above: P1 emits a
+  `.content` wrapper, so the rule is `~ .content .si`, with no `:has()` and no
+  restructure. The warning stands only against §7's original selectors.
 - Container TOC pages — plain app bar, no layout group (per frame 03).
 - Collapsed 48px nav rail styling.
 
@@ -344,18 +496,32 @@ loose script, so this number is reproducible from here on.
 
 ### P5 — SEO & metadata
 
-- `dc.source` / `generator` / OG / JSON-LD / canonical, un-welded per D2.
-- `sitemap.xml` with `<lastmod>` from manifest hashes.
-- **Determinism check** — build twice, `diff` must be empty (§11.8).
+- ~~`dc.source` / `generator` / canonical~~ ✅ landed in P1 (they cost nothing
+  once the template exists). Still open: **OG + JSON-LD**, un-welded per D2.
+- `sitemap.xml` with `<lastmod>` from manifest hashes (`.manifest.json` ships
+  from P1, hashes included).
+- ~~**Determinism check**~~ ✅ green from P1 — build-twice diff is empty. Re-run
+  it at each phase; it is a property that gets *broken*, not one that gets won.
 - Decide `?e=` behaviour: silently ignored on static pages today.
 
 ### P6 — Full corpus
 
 - Scale `an-1` → 16,356 files (canon 9,414 / `atta-*` 6,731 / anya 210).
-- Commit the classifier script — only its CSV output is in the repo today, so the
-  145-vagga result is currently unreproducible.
+- ~~Commit the classifier script~~ ✅ done in P1 —
+  `lib/domain/grouping_classifier.dart` + `tool/classify_corpus.dart`.
+- ⚠️ **77 leaves point at a *trailing colophon*, not a leading label** (found
+  2026-07-28). BJT prints some sections' names *after* their text, so the tree
+  coordinate sits at the end of the sutta it names. The slice then opens with
+  sutta N's name and continues into sutta N+1's body — a page that is wrong
+  without looking wrong. **68 of the 77 are in `vp-pct-1-2`** (its majority),
+  the rest scattered: `an-2-17-1/2/3`, `an-8-2-5`, `kn-pv-2-9`, `kn-pv-3-4`,
+  `kn-pv-4-3`, `kn-vv-4-7`, `vp-prj-1`. Five of the 146 grouped vaggas live in
+  `vp-pct-1-2`; on a chapter page the text is all present and in order, but each
+  `#fragment` lands one sutta early. **Needs a build-time detector before this
+  phase ships** — the shape is "the slice's first entry is a heading matching
+  the node's own name, and a *numbering* entry follows it".
 - ⚠️ **Decision gate:** stub files vs Cloudflare Bulk Redirects for grouped-leaf
-  clean URLs. **Ask before emitting the 1,593 stubs.**
+  clean URLs. **Ask before emitting the 1,603 stubs.**
 - **Link checker + HTML validator** over `build/` (Node CLIs, D9) — at 16k files
   broken links stop being findable by eye.
 - **Measure before minifying** (D9). Adopt only if the brotli'd win is real *and*
@@ -410,5 +576,12 @@ corpus tops out at 23, so nothing in `assets/` would catch a regression here.
 Re-run the corpus script whenever `content_markers.dart` or `tipitaka_tree.dart`
 changes, and whenever `assets/` is re-synced from upstream tipitaka.lk.
 
-**Still uncovered:** the grouping classifier (P1) — the piece that must reproduce
-the ratified 146.
+**Still uncovered by tests:** the grouping classifier and the slicer. Both are
+instead verified by whole-corpus tools, which is the stronger check here and the
+cheaper one — the properties that matter are corpus-wide invariants, not
+example-based:
+
+| Tool | Reports |
+|---|---|
+| `tool/classify_corpus.dart` | reproduces 146 vaggas / 1,603 leaves / 16,356 files, and prints the two containers nearest the 1,500 line every run. ⚠️ It **prints**; it does not assert — nothing exits non-zero if a number moves, so read the output, or give it a `--expect` mode before wiring it into CI |
+| the `an-1` build | 581 source entries → 581 rendered elements (nothing dropped or duplicated), and a build-twice diff that is empty |

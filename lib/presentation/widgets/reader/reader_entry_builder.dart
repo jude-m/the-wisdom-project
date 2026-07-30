@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_fonts.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/text_entry_theme.dart';
 import '../../models/in_page_search_state.dart';
@@ -159,7 +160,7 @@ class ReaderEntryBuilder {
           );
 
       final entryWidget = Padding(
-        padding: const EdgeInsets.only(bottom: 12.0),
+        padding: const EdgeInsets.only(bottom: AppFonts.entryGapPx),
         child: buildEntry(
           context,
           entry,

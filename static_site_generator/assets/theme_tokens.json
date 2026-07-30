@@ -212,6 +212,8 @@
   "spacing": {
     "paragraphIndentEm": 1.4,
     "gathaIndentEm": 2.4,
-    "gathaLevel2IndentEm": 5.0
+    "gathaLevel2IndentEm": 5.0,
+    "entryGapPx": 12.0,
+    "pageGapPx": 32.0
   }
 }

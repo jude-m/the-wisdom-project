@@ -185,9 +185,13 @@ between (1) and (2); (3) turns on the grouping manifest.
 > allowlist* still tune on real data (P5); the **shareable-link target (app vs web)
 > is resolved** (both, per visitor — §13.2 + the deep-linking plan). Rationale +
 > numbers in **§13.1**.
-> **Threshold LOCKED 2026-07-22 (full-corpus classifier run):** group iff
-> **≥ 6 leaves AND max leaf < 1,500 *combined* (pali+sinh) chars** → 145 vaggas /
-> 1,593 leaves group; 12,758 suttas explode; site = **14,763 files**. Nothing
+> **Threshold LOCKED 2026-07-22 (full-corpus classifier run); counts restated
+> 2026-07-28 under the corrected §6-step-3 slice:** group iff
+> **≥ 6 leaves AND max leaf < 1,500 *combined* (pali+sinh) chars** → **146 vaggas /
+> 1,603 leaves** group; **12,748** suttas explode; site = **14,753 files**
+> (+1,603 stubs = **16,356**, unchanged — the two deltas cancel). The threshold
+> itself did not move; the slice it measures was corrected. Reproduce with
+> `dart run static_site_generator/tool/classify_corpus.dart`. Nothing
 > famous groups (kn-khp's smallest famous sutta = 3,544c combined; SN 15 fully
 > explodes). ⚠️ §3's kn-khp char figures are *pali-only* — the threshold is
 > always **combined**. Verified: no grouped vagga spans a content file; tree
@@ -254,11 +258,11 @@ rule turns the URL fragment into a filter:
 2026-07-23).** The app uses `/tipitaka/<id>` for *every* sutta, so a grouped
 sutta's clean `/tipitaka/<nodeKey>` must resolve via a **content-free redirect**
 → `…/<vaggaKey>#<nodeKey>`. No text, so no duplication. Never Pages `_redirects`
-(static-rule cap 2,000, verified 2026-07-22, vs 1,593 grouped leaves — too
+(static-rule cap 2,000, verified 2026-07-22, vs 1,603 grouped leaves — too
 tight). Two viable mechanisms — **the pick is a P5 decision gate: ask the
 maintainer before generating stubs**:
 - **Stub HTML files** (meta-refresh-0 + canonical → chapter): in-repo, portable,
-  work on `*.pages.dev` previews; +1,593 files (14,763 + 1,593 ≈ 16.4K < 20K).
+  work on `*.pages.dev` previews; +1,603 files (14,753 + 1,603 = 16,356 < 20K).
 - **Cloudflare Bulk Redirects**: real edge 301s; targets may carry `#fragment`;
   free quota 10,000 (verify in dashboard — some accounts still show the legacy
   20); needs the custom-domain zone. Details in
@@ -314,9 +318,16 @@ is wholly **exploded** or wholly **grouped**, never split.
 1. Load `<contentFileId>.json`; flatten `pages[]` into one ordered list of
    `(pageIndex, entryIndex, side, entry)` + per-page footnotes.
 2. Collect the file's readable nodes, sorted by `(entryPageIndex, entryIndexInPage)`.
-3. Each node owns entries from **its start** up to **the next readable node's
-   start**. Pair `pali[i]` ↔ `sinh[i]` by index for the dual layouts (alignment
-   risk — see §7).
+3. Each node owns entries from **its start** up to **the start of the next node
+   of *any* kind** — containers are boundaries exactly like leaves. Pair
+   `pali[i]` ↔ `sinh[i]` by index for the dual layouts (alignment risk — see §7).
+   > ⚠️ **Corrected 2026-07-28. This said "the next *readable* node's start",
+   > which is wrong** and was measured to be wrong: the two rules disagree for
+   > **1,418 of the 14,351 leaves**, and the worst (`atta-kn-nett-3-3`) would
+   > append **204,809 characters** of the *following* container's preamble to a
+   > sutta and print it under that sutta's title. Containers usually sit right
+   > on top of their first child, which is why the wrong rule looks equivalent.
+   > Build-plan §5.1 always stated the correct one; the two docs disagreed.
 4. For a **range page**, concatenate the slices of every sutta in the run, each in
    its own `<section id="<nodeKey>">`.
 5. Collect footnotes referenced by `{n}` in the slice. **Numbering restarts on
@@ -325,12 +336,19 @@ is wholly **exploded** or wholly **grouped**, never split.
    (`#fn-p4-1`); displayed numbers stay as printed. In **chapter files**, render
    each sutta's footnotes *inside its own `<section>`* — else the
    `:has(:target)` single view shows one sutta with every other sutta's notes.
-6. **Preamble rule (verified 2026-07-22: 258/285 files):** entries before the
-   first readable node's start (pitaka/nikāya headings, *namo tassa*, vagga
+6. **Preamble rule (verified 2026-07-22: 258/285 files):** entries before a
+   container's first child (pitaka/nikāya headings, *namo tassa*, vagga
    heading) belong to **the container** — rendered on its TOC page (exploded
    vagga) or at the top of the chapter file (grouped vagga), never in a leaf
-   file (preserves the no-duplication rule). The naive start→next-start slice
-   silently drops them.
+   file (preserves the no-duplication rule).
+   > This is not a separate rule — it **falls out of step 3**. A container's
+   > slice *is* its preamble, because the next boundary after a container is
+   > its first child. Every row lands in exactly one slice, so nothing is
+   > dropped and nothing is rendered twice. Verified on `an-1`: 581 source
+   > entries → 581 rendered elements across its 110 pages.
+   > Preambles are **not** only at the head of a file: they appear at every
+   > container boundary, which is precisely what the old "next readable node"
+   > rule got wrong — it handed them to the *preceding* leaf.
 
 > **Why not per printed page?** `pageNum`/`pageOffset` are print provenance,
 > useful as in-page anchors (`<span id="pg-4">` for citations) but wrong as the
@@ -559,16 +577,36 @@ build/
   apex, app on `app.<domain>` — decided 2026-07-23) lives in
   `static-web-hosting.md` → "Project topology".
 - **`fonts/` is a build *input*, not output** (2026-07-27). `subset_fonts.sh`
-  runs by hand (needs `--flavor=woff2` adding), output is committed, generator
-  copies bytes — same pattern as `theme_tokens.json`.
+  runs by hand (subsets to TTF, then `fonttools ttLib.woff2 compress`), output
+  is committed, generator copies bytes — same pattern as `theme_tokens.json`.
+  Only the faces the stylesheet declares are copied, off one shared list.
 
 ### Commentary titles & canonical (decided 2026-07-25)
 
 The 6,731 `atta-*` pages carry the **same sutta names** as their canon twins —
 untreated they compete for the same name searches.
 
-- **Distinct `<title>` / `<h1>` / OG title:** canon = `<sutta> — <collection>`;
-  commentary = `<sutta> අට්ඨකථා — <collection>`.
+- **Distinct `<title>` / OG title:** canon = `<sutta> — <vagga> — <collection>`;
+  commentary = `<sutta> අට්ඨකථා — <vagga> — <collection>`.
+  > **`<h1>` split off from `<title>`, 2026-07-30.** The heading carries the
+  > node's own name **plus the commentary marker** — `චිත්තපරියාදානවග්ගො
+  > අට්ඨකථා` — and *not* the vagga/collection parts. The marker is the half
+  > that matters here: without it a commentary page and its canon twin print
+  > the identical heading. The other two parts exist to disambiguate a title
+  > seen alone in a results list; on the page itself the breadcrumb sits
+  > directly above the heading and already says them, so repeating them reads
+  > as a stutter. 57 nodes (`atta-vp` "විනය අට්ඨකථා", `atta-dn` …) are named
+  > with the marker already and are left alone — the test is `endsWith`, since
+  > `atta-ap-dhs-5` "අට්ඨකථාකණ්ඩො" merely contains the word.
+  > **Vagga part added 2026-07-28, measured.** `<sutta> — <collection>` alone
+  > leaves **2,216 leaves sharing a `<title>` with another leaf** (worst: 16 ×
+  > "අට්ඨමසික්ඛාපදං — පාචිත්තියපාළි"), which is the duplicate-content signal C2
+  > exists to avoid; the vagga cuts it to 377. It also carries the pages whose
+  > own name is only a number — **1,165 leaves corpus-wide, and 243 of 243 in
+  > `an-1`** ("1. 16. 8. 9-24"), in *both* languages. Repeated parts are
+  > dropped, so a node directly under its collection never says it twice.
+  > `<collection>` = the highest ancestor below the root-level pitaka node —
+  > `an`, `kn`, `vp-pct` — which is the level BJT titles its volumes at.
 - **Canonical is always self.** The two are different texts, not duplicates —
   never point an `atta-*` page at its canon twin.
 - **No `noindex`.** Commentary is unique scripture (57 M of the corpus's ~103 M
@@ -644,7 +682,7 @@ untreated they compete for the same name searches.
   per-sutta files). Threshold already locked (§13.1, 2026-07-22) — P5 just
   regenerates + commits `grouping.json` and reviews the grouped list.
   **Decision gate: ask the maintainer stub-files-vs-Bulk-Redirects *before*
-  emitting the 1,593 grouped-leaf stubs** (§6 / §13.2 / hosting doc).
+  emitting the 1,603 grouped-leaf stubs** (§6 / §13.2 / hosting doc).
 - **P6** Point at `kn-iti-1`; verify nesting + slicing across vaggas.
 - *(Later, separate)* client-side / linked search — **server-rendered FTS is
   retired with the content server** (see `static-web-hosting.md`); scroll-spy;
@@ -699,9 +737,9 @@ untreated they compete for the same name searches.
      a wrong *explode* = a few harmless thin pages; a wrong *group* = a buried
      named text (unacceptable) — so grouping stays the rare, high-confidence
      verdict.
-   - *Scale (full canon, exact 2026-07-22/23):* **14,763 real pages** (12,758
-     sutta + 145 chapter + 1,859 container TOC + 1 root); **16,356** with the
-     1,593 grouped-leaf stubs if stubs are picked at the P5 gate — inside
+   - *Scale (full canon, exact 2026-07-22/23):* **14,753 real pages** (12,748
+     sutta + 146 chapter + 1,858 container TOC + 1 root); **16,356** with the
+     1,603 grouped-leaf stubs if stubs are picked at the P5 gate — inside
      Cloudflare Pages' 20,000-file free cap either way (see
      [`static-web-hosting.md`](./static-web-hosting.md)). The **SN 15 seed explodes cleanly**
      (both vaggas above threshold) → every SN 15 sutta keeps its own page + citation
@@ -709,8 +747,8 @@ untreated they compete for the same name searches.
 
    **Locked 2026-07-21:** per-container-binary adopted over hoist; §6 body updated
    to match. **Threshold locked 2026-07-22** after a full-corpus classifier run
-   (≥ 6 leaves AND max < 1,500 **combined** chars): 145 grouped vaggas / 1,593
-   grouped leaves / 12,758 exploded / **14,763 total files**; savings vs
+   (≥ 6 leaves AND max < 1,500 **combined** chars): 146 grouped vaggas / 1,603
+   grouped leaves / 12,748 exploded / **14,753 total files**; savings vs
    no-grouping = 1,448; AN 119/186 & SN 142/243 size-mixed confirmed on data;
    the "awkward" set is 85–164 depending on definition but needs **no** mandatory
    curation (default = explode). P5 keeps only: regenerate + commit
@@ -727,20 +765,20 @@ untreated they compete for the same name searches.
 
    | | Current | Group everything |
    |---|---|---|
-   | Files | 14,763 (+1,593 stubs) | **2,005** |
+   | Files | 14,753 (+1,603 stubs) | **2,005** |
    | Median page | 2,501 chars | 24,070 |
    | p90 / p99 | 16,647 / — | 150,287 / 550,111 |
    | Max page | 455,233 (`vp-mv-1`) | **1,766,812** (`vp-mv`) |
    | Pages > 400 K chars | ~1 | 25 |
 
    Rejected on three counts: (a) **Google does not index `#fragments` as pages** —
-   12,758 rankable sutta URLs collapse to 2,005, and "සාමඤ්ඤඵල සුත්ත" would have to
+   12,748 rankable sutta URLs collapse to 2,005, and "සාමඤ්ඤඵල සුත්ත" would have to
    rank a 1.2 M-char `dn-1` titled with the *vagga* name → kills C2, the site's
    whole purpose; (b) **page weight** — `dn-1` ≈ 2–3 MB HTML against the "instant
    ~20 KB page" goal, and `:has(:target)` hides siblings only *after* transfer, so
    a single micro-sutta still costs the full download; (c) **redirects get ~9×
    worse** — all 14,351 leaf URLs would need `<container>#<leaf>` redirects, over
-   the Bulk Redirects free quota (10 K) and far over `_redirects` (2 K), vs 1,593
+   the Bulk Redirects free quota (10 K) and far over `_redirects` (2 K), vs 1,603
    today. Underlying point: **the file cap was never the constraint** — 16,356 /
    20,000 with a corpus that never grows, and deploys are hash-incremental (§11.8),
    so shrinking the file count buys nothing worth C2.
@@ -753,7 +791,7 @@ untreated they compete for the same name searches.
    made `/sutta/atta-…` self-contradictory; the umbrella noun follows
    tipitaka.lk / Access to Insight — see the app plan's Decisions table.)*
    **Still bundled here — narrowed 2026-07-22, mechanism re-opened 2026-07-23:**
-   never Pages `_redirects` (caps at 2,000 static rules vs 1,593 grouped leaves,
+   never Pages `_redirects` (caps at 2,000 static rules vs 1,603 grouped leaves,
    §6); the *form* is **stub HTML files** (meta-refresh-0 + `canonical` →
    chapter; out of sitemap.xml) **or Cloudflare Bulk Redirects** (real edge
    301s; `#fragment` allowed in targets; free quota 10,000 pending a dashboard
@@ -763,8 +801,8 @@ untreated they compete for the same name searches.
    of the two.
    **LOCKED 2026-07-22 (user): exact-sutta deep links are required even for
    grouped suttas. Mechanism = P5 decision gate — PROMPT the maintainer before
-   generating the 1,593 stubs** (budget either way: 14,763 + 1,593 ≈ 16.4K
-   < 20K with stubs, or 14,763 with redirects), paired with the codec fragment
+   generating the 1,603 stubs** (budget either way: 14,753 + 1,603 = 16,356
+   < 20K with stubs, or 14,753 with redirects), paired with the codec fragment
    fix (deep-linking doc Notes) so *both* URL forms land on the exact sutta for
    *both* app and no-app recipients. The static page is always the guaranteed
    fallback. Page furniture for later: OG meta tags
