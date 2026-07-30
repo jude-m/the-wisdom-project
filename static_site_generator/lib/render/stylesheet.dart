@@ -248,8 +248,12 @@ void _writeEntryStyles(StringBuffer css, ThemeTokens tokens) {
     );
   }
   css.writeln();
+  // `strong` only. There is deliberately no `u` rule: `__underline__` markers
+  // render as plain text here because that is what the app does — its
+  // `markedRanges` carry `FontWeight.bold` and nothing else. Styling underline
+  // on this surface alone would make the two disagree, and the decision (build
+  // plan, `__underline__`, 2026-07-30) is to revisit it on both at once.
   css.writeln('strong { font-weight: 700; }');
-  css.writeln('u { text-decoration: underline; }');
   css.writeln();
 }
 

@@ -174,11 +174,11 @@ class SiteGenerator {
       return;
     }
 
-    final existing = directory.listSync();
-    final isPreviousBuild = existing.any(
-      (entry) => entry.path.endsWith('/.manifest.json'),
-    );
-    if (existing.isNotEmpty && !isPreviousBuild) {
+    // Probed directly rather than matched against `listSync()` paths: those are
+    // joined with the platform separator, so a suffix test would silently never
+    // fire on Windows and refuse every rebuild.
+    final isPreviousBuild = File('$outputDir/.manifest.json').existsSync();
+    if (directory.listSync().isNotEmpty && !isPreviousBuild) {
       throw StateError(
         '"$outputDir" is not empty and holds no .manifest.json, so it does not '
         'look like a directory this generator produced. Refusing to delete it. '

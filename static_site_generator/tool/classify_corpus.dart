@@ -149,7 +149,7 @@ void main(List<String> args) {
 
   const header = 'nodeKey,collection,pali_name,sinhala_name,sutta_count,'
       'min_sutta_chars,max_sutta_chars,total_vagga_chars,chapter_url,content_file';
-  final path = '${reader.assetsPath}/../docs/todo/web-strategy/'
+  final path = '$_repoRoot/docs/todo/web-strategy/'
       'grouped-vaggas-threshold-1500.csv';
   // BOM + CRLF, matching the file this replaces: it exists to be eyeballed in
   // Excel, which wants both. Nothing downstream parses it, and keeping the
@@ -158,6 +158,17 @@ void main(List<String> args) {
   stdout.writeln('');
   stdout.writeln('wrote ${rows.length} rows → ${File(path).absolute.path}');
 }
+
+/// Repo root, for the one doc this tool writes.
+///
+/// Read off `Platform.script` — the URI of *this file*, two directories down
+/// from the root — rather than off `reader.assetsPath`. That was
+/// `assetsPath/../docs/…`, which asks the *corpus* where the *docs* are: it
+/// only holds while `CorpusReader.discover()` lands on this repo's own
+/// `assets/`, and when it doesn't the CSV is written somewhere beside the
+/// corpus, leaving the reviewed file quietly stale.
+final String _repoRoot =
+    File.fromUri(Platform.script).parent.parent.parent.path;
 
 /// Quotes a CSV field only when it needs it. Titles carry commas.
 String _csv(String value) =>

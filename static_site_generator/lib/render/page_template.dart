@@ -36,7 +36,13 @@ class PageTemplate {
     required String sourceFile,
   }) {
     final body = StringBuffer();
-    final depths = _headingDepths(page, slices, preamble);
+    // Filtered before the depths are computed, not after: dropping a heading
+    // changes which sizes the page prints, and _headingDepths ranks the sizes
+    // it is given. Ranking the unfiltered set would reserve `<h2>` for a
+    // heading that never reaches the page and start the suttas at `<h3>` —
+    // the skipped level that ranking-by-size exists to prevent.
+    final shown = _withoutRepeatedTitle(preamble, page.node);
+    final depths = _headingDepths(page, slices, shown.preamble);
 
     body.writeln('<div class="content">');
     body.writeln(_breadcrumb(page.node));
@@ -48,11 +54,11 @@ class PageTemplate {
       case PageKind.sutta:
         body.writeln(_rows(slices[page.nodeKey], depths));
       case PageKind.chapter:
-        body.writeln(_chapter(page, slices, preamble, depths));
+        body.writeln(_chapter(page, slices, shown.preamble, depths));
       case PageKind.toc:
-        if (preamble != null && preamble.rows.isNotEmpty) {
+        if (shown.preamble != null && shown.preamble!.rows.isNotEmpty) {
           body.writeln(
-              '<div class="preamble">${_rows(preamble, depths)}</div>');
+              '<div class="preamble">${_rows(shown.preamble, depths)}</div>');
         }
         body.writeln(_toc(page));
     }
@@ -62,9 +68,59 @@ class PageTemplate {
 
     return _document(
       page,
-      head: _provenance(page, slices, preamble, sourceFile),
+      // The *unfiltered* slice: provenance answers "what did the slicer grab",
+      // which stays true whether or not the renderer showed all of it. The
+      // suppressed row is named separately so the two never have to be guessed
+      // apart.
+      head: _provenance(page, slices, preamble, shown.dropped, sourceFile),
       body: body.toString(),
     );
+  }
+
+  /// The preamble minus a heading that merely repeats the page's own `<h1>`.
+  ///
+  /// Both are correct on their own. The template writes an `<h1>` from the tree
+  /// node because every page needs exactly one — the breadcrumb, the `<title>`
+  /// and every crawler key off it. The printed book *also* opens the container
+  /// with its name, and that is a normal heading entry in the JSON, which the
+  /// preamble renders faithfully. On 15 of the 110 pages in `an-1` the two are
+  /// the same string, so the reader gets the vagga name twice in a row.
+  ///
+  /// The `<h1>` wins and the source heading goes. Dropping the `<h1>` instead
+  /// would leave the pages that *don't* repeat with no heading at all.
+  ///
+  /// Only the **first heading** in the preamble is a candidate, and only when it
+  /// matches: measured across the corpus subtree, every repeat is the preamble's
+  /// first heading and its only one — sometimes row 0 (`an-1-1`), sometimes row
+  /// 3 behind three `centered` lines (`an-1`). Anything later is the book
+  /// genuinely printing a second heading, and is left alone.
+  ({NodeSlice? preamble, DocRow? dropped}) _withoutRepeatedTitle(
+    NodeSlice? preamble,
+    TipitakaNode node,
+  ) {
+    if (preamble == null) return (preamble: null, dropped: null);
+
+    for (var i = 0; i < preamble.rows.length; i++) {
+      final pali = preamble.rows[i].pali;
+      if (pali == null || pali.text.isEmpty) continue;
+      if (pali.type != 'heading') continue;
+
+      // Compared *welded*, the form both sides are displayed in, so the test is
+      // literally "would the reader see the same string twice" rather than a
+      // guess about how the two spellings normalise.
+      if (weldTitle(pali.text).trim() != weldTitle(node.paliName).trim()) {
+        return (preamble: preamble, dropped: null);
+      }
+      return (
+        preamble: NodeSlice(
+          nodeKey: preamble.nodeKey,
+          rows: [...preamble.rows]..removeAt(i),
+          startIndex: preamble.startIndex,
+        ),
+        dropped: preamble.rows[i],
+      );
+    }
+    return (preamble: preamble, dropped: null);
   }
 
   // ── head ──────────────────────────────────────────────────────────────────
@@ -109,6 +165,7 @@ $body</body>
     SitePage page,
     Map<String, NodeSlice> slices,
     NodeSlice? preamble,
+    DocRow? droppedTitle,
     String sourceFile,
   ) {
     final lines = <String>[
@@ -117,6 +174,12 @@ $body</body>
       '  node: ${page.nodeKey} (${page.kind.name})',
       if (preamble != null && preamble.rows.isNotEmpty)
         '  preamble: ${preamble.coordinateRange}',
+      // Named, not silently swallowed: the coordinate range above still counts
+      // this row, so without the note a reader of the comment would count one
+      // more entry than the page shows and go looking for a slicer bug.
+      if (droppedTitle != null)
+        '  title-repeat suppressed: '
+            'pages[${droppedTitle.pageIndex}].[${droppedTitle.entryIndex}]',
       for (final sutta in page.suttas)
         '  ${sutta.nodeKey}: ${slices[sutta.nodeKey]?.coordinateRange ?? 'missing'}',
       '-->',
