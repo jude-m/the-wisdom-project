@@ -71,9 +71,15 @@ assets/databases/*.db
 # Temporary documents that should be deleted
 TEST_AUDIT_REPORT.md
 
-# Intermediate TTF subsets from assets/fonts/subset_fonts.sh. The script
-# subsets to TTF and then compresses that result to WOFF2; only the WOFF2 is a
-# committed build input (the static site copies it verbatim). pubspec.yaml
-# still bundles the full TTFs, so these are regenerable scratch until that
-# switch is made deliberately.
-assets/fonts/**/*-Subset.ttf
+# Intermediate TTF subsets from assets/fonts/subset_fonts.sh, for the two
+# Latin-only families ONLY. Those two are app-only chrome fonts: no @font-face
+# rule the site generator emits ever names them, and subsetting them saves ~1KB
+# total, so pubspec.yaml keeps bundling their full TTFs and these stay
+# regenerable scratch.
+#
+# The Sinhala families are deliberately NOT ignored — pubspec.yaml bundles their
+# *-Subset.ttf and the static site ships woff2 built from the same bytes, so
+# they are committed build inputs. Ignoring them would break a fresh clone with
+# "asset does not exist".
+assets/fonts/noto-sans/*-Subset.ttf
+assets/fonts/noto-serif/*-Subset.ttf

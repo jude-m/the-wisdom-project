@@ -85,6 +85,41 @@ Baked ZWJ landing in Nirmala UI is unverified behaviour.
 (`noto-sans`, `noto-sans-sinhala`, `noto-serif`, `noto-serif-sinhala`), reusing
 the existing `assets/fonts/subset_fonts.sh`.
 
+### The subset range is whole Unicode blocks, never single characters
+
+`SINHALA_RANGES` = Basic Latin + Latin-1 Supplement + Sinhala + General
+Punctuation. Composed from named block constants only — picking individual
+codepoints makes the range impossible to reason about and impossible to audit
+when the corpus changes. Measured over the 106.5M characters in `text` fields
+(the rendered field only — counting every JSON string instead inflates Basic
+Latin with metadata values like `"paragraph"`):
+
+| block | share of reading text | why it is in |
+|---|---|---|
+| Sinhala | 80.81% | the content |
+| Basic Latin | 17.85% | space (14.3M), `.` `,` `-` `:` `(` `)`, digits, and the `**` markers — 80 distinct chars |
+| General Punctuation | 1.26% | en dash (59,007), **and ZWJ — every conjunct depends on it** |
+| Latin-1 Supplement | 0.02% | the MIDDLE DOT, 19,850 uses across 99 files |
+
+That last row is a fix, not an optimisation. Latin-1 was originally excluded, so
+the shipped woff2 had no `·` and every one of those 19,850 dots would have
+fallen back to a system font — invisible until P6 reached the commentaries,
+since `an-1` happens to contain none. See the warning banner in
+`subset_fonts.sh` about never overwriting the full faces with subset bytes.
+
+Deliberately **out**: Latin Extended-A / Extended-Additional (`ā ī ū ṃ ṇ ṭ ḍ ḷ`)
+— romanized Pali is `NotoSerif`'s job, not the Sinhala families'. Also out:
+Mathematical Operators, whose only corpus use is 11 mis-keyed `U+2212` that
+should be en dashes (against 59,007 real ones) — a canon-data defect to
+normalise upstream, not a font range to widen.
+
+> **P6 check — daggers.** `†` / `‡` appear 45× (e.g. `ap-kvu-8`) inside the
+> `{…}` footnote syntax. They are in General Punctuation, but **the source Noto
+> Sinhala faces have no such glyph**, so no range change can cover them; the app
+> falls back to `NotoSerif`, the site has no self-hosted cover. Almost certainly
+> fine — some system font will render them. Just eyeball a dagger page when the
+> full corpus builds and confirm it doesn't look out of place.
+
 ### Tokens are generated, never hand-copied
 
 `app_colors.dart` and `text_entry_theme.dart` both `import
@@ -355,14 +390,22 @@ the artefact that was previously unreviewable now has the code behind it.
   emits both `-Subset.ttf` (the intermediate) and `-Subset.woff2` (the site),
   and the generator copies the woff2 — **only the 8 faces the stylesheet
   declares**, driven off the same `webFontFaces()` list, not a glob (review D6).
-  8 faces, 632 KB total, in `build/fonts/`.
+  8 faces, **320 KB** total (328,296 bytes — measure in bytes, not `du` block
+  usage, which reads roughly double), in `build/fonts/`.
   > The earlier "`brotli` is not installed" note was stale — it is. Until the
   > script was actually run, every page declared 8 `@font-face` rules pointing
   > at files that did not exist and silently fell back to a system Sinhala face,
   > which is *not* the face the conjuncts were HarfBuzz-verified against. **The
-  > 8 `*-Subset.woff2` are committed build inputs.** The `*-Subset.ttf` are
-  > gitignored: `pubspec.yaml` still bundles the full TTFs, so they are
-  > regenerable scratch until that switch is made deliberately.
+  > 8 `*-Subset.woff2` are committed build inputs.**
+  >
+  > **Superseded 2026-07-31** — the 8 Sinhala `*-Subset.ttf` are now committed
+  > build inputs too, and `pubspec.yaml` bundles *them* rather than the full
+  > faces, so app and web render Sinhala from one identical glyph set (verified:
+  > same cmap, glyph order and every outline). `.gitignore` now covers only the
+  > two Latin-only families, whose subsets nothing consumes. The full faces stay
+  > in the repo as the regeneration source — never delete or overwrite them.
+  > Widening to Latin-1 (see §3) grew the woff2 from 297 KB to 320 KB and cut
+  > 101 KB of deflated ttf from the app bundle.
 - Provenance block (D8). Romanization (D4) is deferred outright — no stub, see
   the corrected D4 above.
 - Breadcrumb, centered title, in-flow prev/next cards. Prev/next walks

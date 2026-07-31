@@ -133,28 +133,34 @@ flutter:
   # Custom fonts for Sinhala script and cross-platform consistency
   # See docs/font_system_plan.md for font selection rationale
   fonts:
+    # The two Sinhala families bundle the *-Subset.ttf built by
+    # assets/fonts/subset_fonts.sh, not the full faces beside them. The static
+    # site self-hosts the woff2 compressed from those very same subsets, so app
+    # and web render Sinhala from one identical glyph set. Regenerate both by
+    # re-running the script; never hand-edit one side.
+    #
     # Sinhala script for UI elements (sans-serif)
     - family: NotoSansSinhala
       fonts:
-        - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-Regular.ttf
+        - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-Regular-Subset.ttf
           weight: 400
-        - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-Medium.ttf
+        - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-Medium-Subset.ttf
           weight: 500
-        - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-SemiBold.ttf
+        - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-SemiBold-Subset.ttf
           weight: 600
-        - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-Bold.ttf
+        - asset: assets/fonts/noto-sans-sinhala/NotoSansSinhala-Bold-Subset.ttf
           weight: 700
 
     # Sinhala script for Pali content (serif - better conjunct rendering)
     - family: NotoSerifSinhala
       fonts:
-        - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-Regular.ttf
+        - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-Regular-Subset.ttf
           weight: 400
-        - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-Medium.ttf
+        - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-Medium-Subset.ttf
           weight: 500
-        - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-SemiBold.ttf
+        - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-SemiBold-Subset.ttf
           weight: 600
-        - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-Bold.ttf
+        - asset: assets/fonts/noto-serif-sinhala/NotoSerifSinhala-Bold-Subset.ttf
           weight: 700
 
     # Serif font for romanized Pali with diacritics and English

@@ -17,8 +17,18 @@
 # the pages would otherwise render in a different face than the app, and the
 # baked conjuncts are glyph-coverage-specific to Noto.
 #
+# For the Sinhala families both outputs are committed and both are consumed:
+# pubspec.yaml bundles the ttf, the site ships the woff2 compressed from that
+# same ttf. One glyph set, two containers — so app and web cannot drift.
+# (The Latin-only families are app-only; their subsets stay gitignored scratch.)
+#
 # Fonts are a build INPUT: run this by hand, commit the output, and the site
 # generator copies the bytes. That keeps Python out of the build loop.
+#
+# Never overwrite the full faces beside the output with subset bytes. That was
+# done once to the two Sinhala Bold faces and silently cost them U+00B7 — a
+# character the canon uses ~19,850 times — with no way to restore it short of
+# re-downloading from Google Fonts, which is what finally fixed it.
 
 set -e  # Exit on error
 
@@ -30,7 +40,13 @@ cd "$(dirname "$0")"
 
 # Common Unicode ranges
 BASIC_LATIN="U+0020-007F"           # English letters, numbers, punctuation
-LATIN_1_SUPPLEMENT="U+00A0-00FF"    # Common symbols (©, §, etc.)
+LATIN_1_SUPPLEMENT="U+00A0-00FF"    # Common symbols (©, §, etc.) — and the
+                                    # MIDDLE DOT (U+00B7), which the canon uses
+                                    # ~19,850 times across 99 of the 285 text
+                                    # files (heaviest in the commentaries and
+                                    # anya-vm). It is body text, so the Sinhala
+                                    # families need this range too, not just
+                                    # the Latin ones.
 LATIN_EXTENDED_A="U+0100-017F"      # ā, ī, ū (long vowels)
 LATIN_EXTENDED_ADD="U+1E00-1EFF"    # ṃ, ṇ, ṭ, ḍ, ḷ, ñ (Pali diacritics)
 GENERAL_PUNCT="U+2000-206F"         # Smart quotes, dashes, bullets — and ZWJ
@@ -85,7 +101,7 @@ subset() {
     done
 }
 
-SINHALA_RANGES="${BASIC_LATIN},${SINHALA},${GENERAL_PUNCT}"
+SINHALA_RANGES="${BASIC_LATIN},${LATIN_1_SUPPLEMENT},${SINHALA},${GENERAL_PUNCT}"
 SERIF_RANGES="${BASIC_LATIN},${LATIN_1_SUPPLEMENT},${LATIN_EXTENDED_A},${LATIN_EXTENDED_ADD},${GENERAL_PUNCT}"
 SANS_RANGES="${BASIC_LATIN},${LATIN_1_SUPPLEMENT},${GENERAL_PUNCT}"
 
@@ -123,6 +139,7 @@ echo "=== Done! ==="
 echo ""
 echo "Next steps:"
 echo "1. Test the subset fonts in your app"
-echo "2. Commit the 8 Sinhala *-Subset.woff2 files — the site generator copies"
-echo "   them verbatim, so they are a build input, not build output"
-echo "3. To use the ttf subsets in the app, update pubspec.yaml filenames"
+echo "2. Commit the 8 Sinhala *-Subset.woff2 AND the 8 Sinhala *-Subset.ttf —"
+echo "   pubspec.yaml bundles the ttf and the site copies the woff2, so both"
+echo "   are build inputs, not build output"
+echo "3. The Latin-only subsets stay gitignored; nothing consumes them"
