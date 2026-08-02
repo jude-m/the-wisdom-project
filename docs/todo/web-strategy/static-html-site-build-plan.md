@@ -675,7 +675,9 @@ clean, and a build-twice hash over the full tree that is still identical.
   `.toolbar-inner`, which is already a flex row with the layout group pushed
   right.
 - Static pruned `<details>` tree per page, zero JS.
-- Landing page with lotus + welcome.
+- **Landing page at `/` — see 5.2 below.** Promoted from a one-line "lotus +
+  welcome" because the first dev deploy (2026-08-03) proved it is not cosmetic:
+  nothing is served at `/`, so the URL wrangler prints is a 404.
 - Specify the **preamble rule** — verified nested on `an-1`: entries 0–2 → `an`,
   entry 3 → `an-1`, entries 4–5 → `an-1-1`, entry 6 → first leaf. Currently
   under-specified; 258 of 285 files have preamble entries.
@@ -683,7 +685,55 @@ clean, and a build-twice hash over the full tree that is still identical.
   non-numeric suffixes and the comparator then returns 0 — unstable. `kn` has 18
   such children. Directly violates §11.8.
 
-**Deliverable:** `an-1` fully navigable without typing URLs.
+**Deliverable:** `an-1` fully navigable without typing URLs, and `/` a real page.
+
+#### 5.2 — The landing page (`/`)
+
+**Why it is in the plan at all.** The first dev deploy (2026-08-03) shipped
+14,752 pages and the site still had no front door: `/` → 404, and so did the
+first thing anyone tries next, `/<nodeKey>`. Every page lives under
+`/tipitaka/<nodeKey>` (`site_page.dart:15`, sharing `TipitakaLink.pathSegment`
+with the app's deep-link codec), which is right — but it means the origin
+wrangler prints is a dead link, and a deploy nobody can click through is a
+deploy nobody has checked. `deploy.sh` now prints a working `entry` URL as a
+stopgap and drops that line by itself once `$OUT/index.html` exists.
+
+**Where.** `index.html` at the **site root** — the one page outside the
+`/tipitaka/` grammar, and one extra file against the 20,000 cap.
+
+**What.** The app's empty reader state, not a new design:
+
+- **Left** — the P3 navigator tree at its root level. `tree.json` has exactly
+  **7 top-level nodes**, which is what the frame shows: `vp` විනය පිටකය · `sp`
+  සූත්‍ර පිටකය · `ap` අභිධර්ම පිටකය · `atta-vp` විනය අටුවාව · `atta-sp` සූත්‍ර
+  අටුවාව · `atta-ap` අභිධර්ම අටුවාව · `anya` අන්‍ය. `sp` alone is `open`,
+  showing its five children (`dn` `mn` `sn` `an` `kn`); everything else
+  collapsed. That default-open set is a **fixed literal** — deriving it from
+  anything ordering-dependent re-opens the §11.8 determinism problem the sibling
+  -sort bullet above already covers. No JS, no `localStorage` (P4's business).
+- **Right** — emblem above the hint, vertically centred, no reading pane.
+
+**Strings and assets come from the app.** Same lesson P2 learned the hard way
+about the layout labels: two names for one thing is how surfaces drift.
+
+- Hint = `statusSelectSuttaToRead`, `app_si.arb:186` —
+  *කියවීම ආරම්භ කිරීමට ව්‍යූහයෙන් සූත්‍රයක් තෝරන්න*
+  (EN `app_en.arb:479`). Not a new welcome line.
+- Emblem = `assets/icons/app_logo.png`, rendered at 100 px
+  (`multi_pane_reader_widget.dart:96`, `:625`).
+  ⚠️ **The source file is 634 KB.** The build ships one CSS and eight woff2 and
+  no rasters at all today, so this would be the single heaviest asset on the
+  site's most-hit page. Ship a resized/optimised copy, never the source.
+- Titles are `tree.json`'s Sinhala field — the same data container TOCs already
+  render. No new source.
+
+**Costs zero layout CSS.** Like container TOCs (frame 03) it carries no radio
+group, and by P2's mechanism the absence *is* the behaviour: with nothing
+checked, no `#L-x:checked ~` rule matches.
+
+**Hand to P5.** `/` becomes the site's canonical root and the highest-value page
+in the whole SEO effort — its title, description and OG matter more than any
+single sutta's, and it is what `sitemap.xml` names as the entry.
 
 ### P4 — JS layer · frame 05
 

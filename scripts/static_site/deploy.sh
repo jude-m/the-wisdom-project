@@ -362,16 +362,50 @@ if [ "$DRY_RUN" = false ]; then
   echo ""
 fi
 
+if [ "$TARGET" = "prod" ]; then
+  ORIGIN="https://$PROJECT.pages.dev"
+else
+  ORIGIN="https://$BRANCH.$PROJECT.pages.dev"
+fi
+
+# A URL that actually resolves. `url` below is only the ORIGIN — wrangler prints
+# the same thing, because it uploads a directory and knows nothing about the
+# site's URL grammar. Until the landing page lands (build plan P3) nothing is
+# served at `/`, so that origin is itself a 404 — and the obvious next guess,
+# `/<nodeKey>`, is a 404 too, because every page lives under `/tipitaka/`. A
+# deploy you cannot smoke-test by clicking the URL it just printed is a deploy
+# you have not checked.
+#
+# Shallowest key wins — fewest `-` segments, then alphabetical — which is a
+# top-level container TOC on a whole-corpus build and the subtree root under
+# `--root`. Read from the output rather than hardcoded, so a `--root an-1` run
+# can never print a `dn-1` that was not in the upload. Drops out on its own once
+# `index.html` exists, since the origin is then a real page.
+ENTRY=""
+if [ ! -f "$OUT/index.html" ]; then
+  ENTRY_KEY=$(ls "$OUT/tipitaka" 2>/dev/null \
+    | sed -n 's/\.html$//p' \
+    | awk '{ s = $0; print gsub(/-/, "-", s), $0 }' \
+    | LC_ALL=C sort -k1,1n -k2,2 \
+    | head -1 | cut -d' ' -f2)
+  if [ -n "$ENTRY_KEY" ]; then
+    ENTRY="$ORIGIN/tipitaka/$ENTRY_KEY"
+  fi
+fi
+
 echo "target     $TARGET"
 echo "account    $ACCOUNT_LINE"
 echo "files      $FILE_COUNT / $MAX_FILES   ($(du -sh "$OUT" | awk '{print $1}'))"
 echo "project    $PROJECT"
 if [ "$TARGET" = "prod" ]; then
   echo "branch     $BRANCH   ** PRODUCTION — this deployment is INDEXABLE **"
-  echo "url        https://$PROJECT.pages.dev"
 else
   echo "branch     $BRANCH   (preview — Cloudflare adds X-Robots-Tag: noindex)"
-  echo "url        https://$BRANCH.$PROJECT.pages.dev"
+fi
+echo "url        $ORIGIN"
+if [ -n "$ENTRY" ]; then
+  echo "entry      $ENTRY"
+  echo "           (nothing is served at / yet — landing page is P3)"
 fi
 echo ""
 
