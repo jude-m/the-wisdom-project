@@ -33,16 +33,20 @@ done
 cd "$(dirname "$0")/../.."
 cd research_server
 
-# wrangler needs Node >= 20; the system default may be older, so fall back to the
-# newest nvm-installed Node. (Same guard as run.sh.)
+# wrangler 4.112 requires Node >= 22 (its package.json `engines`); the system
+# default may be older, so fall back to the newest nvm-installed Node and then
+# re-check, because the newest installed one may still be too old.
+# (Same guard as run.sh and scripts/static_site/deploy.sh.)
 NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')
-if [ "${NODE_MAJOR:-0}" -lt 20 ]; then
+if [ "${NODE_MAJOR:-0}" -lt 22 ]; then
   NVM_BIN=$(ls -d "$HOME/.nvm/versions/node"/v*/bin 2>/dev/null | sort -V | tail -1)
-  if [ -z "$NVM_BIN" ]; then
-    echo "error: Node >= 20 required (found ${NODE_MAJOR:-none}) and no nvm install found."
+  [ -n "$NVM_BIN" ] && export PATH="$NVM_BIN:$PATH"
+  NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')
+  if [ "${NODE_MAJOR:-0}" -lt 22 ]; then
+    echo "error: wrangler needs Node >= 22 (found ${NODE_MAJOR:-none})." >&2
+    echo "       Install one, e.g. \`nvm install 22\`." >&2
     exit 1
   fi
-  export PATH="$NVM_BIN:$PATH"
 fi
 
 [ -d node_modules ] || npm install

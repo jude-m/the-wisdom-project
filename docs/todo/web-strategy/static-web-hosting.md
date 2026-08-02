@@ -197,31 +197,99 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4        # shallow — skips the 694 MB history
+        with: { ref: main }             # NOT detached HEAD — see below
       - uses: dart-lang/setup-dart@v1
         with: { sdk: stable }
-      - run: cd static_site_generator && dart pub get &&
-             dart run bin/generate.dart --root all --out ../build
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CF_API_TOKEN }}
-          accountId: ${{ secrets.CF_ACCOUNT_ID }}
-          command: pages deploy build --project-name=<apex-project>
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }      # wrangler 4.112 `engines`
+      - run: cd static_site_generator && dart pub get
+      - run: ./scripts/static_site/deploy.sh --prod --yes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 ```
+
+**CI calls the script, not `wrangler` directly** (corrected 2026-08-02). The
+earlier sketch invoked `cloudflare/wrangler-action` with a raw `pages deploy`,
+which skips every guard the script exists for: the 20,000-file and 25 MiB
+preflights, the account-identity check, the clean-tree/on-`main` release rule and
+the whole-corpus rule. Two paths to production that enforce different things is
+one path too many. The secret *names* match the variables `.prod.env` sets, so a
+release by hand and a release by Action authenticate identically — the script's
+own `set -a` sourcing is simply replaced by the runner's `env:` block. (The
+script writes `--project-name` itself; the project is fixed per target, so there
+is nothing left for the workflow to name or get wrong.) There is no separate
+generate step either: `--prod` always builds, and `--skip-build` is refused, so
+what ships is what the commit produces.
+
+Two things that will bite when this workflow is actually written: **`ref: main`
+is load-bearing** — `actions/checkout` normally leaves a detached HEAD, where
+`git rev-parse --abbrev-ref HEAD` answers `HEAD` and the script's "a release must
+be cut from `main`" guard rejects the run; and the runner needs **Node 22**,
+because the script's nvm fallback only exists for this laptop and finds nothing
+in CI.
 
 **`--root all` is not optional** (added 2026-08-01). The corpus has seven disjoint
 roots, so `--root` takes a list and `all` means every one of them. Omitting it
 used to fall back to `an-1` — a 110-page fragment whose 32 අට්ඨකථා cross-links
 point at pages under `atta-sp`, a root it never touched. The default is now
-`all`; the flag stays in the sketch because a workflow should say what it ships.
+`all`, and `deploy.sh` passes it explicitly on every build rather than leaning on
+that default — a deploy path should say what it ships.
 Measured on this machine: whole corpus = **32 s**, 14,752 pages, 14,762 files,
 212 MB (`sutta 12,748 / chapter 146 / TOC 1,858` — the counts this doc predicts,
 short only the root index page, which is not generated yet).
 
 **A local run of the same path** is `./scripts/static_site/deploy.sh` (added
-2026-08-01): build → file-cap + 25 MiB preflight → `wrangler pages deploy`.
-Defaults to a **preview** branch, because Cloudflare noindexes preview
-deployments and does not noindex the production alias — a dev copy of the canon
-must not compete with the real site in the index. `--production` is opt-in.
+2026-08-01): build → file-cap + 25 MiB preflight → account check →
+`wrangler pages deploy`.
+
+### Two targets, one per account — the deploy script's shape (2026-08-02)
+
+| | Account | Auth | Project | Branch | URL |
+|---|---|---|---|---|---|
+| **dev** (default) | personal | `wrangler login` | `sammaditthi-dev` | `dev` | `dev.sammaditthi-dev.pages.dev` — preview, **noindex** |
+| **prod** (`--prod`) | wisdom.ops | `.prod.env` token | `sammaditthi` | `main` | `sammaditthi.pages.dev` — **indexable** |
+
+**The production project name is `sammaditthi`** (settled 2026-08-02, closing the
+naming half of open-Q #2 below; the custom *domain* is still open). It is fixed
+in the script rather than read from `.prod.env`, so an account and the project it
+deploys into cannot drift apart — `.prod.env` holds credentials only, and a stale
+`CF_PAGES_PROJECT_PROD` line in it is rejected rather than obeyed. There is no
+`--project` and no `--branch`: the three settings above are right or wrong
+together, never separately.
+
+**Dev is a preview branch on purpose.** Cloudflare noindexes every preview
+deployment and does not noindex the production alias — a dev copy of the canon
+must not compete with the real site for the exact queries this whole effort
+exists to win. `--prod` is opt-in, prompts once, and is the only indexable target.
+
+**A release is the whole corpus at a commit.** `--root` and `--skip-build` are
+refused on `--prod`, which must also run from a clean `main`. Direct upload
+*replaces* the deployment, so a subtree shipped to prod would not add a partial
+site — it would take the rest of the canon offline. (On dev that same replacement
+is the point: `--root an-1,atta-an-1` is the fast iteration loop.)
+
+**Deferred — script standardization** (worth doing after the first green prod
+release, not before; it touches all three deploy paths at once):
+
+1. One shared `scripts/lib/` for the Node ≥ 22 guard — copy-pasted verbatim in
+   `research_server/{deploy,run}.sh` and `static_site/deploy.sh` today, so a
+   wrangler `engines` bump is three edits.
+2. One wrangler idiom in that lib: `research_server/deploy.sh` uses `exec npx
+   wrangler`, `static_site/deploy.sh` the explicit pinned `node_modules/.bin`
+   path. Same binary today, but only one reasoning can be right.
+3. Give `research_server/deploy.sh` the same `whoami` account check. Account
+   separation is now an invariant that only one of the two Cloudflare scripts
+   enforces — the Worker deploy still lands wherever the login points.
+4. `set -euo pipefail` in both wrangler scripts (`scripts/web/deploy.sh` already
+   does; the others are bare `set -e`, so pipeline failures are masked).
+5. Move `scripts/web/deploy.sh`'s `usage()` to the `END-USAGE` sentinel idiom —
+   it slices a hardcoded line range today, which desyncs on any header edit.
+
+Also parked: a dev deploy from CI is currently impossible by design — the dev
+path refuses an exported `CLOUDFLARE_API_TOKEN`, which is the only way an Action
+can authenticate. That guard is right for a laptop; a "push to `dev` → preview"
+workflow would need an explicit dev-CI door rather than a loosened one.
 
 **The file cap does not move on migration.** 20,000 files free is the *same* number
 on [Workers static assets](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/)
@@ -376,6 +444,11 @@ The SSG emits all of it as static files:
    production must land in that ONE account: the Pages projects, the
    custom-domain zone, R2, and the Worker (Bulk Redirects only fire on a zone
    in the same account; the Worker needs a re-deploy + CORS re-pin from there).
+   ~~Pages *project* names.~~ **RESOLVED 2026-08-02: `sammaditthi` (prod) and
+   `sammaditthi-dev` (dev)**, fixed in `scripts/static_site/deploy.sh` — see
+   "Two targets, one per account" above. Only the **domain** is still open; the
+   two are independent, since a project keeps its `.pages.dev` name whatever
+   custom domain is later attached.
 3. ~~One Pages project (path-split) vs two (subdomain).~~ **RESOLVED 2026-07-23:
    one project per surface** — apex = static content, `app.<domain>` = Flutter
    web, `tika.<domain>` = ටීකා later (see "Project topology" above).

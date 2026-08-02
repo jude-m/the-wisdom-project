@@ -126,14 +126,47 @@ class SitePlan {
     if (rootKeys.isEmpty) {
       throw StateError('No roots to build.');
     }
-    // Each key is resolved and walked before the next is looked at, so an
-    // unknown key fails on itself rather than after a partial site is planned.
+
+    bool isAncestorOf(String maybeAncestor, String key) {
+      for (String? at = tree[key]?.parentNodeKey;
+          at != null;
+          at = tree[at]?.parentNodeKey) {
+        if (at == maybeAncestor) return true;
+      }
+      return false;
+    }
+
+    // The whole list is validated before any of it is walked, so a bad key
+    // fails on itself rather than after a partial site has been planned.
+    //
+    // Roots must also be *disjoint*. A repeat (`--root sp,sp`) or a nested pair
+    // (`--root sp,an-1`, in either order) walks the same subtree twice: every
+    // page is written twice, and because `_readableIndex` below is a map
+    // literal, the repeated nodeKey silently keeps the LAST index — so prev/next
+    // threads through the second copy. Refusing is the same call as defaulting
+    // to the whole corpus: a build that looks finished but isn't is the failure
+    // mode worth being loud about.
     for (final rootKey in rootKeys) {
-      final root = tree[rootKey];
-      if (root == null) {
+      if (tree[rootKey] == null) {
         throw StateError('Unknown root "$rootKey".');
       }
-      walk(root);
+    }
+    for (var i = 0; i < rootKeys.length; i++) {
+      for (var j = i + 1; j < rootKeys.length; j++) {
+        final a = rootKeys[i];
+        final b = rootKeys[j];
+        if (a == b) {
+          throw StateError('Root "$a" is listed twice.');
+        }
+        if (isAncestorOf(a, b) || isAncestorOf(b, a)) {
+          throw StateError('Roots "$a" and "$b" overlap — one contains the '
+              'other. Roots must not repeat or nest.');
+        }
+      }
+    }
+
+    for (final rootKey in rootKeys) {
+      walk(tree[rootKey]!);
     }
 
     final readable = pages.where((page) => page.isReadable).toList();

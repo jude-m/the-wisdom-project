@@ -6,8 +6,10 @@
 #   ./scripts/research_server/run.sh --node       # plain Node entry — shows cpu=/build= debug timers
 #   ./scripts/research_server/run.sh --port 8083  # override the port (default 8082)
 #
-# Dev port map: 8081 = Dart content server, 8082 = research server,
-# 8083 = static-site preview (static_site_generator/tool/serve.dart).
+# Dev port map: 8080 = Flutter web (macOS), 8081 = Flutter web (Windows box),
+# 8082 = research server, 8083 = static-site preview
+# (static_site_generator/tool/serve.dart). The Dart content server that used to
+# hold 8081 is retired.
 #
 # Secrets live in research_server/.dev.vars (copy .dev.vars.example; live mode
 # needs GEMINI_API_KEY + RESEARCH_STORE + RESEARCH_STUB=0). wrangler reads that
@@ -34,16 +36,20 @@ done
 cd "$(dirname "$0")/../.."
 cd research_server
 
-# wrangler needs Node >= 20; the system default may be older, so fall back to
-# the newest nvm-installed Node.
+# wrangler 4.112 requires Node >= 22 (its package.json `engines`); the system
+# default may be older, so fall back to the newest nvm-installed Node and then
+# re-check, because the newest installed one may still be too old.
+# (Same guard as deploy.sh and scripts/static_site/deploy.sh.)
 NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')
-if [ "${NODE_MAJOR:-0}" -lt 20 ]; then
+if [ "${NODE_MAJOR:-0}" -lt 22 ]; then
   NVM_BIN=$(ls -d "$HOME/.nvm/versions/node"/v*/bin 2>/dev/null | sort -V | tail -1)
-  if [ -z "$NVM_BIN" ]; then
-    echo "error: Node >= 20 required (found ${NODE_MAJOR:-none}) and no nvm install found."
+  [ -n "$NVM_BIN" ] && export PATH="$NVM_BIN:$PATH"
+  NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')
+  if [ "${NODE_MAJOR:-0}" -lt 22 ]; then
+    echo "error: wrangler needs Node >= 22 (found ${NODE_MAJOR:-none})." >&2
+    echo "       Install one, e.g. \`nvm install 22\`." >&2
     exit 1
   fi
-  export PATH="$NVM_BIN:$PATH"
 fi
 
 if [ ! -f .dev.vars ]; then
