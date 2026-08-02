@@ -200,13 +200,28 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with: { sdk: stable }
       - run: cd static_site_generator && dart pub get &&
-             dart run bin/generate.dart --out ../build
+             dart run bin/generate.dart --root all --out ../build
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
           command: pages deploy build --project-name=<apex-project>
 ```
+
+**`--root all` is not optional** (added 2026-08-01). The corpus has seven disjoint
+roots, so `--root` takes a list and `all` means every one of them. Omitting it
+used to fall back to `an-1` — a 110-page fragment whose 32 අට්ඨකථා cross-links
+point at pages under `atta-sp`, a root it never touched. The default is now
+`all`; the flag stays in the sketch because a workflow should say what it ships.
+Measured on this machine: whole corpus = **32 s**, 14,752 pages, 14,762 files,
+212 MB (`sutta 12,748 / chapter 146 / TOC 1,858` — the counts this doc predicts,
+short only the root index page, which is not generated yet).
+
+**A local run of the same path** is `./scripts/static_site/deploy.sh` (added
+2026-08-01): build → file-cap + 25 MiB preflight → `wrangler pages deploy`.
+Defaults to a **preview** branch, because Cloudflare noindexes preview
+deployments and does not noindex the production alias — a dev copy of the canon
+must not compete with the real site in the index. `--production` is opt-in.
 
 **The file cap does not move on migration.** 20,000 files free is the *same* number
 on [Workers static assets](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/)

@@ -5,6 +5,10 @@ import 'dart:io';
 ///     dart run static_site_generator/tool/serve.dart
 ///     dart run static_site_generator/tool/serve.dart --port 9000 --dir /tmp/site
 ///
+/// For a check against the real thing rather than this imitation, deploy to a
+/// Cloudflare Pages preview instead: `./scripts/static_site/deploy.sh`. This is
+/// the offline path — no network, no auth, no upload.
+///
 /// A plain static server is not good enough here. Every link the generator
 /// writes is **extensionless** — `href="/tipitaka/an-1-2"` against a file named
 /// `an-1-2.html` — because that is the URL Cloudflare Pages serves and the one
@@ -104,7 +108,13 @@ Future<void> _handle(HttpRequest request, String rootPath) async {
   if (file == null) {
     response.statusCode = HttpStatus.notFound;
     response.headers.contentType = ContentType.html;
-    response.write('<h1>404</h1><p>No file for <code>$path</code>.</p>');
+    // The second line is the common case and is not a bug: on a partial build
+    // the breadcrumbs still climb to ancestors above `--root`, and every canon
+    // page links to its atta-* twin under a different root entirely. Without
+    // saying so, the first dead breadcrumb reads as a generator fault.
+    response.write('<h1>404</h1><p>No file for <code>$path</code>.</p>'
+        '<p>If this key exists in the tree, it was outside this build&rsquo;s '
+        '<code>--root</code>. Rebuild with <code>--root all</code>.</p>');
     await response.close();
     _log(request, response.statusCode);
     return;
@@ -212,7 +222,11 @@ class _Options {
       values[name] = value;
     }
 
-    final rawPort = values['--port'] ?? '8787';
+    // 8083, not 8787: 8787 is wrangler's own default port, and this repo now
+    // runs wrangler regularly (scripts/static_site/deploy.sh, research_server).
+    // 8083 is the next free slot in the dev port map — 8080 Flutter web on
+    // macOS, 8081 Flutter web on the Windows box, 8082 research server.
+    final rawPort = values['--port'] ?? '8083';
     final port = int.tryParse(rawPort);
     if (port == null || port < 1 || port > 65535) {
       throw FormatException('--port must be 1–65535, got "$rawPort".');
@@ -236,6 +250,6 @@ matches production.
 
 Options
   --dir <path>    Directory to serve      (default: <package>/build)
-  --port <n>      Port to listen on       (default: 8787)
+  --port <n>      Port to listen on       (default: 8083)
   -h, --help      Show this help
 ''';

@@ -2,7 +2,8 @@
   "name": "wisdom-research",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-01",
-  // Dev port map: 8081 = Dart content server, 8082 = research server.
+  // Dev port map: 8081 = Dart content server, 8082 = research server,
+  // 8083 = static-site preview (static_site_generator/tool/serve.dart).
   "dev": {
     "port": 8082
   },

@@ -6,7 +6,8 @@
 #   ./scripts/research_server/run.sh --node       # plain Node entry — shows cpu=/build= debug timers
 #   ./scripts/research_server/run.sh --port 8083  # override the port (default 8082)
 #
-# Dev port map: 8081 = Dart content server, 8082 = research server.
+# Dev port map: 8081 = Dart content server, 8082 = research server,
+# 8083 = static-site preview (static_site_generator/tool/serve.dart).
 #
 # Secrets live in research_server/.dev.vars (copy .dev.vars.example; live mode
 # needs GEMINI_API_KEY + RESEARCH_STORE + RESEARCH_STUB=0). wrangler reads that

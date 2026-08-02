@@ -68,15 +68,31 @@ class SitePlan {
 
   SitePlan._(this.pages, this.readablePages, this._readableIndex);
 
-  /// Walks [rootKey] top-down and decides what each node becomes.
+  /// Walks each of [rootKeys] top-down and decides what every node becomes.
   ///
   /// A grouped container swallows its leaves: they produce no file of their own
   /// (their clean URLs become redirect stubs at the P6 gate, never a second
   /// copy of the text). That is the no-duplication rule made structural — a
   /// leaf is either its own page or inside a chapter, never both.
+  ///
+  /// **A list, not one key**, because the corpus has seven disjoint roots
+  /// (`vp`, `sp`, `ap`, `atta-vp`, `atta-sp`, `atta-ap`, `anya`) with no common
+  /// ancestor. A single-root build is therefore never a whole site and often
+  /// not even a coherent subtree: `an-1` sits under `sp` while its commentary
+  /// `atta-an-1` sits under `atta-sp`, so the අට්ඨකථා cross-link every canon
+  /// page emits (`PageTemplate._commentaryLink`) points outside the build. On
+  /// the `an-1` subtree that was 32 dead links out of 144.
+  ///
+  /// Roots are walked in the order given and the order is preserved, so §11.8
+  /// byte-determinism holds: the same list always yields the same manifest.
+  ///
+  /// One behavioural consequence: prev/next chains *across* roots, so the last
+  /// `an-1` sutta's "next" is the first `atta-an-1` page. That is the right
+  /// reading for a continuous corpus walk, and on a partial build it just means
+  /// the pager runs off one subtree into the next rather than dead-ending.
   factory SitePlan.build({
     required TipitakaTree tree,
-    required String rootKey,
+    required List<String> rootKeys,
     required GroupingVerdict Function(TipitakaNode container) classify,
   }) {
     final pages = <SitePage>[];
@@ -107,11 +123,18 @@ class SitePlan {
       }
     }
 
-    final root = tree[rootKey];
-    if (root == null) {
-      throw StateError('Unknown root "$rootKey".');
+    if (rootKeys.isEmpty) {
+      throw StateError('No roots to build.');
     }
-    walk(root);
+    // Each key is resolved and walked before the next is looked at, so an
+    // unknown key fails on itself rather than after a partial site is planned.
+    for (final rootKey in rootKeys) {
+      final root = tree[rootKey];
+      if (root == null) {
+        throw StateError('Unknown root "$rootKey".');
+      }
+      walk(root);
+    }
 
     final readable = pages.where((page) => page.isReadable).toList();
     return SitePlan._(

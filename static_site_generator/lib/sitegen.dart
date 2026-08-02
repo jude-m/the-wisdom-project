@@ -55,7 +55,7 @@ class SiteGenerator {
     required this.outputDir,
   });
 
-  BuildReport generate(String rootKey) {
+  BuildReport generate(List<String> rootKeys) {
     _clearOutputDir();
     final cache = SlicerCache(reader: reader, tree: tree);
     final classifier = GroupingClassifier(tree: tree, slicerFor: cache.forFile);
@@ -68,7 +68,7 @@ class SiteGenerator {
         verdicts[container.nodeKey] ??= classifier.classify(container);
 
     final plan =
-        SitePlan.build(tree: tree, rootKey: rootKey, classify: classify);
+        SitePlan.build(tree: tree, rootKeys: rootKeys, classify: classify);
     final template =
         PageTemplate(tree: tree, generatorVersion: generatorVersion);
     final manifest = BuildManifest();

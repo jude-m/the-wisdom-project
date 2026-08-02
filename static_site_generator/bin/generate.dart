@@ -7,11 +7,17 @@ import 'package:static_site_generator/sitegen.dart';
 
 /// Entrypoint for the static HTML site generator.
 ///
-///     dart run static_site_generator/bin/generate.dart --root an-1
+///     dart run static_site_generator/bin/generate.dart --root all
+///     dart run static_site_generator/bin/generate.dart --root an-1,atta-an-1
 ///
 /// Writes `static_site_generator/build/` — one HTML file per sutta, one per
 /// grouped chapter, one per container TOC, plus `assets/site.css`, the copied
 /// WOFF2 subsets and `.manifest.json`.
+///
+/// `--root` takes a **list** because the corpus has seven disjoint roots and a
+/// canon subtree links into its `atta-*` twin, which lives under a different
+/// one. Building `an-1` alone leaves every අට්ඨකථා link on those pages pointing
+/// at a page that was never generated — see [SitePlan.build].
 void main(List<String> args) {
   final _Options options;
   try {
@@ -30,6 +36,7 @@ void main(List<String> args) {
   }
 
   final String outputDir;
+  final List<String> rootKeys;
   final BuildReport report;
   final stopwatch = Stopwatch()..start();
   try {
@@ -38,9 +45,17 @@ void main(List<String> args) {
         : CorpusReader(assetsPath: options.assetsPath!);
 
     final tree = reader.readTree();
-    if (tree[options.rootKey] == null) {
-      stderr.writeln('Unknown nodeKey "${options.rootKey}".');
-      stderr.writeln('Roots: ${tree.rootKeys.join(', ')}');
+    // `all` resolves here, not in the parser: it means "every root in the tree"
+    // and the parser has no tree. Taken from `tree.rootKeys` — a fixed,
+    // file-order list — so `--root all` is as deterministic as spelling the
+    // seven out by hand (§11.8).
+    rootKeys = options.rootsAreAll ? tree.rootKeys : options.rootKeys;
+
+    final unknown = rootKeys.where((key) => tree[key] == null).toList();
+    if (unknown.isNotEmpty) {
+      stderr.writeln('Unknown nodeKey${unknown.length > 1 ? 's' : ''} '
+          '"${unknown.join('", "')}".');
+      stderr.writeln('Roots: ${tree.rootKeys.join(', ')}  (or "all")');
       exitCode = 2;
       return;
     }
@@ -51,7 +66,7 @@ void main(List<String> args) {
       tree: tree,
       tokens: _readThemeTokens('$_packageRoot/assets/theme_tokens.json'),
       outputDir: outputDir,
-    ).generate(options.rootKey);
+    ).generate(rootKeys);
   } on StateError catch (error) {
     // Every StateError the generator raises is a deliberate, explained refusal
     // — a missing corpus file, an unrecognised --out, a node pointing past the
@@ -63,7 +78,7 @@ void main(List<String> args) {
   }
   stopwatch.stop();
 
-  stdout.writeln('root            ${options.rootKey}');
+  stdout.writeln('roots           ${rootKeys.join(', ')}');
   stdout.writeln('output          $outputDir');
   stdout.writeln('');
   stdout.writeln('sutta pages     ${report.suttaPages}');
@@ -111,13 +126,20 @@ final String _packageRoot = File.fromUri(Platform.script).parent.parent.path;
 /// three flags is not worth a dependency in a package whose whole point is that
 /// `dart pub deps` shows nothing but `wisdom_shared`.
 class _Options {
-  final String rootKey;
+  /// Subtrees to build, in walk order. Empty when [rootsAreAll] is set.
+  final List<String> rootKeys;
+
+  /// `--root all` was given. Kept as a flag rather than expanded here because
+  /// only the loaded tree knows what "all" is.
+  final bool rootsAreAll;
+
   final String? assetsPath;
   final String? outputDir;
   final bool showHelp;
 
   const _Options({
-    required this.rootKey,
+    required this.rootKeys,
+    required this.rootsAreAll,
     required this.assetsPath,
     required this.outputDir,
     required this.showHelp,
@@ -161,8 +183,32 @@ class _Options {
       values[name] = value;
     }
 
+    // Defaults to the whole corpus. The old default was `an-1`, which built a
+    // 110-page fragment with 32 dead අට්ඨකථා links — fine to ask for, wrong to
+    // get by accident, because the way that fails is a deploy that looks like a
+    // finished site. A slow default is recoverable; a silently partial one is
+    // not.
+    final raw = values['--root'] ?? _allRoots;
+    if (raw == _allRoots) {
+      return _Options(
+        rootKeys: const [],
+        rootsAreAll: true,
+        assetsPath: values['--assets'],
+        outputDir: values['--out'],
+        showHelp: showHelp,
+      );
+    }
+
+    final rootKeys = [
+      for (final key in raw.split(',')) key.trim(),
+    ];
+    if (rootKeys.any((key) => key.isEmpty)) {
+      throw FormatException('--root has an empty entry: "$raw".');
+    }
+
     return _Options(
-      rootKey: values['--root'] ?? 'an-1',
+      rootKeys: rootKeys,
+      rootsAreAll: false,
       assetsPath: values['--assets'],
       outputDir: values['--out'],
       showHelp: showHelp,
@@ -170,14 +216,28 @@ class _Options {
   }
 }
 
+/// `--root` value meaning "every root in the tree".
+///
+/// Safe as a keyword: no node is named `all` — the seven roots are `vp`, `sp`,
+/// `ap`, `atta-vp`, `atta-sp`, `atta-ap` and `anya`.
+const String _allRoots = 'all';
+
 const String _usage = '''
 Static HTML site generator — The Wisdom Project
 
   dart run static_site_generator/bin/generate.dart [options]
 
 Options
-  --root <nodeKey>   Subtree to build              (default: an-1)
+  --root <keys>      Comma-separated subtrees, or  (default: all)
+                     "all" for every tree root
   --assets <path>    Path to assets/               (default: discovered upwards)
   --out <path>       Output directory              (default: <package>/build)
   -h, --help         Show this help
+
+Roots are walked in the order given, and prev/next chains across them.
+A canon subtree links into its atta-* commentary twin, which is under a
+different root — so build both, or those links 404:
+
+  --root all                 whole corpus, 14,752 pages in ~30s
+  --root an-1,atta-an-1      one nikaya section and its commentary
 ''';

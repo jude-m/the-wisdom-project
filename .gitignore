@@ -59,6 +59,12 @@ test/helpers/
 node_modules/
 package-lock.json
 
+# wrangler's local cache, written at the repo root when scripts/static_site/
+# deploy.sh runs from there. Holds the resolved Cloudflare account, so it is
+# both regenerable and not ours to commit. (research_server/.gitignore already
+# ignores its own copy.)
+.wrangler/
+
 # SQLite temporary files
 *.db-shm
 *.db-wal
