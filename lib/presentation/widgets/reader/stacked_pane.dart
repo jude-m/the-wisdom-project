@@ -157,7 +157,7 @@ class StackedPane extends StatelessWidget {
       // Build the entry pair children
       final pairChildren = <Widget>[
         Padding(
-          padding: const EdgeInsets.only(bottom: 8.0),
+          padding: const EdgeInsets.only(bottom: AppFonts.stackedPairGapPx),
           child: paliWidget,
         ),
       ];
@@ -178,14 +178,16 @@ class StackedPane extends StatelessWidget {
 
         pairChildren.add(
           Padding(
-            padding: const EdgeInsets.only(bottom: 20.0),
+            padding:
+                const EdgeInsets.only(bottom: AppFonts.stackedPairBottomGapPx),
             child: sinhalaWidget,
           ),
         );
       } else {
-        // No Sinhala entry — use 20px spacing for consistent pair gap
+        // No Sinhala entry — take the pair's outer gap so the rhythm holds
         pairChildren[0] = Padding(
-          padding: const EdgeInsets.only(bottom: 20.0),
+          padding:
+              const EdgeInsets.only(bottom: AppFonts.stackedPairBottomGapPx),
           child: paliWidget,
         );
       }

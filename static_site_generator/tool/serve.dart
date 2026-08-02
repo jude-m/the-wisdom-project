@@ -163,7 +163,9 @@ File? _resolve(String path, String rootPath) {
 /// which is exactly the thing the preview exists to check.
 ContentType _contentTypeOf(String path) {
   if (path.endsWith('.html')) return ContentType.html;
-  if (path.endsWith('.css')) return ContentType('text', 'css', charset: 'utf-8');
+  if (path.endsWith('.css')) {
+    return ContentType('text', 'css', charset: 'utf-8');
+  }
   if (path.endsWith('.woff2')) return ContentType('font', 'woff2');
   if (path.endsWith('.json')) return ContentType.json;
   if (path.endsWith('.xml')) return ContentType('application', 'xml');

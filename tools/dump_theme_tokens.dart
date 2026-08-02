@@ -45,6 +45,7 @@ void main() {
         'dark': _darkColors,
       },
       'entryStyles': _entryStyles(),
+      'paneWeights': _paneWeights,
       'spacing': _spacing(),
     };
 
@@ -219,6 +220,34 @@ Map<String, dynamic> _spacing() => {
       // not render, and an exported token with no consumer only invites one.
       'entryGapPx': AppFonts.entryGapPx,
       'pageGapPx': AppFonts.pageGapPx,
+      // The stacked layout's two-part rhythm — a translation hugs the line it
+      // translates, pairs stand apart. Only the stacked layout uses these; the
+      // other three separate the languages by column or show one at a time.
+      'stackedPairGapPx': AppFonts.stackedPairGapPx,
+      'stackedPairBottomGapPx': AppFonts.stackedPairBottomGapPx,
+    };
+
+/// Weights that a *pane* applies on top of an entry style, rather than ones
+/// `TextEntryTheme` bakes in — so they cannot be read out of [_entryStyles].
+///
+/// ## Why the native values, on a surface that is the web
+///
+/// Both constants branch on `kIsWeb`, and this dump runs under `flutter test`,
+/// so both resolve to their **native** value. That is the correct one here, and
+/// not by luck: the web branch exists to compensate for CanvasKit, whose text
+/// rendering lacks the stem darkening native Skia applies (see
+/// `AppFonts.bodyWeight`). The static site is real HTML text rendered by the
+/// browser's own engine, so CanvasKit's deficit does not apply and its
+/// correction would show up as genuinely over-heavy type.
+///
+/// Contrast `fonts.webDefaultScale`, which *does* take the web value — that one
+/// is a deliberate reading-size choice for a browser, not a renderer patch.
+Map<String, dynamic> get _paneWeights => {
+      // Applied to body-type entries only — paragraph, unindented and gatha.
+      // Headings and centered entries keep their theme weight, exactly as
+      // `ReaderEntryBuilder.buildEntry` documents and does.
+      'paliStacked': AppFonts.paliWeight.value,
+      'body': AppFonts.bodyWeight.value,
     };
 
 /// Trims binary floating-point noise (1.0999999999999999 → 1.1) so re-running

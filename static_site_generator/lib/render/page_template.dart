@@ -3,6 +3,7 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 import '../domain/document.dart';
 import '../domain/site_page.dart';
 import 'entry_renderer.dart';
+import 'reading_layouts.dart';
 
 /// Renders a complete HTML document for one [SitePage].
 ///
@@ -44,6 +45,10 @@ class PageTemplate {
     final shown = _withoutRepeatedTitle(preamble, page.node);
     final depths = _headingDepths(page, slices, shown.preamble);
 
+    // The radios have to *precede* `.content` and share a parent with it: the
+    // whole layout engine is `#L-x:checked ~ .content …`, a sibling combinator.
+    if (page.isReadable) body.writeln(_layoutToolbar());
+
     body.writeln('<div class="content">');
     body.writeln(_breadcrumb(page.node));
     body.writeln('<h1 class="page-title">${_headingHtml(page.node)}</h1>');
@@ -52,6 +57,7 @@ class PageTemplate {
 
     switch (page.kind) {
       case PageKind.sutta:
+        body.writeln(_columnHeads([slices[page.nodeKey]]));
         body.writeln(_rows(slices[page.nodeKey], depths));
       case PageKind.chapter:
         body.writeln(_chapter(page, slices, shown.preamble, depths));
@@ -94,6 +100,14 @@ class PageTemplate {
   /// first heading and its only one — sometimes row 0 (`an-1-1`), sometimes row
   /// 3 behind three `centered` lines (`an-1`). Anything later is the book
   /// genuinely printing a second heading, and is left alone.
+  ///
+  /// **Only the Pali cell is cleared, not the row.** The `<h1>` carries the
+  /// node's Pali name and nothing else, so removing the whole row would take
+  /// the Sinhala name of the container with it — and a reader in
+  /// sinhalaOnly would then meet a page whose title exists only in a language
+  /// they have switched off. The row survives as `no-pali`: hidden in
+  /// paliOnly, where the `<h1>` already says it, and showing the translation
+  /// in the three layouts that want it.
   ({NodeSlice? preamble, DocRow? dropped}) _withoutRepeatedTitle(
     NodeSlice? preamble,
     TipitakaNode node,
@@ -101,7 +115,8 @@ class PageTemplate {
     if (preamble == null) return (preamble: null, dropped: null);
 
     for (var i = 0; i < preamble.rows.length; i++) {
-      final pali = preamble.rows[i].pali;
+      final row = preamble.rows[i];
+      final pali = row.pali;
       if (pali == null || pali.text.isEmpty) continue;
       if (pali.type != 'heading') continue;
 
@@ -111,13 +126,21 @@ class PageTemplate {
       if (weldTitle(pali.text).trim() != weldTitle(node.paliName).trim()) {
         return (preamble: preamble, dropped: null);
       }
+      final rows = [...preamble.rows];
+      rows[i] = DocRow(
+        pageIndex: row.pageIndex,
+        pageNum: row.pageNum,
+        entryIndex: row.entryIndex,
+        pali: null,
+        sinhala: row.sinhala,
+      );
       return (
         preamble: NodeSlice(
           nodeKey: preamble.nodeKey,
-          rows: [...preamble.rows]..removeAt(i),
+          rows: rows,
           startIndex: preamble.startIndex,
         ),
-        dropped: preamble.rows[i],
+        dropped: row,
       );
     }
     return (preamble: preamble, dropped: null);
@@ -178,7 +201,7 @@ $body</body>
       // this row, so without the note a reader of the comment would count one
       // more entry than the page shows and go looking for a slicer bug.
       if (droppedTitle != null)
-        '  title-repeat suppressed: '
+        '  title-repeat suppressed (pali side only): '
             'pages[${droppedTitle.pageIndex}].[${droppedTitle.entryIndex}]',
       for (final sutta in page.suttas)
         '  ${sutta.nodeKey}: ${slices[sutta.nodeKey]?.coordinateRange ?? 'missing'}',
@@ -188,6 +211,56 @@ $body</body>
   }
 
   // ── page furniture ────────────────────────────────────────────────────────
+
+  /// The reading-layout switcher: four radios and the segmented control that
+  /// drives them, with **no JavaScript** (C5).
+  ///
+  /// One radio set per page, never one per section — duplicated `id`s are
+  /// invalid HTML and every label would bind to the first set only.
+  ///
+  /// The inputs are visually hidden rather than `display:none`, which would
+  /// take them out of the tab order and leave the control unreachable from a
+  /// keyboard. Their accessible name comes from `aria-label`, because the
+  /// visible label is a letter or an icon: the app's own Sinhala strings from
+  /// `app_si.arb` are what a screen reader should say, not "P".
+  ///
+  /// Emitted on readable pages only. A container TOC has no reading layout to
+  /// choose, and the absence costs nothing: with no radio checked, none of the
+  /// `#L-x:checked ~` rules match, so a `.row` keeps its default single column
+  /// and both languages show stacked — which is the right thing for a
+  /// preamble, reached without a single special case in the CSS.
+  String _layoutToolbar() {
+    final buffer = StringBuffer();
+    for (final layout in readingLayouts) {
+      buffer.write('<input class="layout-input" type="radio" name="layout"'
+          ' id="${layout.id}" value="${layout.token}"');
+      if (layout.id == defaultLayoutId) buffer.write(' checked');
+      buffer.write(' aria-label="${layout.label}">');
+    }
+    // The bar's background runs edge to edge, its contents do not: the inner
+    // wrapper is the width of the reading column, so the control lines up with
+    // the right edge of the text rather than floating off in the margin of a
+    // wide window. P3's navigator button takes the left of the same wrapper.
+    //
+    // A plain `<div>`, not a `<nav>`: choosing a layout is not navigation, and
+    // marking it up as one adds a fourth unnamed landmark beside the breadcrumb
+    // and pager for a screen-reader user to wade through. `role="radiogroup"`
+    // would be no better here — the radios are outside this element, not in it.
+    // The grouping is already carried where it belongs, by the shared
+    // `name="layout"`, which is what makes a reader announce "2 of 4".
+    buffer.write('<div class="toolbar"><div class="toolbar-inner">');
+    buffer.write('<div class="layouts">');
+    for (final layout in readingLayouts) {
+      // `title` is a hover tooltip for sighted mouse users, who otherwise get
+      // only "P" or an icon. It is not a duplicate announcement: the input's
+      // accessible name comes from its own `aria-label`, and a `<label>` is not
+      // focusable, so this string never reaches the a11y tree twice.
+      buffer.write('<label for="${layout.id}" title="${layout.label}">'
+          '${layout.glyph}</label>');
+    }
+    buffer.write('</div></div></div>');
+    return buffer.toString();
+  }
 
   /// Ancestors, outermost first. Doubles as the internal-link graph that lets a
   /// crawler reach every node from any page.
@@ -276,9 +349,16 @@ $body</body>
     final levels = <int>{};
     void scan(NodeSlice? slice) {
       for (final row in slice?.rows ?? const <DocRow>[]) {
-        final pali = row.pali;
-        if (pali?.type == 'heading') {
-          levels.add((pali!.level ?? 1).clamp(1, 5));
+        // Both sides, because either can be the only one on a row and the two
+        // do not always agree on type — a heading in Sinhala can pair with a
+        // Pali entry the book set as something else. Ranking only the Pali
+        // levels would leave a Sinhala-only heading with no depth at all,
+        // defaulting it to `<h2>` and reopening the skipped-level gap this
+        // whole mapping exists to close.
+        for (final entry in [row.pali, row.sinhala]) {
+          if (entry?.type == 'heading') {
+            levels.add((entry!.level ?? 1).clamp(1, 5));
+          }
         }
       }
     }
@@ -306,6 +386,11 @@ $body</body>
     // Shown only when a sutta is targeted — the way back to the whole run.
     buffer.write('<p class="chapter-bar">'
         '<a href="${page.url}">සම්පූර්ණ පරිච්ඡේදය</a></p>');
+    // After the bar, not before: in the filtered single-sutta view the bar is
+    // the page's first line, and column captions above it would caption it.
+    buffer.write(_columnHeads(
+      [preamble, for (final sutta in page.suttas) slices[sutta.nodeKey]],
+    ));
     if (preamble != null && preamble.rows.isNotEmpty) {
       buffer.write('<div class="preamble">${_rows(preamble, depths)}</div>');
     }
@@ -318,21 +403,27 @@ $body</body>
     return buffer.toString();
   }
 
-  /// One `.row` per source entry.
+  /// One `.row` per source entry, carrying both language cells.
   ///
-  /// The row wrapper exists from day one even though only the Pali side is
-  /// rendered in this phase: P2 adds a `.si` cell beside `.pali` and the grid
-  /// picks it up as a column count, not a restructure.
+  /// The row is the unit the four layouts act on: side-by-side gives it two
+  /// grid columns, stacked one, and the single-language layouts hide a cell.
+  /// All of that is CSS — the markup is the same on every page and both
+  /// languages are always in the DOM, which is what keeps the Sinhala text
+  /// indexable no matter which layout is baked in (C5).
   ///
-  /// ## Rows this phase cannot show
+  /// ## A missing side is a row class, not a missing row
   ///
-  /// 5,571 rows across the corpus carry Sinhala text against an *empty* Pali
-  /// entry — translator's matter the printed book has on one side only. A
-  /// Pali-only phase has nothing to render for them, but dropping them without
-  /// trace leaves no way to tell "the source had nothing here" from "the slicer
-  /// lost it". Each one leaves a comment naming its coordinate instead, so
-  /// `grep -c untranslated` over the build is a real conservation check and the
-  /// count has to fall to zero when P2 lands.
+  /// 5,571 rows corpus-wide carry Sinhala against an *empty* Pali entry —
+  /// translator's matter the printed book has on one side only — and rows with
+  /// the reverse shape are commoner still. Both are rendered, with the absent
+  /// cell simply not emitted and the row marked `no-pali` / `no-si`.
+  ///
+  /// That class is what lets a single-language layout skip the row entirely
+  /// rather than print an empty gap where the other language would have been.
+  /// Emitting a placeholder cell instead would work for the grid but would put
+  /// that blank into paliOnly and sinhalaOnly too, where nothing is there to
+  /// fill it; side-by-side keeps its columns honest with explicit
+  /// `grid-column`, which needs no placeholder.
   ///
   /// Genuinely empty rows — [DocRow.isEmpty], one in the whole corpus — are the
   /// only ones dropped outright.
@@ -342,17 +433,71 @@ $body</body>
     for (final row in slice.rows) {
       if (row.isEmpty) continue;
       final pali = row.pali;
-      if (pali == null || pali.text.isEmpty) {
-        buffer.write('<!-- untranslated: '
-            'pages[${row.pageIndex}].[${row.entryIndex}] -->');
-        continue;
+      final sinhala = row.sinhala;
+      final hasPali = pali != null && pali.text.isNotEmpty;
+      final hasSinhala = sinhala != null && sinhala.text.isNotEmpty;
+
+      buffer.write('<div class="row');
+      if (!hasPali) buffer.write(' no-pali');
+      if (!hasSinhala) buffer.write(' no-si');
+      buffer.write('">');
+      if (hasPali) {
+        // `pi-Sinh` — Pali written in Sinhala script. Not `si`: the words are
+        // Pali, and a screen reader or language detector told otherwise reads
+        // them as Sinhala.
+        buffer.write('<div class="pali" lang="pi-Sinh">');
+        buffer.write(entries.render(pali, isPali: true, headingDepths: depths));
+        buffer.write('</div>');
       }
-      buffer.write('<div class="row">');
-      buffer.write('<div class="pali" lang="pi-Sinh">');
-      buffer.write(entries.render(pali, isPali: true, headingDepths: depths));
-      buffer.write('</div></div>');
+      if (hasSinhala) {
+        // `isPali: false` gates the conjunct transform off. Baking ZWJ into
+        // the translation would bind consonants that Sinhala orthography keeps
+        // apart — the same seam `content_text_formatter.dart` holds in the app.
+        buffer.write('<div class="si" lang="si">');
+        buffer.write(
+            entries.render(sinhala, isPali: false, headingDepths: depths));
+        buffer.write('</div>');
+      }
+      buffer.write('</div>');
     }
     return buffer.toString();
+  }
+
+  /// Column captions for the side-by-side layout, hidden in the other three.
+  ///
+  /// Not decoration on this corpus specifically: Pali here is *written in
+  /// Sinhala script*, so two columns of it are the same alphabet and a reader
+  /// landing mid-page cannot tell which side is the canon and which the
+  /// translation. Every other layout either shows one language or alternates
+  /// them, so the captions would be noise — CSS shows them only under
+  /// side-by-side.
+  ///
+  /// A `.row` like any other, so it inherits the same grid and its cells line
+  /// up with the text below. `aria-hidden` because the cells themselves carry
+  /// `lang`, which is how a screen reader already announces the switch.
+  ///
+  /// **Emitted only when the page really has both languages.** 210 readable
+  /// pages — every one of them in the 7 `ap-pat*` (Paṭṭhāna) files, the known
+  /// misalignment — carry no Sinhala at all, and captioning a column that is
+  /// empty from top to bottom labels the absence rather than explaining it. No
+  /// readable page in the corpus lacks Pali, so the reverse never fires, but
+  /// the test is symmetric because nothing guarantees that stays true after a
+  /// re-sync from upstream.
+  String _columnHeads(Iterable<NodeSlice?> slices) {
+    var hasPali = false;
+    var hasSinhala = false;
+    for (final slice in slices) {
+      for (final row in slice?.rows ?? const <DocRow>[]) {
+        hasPali |= row.pali?.text.isNotEmpty ?? false;
+        hasSinhala |= row.sinhala?.text.isNotEmpty ?? false;
+        if (hasPali && hasSinhala) break;
+      }
+    }
+    if (!hasPali || !hasSinhala) return '';
+    return '<div class="row col-heads" aria-hidden="true">'
+        '<div class="pali">පාළි</div>'
+        '<div class="si">සිංහල</div>'
+        '</div>';
   }
 
   // ── titles ────────────────────────────────────────────────────────────────

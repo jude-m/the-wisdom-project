@@ -1,4 +1,5 @@
 import '../domain/theme_tokens.dart';
+import 'reading_layouts.dart';
 import 'web_fonts.dart';
 
 /// Builds `assets/site.css` from the app's exported theme tokens.
@@ -32,10 +33,43 @@ String buildStylesheet(ThemeTokens tokens) {
   _writeRootVariables(css, tokens);
   _writePageChrome(css, tokens);
   _writeEntryStyles(css, tokens);
+  _writeLayouts(css, tokens);
   _writeGroupedChapter(css);
 
   return css.toString();
 }
+
+/// Below this width, two columns of text stop being readable and side-by-side
+/// folds to one — see [_writeLayouts].
+///
+/// ⚠️ **This is 768px, not 691px.** Inside a media query `rem` resolves against
+/// the *initial* root font size (16px) and ignores `html { font-size: 90% }`,
+/// which is the rule the rest of the sheet is measured in. So the same `48rem`
+/// written here and in an ordinary rule names two different widths. Verified in
+/// Chrome: two columns at 800px, one at 720px. Kept in `rem` anyway — it still
+/// scales with a reader's own browser font-size setting, which px would not.
+const String _twoColumnMinWidth = '48rem';
+
+/// The reading column. Shared by `.content` and the toolbar's inner wrapper so
+/// the two stay aligned; a bar whose control drifts away from the text it acts
+/// on reads as belonging to something else.
+const String _readingColumnWidth = '44rem';
+
+/// Height of the sticky reader toolbar.
+///
+/// Emitted as `--toolbar-height` and consumed by two rules that must never
+/// disagree: the bar's own height, and the `scroll-padding-top` that keeps an
+/// anchor from landing behind it.
+const String _toolbarHeight = '56px';
+
+/// The reading column when side-by-side splits it in two.
+///
+/// [_readingColumnWidth] is a measure for *one* column of text; halving it
+/// would give each language about 21rem, which is too narrow for the corpus's
+/// long compounds. Widening only under side-by-side keeps single-column
+/// reading at its proper measure instead of stretching every layout to suit
+/// the one that needs the room.
+const String _wideColumnWidth = '64rem';
 
 /// Self-hosted WOFF2 (D7) — not polish, correctness.
 ///
@@ -76,6 +110,12 @@ void _writeRootVariables(StringBuffer css, ThemeTokens tokens) {
   css.writeln('  --gatha-indent: ${_num(tokens.spacing('gathaIndentEm'))}em;');
   css.writeln(
       '  --gatha-indent-2: ${_num(tokens.spacing('gathaLevel2IndentEm'))}em;');
+  // The stacked layout's two-part rhythm, from the same constants
+  // `stacked_pane.dart` lays out with.
+  css.writeln('  --pair-gap: ${_px(tokens.spacing('stackedPairGapPx'))};');
+  css.writeln(
+      '  --pair-bottom-gap: ${_px(tokens.spacing('stackedPairBottomGapPx'))};');
+  css.writeln('  --toolbar-height: $_toolbarHeight;');
   css.writeln('}');
   css.writeln();
 }
@@ -94,6 +134,13 @@ void _writePageChrome(StringBuffer css, ThemeTokens tokens) {
   css.writeln('html {');
   css.writeln('  font-size: ${_num(tokens.webDefaultScale * 100)}%;');
   css.writeln('  -webkit-text-size-adjust: 100%;');
+  // Every `#fragment` landing clears the sticky toolbar, plus a line of air.
+  // On the scroll container rather than on the targets, so it covers anchors
+  // that do not exist yet — P7's footnote references above all, which are the
+  // ones a reader will actually jump to. `#<nodeKey>` is the locked deep-link
+  // form (grouped-leaf URLs resolve to exactly that), so this is load-bearing
+  // as soon as anything links in.
+  css.writeln('  scroll-padding-top: calc(var(--toolbar-height) + 1rem);');
   css.writeln('}');
   css.writeln();
   css.writeln('body {');
@@ -104,7 +151,7 @@ void _writePageChrome(StringBuffer css, ThemeTokens tokens) {
   css.writeln('}');
   css.writeln();
   css.writeln('.content {');
-  css.writeln('  max-width: 44rem;');
+  css.writeln('  max-width: $_readingColumnWidth;');
   css.writeln('  margin: 0 auto;');
   css.writeln('  padding: 1.5rem 1.25rem 4rem;');
   css.writeln('}');
@@ -178,23 +225,42 @@ void _writePageChrome(StringBuffer css, ThemeTokens tokens) {
   css.writeln('}');
   css.writeln('.toc a:hover { background: var(--c-surface-container-low); }');
   css.writeln();
-  // The Pali column. P2 adds a `.si` sibling inside `.row`; the grid is already
-  // here so that lands as a column count, not a restructure.
-  css.writeln(
-      '.row { display: grid; gap: 1rem; margin-bottom: var(--entry-gap); }');
+  // One row, both languages. The base state is a single column carrying the
+  // stacked rhythm — a translation sits `--pair-gap` under the line it
+  // translates, and the next pair starts `--pair-bottom-gap` below. Which is
+  // also, deliberately, what a page with no layout radios at all renders as.
+  //
+  // `column-gap` is declared here but only ever has an effect once
+  // side-by-side gives the grid a second column.
+  css.writeln('.row {');
+  css.writeln('  display: grid;');
+  css.writeln('  row-gap: var(--pair-gap);');
+  css.writeln('  column-gap: 1.75rem;');
+  css.writeln('  margin-bottom: var(--pair-bottom-gap);');
+  css.writeln('}');
   css.writeln();
 }
 
 /// One rule per entry type, in the order `reader_entry_builder.dart` switches
 /// on them, so the two can be read side by side.
 void _writeEntryStyles(StringBuffer css, ThemeTokens tokens) {
-  void writeStyle(String selector, EntryStyle style, {String? extra}) {
+  /// [bodyType] marks the three types a *pane* is allowed to re-weight —
+  /// paragraph, unindented and gatha. Their weight is emitted as
+  /// `var(--body-weight, N)` so the stacked layout can lift the Pali side
+  /// without a second copy of every rule; `N` is the theme's own value, so a
+  /// page that never sets the variable is byte-for-byte what P1 shipped.
+  /// Headings and centered entries keep a literal weight, exactly as
+  /// `ReaderEntryBuilder.buildEntry` refuses to override them.
+  void writeStyle(String selector, EntryStyle style,
+      {String? extra, bool bodyType = false}) {
     css.writeln('$selector {');
     // Every entry style in the token file names the reader family, so the
     // variable says the same thing and keeps the fallback stack with it.
     css.writeln('  font-family: var(--font-reader);');
     css.writeln('  font-size: ${_num(style.fontSizeEm)}em;');
-    css.writeln('  font-weight: ${style.fontWeight};');
+    css.writeln(bodyType
+        ? '  font-weight: var(--body-weight, ${style.fontWeight});'
+        : '  font-weight: ${style.fontWeight};');
     if (style.fontStyle != 'normal') {
       // NotoSerifSinhala ships no italic face, so this is a synthesised
       // oblique in the browser. Left faithful to the token rather than
@@ -214,11 +280,13 @@ void _writeEntryStyles(StringBuffer css, ThemeTokens tokens) {
     '.e-paragraph',
     tokens.entryStyle('paragraph'),
     extra: '  text-align: justify;\n',
+    bodyType: true,
   );
   writeStyle(
     '.e-unindented',
     tokens.entryStyle('unindented'),
     extra: '  text-align: justify;\n',
+    bodyType: true,
   );
   writeStyle(
     '.e-gatha',
@@ -228,6 +296,7 @@ void _writeEntryStyles(StringBuffer css, ThemeTokens tokens) {
         // `gatha` is the one type whose source text carries newlines — the app
         // gets line breaks free from Flutter's Text; CSS needs telling.
         '  white-space: pre-line;\n',
+    bodyType: true,
   );
   css.writeln('.e-gatha.l2 { padding-left: var(--gatha-indent-2); }');
   css.writeln();
@@ -257,6 +326,240 @@ void _writeEntryStyles(StringBuffer css, ThemeTokens tokens) {
   css.writeln();
 }
 
+/// The four reading layouts, and the segmented control that picks one.
+///
+/// Mirrors: lib/presentation/widgets/reader/multi_pane_reader_widget.dart
+/// and its panes. Four radios, four rules, **no JavaScript** (C5) — both
+/// languages are always in the DOM, so hiding one is a display choice and
+/// never an indexing one (Google indexes hidden tab content; the Sinhala side
+/// stays findable on a Pali-default page).
+///
+/// The selectors reach `.content` as a *sibling* of the radios, not `.sutta`.
+/// The plan's §7 sketch used `~ .sutta .si`, which silently matches nothing on
+/// a grouped chapter page, where `.sutta` is nested inside `.chapter`.
+void _writeLayouts(StringBuffer css, ThemeTokens tokens) {
+  css.writeln('/* Reading layout — pure CSS, four radios. */');
+  // Visually hidden, NOT `display: none`: a hidden-that-way radio leaves the
+  // tab order, and the control becomes unusable from a keyboard.
+  css.writeln('.layout-input {');
+  css.writeln('  position: absolute;');
+  css.writeln('  width: 1px;');
+  css.writeln('  height: 1px;');
+  css.writeln('  margin: -1px;');
+  css.writeln('  padding: 0;');
+  css.writeln('  border: 0;');
+  css.writeln('  overflow: hidden;');
+  css.writeln('  clip-path: inset(50%);');
+  css.writeln('  white-space: nowrap;');
+  css.writeln('}');
+  css.writeln();
+  css.writeln('.toolbar {');
+  css.writeln('  position: sticky;');
+  css.writeln('  top: 0;');
+  css.writeln('  z-index: 2;');
+  css.writeln('  height: var(--toolbar-height);');
+  css.writeln('  background: var(--c-surface-container-high);');
+  css.writeln('  border-bottom: 1px solid var(--c-outline);');
+  css.writeln('}');
+  // Same width and padding as `.content`, so the control sits over the right
+  // edge of the text column instead of the window's.
+  css.writeln('.toolbar-inner {');
+  css.writeln('  display: flex;');
+  css.writeln('  justify-content: flex-end;');
+  css.writeln('  align-items: center;');
+  css.writeln('  gap: 0.75rem;');
+  css.writeln('  height: 100%;');
+  css.writeln('  max-width: $_readingColumnWidth;');
+  css.writeln('  margin: 0 auto;');
+  css.writeln('  padding: 0 1.25rem;');
+  css.writeln('}');
+  css.writeln();
+  css.writeln('.layouts {');
+  css.writeln('  display: inline-flex;');
+  css.writeln('  border: 1px solid var(--c-outline);');
+  css.writeln('  border-radius: 8px;');
+  css.writeln('  overflow: hidden;');
+  css.writeln('  background: var(--c-background);');
+  css.writeln('}');
+  css.writeln('.layouts label {');
+  css.writeln('  display: flex;');
+  css.writeln('  align-items: center;');
+  css.writeln('  justify-content: center;');
+  css.writeln('  width: 40px;');
+  css.writeln('  height: 34px;');
+  css.writeln('  font-family: var(--font-ui);');
+  css.writeln('  font-size: 0.875em;');
+  css.writeln('  font-weight: 600;');
+  css.writeln('  color: var(--c-on-surface-variant);');
+  css.writeln('  cursor: pointer;');
+  css.writeln('}');
+  css.writeln('.layouts label + label '
+      '{ border-left: 1px solid var(--c-outline); }');
+  css.writeln('.layout-icon { width: 18px; height: 18px; }');
+  css.writeln();
+
+  // Which button is lit. Every layout lights its own button — except the
+  // default, which below the breakpoint does not render as itself.
+  //
+  // Side-by-side folds to a single column there, i.e. to stacked, and it is
+  // also the layout baked `checked`. Left alone, a phone opened the site with
+  // the side-by-side button lit over a stacked page, two of the four buttons
+  // rendering identically, and a tap on "stacked" changing nothing but which
+  // button glowed. So on a narrow screen side-by-side is not offered at all
+  // and the stacked button lights for both; above the breakpoint the media
+  // query below hands the highlight back.
+  final selfLit = [
+    for (final layout in readingLayouts)
+      if (layout.id != defaultLayoutId)
+        '#${layout.id}:checked ~ .toolbar label[for="${layout.id}"]',
+    '#$defaultLayoutId:checked ~ .toolbar label[for="$narrowFallbackLayoutId"]',
+  ];
+  css.writeln('${selfLit.join(',\n')} {');
+  css.writeln('  background: var(--c-primary-container);');
+  css.writeln('  color: var(--c-on-primary-container);');
+  css.writeln('}');
+  // The radio goes with its button, not just the button.
+  //
+  // `.layout-input` hides the radios the accessible way — off-screen but still
+  // focusable — which is what lets the group be arrowed through at all. Hiding
+  // only the *label* therefore left a radio with no button: arrowing onto it
+  // selected side-by-side, moved the highlight to stacked (right), and painted
+  // the focus ring onto a `display: none` label, so focus disappeared for one
+  // keypress. `display: none` takes it out of the tab order and the arrow
+  // cycle instead.
+  //
+  // Safe for the layout engine: `:checked` reads DOM state and `~` walks DOM
+  // structure, so both keep matching a `display: none` input. The baked default
+  // stays checked and still drives the single-column rendering below the
+  // breakpoint — it just cannot be focused while it has nothing to point at.
+  //
+  // Written as base-state-plus-override rather than a `max-width` query on
+  // purpose: a second breakpoint would have to be spelled `47.99rem`, giving
+  // the sheet two expressions of one number and a seam between them — a bad
+  // trade anywhere, and a worse one here, where `48rem` already means two
+  // different pixel widths (see [_twoColumnMinWidth]).
+  css.writeln('#$defaultLayoutId { display: none; }');
+  css.writeln('.layouts label[for="$defaultLayoutId"] { display: none; }');
+  css.writeln();
+
+  // `:focus-visible` on the hidden input paints the label, which is the only
+  // thing on screen — without it a keyboard reader tabbing through the group
+  // has no idea where they are.
+  for (final layout in readingLayouts) {
+    css.writeln('#${layout.id}:focus-visible ~ .toolbar '
+        'label[for="${layout.id}"] '
+        '{ outline: 2px solid var(--c-primary); outline-offset: -2px; }');
+  }
+  css.writeln();
+
+  // Single-language layouts. Hiding the cell is not enough: a row that has
+  // *only* the other language would otherwise survive as an empty grid item
+  // and print a gap where nothing is. `.no-pali` / `.no-si` say which rows
+  // those are, decided at build time rather than with a `:has()` test.
+  css.writeln('#$paliOnlyLayoutId:checked ~ .content .si { display: none; }');
+  css.writeln(
+      '#$paliOnlyLayoutId:checked ~ .content .row.no-pali { display: none; }');
+  css.writeln(
+      '#$sinhalaOnlyLayoutId:checked ~ .content .pali { display: none; }');
+  css.writeln(
+      '#$sinhalaOnlyLayoutId:checked ~ .content .row.no-si { display: none; }');
+  // Nothing is paired when one language is showing, so rows fall back to the
+  // app's plain single-column entry gap.
+  css.writeln('#$paliOnlyLayoutId:checked ~ .content .row,');
+  css.writeln('#$sinhalaOnlyLayoutId:checked ~ .content .row '
+      '{ margin-bottom: var(--entry-gap); }');
+  css.writeln();
+
+  // Stacked is the base `.row` state; stated anyway so the declaration exists
+  // to read, and so a future change to the base cannot silently redefine what
+  // "stacked" means.
+  css.writeln('#$stackedLayoutId:checked ~ .content .row '
+      '{ grid-template-columns: 1fr; }');
+  css.writeln();
+
+  // Side by side, but only where two columns of text still read. Below the
+  // breakpoint it falls back to the base single column — which is the stacked
+  // layout, and so matches the app, whose seed in portrait is stacked and in
+  // landscape side-by-side (`resolveSeedLayout`).
+  // `.row.col-heads`, not `.col-heads`: the base `.row { display: grid }` has
+  // the same specificity, so a bare class would be beating it on source order
+  // alone — and reordering the writers in `buildStylesheet` would then reveal
+  // the captions in every layout, with nothing to say why.
+  css.writeln('.row.col-heads { display: none; }');
+  css.writeln('@media (min-width: $_twoColumnMinWidth) {');
+  // Side-by-side is a real choice again at this width: put its radio back in
+  // the keyboard cycle, offer the button, light it, and stop lighting stacked
+  // on its behalf. `block`, because that is what `display` computes to for the
+  // absolutely positioned box `.layout-input` makes of it either way.
+  css.writeln('  #$defaultLayoutId { display: block; }');
+  css.writeln('  .layouts label[for="$defaultLayoutId"] { display: flex; }');
+  css.writeln('  #$defaultLayoutId:checked ~ .toolbar '
+      'label[for="$narrowFallbackLayoutId"] '
+      '{ background: none; color: var(--c-on-surface-variant); }');
+  css.writeln('  #$defaultLayoutId:checked ~ .toolbar '
+      'label[for="$defaultLayoutId"] '
+      '{ background: var(--c-primary-container); '
+      'color: var(--c-on-primary-container); }');
+  // The column widens with the layout, and the toolbar with it, or the control
+  // would no longer sit over the text it governs.
+  css.writeln('  #$sideBySideLayoutId:checked ~ .content,');
+  css.writeln('  #$sideBySideLayoutId:checked ~ .toolbar .toolbar-inner '
+      '{ max-width: $_wideColumnWidth; }');
+  css.writeln('  #$sideBySideLayoutId:checked ~ .content .row {');
+  css.writeln('    grid-template-columns: 1fr 1fr;');
+  // Top-align: 18.9% of paired entries are a Pali gatha against a Sinhala
+  // paragraph, so the two cells of a row are routinely different heights and
+  // any other alignment would drift the two languages apart down the page.
+  css.writeln('    align-items: start;');
+  css.writeln('    margin-bottom: var(--entry-gap);');
+  css.writeln('  }');
+  // Explicit columns so a row missing one language still puts the language it
+  // has under the right heading, instead of sliding into column 1.
+  css.writeln(
+      '  #$sideBySideLayoutId:checked ~ .content .pali { grid-column: 1; }');
+  css.writeln(
+      '  #$sideBySideLayoutId:checked ~ .content .si { grid-column: 2; }');
+  css.writeln(
+      '  #$sideBySideLayoutId:checked ~ .content .row.col-heads { display: grid; }');
+  css.writeln('}');
+  css.writeln('.col-heads div {');
+  css.writeln('  font-family: var(--font-ui);');
+  css.writeln('  font-size: 0.7em;');
+  css.writeln('  font-weight: 600;');
+  css.writeln('  letter-spacing: 0.1em;');
+  css.writeln('  color: var(--c-on-surface-variant);');
+  css.writeln('  padding-bottom: 0.4rem;');
+  css.writeln('  border-bottom: 1px solid var(--c-outline-variant);');
+  css.writeln('}');
+  css.writeln();
+
+  // Pali runs heavier wherever both languages share one column, which is what
+  // `stacked_pane.dart` does with `AppFonts.paliWeight` — "two weight steps
+  // heavier than body so Pali stays visually distinct from its translation".
+  // It matters more on this corpus than the phrase suggests: the Pali is set
+  // in Sinhala script, so weight is the only thing telling a stacked pair
+  // apart. Body types only — `buildEntry` leaves headings and centered
+  // entries at their theme weight, and so does this.
+  //
+  // Set on the cell as a custom property; the entry rules read it through
+  // `var(--body-weight, …)`. One declaration instead of one per entry type.
+  final paliWeight = tokens.paneWeight('paliStacked');
+  final bodyWeight = tokens.paneWeight('body');
+  css.writeln('/* Pali heavier than its translation wherever they share a '
+      'column. */');
+  css.writeln('.pali { --body-weight: $paliWeight; }');
+  // ...except when only one language is on the page, where there is nothing to
+  // distinguish it from and the bump would just be heavy type.
+  css.writeln('#$paliOnlyLayoutId:checked ~ .content .pali,');
+  css.writeln('#$sinhalaOnlyLayoutId:checked ~ .content .pali '
+      '{ --body-weight: $bodyWeight; }');
+  css.writeln('@media (min-width: $_twoColumnMinWidth) {');
+  css.writeln('  #$sideBySideLayoutId:checked ~ .content .pali '
+      '{ --body-weight: $bodyWeight; }');
+  css.writeln('}');
+  css.writeln();
+}
+
 /// The zero-JS single-sutta view on a grouped chapter page.
 void _writeGroupedChapter(StringBuffer css) {
   css.writeln('/* Grouped chapter: no #fragment shows the whole run;');
@@ -272,7 +575,12 @@ void _writeGroupedChapter(StringBuffer css) {
   css.writeln('}');
   css.writeln();
   css.writeln('.sutta { margin-bottom: var(--page-gap); }');
-  css.writeln('.sutta:target { scroll-margin-top: 1rem; }');
+  // No `scroll-margin-top` here. P1 gave `.sutta:target` 1rem back when the
+  // page had no fixed chrome; the sticky toolbar made that 14.4px against a
+  // 56px bar, landing every targeted sutta ~42px behind it. `html`'s
+  // `scroll-padding-top` now covers the bar and the breathing room together,
+  // for every anchor rather than this one — keeping a per-target margin as
+  // well would only stack a second offset on top of it.
   css.writeln();
   // Only meaningful in the filtered view, so it is hidden until a sutta is
   // targeted — no JS, same :has() test as the filter itself.

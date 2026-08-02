@@ -501,23 +501,179 @@ unchanged by it — these are structure and parity fixes, not behaviour.
    it and *nothing in the app consumes it*. The CSS deliberately does not apply
    it; honouring the token would make the site the odd one out.
 
-### P2 — Layouts + container TOC · frames 03 + 06
+### P2 — Layouts + container TOC · frames 03 + 06 ✅ **done 2026-08-02**
+
+**The site was Pali-only until this phase.** Half the corpus was absent from
+every page, including the 14,752 already deployed. That is what P2 closes.
 
 - 4-way radio group (`P` / `S` / side-by-side / stacked), side-by-side grid,
-  `lang="pi-Sinh"` + `lang="si"`.
+  `lang="pi-Sinh"` + `lang="si"`. ✅
   ⚠️ §7's selectors (`#L-pali:checked ~ .sutta .si`) assume `.sutta` is a
   **sibling** of the radios, but §6 nests `.sutta` inside `.chapter` — so on every
-  chapter page the rules never match. Needs `:has()` or a restructure.
-  ✅ **Already defused** — see "Carried into P2" item 1 above: P1 emits a
-  `.content` wrapper, so the rule is `~ .content .si`, with no `:has()` and no
-  restructure. The warning stands only against §7's original selectors.
-- Container TOC pages — plain app bar, no layout group (per frame 03).
-- Collapsed 48px nav rail styling.
+  chapter page the rules never match. ✅ **Defused as predicted** — P1's
+  `.content` wrapper makes it `~ .content .si`, no `:has()`, no restructure.
+- Container TOC pages — no layout group (per frame 03). ✅ And it costs **zero
+  CSS**: with no radio checked, none of the `#L-x:checked ~` rules match, so a
+  `.row` keeps its default single column and both languages show stacked, which
+  is what a preamble wants. The absence *is* the behaviour.
+- ~~Collapsed 48px nav rail~~ → **moved to P3.** Its entire job is to host the
+  navigator tree, which is P3; shipping the strip now means 48px taken from
+  every phone reader by two buttons that do nothing. Nothing in P3 is made
+  harder by waiting — the rail is a flex sibling of `.content`, not a rewrite
+  of it.
 
-**Deliverable:** `an-1` subtree browsable including TOCs, all 4 layouts.
+**Deliverable:** ✅ `an-1` browsable in all 4 layouts including TOCs; whole
+corpus **14,752 pages / 386 MB in 38 s**, build-twice hash identical (§11.8
+holds — verified over the full tree, not a subtree).
+
+#### What P2 found
+
+- **Labels come from the app, not from §7.** The sketch's
+  "පාළි / සිංහල / පාළි + සිංහල / තට්ටු" was invented for the doc. The app ships
+  `layoutPaliOnly` … `layoutStacked` in `app_si.arb` —
+  **පාළි පමණයි / සිංහල පමණයි / දෙකම / ගොඩගැසූ** — and those are what the radios
+  carry as `aria-label`. Two names for one control is how surfaces drift. The
+  visible glyphs stay the sketch's compact `P` / `S` / two icons.
+- **The baked default is `sideBySide`, and it folds.** The app has no single
+  default — `resolveSeedLayout` seeds **stacked in portrait, sideBySide in
+  landscape** — and CSS cannot switch a `checked` attribute on orientation. So
+  side-by-side is baked and its *own* rule is what carries the second column:
+  below the breakpoint it falls back to the base single column, which is
+  stacked. One default in the HTML, both of the app's behaviours on screen.
+  (§7's sketch baked `paliOnly`, which is neither.)
+- ⚠️ **`48rem` in a media query is 768px, not 691px.** Media-query lengths
+  resolve against the *initial* root font size (16px) and ignore
+  `html { font-size: 90% }`, which every other rule in the sheet is measured
+  in. Verified in Chrome: two columns at 800, one at 720. Left in `rem` so it
+  still tracks a reader's own font-size setting; noted at the constant.
+- **A missing side is a row class, not a missing row.** `no-pali` / `no-si` are
+  decided at build time, so a single-language layout can skip a row that has
+  nothing in that language instead of printing an empty gap. Placeholder cells
+  would have worked for the grid and put that blank into the other two layouts;
+  side-by-side keeps its columns straight with explicit `grid-column` instead.
+  Corpus-wide: **7,377 `no-pali` and 12,690 `no-si`** rows.
+- ✅ **The `untranslated` comment count reached zero** — the conservation check
+  P1 planted, now met across all 14,752 pages.
+- **P1 was losing 15 Sinhala container titles per `an-1`.** `_withoutRepeatedTitle`
+  dropped the whole preamble row when its heading repeated the `<h1>`; but the
+  `<h1>` is the Pali name only, so the Sinhala name went with it and a
+  sinhalaOnly reader met a page titled in a language they had switched off. It
+  now clears the **Pali cell alone** and the row survives as `no-pali`.
+- **Heading depths must rank both sides.** `_headingDepths` scanned Pali only.
+  A Sinhala-only heading would have fallen through to the `<h2>` default and
+  reopened the skipped-level gap the post-P1 fix closed.
+- **Pali runs heavier wherever the two share a column** — `stacked_pane.dart`
+  does this with `AppFonts.paliWeight` ("two weight steps heavier … so Pali
+  stays visually distinct from its translation"), and on this corpus it is not
+  a nicety: the Pali is set in *Sinhala script*, so weight is the only thing
+  telling a stacked pair apart. Applied to body types only, exactly as
+  `ReaderEntryBuilder.buildEntry` scopes it. Delivered through a new
+  `paneWeights` block in the token file and read by the entry rules as
+  `var(--body-weight, N)` — one declaration per layout instead of one per type.
+  > ⚠️ **The exported weight is the *native* one (600), deliberately.** Both
+  > `paliWeight` and `bodyWeight` branch on `kIsWeb`, and it is tempting to
+  > reason "the site is the web, take the web value". The web branch exists to
+  > compensate for **CanvasKit**, whose text rendering lacks native Skia's stem
+  > darkening. The static site is real HTML text in the browser's own engine,
+  > so that deficit does not exist and its correction would just be heavy type.
+  > Contrast `fonts.webDefaultScale`, which *does* take the web value — that
+  > one is a reading-size choice, not a renderer patch.
+- **Two more literals promoted to tokens.** The stacked pane's `8.0` / `20.0`
+  pair spacing were typed into the widget tree, the same shape the post-P1
+  review fixed for `entryGapPx` / `pageGapPx`. Now `AppFonts.stackedPairGapPx`
+  and `stackedPairBottomGapPx`, read by the pane and the dump script alike. The
+  base `.row` had `gap: 1rem` against a `12px` between-row margin — a pair
+  *less* connected than two unrelated ones, which nothing showed while only one
+  language rendered.
+- **Side-by-side widens the column.** `44rem` is a measure for one column of
+  text; split in two it gives each language ~21rem, too narrow for the corpus's
+  compounds. `#L-sbs:checked` takes it to `64rem`, and the toolbar's inner
+  wrapper with it, or the control stops sitting over the text it governs.
+- **Column captions (පාළි / සිංහල) in side-by-side only.** Also corpus-specific:
+  both columns are the same alphabet, so a reader landing mid-page cannot
+  otherwise tell canon from translation. Hidden in the three layouts that show
+  one language or alternate them.
+
+#### Post-P2 review pass (2026-08-03)
+
+Six findings, all fixed. Page counts, the caption gate aside, are unchanged.
+
+- **The sticky toolbar had no scroll offset.** `.sutta:target` still carried
+  P1's `scroll-margin-top: 1rem` — written when the page had no fixed chrome —
+  which is 14.4px against a 56px bar, so every `#fragment` landed ~42px behind
+  it. Masked today only because nothing emits a fragment yet; `#<nodeKey>` is
+  the locked deep-link form and P7's footnotes will hit it constantly. Now
+  `html { scroll-padding-top: calc(var(--toolbar-height) + 1rem) }` — on the
+  scroll container, so it covers anchors that do not exist yet — and the
+  per-target margin is gone rather than stacking a second offset. The 56px is
+  a single constant feeding both the bar's height and the offset.
+- **On a phone the lit button was not the layout on screen.** `#L-sbs` is baked
+  `checked` and its *highlight* sat outside the media query while its
+  two-column rule sat inside. Below 768px the page rendered stacked with the
+  side-by-side button lit, two of four buttons looked identical, and tapping
+  "stacked" changed nothing but which button glowed. Side-by-side is now not
+  offered below the breakpoint at all — it has no distinct rendering there —
+  and the stacked button lights for both; above it, the media query hands the
+  highlight back.
+  > **The radio goes with the button** (follow-up, same review). Hiding only
+  > the *label* left the radio behind it focusable — `.layout-input` hides the
+  > inputs off-screen precisely so the group stays arrow-navigable — so
+  > arrowing onto side-by-side on a narrow window selected it, moved the
+  > highlight to stacked, and painted the focus ring onto a `display: none`
+  > label: focus vanished for one keypress. The input is now `display: none`
+  > there too, which takes it out of the tab order and the arrow cycle.
+  > **`:checked` and `~` still match a `display: none` input** — verified in
+  > Chrome at 500px, where the stacked button is still lit by
+  > `#L-sbs:checked ~ …` — so the layout engine is untouched and the baked
+  > default still drives the single-column rendering.
+  > Written as base-state-plus-override, *not* a `max-width` query: the
+  > obvious spelling needs `47.99rem`, which would put two expressions of one
+  > breakpoint in a sheet where `48rem` already means two different pixel
+  > widths. One number, stated once.
+- **210 pages captioned an empty column.** Every one in the 7 `ap-pat*` files,
+  which carry no Sinhala: under the baked side-by-side default they widened to
+  two columns, put all the text in column 1, and printed "සිංහල" over blank
+  space. `_columnHeads()` now takes the page's slices and emits nothing unless
+  **both** languages are actually present. Verified: 210 → 0, and 12,684 of
+  12,894 readable pages still caption. The test is symmetric even though no
+  readable page lacks Pali — nothing guarantees that after a re-sync.
+- **The layout ids lived in two files with nothing tying them together**, and
+  the stylesheet spelled each one out again across a dozen rules. Renaming one
+  would have killed the entire layout engine silently — a CSS rule matching
+  nothing is not an error, the analyzer says nothing, and there is no test
+  suite here. All four now live in `render/reading_layouts.dart`, written once
+  each, with the markup and every selector generated from them.
+- `dart format` failed on `page_template.dart`. Fixed — and the run also
+  rewrapped `tool/serve.dart`, whose 80-column `if` then tripped
+  `curly_braces_in_flow_control_structures`; braced. **`dart format
+  --set-exit-if-changed` and `dart analyze` are both clean over the package
+  now**, which they were not before this pass.
+- **`<nav class="layouts">` was not navigation** — it added a fourth unnamed
+  landmark beside the breadcrumb and pager. Now a plain `<div>`.
+  `role="radiogroup"` would be no better: the radios sit outside this element,
+  and the grouping is already carried by their shared `name="layout"`. The
+  `title` on each label stays — it is a hover tooltip for sighted users facing
+  a "P", and it never reaches the a11y tree, since the input is named by its
+  own `aria-label` and a `<label>` is not focusable.
+- **`.col-heads { display: none }` was beating `.row { display: grid }` on
+  source order alone** — equal specificity, and reordering the writers in
+  `buildStylesheet` would have revealed the captions in every layout. Now
+  `.row.col-heads`.
+- **Not fixed, carried to P5:** rendering both languages emits two `<hN>` per
+  heading row, doubling every heading in the outline. Inherent to a bilingual
+  page — the alternative is demoting one language's headings to `<p>`, which
+  would leave sinhalaOnly with no outline at all — but P5's structured data
+  should decide what it claims about the document.
+
+Re-verified after the fixes: 14,752 pages, `dart analyze` and `dart format`
+clean, and a build-twice hash over the full tree that is still identical.
 
 ### P3 — Navigator · frames 01 + 02 sidebar
 
+- **Collapsed 48px nav rail** (moved here from P2) — the strip and the tree it
+  opens are one piece of work. Its hamburger takes the left of P2's
+  `.toolbar-inner`, which is already a flex row with the layout group pushed
+  right.
 - Static pruned `<details>` tree per page, zero JS.
 - Landing page with lotus + welcome.
 - Specify the **preamble rule** — verified nested on `an-1`: entries 0–2 → `an`,
@@ -607,19 +763,34 @@ is what makes this phase cheap.
    (generate from the app theme) — but if those files surface, reconcile.
 3. **Stub files vs Bulk Redirects** — P6 gate, unchanged.
 
-### Test coverage (added 2026-07-27, on request)
+---
+
+## 8. Testing
+
+*Absorbs the `Test coverage` subsection that sat under §7 from 2026-07-27 — it
+was a status record, not an open question. Nothing in it changed; §8.2 and §8.3
+are new (2026-08-03).*
+
+### 8.1 What exists today
 
 The P0 equivalence proofs no longer exist only as prose:
 
-| Where | What | Runs in CI |
+| Where | What | Needs the corpus |
 |---|---|---|
-| `packages/wisdom_shared/test/text/content_markers_test.dart` | 89 cases; the pre-extraction `Entry.plainText` / `_computeMarkedRanges` is duplicated in-test as a **frozen oracle** | ✅ |
-| `packages/wisdom_shared/test/tree/tipitaka_tree_test.dart` | 18 cases on synthetic fixtures — each ordering hazard in isolation, plus the malformed-row guards | ✅ |
-| `static_site_generator/tool/verify_corpus_invariants.dart` | the exhaustive run: 466,127 entries + all 2,005 parents against both frozen oracles | ❌ needs the 340 MB corpus — but see below |
+| `packages/wisdom_shared/test/text/content_markers_test.dart` | 89 cases; the pre-extraction `Entry.plainText` / `_computeMarkedRanges` is duplicated in-test as a **frozen oracle** | no |
+| `packages/wisdom_shared/test/tree/tipitaka_tree_test.dart` | 18 cases on synthetic fixtures — each ordering hazard in isolation, plus the malformed-row guards | no |
+| `static_site_generator/tool/verify_corpus_invariants.dart` | the exhaustive run: 466,127 entries + all 2,005 parents against both frozen oracles | **yes** — all 340 MB |
 
-The ❌ is now addressable: the deploy workflow decided 2026-07-31 (hosting doc,
-"Build & deploy pipeline") checks the corpus out on a GitHub Actions runner in
-order to generate the site, so the exhaustive run can ride along in the same job.
+⚠️ **Corrected 2026-08-03: this column used to read "Runs in CI", with ✅ on the
+first two rows. Nothing runs in CI. `.github/workflows/` is empty and no workflow
+is tracked anywhere in the repo** — every row above is run by hand today. What
+the column actually distinguishes is which ones *could* run on a bare checkout,
+which is the useful question until CI exists.
+
+Both no-corpus rows are ready to run unattended the moment there is a workflow.
+The third is addressable too: the deploy workflow decided 2026-07-31 (hosting
+doc, "Build & deploy pipeline") checks the corpus out on a GitHub Actions runner
+in order to generate the site, so the exhaustive run can ride along in that job.
 
 The tree test's load-bearing case is **40 index-less siblings** — past the
 32-element cliff where `List.sort` stops being accidentally stable. The real
@@ -637,3 +808,84 @@ example-based:
 |---|---|
 | `tool/classify_corpus.dart` | reproduces 146 vaggas / 1,603 leaves / 16,356 files, and prints the two containers nearest the 1,500 line every run. ⚠️ It **prints**; it does not assert — nothing exits non-zero if a number moves, so read the output, or give it a `--expect` mode before wiring it into CI |
 | the `an-1` build | 581 source entries → 581 rendered elements (nothing dropped or duplicated), and a build-twice diff that is empty |
+
+### 8.2 The gap P2's review exposed — the wiring contract
+
+The layout-id finding (§P2, post-P2 review pass) is a *class* of bug none of the
+above can reach, and it is worth naming rather than filing as one fixed defect,
+because everything built from here adds more of it: P3's navigator, P4's
+`?layout=`, P7's footnote anchors.
+
+`page_template.dart` emits classes and ids. `stylesheet.dart` writes selectors
+against them. **Nothing connects the two.** When they disagree, the build is
+green in every way currently checked:
+
+| Signal | Verdict on a dead layout engine |
+|---|---|
+| `dart analyze` | clean — neither file is wrong on its own |
+| `dart format` | clean |
+| build-twice hash (§11.8) | identical — determinism survives a broken site |
+| entry conservation (581 in → 581 out) | passes — every element is present |
+| HTML validator (P6) | passes — the markup is valid |
+| link checker (P6) | passes — no URL changed |
+
+A CSS rule that matches nothing is not an error anywhere in the toolchain. The
+whole reading-layout system can stop working and every signal above stays green.
+It was caught by *reading*, which does not scale past one review.
+
+Centralising the four ids in `render/reading_layouts.dart` narrows the window. It
+does not close it — nothing stops the next selector being typed by hand.
+
+### 8.3 MVP — the smallest thing that guards it
+
+**Scope: one test file, no corpus, no new dependencies.** `test: ^1.24.0` is
+already a `dev_dependency` of `static_site_generator`; there is simply no `test/`
+directory. Both sides are pure functions — `buildStylesheet(tokens)` returns a
+String, `PageTemplate.render(…)` returns a String, and the class doc on
+`PageTemplate` already advertises it as testable without the 340 MB — which is
+what makes this cheap rather than a project.
+
+**Part 1 — the contract itself.** Render one page of each kind, build the sheet,
+and assert across the two outputs:
+
+| Assert | Catches |
+|---|---|
+| every `#L-…` in the emitted CSS resolves to a `readingLayouts` id | a hand-typed selector — the P2 finding's exact shape |
+| every `readingLayouts` id appears in the HTML as both an `<input id>` and a `<label for>` | a layout added to the list but not to the markup |
+| exactly one `<input>` carries `checked`, and it is `defaultLayoutId` | two defaults, or none |
+| every class the layout CSS selects on (`.row .pali .si .no-pali .no-si .col-heads .content .toolbar`) appears in rendered markup | a class renamed on one side only |
+
+**Part 2 — the template's own decisions**, over synthetic `NodeSlice`s. These are
+the branches the review actually poked, i.e. the ones that have already been
+wrong once:
+
+| Assert | Catches |
+|---|---|
+| a repeated title clears the **Pali cell only**, keeps the Sinhala, marks the row `no-pali` | the P1 regression that lost 15 Sinhala container titles per `an-1` |
+| `no-pali` / `no-si` track the cells actually emitted, and only `DocRow.isEmpty` drops a row | an empty grid item printing a gap where nothing is |
+| `_columnHeads` emits nothing when a language is wholly absent from the page | the 210 `ap-pat*` pages captioning an empty column |
+| heading depths are contiguous from `<h2>` and rank **both** language sides | the skipped-level outline, twice fixed already |
+| the `.si` cell carries no touching ZWJ | the conjunct transform leaking into the translation |
+| a TOC page emits no toolbar; a sutta page and a chapter page emit exactly one each | duplicate ids, or radios on a page with nothing to switch |
+
+Roughly one file, an afternoon, and it runs in well under a second.
+
+**Deliberately out of the MVP:**
+
+- **The slicer and the classifier.** Corpus-wide invariants, already checked the
+  right way by `tool/verify_corpus_invariants.dart` and `tool/classify_corpus.dart`
+  — see §8.1. ⚠️ The one upgrade worth doing there is the `--expect` mode already
+  noted, so `classify_corpus` *asserts* instead of printing.
+- **Whether the CSS renders correctly** — that a 600 weight reads as distinct,
+  that the sticky bar clears an anchor, that a phone shows three buttons. A
+  string test cannot see a browser. That stays eyeball, `tool/serve.dart`, and
+  the ui-auditor; the post-P2 method (build, grep the output, reason about the
+  cascade) is what actually caught both of those.
+- **Golden HTML files.** They would fail on every legitimate change and teach the
+  reflex of regenerating them without reading the diff — the opposite of a guard.
+
+**Where it runs.** By hand, like everything else — there is no CI (§8.1). But it
+needs no corpus, so it is the cheapest thing in this section to automate first,
+and it should go into the deploy workflow (hosting doc, "Build & deploy
+pipeline") the moment that lands, ahead of the exhaustive run rather than beside
+it: a wiring failure should stop a deploy before 386 MB is generated, not after.

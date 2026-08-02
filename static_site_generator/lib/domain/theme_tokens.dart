@@ -58,6 +58,12 @@ class ThemeTokens {
   EntryStyle levelledEntryStyle(String type, int level) => EntryStyle._(
         (_json['entryStyles'][type]['$level'] as Map<String, dynamic>),
       );
+
+  /// A weight a *pane* applies over an entry style rather than one the entry
+  /// style carries — `paliStacked`, `body`. See `_paneWeights` in the dump
+  /// script for why these are the native values even though this is the web.
+  int paneWeight(String key) =>
+      ((_json['paneWeights'] as Map<String, dynamic>)[key] as num).toInt();
 }
 
 /// One resolved text style from the app's `TextEntryTheme`.

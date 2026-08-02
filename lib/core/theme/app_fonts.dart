@@ -159,6 +159,21 @@ abstract class AppFonts {
   /// Gap above a page-number label.
   static const double pageNumberGapPx = 16.0;
 
+  /// Gap between a Pali entry and its Sinhala translation in the stacked
+  /// layout — the *inner* half of the pair rhythm.
+  ///
+  /// Deliberately smaller than [stackedPairBottomGapPx]: what makes the stacked
+  /// layout readable is that a translation sits closer to the line it renders
+  /// than to the next pair. Equal gaps turn the page into an undifferentiated
+  /// column, which matters more here than anywhere else in the reader because
+  /// both languages are set in the same script.
+  static const double stackedPairGapPx = 8.0;
+
+  /// Gap below a complete Pali + Sinhala pair, separating it from the next —
+  /// the *outer* half. Also used when a pair has no Sinhala side, so the
+  /// rhythm does not collapse on untranslated entries.
+  static const double stackedPairBottomGapPx = 20.0;
+
   // ============================================
   // Font Scale
   // ============================================
