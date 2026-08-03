@@ -2,8 +2,8 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 
 import 'entry_renderer.dart';
 
-/// A node's name as it appears in a *link* — breadcrumb, pager, TOC entry, nav
-/// tree.
+/// A node's name as it appears in a *link* — breadcrumb, pager, TOC entry.
+/// Those are the site's only three link surfaces, and all three are here.
 ///
 /// Welded, because these are labels a person looks at and D1 governs everything
 /// a reader sees; the app welds the very same strings in its own tree and
@@ -25,6 +25,7 @@ import 'entry_renderer.dart';
 /// every surface. The build plan's §5.2 sketched the landing page with the
 /// Sinhala names because the frame was drawn from the app, whose Content
 /// Language defaults to Sinhala (`content_language_provider.dart`); the static
-/// site has no such setting, and letting the nav tree disagree with the
-/// breadcrumb directly below it is the drift P2 learned to avoid.
+/// site has no such setting, and letting `/` name a root one way while the
+/// breadcrumb on the page it links to names it another is the drift P2 learned
+/// to avoid.
 String nodeLabelHtml(TipitakaNode node) => escapeHtml(weldTitle(node.paliName));

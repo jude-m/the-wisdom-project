@@ -544,7 +544,7 @@ static_site_generator/
 
 ```
 build/
-  index.html                         # root TOC of the chosen subtree
+  index.html                         # `/` — TOC of the roots this build wrote
   tipitaka/
     kn-khp.html                      # container TOC — FLAT file like every node
     kn-khp-5.html  kn-khp-9.html …   # DISTINCT sutta files (text lives ONLY here)
@@ -552,7 +552,7 @@ build/
     an-2-64.html  (if stubs picked)  # content-free REDIRECT → an-2-64-76#an-2-64
     …
   sitemap.xml                        # distinct files + chapter files (not redirect stubs)
-  assets/site.css                    # one small stylesheet (layouts + tree + type)
+  assets/site.css                    # one small stylesheet (layouts + chrome + type)
   fonts/…                            # Noto Sinhala WOFF2, font-display: swap — COPIED, not built
   grouping.json  (source, not output)
   .manifest.json (source→[outputs] + hashes, for incremental builds)

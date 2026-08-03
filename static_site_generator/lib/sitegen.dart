@@ -147,12 +147,20 @@ class SiteGenerator {
       }
     }
 
-    // The front door. Written unconditionally, even on a one-subtree build:
-    // its tree is the seven roots, which exist whatever `--root` was given, and
-    // a build whose origin 404s is a build nobody can click through.
+    // The front door. Written on every build, one-subtree ones included: a
+    // build whose origin 404s is a build nobody can click through.
+    //
+    // It lists the roots this build actually wrote, not `tree.roots`.
+    // `--root all` has already resolved to all seven by the time it reaches
+    // here (`bin/generate.dart`), so a whole-corpus `/` is unchanged; a subtree
+    // `/` links only to pages that are in the upload, which is what lets
+    // `deploy.sh` print the bare origin as the URL to smoke-test.
     _write(
       '$outputDir/${LandingPage.outputPath}',
-      LandingPage(tree: tree, generatorVersion: generatorVersion).render(),
+      LandingPage(
+        roots: [for (final key in rootKeys) tree[key]!],
+        generatorVersion: generatorVersion,
+      ).render(),
     );
 
     _write('$outputDir/assets/site.css', buildStylesheet(tokens));

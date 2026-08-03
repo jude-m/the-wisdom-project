@@ -71,7 +71,7 @@ const Map<String, GroupingOverride> groupingOverrides = {
 
 ### A4. Document the seam
 
-Name the shared classifier as the single source in `static-html-site-plan.md` §6 and in `static-html-site-build-plan.md` §5, noting the no-app-assets constraint as the reason. `static-html-site-plan.md` still calls for a committed `grouping.json` in ten places (lines 292, 307, 505, 509, 565, 679, 683, 720, 725, 755) — every one of those is superseded by A1/A2.
+Name the shared classifier as the single source in `static-html-site-plan.md` §6 and in `static-html-site-build-plan.md` §5, noting the no-app-assets constraint as the reason. `static-html-site-plan.md` still calls for a committed `grouping.json` in ten places — §6 (×2), §8 (×2), §10, §12 (×2), §13 (×3), which `grep -n 'grouping.json'` lists exactly. Every one is superseded by A1/A2. Sections rather than line numbers: the numbers first recorded here had drifted seven lines within two commits.
 
 **Verify A:** `dart run static_site_generator/bin/generate.dart --root an-1` still emits 110 files (85 sutta + 12 chapter + 13 TOC), byte-identical to the current build. `classify_corpus` still reports 146 / 1,603 / 16,356. Add a temporary override, confirm the counts and the `an-1` file list move as predicted, revert.
 

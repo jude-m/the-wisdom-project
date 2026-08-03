@@ -12,8 +12,8 @@ import 'site_chrome.dart';
 /// `/` returned 404, and so did the first thing anyone tries next, `/<nodeKey>`.
 /// The URL wrangler prints is the origin, so the deploy could not be clicked
 /// through at all — `deploy.sh` printed a hand-picked `entry` URL as a stopgap,
-/// gated on this file not existing yet, and drops that line the moment this
-/// ships.
+/// gated on this file not existing yet. That stopgap is gone: the origin is now
+/// the URL to smoke-test on every build shape, which is what [roots] is for.
 ///
 /// ## It is a container TOC, not a page shape of its own
 ///
@@ -22,18 +22,25 @@ import 'site_chrome.dart';
 /// the rail (P3.5), and rebuilding a second, tree-shaped front page for its own
 /// sake would have been the wrong lesson to draw. So `/` is now exactly what
 /// every container in the corpus already is — a heading and a list of children —
-/// with `tree.roots` as the children. One page shape for the whole site, one
-/// list markup for the stylesheet to style.
+/// with the build's roots as the children. One page shape for the whole site,
+/// one list markup for the stylesheet to style.
 ///
 /// It keeps its own `<h1>` and its own canonical rather than pointing at
 /// `/tipitaka/sp`: `/` is the highest-value page on the site for search, and a
 /// canonical aimed elsewhere is a page that never ranks. P5 hangs OG and JSON-LD
 /// here first.
 class LandingPage {
-  final TipitakaTree tree;
+  /// The subtrees this build wrote, in walk order — every one of them a page
+  /// that is in the upload.
+  ///
+  /// Not `tree.roots`. On a whole-corpus build the two are the same seven, but
+  /// `--root anya` writes one subtree and the unfiltered list would put six
+  /// dead links on the front page of the dev preview it was built for.
+  final List<TipitakaNode> roots;
+
   final String generatorVersion;
 
-  const LandingPage({required this.tree, required this.generatorVersion});
+  const LandingPage({required this.roots, required this.generatorVersion});
 
   /// Written flat at the site root, so its URL is `/`.
   static const String outputPath = 'index.html';
@@ -52,10 +59,11 @@ class LandingPage {
     // the site for search and the only one with no heading at all.
     body.writeln('<h1 class="page-title">$_title</h1>');
     body.writeln('<p class="landing-hint">$_hint</p>');
-    // `tree.roots`, not `childrenOf` — `/` has no node above it. The seven roots
-    // are `vp` `sp` `ap` `atta-vp` `atta-sp` `atta-ap` `anya`, in the order
-    // `tree.json` declares them, which is pinned by document order (§11.8).
-    body.writeln(tocList(tree.roots));
+    // Roots, not `childrenOf` — `/` has no node above it. On a whole-corpus
+    // build these are `vp` `sp` `ap` `atta-vp` `atta-sp` `atta-ap` `anya`, in
+    // the order `tree.json` declares them, which is pinned by document order
+    // (§11.8).
+    body.writeln(tocList(roots));
     body.writeln('</main>');
 
     return htmlDocument(
