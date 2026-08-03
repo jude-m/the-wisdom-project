@@ -61,11 +61,13 @@ void main(List<String> args) {
     }
 
     outputDir = options.outputDir ?? '$_packageRoot/build';
+    final packageAssetsPath = '$_packageRoot/assets';
     report = SiteGenerator(
       reader: reader,
       tree: tree,
-      tokens: _readThemeTokens('$_packageRoot/assets/theme_tokens.json'),
+      tokens: _readThemeTokens('$packageAssetsPath/theme_tokens.json'),
       outputDir: outputDir,
+      packageAssetsPath: packageAssetsPath,
     ).generate(rootKeys);
   } on StateError catch (error) {
     // Every StateError the generator raises is a deliberate, explained refusal

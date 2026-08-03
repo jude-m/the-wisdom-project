@@ -1,13 +1,14 @@
-# Static HTML Site — Build Plan (per-sutta SEO, Tree Navigator, 4 Layouts, no JS framework)
+# Static HTML Site — Build Plan (per-sutta SEO, 4 Layouts, no JS framework)
 
 > Status: **Plan / not started — the real build spec, not a throwaway prototype.**
 > Captured 2026-06-12 (revised after field research into tipitaka.lk, buddhadust,
 > and SuttaCentral; grouping model refined 2026-07-20).
 > Scope: the honest static-HTML surface of the Tipitaka content from
 > [`static-web-hosting.md`](./static-web-hosting.md) (Option A′) — **built
-> incrementally, smallest subtree first** (§5). Covers static page generation + a
-> zero-JS tree navigator + **all 4 reading layouts** + the **per-sutta-page /
-> formulaic-range grouping model**. Search is **out of scope here** (deferred).
+> incrementally, smallest subtree first** (§5). Covers static page generation +
+> zero-JS navigation + **all 4 reading layouts** + the **per-sutta-page /
+> formulaic-range grouping model**. Search is **out of scope here** (deferred —
+> it landed as the build plan's P4 after §9's tree navigator was withdrawn).
 
 ---
 
@@ -19,7 +20,9 @@ HTML pages that:
 1. **Generate statically** (SSG) from the same assets the app already ships.
 2. Give **every distinct sutta its own indexable page** (SuttaCentral-grade
    name-search SEO), while **grouping only the formulaic micro-sutta runs**.
-3. Carry a **static `<details>` tree navigator** (zero JavaScript).
+3. Carry **zero-JavaScript navigation** — breadcrumb, container TOC, prev/next.
+   *(Was "a static `<details>` tree navigator"; built, measured and withdrawn
+   2026-08-03 — see §9.)*
 4. Render **all 4 reading layouts** — Pali-only, Sinhala-only, side-by-side,
    stacked (CSS-only, §7).
 5. Are produced by a **Flutter-free, clean-architecture** generator that *reuses*
@@ -56,7 +59,7 @@ service of them; where two pull against each other, the resolution is called out
 | **C5** | **All 4 reading layouts** (Pali-only / Sinhala-only / side-by-side / stacked) are a **hard requirement**. | Parity with the app's core reading modes. |
 | **C6** | **Logical grouping.** Don't shatter the canon into thousands of near-empty pages — group the formulaic micro-sutta runs. | UX + avoids Google's thin/duplicate-content penalty. |
 | **C7** | **Continuous reading where natural**, with the URL reflecting position. | The tipitaka.lk reading feel, on static pages. |
-| **C8** | **No JS framework, no flashy stuff.** Static navigator now, basic search later. Zero-JS baseline; optional progressive enhancement only. | Slowest connections, all bots/LLMs, low maintenance. |
+| **C8** | **No JS framework, no flashy stuff.** Breadcrumb/TOC navigation now, a search dialog as the one progressive enhancement. Zero-JS baseline — every page fully usable with JS off. | Slowest connections, all bots/LLMs, low maintenance. |
 | **C9** | **Single maintainer.** Prefer simplicity and bounded, mechanical effort. | Sustainability. |
 | **C10** | **Keep Flutter web as the interactive app.** The static site is the discoverability/reading surface that *links into* the app. | Don't rebuild the app; route around Flutter's SEO gap. |
 
@@ -226,8 +229,8 @@ and without a SPA**:
    **TOC** (links only); continuous reading via prev/next.
 2. **Leaf of a *grouped* vagga → lives *only* in its chapter file** `/tipitaka/<vaggaKey>`:
    one page holding the whole run, each sutta `<section class="sutta" id="<nodeKey>">`.
-   The navigator's deepest link, the continuous-reading surface (C7), and the SEO
-   unit for the run.
+   The deepest page the site emits, the continuous-reading surface (C7), and the
+   SEO unit for the run.
 3. **Single view of a micro-sutta = a URL filter on that chapter file** (next
    subsection) — no second file.
 4. **Higher containers** → TOC pages (links only, no full text). *(94 mixed
@@ -503,7 +506,7 @@ static_site_generator/
     domain/              # pure models: SiteNode, SuttaDoc, ContentSegment*
     data/                # asset readers: tree.json, file-map.json, text/<id>.json
     grouping/            # distinct-vs-formulaic classifier + grouping.json I/O
-    render/              # pure string→HTML: page template, navigator, entry
+    render/              # pure string→HTML: page template, chrome, entry
     manifest/            # source→[outputs] + content hashes (incremental builds)
     sitegen.dart         # use-case: classify → slice → render → write
   grouping.json          # committed, curated grouping data (analogue of child_range.json)
@@ -514,37 +517,26 @@ static_site_generator/
 
 ---
 
-## 9. The tree navigator (pruned static core + one shared full tree)
+## 9. ~~The tree navigator (pruned static core + one shared full tree)~~
 
-> **Revised 2026-07-22.** The full tree as HTML is ~2 MB; embedding it in every
-> page ≈ 30 GB of build output — not viable. Two layers instead (**plain JS
-> approved by the maintainer 2026-07-22** — still framework-free, still a pure
-> static deploy; fits C8's "optional progressive enhancement"):
-
-- **Layer 1 — baked-in pruned nav (zero-JS baseline):** ancestors + each
-  ancestor's direct children only (a few KB per page). Works with JS off;
-  crawlers reach every node via its parent's TOC page. Native
-  `<details>`/`<summary>`, `<a>` per node — same `tree.json` the app's
-  `navigation_tree_provider` consumes.
-- **Layer 2 — full tree on demand (~20 lines of plain JS):** fetch one shared
-  `/nav.html` fragment (~2 MB raw, ~200–400 KB gzipped, browser-cached once for
-  the whole site), swap it into the nav, re-open the current branch. Pages work
-  100% without it. Bonus: a tree correction regenerates `/nav.html` + nearby
-  pruned navs only — far smaller C1 blast radius than a full tree in every page.
-- Names via `getDisplayName(ContentLanguage)` (Pali in Sinhala script by default),
-  reusing the entity's fallback rule.
-
-```html
-<nav class="tree">
-  <details open><summary>ඉතිවුත්තකපාළි</summary>
-    <details open><summary>එකකනිපාතො</summary>
-      <details><summary>පඨමො වග්ගො</summary>
-        <a href="/tipitaka/kn-iti-1-1-1">ලොභසුත්තං</a> …
-      </details>
-    </details>
-  </details>
-</nav>
-```
+> ## ⛔ SUPERSEDED 2026-08-03 (P3.5) — there is no tree navigator.
+>
+> Layer 1 was built and shipped to all 14,752 pages, then measured and withdrawn:
+> 42 of its ~69 rows were identical on every page, the rest duplicated the
+> breadcrumb, it cost 26% of the build's bytes, and its disclosure toggle was a
+> 12×28 px target that fails WCAG 2.2 SC 2.5.8 (AA). Full findings in the build
+> plan's **P3 revision note**.
+>
+> Navigation is now breadcrumb (up) + container TOC (down) + prev/next (along) +
+> aṭṭhakathā (across), with a **search dialog** as the jump-to-anything answer
+> (build plan **P4**).
+>
+> **Layer 2 died on its own sizing.** The one number worth keeping from the
+> original section: a shared `/nav.html` holding the full tree would have been
+> ~2 MB raw / 200–400 KB gzipped to fetch. The whole search index measures 252 KB
+> gzipped (~214 KB brotli) and answers "take me to X" directly instead of making
+> the reader climb to it. Layer 2 was strictly the worse buy, so the phase that
+> would have built it became the search phase instead.
 
 ---
 
@@ -623,8 +615,9 @@ untreated they compete for the same name searches.
 3. `dart run static_site_generator/bin/generate.dart --root an-1`  *(P5, grouping)*
 4. Serve (`dart run dhttpd --path static_site_generator/build`) and open.
 5. **Manual checks:** distinct pages render; range pages show all suttas with
-   working anchors; 4 layouts toggle; footnotes link; navigator expands the right
-   branch; **JS disabled** → still works; **webfont disabled** → system Sinhala
+   working anchors; 4 layouts toggle; footnotes link; breadcrumb climbs and the
+   container TOC lists the right children; toolbar home reaches `/` from any page
+   shape; **JS disabled** → still works; **webfont disabled** → system Sinhala
    readable; **Back/Forward between `#anchors`** → the `:has(:target)` filter
    re-evaluates across browsers (older engines had `:target` history quirks;
    degradation = whole chapter scrolled to the anchor, acceptable).

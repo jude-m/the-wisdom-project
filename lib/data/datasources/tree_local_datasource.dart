@@ -63,6 +63,12 @@ class TreeLocalDataSourceImpl implements TreeLocalDataSource {
     // Build parent-child relationships
     final Map<String, List<TipitakaTreeNode>> childrenMap = {};
 
+    // Position in tree.json, used as the tiebreak below. `json.decode` returns a
+    // LinkedHashMap, so `flatList` is already in file order.
+    final Map<String, int> documentOrder = {
+      for (var i = 0; i < flatList.length; i++) flatList[i].nodeKey: i,
+    };
+
     // Add root nodes to the map under 'root' key for consistent handling
     for (var node in flatList) {
       final parentKey = node.parentNodeKey ?? 'root';
@@ -73,13 +79,29 @@ class TreeLocalDataSourceImpl implements TreeLocalDataSource {
     // Sort all children lists ONCE by extracting the last number from the node key
     // e.g., "sp-1-2-13" -> 13
     // This matches the behavior in the Vue.js app (tree.js:7-12)
+    //
+    // Document order is the explicit tiebreak, because 113 keys have no trailing
+    // number — `vp`, `sp`, `ap`, `kn-khp`, and every dotted commentary key such
+    // as `atta-ap-dhs-2-1-1.1`. They cluster under 18 parents, including `root`,
+    // `sp`, `kn` and `ap`: the app's most visible navigation. Comparing those as
+    // equal and letting `List.sort` decide is unspecified — `List.sort` is
+    // explicitly not stable — and only produced the right answer because Dart
+    // falls back to insertion sort below 32 elements and the largest of those 18
+    // parents has 23 children. A margin of 9 against an undocumented VM detail.
+    //
+    // Mirrors `TipitakaTree.fromJson` in wisdom_shared, which the static site
+    // generator uses; the two surfaces must order siblings identically or the
+    // same node lands in a different place on each.
     childrenMap.forEach((parentKey, children) {
       children.sort((a, b) {
         final aIndex = _extractChildIndex(a.nodeKey);
         final bIndex = _extractChildIndex(b.nodeKey);
 
-        if (aIndex == null || bIndex == null) return 0;
-        return aIndex.compareTo(bIndex);
+        if (aIndex != null && bIndex != null) {
+          final byIndex = aIndex.compareTo(bIndex);
+          if (byIndex != 0) return byIndex;
+        }
+        return documentOrder[a.nodeKey]!.compareTo(documentOrder[b.nodeKey]!);
       });
     });
 

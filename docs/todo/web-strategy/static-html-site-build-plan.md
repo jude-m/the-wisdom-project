@@ -516,11 +516,10 @@ every page, including the 14,752 already deployed. That is what P2 closes.
   CSS**: with no radio checked, none of the `#L-x:checked ~` rules match, so a
   `.row` keeps its default single column and both languages show stacked, which
   is what a preamble wants. The absence *is* the behaviour.
-- ~~Collapsed 48px nav rail~~ → **moved to P3.** Its entire job is to host the
-  navigator tree, which is P3; shipping the strip now means 48px taken from
-  every phone reader by two buttons that do nothing. Nothing in P3 is made
-  harder by waiting — the rail is a flex sibling of `.content`, not a rewrite
-  of it.
+- ~~Collapsed 48px nav rail~~ → **moved to P3**, built there, and **withdrawn by
+  P3.5 the same day** — see P3's revision note. P2's instinct to defer it was
+  right for a reason it did not name: 48px of every phone screen is a real cost
+  and the thing meant to justify it never did.
 
 **Deliverable:** ✅ `an-1` browsable in all 4 layouts including TOCs; whole
 corpus **14,752 pages / 386 MB in 38 s**, build-twice hash identical (§11.8
@@ -668,24 +667,96 @@ Six findings, all fixed. Page counts, the caption gate aside, are unchanged.
 Re-verified after the fixes: 14,752 pages, `dart analyze` and `dart format`
 clean, and a build-twice hash over the full tree that is still identical.
 
-### P3 — Navigator · frames 01 + 02 sidebar
+### P3 — Navigator · frames 01 + 02 sidebar ✅ **done 2026-08-03**
 
-- **Collapsed 48px nav rail** (moved here from P2) — the strip and the tree it
-  opens are one piece of work. Its hamburger takes the left of P2's
-  `.toolbar-inner`, which is already a flex row with the layout group pushed
-  right.
-- Static pruned `<details>` tree per page, zero JS.
-- **Landing page at `/` — see 5.2 below.** Promoted from a one-line "lotus +
-  welcome" because the first dev deploy (2026-08-03) proved it is not cosmetic:
-  nothing is served at `/`, so the URL wrangler prints is a 404.
-- Specify the **preamble rule** — verified nested on `an-1`: entries 0–2 → `an`,
-  entry 3 → `an-1`, entries 4–5 → `an-1-1`, entry 6 → first leaf. Currently
-  under-specified; 258 of 285 files have preamble entries.
-- Pin **sibling sort determinism**. `_extractChildIndex` returns `null` for
-  non-numeric suffixes and the comparator then returns 0 — unstable. `kn` has 18
-  such children. Directly violates §11.8.
+- ~~**Collapsed 48px nav rail**~~ · ~~**static pruned `<details>` tree per
+  page**~~ — **built, then withdrawn 2026-08-03 (P3.5). See the revision note
+  below.** Both shipped and worked; measured on the full corpus they did not earn
+  the space, and the tree had an accessibility defect that only showed up at
+  scale.
+- **Landing page at `/` — see 5.2 below.** ✅ `/` returns 200. Rebuilt as a
+  container TOC by P3.5; the front-door requirement it answers is unchanged.
+- ~~Specify the **preamble rule**~~ ✅ **already closed by P1**, which is the
+  finding. Making containers slice boundaries produced it for free
+  (`content_slicer.dart`), and the shape the bullet asked to be specified is
+  what the build already emits — verified against the `an-1` output:
+  `an-1` → `pages[0].[3..3]`, `an-1-1` → `pages[0].[4..5]`, first leaf
+  `an-1-1-1` → `pages[0].[6..8]`. Nothing to write but this line.
+- ~~Pin **sibling sort determinism**~~ ✅ **closed for the generator by P0** —
+  `TipitakaTree.fromJson` has taken document order as an explicit tiebreak since
+  the extraction; §11.8 was never actually at risk. What *was* still open is
+  that **the app kept its own copy of the old comparator**, so the two surfaces
+  could order `kn`'s 18 index-less children differently. Now fixed in
+  `tree_local_datasource.dart`. Order on today's data is unchanged — the
+  full-corpus invariant check compares 2,005 parents and reports **0 ordering
+  mismatches** — so this removes a fragility rather than moving anything.
 
-**Deliverable:** `an-1` fully navigable without typing URLs, and `/` a real page.
+**Deliverable:** ✅ `an-1` navigable without typing URLs, and `/` a real page.
+110 pages + `index.html`, build-twice hash identical, `dart analyze` and
+`dart format --set-exit-if-changed` clean across the generator package.
+
+#### P3.5 — the rail withdrawn *(2026-08-03, same day)*
+
+> **It never reached a commit.** P3 was still uncommitted when this landed, so
+> the two were squashed and the rail appears nowhere in git history — don't go
+> looking for the diff. It was really built and really measured against the full
+> 14,752-page corpus; the numbers below are from that build, not an estimate.
+
+The navigator was generated onto all 14,752 pages and then measured on the full
+build. Four findings, and together they say the component was chrome, not
+navigation:
+
+- **42 of ~69 rail rows are identical on every page** — the 7 roots plus their 35
+  children, shipped whole regardless of where the reader is. Reading Maṅgala
+  Sutta, the rail offers the eight books of the Abhidhamma commentary.
+- **The other ~27 rows are the breadcrumb, drawn vertically.** `kn-khp-5`'s open
+  branch is `sp › kn › kn-khp` — the trail the breadcrumb already prints, one
+  line above the text.
+- **122 MB of the 487 MB build**, 26% of all bytes, ~0.99 KB of a 5.43 KB gzipped
+  page — to save at most one click over "breadcrumb up, then pick".
+- **Its disclosure toggle was a 12×28 px target.** `.tree summary .node
+  { flex: 1 }` gave the anchor the whole row, leaving only `summary::before` at
+  `width: 1em` — 12.2 px, with `html { font-size: 90% }` × `.tree
+  { font-size: 0.85em }`. Clicking a root's *label* navigated away instead of
+  expanding it. **WCAG 2.2 SC 2.5.8 (AA) requires 24×24.** It failed on the
+  phone, where the drawer was the primary navigator.
+
+A fifth, softer one explains why it *looked* wrong before any of this was
+measured: **siblings at one level render in two different shapes.** Under `sp`,
+`dn`/`mn`/`sn`/`an` are plain links while `kn` is a `<details>` — same level,
+same kind of node, different affordance, purely because of where the reader
+happens to be standing. Correct per-node (a pruned container has nothing to
+disclose), but the eye reads it as a malfunction.
+
+What replaced it was already there: breadcrumb (up), TOC (down), pager (along),
+aṭṭhakathā (across) — 6 contextual links on a leaf page, and every node reachable
+from `/` through container TOCs. The toolbar keeps a home link, which the rail
+had been the sole carrier of. Build 487 → 388 MB, stylesheet 15.2 → 12.1 KB, page
+count unchanged.
+
+**The general lesson, worth more than the component:** a navigator that ships the
+same rows on every page is a table of contents stapled to the chrome. The parts
+that earn their bytes are the ones that differ per page.
+
+#### What P3 found
+
+- **Container TOCs needed the toolbar they were denied.** P2 emitted the bar
+  only on readable pages, because the layout group was all it held. That was
+  wrong for the hamburger and stays wrong without it: a TOC page with no bar is a
+  page with no way home, and no way to reach search when P4 adds it. Every page
+  gets the bar; only the *layout group* stays gated, which is what frame 03
+  actually specifies.
+- **The emblem is a committed derivative, not the source.** §5.2 flagged the
+  634 KB master; the site ships a 200×200, 47 KB copy from
+  `assets/make_emblem.sh`. Same contract as the fonts: run by hand, output
+  committed, build copies bytes. It now renders at 28px in the toolbar rather
+  than 100px in a hero, so the file is larger than any single use needs —
+  deliberately, since it is one request cached for the whole site and a
+  retina-density bar mark still wants the pixels.
+- **`<head>` is now written once** (`render/document_shell.dart`). The landing
+  page needs the identical five-line contract — charset, viewport, canonical,
+  stylesheet, generator — and P5 adds OG and JSON-LD to all of them at once. A
+  second copy for `/` would have been a second place to forget.
 
 #### 5.2 — The landing page (`/`)
 
@@ -701,17 +772,35 @@ stopgap and drops that line by itself once `$OUT/index.html` exists.
 **Where.** `index.html` at the **site root** — the one page outside the
 `/tipitaka/` grammar, and one extra file against the 20,000 cap.
 
-**What.** The app's empty reader state, not a new design:
+**What.** A container TOC like every other container in the corpus — heading,
+hint, list of children — with `tree.roots` as the children.
 
-- **Left** — the P3 navigator tree at its root level. `tree.json` has exactly
-  **7 top-level nodes**, which is what the frame shows: `vp` විනය පිටකය · `sp`
-  සූත්‍ර පිටකය · `ap` අභිධර්ම පිටකය · `atta-vp` විනය අටුවාව · `atta-sp` සූත්‍ර
-  අටුවාව · `atta-ap` අභිධර්ම අටුවාව · `anya` අන්‍ය. `sp` alone is `open`,
-  showing its five children (`dn` `mn` `sn` `an` `kn`); everything else
-  collapsed. That default-open set is a **fixed literal** — deriving it from
-  anything ordering-dependent re-opens the §11.8 determinism problem the sibling
-  -sort bullet above already covers. No JS, no `localStorage` (P4's business).
-- **Right** — emblem above the hint, vertically centred, no reading pane.
+*(Revised 2026-08-03 with P3.5. This was first built as the app's empty reader
+state: an emblem hero on one side, the P3 navigator tree on the other. The tree
+went with the rest of the rail, and rebuilding a second, tree-shaped front page
+for its own sake would have been the wrong lesson to draw from that. `/` is now
+one page shape with the rest of the site, sharing `tocList()` with every
+container TOC.)*
+
+- **The list** — `tree.json`'s **7 top-level nodes**: `vp` විනයපිටක ·
+  `sp` සුත්තපිටක · `ap` අභිධම්මපිටක · `atta-vp` විනය අට්ඨකථා ·
+  `atta-sp` සුත්ත අට්ඨකථා · `atta-ap` අභිධම්ම අට්ඨකථා · `anya` අන්‍ය. In
+  `tree.json`'s declared order, which document order pins (§11.8) — nothing here
+  is sorted or derived at build time.
+  > ⚠️ **Corrected 2026-08-03 — these were the Sinhala names.** This list used
+  > to read `vp` විනය පිටකය · `sp` සූත්‍ර පිටකය · `atta-vp` විනය අටුවාව, which
+  > is `tree.json`'s **Sinhala** field. Every page already built renders the
+  > **Pali** field — `an-1`'s breadcrumb says සුත්තපිටක, not සූත්‍ර පිටකය — and
+  > the site names every node exactly one way on every surface. The frame was
+  > drawn from the app, whose Content Language defaults to Sinhala
+  > (`content_language_provider.dart:54`); the static site has no such setting.
+  > Left as written, this list and the breadcrumbs one click below it would have
+  > named the same seven nodes two different ways. The rule is now stated once,
+  > in `render/node_labels.dart`.
+- **The heading and hint** — the site title above, the app's "pick something to
+  read" line below it, both plain text. No emblem hero: the emblem is toolbar
+  chrome on every page now, `/` included, and drawing it twice the size in the
+  body as well would be the same mark twice on one screen.
 
 **Strings and assets come from the app.** Same lesson P2 learned the hard way
 about the layout labels: two names for one thing is how surfaces drift.
@@ -719,13 +808,12 @@ about the layout labels: two names for one thing is how surfaces drift.
 - Hint = `statusSelectSuttaToRead`, `app_si.arb:186` —
   *කියවීම ආරම්භ කිරීමට ව්‍යූහයෙන් සූත්‍රයක් තෝරන්න*
   (EN `app_en.arb:479`). Not a new welcome line.
-- Emblem = `assets/icons/app_logo.png`, rendered at 100 px
-  (`multi_pane_reader_widget.dart:96`, `:625`).
+- Title = `appTitle`, `app_si.arb:4`.
+- Emblem = `assets/icons/app_logo.png`, in the toolbar at 28 px.
   ⚠️ **The source file is 634 KB.** The build ships one CSS and eight woff2 and
-  no rasters at all today, so this would be the single heaviest asset on the
-  site's most-hit page. Ship a resized/optimised copy, never the source.
-- Titles are `tree.json`'s Sinhala field — the same data container TOCs already
-  render. No new source.
+  no rasters at all otherwise. Ship a resized/optimised copy, never the source —
+  `assets/make_emblem.sh` produces the committed 200×200, 47 KB derivative.
+- Titles are `tree.json`'s **Pali** field, per the correction above.
 
 **Costs zero layout CSS.** Like container TOCs (frame 03) it carries no radio
 group, and by P2's mechanism the absence *is* the behaviour: with nothing
@@ -735,13 +823,59 @@ checked, no `#L-x:checked ~` rule matches.
 in the whole SEO effort — its title, description and OG matter more than any
 single sutta's, and it is what `sitemap.xml` names as the entry.
 
-### P4 — JS layer · frame 05
+### P4 — JS layer: the search dialog · frame 05
 
 **The only JS in the build.** Everything above degrades gracefully without it.
 
-- Trimmed title index (`tree.json` is 4.2 MB — cannot ship raw).
-- Tree search: flat match list, substring highlight, parent-path subtitle.
-- `?layout=` + `localStorage`; nav collapse persistence.
+*(Rescoped 2026-08-03 with P3.5. This phase used to be "full tree on demand"
+— §9's Layer 2, a shared `/nav.html` fetched and swapped into the rail. There is
+no rail to swap into, and the measurements below say search is both cheaper and a
+better answer to the same question: a reader who wants a named sutta should type
+its name, not climb to it. "Nav collapse persistence" is gone with the rail.)*
+
+- **Search dialog.** `<dialog>` + `showModal()`, opened from a toolbar button:
+  do your search, click a result, or close. Chosen over the popover attribute
+  because search needs JS regardless, and only the modal path gives the focus
+  trap, `::backdrop` and Esc-to-close for free.
+- **Trigger emitted with the `hidden` attribute**, unhidden by the script. With
+  JS off there is no dead control (C8), and the markup stays deterministic
+  instead of being injected from a string.
+- **The index — `assets/search-index.json`.** Row-wise, one array per node in
+  tree order: `[key, weldedPali, sinhala, parentIdx, chapterIdx]`. Measured on
+  the full corpus: **2,315 KB raw / 252 KB gzip / ~214 KB brotli** — *cheaper
+  than the 200–400 KB Layer 2 fetch it replaces*. Fetched on first dialog open,
+  not on page load, then cached for the whole site.
+  - `parentIdx` is an index into the same array, for the parent-path subtitle on
+    a result row. An integer, not a repeated key string — it compresses far
+    better.
+  - `chapterIdx` is `-1` when the node has its own page. **1,603 of 16,355 nodes
+    do not** (grouped into 146 chapter files), so their result must link
+    `…/<chapterKey>#<key>`, never `…/<key>` — which 404s today. All 1,603 resolve
+    from `SitePlan`, which is *why* the index has to be built after
+    `SitePlan.build()` rather than from `tree.json` alone.
+  - Must be byte-deterministic (§11.8): iterate the plan, never a `Map` with
+    incidental ordering.
+- **⚠️ Store the welded name, normalize at match time.** This is the detail that
+  would otherwise ship a search that silently misses. Names go through
+  `weldTitle()` before display (D1), which inserts touching ZWJ and folds
+  `ේ→ෙ`, `ෝ→ො`; raw `tree.json` names are the *unwelded* form (0 of 16,355 Pali
+  names carry touching ZWJ, 0 carry `ේ`/`ෝ`). An index in either form alone fails
+  against a query typed in the other. Ship **welded** — it costs only +17 KB
+  gzipped (243 vs 226 KB on the name columns), it is what the reader sees on the
+  page they land on, and it avoids porting `beautifyPaliText`'s conjunct tables
+  to JS. Then normalize *both* the index string and the query:
+  `s.replace(/[‌‍]/g,'').replace(/ේ/g,'ෙ').replace(/ෝ/g,'ො')` — a
+  transcription of `removeConjunctFormatting` + `shortenVowels`
+  (`packages/wisdom_shared/lib/src/text/pali_conjuncts.dart:168,263`). The vowel
+  fold is a no-op on today's data; it is insurance against an upstream re-sync.
+  Sinhala names ship raw — 8,536 carry ligature ZWJ (rakaransaya/yansaya), which
+  is ordinary spelling that the zero-width strip removes on both sides anyway.
+- **Matching**: substring over both name columns, exact-prefix ranked first,
+  capped at ~50 rows. A result row is the welded name plus its parent path. No
+  fuzzy matching, no scoring library.
+- `search.js` is a committed source file the build **copies**, same contract as
+  the fonts and the emblem — no bundler in the loop (D9).
+- `?layout=` + `localStorage`.
 
 ### P5 — SEO & metadata
 
@@ -797,10 +931,10 @@ is what makes this phase cheap.
 | P1 | Stand up generator, tree decode | **P0** |
 | P2 | Slicing + marker→HTML + manifest, `kn-khp` | **P1** (`an-1` instead) |
 | P3 | 4-layout CSS + Sinhala side | **P2** |
-| P4 | Navigator + TOC + canonical + prev/next | TOC → **P2**; navigator → **P3**; canonical → **P5** |
+| P4 | Navigator + TOC + canonical + prev/next | TOC → **P2**; navigator → **P3**, then withdrawn (P3.5); canonical → **P5** |
 | P5 | Grouping + `:has()` + sitemap + gate | classifier + `:has()` → **P1**; sitemap → **P5**; gate → **P6** |
 | P6 | Verify against `kn-iti-1` | **P6** (full corpus supersedes) |
-| — | *(later)* search | **P4** |
+| — | *(later)* search | **P4** (now the whole of it) |
 
 ---
 
@@ -863,7 +997,7 @@ example-based:
 
 The layout-id finding (§P2, post-P2 review pass) is a *class* of bug none of the
 above can reach, and it is worth naming rather than filing as one fixed defect,
-because everything built from here adds more of it: P3's navigator, P4's
+because everything built from here adds more of it: P4's search dialog and
 `?layout=`, P7's footnote anchors.
 
 `page_template.dart` emits classes and ids. `stylesheet.dart` writes selectors

@@ -34,6 +34,8 @@ String buildStylesheet(ThemeTokens tokens) {
   _writePageChrome(css, tokens);
   _writeEntryStyles(css, tokens);
   _writeLayouts(css, tokens);
+  _writeHomeLink(css);
+  _writeLandingPage(css);
   _writeGroupedChapter(css);
 
   return css.toString();
@@ -340,7 +342,12 @@ void _writeEntryStyles(StringBuffer css, ThemeTokens tokens) {
 void _writeLayouts(StringBuffer css, ThemeTokens tokens) {
   css.writeln('/* Reading layout — pure CSS, four radios. */');
   // Visually hidden, NOT `display: none`: a hidden-that-way radio leaves the
-  // tab order, and the control becomes unusable from a keyboard.
+  // tab order, and the control becomes unusable from a keyboard. (The one
+  // place `display: none` *is* correct is a control that has no rendering at
+  // the current width — see the side-by-side radio below.)
+  //
+  // `position: absolute` also keeps the radios out of flow, which is what lets
+  // `body` take a layout of its own without them becoming boxes in it.
   css.writeln('.layout-input {');
   css.writeln('  position: absolute;');
   css.writeln('  width: 1px;');
@@ -556,6 +563,54 @@ void _writeLayouts(StringBuffer css, ThemeTokens tokens) {
   css.writeln('@media (min-width: $_twoColumnMinWidth) {');
   css.writeln('  #$sideBySideLayoutId:checked ~ .content .pali '
       '{ --body-weight: $bodyWeight; }');
+  css.writeln('}');
+  css.writeln();
+}
+
+/// The toolbar's home link — the emblem at the left of the bar.
+///
+/// `margin-right: auto` is what puts it there and keeps the layout group at the
+/// other end: `.toolbar-inner` is `justify-content: flex-end`, so the auto
+/// margin absorbs all the free space between the two. The same trick P3's
+/// hamburger used, on the one control that outlived it.
+void _writeHomeLink(StringBuffer css) {
+  css.writeln('/* Toolbar home link. */');
+  css.writeln('.home {');
+  css.writeln('  display: flex;');
+  css.writeln('  align-items: center;');
+  css.writeln('  margin-right: auto;');
+  css.writeln('  border-radius: 8px;');
+  css.writeln('}');
+  // A focus ring the anchor can actually show — unlike the layout labels, this
+  // is a real link, so `:focus-visible` lands on the element itself.
+  css.writeln('.home:focus-visible '
+      '{ outline: 2px solid var(--c-primary); outline-offset: 2px; }');
+  css.writeln('.home img { display: block; width: 28px; height: 28px; }');
+  css.writeln();
+}
+
+/// The landing page (`/`).
+///
+/// Almost nothing, and that is the point: `/` is a container TOC like any other
+/// (see `landing_page.dart`), so it inherits `.content`, `.page-title` and
+/// `.toc` and needs a rule only for the one element the rest of the site has no
+/// use for — the hint under the heading.
+void _writeLandingPage(StringBuffer css) {
+  css.writeln('/* Landing page. */');
+  // Sits between the site title and the list it is an instruction for. Centred
+  // to match `.page-title` directly above it — that rule is `text-align: center`
+  // on every page, and a left-aligned line under it would read as a mistake.
+  //
+  // The negative top margin *collapses* against the title's 2rem bottom rather
+  // than adding to it: adjacent siblings collapse to
+  // `max(positive) + min(negative)`, so 2rem and -1rem leave a 1rem gap. The
+  // pair belongs together more closely than the title belongs to body text.
+  css.writeln('.landing-hint {');
+  css.writeln('  font-family: var(--font-ui);');
+  css.writeln('  color: var(--c-on-surface-variant);');
+  css.writeln('  text-align: center;');
+  css.writeln('  margin: -1rem 0 2rem;');
+  css.writeln('  line-height: 1.6;');
   css.writeln('}');
   css.writeln();
 }

@@ -103,21 +103,30 @@ class TipitakaTree {
   /// They cluster under 18 parents, including `root`, `sp`, `kn`, `ap` and
   /// `anya`: the app's most visible navigation.
   ///
-  /// The app compares those as *equal* and lets `List.sort` decide. That is
-  /// unspecified — `List.sort` is explicitly not stable — and it only produces
-  /// the right answer today because Dart falls back to insertion sort below 32
-  /// elements and the largest of those 18 parents (`atta-ap-vbh-6`) has 23
-  /// children. Note the tree's widest parent is `ap-pat-2` at 90 children, well
-  /// past the threshold; it is safe only because all 90 keys carry a trailing
-  /// integer, so the comparator is total there and stability never arises. The
-  /// margin protecting the other 18 is 9 elements, against an *undocumented*
-  /// VM implementation detail.
+  /// **Document order is the explicit tiebreak.** That reproduces what the app
+  /// renders, but as a guarantee instead of an accident — and the generator
+  /// needs the guarantee, because byte-identical output across builds is what
+  /// keeps Cloudflare's hash-incremental deploys from re-uploading all 16,356
+  /// files (see the build plan, §11.8).
   ///
-  /// Here, **document order is the explicit tiebreak**. That reproduces what
-  /// the app renders today, but as a guarantee instead of an accident — and the
-  /// generator needs the guarantee, because byte-identical output across builds
-  /// is what keeps Cloudflare's hash-incremental deploys from re-uploading all
-  /// 16,356 files (see the build plan, §11.8).
+  /// The app used to compare those keys as *equal* and let `List.sort` decide,
+  /// which is unspecified — `List.sort` is explicitly not stable — and only
+  /// produced the right answer because Dart falls back to insertion sort below
+  /// 32 elements and the largest of those 18 parents (`atta-ap-vbh-6`) has 23
+  /// children: a 9-element margin against an *undocumented* VM implementation
+  /// detail. (The tree's widest parent, `ap-pat-2` at 90 children, was well past
+  /// that threshold but safe anyway — all 90 keys carry a trailing integer, so
+  /// the comparator is total there and stability never arises.) The app adopted
+  /// this same tiebreak on 2026-08-03; `tree_local_datasource.dart` now carries
+  /// a line-for-line copy of [compare], and the two must not drift.
+  ///
+  /// One residual, shared by both copies: the comparator is only a *total* order
+  /// while every indexed sibling sits in ascending document order relative to
+  /// its index-less siblings. Verified on the vendored asset — 8 of 2,005
+  /// parents mix the two kinds and none is intransitive — but `tree.json` is
+  /// re-synced from upstream, so a re-sync that reorders one of those 8 puts
+  /// `List.sort` back in unspecified territory. Re-run the check when the asset
+  /// moves.
   factory TipitakaTree.fromJson(Map<String, dynamic> json) {
     final nodes = <String, _MutableNode>{};
     final documentOrder = <String, int>{};

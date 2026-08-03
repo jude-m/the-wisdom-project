@@ -2,8 +2,11 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 
 import '../domain/document.dart';
 import '../domain/site_page.dart';
+import 'document_shell.dart';
 import 'entry_renderer.dart';
+import 'node_labels.dart';
 import 'reading_layouts.dart';
+import 'site_chrome.dart';
 
 /// Renders a complete HTML document for one [SitePage].
 ///
@@ -45,11 +48,16 @@ class PageTemplate {
     final shown = _withoutRepeatedTitle(preamble, page.node);
     final depths = _headingDepths(page, slices, shown.preamble);
 
-    // The radios have to *precede* `.content` and share a parent with it: the
-    // whole layout engine is `#L-x:checked ~ .content …`, a sibling combinator.
-    if (page.isReadable) body.writeln(_layoutToolbar());
+    // Order is the contract. Every rule that switches a layout is a sibling
+    // combinator off the radios, so they have to *precede* `.toolbar` and
+    // `.content` and all three have to stay siblings. Nothing here may be
+    // wrapped in a container without rewriting the stylesheet with it.
+    if (page.isReadable) body.writeln(_layoutRadios());
+    body.writeln(toolbar(withLayouts: page.isReadable));
 
-    body.writeln('<div class="content">');
+    // `<main>`, not a div: a landmark is what lets a screen reader skip the bar
+    // and the breadcrumb and start at the text.
+    body.writeln('<main class="content">');
     body.writeln(_breadcrumb(page.node));
     body.writeln('<h1 class="page-title">${_headingHtml(page.node)}</h1>');
     final commentary = _commentaryLink(page.node);
@@ -66,11 +74,11 @@ class PageTemplate {
           body.writeln(
               '<div class="preamble">${_rows(shown.preamble, depths)}</div>');
         }
-        body.writeln(_toc(page));
+        body.writeln(tocList(tree.childrenOf(page.nodeKey)));
     }
 
     if (page.isReadable) body.writeln(_pager(previous, next));
-    body.writeln('</div>');
+    body.writeln('</main>');
 
     return _document(
       page,
@@ -148,30 +156,18 @@ class PageTemplate {
 
   // ── head ──────────────────────────────────────────────────────────────────
 
-  /// `rel="canonical"` is left **root-relative** on purpose. The absolute form
-  /// is the usual recommendation, but the apex domain is not settled yet and a
-  /// wrong absolute canonical points every page at a host that does not serve
-  /// it. Relative is legal and resolved against the document URL; revisit when
-  /// the domain is fixed at the P5 hosting gate.
+  /// Canonical is always **self**, including on the 6,731 `atta-*` pages: a
+  /// commentary and its canon twin are different texts, not duplicates, so
+  /// neither ever points at the other (§10).
   String _document(SitePage page,
-      {required String head, required String body}) {
-    final title = escapeHtml(_titleText(page.node));
-    return '''
-<!DOCTYPE html>
-<html lang="si">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>$title</title>
-<link rel="canonical" href="${page.url}">
-<link rel="stylesheet" href="/assets/site.css">
-<meta name="generator" content="wisdom-ssg $generatorVersion">
-$head</head>
-<body>
-$body</body>
-</html>
-''';
-  }
+          {required String head, required String body}) =>
+      htmlDocument(
+        title: _titleText(page.node),
+        canonical: page.url,
+        generatorVersion: generatorVersion,
+        head: head,
+        body: body,
+      );
 
   /// Where this page's text came from, in the direction debugging runs.
   ///
@@ -212,8 +208,7 @@ $body</body>
 
   // ── page furniture ────────────────────────────────────────────────────────
 
-  /// The reading-layout switcher: four radios and the segmented control that
-  /// drives them, with **no JavaScript** (C5).
+  /// The four reading-layout radios, with **no JavaScript** behind them (C5).
   ///
   /// One radio set per page, never one per section — duplicated `id`s are
   /// invalid HTML and every label would bind to the first set only.
@@ -229,7 +224,7 @@ $body</body>
   /// `#L-x:checked ~` rules match, so a `.row` keeps its default single column
   /// and both languages show stacked — which is the right thing for a
   /// preamble, reached without a single special case in the CSS.
-  String _layoutToolbar() {
+  String _layoutRadios() {
     final buffer = StringBuffer();
     for (final layout in readingLayouts) {
       buffer.write('<input class="layout-input" type="radio" name="layout"'
@@ -237,28 +232,6 @@ $body</body>
       if (layout.id == defaultLayoutId) buffer.write(' checked');
       buffer.write(' aria-label="${layout.label}">');
     }
-    // The bar's background runs edge to edge, its contents do not: the inner
-    // wrapper is the width of the reading column, so the control lines up with
-    // the right edge of the text rather than floating off in the margin of a
-    // wide window. P3's navigator button takes the left of the same wrapper.
-    //
-    // A plain `<div>`, not a `<nav>`: choosing a layout is not navigation, and
-    // marking it up as one adds a fourth unnamed landmark beside the breadcrumb
-    // and pager for a screen-reader user to wade through. `role="radiogroup"`
-    // would be no better here — the radios are outside this element, not in it.
-    // The grouping is already carried where it belongs, by the shared
-    // `name="layout"`, which is what makes a reader announce "2 of 4".
-    buffer.write('<div class="toolbar"><div class="toolbar-inner">');
-    buffer.write('<div class="layouts">');
-    for (final layout in readingLayouts) {
-      // `title` is a hover tooltip for sighted mouse users, who otherwise get
-      // only "P" or an icon. It is not a duplicate announcement: the input's
-      // accessible name comes from its own `aria-label`, and a `<label>` is not
-      // focusable, so this string never reaches the a11y tree twice.
-      buffer.write('<label for="${layout.id}" title="${layout.label}">'
-          '${layout.glyph}</label>');
-    }
-    buffer.write('</div></div></div>');
     return buffer.toString();
   }
 
@@ -269,7 +242,7 @@ $body</body>
     if (trail.isEmpty) return '';
     final parts = <String>[
       for (final ancestor in trail)
-        '<a href="${tipitakaUrl(ancestor.nodeKey)}">${_titleHtml(ancestor)}</a>',
+        '<a href="${tipitakaUrl(ancestor.nodeKey)}">${nodeLabelHtml(ancestor)}</a>',
     ];
     return '<nav class="breadcrumb" aria-label="ස්ථානය">'
         '${parts.join('<span class="sep">›</span>')}</nav>';
@@ -297,27 +270,17 @@ $body</body>
     final buffer = StringBuffer('<nav class="pager" aria-label="ගමන්">');
     if (previous != null) {
       buffer.write('<a class="prev" rel="prev" href="${previous.url}">'
-          '<span class="label">පෙර</span>${_titleHtml(previous.node)}</a>');
+          '<span class="label">පෙර</span>${nodeLabelHtml(previous.node)}</a>');
     } else {
       buffer.write('<span class="spacer"></span>');
     }
     if (next != null) {
       buffer.write('<a class="next" rel="next" href="${next.url}">'
-          '<span class="label">ඊළඟ</span>${_titleHtml(next.node)}</a>');
+          '<span class="label">ඊළඟ</span>${nodeLabelHtml(next.node)}</a>');
     } else {
       buffer.write('<span class="spacer"></span>');
     }
     buffer.write('</nav>');
-    return buffer.toString();
-  }
-
-  String _toc(SitePage page) {
-    final buffer = StringBuffer('<ul class="toc">');
-    for (final child in tree.childrenOf(page.nodeKey)) {
-      buffer.write('<li><a href="${tipitakaUrl(child.nodeKey)}">'
-          '${_titleHtml(child)}</a></li>');
-    }
-    buffer.write('</ul>');
     return buffer.toString();
   }
 
@@ -563,22 +526,6 @@ $body</body>
   /// and already says them (§10).
   String _headingHtml(TipitakaNode node) =>
       escapeHtml(weldTitle(_leafTitle(node)));
-
-  /// A node's name as it appears in a *link* — breadcrumb, pager, TOC entry.
-  ///
-  /// Welded, for the same reason as [_headingHtml]: these are labels a reader
-  /// looks at, and the app welds the very same strings in its tree and
-  /// breadcrumb.
-  ///
-  /// Bare, with no commentary marker: inside a commentary subtree every
-  /// ancestor and sibling is `atta-*` too, so marking each one would print
-  /// අට්ඨකථා at every step of the trail to say something the reader already
-  /// knows from the page they are on.
-  ///
-  /// No romanized (IAST) variant is offered anywhere in this file: D4 ships
-  /// Sinhala-only titles because tree.json carries no Latin text for any of its
-  /// 16,355 nodes.
-  String _titleHtml(TipitakaNode node) => escapeHtml(weldTitle(node.paliName));
 }
 
 /// The Sinhala word for the commentary layer, appended to every `atta-*` title.
