@@ -963,6 +963,8 @@ The P0 equivalence proofs no longer exist only as prose:
 |---|---|---|
 | `packages/wisdom_shared/test/text/content_markers_test.dart` | 89 cases; the pre-extraction `Entry.plainText` / `_computeMarkedRanges` is duplicated in-test as a **frozen oracle** | no |
 | `packages/wisdom_shared/test/tree/tipitaka_tree_test.dart` | 18 cases on synthetic fixtures — each ordering hazard in isolation, plus the malformed-row guards | no |
+| `packages/wisdom_shared/test/links/tipitaka_link_test.dart` | 68 cases on the `/tipitaka/<nodeKey>` codec both surfaces share | no |
+| `static_site_generator/test/wiring_contract_test.dart` | §8.3, shipped 2026-08-06: 15 cases over the markup ⇄ stylesheet seam and the template's own decisions | no |
 | `static_site_generator/tool/verify_corpus_invariants.dart` | the exhaustive run: 466,127 entries + all 2,005 parents against both frozen oracles | **yes** — all 340 MB |
 
 ⚠️ **Corrected 2026-08-03: this column used to read "Runs in CI", with ✅ on the
@@ -971,10 +973,11 @@ is tracked anywhere in the repo** — every row above is run by hand today. What
 the column actually distinguishes is which ones *could* run on a bare checkout,
 which is the useful question until CI exists.
 
-Both no-corpus rows are ready to run unattended the moment there is a workflow.
-The third is addressable too: the deploy workflow decided 2026-07-31 (hosting
-doc, "Build & deploy pipeline") checks the corpus out on a GitHub Actions runner
-in order to generate the site, so the exhaustive run can ride along in that job.
+All four no-corpus rows are ready to run unattended the moment there is a
+workflow. The last is addressable too: the deploy workflow decided 2026-07-31
+(hosting doc, "Build & deploy pipeline") checks the corpus out on a GitHub
+Actions runner in order to generate the site, so the exhaustive run can ride
+along in that job.
 
 The tree test's load-bearing case is **40 index-less siblings** — past the
 32-element cliff where `List.sort` stops being accidentally stable. The real
@@ -990,8 +993,21 @@ example-based:
 
 | Tool | Reports |
 |---|---|
-| `tool/classify_corpus.dart` | reproduces 146 vaggas / 1,603 leaves / 16,356 files, and prints the two containers nearest the 1,500 line every run. ⚠️ It **prints**; it does not assert — nothing exits non-zero if a number moves, so read the output, or give it a `--expect` mode before wiring it into CI |
+| `tool/classify_corpus.dart` | reproduces 146 vaggas / 1,603 leaves / 16,356 files, and prints the two containers nearest the 1,500 line every run |
+| `tool/classify_corpus.dart --expect` | the same run, **asserted** against the locked budget — 10 rows including the two threshold neighbours, exit 1 on any drift. CI-ready |
 | the `an-1` build | 581 source entries → 581 rendered elements (nothing dropped or duplicated), and a build-twice diff that is empty |
+
+`--expect` landed 2026-08-06, closing the "it prints, it does not assert" gap
+this table used to carry. The locked figures live in `_locked` at the foot of the
+tool; moving one is a decision that changes the plan docs in the same commit.
+`kn-thig-6` measuring **exactly** 1,500 is now an asserted row, so the strict `<`
+in the classifier can no longer be loosened silently.
+
+The comparison runs **both ways**: a locked figure the run never produced fails
+just as a mismatched one does. Checking only the rows a run emits means deleting
+a line from the tool's own count list stops checking that figure and still exits
+0 — a green wall with one fewer row in it, which is not a thing anyone reads
+closely enough to catch.
 
 ### 8.2 The gap P2's review exposed — the wiring contract
 
@@ -1017,49 +1033,89 @@ A CSS rule that matches nothing is not an error anywhere in the toolchain. The
 whole reading-layout system can stop working and every signal above stays green.
 It was caught by *reading*, which does not scale past one review.
 
-Centralising the four ids in `render/reading_layouts.dart` narrows the window. It
-does not close it — nothing stops the next selector being typed by hand.
+Centralising the four ids in `render/reading_layouts.dart` narrowed the window
+but did not close it: nothing stopped the next selector being typed by hand, and
+the *class* names were never centralised at all — `'no-pali'` is still a bare
+literal in `page_template.dart` and again inside a selector string in
+`stylesheet.dart`. §8.3 is what closes it, by asserting across the two outputs
+instead of trying to make one file own both.
 
-### 8.3 MVP — the smallest thing that guards it
+### 8.3 The guard ✅ **shipped 2026-08-06**
 
-**Scope: one test file, no corpus, no new dependencies.** `test: ^1.24.0` is
-already a `dev_dependency` of `static_site_generator`; there is simply no `test/`
-directory. Both sides are pure functions — `buildStylesheet(tokens)` returns a
-String, `PageTemplate.render(…)` returns a String, and the class doc on
-`PageTemplate` already advertises it as testable without the 340 MB — which is
-what makes this cheap rather than a project.
+`static_site_generator/test/wiring_contract_test.dart` — **15 cases, no corpus,
+no new dependencies, well under a second.** `test: ^1.24.0` was already a
+`dev_dependency`; the package simply had no `test/` directory. Both sides are
+pure functions — `buildStylesheet(tokens)` returns a String,
+`PageTemplate.render(…)` returns a String — which is what made this cheap rather
+than a project.
 
 **Part 1 — the contract itself.** Render one page of each kind, build the sheet,
-and assert across the two outputs:
+assert across the two outputs:
 
 | Assert | Catches |
 |---|---|
 | every `#L-…` in the emitted CSS resolves to a `readingLayouts` id | a hand-typed selector — the P2 finding's exact shape |
 | every `readingLayouts` id appears in the HTML as both an `<input id>` and a `<label for>` | a layout added to the list but not to the markup |
 | exactly one `<input>` carries `checked`, and it is `defaultLayoutId` | two defaults, or none |
-| every class the layout CSS selects on (`.row .pali .si .no-pali .no-si .col-heads .content .toolbar`) appears in rendered markup | a class renamed on one side only |
+| `defaultLayoutId` and `narrowFallbackLayoutId` are themselves real ids | a typo in either, which the stylesheet interpolates unchecked |
+| layout ids **and tokens** are each unique | duplicate ids (invalid HTML); duplicate tokens would make a layout unreachable from P4's `?layout=` |
+| every class named in a rule that mentions a `#L-…` radio is emitted by the template | a class renamed on one side only |
+| every layout has at least one rule reaching `.content` | a layout with a radio and a button that changes nothing when chosen |
+| every class named in a rule that mentions `:target` is emitted — `.chapter`, `.chapter-bar`, `.sutta` | the grouped-chapter filter dying, so every deep link shows the whole run |
+| chapter `<section>`s are anchored by the bare nodeKey | P4's `…/<chapter>#<leafKey>` links for the 1,603 grouped leaves silently landing on the chapter head |
+
+Both class checks **derive** their list from the sheet rather than holding one by
+hand, and that is the point rather than a convenience. A hand-kept array covers
+only what someone remembered to add — P4 brings more — and matching a name
+against the *whole* stylesheet proves less than it appears to: `.content`
+renamed inside a single layout rule still finds `.content { … }` in the page
+chrome and passes, while paliOnly quietly stops hiding anything. Scoping to the
+rules that mention the mechanism is what makes the assertion mean its name.
 
 **Part 2 — the template's own decisions**, over synthetic `NodeSlice`s. These are
-the branches the review actually poked, i.e. the ones that have already been
-wrong once:
+the branches that have already been wrong once:
 
 | Assert | Catches |
 |---|---|
 | a repeated title clears the **Pali cell only**, keeps the Sinhala, marks the row `no-pali` | the P1 regression that lost 15 Sinhala container titles per `an-1` |
+| a preamble heading that *differs* survives intact | the control — without it the row above passes against a renderer that drops every preamble heading |
 | `no-pali` / `no-si` track the cells actually emitted, and only `DocRow.isEmpty` drops a row | an empty grid item printing a gap where nothing is |
 | `_columnHeads` emits nothing when a language is wholly absent from the page | the 210 `ap-pat*` pages captioning an empty column |
 | heading depths are contiguous from `<h2>` and rank **both** language sides | the skipped-level outline, twice fixed already |
-| the `.si` cell carries no touching ZWJ | the conjunct transform leaking into the translation |
-| a TOC page emits no toolbar; a sutta page and a chapter page emit exactly one each | duplicate ids, or radios on a page with nothing to switch |
+| the `.si` cell carries no touching ZWJ, **while the `.pali` cell does** | the conjunct transform leaking into the translation — asserted both ways, or it passes against a build where welding is off everywhere |
+| every page kind emits exactly one toolbar; only readable pages emit radios | a page with no way home; radios on a page with nothing to switch |
 
-Roughly one file, an afternoon, and it runs in well under a second.
+> The toolbar row above used to read *"a TOC page emits no toolbar"*. That was
+> written against P2's behaviour and was already stale when §8.3 was drafted:
+> **P3 gives every page the bar**, on the grounds that a page without one has no
+> way home and no route to search when P4 lands. Only the *layout group* stays
+> gated, which is what frame 03 specifies and what `site_chrome.dart` documents.
 
-**Deliberately out of the MVP:**
+**Verified by mutation, not by going green.** Each guarded behaviour was broken
+in turn and the suite re-run: a class renamed in the markup only, a hand-typed
+`#L-paali` selector, heading depths ranking Pali alone, ungated column captions,
+the repeated-title fix reverted to clearing both cells, the conjunct transform
+applied to Sinhala, every radio checked, the toolbar dropped from TOC pages, a
+prefixed chapter-section id, `.content` renamed inside one layout rule, the
+`.chapter` wrapper renamed in markup, `.chapter-bar` renamed in the sheet,
+`.sutta` typo'd inside the `:target` filter, the stacked layout left reachable
+and inert, and a locked row deleted from `--expect`'s count list. **15 of 15
+caught.** A guard that survives its own mutation is decoration.
+
+> The last six were added on 2026-08-06 after a review of this commit, and four
+> of them are why the class checks now derive their lists. The first version of
+> this file **survived** `.content` renamed inside a single layout rule, and
+> never looked at `.chapter` or `.chapter-bar` at all — the wrapper that does
+> the filtering, one element out from the `.sutta` anchor the file already
+> guarded. The mutation script lives in the session scratchpad, not the repo:
+> it edits `lib/` in place, and a tool that rewrites source to prove a point
+> should not be one keystroke from a stray run.
+
+**Deliberately out:**
 
 - **The slicer and the classifier.** Corpus-wide invariants, already checked the
   right way by `tool/verify_corpus_invariants.dart` and `tool/classify_corpus.dart`
-  — see §8.1. ⚠️ The one upgrade worth doing there is the `--expect` mode already
-  noted, so `classify_corpus` *asserts* instead of printing.
+  — see §8.1, where `--expect` now makes the latter assert rather than print.
 - **Whether the CSS renders correctly** — that a 600 weight reads as distinct,
   that the sticky bar clears an anchor, that a phone shows three buttons. A
   string test cannot see a browser. That stays eyeball, `tool/serve.dart`, and
@@ -1068,8 +1124,26 @@ Roughly one file, an afternoon, and it runs in well under a second.
 - **Golden HTML files.** They would fail on every legitimate change and teach the
   reflex of regenerating them without reading the diff — the opposite of a guard.
 
-**Where it runs.** By hand, like everything else — there is no CI (§8.1). But it
-needs no corpus, so it is the cheapest thing in this section to automate first,
-and it should go into the deploy workflow (hosting doc, "Build & deploy
-pipeline") the moment that lands, ahead of the exhaustive run rather than beside
-it: a wiring failure should stop a deploy before 386 MB is generated, not after.
+**Where it runs.** `dart test` from the package root, by hand like everything
+else — there is no CI (§8.1). It needs no corpus, so it is the cheapest thing in
+this section to automate, and it goes into the deploy workflow (hosting doc,
+"Build & deploy pipeline") the moment that lands — **ahead** of the exhaustive
+run rather than beside it: a wiring failure should stop a deploy before 386 MB is
+generated, not after.
+
+⚠️ That job must set its **working directory to `static_site_generator/`**. The
+suite reads the real committed `assets/theme_tokens.json` — a 5.6 KB build input,
+not corpus — by a path relative to the CWD, so a workflow that runs `dart test`
+from the repo root fails on a missing file rather than on anything real. The
+test says so when it happens, but the fix belongs in the workflow. `--expect` has
+the same requirement and `classify_corpus.dart` documents at length why it stopped
+deriving paths from wherever the corpus happened to be found.
+
+**What it does not cover, and P4 will add more of.** The seam this guards is two
+files disagreeing about a string. P4's search dialog adds a third language to the
+same disagreement — the trigger's id and `hidden` attribute, the `<dialog>` id,
+the index's **field order** against the JS reading it, and the `?layout=` tokens.
+Get the field order wrong and search returns plausible results pointing at the
+wrong suttas, with no error anywhere. Extend this file as that lands; the
+`readingLayouts.token` field already exists so P4 needs no second lookup table,
+but nothing yet proves the JS uses it.
