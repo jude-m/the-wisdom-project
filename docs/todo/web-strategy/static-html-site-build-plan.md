@@ -965,6 +965,7 @@ The P0 equivalence proofs no longer exist only as prose:
 | `packages/wisdom_shared/test/tree/tipitaka_tree_test.dart` | 18 cases on synthetic fixtures — each ordering hazard in isolation, plus the malformed-row guards | no |
 | `packages/wisdom_shared/test/links/tipitaka_link_test.dart` | 68 cases on the `/tipitaka/<nodeKey>` codec both surfaces share | no |
 | `static_site_generator/test/wiring_contract_test.dart` | §8.3, shipped 2026-08-06: 15 cases over the markup ⇄ stylesheet seam and the template's own decisions | no |
+| `static_site_generator/test/corpus_tools_test.dart` | shipped 2026-08-06: runs both whole-corpus tools below and fails on a non-zero exit | **yes** |
 | `static_site_generator/tool/verify_corpus_invariants.dart` | the exhaustive run: 466,127 entries + all 2,005 parents against both frozen oracles | **yes** — all 340 MB |
 
 ⚠️ **Corrected 2026-08-03: this column used to read "Runs in CI", with ✅ on the
@@ -974,27 +975,39 @@ the column actually distinguishes is which ones *could* run on a bare checkout,
 which is the useful question until CI exists.
 
 All four no-corpus rows are ready to run unattended the moment there is a
-workflow. The last is addressable too: the deploy workflow decided 2026-07-31
+workflow, and so are the two corpus ones: the deploy workflow decided 2026-07-31
 (hosting doc, "Build & deploy pipeline") checks the corpus out on a GitHub
-Actions runner in order to generate the site, so the exhaustive run can ride
-along in that job.
+Actions runner in order to generate the site, so both can ride along in that job.
+
+**Both corpus tools became tests on 2026-08-06.** They were kept out of
+`dart test` because each was thought to take about a minute. Measured, the page
+budget is **~3s** and the exhaustive run **~23s**, so `test/corpus_tools_test.dart`
+now runs both and the whole suite finishes in ~25s. Each test just runs the tool
+and expects exit 0, so `_locked` stays the one place the page budget lives.
+
+They carry the `corpus` tag, declared in `static_site_generator/dart_test.yaml`:
+
+| Command | Runs |
+|---|---|
+| `dart test` | everything, ~25s |
+| `dart test -x corpus` | the 15 wiring cases only, under a second |
+
+Still run the tools by hand when reviewing a change. A test says pass or fail;
+only the printout gives you the margins either side of the 1,500-char line.
 
 The tree test's load-bearing case is **40 index-less siblings** — past the
 32-element cliff where `List.sort` stops being accidentally stable. The real
 corpus tops out at 23, so nothing in `assets/` would catch a regression here.
 
-Re-run the corpus script whenever `content_markers.dart` or `tipitaka_tree.dart`
-changes, and whenever `assets/` is re-synced from upstream tipitaka.lk.
-
-**Still uncovered by tests:** the grouping classifier and the slicer. Both are
-instead verified by whole-corpus tools, which is the stronger check here and the
-cheaper one — the properties that matter are corpus-wide invariants, not
-example-based:
+**Still uncovered by example-based tests:** the grouping classifier and the
+slicer. Both are instead verified by whole-corpus tools — the stronger check
+here and, now that they are tagged tests, the cheaper one too. The properties
+that matter are corpus-wide invariants, not examples:
 
 | Tool | Reports |
 |---|---|
 | `tool/classify_corpus.dart` | reproduces 146 vaggas / 1,603 leaves / 16,356 files, and prints the two containers nearest the 1,500 line every run |
-| `tool/classify_corpus.dart --expect` | the same run, **asserted** against the locked budget — 10 rows including the two threshold neighbours, exit 1 on any drift. CI-ready |
+| `tool/classify_corpus.dart --expect` | the same run, **asserted** against the locked budget — 10 rows including the two threshold neighbours, exit 1 on any drift. Run by `test/corpus_tools_test.dart` |
 | the `an-1` build | 581 source entries → 581 rendered elements (nothing dropped or duplicated), and a build-twice diff that is empty |
 
 `--expect` landed 2026-08-06, closing the "it prints, it does not assert" gap
@@ -1131,13 +1144,12 @@ this section to automate, and it goes into the deploy workflow (hosting doc,
 run rather than beside it: a wiring failure should stop a deploy before 386 MB is
 generated, not after.
 
-⚠️ That job must set its **working directory to `static_site_generator/`**. The
-suite reads the real committed `assets/theme_tokens.json` — a 5.6 KB build input,
-not corpus — by a path relative to the CWD, so a workflow that runs `dart test`
-from the repo root fails on a missing file rather than on anything real. The
-test says so when it happens, but the fix belongs in the workflow. `--expect` has
-the same requirement and `classify_corpus.dart` documents at length why it stopped
-deriving paths from wherever the corpus happened to be found.
+⚠️ That job must set its **working directory to `static_site_generator/`**. Two
+paths in the suite are relative to the CWD — `assets/theme_tokens.json` here, and
+`tool/` in `corpus_tools_test.dart`. Both tests fail naming the package root when
+they cannot find their file, though from the repo root you hit an earlier and
+blunter error first: the root pubspec has no `test` dev_dependency, so resolution
+fails before any test runs. Either way the fix is in the workflow, not the tests.
 
 **What it does not cover, and P4 will add more of.** The seam this guards is two
 files disagreeing about a string. P4's search dialog adds a third language to the

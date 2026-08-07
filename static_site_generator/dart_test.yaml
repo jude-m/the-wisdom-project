@@ -1,0 +1,7 @@
+# Whole-corpus checks are tagged `corpus`: they need `assets/` on disk (340 MB)
+# and take ~25s. `dart test -x corpus` skips them. Run from the package root —
+# they resolve `tool/` and `assets/` relative to the working directory.
+tags:
+  corpus:
+    # Default per-test timeout is 30s; verify_corpus_invariants measures ~23s.
+    timeout: 2m

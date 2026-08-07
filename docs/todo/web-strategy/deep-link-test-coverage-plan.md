@@ -176,10 +176,17 @@ The "out of scope" gap from the review: **nothing in `test/` or
 
 ---
 
-## Note: nothing runs the package tests automatically
+## Note: one command runs the package tests — shipped 2026-08-06
 
-Root `flutter test` does not recurse into `packages/`, and `.github/workflows/`
-is empty. Layers A–C only run if someone types `dart test` inside the package.
-If any of this is meant to be enforced, a `scripts/test_all.sh` (root
-`flutter test` + `dart test` in `packages/wisdom_shared`, `server`,
-`static_site_generator`) is the smallest fix — worth deciding when A/B land.
+Root `flutter test` still does not recurse into `packages/`, and
+`.github/workflows/` is still empty, so this was once "only if someone types
+`dart test` inside the package". It is now `tools/check-dart-packages.sh`:
+`dart analyze` + `dart test` in `packages/wisdom_shared`,
+`static_site_generator` and `server`, ~35s for all three. Three callers run it —
+`tools/validate-release.sh` (Step 6), `scripts/web/deploy.sh` (Phase 2) and
+`scripts/bjt-sync-regen/sync-regen.sh` (Step 5, straight after a corpus
+re-sync).
+
+It covers the three Dart packages only. Root `flutter test` was left out on
+purpose: different runner, 45 files, and the integration half needs a device —
+folding it in produces a command nobody runs.

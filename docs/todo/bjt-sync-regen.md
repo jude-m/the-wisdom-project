@@ -1,9 +1,10 @@
 # BJT Sync + Regen — Update Script Plan
 
-> Status: **Script built (2026-07-23).** The read-only sync source is set up, and
-> `scripts/bjt-sync-regen/sync-regen.sh` does Steps 0–4 + 6 for real, plus a closing sync
-> report. Step 5b (FTS regen) is now **wired** (real `npm run generate-fts`); Step 5a
-> (static HTML) stays a **stub** until the generator exists. Captured 2026-07-23.
+> Status: **Script built (2026-07-23), verify step added 2026-08-06.** The read-only
+> sync source is set up, and `scripts/bjt-sync-regen/sync-regen.sh` does Steps 0–5 + 7
+> for real, plus a closing sync report. Step 6b (FTS regen) is **wired** (real
+> `npm run generate-fts`); Step 6a (static HTML) stays a **stub** until the generator
+> exists.
 > Scope: how the app's vendored canon text stays in step with the upstream
 > tipitaka.lk project, and the script that does it.
 >
@@ -85,7 +86,7 @@ git ls-remote https://github.com/pathnirvana/tipitaka.lk.git master
 ```
 
 Returns one line: the current upstream commit SHA. Compare it to the SHA in our
-**receipt** (Step 6). Same → we are up to date, stop. Different → continue.
+**receipt** (Step 7). Same → we are up to date, stop. Different → continue.
 
 This needs **no clone** — it is the cheap check that can run often.
 
@@ -155,7 +156,28 @@ would be deleted", which trips the same gate):
 (TTS material, when that work starts, lives in the mirror's `dev/tts/` and
 `dev/audio/` — see [tipitaka-tts-implementation-plan.md](./tipitaka-tts-implementation-plan.md).)
 
-### Step 5 — Rebuild what depends on the text
+### Step 5 — Verify the new corpus (before anything is rebuilt on top of it)
+
+```bash
+./tools/check-dart-packages.sh
+```
+
+`dart analyze` + `dart test` across `packages/wisdom_shared`, `static_site_generator`
+and `server` (~35s). It runs **before** the rebuilds on purpose.
+
+The check that earns its place here is the static site's **page budget**. Grouping is
+decided by a 1,500-character threshold, compared strictly less-than: `kn-thig-6`
+measures exactly 1,500 and stays exploded because of it. A single character of
+upstream correction can regroup a vagga, delete eight real URLs and shift every count
+above it — and **nothing else in the pipeline would notice**, because the build still
+succeeds and every link still resolves. It just isn't the site that was designed.
+
+A failure **warns loudly and continues** rather than aborting, so a half-done sync
+isn't lost. A locked figure moving is a decision, not a flake: read the `DRIFT` rows,
+then either update `_locked` in `static_site_generator/tool/classify_corpus.dart`
+along with the plan docs, or find out why it moved before rebuilding.
+
+### Step 6 — Rebuild what depends on the text
 
 Two things rebuild from the corrected JSON, **both asked (y/n), not automatic**:
 
@@ -174,7 +196,7 @@ Two things rebuild from the corrected JSON, **both asked (y/n), not automatic**:
 > sync source and its own script — see
 > [sc-sync-ingest.md](./sc-sync-ingest.md).
 
-### Step 6 — Write the provenance receipt (the missing piece)
+### Step 7 — Write the provenance receipt (the missing piece)
 
 The script writes a small JSON file, `scripts/bjt-sync-regen/bjt-provenance.json`,
 recording **exactly what we synced**:
@@ -206,9 +228,10 @@ tooling metadata, not canon content, and keeping it out lets `assets/` stay a fa
 | Heartbeat check (Step 0) | ✅ Done — `git ls-remote` vs receipt |
 | Pull + review + copy (Steps 1–2, 4) | ✅ Done |
 | `tree.json` guard (Step 3) | ✅ Done — separate, loud, blocks blind overwrite |
-| Provenance receipt (Step 6) | ✅ Done — `scripts/bjt-sync-regen/bjt-provenance.json` |
-| Static HTML rebuild (Step 5a) | 🔶 Stub — y/n prompt wired, generator not built |
-| FTS rebuild (Step 5b) | ✅ Wired — y/n prompt runs `npm run generate-fts` |
+| Corpus verify (Step 5) | ✅ Done (2026-08-06) — `tools/check-dart-packages.sh`, warns on drift |
+| Provenance receipt (Step 7) | ✅ Done — `scripts/bjt-sync-regen/bjt-provenance.json` |
+| Static HTML rebuild (Step 6a) | 🔶 Stub — y/n prompt wired, generator not built |
+| FTS rebuild (Step 6b) | ✅ Wired — y/n prompt runs `npm run generate-fts` |
 | `--dry-run` / `--force` flags | ✅ Done |
 
 ---

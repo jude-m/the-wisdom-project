@@ -14,8 +14,9 @@
 #   Step 2  Review     — show the correction commits since our last sync.
 #   Step 3  tree.json  — diff the navigation map SEPARATELY & LOUDLY (nodeKeys!).
 #   Step 4  Copy       — copy the new text + tree.json into assets/.
-#   Step 5  Rebuild    — ask y/n to regenerate the static HTML (stub) and FTS db (real).
-#   Step 6  Receipt    — record upstream SHA + date + file count next to this script.
+#   Step 5  Verify     — run the Dart package tests against the text just copied.
+#   Step 6  Rebuild    — ask y/n to regenerate the static HTML (stub) and FTS db (real).
+#   Step 7  Receipt    — record upstream SHA + date + file count next to this script.
 #
 # Usage:
 #   ./scripts/bjt-sync-regen/sync-regen.sh              # interactive sync
@@ -362,9 +363,34 @@ DEST_COUNT="$(find "$DEST_TEXT" -maxdepth 1 -name '*.json' | wc -l | tr -d ' ')"
 echo "Copied. assets/text now has $DEST_COUNT JSON files; tree.json + data files updated."
 
 # ---------------------------------------------------------------------------
-# Step 5 — Rebuild what depends on the text  (STUBS — not wired up yet)
+# Step 5 — Verify the new corpus before rebuilding anything on top of it
 # ---------------------------------------------------------------------------
-step "Step 5 — Rebuild downstream (optional)"
+# Before the rebuilds on purpose. Grouping compares against 1,500 chars strictly
+# less-than and `kn-thig-6` measures exactly 1,500, so one character of upstream
+# correction can regroup a vagga and delete its suttas' URLs. Nothing else here
+# would notice — the build still succeeds and every link still resolves.
+#
+# `if`, not bare, so a failure warns instead of aborting a half-done sync.
+step "Step 5 — Verify the new corpus"
+echo "Running the Dart package checks against the text you just copied..."
+echo
+if "$ROOT/tools/check-dart-packages.sh"; then
+  echo
+  echo "  Corpus verified — page budget and shared-logic invariants unchanged."
+else
+  echo
+  echo "  ${HILITE}WARNING: the corpus tests FAILED after this sync.${RESET}"
+  echo "  Read the DRIFT rows above before rebuilding. A locked figure moving is"
+  echo "  a decision: either update _locked in"
+  echo "  static_site_generator/tool/classify_corpus.dart plus the plan docs, or"
+  echo "  find out why it moved."
+fi
+echo
+
+# ---------------------------------------------------------------------------
+# Step 6 — Rebuild what depends on the text  (STUBS — not wired up yet)
+# ---------------------------------------------------------------------------
+step "Step 6 — Rebuild downstream (optional)"
 echo "The text changed, so two things MAY need regenerating. Both are asked, not automatic."
 echo
 
@@ -396,9 +422,9 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 6 — Write the provenance receipt (so Step 0 has something to compare)
+# Step 7 — Write the provenance receipt (so Step 0 has something to compare)
 # ---------------------------------------------------------------------------
-step "Step 6 — Write the provenance receipt"
+step "Step 7 — Write the provenance receipt"
 SYNCED_ON="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 cat > "$RECEIPT" <<EOF
 {

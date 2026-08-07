@@ -26,7 +26,8 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 /// hand. Read the printout when reviewing a refinement; use `--expect` when
 /// asking "did anything move?".
 ///
-/// Takes ~1 minute: it parses all 285 content files.
+/// ~3s: it parses 231 of the 285 content files, the earlier gates having settled
+/// the rest. `test/corpus_tools_test.dart` runs `--expect` on every `dart test`.
 void main(List<String> args) {
   final writeCsv = args.contains('--write-csv');
   final expect = args.contains('--expect');

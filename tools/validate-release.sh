@@ -122,8 +122,20 @@ else
     handle_error "Unit/widget tests failed"
 fi
 
-# Step 6: Run integration tests
-print_step "Step 6: Running Integration Tests"
+# Step 6: Analyze and test the pure-Dart packages
+#
+# Step 5's `flutter test` only runs the app package. (Step 3's `flutter analyze`
+# does reach the others; their test suites had no gate at all until this step.)
+print_step "Step 6: Analyzing & Testing Dart Packages"
+echo "Running: tools/check-dart-packages.sh"
+if ./tools/check-dart-packages.sh; then
+    echo -e "${GREEN}✓ All Dart package checks passed${NC}"
+else
+    handle_error "Dart package checks failed"
+fi
+
+# Step 7: Run integration tests
+print_step "Step 7: Running Integration Tests"
 if [ -d "integration_test" ] && [ "$(ls -A integration_test/*.dart 2>/dev/null)" ]; then
     echo "Running: flutter test integration_test/"
     if flutter test integration_test/; then
@@ -135,7 +147,7 @@ else
     echo -e "${YELLOW}⚠ No integration tests found (integration_test/ directory empty or missing)${NC}"
 fi
 
-# Step 7: Final Summary
+# Step 8: Final Summary
 print_step "Pre-Release Validation Summary"
 
 if [ $FAILED -eq 1 ]; then

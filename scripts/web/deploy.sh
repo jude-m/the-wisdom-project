@@ -7,7 +7,9 @@
 #
 #  Usage:
 #    ./scripts/web/deploy.sh                # full pipeline
-#    ./scripts/web/deploy.sh --skip-tests   # skip unit + integration tests
+#    ./scripts/web/deploy.sh --skip-tests   # skip unit + integration tests AND
+#                                           #   the pure-Dart package suites
+#                                           #   (analysis still runs — Phase 1)
 #    ./scripts/web/deploy.sh --dry-run      # run tests + build, skip rsync
 #    ./scripts/web/deploy.sh -h             # help
 #
@@ -113,38 +115,28 @@ phase "Phase 1/7: flutter analyze (app)"
 flutter analyze || die "app analyze failed"
 ok "app analyze green"
 
-# Pure-Dart packages (wisdom_shared, server) ship to the server too, but
-# `flutter analyze` only covers the app package. Analyze each shipped Dart
-# package with `dart analyze` so their lib code is linted as well. pub get
-# first so imports resolve (idempotent when deps are already fetched).
-for pkg in packages/wisdom_shared server; do
-  phase "Phase 1/7: dart analyze ($pkg)"
-  ( cd "$pkg" && dart pub get >/dev/null && dart analyze ) || die "$pkg analyze failed"
-  ok "$pkg analyze green"
-done
+# No separate `dart analyze` loop here: run from the repo root, `flutter analyze`
+# already covers wisdom_shared, server and static_site_generator, each under its
+# own analysis_options.yaml — and with --fatal-infos on, where `dart analyze`
+# defaults it off. Phase 2's per-package analyze just fronts that package's
+# suite; it doesn't reach code this phase misses.
 
 # ---------------------------------------------------------------- Phase 2: unit tests
 if [[ "$SKIP_TESTS" == true ]]; then
-  phase "Phase 2/7: unit tests — SKIPPED (--skip-tests)"
+  # Skips the packages' suites, and their `dart analyze` with them. Nothing ships
+  # unanalyzed: Phase 1 already covered all three. Only tests are lost.
+  phase "Phase 2/7: unit tests + Dart package checks — SKIPPED (--skip-tests)"
 else
   phase "Phase 2/7: flutter test (app)"
   flutter test || die "app unit tests failed"
   ok "app unit tests green"
 
-  # Pure-Dart packages (wisdom_shared, server) are rsynced to the server below,
-  # but `flutter test` only runs the app package — each package is its own test
-  # target. Run their `dart test` suites here so shared logic can't regress
-  # unnoticed. A package with no tests yet (e.g. server today) is skipped.
-  for pkg in packages/wisdom_shared server; do
-    if [[ -n "$(find "$pkg/test" -name '*_test.dart' -print -quit 2>/dev/null)" ]]; then
-      phase "Phase 2/7: dart test ($pkg)"
-      ( cd "$pkg" && dart pub get >/dev/null && dart test ) \
-        || die "$pkg tests failed"
-      ok "$pkg tests green"
-    else
-      warn "Phase 2/7: dart test ($pkg) — no tests found, skipping"
-    fi
-  done
+  # `flutter test` only runs the app package. Includes static_site_generator,
+  # which doesn't ship here but depends on wisdom_shared — so a shared-logic
+  # regression surfaces before the build.
+  phase "Phase 2/7: dart analyze + test (pure-Dart packages)"
+  ./tools/check-dart-packages.sh || die "Dart package checks failed"
+  ok "Dart package checks green"
 fi
 
 # ---------------------------------------------------------------- Phase 3: build

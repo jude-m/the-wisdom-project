@@ -9,10 +9,13 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 ///
 ///     dart run static_site_generator/tool/verify_corpus_invariants.dart
 ///
-/// **Why this is a script and not a test.** It reads all 285 content files
-/// (~340 MB) plus the 4 MB tree, so it cannot run in CI and has no business in
-/// `dart test`. The invariants it establishes are pinned as fast unit tests in
-/// `packages/wisdom_shared/test/`; this is the exhaustive backstop, to be re-run
+/// **A script *and* a test.** Reading all 285 content files (~340 MB) plus the
+/// 4 MB tree costs ~23s, so `test/corpus_tools_test.dart` runs it under the
+/// `corpus` tag. Still worth running by hand: only the printout says *what* the
+/// corpus looks like.
+///
+/// The invariants it establishes are also pinned as fast unit tests in
+/// `packages/wisdom_shared/test/`; this is the exhaustive backstop, re-run
 /// whenever `content_markers.dart` or `tipitaka_tree.dart` is touched, and
 /// whenever `assets/` is re-synced from upstream tipitaka.lk.
 ///
