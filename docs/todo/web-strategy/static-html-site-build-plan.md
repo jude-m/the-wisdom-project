@@ -586,8 +586,36 @@ holds — verified over the full tree, not a subtree).
   language rendered.
 - **Side-by-side widens the column.** `44rem` is a measure for one column of
   text; split in two it gives each language ~21rem, too narrow for the corpus's
-  compounds. `#L-sbs:checked` takes it to `64rem`, and the toolbar's inner
-  wrapper with it, or the control stops sitting over the text it governs.
+  compounds. `#L-sbs:checked` takes it to `64rem`.
+
+  > ⚠️ **Corrected 2026-08-08 — the toolbar has no reading width at all.** The
+  > rule moved `.toolbar-inner` to `64rem` alongside the text, so the control
+  > would go on sitting over what it governs. But that wrapper is a *centred*
+  > box with the emblem on one edge and the layout group on the other, so its
+  > width is the only thing positioning either: picking a single-language layout
+  > slid the group 144px left and the emblem 144px right, every time. Measured
+  > in Chrome at 1400px — group right edge 1161px under side-by-side, 1017px
+  > under Pali-only; `(64rem − 44rem) ÷ 2` at this sheet's 14.4px rem, halved
+  > because the box is centred.
+  >
+  > Pinning the bar to `64rem` in every layout stopped the slide, and was
+  > measured to buy it at a price: a bar wider than its own text on every window
+  > between 670px and 957px (17.7px drift at 720px, 37.7px at 760px, where
+  > side-by-side is not even offered) and on all 1,859 TOC-and-`/` pages, which
+  > have no layout to switch and so could never have jumped (144px at 1400px).
+  >
+  > **Settled: the bar is chrome.** `.toolbar` spans the window with
+  > `.content`'s own `1.25rem` padding and takes no number from the reading
+  > column in any layout, on any page, at any size. One element, too: the
+  > `.toolbar-inner` wrapper existed only to hold a width the bar no longer has,
+  > so it is folded away — and with it the question that produced both wrong
+  > answers, of which box owns the width. This is the app's `AppBar`
+  > (`reader_screen.dart:120`), which pins `leading`/`actions` to the window
+  > while `readingColumnPadding` centres the text at 1240px behind it — the two
+  > do not align there either, on any wide window. It is also the shape the
+  > breadcrumb wants when it moves into this bar, as it already has in the app:
+  > the whole window to run in, not a slice, and one more flex item rather than
+  > that question asked a third time.
 - **Column captions (පාළි / සිංහල) in side-by-side only.** Also corpus-specific:
   both columns are the same alphabet, so a reader landing mid-page cannot
   otherwise tell canon from translation. Hidden in the three layouts that show

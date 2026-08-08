@@ -73,9 +73,9 @@ String tocList(Iterable<TipitakaNode> nodes) {
 
 /// The sticky bar: home on the left, layout switcher on the right.
 ///
-/// The bar's background runs edge to edge, its contents do not — the inner
-/// wrapper is the width of the reading column, so the controls line up with the
-/// text rather than floating off in the margin of a wide window.
+/// One element, edge to edge — background and contents both. The bar is chrome:
+/// sized by the window, never by the text under it, which is what keeps the
+/// controls still when a reader switches layout. Reasoning in `.toolbar`.
 ///
 /// **Every page gets the bar, including a TOC and `/`.** P2 emitted it only on
 /// readable pages, because the layout group was the only thing in it; P3 changed
@@ -91,8 +91,7 @@ String tocList(Iterable<TipitakaNode> nodes) {
 /// is already carried where it belongs, by the shared `name="layout"`, which is
 /// what makes a reader announce "2 of 4".
 String toolbar({required bool withLayouts}) {
-  final buffer =
-      StringBuffer('<div class="toolbar"><div class="toolbar-inner">');
+  final buffer = StringBuffer('<div class="toolbar">');
   buffer.write(homeLink());
   if (withLayouts) {
     buffer.write('<div class="layouts">');
@@ -106,6 +105,6 @@ String toolbar({required bool withLayouts}) {
     }
     buffer.write('</div>');
   }
-  buffer.write('</div></div>');
+  buffer.write('</div>');
   return buffer.toString();
 }

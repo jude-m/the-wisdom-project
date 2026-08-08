@@ -52,9 +52,9 @@ String buildStylesheet(ThemeTokens tokens) {
 /// scales with a reader's own browser font-size setting, which px would not.
 const String _twoColumnMinWidth = '48rem';
 
-/// The reading column. Shared by `.content` and the toolbar's inner wrapper so
-/// the two stay aligned; a bar whose control drifts away from the text it acts
-/// on reads as belonging to something else.
+/// The reading column — `.content`. Every layout below [_twoColumnMinWidth],
+/// and every layout but side-by-side above it. `.content`'s number alone: the
+/// toolbar is sized by the window and takes nothing from here.
 const String _readingColumnWidth = '44rem';
 
 /// Height of the sticky reader toolbar.
@@ -360,25 +360,39 @@ void _writeLayouts(StringBuffer css, ThemeTokens tokens) {
   css.writeln('  white-space: nowrap;');
   css.writeln('}');
   css.writeln();
+  // Chrome: sized by the window, never by the text under it — which is what
+  // keeps the controls still when the layout changes. Same shape as the app's
+  // `AppBar` (`reader_screen.dart:120`), which pins `leading`/`actions` to the
+  // window while the text is centred behind them.
+  //
+  // One element. A centred `.toolbar-inner` used to carry the width, and that
+  // width was the only thing positioning the emblem and the layout group — so
+  // capping it at the reading column slid both 144px on every layout switch.
+  // With no cap left it had nothing to hold. Both failed caps are measured in
+  // the build plan.
+  //
+  // `padding` matches `.content`'s: on a phone the emblem and the first
+  // character of the text share one left edge.
+  //
+  // Full bleed needs this to stay a normal-flow block child of `<body>`, which
+  // keeps `margin: 0`. `.layout-input` keeps the radios out of flow so `body`
+  // *can* take a layout later; a row flex would make this and `<main>` columns
+  // of it.
   css.writeln('.toolbar {');
   css.writeln('  position: sticky;');
   css.writeln('  top: 0;');
   css.writeln('  z-index: 2;');
+  // Fixed, not `min-height`: `scroll-padding-top` is
+  // `calc(var(--toolbar-height) + 1rem)`, so a bar free to grow under-clears
+  // every `#fragment` landing.
   css.writeln('  height: var(--toolbar-height);');
-  css.writeln('  background: var(--c-surface-container-high);');
-  css.writeln('  border-bottom: 1px solid var(--c-outline);');
-  css.writeln('}');
-  // Same width and padding as `.content`, so the control sits over the right
-  // edge of the text column instead of the window's.
-  css.writeln('.toolbar-inner {');
   css.writeln('  display: flex;');
   css.writeln('  justify-content: flex-end;');
   css.writeln('  align-items: center;');
   css.writeln('  gap: 0.75rem;');
-  css.writeln('  height: 100%;');
-  css.writeln('  max-width: $_readingColumnWidth;');
-  css.writeln('  margin: 0 auto;');
   css.writeln('  padding: 0 1.25rem;');
+  css.writeln('  background: var(--c-surface-container-high);');
+  css.writeln('  border-bottom: 1px solid var(--c-outline);');
   css.writeln('}');
   css.writeln();
   css.writeln('.layouts {');
@@ -507,10 +521,10 @@ void _writeLayouts(StringBuffer css, ThemeTokens tokens) {
       'label[for="$defaultLayoutId"] '
       '{ background: var(--c-primary-container); '
       'color: var(--c-on-primary-container); }');
-  // The column widens with the layout, and the toolbar with it, or the control
-  // would no longer sit over the text it governs.
-  css.writeln('  #$sideBySideLayoutId:checked ~ .content,');
-  css.writeln('  #$sideBySideLayoutId:checked ~ .toolbar .toolbar-inner '
+  // The text column widens — and only the text column. Adding `~ .toolbar` here
+  // so the chrome keeps up is what this rule used to say, and what slid the
+  // emblem and the layout group 144px apart on every layout switch.
+  css.writeln('  #$sideBySideLayoutId:checked ~ .content '
       '{ max-width: $_wideColumnWidth; }');
   css.writeln('  #$sideBySideLayoutId:checked ~ .content .row {');
   css.writeln('    grid-template-columns: 1fr 1fr;');
@@ -569,10 +583,8 @@ void _writeLayouts(StringBuffer css, ThemeTokens tokens) {
 
 /// The toolbar's home link — the emblem at the left of the bar.
 ///
-/// `margin-right: auto` is what puts it there and keeps the layout group at the
-/// other end: `.toolbar-inner` is `justify-content: flex-end`, so the auto
-/// margin absorbs all the free space between the two. The same trick P3's
-/// hamburger used, on the one control that outlived it.
+/// `.toolbar` is `justify-content: flex-end`, so `margin-right: auto` is what
+/// puts the emblem at the other end and holds the layout group apart from it.
 void _writeHomeLink(StringBuffer css) {
   css.writeln('/* Toolbar home link. */');
   css.writeln('.home {');
