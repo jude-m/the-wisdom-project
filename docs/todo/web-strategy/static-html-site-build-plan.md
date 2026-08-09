@@ -616,6 +616,44 @@ holds — verified over the full tree, not a subtree).
   > breadcrumb wants when it moves into this bar, as it already has in the app:
   > the whole window to run in, not a slice, and one more flex item rather than
   > that question asked a third time.
+- **The breadcrumb moved into the bar, and grew a leaf and an up button**
+  (2026-08-09). The move the note above expected. `.toolbar` is now trail ·
+  up · layouts, and `<main>` opens on its `<h1>`.
+  > **It fits because the bar is window-sized, and only because of that.**
+  > Shaped with HarfBuzz in the shipped WOFF2 subset at the real 12.24px, over
+  > all 14,752 built pages, and measured as the boxes actually render — emblem
+  > and per-segment padding included, since that is what decides fit: a trail is
+  > 684px at the median, 869px at p90 and 1,154px at the worst, across 6
+  > segments at the median and 7 at most. Room in the bar is the window minus
+  > 259px of pinned controls (36 padding + 21.6 of gaps + the 36px up button +
+  > 165px of layout buttons), so every trail in the corpus fits above 1,412px
+  > and 73% of them do at 1024px. Under the old `44rem` cap even a wide desktop
+  > was mostly clipped; the cap, not the trail, was the problem.
+  > **The leaf is in, per the app.** `BreadcrumbWidget` ends on the current node
+  > and so does this — a `<span>`, not a self-link, with `aria-current="page"`.
+  > The old trail stopped at the parent because the `<h1>` sat directly beneath
+  > it; a sticky bar has no "beneath", so a reader who has scrolled would
+  > otherwise have no name for the page they are on. The `<h1>` says the name
+  > twice now, in two landmarks, deliberately — `wiring_contract_test.dart`
+  > counts inside `<main>` for that reason.
+  > **The emblem is segment zero,** not a control beside the trail: `/` is the
+  > real parent of the seven roots. It also puts the route home at the one end
+  > of the line nothing is ever taken from.
+  > **Every segment clips itself, and narrow widths drop rather than clip.** One
+  > shared line with one `text-overflow` ate the *end* — the near ancestors and
+  > the page's own name, which is the half a reader needs. Per-segment boxes
+  > make the ancestors give first (`flex-shrink: 200` against the leaf's 1), and
+  > three `max-width` steps then zero them outright: the 3 nearest ancestors
+  > survive below 48rem, 1 below 36rem, none below 30rem. `width: 0`, never
+  > `display: none` — the trail is this site's internal link graph and Google
+  > crawls it at phone width. At 768px the surviving trail fits on 39% of pages
+  > where the full one would fit on 13%; below 30rem the emblem and the leaf are
+  > all that is left, and the leaf fits whole on 53% of pages at 390px, with the
+  > `<h1>` one line below printing the same name for the rest.
+  > **The up button exists because of what those steps drop.** `.up` is pinned
+  > outside the clipping box and points at `parentNodeKey` — omitted on the
+  > seven roots, where it would be a second route to `/`. The app needs no
+  > equivalent; it has the navigator tree this site withdrew at P3.5.
 - **Column captions (පාළි / සිංහල) in side-by-side only.** Also corpus-specific:
   both columns are the same alphabet, so a reader landing mid-page cannot
   otherwise tell canon from translation. Hidden in the three layouts that show
@@ -760,7 +798,8 @@ What replaced it was already there: breadcrumb (up), TOC (down), pager (along),
 aṭṭhakathā (across) — 6 contextual links on a leaf page, and every node reachable
 from `/` through container TOCs. The toolbar keeps a home link, which the rail
 had been the sole carrier of. Build 487 → 388 MB, stylesheet 15.2 → 12.1 KB, page
-count unchanged.
+count unchanged. (The breadcrumb and the home link later merged into one trail
+in the bar, and gained an explicit up button — see P2's toolbar-width note.)
 
 **The general lesson, worth more than the component:** a navigator that ships the
 same rows on every page is a table of contents stapled to the chrome. The parts

@@ -34,7 +34,7 @@ String buildStylesheet(ThemeTokens tokens) {
   _writePageChrome(css, tokens);
   _writeEntryStyles(css, tokens);
   _writeLayouts(css, tokens);
-  _writeHomeLink(css);
+  _writeToolbarNav(css);
   _writeLandingPage(css);
   _writeGroupedChapter(css);
 
@@ -56,6 +56,37 @@ const String _twoColumnMinWidth = '48rem';
 /// and every layout but side-by-side above it. `.content`'s number alone: the
 /// toolbar is sized by the window and takes nothing from here.
 const String _readingColumnWidth = '44rem';
+
+/// The trail's three collapse steps: keep the 3 nearest ancestors, then 1, then
+/// none. Widest first, because each one drops what the one above it kept.
+///
+/// ⚠️ **Same `rem` trap as [_twoColumnMinWidth].** Inside a media query `rem` is
+/// the initial 16px and ignores `html { font-size: 90% }`, so these are 768px,
+/// 576px and 480px.
+///
+/// Derived, not chosen. Beside the trail the bar pins width it never gives
+/// back, and how much depends on which side of 48rem you are on: 259px above
+/// it (`padding` 36 + two `gap`s 22 + the up button 36 + the four layout
+/// buttons 165), and 218px below, where the side-by-side button is
+/// `display: none` and three buttons measure 124. The first step is set
+/// against 259, the other two against 218. Measured across all 14,752 built
+/// pages at the real 12.24px: a leaf name is 126px at the median and 162px at
+/// p75, and a page carries 5 ancestors at the median, 6 at most. An ancestor
+/// squeezed under about 45px is three Sinhala clusters and an ellipsis —
+/// present, unreadable, and standing where the page's own name should be. Each
+/// step is where the ancestors still showing stop clearing that floor: six of
+/// them reach it at 781px, three at 563px, one at 445px, rounded to 48rem,
+/// 36rem and 30rem. Below 480px the emblem and the leaf are the whole of what
+/// fits, and the up button is what replaces the parent link that went with
+/// them.
+///
+/// [_trailKeepThree] landing on 48rem alongside [_twoColumnMinWidth] is
+/// arithmetic, not sharing. They answer different questions — how many names
+/// fit in a bar, how many columns of text stay readable — and one moving is no
+/// reason for the other to.
+const String _trailKeepThree = '48rem';
+const String _trailKeepOne = '36rem';
+const String _trailKeepNone = '30rem';
 
 /// Height of the sticky reader toolbar.
 ///
@@ -158,17 +189,9 @@ void _writePageChrome(StringBuffer css, ThemeTokens tokens) {
   css.writeln('  padding: 1.5rem 1.25rem 4rem;');
   css.writeln('}');
   css.writeln();
-  css.writeln('.breadcrumb {');
-  css.writeln('  font-family: var(--font-ui);');
-  css.writeln('  font-size: 0.85em;');
-  css.writeln('  color: var(--c-on-surface-variant);');
-  css.writeln('  margin-bottom: 1.5rem;');
-  css.writeln('  line-height: 1.6;');
-  css.writeln('}');
-  css.writeln('.breadcrumb a { color: inherit; text-decoration: none; }');
-  css.writeln('.breadcrumb a:hover { text-decoration: underline; }');
-  css.writeln('.breadcrumb .sep { opacity: 0.5; margin: 0 0.4em; }');
-  css.writeln();
+  // No `.breadcrumb` here any more — it is toolbar furniture now, styled with
+  // the rest of the bar in [_writeToolbarNav]. `.page-title` is what `.content`
+  // opens with, and `.content`'s own `padding-top` is the air above it.
   css.writeln('.page-title {');
   css.writeln('  font-family: var(--font-reader);');
   css.writeln('  color: var(--c-heading);');
@@ -397,6 +420,12 @@ void _writeLayouts(StringBuffer css, ThemeTokens tokens) {
   css.writeln();
   css.writeln('.layouts {');
   css.writeln('  display: inline-flex;');
+  // Pinned, like `.up`. The trail's breakpoints are derived from a fixed
+  // layout group — 165px at four buttons, 124px at three; leave this at the
+  // default `flex-shrink: 1` and the group gives width back under pressure,
+  // which both moves the number the breakpoints were measured against and
+  // squeezes four 40px targets.
+  css.writeln('  flex: none;');
   css.writeln('  border: 1px solid var(--c-outline);');
   css.writeln('  border-radius: 8px;');
   css.writeln('  overflow: hidden;');
@@ -581,23 +610,184 @@ void _writeLayouts(StringBuffer css, ThemeTokens tokens) {
   css.writeln();
 }
 
-/// The toolbar's home link — the emblem at the left of the bar.
+/// The bar's navigation half: the trail, the emblem that opens it, and the up
+/// button pinned beyond its right edge.
 ///
-/// `.toolbar` is `justify-content: flex-end`, so `margin-right: auto` is what
-/// puts the emblem at the other end and holds the layout group apart from it.
-void _writeHomeLink(StringBuffer css) {
-  css.writeln('/* Toolbar home link. */');
-  css.writeln('.home {');
+/// `.toolbar` is `justify-content: flex-end`, and the trail's `flex: 1` is what
+/// absorbs the free space — so the trail starts at the window's left edge and
+/// everything else stays at the right. `.home` used to do that job with
+/// `margin-right: auto`; it is inside the trail now and needs no margin of its
+/// own.
+void _writeToolbarNav(StringBuffer css) {
+  css.writeln('/* Toolbar: the trail, its emblem, and the up button. */');
+  // The only flex item in the bar allowed to shrink, and the whole reason the
+  // controls beside it never move. `min-width: 0` is what permits that: a flex
+  // item's floor is `min-content` until it is said otherwise, and here that is
+  // the whole trail — 1,154px at the corpus's worst. Every segment is
+  // `white-space: nowrap`, so no segment's min-content is less than its entire
+  // name, and a flex row's is the sum of theirs. Without it the trail pushes
+  // the layout buttons off a phone instead of clipping itself.
+  //
+  // A flex row, so every segment is its own box and clips itself. As one block
+  // sharing one line it clipped once, at the right, which is the near end of
+  // the hierarchy: the page's own name went first and what survived on a phone
+  // were the outermost containers, the segments a reader least needs. Per
+  // segment the order can be stated instead, and it is — see the `flex` values
+  // below.
+  //
+  // Ellipsis and not a scroll box: it is the app's behaviour
+  // (`TextOverflow.ellipsis`, one line), and a horizontal scroller inside a
+  // 56px sticky bar has no affordance a mouse can see.
+  //
+  // `overflow: hidden` here is a backstop, not the mechanism. Each segment has
+  // a floor it cannot shrink past, and enough segments at their floor can still
+  // out-measure the box; this is what stops the overflow landing on the up
+  // button rather than being clipped.
+  css.writeln('.breadcrumb {');
   css.writeln('  display: flex;');
   css.writeln('  align-items: center;');
-  css.writeln('  margin-right: auto;');
-  css.writeln('  border-radius: 8px;');
+  css.writeln('  flex: 1;');
+  css.writeln('  min-width: 0;');
+  css.writeln('  overflow: hidden;');
+  css.writeln('  font-family: var(--font-ui);');
+  css.writeln('  font-size: 0.85em;');
+  css.writeln('  line-height: 1;');
+  css.writeln('  color: var(--c-on-surface-variant);');
   css.writeln('}');
+  css.writeln();
+  // Every segment but the emblem: one line, its own ellipsis, its own `›`.
+  //
+  // `min-width: 0` for the same reason the bar gives it to `.breadcrumb` — a
+  // flex item will not shrink below `min-content` unless told to, and a node
+  // name's `min-content` is the whole name.
+  //
+  // The vertical padding is slack for `overflow: hidden`. `line-height: 1` sets
+  // the box to the em, and Sinhala ink runs taller than its em, so without this
+  // each segment would shave the marks off its own text. 6px keeps the box at
+  // ~24px, still under the 28px emblem, so the bar's height is untouched.
+  css.writeln('.breadcrumb > :not(.home) {');
+  css.writeln('  position: relative;');
+  css.writeln('  min-width: 0;');
+  css.writeln('  padding: 6px 0 6px 1.15em;');
+  css.writeln('  white-space: nowrap;');
+  css.writeln('  overflow: hidden;');
+  css.writeln('  text-overflow: ellipsis;');
+  css.writeln('}');
+  // Drawn, not marked up. As an element between segments it was a flex item of
+  // its own, so a segment squeezed to nothing left its `›` standing there —
+  // `⌂ › › › name` at the widths where that matters most. Inside the segment
+  // and absolutely positioned, it is clipped by the same `overflow` and leaves
+  // with it. Out of flow, so it neither takes part in the ellipsis nor picks up
+  // the hover underline; `padding-left` is the room it sits in.
+  //
+  // A screen reader may still announce it, as generated content sometimes is.
+  // No worse than the `<span>` it replaces, which was announced for certain.
+  css.writeln('.breadcrumb > :not(.home)::before {');
+  css.writeln("  content: '›';");
+  css.writeln('  position: absolute;');
+  css.writeln('  left: 0.3em;');
+  css.writeln('  opacity: 0.5;');
+  css.writeln('}');
+  css.writeln('.breadcrumb a { color: inherit; text-decoration: none; }');
+  css.writeln('.breadcrumb a:hover { text-decoration: underline; }');
+  css.writeln();
+  // Who gives first. Flex shares a shortfall in proportion to
+  // `flex-shrink × flex-basis`, so a median page's five ancestors at 200 absorb
+  // 99.9% of it and the leaf is untouched until every one of them has hit its
+  // floor. That is the whole point: the ancestors compress, and the name of the
+  // page you are on is the last thing to go.
+  //
+  // Neither may grow — `.breadcrumb` is wider than its contents whenever the
+  // trail is short, and a stretched trail would put the emblem and the page
+  // name at opposite ends of the bar.
+  css.writeln('.breadcrumb a:not(.home) { flex: 0 200 auto; }');
+  // The page you are on, brighter than the links above it — the app draws the
+  // same distinction, leaf in `resultMatchedText` and parents dimmed to
+  // `onSurfaceVariant`.
+  css.writeln('.breadcrumb .leaf { flex: 0 1 auto; '
+      'color: var(--c-on-surface); }');
+  css.writeln();
+  css.writeln('.home { display: flex; flex: none; align-items: center; }');
   // A focus ring the anchor can actually show — unlike the layout labels, this
-  // is a real link, so `:focus-visible` lands on the element itself.
+  // is a real link, so `:focus-visible` lands on the element itself. Inset,
+  // because an outset ring on the first segment would be drawn outside
+  // `.breadcrumb`'s padding box and clipped by its `overflow: hidden`.
   css.writeln('.home:focus-visible '
-      '{ outline: 2px solid var(--c-primary); outline-offset: 2px; }');
+      '{ outline: 2px solid var(--c-primary); outline-offset: -2px; '
+      'border-radius: 8px; }');
   css.writeln('.home img { display: block; width: 28px; height: 28px; }');
+  css.writeln();
+  // Where compressing stops paying and dropping starts. Derivation and the
+  // measurements behind each width are on [_trailKeepThree] and its two
+  // siblings.
+  //
+  // `:nth-last-of-type` counts anchors from the end, so the rules are written
+  // in terms of how many of the *nearest* ancestors survive — which is the
+  // question — and hold for a trail of two segments or of six without knowing
+  // which it is. `:not(.home)` spares the emblem, which is an anchor too.
+  //
+  // `width: 0`, never `display: none`. A collapsed segment is still a rendered
+  // link in the DOM and in the accessibility tree; the breadcrumb *is* this
+  // site's internal link graph, and Google indexes it at a phone's viewport
+  // width, which is precisely where these rules apply. Zeroing the box is the
+  // one way to take a link off the screen without taking it out of the crawl.
+  for (final step in const [
+    (_trailKeepThree, 'n+4'),
+    (_trailKeepOne, 'n+2'),
+    (_trailKeepNone, null),
+  ]) {
+    final position = step.$2 == null ? '' : ':nth-last-of-type(${step.$2})';
+    css.writeln('@media (max-width: ${step.$1}) {');
+    css.writeln('  .breadcrumb a:not(.home)$position '
+        '{ width: 0; padding-left: 0; }');
+    css.writeln('}');
+  }
+  css.writeln();
+  // Last of the trail's rules on purpose. It ties the media queries above at
+  // specificity, so source order is what lets focus win — a keyboard user who
+  // tabs into a collapsed segment gets it back, rather than watching focus
+  // vanish into a zero-width box. `:not(.home)` keeps the emblem's own 8px
+  // ring, which this would otherwise outrank.
+  css.writeln('.breadcrumb a:not(.home):focus-visible {');
+  css.writeln('  width: auto;');
+  // `width: auto` alone gives the segment nothing back. `flex-basis: auto`
+  // resolves to that width, and at `flex-shrink: 200` the bar takes it straight
+  // off again — the segment would return a few pixels wide. The floor is what
+  // makes the rule mean what it says; `.breadcrumb`'s `overflow: hidden` is
+  // still the backstop if the trail now out-measures the box.
+  css.writeln('  flex-shrink: 0;');
+  css.writeln('  padding-left: 1.15em;');
+  css.writeln('  outline: 2px solid var(--c-primary);');
+  css.writeln('  outline-offset: -2px;');
+  css.writeln('  border-radius: 4px;');
+  css.writeln('}');
+  css.writeln();
+  // Sized to one layout button — 34px of content inside a 1px border, so both
+  // controls are 36px tall and read as one set rather than two guesses.
+  // `flex: none` on the same terms as `.layouts`: the trail is the bar's only
+  // elastic item and every control beside it holds its width. This one most of
+  // all, since it is the affordance that exists *for* the widths where the
+  // trail is collapsed.
+  css.writeln('.up {');
+  css.writeln('  display: flex;');
+  css.writeln('  flex: none;');
+  css.writeln('  align-items: center;');
+  css.writeln('  justify-content: center;');
+  css.writeln('  width: 34px;');
+  css.writeln('  height: 34px;');
+  css.writeln('  border: 1px solid var(--c-outline);');
+  css.writeln('  border-radius: 8px;');
+  css.writeln('  background: var(--c-background);');
+  css.writeln('  color: var(--c-on-surface-variant);');
+  // It is an anchor outside `.breadcrumb`, so the rule that clears the trail's
+  // underlines does not reach it, and the UA default draws one under the glyph
+  // inside a bordered button.
+  css.writeln('  text-decoration: none;');
+  css.writeln('}');
+  css.writeln('.up:hover { background: var(--c-surface-container-low); }');
+  css.writeln('.up:focus-visible '
+      '{ outline: 2px solid var(--c-primary); outline-offset: -2px; }');
+  css.writeln('.up-icon { width: 18px; height: 18px; }');
   css.writeln();
 }
 

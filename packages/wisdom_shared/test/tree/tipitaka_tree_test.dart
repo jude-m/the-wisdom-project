@@ -202,8 +202,17 @@ void main() {
       );
     });
 
+    test('one step up is the first ancestor, and null at the top', () {
+      expect(tree.parentOf('an-1-1-1')?.nodeKey, 'an-1-1');
+      // The root is where `parentOf` and `ancestorsOf(...).first` part company:
+      // the chain is empty there, so only one of the two can answer at all.
+      expect(tree.ancestorsOf('an-1'), isEmpty);
+      expect(tree.parentOf('an-1'), isNull);
+    });
+
     test('unknown keys return empty rather than throwing', () {
       expect(tree['nope'], isNull);
+      expect(tree.parentOf('nope'), isNull);
       expect(tree.childrenOf('nope'), isEmpty);
       expect(tree.leavesUnder('nope'), isEmpty);
       expect(tree.ancestorsOf('nope'), isEmpty);

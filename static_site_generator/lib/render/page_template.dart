@@ -53,12 +53,17 @@ class PageTemplate {
     // `.content` and all three have to stay siblings. Nothing here may be
     // wrapped in a container without rewriting the stylesheet with it.
     if (page.isReadable) body.writeln(_layoutRadios());
-    body.writeln(toolbar(withLayouts: page.isReadable));
+    body.writeln(toolbar(
+      withLayouts: page.isReadable,
+      // Outermost first — `ancestorsOf` walks upwards, a trail reads downwards.
+      trail: tree.ancestorsOf(page.nodeKey).reversed.toList(),
+      current: page.node,
+      parent: tree.parentOf(page.nodeKey),
+    ));
 
     // `<main>`, not a div: a landmark is what lets a screen reader skip the bar
-    // and the breadcrumb and start at the text.
+    // and start at the text.
     body.writeln('<main class="content">');
-    body.writeln(_breadcrumb(page.node));
     body.writeln('<h1 class="page-title">${_headingHtml(page.node)}</h1>');
     final commentary = _commentaryLink(page.node);
     if (commentary != null) body.writeln(commentary);
@@ -233,19 +238,6 @@ class PageTemplate {
       buffer.write(' aria-label="${layout.label}">');
     }
     return buffer.toString();
-  }
-
-  /// Ancestors, outermost first. Doubles as the internal-link graph that lets a
-  /// crawler reach every node from any page.
-  String _breadcrumb(TipitakaNode node) {
-    final trail = tree.ancestorsOf(node.nodeKey).reversed.toList();
-    if (trail.isEmpty) return '';
-    final parts = <String>[
-      for (final ancestor in trail)
-        '<a href="${tipitakaUrl(ancestor.nodeKey)}">${nodeLabelHtml(ancestor)}</a>',
-    ];
-    return '<nav class="breadcrumb" aria-label="ස්ථානය">'
-        '${parts.join('<span class="sep">›</span>')}</nav>';
   }
 
   /// Canon ↔ commentary cross-link, emitted only when the twin key really
@@ -481,8 +473,7 @@ class PageTemplate {
     // "X අට්ඨකථා" can never equal a candidate, so a commentary node directly
     // under a same-named parent would have said the name twice.
     final seen = <String>{unweldTitle(node.paliName)};
-    final parent =
-        node.parentNodeKey == null ? null : tree[node.parentNodeKey!];
+    final parent = tree.parentOf(node.nodeKey);
     final collection = collectionOf(tree, node.nodeKey);
     for (final extra in [parent, collection]) {
       if (extra == null) continue;
@@ -522,8 +513,14 @@ class PageTemplate {
   /// Carries the commentary marker like the `<title>` does, and for the same
   /// reason: without it a commentary page and its canon twin are two documents
   /// whose heading is the identical string. It does **not** repeat the vagga
-  /// and collection the `<title>` appends — the breadcrumb sits directly above
-  /// and already says them (§10).
+  /// and collection the `<title>` appends — the breadcrumb in the toolbar
+  /// already says them (§10).
+  ///
+  /// That trail now ends on this node too, so the name is on screen twice. Not
+  /// a repeat worth suppressing, unlike the preamble's in [_withoutRepeatedTitle]:
+  /// one is the page's heading and the other is a position in a hierarchy, they
+  /// are in different landmarks, and the marker means the two are not even the
+  /// same string on the 6,731 commentary pages.
   String _headingHtml(TipitakaNode node) =>
       escapeHtml(weldTitle(_leafTitle(node)));
 }

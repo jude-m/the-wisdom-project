@@ -230,6 +230,18 @@ class TipitakaTree {
   /// Root nodes, in display order.
   List<TipitakaNode> get roots => [for (final key in rootKeys) _nodes[key]!];
 
+  /// The node one level up, or null for a root or an unknown key.
+  ///
+  /// The same node as `ancestorsOf(nodeKey).firstOrNull`, without building the
+  /// chain to reach it — `firstOrNull` and not `first`, since that list is empty
+  /// on a root, which is exactly where this returns null. It is also the one
+  /// place the `parentNodeKey`-then-index dance is written, so callers that want
+  /// a single step up cannot each spell it differently.
+  TipitakaNode? parentOf(String nodeKey) {
+    final parentKey = _nodes[nodeKey]?.parentNodeKey;
+    return parentKey == null ? null : _nodes[parentKey];
+  }
+
   /// Children of [nodeKey] in display order; empty for a leaf or unknown key.
   List<TipitakaNode> childrenOf(String nodeKey) {
     final node = _nodes[nodeKey];

@@ -21,8 +21,10 @@ import 'entry_renderer.dart';
 /// that widened `/`'s reading column to hold its two-column hero; P3.5 made `/`
 /// an ordinary container TOC and that rule went with the hero, leaving a class
 /// on `<body>` that no selector matched. Every page shape the site emits is now
-/// distinguished by what is *in* it — layout radios or not, breadcrumb or not —
-/// which is what the stylesheet already keys off.
+/// distinguished by what is *in* it — layout radios or not, a `.toc` list or
+/// rows of text — which is what the stylesheet already keys off. The toolbar is
+/// not one of those signals and cannot become one: every page carries it, `/`
+/// included, trail and all.
 String htmlDocument({
   required String title,
   required String canonical,

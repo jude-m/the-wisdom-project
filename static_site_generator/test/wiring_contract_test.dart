@@ -250,9 +250,14 @@ void main() {
       );
 
       // The welded name is what a reader sees. It belongs in the <h1> and
-      // nowhere else on the page — twice means the preamble printed it again
+      // nowhere else in the text — twice means the preamble printed it again
       // two lines below the title.
-      expect(_countOf(html, weldTitle(vagga.paliName)), 1,
+      //
+      // Counted inside `<main>`, not across the document: the breadcrumb ends
+      // on the current node and so names it too, deliberately. That segment is
+      // chrome in a different landmark, and letting it into the count would
+      // make this guard fail on a change it has no opinion about.
+      expect(_countOf(_mainOf(html), weldTitle(vagga.paliName)), 1,
           reason: 'The vagga name renders twice: once as the <h1> and once as '
               'the preamble heading the <h1> was meant to replace.');
       expect(html, contains(vagga.sinhalaName),
@@ -574,15 +579,30 @@ Set<String> _classNamesIn(String html) {
 /// rather than a line range or a hand-kept list of class names.
 ///
 /// A selector is the text between one brace and the next `{`, which is exact
-/// here: comments are stripped first and the sheet has no strings or braces
-/// inside values. Comma-separated selector lists arrive as one string, spanning
-/// however many `writeln`s wrote them.
+/// here because the only two things that can put a brace anywhere else are
+/// accounted for: comments are stripped, and quoted strings are stepped over —
+/// the sheet has them on both sides of the colon (`[for="L-pali"]` in a
+/// selector, `content: '›'` in a value). Strings are left *in* the selector
+/// rather than blanked, since an attribute selector's value is part of what a
+/// caller matches on. Comma-separated selector lists arrive as one string,
+/// spanning however many `writeln`s wrote them.
 List<String> _rulesSelectingOn(String css, Pattern marker) {
   final clean = css.replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '');
   final selectors = <String>[];
   var start = 0;
+  String? quote;
   for (var i = 0; i < clean.length; i++) {
     final char = clean[i];
+    // The generated sheet never escapes a quote inside a string, so the next
+    // matching delimiter always closes it.
+    if (quote != null) {
+      if (char == quote) quote = null;
+      continue;
+    }
+    if (char == '"' || char == "'") {
+      quote = char;
+      continue;
+    }
     if (char != '{' && char != '}') continue;
     if (char == '{') {
       final selector = clean.substring(start, i).trim();
@@ -614,3 +634,10 @@ String _cell(String html, String cssClass) {
 
 int _countOf(String haystack, String needle) =>
     needle.isEmpty ? 0 : haystack.split(needle).length - 1;
+
+/// The page's text, without the chrome around it.
+///
+/// The toolbar carries a breadcrumb whose last segment is the current node, so
+/// the node's name is on every page twice by design. Assertions about what the
+/// *text* prints have to say so, or they answer a question about the bar.
+String _mainOf(String html) => html.split('<main class="content">').last;
