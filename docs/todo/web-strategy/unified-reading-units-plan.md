@@ -1,7 +1,7 @@
-# Unify app + static-site reading units around one shared rule
+# Unify app + static-site reading units around one frozen snapshot
 
 > **Status:** Phase A ready to start · Phase B deliberately deferred.
-> **Decided 2026-07-29, filed 2026-08-03.**
+> **Decided 2026-07-29, filed 2026-08-03. Reworked 2026-08-09: verdicts frozen into a generated snapshot; the hand-override map this plan first proposed is gone (see "Why frozen").**
 > Supersedes `static-html-site-plan.md` §6's committed `grouping.json` (see A4).
 
 ## Context
@@ -36,44 +36,74 @@ Nothing is orphaned, nothing renders twice. The site already does this (`sitegen
 
 ---
 
-## Phase A — one shared rule (do now, small)
+## Phase A — one frozen snapshot (do now, small)
 
-The grouping decision is locked (`static-html-site-plan.md` §6/§13.1: deepest container, ≥6 leaves, max leaf <1,500 combined raw chars → **146 vaggas / 1,603 grouped leaves / 14,753 real pages / 16,356 total**) and the code exists — but it lives only in the generator, which re-derives it on every run. Move the rule, keep it derived.
+The grouping decision is locked (`static-html-site-plan.md` §6/§13.1: deepest container, ≥6 leaves, max leaf <1,500 combined raw chars → **146 vaggas / 1,603 grouped leaves / 14,753 real pages / 16,356 total**) — but it is re-measured from the text on every run, and the measurement sits on a knife edge. Freeze the verdicts into shared code; demote the classifier to a sync-time advisor.
 
-### A1. Move the classifier into `packages/wisdom_shared/`
+### Why frozen — the measurement has no safe place to draw a line (measured 2026-08-08)
 
-`static_site_generator/lib/domain/grouping_classifier.dart` → `packages/wisdom_shared/lib/src/grouping/`. It already depends only on `TipitakaTree` (shared) plus a per-file slice lookup (`ContentSlicer Function(String fileId) slicerFor`), so this is a move. Export from `wisdom_shared.dart`.
+The classifier run over all 1,165 measured vaggas, by longest-leaf chars:
 
-> Path note: this file lived at `lib/grouping/grouping_classifier.dart` when the plan was drafted; the whole-corpus work (`bc4d297`) moved it under `domain/`. Destination and reasoning unchanged.
-
-**No data file, on either side.** Both surfaces compute the same verdicts from the same inputs — `tree.json` plus the content file each is already holding. In one repo with one `wisdom_shared`, they cannot drift.
-
-### A2. Hand refinements as a `const` map, not an asset
-
-Refinement while reviewing the site is expected. Record it as code in the same shared library:
-
-```dart
-/// Deliberate departures from the classifier's verdict. Code, not data:
-/// the app must gain no new bundled asset, and this compiles into both
-/// the generator and the app from one place.
-const Map<String, GroupingOverride> groupingOverrides = {
-  'kn-jat-1-1': GroupingOverride.group(
-    why: 'BJT Jātaka pali is gāthās only; the searched stories are in atta-kn-jat-*',
-  ),
-};
+```
+ 1000–1249  ██████████████████████████████ 30       vaggas per 250-char bucket
+ 1250–1499  ██████████████████████████████████████ 38
+ 1500–1749  ██████████████████████████████████████ 38   ← the line is here
+ 1750–1999  ███████████████████████████████████████ 39
+ 2000–2249  ████████████████████████ 24
 ```
 
-`classify()` consults the map before returning. Editing one file changes both surfaces.
+The line sits in the densest region of the whole distribution — a vagga every ~6.5 chars. Every datapoint from 1448 to 1558:
 
-### A3. Keep the 146-key list as an *output*
+```
+1448 1456 │ 1485 1489 1490 ‖1500‖ 1504 1508 1509 │ 1529 1529 │ 1558
+                               └ kn-thig-6 — ON the line; one edited char flips it
+```
 
-`tool/classify_corpus.dart --write-csv` regenerates `docs/todo/web-strategy/grouped-vaggas-threshold-1500.csv` from the shared classifier (build plan §5.1 already promises this) and prints the near-threshold margins — `kn-thig-6` at exactly 1,500, `atta-an-10-1-1` at 1,490. It is a **review artifact**: read it to check a refinement, never parse it at build or run time. Fix the stale row (`vp-pct-1-3-5`, missing because the old script used the wrong slice rule).
+Candidate placements, all bad:
+
+| line at | drift margin | flips vs today |
+|---|---|---|
+| 1,500 (today) | 10 down / **0 up** | — (`kn-thig-6` exactly on it) |
+| 1,502 (i.e. `<=`) | ±2 | `kn-thig-6` groups; the knife edge is mirrored, not removed |
+| 1,520 | ±10 | 4 vaggas / 36 suttas |
+| 2,266 (first gap ≥40 chars) | ±20 | **101 vaggas / 1,134 suttas lose their own pages** — voids "famous suttas keep own pages" |
+
+So *any* measured rule stays one resync away from a flip, and the `--expect` lock only converts silent breakage into recurring human decisions. Also rejected:
+
+- **Hand-override map** (this plan's first design): human-curated exceptions bolted onto a live rule — every unlisted vagga stays exposed, and the list only grows.
+- **Structural-only rule** (leaf count / tree shape, nothing a typo can move): would group all 1,165 candidates — buries substantial suttas.
+
+**Decision (2026-08-09): stop measuring at build time.** Snapshot today's verdicts; a resync may change page *contents*, never page *structure*.
+
+### A1. Generate the snapshot into `wisdom_shared`
+
+`classify_corpus.dart --write-snapshot` emits `packages/wisdom_shared/lib/src/grouping/grouping_snapshot.dart`, exported from `wisdom_shared.dart`:
+
+```dart
+/// GENERATED — the 146 vaggas rendered as one chapter page, frozen from the
+/// classifier's 2026-08-09 full-corpus run. Every other container explodes.
+/// Regenerating or editing this file is a deliberate act with URL
+/// consequences; a resync must never touch it.
+const Set<String> groupedVaggaKeys = { 'an-1-1', /* … */ };
+```
+
+Generated *code*, not an asset: strict parity means the app must read the same snapshot, the app may gain no new bundled file, and a `const` compiles into both surfaces from one place. Absent key = exploded, which makes new content self-handling: a container the snapshot has never heard of gets a page per sutta — the safe direction (a wrong explode costs thin pages; a wrong group buries named texts). Grouping a *new* micro-run later is a deliberate snapshot edit, never an obligation.
+
+**Regeneration is the supported way to move the cutoff.** The snapshot is always re-derivable from the rule: change `GroupingClassifier.maxLeafChars`, rerun `--write-snapshot`, and the git diff of `grouping_snapshot.dart` *is* the impact review — every key added or removed is one vagga whose URLs change. Freezing removes the *accidental* path to a structure change (resync drift), not the deliberate one; a regenerate ships with the rebuilt site in a single commit, and the with-stubs total (16,356) never moves regardless of where the cutoff lands.
+
+### A2. Demote the classifier to sync-time advisor
+
+The classifier stays in `static_site_generator/` and stops running at build and app runtime. After a re-sync, `classify_corpus.dart` becomes a *report*: which new containers the rule would group (proposals), and which frozen verdicts it now disagrees with (informational — the snapshot wins). The `--expect` policy lock dies with the knife edge: the policy rows in `_locked` (`grouped vaggas`, `grouped leaves`, `real pages`, `with stubs`, both `nearest … chars`) and the whole `_lockedKeys` map guard a decision that no longer exists at build time. Their replacement is an integrity check with no judgment in it — every snapshot key must still exist in the tree as a deepest, single-content-file container; `orphan containers: 0` stays. `corpus_tools_test.dart`'s lock test keeps its shape and becomes the integrity test. The check fires only when upstream renumbers `nodeKey`s: the one event no local design survives, and the sync workflow's stop-the-line moment.
+
+### A3. The CSV stays a human review artifact
+
+`tool/classify_corpus.dart --write-csv` keeps regenerating `docs/todo/web-strategy/grouped-vaggas-threshold-1500.csv` — now from the snapshot plus fresh measurements, so a reviewer can see how far each frozen verdict has drifted from what the rule would say today. Read by humans, parsed by nothing.
 
 ### A4. Document the seam
 
-Name the shared classifier as the single source in `static-html-site-plan.md` §6 and in `static-html-site-build-plan.md` §5, noting the no-app-assets constraint as the reason. `static-html-site-plan.md` still calls for a committed `grouping.json` in ten places — §6 (×2), §8 (×2), §10, §12 (×2), §13 (×3), which `grep -n 'grouping.json'` lists exactly. Every one is superseded by A1/A2. Sections rather than line numbers: the numbers first recorded here had drifted seven lines within two commits.
+Name the snapshot as the single source in `static-html-site-plan.md` §6 and in `static-html-site-build-plan.md` §5, noting the no-app-assets constraint as the reason. `static-html-site-plan.md` still calls for a committed `grouping.json` in ten places — §6 (×2), §8 (×2), §10, §12 (×2), §13 (×3), which `grep -n 'grouping.json'` lists exactly; every one is superseded by A1. The knife-edge commentary goes in the same sweep — the exactly-1,500 margin note in `grouping_classifier.dart` and the nearest-to-line rows in `_locked` document a fragility A1 removes.
 
-**Verify A:** `dart run static_site_generator/bin/generate.dart --root an-1` still emits 110 files (85 sutta + 12 chapter + 13 TOC), byte-identical to the current build. `classify_corpus` still reports 146 / 1,603 / 16,356. Add a temporary override, confirm the counts and the `an-1` file list move as predicted, revert.
+**Verify A:** `--write-snapshot` emits exactly the 146 keys today's classifier reports, and `dart run static_site_generator/bin/generate.dart --root an-1` still emits 110 files (85 sutta + 12 chapter + 13 TOC), byte-identical to the current build — same verdicts, different source. Remove one key from the snapshot, confirm the counts and that vagga's file list move as predicted, restore.
 
 ---
 
@@ -83,9 +113,9 @@ Trigger: vagga grouping stops moving during static-site P2–P6.
 
 ### B1. Share the remaining logic
 
-- **`SitePlan` / `PageKind`** (`static_site_generator/lib/domain/site_page.dart`) → `wisdom_shared`. It needs only `TipitakaTree` + a `classify` callback, so the move is mechanical. This carries the prev/next order and the chapter-swallows-its-leaves rule; the app must not re-derive either.
-- **Split `ContentSlicer`** (`static_site_generator/lib/domain/content_slicer.dart`) into a shared coordinate half — entry-counts-per-page + the file's nodes → `(startPage,startEntry) → (endPage,endEntry)` — and a generator-side half that materialises `DocRow`s. The app maps the same range onto its `BJTDocument`. This is also what Phase A's classifier needs at app runtime, so the app pays for the slicer once and gets grouping for free.
-- Cache verdicts and slice ranges per content file (the generator already does, via `SlicerCache`); the app computes them once per document load, over entries already parsed in memory.
+- **`SitePlan` / `PageKind`** (`static_site_generator/lib/domain/site_page.dart`) → `wisdom_shared`. It needs only `TipitakaTree` + the snapshot lookup, so the move is mechanical. This carries the prev/next order and the chapter-swallows-its-leaves rule; the app must not re-derive either.
+- **Split `ContentSlicer`** (`static_site_generator/lib/domain/content_slicer.dart`) into a shared coordinate half — entry-counts-per-page + the file's nodes → `(startPage,startEntry) → (endPage,endEntry)` — and a generator-side half that materialises `DocRow`s. The app maps the same range onto its `BJTDocument`. The slicer serves bounded rendering only; grouping verdicts are compiled in via the snapshot.
+- Cache slice ranges per content file (the generator already does, via `SlicerCache`); the app computes them once per document load, over entries already parsed in memory.
 
 ### B2. Reader renders one page unit
 
@@ -119,5 +149,6 @@ Trigger: vagga grouping stops moving during static-site P2–P6.
 
 ## Constraints this plan respects
 
-- **No new static/asset files on the app side** — the shared truth is Dart in `wisdom_shared`; the only committed artifact is a human-readable CSV under `docs/`, which nothing parses.
-- Edition scope, URL grammar, thresholds, hosting topology and the zero-JS site model stay exactly as locked.
+- **No new static/asset files on the app side** — the shared truth is generated Dart in `wisdom_shared`; the CSV under `docs/` stays human-only, parsed by nothing.
+- **Verdicts are frozen** — a resync may change what pages *say*, never which pages *exist*. Only a deliberate snapshot edit, or genuinely new content, moves URLs.
+- Edition scope, URL grammar, hosting topology and the zero-JS site model stay exactly as locked.
