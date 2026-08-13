@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show SelectedContent;
 import '../../../core/constants/constants.dart';
-import '../../../core/utils/responsive_utils.dart';
 import '../../../core/theme/app_fonts.dart';
+import '../../../core/theme/text_entry_theme.dart';
 import '../../../domain/entities/bjt/bjt_page.dart';
 import '../../../domain/entities/content/entry_type.dart';
 import '../../models/in_page_search_state.dart';
@@ -68,7 +68,8 @@ class StackedPane extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) => ListView.builder(
             controller: scrollController,
-            padding: ResponsiveUtils.readingColumnPadding(constraints.maxWidth),
+            padding:
+                context.textEntryTheme.readingPadding(constraints.maxWidth),
             itemCount: pages.length + 1, // +1 for top spacer
             itemBuilder: (context, index) {
               if (index == 0) {

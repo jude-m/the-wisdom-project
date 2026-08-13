@@ -21,7 +21,9 @@ class PaneWidthConstants {
   // Minimum reader content width to preserve
   static const double minReaderWidth = 400.0;
 
-  // Resizable divider
+  // `ResizableDivider`'s width — the widget itself reads this, so it is the
+  // one declaration. Three layouts subtract it to size what sits beside the
+  // divider, and each is wrong the moment the widget stops matching.
   static const double dividerWidth = 8.0;
 
   // Dictionary bottom sheet (for tablets/desktops)
@@ -41,16 +43,28 @@ class PaneWidthConstants {
   // Reader content padding (used for scroll area and divider overlay alignment)
   static const double readerContentPadding = 24.0;
 
-  // Comfortable reading-column width for the single-script panes (Pali-only,
-  // Sinhala-only, stacked). On wide panes the text is capped to this width and
-  // the leftover space becomes equal left/right margins for a calmer measure.
-  // 1240px matches the tripitaka.online reading measure (gutters land within a
-  // few px of theirs on a 14" MacBook Pro at near-full-width / navigator
-  // collapsed); tuned live on real Sinhala text. The margins only engage once
-  // the reader pane exceeds readingColumnMaxWidth + readerContentPadding*2
-  // (= 1288px), so a narrow window or an open navigator sidebar keeps the plain
-  // uniform 24px. Side-by-side is unaffected.
-  static const double readingColumnMaxWidth = 1240.0;
+  // Comfortable reading measure for the reader panes. Past it the leftover
+  // width becomes equal left/right margins instead of a longer line.
+  //
+  // In multiples of the paragraph's own font size, NOT pixels, because the
+  // reader can scale type from 0.7x to 1.5x (FontScaleNotifier): a fixed 960px
+  // would be 16 Pali words to a line at 0.7x and 7 at 1.5x. This is the number
+  // only; the arithmetic that applies it — including side-by-side, where the
+  // measure is doubled and the cap falls on the pair — lives with the type it
+  // measures, on `TextEntryTheme.readingPadding`.
+  //
+  // 54.5em is 959.2px at the 17.6px default and carries 11 Pali words — the
+  // corpus averages 4.28em a word, plus this face's unusually wide 0.50em
+  // space. Pali governs: English prose runs ~2em a word, so the same line
+  // would hold about twice as many English words. The old fixed 1240 gave Pali
+  // 14.
+  //
+  // This declaration is the only one. The static site reads it rather than
+  // restating it: `tools/dump_theme_tokens.dart` exports it into
+  // `theme_tokens.json` and `stylesheet.dart` multiplies it by the paragraph's
+  // own em to reach `.content`'s `max-width`. Change it here and all three
+  // surfaces follow on the next dump.
+  static const double readingColumnMeasureEm = 54.5;
 
   // Height reserved for the floating action button group at the top of the reader.
   // Used as a spacer in the ListView so content doesn't hide behind it.

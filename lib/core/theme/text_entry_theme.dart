@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/constants.dart';
 import 'app_fonts.dart';
 
 // ============================================
@@ -209,6 +210,63 @@ class TextEntryTheme extends ThemeExtension<TextEntryTheme> {
           AppFonts.baseFontSize * AppFonts.gathaIndentEm * fontScale,
       gathaLevel2LeftPadding:
           AppFonts.baseFontSize * AppFonts.gathaLevel2IndentEm * fontScale,
+    );
+  }
+
+  // ============================================
+  // Reading measure
+  // ============================================
+
+  /// [paragraphStyle]'s size, user font scale already in it.
+  ///
+  /// Not null-guarded: [TextEntryTheme] is only ever built by
+  /// [TextEntryTheme.standard], which always sets a size, and
+  /// [TextEntryThemeExtension] falls back to that same factory rather than to
+  /// null. A default here could only be a staler answer that had lost the
+  /// scale.
+  double get _paragraphFontSize => paragraphStyle.fontSize!;
+
+  /// Padding that holds a reader pane's text to a comfortable measure.
+  ///
+  /// Caps the column at [PaneWidthConstants.readingColumnMeasureEm] times the
+  /// paragraph size and splits the leftover into equal left/right margins;
+  /// narrower panes keep the uniform
+  /// [PaneWidthConstants.readerContentPadding]. The threshold is set so the
+  /// margins grow continuously out of that base — no visible jump at the seam.
+  ///
+  /// The cap is a *measure*, not a width, which is why this lives on the theme:
+  /// the reader scales type from 0.7x to 1.5x (`FontScaleNotifier`), and a
+  /// fixed 960px would be 16 Pali words to a line at the small end and 7 at the
+  /// large one. Where the switch falls therefore moves with the scale — past
+  /// 1,007px at the default, past 719px at 0.7x, so a small-type reader gets
+  /// margins on a tablet or a landscape phone too.
+  ///
+  /// [availableWidth] is the pane's own width (typically from a
+  /// [LayoutBuilder]), never the screen's: the reader pane already excludes the
+  /// navigator sidebar, so it is the accurate basis for "is this column too
+  /// wide to read comfortably".
+  ///
+  /// [columns] is how many columns of text share the pane — 2 for side-by-side,
+  /// where the cap applies to the PAIR so each side reads at the width a
+  /// single-script pane does. It works out at ~53.6em of the 54.5 nominal at
+  /// the default scale, once the 8px divider and the columns' 12px inner
+  /// padding come out; those are fixed px, so the em figure drifts a little
+  /// with the scale — 53.2em at 0.7x, 53.9em at 1.5x. Side-by-side engages only
+  /// past a 1,966px *pane*, which with the navigator at `navigatorDefault`
+  /// (350) plus the 8px resize divider is a ~2,324px window. Below that the
+  /// pair takes what the pane gives; without it a 2560px monitor would give
+  /// each column 1240px.
+  EdgeInsets readingPadding(double availableWidth, {int columns = 1}) {
+    const base = PaneWidthConstants.readerContentPadding;
+    final maxColumn = PaneWidthConstants.readingColumnMeasureEm *
+        _paragraphFontSize *
+        columns;
+    if (availableWidth <= maxColumn + base * 2) {
+      return const EdgeInsets.all(base);
+    }
+    return EdgeInsets.symmetric(
+      horizontal: (availableWidth - maxColumn) / 2,
+      vertical: base,
     );
   }
 

@@ -53,7 +53,9 @@ class LandingPage {
     // that absence needs no CSS: with no radio checked, none of the
     // `#L-x:checked ~` rules match.
     body.writeln(toolbar(withLayouts: false));
-    body.writeln('<main class="content">');
+    // `nav`, for the same reason a container TOC gets it: a heading, a hint and
+    // a list of links, with no running text to set a measure for.
+    body.writeln('<main class="content nav">');
     // The site's only page with no node to name it, so its heading has to be
     // written rather than derived. Without one, `/` is the highest-value page on
     // the site for search and the only one with no heading at all.

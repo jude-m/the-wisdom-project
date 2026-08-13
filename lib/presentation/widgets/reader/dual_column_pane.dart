@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart' show SelectedContent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/constants.dart';
 import '../../../core/theme/app_fonts.dart';
+import '../../../core/theme/text_entry_theme.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../domain/entities/bjt/bjt_page.dart';
 import '../../models/in_page_search_state.dart';
@@ -115,21 +116,28 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
         children: [
           SingleChildScrollView(
             controller: widget.scrollController,
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final dividerWidth = isTabletOrDesktop
-                      ? PaneWidthConstants.dividerWidth
-                      : 24.0;
-                  final availableWidth = constraints.maxWidth - dividerWidth;
+            // LayoutBuilder outside the Padding, because the padding now
+            // depends on the pane width: past the paired measure the leftover
+            // becomes equal margins instead of more column. Below it this is
+            // the uniform 24 it always was.
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final padding = context.textEntryTheme
+                    .readingPadding(constraints.maxWidth, columns: 2);
+                final dividerWidth = isTabletOrDesktop
+                    ? PaneWidthConstants.dividerWidth
+                    : 24.0;
+                final availableWidth =
+                    constraints.maxWidth - padding.horizontal - dividerWidth;
 
-                  return Column(
+                return Padding(
+                  padding: padding,
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(
-                          height: PaneWidthConstants
-                              .readerActionButtonGroupHeight),
+                          height:
+                              PaneWidthConstants.readerActionButtonGroupHeight),
                       // Watch splitRatio scoped to just the Row so drag
                       // frames don't rebuild the parent or the side trees.
                       Consumer(
@@ -149,9 +157,9 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
                         },
                       ),
                     ],
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
           ),
           if (isTabletOrDesktop)
@@ -294,15 +302,38 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
 
   Widget _buildDividerOverlay(
       BuildContext context, WidgetRef ref, double splitRatio) {
-    const horizontalPadding = 24.0;
-
     return Positioned.fill(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final contentWidth = constraints.maxWidth - (horizontalPadding * 2);
-          final dividerLeft = horizontalPadding +
-              (contentWidth * splitRatio) -
-              (PaneWidthConstants.dividerWidth / 2);
+          // The same padding the content is laid out with — this overlay floats
+          // free of it, so once the margins start widening a literal 24 would
+          // leave the handle sitting well left of the seam it drags.
+          final padding = context.textEntryTheme
+              .readingPadding(constraints.maxWidth, columns: 2);
+          // Must be the *same* width the content divides. The content splits
+          // what is left after the divider is taken out — it is a third Row
+          // child, not part of either column — so the ratio is against that,
+          // not against the full content box.
+          final availableWidth = constraints.maxWidth -
+              padding.horizontal -
+              PaneWidthConstants.dividerWidth;
+          // The gap's own left edge, which is where the handle starts. No
+          // centring term: `ResizableDivider` sizes itself from this same
+          // constant, so landing its left edge on the gap's left edge fills the
+          // gap exactly.
+          //
+          // Both of those were wrong here and were cancelling: dividing the full
+          // content box pushed the handle `dividerWidth * splitRatio` right,
+          // while a `- dividerWidth / 2` centring term pulled it back a flat
+          // half. Net `dividerWidth * (splitRatio - 0.5)` — exact at 50/50,
+          // which is why it read as correct, and 2px off at the 0.25/0.75
+          // clamps. Fixing either alone is worse than fixing neither: it breaks
+          // the centre, where the handle spends most of its life.
+          //
+          // Only reached when `isTabletOrDesktop`, the same branch where the
+          // content's divider is this constant rather than the 24 a phone uses,
+          // so there is no second value to keep in step.
+          final dividerLeft = padding.left + (availableWidth * splitRatio);
 
           return Padding(
             padding: EdgeInsets.only(left: dividerLeft),
@@ -311,7 +342,10 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
               child: ResizableDivider(
                 hideWhenIdle: true,
                 onDragUpdate: (delta) {
-                  final ratioChange = delta / contentWidth;
+                  // Against the width the ratio is a fraction of, so the seam
+                  // keeps up with the pointer instead of trailing it by the
+                  // divider's share.
+                  final ratioChange = delta / availableWidth;
                   final currentRatio = ref.read(activeSplitRatioProvider);
                   ref.read(updateActiveTabSplitRatioProvider)(
                       currentRatio + ratioChange);

@@ -143,6 +143,10 @@ Trigger: vagga grouping stops moving during static-site P2–P6.
 - **77 trailing-colophon leaves** (68 in `vp-pct-1-2`): BJT prints those names *after* their text, so the coordinate sits at the end of what it names and a bounded slice opens with the wrong title. Continuous scroll hides this today; bounded units expose it in the app exactly as on the site. Build the detector once, in shared code — static-site P6 owes it too.
 - `ap-pat*` row misalignment (1,660 pages, all 7 files) is unchanged by this work.
 
+### B6. Two reading surfaces are still capped in fixed px
+
+`researchContentMaxWidth` (760 — `research_chat_view.dart`, `citation_source_sheet.dart`) and `dictionarySheetMaxWidth` (800 — `dictionary_bottom_sheet.dart`) are still pixels while the reader panes have moved to an em measure that tracks the 0.7x–1.5x font scale. A large-type reader therefore gets bigger words in the same 760/800px: answers and dictionary entries never widen with their text.
+
 **Verify B:** `flutter run -d macos`. Tap සුත්තපිටක → TOC, not DN-1 text. Tap `an` → the three-line title block + nipāta links. Tap Mūlapariyāya → text ends at the sutta boundary with prev/next; title and breadcrumb correct at every scroll position. Tap a leaf inside a grouped `an-1` vagga → chapter opens scrolled to it, vagga heading + *namo tassa* at the top. Open an FTS result matching mid-sutta, and one matching inside a preamble. Open `sammaditthi://tipitaka/<key>?e=<p>.<e>` for a grouped and an exploded leaf. Cross-check ~20 suttas against the generated HTML — same text, same boundaries, same prev/next targets. Per project convention, no tests unless asked.
 
 ---

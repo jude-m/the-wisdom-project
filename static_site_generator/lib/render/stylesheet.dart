@@ -52,10 +52,34 @@ String buildStylesheet(ThemeTokens tokens) {
 /// scales with a reader's own browser font-size setting, which px would not.
 const String _twoColumnMinWidth = '48rem';
 
-/// The reading column — `.content`. Every layout below [_twoColumnMinWidth],
-/// and every layout but side-by-side above it. `.content`'s number alone: the
-/// toolbar is sized by the window and takes nothing from here.
-const String _readingColumnWidth = '44rem';
+/// The reading column in `rem` — `.content`. Every layout below
+/// [_twoColumnMinWidth], and every layout but side-by-side above it.
+/// `.content`'s number alone: the toolbar is sized by the window and takes
+/// nothing from here.
+///
+/// ## What sets it
+///
+/// Words per line, and Pali governs: shaped over the corpus a Pali word runs
+/// ~4.3em of glyphs against English prose's ~2em. The app's
+/// `PaneWidthConstants.readingColumnMeasureEm` — 54.5em today — carries 11 Pali
+/// words a line; the old 44rem carried 8. It is the same number on all three
+/// surfaces, which is what makes them read the same line at three different
+/// pixel sizes: this sheet and Flutter web at 15.84px
+/// (`AppFonts.webDefaultScale` takes 16 to 14.4 on both), the native app at
+/// 17.6px — a wider column with the same words in it.
+///
+/// ## Nothing here is written down
+///
+/// Both halves arrive as generated tokens, so a change on the app side reaches
+/// this sheet without anyone remembering to bring it. The measure is stated
+/// against the *paragraph* and `rem` against the *root*, and the paragraph's own
+/// `fontSizeEm` is the only thing that converts one to the other — today 1.1, so
+/// 54.5em is 59.95rem, 863.28px. Baking either number in would leave the site
+/// reading a different line than the app the moment the other moved, with
+/// nothing failing to say so.
+double _readingColumnRem(ThemeTokens tokens) =>
+    tokens.spacing('readingColumnMeasureEm') *
+    tokens.entryStyle('paragraph').fontSizeEm;
 
 /// The trail's three collapse steps: keep the 3 nearest ancestors, then 1, then
 /// none. Widest first, because each one drops what the one above it kept.
@@ -95,14 +119,40 @@ const String _trailKeepNone = '30rem';
 /// anchor from landing behind it.
 const String _toolbarHeight = '56px';
 
-/// The reading column when side-by-side splits it in two.
+/// A container page's column — `.content.nav`, set on TOC pages only.
 ///
-/// [_readingColumnWidth] is a measure for *one* column of text; halving it
-/// would give each language about 21rem, which is too narrow for the corpus's
-/// long compounds. Widening only under side-by-side keeps single-column
-/// reading at its proper measure instead of stretching every layout to suit
-/// the one that needs the room.
-const String _wideColumnWidth = '64rem';
+/// Nothing there is running text: a preamble and a list of link labels, the
+/// widest 229px in the corpus. [_readingColumnRem] would buy them nothing and
+/// stretch each button to 863px around a 103px label.
+///
+/// That 863 is [_readingColumnRem] itself, not a width derived from it: the
+/// sheet sets no `box-sizing`, so `max-width` caps `.content`'s *content* box
+/// and its 36px of padding sits outside — the same arithmetic [_wideColumnRem]
+/// does in the other direction when it adds that 36 back.
+///
+/// Safe from the side-by-side override because the override says so: it is
+/// written `~ .content:not(.nav)` and cannot reach a container page at all.
+/// The guard belongs in the rule, not in the markup — `#sbs:checked ~ .content`
+/// is (1,0,1,0) against this rule's (0,0,2,0) and would win outright, and
+/// whether a container page emits layout radios is decided in two other files
+/// (`page_template.dart`'s `navOnly`, `landing_page.dart`'s
+/// `toolbar(withLayouts: false)`). Excluding `.nav` holds the width whatever
+/// those two emit.
+const double _navColumnRem = 44;
+
+/// The gap between the two columns of side-by-side. Named because
+/// [_wideColumnRem] has to account for it.
+const double _columnGapRem = 1.75;
+
+/// The reading column when side-by-side splits it in two: both columns at
+/// [_readingColumnRem] plus the gap between them, so each side reads at the
+/// same measure as every other layout — and as the app's side-by-side, which
+/// derives its cap the same way.
+///
+/// 121.65rem today. Engages past a 1,788px window (1,751.76 + `.content`'s 36px
+/// of padding); below that the two columns simply take what the window gives.
+double _wideColumnRem(ThemeTokens tokens) =>
+    _readingColumnRem(tokens) * 2 + _columnGapRem;
 
 /// Self-hosted WOFF2 (D7) — not polish, correctness.
 ///
@@ -184,10 +234,11 @@ void _writePageChrome(StringBuffer css, ThemeTokens tokens) {
   css.writeln('}');
   css.writeln();
   css.writeln('.content {');
-  css.writeln('  max-width: $_readingColumnWidth;');
+  css.writeln('  max-width: ${_num(_readingColumnRem(tokens))}rem;');
   css.writeln('  margin: 0 auto;');
   css.writeln('  padding: 1.5rem 1.25rem 4rem;');
   css.writeln('}');
+  css.writeln('.content.nav { max-width: ${_num(_navColumnRem)}rem; }');
   css.writeln();
   // No `.breadcrumb` here any more — it is toolbar furniture now, styled with
   // the rest of the bar in [_writeToolbarNav]. `.page-title` is what `.content`
@@ -260,7 +311,7 @@ void _writePageChrome(StringBuffer css, ThemeTokens tokens) {
   css.writeln('.row {');
   css.writeln('  display: grid;');
   css.writeln('  row-gap: var(--pair-gap);');
-  css.writeln('  column-gap: 1.75rem;');
+  css.writeln('  column-gap: ${_num(_columnGapRem)}rem;');
   css.writeln('  margin-bottom: var(--pair-bottom-gap);');
   css.writeln('}');
   css.writeln();
@@ -553,8 +604,15 @@ void _writeLayouts(StringBuffer css, ThemeTokens tokens) {
   // The text column widens — and only the text column. Adding `~ .toolbar` here
   // so the chrome keeps up is what this rule used to say, and what slid the
   // emblem and the layout group 144px apart on every layout switch.
-  css.writeln('  #$sideBySideLayoutId:checked ~ .content '
-      '{ max-width: $_wideColumnWidth; }');
+  // `:not(.nav)` so a container page keeps [_navColumnRem] whatever the markup
+  // does. This rule is (1,0,1,0) and `.content.nav` is (0,0,2,0), so without
+  // the exclusion an id selector wins and every TOC link button stretches to
+  // the reading column — a failure held off today only by a pairing decided in
+  // `page_template.dart` and `landing_page.dart`, neither of which this sheet
+  // can see. The sibling rules below need no such guard: they act on `.row`,
+  // `.pali`, `.si` and `.col-heads`, none of which a container page has.
+  css.writeln('  #$sideBySideLayoutId:checked ~ .content:not(.nav) '
+      '{ max-width: ${_num(_wideColumnRem(tokens))}rem; }');
   css.writeln('  #$sideBySideLayoutId:checked ~ .content .row {');
   css.writeln('    grid-template-columns: 1fr 1fr;');
   // Top-align: 18.9% of paired entries are a Pali gatha against a Sinhala

@@ -217,6 +217,7 @@
     "paragraphIndentEm": 1.4,
     "gathaIndentEm": 2.4,
     "gathaLevel2IndentEm": 5.0,
+    "readingColumnMeasureEm": 54.5,
     "entryGapPx": 12.0,
     "pageGapPx": 32.0,
     "stackedPairGapPx": 8.0,

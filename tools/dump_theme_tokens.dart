@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:the_wisdom_project/core/constants/constants.dart';
 import 'package:the_wisdom_project/core/theme/app_colors.dart';
 import 'package:the_wisdom_project/core/theme/app_fonts.dart';
 import 'package:the_wisdom_project/core/theme/text_entry_theme.dart';
@@ -208,12 +209,21 @@ Map<String, dynamic> _entryStyles() {
   };
 }
 
-/// Layout indents, in `em` — the unit the CSS wants, and the unit the values
-/// were authored in before `TextEntryTheme` multiplied them by the base size.
+/// Reader layout measured against the type, in `em` — the unit the CSS wants,
+/// and the unit the values were authored in before `TextEntryTheme` multiplied
+/// them by the base size.
 Map<String, dynamic> _spacing() => {
       'paragraphIndentEm': AppFonts.paragraphIndentEm,
       'gathaIndentEm': AppFonts.gathaIndentEm,
       'gathaLevel2IndentEm': AppFonts.gathaLevel2IndentEm,
+      // How long a line gets. The one number that has to mean the same thing on
+      // all three surfaces — native, Flutter web, this site — because it is what
+      // makes them read the same line despite rendering at three different pixel
+      // sizes. Exported for exactly the reason in this file's header: it was
+      // hand-copied into `stylesheet.dart` for a while, defended as a design
+      // decision a human makes on both sides at once, which is just as true of
+      // `gathaIndentEm` two lines up and no more of a reason there.
+      'readingColumnMeasureEm': PaneWidthConstants.readingColumnMeasureEm,
       // The reader's vertical rhythm, read from the same constants the panes
       // lay out with — never re-typed here. `AppFonts.pageNumberGapPx` is
       // deliberately absent: it spaces a page-number chip the static site does

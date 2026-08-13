@@ -161,9 +161,13 @@ void main() {
               .map((match) => match.group(1)!),
       };
 
-      // A chapter page carrying a mixed slice is the one page shape that emits
-      // the whole set at once — both languages (col-heads), a Pali-only row
-      // (no-si) and a Sinhala-only row (no-pali).
+      // A chapter page carrying a mixed slice emits nearly the whole set at
+      // once — both languages (col-heads), a Pali-only row (no-si) and a
+      // Sinhala-only row (no-pali). The one class it cannot show is `.nav`,
+      // which only a container page carries and which the side-by-side width
+      // override names in a `:not()`; the TOC page joins it for that. Worth
+      // keeping in scope rather than exempting `:not()`, since a `.nav` the
+      // template stopped emitting would make that guard silently inert.
       final emitted = _classNamesIn(_render(
         _chapterPage,
         slices: {
@@ -175,7 +179,8 @@ void main() {
             _row(sinhala: _entry('සිංහල පමණයි'), at: 2),
           ]),
         },
-      ));
+      ))
+        ..addAll(_classNamesIn(_render(_tocPage)));
 
       expect(emitted, containsAll(acted),
           reason: 'The layout CSS acts on ${acted.difference(emitted)}, which '
@@ -640,4 +645,8 @@ int _countOf(String haystack, String needle) =>
 /// The toolbar carries a breadcrumb whose last segment is the current node, so
 /// the node's name is on every page twice by design. Assertions about what the
 /// *text* prints have to say so, or they answer a question about the bar.
-String _mainOf(String html) => html.split('<main class="content">').last;
+///
+/// Split on the prefix, not the whole tag: a container page opens
+/// `<main class="content nav">`, and matching the full tag would hand back the
+/// entire document instead of failing.
+String _mainOf(String html) => html.split('<main class="content').last;

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/constants/constants.dart';
+
 /// Vertical divider that can be dragged to resize adjacent panes.
 ///
 /// Features:
@@ -7,7 +9,20 @@ import 'package:flutter/material.dart';
 /// - Hover state: pill becomes fully visible, light background
 /// - Drag state: primary colored background and pill
 /// - Desktop/Web: Shows resize cursor on hover
-/// - Tablet: Touch-friendly 8px hit area
+/// - Tablet: touch-friendly hit area, [PaneWidthConstants.dividerWidth] wide
+///
+/// ## The width is not this widget's to choose
+///
+/// Every caller places this in a `Row` and then does arithmetic against
+/// `PaneWidthConstants.dividerWidth` for the space beside it — the search panel
+/// sizes its `Positioned` as `width + dividerWidth` and lets an `Expanded` take
+/// what is left (`reader_screen.dart`), the navigator leaves the reader
+/// `window - navigatorWidth - dividerWidth`, and side-by-side splits
+/// `maxWidth - padding - dividerWidth` between its two columns and lands the
+/// drag handle on the seam. All three are only correct while this widget is
+/// exactly that wide, and a literal here would let the two drift with nothing
+/// failing: a `Row` never complains, and the result is a few pixels of
+/// misalignment nobody traces back to a constant.
 class ResizableDivider extends StatefulWidget {
   /// Called during drag with the horizontal delta in pixels.
   /// Positive values = dragging right, negative = dragging left.
@@ -84,7 +99,7 @@ class _ResizableDividerState extends State<ResizableDivider> {
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          width: 8,
+          width: PaneWidthConstants.dividerWidth,
           color: backgroundColor,
           child: Center(
             // Pill-shaped handle indicator with animated opacity

@@ -611,11 +611,11 @@ holds — verified over the full tree, not a subtree).
   > so it is folded away — and with it the question that produced both wrong
   > answers, of which box owns the width. This is the app's `AppBar`
   > (`reader_screen.dart:120`), which pins `leading`/`actions` to the window
-  > while `readingColumnPadding` centres the text at 1240px behind it — the two
-  > do not align there either, on any wide window. It is also the shape the
-  > breadcrumb wants when it moves into this bar, as it already has in the app:
-  > the whole window to run in, not a slice, and one more flex item rather than
-  > that question asked a third time.
+  > while `TextEntryTheme.readingPadding` centres the text at 54.5em behind
+  > it — the two do not align there either, on any wide window. It is also the
+  > shape the breadcrumb wants when it moves into this bar, as it already has
+  > in the app: the whole window to run in, not a slice, and one more flex item
+  > rather than that question asked a third time.
 - **The breadcrumb moved into the bar, and grew a leaf and an up button**
   (2026-08-09). The move the note above expected. `.toolbar` is now trail ·
   up · layouts, and `<main>` opens on its `<h1>`.

@@ -63,7 +63,13 @@ class PageTemplate {
 
     // `<main>`, not a div: a landmark is what lets a screen reader skip the bar
     // and start at the text.
-    body.writeln('<main class="content">');
+    //
+    // `nav` on a TOC page: links and a preamble, never running text, so it is
+    // sized for link rows rather than for a measure. The same predicate that
+    // gates the radios above — no radios is what keeps that width safe from the
+    // side-by-side override.
+    final navOnly = !page.isReadable;
+    body.writeln('<main class="content${navOnly ? ' nav' : ''}">');
     body.writeln('<h1 class="page-title">${_headingHtml(page.node)}</h1>');
     final commentary = _commentaryLink(page.node);
     if (commentary != null) body.writeln(commentary);
