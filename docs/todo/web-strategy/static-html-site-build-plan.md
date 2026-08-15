@@ -1045,16 +1045,15 @@ build-twice hash identical.
   indicator the arrow keys have. The panel is bounded in `dvh`, not `vh` —
   `100vh` on mobile Safari is the URL-bar-hidden height.
 - **Both ends of the loading state were wrong** (found in manual testing, fixed
-  2026-08-15). The message was set the moment the dialog opened, but the fetch
-  is per document and the *response* is HTTP-cached, so from the second page on
-  it resolves in a few milliseconds — a status drawn and pulled back inside one
-  frame, which reads as the dialog glitching rather than working. It is now
-  announced on a **200 ms** timer that a settled fetch cancels: late is the only
-  time "loading" is information. At the other end, a request that never settles
-  — a phone on a dead connection holds one open indefinitely — left `loading`
-  true for the life of the page, and reopening clears only `failed`, so the
-  dialog could never try again. A **15 s** `AbortController` turns the hang into
-  the error path that already exists and is already retried on the next open.
+  2026-08-15). The message was set the moment the dialog opened, but the index
+  is cached `immutable`, so from the second page on it resolves in a few
+  milliseconds and the status flashed. It is now on a **1 s** timer a settled
+  fetch cancels — below a second a wait is not experienced as one, and nothing
+  is blocked by the silence. At the other end, a request that never settled left
+  `loading` true for the life of the page, so the dialog could never try again;
+  a **15 s** `AbortController` turns the hang into the error path reopening
+  already retries. Its deadline is on the *response*, not the download — 254 KB
+  gzipped is a legitimate minute on the slow lines this surface is for.
 - **Name-only search cannot find a sutta by a name BJT does not print.** The
   Kālāma Sutta is titled `කේසමුත්තිසුත්තං` in this corpus, so "කාලාම" finds only
   its commentary. That is a data fact, not a matcher bug, and the fix is an

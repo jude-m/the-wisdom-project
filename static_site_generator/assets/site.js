@@ -150,11 +150,11 @@
   var MAX_RESULTS = 50;
   var PATH_DEPTH = 2; /* nearest ancestors shown under a result */
 
-  /* How long the index may take before the wait is worth saying out loud, and
-   * how long before it counts as never arriving. See [load] for both.
+  /* Before the wait is worth saying out loud, and before it counts as never
+   * arriving. See [load] for both.
    */
-  var LOADING_DELAY_MS = 200;
-  var LOAD_TIMEOUT_MS = 15000;
+  var LOADING_DELAY_MS = 1000;
+  var RESPONSE_TIMEOUT_MS = 15000;
 
   var rows = null;       /* the fetched index */
   var normalized = null; /* [paliFolded, siFolded, paliStart, siStart] per row */
@@ -371,9 +371,8 @@
     }
   }
 
-  /* Both ways a fetch can end. Clearing the pending message is the part worth
-   * having a function for: forget it in one branch and the status line
-   * overwrites an answer with "loading" a moment after the answer arrived.
+  /* Both ways a fetch can end. Forget the pending message in one branch and the
+   * status line overwrites an answer with "loading" just after it arrived.
    */
   function settled() {
     loading = false;
@@ -391,12 +390,10 @@
     if (rows || loading || failed) return;
     loading = true;
 
-    /* Announced only if there is actually a wait. The fetch is per document,
-     * but `_headers` serves the index `immutable` under a hashed URL, so from
-     * the second page on it comes out of the browser's cache with no round
-     * trip at all — and a message drawn and pulled back inside 200 ms reads as
-     * the dialog glitching, not as it working. Late is the only time "loading"
-     * is information.
+    /* Announced only if there is actually a wait: a second is the span below
+     * which one is not experienced as one, and a message drawn and pulled back
+     * before it can be read is a glitch. Nothing is blocked by the silence — a
+     * query typed while the index is in flight is applied when it lands.
      */
     loadingTimer = window.setTimeout(function () {
       loadingTimer = null;
@@ -405,21 +402,25 @@
 
     /* A request that never settles — a phone on a dead connection holds one
      * open indefinitely — used to leave `loading` true for the life of the
-     * page, and reopening clears only `failed`, so the dialog could never try
-     * again. Aborting turns the hang into the error path that already exists
-     * and is already retried on the next open.
+     * page, and nothing clears it. Aborting turns the hang into the error path,
+     * which reopening already retries.
+     *
+     * The clock is on the *response*, never the download: 254 KB gzipped is a
+     * legitimate minute on the slow lines this site is for, and a deadline on
+     * the whole fetch would abort exactly those readers, every reopen.
      */
+    var responded = false;
     var abort = null;
     if (typeof AbortController === 'function') {
       abort = new AbortController();
       window.setTimeout(function () {
-        /* A no-op once the fetch has settled. */
-        abort.abort();
-      }, LOAD_TIMEOUT_MS);
+        if (!responded) abort.abort();
+      }, RESPONSE_TIMEOUT_MS);
     }
 
     fetch(INDEX_URL, abort ? { signal: abort.signal } : undefined)
       .then(function (response) {
+        responded = true;
         if (!response.ok) throw new Error(response.status);
         return response.json();
       })
