@@ -810,9 +810,9 @@ that earn their bytes are the ones that differ per page.
 - **Container TOCs needed the toolbar they were denied.** P2 emitted the bar
   only on readable pages, because the layout group was all it held. That was
   wrong for the hamburger and stays wrong without it: a TOC page with no bar is a
-  page with no way home, and no way to reach search when P4 adds it. Every page
-  gets the bar; only the *layout group* stays gated, which is what frame 03
-  actually specifies.
+  page with no way home, and — once P4 landed — no way to reach search either.
+  Every page gets the bar; only the *layout group* stays gated, which is what
+  frame 03 actually specifies.
 - **The emblem is a committed derivative, not the source.** §5.2 flagged the
   634 KB master; the site ships a 200×200, 47 KB copy from
   `assets/make_emblem.sh`. Same contract as the fonts: run by hand, output
@@ -890,59 +890,173 @@ checked, no `#L-x:checked ~` rule matches.
 in the whole SEO effort — its title, description and OG matter more than any
 single sutta's, and it is what `sitemap.xml` names as the entry.
 
-### P4 — JS layer: the search dialog · frame 05
+### P4 — JS layer: the search dialog · frame 05 ✅ **done 2026-08-14**
 
-**The only JS in the build.** Everything above degrades gracefully without it.
+**The only JS in the build**, and everything above still degrades gracefully
+without it: with JS off the layout falls back to the one baked `checked` in the
+HTML and the search button never appears.
 
 *(Rescoped 2026-08-03 with P3.5. This phase used to be "full tree on demand"
 — §9's Layer 2, a shared `/nav.html` fetched and swapped into the rail. There is
-no rail to swap into, and the measurements below say search is both cheaper and a
+no rail to swap into, and the measurements said search is both cheaper and a
 better answer to the same question: a reader who wants a named sutta should type
-its name, not climb to it. "Nav collapse persistence" is gone with the rail.)*
+its name, not climb to it. "Nav collapse persistence" went with the rail.)*
 
-- **Search dialog.** `<dialog>` + `showModal()`, opened from a toolbar button:
-  do your search, click a result, or close. Chosen over the popover attribute
-  because search needs JS regardless, and only the modal path gives the focus
-  trap, `::backdrop` and Esc-to-close for free.
-- **Trigger emitted with the `hidden` attribute**, unhidden by the script. With
-  JS off there is no dead control (C8), and the markup stays deterministic
-  instead of being injected from a string.
-- **The index — `assets/search-index.json`.** Row-wise, one array per node in
-  tree order: `[key, weldedPali, sinhala, parentIdx, chapterIdx]`. Measured on
-  the full corpus: **2,315 KB raw / 252 KB gzip / ~214 KB brotli** — *cheaper
-  than the 200–400 KB Layer 2 fetch it replaces*. Fetched on first dialog open,
-  not on page load, then cached for the whole site.
+- **Search dialog.** `<dialog>` + `showModal()`, opened from a toolbar button.
+  ✅ Chosen over the popover attribute because search needs JS regardless, and
+  only the modal path gives the focus trap, `::backdrop` and Esc-to-close for
+  free.
+- **Trigger emitted with the `hidden` attribute**, unhidden by the script. ✅ No
+  dead control with JS off (C8), and the markup stays deterministic instead of
+  being injected from a string.
+- **The index — `assets/search-index.json`.** ✅ Row-wise, one array per node in
+  plan order: `[key, weldedPali, sinhala, parentIdx, chapterIdx, marked]`.
+  Measured on the built corpus: **2,248 KB raw / 254 KB gzip / 180 KB brotli** —
+  *cheaper than the 200–400 KB Layer 2 fetch it replaced*, and brotli came in
+  well under the ~214 KB the estimate carried. Fetched on first dialog open,
+  never on page load, then cached for the whole site.
   - `parentIdx` is an index into the same array, for the parent-path subtitle on
     a result row. An integer, not a repeated key string — it compresses far
     better.
   - `chapterIdx` is `-1` when the node has its own page. **1,603 of 16,355 nodes
-    do not** (grouped into 146 chapter files), so their result must link
-    `…/<chapterKey>#<key>`, never `…/<key>` — which 404s today. All 1,603 resolve
-    from `SitePlan`, which is *why* the index has to be built after
-    `SitePlan.build()` rather than from `tree.json` alone.
-  - Must be byte-deterministic (§11.8): iterate the plan, never a `Map` with
-    incidental ordering.
-- **⚠️ Store the welded name, normalize at match time.** This is the detail that
-  would otherwise ship a search that silently misses. Names go through
-  `weldTitle()` before display (D1), which inserts touching ZWJ and folds
-  `ේ→ෙ`, `ෝ→ො`; raw `tree.json` names are the *unwelded* form (0 of 16,355 Pali
-  names carry touching ZWJ, 0 carry `ේ`/`ෝ`). An index in either form alone fails
-  against a query typed in the other. Ship **welded** — it costs only +17 KB
-  gzipped (243 vs 226 KB on the name columns), it is what the reader sees on the
-  page they land on, and it avoids porting `beautifyPaliText`'s conjunct tables
-  to JS. Then normalize *both* the index string and the query:
-  `s.replace(/[‌‍]/g,'').replace(/ේ/g,'ෙ').replace(/ෝ/g,'ො')` — a
+    do not** (grouped into 146 chapter files), so their result links
+    `…/<chapterKey>#<key>`, never `…/<key>` — which 404s. All 1,603 resolve from
+    `SitePlan`, which is *why* the index is built after `SitePlan.build()` and
+    not from `tree.json` alone. ✅ Verified on the build: every one of the 16,355
+    rows resolves to a file that exists.
+  - `marked` is 1 on the **6,674** commentary nodes whose own page appends
+    අට්ඨකථා, and the script applies it to a row's own name only — never to the
+    ancestors in its trail, which follow the site's breadcrumb and stay bare.
+    See "What P4 found" below.
+  - Byte-deterministic (§11.8) by iterating the plan, never a `Map`. ✅
+    Build-twice over all 14,766 output files is hash-identical.
+  - The index URL and `site.js` both carry `?v=<searchContractVersion>`, bumped by
+    hand when a field moves. Nothing checks the field order at runtime, and a
+    cached script from before a change beside a fresh index returns plausible
+    results pointing at the wrong sutta.
+- **⚠️ Store the welded name, normalize at match time.** ✅ The detail that would
+  otherwise have shipped a search that silently misses. Names go through
+  `weldTitle()` before display (D1), which inserts touching ZWJ; raw `tree.json`
+  names are the *unwelded* form. An index in either form alone fails against a
+  query typed in the other. Shipped **welded** — it is what the reader sees on
+  the page they land on, and it avoids porting `beautifyPaliText`'s conjunct
+  tables to JS. `site.js` then folds *both* the row and the query, a
   transcription of `removeConjunctFormatting` + `shortenVowels`
-  (`packages/wisdom_shared/lib/src/text/pali_conjuncts.dart:168,263`). The vowel
-  fold is a no-op on today's data; it is insurance against an upstream re-sync.
-  Sinhala names ship raw — 8,536 carry ligature ZWJ (rakaransaya/yansaya), which
-  is ordinary spelling that the zero-width strip removes on both sides anyway.
-- **Matching**: substring over both name columns, exact-prefix ranked first,
-  capped at ~50 rows. A result row is the welded name plus its parent path. No
-  fuzzy matching, no scoring library.
-- `search.js` is a committed source file the build **copies**, same contract as
-  the fonts and the emblem — no bundler in the loop (D9).
-- `?layout=` + `localStorage`.
+  (`pali_conjuncts.dart:263,168`). The vowel fold is a no-op on today's data;
+  it is insurance against an upstream re-sync. Sinhala names ship raw — 8,536
+  carry ligature ZWJ (rakaransaya/yansaya), ordinary spelling that the
+  zero-width strip removes from both sides anyway.
+- **Matching**: substring over both name columns, prefix ranked first, capped at
+  50 rows. A result row is the welded name plus its parent path. No fuzzy
+  matching, no scoring library. ✅ — with one correction the plan did not
+  anticipate, below.
+- `site.js` is a committed source the build **copies**, same contract as the
+  fonts and the emblem — no bundler in the loop (D9). ✅
+- `?layout=` + `localStorage`. ✅ In the same file, resolving against the radios'
+  `value` (`ReadingLayout.token`), so the script carries no second table of
+  layout names. The URL wins over the remembered choice — a shared link is
+  someone saying "read it like this".
+
+**Deliverable:** ✅ whole corpus **14,752 pages + `/` in ~50 s**, 14,766 files,
+build-twice hash identical.
+
+#### What P4 found
+
+- **⚠️ Prefix ranking was measuring the wrong end of the string.** BJT prints an
+  ordinal in front of most names, and **7,986 of the 16,355 Pali names start
+  with a digit** (8,012 of the Sinhala). The Maṅgala Sutta is titled
+  `5. මඞ්ගලසුත්තං`, so a search for මඞ්ගල matched it only mid-string and sorted
+  it *below* every prefix hit — the first working build put a commentary
+  sub-section (මඞ්ගලපඤ්හසමුට්ඨානකථා) above the most famous sutta in the
+  Khuddakapāṭha. On the corpus's most-searched names the prefix bucket was doing
+  the exact opposite of its job. Fixed by ranking against an **offset** — where
+  the name begins past its ordinal — rather than a second stripped string, so
+  the number stays matchable and the row still displays what the printed page
+  carries. The shapes are `5. `, `1-2. `, `4 `, `5-8 `: measured across the
+  corpus, `^[0-9]+(-[0-9]+)?[.\s]+` matches 15,803 of the 32,710 names and
+  empties none. The 195 that still begin with a digit are names that are *only*
+  a number; they have no name proper to rank and keep offset 0.
+- **⚠️ Styling a `<dialog>`'s `display` un-hides it on every page.** The closed
+  state is the UA's `dialog:not([open]) { display: none }`, and **any** author
+  declaration outranks it — cascade origin is settled before specificity is
+  consulted. A bare `.search { display: flex }` therefore does not merely style
+  the panel; it leaves the dialog rendered, open, in the normal flow of all
+  14,753 pages. `display` lives on `.search[open]` and must stay there.
+- **The toolbar's breakpoints are a function of the pinned chrome, and this
+  phase moved it.** The search button added a 36px control and the `gap` before
+  it: **+46.8px** at every width, taking the bar's pinned width from 259/218 to
+  305/264. Nothing on the trail's side changed, so the three collapse steps are
+  P3's plus that delta, rounded up to the next whole rem — **48/36/30rem →
+  51/39/33rem**. Re-deriving from the corpus would have re-litigated judgment
+  already settled (480px was itself rounded up from a computed 445 to a
+  conventional breakpoint); adding the delta pays only for what changed.
+  - **The phone cost, stated rather than hidden:** at 390px the trail now gets
+    125px against 172px before, which leaves **83px for the page's own name
+    against a 126px median** — so the median leaf name ellipsizes on a phone
+    where it used to just fit. Accepted: the `<h1>` one line below carries it in
+    full, and the only way to buy the room back was to drop the up button or a
+    layout button. Search reaches the whole corpus; those two reach one node and
+    one rendering.
+  - `_trailKeepThree` no longer coincides with `_twoColumnMinWidth`, as both sat
+    at 48rem through P3. That was always arithmetic rather than sharing, and
+    this is the first of the two to move.
+- **The script spells no string, no URL and no layout token of its own.** Labels
+  arrive on `data-loading` / `data-empty` / `data-error` / `data-count` /
+  `data-count-capped` / `data-marker`, the index path and the link prefix on
+  `data-index` / `data-base`, and layouts resolve off the radios' `value`. The stylesheet is *generated* from `reading_layouts.dart` for exactly
+  this reason (a CSS rule that matches nothing is not an error); a hand-synced
+  copy of a Sinhala label or of `/tipitaka/` in a JS file fails the same silent
+  way, and there is no analyzer on that side at all.
+- **The dialog and its script close every body, from `document_shell.dart`.**
+  Both are byte-identical on all 14,753 pages, so they belong to the shell for
+  the same reason the five head lines do. Position is not cosmetic: they must
+  not come between the layout radios and `.toolbar`/`.content` (every layout
+  rule is a sibling combinator off those radios), and they must not precede
+  `<main>` in the tab order.
+- **`tool/serve.dart` was serving `.js` as `application/octet-stream`** — it had
+  no `.js` in its MIME map, having never needed one. A classic `<script src>`
+  still runs under that, which is worse than failing: the preview then behaves
+  unlike any host sending `X-Content-Type-Options: nosniff`. Fixed there.
+- **⚠️ The index shipped a name no page displays** (found in review, fixed
+  2026-08-14). It stored `weldTitle(paliName)` — the *link* form — while the page
+  a result lands on heads itself with the commentary marker. **127 commentary
+  rows were byte-identical to a canon row**, same name over the same trail, one
+  of the two landing on an `<h1>` that said something else; typing අට්ඨකථා
+  matched only the 57 nodes named that way upstream, not the 6,731 that show it.
+  The rule now lives in one place, `nodeTitle()` beside `nodeLabelHtml()` in
+  `node_labels.dart` — "the page you are on" and "a step on the way to one" are
+  the only two ways the site names anything, and the index had quietly become a
+  third. It ships the *verdict* as column 6 rather than a second name string:
+  525 KB raw to duplicate it, 33 KB (748 B gzipped) to flag it, and deriving it
+  in JS would put the rule back in three places.
+- **The status line was a bare integer.** `role="status"` announced "50" — no
+  noun, and the cap reading as a total. Now `ගැළපෙන නම් {n}ක්` (tipitaka.lk's
+  own wording, `TSearch.vue:66`), with the capped variant naming both numbers.
+  The count is exact: the scan stopped early at the cap and now runs to the end,
+  an `indexOf` pair per remaining row.
+- **Three smaller review fixes.** A result click closes the dialog (a
+  `<chapter>#<leaf>` link clicked from that same chapter navigates nothing, so
+  the panel sat over the single-view it had just triggered); a failed fetch no
+  longer latches for the visit; the results list draws a focus ring, its tint
+  being **1.44:1** against the panel and SC 2.4.13 asking 3:1 of the only
+  indicator the arrow keys have. The panel is bounded in `dvh`, not `vh` —
+  `100vh` on mobile Safari is the URL-bar-hidden height.
+- **Both ends of the loading state were wrong** (found in manual testing, fixed
+  2026-08-15). The message was set the moment the dialog opened, but the fetch
+  is per document and the *response* is HTTP-cached, so from the second page on
+  it resolves in a few milliseconds — a status drawn and pulled back inside one
+  frame, which reads as the dialog glitching rather than working. It is now
+  announced on a **200 ms** timer that a settled fetch cancels: late is the only
+  time "loading" is information. At the other end, a request that never settles
+  — a phone on a dead connection holds one open indefinitely — left `loading`
+  true for the life of the page, and reopening clears only `failed`, so the
+  dialog could never try again. A **15 s** `AbortController` turns the hang into
+  the error path that already exists and is already retried on the next open.
+- **Name-only search cannot find a sutta by a name BJT does not print.** The
+  Kālāma Sutta is titled `කේසමුත්තිසුත්තං` in this corpus, so "කාලාම" finds only
+  its commentary. That is a data fact, not a matcher bug, and the fix is an
+  alias table — deliberately **not** built here, since it is editorial content
+  the corpus does not carry. Worth knowing before anyone reports it as broken.
 
 ### P5 — SEO & metadata
 
@@ -1012,7 +1126,14 @@ is what makes this phase cheap.
 2. **`colors_and_type.css` / `support.js`** referenced by
    `Dev/designs/Static Site Sketches.dc.html` were never shared. Resolved by D6
    (generate from the app theme) — but if those files surface, reconcile.
-3. **Stub files vs Bulk Redirects** — P6 gate, unchanged.
+3. **Stub files vs Bulk Redirects** — P6 gate, unchanged. Note P4 makes the
+   *search* half of it moot: result rows for the 1,603 grouped leaves link
+   `…/<chapter>#<key>` directly and never need a redirect. The gate is now only
+   about what a **pasted or inbound** `…/<key>` URL does.
+4. **A sutta's other names.** Name-only search finds what BJT prints, so the
+   Kālāma Sutta is reachable as කේසමුත්තිසුත්තං and not as කාලාම (P4 finding).
+   An alias table would fix it and is editorial content the corpus does not
+   carry — no owner, no source, not scheduled.
 
 ---
 
@@ -1138,15 +1259,15 @@ assert across the two outputs:
 | every `readingLayouts` id appears in the HTML as both an `<input id>` and a `<label for>` | a layout added to the list but not to the markup |
 | exactly one `<input>` carries `checked`, and it is `defaultLayoutId` | two defaults, or none |
 | `defaultLayoutId` and `narrowFallbackLayoutId` are themselves real ids | a typo in either, which the stylesheet interpolates unchecked |
-| layout ids **and tokens** are each unique | duplicate ids (invalid HTML); duplicate tokens would make a layout unreachable from P4's `?layout=` |
+| layout ids **and tokens** are each unique | duplicate ids (invalid HTML); duplicate tokens would make a layout unreachable from `?layout=` |
 | every class named in a rule that mentions a `#L-…` radio is emitted by the template | a class renamed on one side only |
 | every layout has at least one rule reaching `.content` | a layout with a radio and a button that changes nothing when chosen |
 | every class named in a rule that mentions `:target` is emitted — `.chapter`, `.chapter-bar`, `.sutta` | the grouped-chapter filter dying, so every deep link shows the whole run |
-| chapter `<section>`s are anchored by the bare nodeKey | P4's `…/<chapter>#<leafKey>` links for the 1,603 grouped leaves silently landing on the chapter head |
+| chapter `<section>`s are anchored by the bare nodeKey | search's `…/<chapter>#<leafKey>` links for the 1,603 grouped leaves silently landing on the chapter head |
 
 Both class checks **derive** their list from the sheet rather than holding one by
 hand, and that is the point rather than a convenience. A hand-kept array covers
-only what someone remembered to add — P4 brings more — and matching a name
+only what someone remembered to add — P4's dialog brought more — and matching a name
 against the *whole* stylesheet proves less than it appears to: `.content`
 renamed inside a single layout rule still finds `.content { … }` in the page
 chrome and passes, while paliOnly quietly stops hiding anything. Scoping to the
@@ -1168,8 +1289,8 @@ the branches that have already been wrong once:
 > The toolbar row above used to read *"a TOC page emits no toolbar"*. That was
 > written against P2's behaviour and was already stale when §8.3 was drafted:
 > **P3 gives every page the bar**, on the grounds that a page without one has no
-> way home and no route to search when P4 lands. Only the *layout group* stays
-> gated, which is what frame 03 specifies and what `site_chrome.dart` documents.
+> way home and no route to search. Only the *layout group* stays gated, which is
+> what frame 03 specifies and what `site_chrome.dart` documents.
 
 **Verified by mutation, not by going green.** Each guarded behaviour was broken
 in turn and the suite re-run: a class renamed in the markup only, a hand-typed
@@ -1218,11 +1339,25 @@ they cannot find their file, though from the repo root you hit an earlier and
 blunter error first: the root pubspec has no `test` dev_dependency, so resolution
 fails before any test runs. Either way the fix is in the workflow, not the tests.
 
-**What it does not cover, and P4 will add more of.** The seam this guards is two
-files disagreeing about a string. P4's search dialog adds a third language to the
-same disagreement — the trigger's id and `hidden` attribute, the `<dialog>` id,
-the index's **field order** against the JS reading it, and the `?layout=` tokens.
-Get the field order wrong and search returns plausible results pointing at the
-wrong suttas, with no error anywhere. Extend this file as that lands; the
-`readingLayouts.token` field already exists so P4 needs no second lookup table,
-but nothing yet proves the JS uses it.
+**What it does not cover — the JavaScript seam, open since P4.** The seam this
+file guards is two *Dart* files disagreeing about a string. P4 added a third
+language to the same disagreement, and **no test crosses that boundary yet.**
+
+P4 shrank the surface as far as design allows: `site.js` spells no Sinhala, no
+`/tipitaka/`, and no layout token, because every one of those arrives on a
+`data-` attribute or is read off the radios' `value`. What is left cannot be
+designed away, only asserted:
+
+| Untested contract | How it fails |
+|---|---|
+| the index's **field order** vs. the JS reading it | search returns plausible results pointing at the **wrong sutta** — no error, anywhere. Mitigated for *caches* by the shared `?v=` token, not for a mismatched edit |
+| the six DOM ids in `search_dialog.dart` vs. `getElementById` in the script | the dialog silently never opens, or its close button is drawn, focusable and dead |
+| the eight `data-` attributes vs. the names the script reads | dead links, or `null` printed as a status line |
+| `{n}` / `{shown}` in the count strings vs. the script's `replace` | the placeholder is announced literally |
+| `.search[open]`'s `display` guard | the dialog renders open, in flow, on all 14,753 pages |
+
+The last two are exactly the bugs P4 shipped and caught by hand (see *What P4
+found*), which is the argument for the table rather than against it: both were
+invisible to `dart analyze`, to the existing suite, and to a page that looked
+fine until it did not. A Dart test can read `assets/site.js` as a string and
+assert these; that needs no JS runtime and no bundler.

@@ -35,6 +35,7 @@ String buildStylesheet(ThemeTokens tokens) {
   _writeEntryStyles(css, tokens);
   _writeLayouts(css, tokens);
   _writeToolbarNav(css);
+  _writeSearch(css);
   _writeLandingPage(css);
   _writeGroupedChapter(css);
 
@@ -85,32 +86,55 @@ double _readingColumnRem(ThemeTokens tokens) =>
 /// none. Widest first, because each one drops what the one above it kept.
 ///
 /// ⚠️ **Same `rem` trap as [_twoColumnMinWidth].** Inside a media query `rem` is
-/// the initial 16px and ignores `html { font-size: 90% }`, so these are 768px,
-/// 576px and 480px.
+/// the initial 16px and ignores `html { font-size: 90% }`, so these are 816px,
+/// 624px and 528px.
 ///
 /// Derived, not chosen. Beside the trail the bar pins width it never gives
-/// back, and how much depends on which side of 48rem you are on: 259px above
-/// it (`padding` 36 + two `gap`s 22 + the up button 36 + the four layout
-/// buttons 165), and 218px below, where the side-by-side button is
-/// `display: none` and three buttons measure 124. The first step is set
-/// against 259, the other two against 218. Measured across all 14,752 built
+/// back, and how much depends on which side of 48rem you are on: 305px above
+/// it (`padding` 36 + three `gap`s 32 + the up button 36 + the search button 36
+/// + the four layout buttons 165), and 264px below, where the side-by-side
+/// button is `display: none` and three buttons measure 124. The first step is
+/// set against 305, the other two against 264. Measured across all 14,752 built
 /// pages at the real 12.24px: a leaf name is 126px at the median and 162px at
 /// p75, and a page carries 5 ancestors at the median, 6 at most. An ancestor
 /// squeezed under about 45px is three Sinhala clusters and an ellipsis —
 /// present, unreadable, and standing where the page's own name should be. Each
-/// step is where the ancestors still showing stop clearing that floor: six of
-/// them reach it at 781px, three at 563px, one at 445px, rounded to 48rem,
-/// 36rem and 30rem. Below 480px the emblem and the leaf are the whole of what
-/// fits, and the up button is what replaces the parent link that went with
-/// them.
+/// step is where the ancestors still showing stop clearing that floor. Below
+/// the last one the emblem and the leaf are the whole of what fits, and the up
+/// button is what replaces the parent link that went with them.
 ///
-/// [_trailKeepThree] landing on 48rem alongside [_twoColumnMinWidth] is
-/// arithmetic, not sharing. They answer different questions — how many names
-/// fit in a bar, how many columns of text stay readable — and one moving is no
-/// reason for the other to.
-const String _trailKeepThree = '48rem';
-const String _trailKeepOne = '36rem';
-const String _trailKeepNone = '30rem';
+/// ## P4 moved all three, by exactly one control's width
+///
+/// The search button added a 36px control and the `gap` before it: **+46.8px**
+/// of pinned chrome at every width. Nothing on the trail's side changed — same
+/// names, same 45px floor, same 126px leaf — so these are the P3 steps plus
+/// that delta, rounded up to the next whole rem: 768 → 814.8 → **51rem**,
+/// 576 → 622.8 → **39rem**, 480 → 526.8 → **33rem**. Re-deriving from the
+/// corpus instead would have re-litigated judgment already settled — 480px was
+/// itself rounded up from a computed 445 to a conventional breakpoint — where
+/// adding the delta pays only for the thing that changed.
+///
+/// Rounded **up** each time, so a step fires just before the floor is breached
+/// rather than just after. P3's first step rounded the other way (781 down to
+/// 768) and bought a 13px band where six ancestors sat under 45px. Up costs at
+/// most 16px of a step arriving early, which nobody can see.
+///
+/// ## What it costs on a phone, stated plainly
+///
+/// At 390px the trail gets 125px where it used to get 172. Emblem 28 and the
+/// leaf's own 14px of padding leave **83px for the page's own name against a
+/// 126px median**, so the median leaf name now ellipsizes on a phone where it
+/// used to just fit. Accepted, not designed around: the `<h1>` one line below
+/// carries the name in full and `title` carries it on hover, and the only way
+/// to buy the room back was to drop the up button or a layout button. Search
+/// reaches the whole corpus; those two reach one node and one rendering.
+///
+/// [_trailKeepThree] no longer coincides with [_twoColumnMinWidth], as it did
+/// at 48rem through P3. That was arithmetic, not sharing — the two answer
+/// different questions, and this is the first of them to move.
+const String _trailKeepThree = '51rem';
+const String _trailKeepOne = '39rem';
+const String _trailKeepNone = '33rem';
 
 /// Height of the sticky reader toolbar.
 ///
@@ -143,6 +167,13 @@ const double _navColumnRem = 44;
 /// The gap between the two columns of side-by-side. Named because
 /// [_wideColumnRem] has to account for it.
 const double _columnGapRem = 1.75;
+
+/// The site's keyboard focus ring, written once for the seven rules that draw
+/// it. Always inset: every element taking it either sits in a clipping box
+/// (`.breadcrumb` has `overflow: hidden`) or is a bordered control whose ring
+/// should trace the border. [offset] varies only for the 1px-bordered field.
+String _focusRing({int offset = -2}) =>
+    'outline: 2px solid var(--c-primary); outline-offset: ${offset}px;';
 
 /// The reading column when side-by-side splits it in two: both columns at
 /// [_readingColumnRem] plus the gap between them, so each side reads at the
@@ -549,7 +580,7 @@ void _writeLayouts(StringBuffer css, ThemeTokens tokens) {
   for (final layout in readingLayouts) {
     css.writeln('#${layout.id}:focus-visible ~ .toolbar '
         'label[for="${layout.id}"] '
-        '{ outline: 2px solid var(--c-primary); outline-offset: -2px; }');
+        '{ ${_focusRing()} }');
   }
   css.writeln();
 
@@ -771,8 +802,7 @@ void _writeToolbarNav(StringBuffer css) {
   // because an outset ring on the first segment would be drawn outside
   // `.breadcrumb`'s padding box and clipped by its `overflow: hidden`.
   css.writeln('.home:focus-visible '
-      '{ outline: 2px solid var(--c-primary); outline-offset: -2px; '
-      'border-radius: 8px; }');
+      '{ ${_focusRing()} border-radius: 8px; }');
   css.writeln('.home img { display: block; width: 28px; height: 28px; }');
   css.writeln();
   // Where compressing stops paying and dropping starts. Derivation and the
@@ -815,37 +845,214 @@ void _writeToolbarNav(StringBuffer css) {
   // still the backstop if the trail now out-measures the box.
   css.writeln('  flex-shrink: 0;');
   css.writeln('  padding-left: 1.15em;');
-  css.writeln('  outline: 2px solid var(--c-primary);');
-  css.writeln('  outline-offset: -2px;');
+  css.writeln('  ${_focusRing()}');
   css.writeln('  border-radius: 4px;');
   css.writeln('}');
   css.writeln();
-  // Sized to one layout button — 34px of content inside a 1px border, so both
-  // controls are 36px tall and read as one set rather than two guesses.
-  // `flex: none` on the same terms as `.layouts`: the trail is the bar's only
-  // elastic item and every control beside it holds its width. This one most of
-  // all, since it is the affordance that exists *for* the widths where the
-  // trail is collapsed.
-  css.writeln('.up {');
+  // The bar's two icon controls — `.up` (an anchor) and `.search-trigger` (a
+  // button). **One rule, not two identical ones**: the trail's breakpoints are
+  // derived from each holding exactly 36px, so their being the same box is an
+  // invariant the arithmetic depends on, not something two blocks must
+  // remember. Sized to one layout button — 34px inside a 1px border — so all
+  // three read as one set. `flex: none` on the same terms as `.layouts`: the
+  // trail is the bar's only elastic item, and these are the affordances that
+  // exist *for* the widths where it collapses.
+  //
+  // Three declarations serve one of the two and are harmless on the other:
+  // `text-decoration` for the anchor, which sits outside `.breadcrumb` and so
+  // keeps the UA underline; `padding` and `cursor` for the button's UA
+  // defaults. Neither needs a font reset — both hold an SVG and no text.
+  css.writeln('.up, .search-trigger {');
   css.writeln('  display: flex;');
   css.writeln('  flex: none;');
   css.writeln('  align-items: center;');
   css.writeln('  justify-content: center;');
   css.writeln('  width: 34px;');
   css.writeln('  height: 34px;');
+  css.writeln('  padding: 0;');
   css.writeln('  border: 1px solid var(--c-outline);');
   css.writeln('  border-radius: 8px;');
   css.writeln('  background: var(--c-background);');
   css.writeln('  color: var(--c-on-surface-variant);');
-  // It is an anchor outside `.breadcrumb`, so the rule that clears the trail's
-  // underlines does not reach it, and the UA default draws one under the glyph
-  // inside a bordered button.
+  css.writeln('  text-decoration: none;');
+  css.writeln('  cursor: pointer;');
+  css.writeln('}');
+  css.writeln('.up:hover, .search-trigger:hover '
+      '{ background: var(--c-surface-container-low); }');
+  css.writeln('.up:focus-visible, .search-trigger:focus-visible '
+      '{ ${_focusRing()} }');
+  // `[hidden]` needs saying, and saying *after* the shared rule: its UA
+  // `display: none` loses to the `display: flex` above on specificity, and
+  // without this the search button shows for every reader with JS off — the
+  // dead control C8 forbids.
+  css.writeln('.search-trigger[hidden] { display: none; }');
+  css.writeln('.up-icon, .search-icon { width: 18px; height: 18px; }');
+  css.writeln();
+}
+
+/// The search dialog. Its trigger is not here — `.search-trigger` shares one
+/// rule with `.up` up in [_writeToolbarNav], because the two are the same box
+/// and the bar's arithmetic depends on their staying it.
+///
+/// The only rules on this sheet whose markup is not on the page until a script
+/// says so — but they are written for markup the generator emits statically, so
+/// nothing here is injected and every selector below has something to match
+/// from the first byte.
+void _writeSearch(StringBuffer css) {
+  css.writeln('/* Search: the dialog. */');
+
+  // The panel.
+  //
+  // Pinned near the top rather than centred: results grow downwards, and a
+  // vertically centred panel jumps up the screen as they arrive.
+  //
+  // ⚠️ **`display` is on `[open]`, and must stay there.** The closed state is
+  // the UA's `dialog:not([open]) { display: none }` — a *user-agent* rule,
+  // which any author declaration outranks no matter how weak its selector,
+  // because cascade origin is settled before specificity is consulted. So a
+  // bare `.search { display: flex }` does not merely style the panel: it
+  // overrides that rule and leaves the dialog rendered, open, in the normal
+  // flow of all 14,753 pages. Guarding on `[open]` hands the closed state back
+  // to the UA.
+  css.writeln('.search {');
+  css.writeln('  width: min(34rem, calc(100vw - 2rem));');
+  // Bounded, so a 50-row result list scrolls inside the panel instead of
+  // running the page off the bottom of the phone.
+  //
+  // Twice, `vh` then `dvh`. On mobile Safari `100vh` is the *large* viewport,
+  // so with the URL bar showing, the panel's bottom edge sits under browser
+  // chrome — on the surface this dialog was built for. The `vh` line stays as
+  // the fallback for browsers that drop the `dvh` one (Safari 15.3 and down).
+  css.writeln('  max-height: min(32rem, calc(100vh - 6rem));');
+  css.writeln('  max-height: min(32rem, calc(100dvh - 6rem));');
+  css.writeln('  margin: 3rem auto;');
+  css.writeln('  padding: 0;');
+  css.writeln('  overflow: hidden;');
+  css.writeln('  border: 1px solid var(--c-outline);');
+  css.writeln('  border-radius: 12px;');
+  css.writeln('  background: var(--c-surface-container-high);');
+  css.writeln('  color: var(--c-on-surface);');
+  css.writeln('  font-family: var(--font-ui);');
+  css.writeln('}');
+  // The open state, and the only place this element gets a `display` — see the
+  // warning above.
+  css.writeln('.search[open] { display: flex; flex-direction: column; }');
+  // Dimmed, not blurred: a backdrop filter costs a compositor pass on every
+  // frame of the open animation, and this site's budget is a phone on a slow
+  // connection.
+  css.writeln('.search::backdrop { background: rgba(0, 0, 0, 0.45); }');
+  css.writeln();
+
+  css.writeln('.search-head {');
+  css.writeln('  display: flex;');
+  css.writeln('  align-items: center;');
+  css.writeln('  gap: 0.5rem;');
+  css.writeln('  padding: 0.75rem;');
+  css.writeln('  border-bottom: 1px solid var(--c-outline-variant);');
+  css.writeln('}');
+  css.writeln('.search-field {');
+  css.writeln('  flex: 1;');
+  // `min-width: 0` for the same reason `.breadcrumb` needs it: an `<input>`
+  // carries a default intrinsic size that a flex item will not shrink below,
+  // and on a narrow phone that pushes the close button off the panel.
+  css.writeln('  min-width: 0;');
+  css.writeln('  padding: 0.5rem 0.6rem;');
+  css.writeln('  border: 1px solid var(--c-outline);');
+  css.writeln('  border-radius: 8px;');
+  css.writeln('  background: var(--c-background);');
+  css.writeln('  color: var(--c-on-surface);');
+  // The field holds Sinhala the reader types and the corpus answers in. Left
+  // to the UA it would render in a Latin system face, so the one string on the
+  // page composed *by* the reader would be the one not in the site's font.
+  css.writeln('  font-family: var(--font-ui);');
+  // 16px at the root's 90% — below this iOS Safari zooms the viewport on
+  // focus, which on a fixed-position modal leaves the panel off-centre and the
+  // reader pinch-zooming back out.
+  css.writeln('  font-size: 1.12rem;');
+  css.writeln('}');
+  css.writeln('.search-field:focus-visible { ${_focusRing(offset: -1)} }');
+  css.writeln();
+
+  css.writeln('.search-close {');
+  css.writeln('  display: flex;');
+  css.writeln('  flex: none;');
+  css.writeln('  align-items: center;');
+  css.writeln('  justify-content: center;');
+  // 40px, not the bar's 34: this one is inside a modal with room to spare, and
+  // 24×24 is the WCAG 2.2 SC 2.5.8 floor that P3.5's disclosure toggle failed.
+  css.writeln('  width: 40px;');
+  css.writeln('  height: 40px;');
+  css.writeln('  padding: 0;');
+  css.writeln('  border: 0;');
+  css.writeln('  border-radius: 8px;');
+  css.writeln('  background: none;');
+  css.writeln('  color: var(--c-on-surface-variant);');
+  css.writeln('  cursor: pointer;');
+  css.writeln('}');
+  css.writeln('.search-close:hover '
+      '{ background: var(--c-surface-container-low); }');
+  css.writeln('.search-close:focus-visible { ${_focusRing()} }');
+  css.writeln('.search-close-icon { width: 20px; height: 20px; }');
+  css.writeln();
+
+  // `:empty` keeps the line from reserving space before there is anything to
+  // say — the resting state of the dialog is a field and nothing else.
+  css.writeln('.search-status {');
+  css.writeln('  margin: 0;');
+  css.writeln('  padding: 0.5rem 0.9rem;');
+  css.writeln('  font-size: 0.85em;');
+  css.writeln('  color: var(--c-on-surface-variant);');
+  css.writeln('}');
+  css.writeln('.search-status:empty { display: none; }');
+  css.writeln();
+
+  css.writeln('.search-results {');
+  css.writeln('  flex: 1;');
+  css.writeln('  margin: 0;');
+  css.writeln('  padding: 0;');
+  css.writeln('  list-style: none;');
+  css.writeln('  overflow-y: auto;');
+  // Momentum scrolling inside the panel rather than the page behind it.
+  css.writeln('  overscroll-behavior: contain;');
+  css.writeln('}');
+  css.writeln('.search-results a {');
+  css.writeln('  display: block;');
+  css.writeln('  padding: 0.6rem 0.9rem;');
+  css.writeln('  color: inherit;');
   css.writeln('  text-decoration: none;');
   css.writeln('}');
-  css.writeln('.up:hover { background: var(--c-surface-container-low); }');
-  css.writeln('.up:focus-visible '
-      '{ outline: 2px solid var(--c-primary); outline-offset: -2px; }');
-  css.writeln('.up-icon { width: 18px; height: 18px; }');
+  css.writeln('.search-results a:hover, .search-results a:focus-visible {');
+  css.writeln('  background: var(--c-primary-container);');
+  css.writeln('  color: var(--c-on-primary-container);');
+  css.writeln('}');
+  // The arrow keys move focus down this list, and the tint alone cannot say
+  // where it landed: `--c-primary-container` on `--c-surface-container-high`
+  // measures **1.44:1**, under the 3:1 SC 2.4.13 asks of a focus indicator.
+  css.writeln('.search-results a:focus-visible { ${_focusRing()} }');
+  css.writeln();
+
+  // The name in the reader's font, the path under it in the UI font — the same
+  // split the breadcrumb makes, and for the same reason: one is scripture, the
+  // other is furniture.
+  css.writeln('.search-name {');
+  css.writeln('  display: block;');
+  css.writeln('  font-family: var(--font-reader);');
+  css.writeln('  line-height: 1.5;');
+  css.writeln('}');
+  css.writeln('.search-path {');
+  css.writeln('  display: block;');
+  css.writeln('  font-size: 0.8em;');
+  css.writeln('  color: var(--c-on-surface-variant);');
+  css.writeln('  white-space: nowrap;');
+  css.writeln('  overflow: hidden;');
+  css.writeln('  text-overflow: ellipsis;');
+  css.writeln('}');
+  // Inherited on the hovered row, where `--c-on-surface-variant` against
+  // `--c-primary-container` is the one pairing on this sheet that is not a
+  // theme pair at all — the token is defined against `surface`.
+  css.writeln('.search-results a:hover .search-path, '
+      '.search-results a:focus-visible .search-path '
+      '{ color: inherit; opacity: 0.75; }');
   css.writeln();
 }
 

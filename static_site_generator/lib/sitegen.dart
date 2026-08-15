@@ -9,8 +9,10 @@ import 'domain/grouping_classifier.dart';
 import 'domain/site_page.dart';
 import 'domain/theme_tokens.dart';
 import 'manifest/build_manifest.dart';
+import 'render/document_shell.dart';
 import 'render/landing_page.dart';
 import 'render/page_template.dart';
+import 'render/search_index.dart';
 import 'render/site_chrome.dart';
 import 'render/stylesheet.dart';
 import 'render/web_fonts.dart';
@@ -164,7 +166,21 @@ class SiteGenerator {
     );
 
     _write('$outputDir/assets/site.css', buildStylesheet(tokens));
-    _copyEmblem();
+    // After the page loop, and from `plan` rather than `tree`: 1,603 of the
+    // corpus's nodes have no page of their own, and only the plan knows which
+    // chapter file swallowed each one. An index built from the tree alone would
+    // look correct and send those 1,603 rows to a URL that 404s.
+    _write('$outputDir/$searchIndexOutputPath', buildSearchIndex(plan: plan));
+    _copyPackageAsset(
+      emblemFileName,
+      "the toolbar's home link will show a broken image on every page. Fix: "
+      'run static_site_generator/assets/make_emblem.sh and commit its output.',
+    );
+    _copyPackageAsset(
+      siteScriptFileName,
+      'the site will build without search or the ?layout= handler. Every page '
+      'still works; the toolbar button stays hidden.',
+    );
     _copyFonts();
     manifest.writeTo('$outputDir/.manifest.json',
         generatorVersion: generatorVersion);
@@ -222,31 +238,21 @@ class SiteGenerator {
       page.node.contentFileId ??
       (page.suttas.isEmpty ? null : page.suttas.first.contentFileId);
 
-  /// Copies the committed emblem derivative to the URL the toolbar's home link
-  /// points at.
+  /// Copies one committed asset (the emblem, `site.js`) into the build.
   ///
-  /// Same contract as the fonts: `assets/make_emblem.sh` is run by hand, its
-  /// output is committed, and the build only moves bytes — no image tooling in
-  /// the loop, which stays pure Dart (D9).
+  /// Same contract as the fonts: made by hand, committed, and the build only
+  /// moves bytes (D9). The target is built from [fileName], never from the
+  /// asset's URL — `site.js`'s carries a `?v=` no file on disk will.
   ///
-  /// A warning rather than a throw, matching [_copyFonts]. A missing emblem
-  /// costs one broken image in the bar; it does not make a single page of
-  /// scripture wrong, and stopping a whole corpus build over it would be the
-  /// louder mistake.
-  void _copyEmblem() {
-    final source = File('$packageAssetsPath/$emblemFileName');
+  /// A warning, not a throw, matching [_copyFonts]: neither absence makes a
+  /// page of scripture wrong, and [warning] says what the site loses.
+  void _copyPackageAsset(String fileName, String warning) {
+    final source = File('$packageAssetsPath/$fileName');
     if (!source.existsSync()) {
-      stderr.writeln(
-        'WARNING  ${source.path} missing — the toolbar\'s home link will show '
-        'a broken image on every page. Fix: run '
-        'static_site_generator/assets/make_emblem.sh and commit its output.',
-      );
+      stderr.writeln('WARNING  ${source.path} missing — $warning');
       return;
     }
-    // Built from the file name, not from [emblemUrl]. The two happen to agree
-    // today because the site is flat files, but a URL is not a path: strip its
-    // leading slash and this silently writes outside the build.
-    final target = File('$outputDir/assets/$emblemFileName');
+    final target = File('$outputDir/assets/$fileName');
     target.parent.createSync(recursive: true);
     target.writeAsBytesSync(source.readAsBytesSync());
   }

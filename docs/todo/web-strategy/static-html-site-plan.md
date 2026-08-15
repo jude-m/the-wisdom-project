@@ -533,10 +533,11 @@ static_site_generator/
 >
 > **Layer 2 died on its own sizing.** The one number worth keeping from the
 > original section: a shared `/nav.html` holding the full tree would have been
-> ~2 MB raw / 200–400 KB gzipped to fetch. The whole search index measures 252 KB
-> gzipped (~214 KB brotli) and answers "take me to X" directly instead of making
-> the reader climb to it. Layer 2 was strictly the worse buy, so the phase that
-> would have built it became the search phase instead.
+> ~2 MB raw / 200–400 KB gzipped to fetch. The search index built in its place
+> measures **247 KB gzipped / 175 KB brotli** on the real corpus, and answers
+> "take me to X" directly instead of making the reader climb to it. Layer 2 was
+> strictly the worse buy, so the phase that would have built it became the
+> search phase instead.
 
 ---
 
@@ -677,10 +678,13 @@ untreated they compete for the same name searches.
   **Decision gate: ask the maintainer stub-files-vs-Bulk-Redirects *before*
   emitting the 1,603 grouped-leaf stubs** (§6 / §13.2 / hosting doc).
 - **P6** Point at `kn-iti-1`; verify nesting + slicing across vaggas.
-- *(Later, separate)* client-side / linked search — **server-rendered FTS is
-  retired with the content server** (see `static-web-hosting.md`); scroll-spy;
-  sitemap/robots/JSON-LD from `static-web-hosting.md`. The `?layout=` enhancement
-  (§7-C) is **now the locked shareable-link contract**, not "later".
+- **Client-side search — built 2026-08-14** (build plan P4), a names-only index
+  fetched on first dialog open. Server-rendered FTS stays retired with the
+  content server (see `static-web-hosting.md`). The `?layout=` enhancement
+  (§7-C) shipped with it and is **the locked shareable-link contract**, not
+  "later".
+- *(Later, separate)* scroll-spy; sitemap/robots/JSON-LD from
+  `static-web-hosting.md`.
 
 ---
 

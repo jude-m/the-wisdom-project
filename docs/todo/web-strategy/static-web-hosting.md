@@ -432,11 +432,13 @@ The SSG emits all of it as static files:
 
 ## Open questions (post-server)
 
-1. **Static-site search.** Server-rendered FTS is **gone** (no server). Options:
-   (a) **none** — the tree + Google (buddhadust does this; defensible); (b) a link
-   into the app's search; (c) a small client-side index (fights the zero-JS /
-   slow-internet ethos — the prototype plan already leaned against it). *Defer* —
-   search was out of scope for the prototype anyway.
+1. ~~**Static-site search.**~~ **Settled and built, 2026-08-14** (build plan P4).
+   Server-rendered FTS stays gone with the content server; what shipped is a
+   **client-side index over node names only** — 254 KB gzipped / 180 KB brotli,
+   fetched on first dialog open rather than on page load, so a reader who never
+   searches pays nothing for it. That is what answers the zero-JS objection this
+   question raised against option (c): every page still renders, navigates and
+   switches layout with JS off, and the search button simply never appears.
 2. **Production domain** (`sammaditthi.app`?) — feeds canonical URLs, OG tags, and
    the App Links `.well-known` files. **Production Cloudflare account
    (2026-07-23): a separate account under wisdom.ops is planned** (today's

@@ -1,4 +1,6 @@
 import 'entry_renderer.dart';
+import 'search_dialog.dart';
+import 'search_index.dart';
 
 /// The `<head>` every page on the site shares, and the `<html>`/`<body>`
 /// around it.
@@ -16,6 +18,24 @@ import 'entry_renderer.dart';
 ///
 /// [head] carries whatever the page adds to the contract above, already
 /// newline-terminated.
+///
+/// ## The search dialog and `site.js` close every body
+///
+/// Both are byte-identical on all 14,753 pages, so they belong to the shell for
+/// the same reason the five head lines do: the alternative is `page_template`
+/// and `landing_page` each remembering to append them, which is two places to
+/// forget and one of them is the front page.
+///
+/// The script is **not** a search script — it resolves `?layout=` too — which
+/// is why it is named and owned here rather than in `search_dialog.dart`.
+///
+/// **Last in the body, after `</main>`.** A `<dialog>` renders in the top layer
+/// once `showModal()` runs, so its position in the DOM decides nothing visual —
+/// but it decides two other things. It must not come between the layout radios
+/// and `.toolbar`/`.content`: every layout rule is a sibling combinator off
+/// those radios, and only their *order* keeps it matching. And it must not
+/// precede `<main>` in the tab order, where an empty dialog's field would be
+/// the first thing a keyboard reader meets on a page of scripture.
 ///
 /// There is deliberately no `bodyClass` hook. P3 had one, for the single rule
 /// that widened `/`'s reading column to hold its two-column hero; P3.5 made `/`
@@ -44,7 +64,22 @@ String htmlDocument({
 <meta name="generator" content="wisdom-ssg $generatorVersion">
 $head</head>
 <body>
-$body</body>
+$body${searchDialog()}
+${siteScript()}
+</body>
 </html>
 ''';
 }
+
+/// The site's one script: `?layout=` and the search dialog. Carries
+/// [searchContractVersion] because its second half reads `search-index.json` by
+/// field position — one contract, cache-busted as one.
+const String siteScriptUrl = '/assets/site.js?v=$searchContractVersion';
+
+/// That script's file name under the generator's `assets/` and the output's.
+const String siteScriptFileName = 'site.js';
+
+/// `defer` rather than `async`: the script touches the layout radios, and the
+/// two behave identically for a script this size except that `defer` guarantees
+/// the DOM is parsed, which saves a `DOMContentLoaded` listener.
+String siteScript() => '<script src="$siteScriptUrl" defer></script>';

@@ -29,3 +29,34 @@ import 'entry_renderer.dart';
 /// breadcrumb on the page it links to names it another is the drift P2 learned
 /// to avoid.
 String nodeLabelHtml(TipitakaNode node) => escapeHtml(weldTitle(node.paliName));
+
+/// The Sinhala word for the commentary layer.
+const String commentaryMarker = 'අට්ඨකථා';
+
+/// Whether [node]'s own name needs the marker appended.
+///
+/// `endsWith`, not `contains`: 57 nodes are named with the marker upstream
+/// (`atta-dn` "දීඝනිකාය අට්ඨකථා") and would read "… අට්ඨකථා අට්ඨකථා", while
+/// `atta-ap-dhs-5` "අට්ඨකථාකණ්ඩො" is a section *about* the commentary and does
+/// need marking. Public because the search index ships the answer as a column.
+bool carriesCommentaryMarker(TipitakaNode node) =>
+    node.nodeKey.startsWith(TipitakaNodeKeys.commentary) &&
+    !unweldTitle(node.paliName).trimRight().endsWith(commentaryMarker);
+
+/// A node's name as its **own page** names it — `<title>`, `<h1>`, and the row
+/// a search result draws.
+///
+/// The counterpart to [nodeLabelHtml], and next to it because those are the
+/// only two ways the site names anything: the page you are on, and a step on
+/// the way to one. Splitting them across files is how the search index came to
+/// ship a third form, unmarked, that no page ever showed.
+///
+/// The 6,731 `atta-*` pages carry their canon twins' names, so without the
+/// marker the two compete for the same searches (§10).
+///
+/// Raw text and un-welded, unlike [nodeLabelHtml]: `<title>` takes it as it is
+/// (D2), visible uses weld it first (D1).
+String nodeTitle(TipitakaNode node) {
+  final name = unweldTitle(node.paliName);
+  return carriesCommentaryMarker(node) ? '$name $commentaryMarker' : name;
+}

@@ -167,6 +167,14 @@ ContentType _contentTypeOf(String path) {
     return ContentType('text', 'css', charset: 'utf-8');
   }
   if (path.endsWith('.woff2')) return ContentType('font', 'woff2');
+  // Without this the site's one script fell through to `application/octet-
+  // stream`. A classic `<script src>` still runs under that — which is worse
+  // than failing, because the preview then behaves unlike any host that sends
+  // `X-Content-Type-Options: nosniff`, and the difference only shows up in
+  // production.
+  if (path.endsWith('.js')) {
+    return ContentType('text', 'javascript', charset: 'utf-8');
+  }
   if (path.endsWith('.json')) return ContentType.json;
   if (path.endsWith('.xml')) return ContentType('application', 'xml');
   if (path.endsWith('.svg')) return ContentType('image', 'svg+xml');

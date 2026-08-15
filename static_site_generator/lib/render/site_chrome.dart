@@ -24,6 +24,7 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 import '../domain/site_page.dart';
 import 'node_labels.dart';
 import 'reading_layouts.dart';
+import 'search_dialog.dart';
 
 /// Accessible name for the home link. The app's `navHome` (`app_si.arb:198`),
 /// not new wording — two names for one thing is how surfaces drift.
@@ -228,6 +229,13 @@ String tocList(Iterable<TipitakaNode> nodes) {
 /// be no better — the radios are outside this element, not in it. The grouping
 /// is already carried where it belongs, by the shared `name="layout"`, which is
 /// what makes a reader announce "2 of 4".
+///
+/// **The search trigger is on every page too, and is not gated.** It is the
+/// site's only way to reach a node that is not an ancestor, a child or a
+/// neighbour of the one you are on — the job P3.5's navigator used to do — so a
+/// page without it is a page a reader can only leave by climbing. It sits
+/// between [upLink] and the layout group because the two before it navigate and
+/// the group after it does not.
 String toolbar({
   required bool withLayouts,
   List<TipitakaNode> trail = const <TipitakaNode>[],
@@ -240,6 +248,7 @@ String toolbar({
   // not a second bar shape with a branch guarding it.
   buffer.write(breadcrumb(trail: trail, current: current));
   if (parent != null) buffer.write(upLink(parent));
+  buffer.write(searchTrigger());
   if (withLayouts) {
     buffer.write('<div class="layouts">');
     for (final layout in readingLayouts) {

@@ -474,7 +474,7 @@ class PageTemplate {
   /// Parts that repeat are dropped, so a node directly under its collection
   /// does not say the collection twice.
   String _titleText(TipitakaNode node) {
-    final parts = <String>[_leafTitle(node)];
+    final parts = <String>[nodeTitle(node)];
     // Dedupe against the node's *bare* name, not the marked one in parts[0]:
     // "X අට්ඨකථා" can never equal a candidate, so a commentary node directly
     // under a same-named parent would have said the name twice.
@@ -488,27 +488,6 @@ class PageTemplate {
       parts.add(name);
     }
     return parts.join(' — ');
-  }
-
-  /// The node's own name, with the commentary marker where §10 requires it.
-  ///
-  /// The 6,731 `atta-*` pages carry the *same* sutta names as their canon
-  /// twins; untreated they compete for the same searches. The marker keeps the
-  /// canon page the stronger hit for a bare sutta-name query while leaving the
-  /// commentary indexable in its own right (it is 57 M of the corpus's ~103 M
-  /// characters — unique scripture, not a duplicate, so never `noindex` and
-  /// never canonical-ed at its twin).
-  /// 57 nodes — the pitaka- and nikāya-level ones, `atta-vp` "විනය අට්ඨකථා",
-  /// `atta-dn` "දීඝනිකාය අට්ඨකථා" — are named with the marker already, and
-  /// appending blindly gave them "… අට්ඨකථා අට්ඨකථා". The test is `endsWith`,
-  /// not `contains`: `atta-ap-dhs-5` is "අට්ඨකථාකණ්ඩො", a section *about* the
-  /// commentary, and it does still need marking.
-  String _leafTitle(TipitakaNode node) {
-    final name = unweldTitle(node.paliName);
-    if (!node.nodeKey.startsWith(TipitakaNodeKeys.commentary)) return name;
-    return name.trimRight().endsWith(commentaryMarker)
-        ? name
-        : '$name $commentaryMarker';
   }
 
   /// The visible page heading.
@@ -528,8 +507,5 @@ class PageTemplate {
   /// are in different landmarks, and the marker means the two are not even the
   /// same string on the 6,731 commentary pages.
   String _headingHtml(TipitakaNode node) =>
-      escapeHtml(weldTitle(_leafTitle(node)));
+      escapeHtml(weldTitle(nodeTitle(node)));
 }
-
-/// The Sinhala word for the commentary layer, appended to every `atta-*` title.
-const String commentaryMarker = 'අට්ඨකථා';
