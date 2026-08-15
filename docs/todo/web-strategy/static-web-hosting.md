@@ -382,6 +382,71 @@ at all). None is planned.
   would hand the strongest SEO/LLM URL to the un-indexable canvas and punish
   weak-device readers.
 
+### Browser caching — the generated `_headers` (DONE 2026-08-15)
+
+Pages' default on **every** response, measured on the dev deployment:
+
+```
+$ curl -sI https://dev.sammaditthi-dev.pages.dev/assets/site.css
+cache-control: public, max-age=0, must-revalidate
+etag: "0840bb1bb743cdd63511ce9b32711e43"
+```
+
+The bytes are cached, but must be revalidated before reuse — a conditional
+request and a round trip. Every link here is a fresh document, so **each page
+view paid that round trip for the stylesheet, `site.js`, the emblem and every
+WOFF2 face it used** (8 faces / 328 KB, 2–4 per page), none of which change
+between one sutta and the next. On the connections this surface exists for,
+that was the whole point of being static, given away at the last step.
+
+The SSG now emits `_headers` at the root of the upload
+(`lib/render/cache_headers.dart`, built from the same path constants the build
+writes, so a renamed asset cannot leave a rule pointing at nothing):
+
+| path | policy | why |
+|---|---|---|
+| `/assets/*` | `max-age=31536000, immutable` | every URL in it carries a content hash |
+| `/fonts/*` | same | same |
+| HTML | *(absent — keeps the default)* | stable URL, changing content |
+
+**Every cache token is computed by the build. There is nothing to bump.**
+`lib/render/site_assets.dart` is the one place that decides them:
+
+| file | token |
+|---|---|
+| `site.css` | hash of the CSS |
+| `site.js` | hash of the script **and** the index |
+| `search-index.json` | the same hash |
+| `emblem.png` | hash of the image |
+| `fonts/*.woff2` | one hash of all eight faces, carried in the CSS |
+
+Two things to know before editing it:
+
+- **A year of `immutable` is only safe when a new file means a new URL**, which
+  is the whole reason every asset is hashed. The first cut of this shipped a
+  hand-bumped `searchContractVersion` on `site.js` + the index, to be bumped
+  "when a field moves" — which misses a corpus re-sync, a regrouped vagga and a
+  matcher bug fix, each of which leaves a reader holding a stale index *for a
+  year*, resolving to URLs that no longer exist. The script and the index still
+  share **one** token, because `site.js` reads a row by field position and two
+  hashes could drift apart; a hash of both keeps the pair atomic and busts on
+  any edit to either.
+- **Rules must not overlap on the same header.** Pages merges all matching
+  rules and joins duplicate header names with a comma, so `/assets/*` beside a
+  `/assets/emblem.png` exception would emit both policies in one
+  `Cache-Control` rather than overriding. The two patterns above are disjoint,
+  which is the only reason the file is this short. A rule setting a *different*
+  header (a CSP on `/*`) can safely span both.
+
+**Deploy cost.** A change to any asset rewrites the `<head>` of all 14,753
+pages — fonts included, since their token rides inside the CSS the pages link —
+so the hash-incremental deploy re-uploads the whole ~388 MB instead of a handful
+of files. That is what `immutable` costs, and a hand-bumped token paid it too;
+the option it is being bought over is no version at all, which the point above
+rules out. Practical consequence: **batch asset work**, and expect a full upload
+after a stylesheet tweak. Content edits are unaffected — they touch the pages
+they touch.
+
 ### App Links / `.well-known` — static files on Pages
 
 When the production domain is live, the OS-interception files are **plain static

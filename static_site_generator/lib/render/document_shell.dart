@@ -1,6 +1,6 @@
 import 'entry_renderer.dart';
 import 'search_dialog.dart';
-import 'search_index.dart';
+import 'site_assets.dart';
 
 /// The `<head>` every page on the site shares, and the `<html>`/`<body>`
 /// around it.
@@ -18,6 +18,12 @@ import 'search_index.dart';
 ///
 /// [head] carries whatever the page adds to the contract above, already
 /// newline-terminated.
+///
+/// [assets] is passed in rather than written here because every URL in it
+/// carries a hash of the bytes behind it ([SiteAssets]) — the head cannot know
+/// those, and the one caller that builds them can. Threaded like
+/// [generatorVersion]: one value, decided once per build, handed to both
+/// templates.
 ///
 /// ## The search dialog and `site.js` close every body
 ///
@@ -49,6 +55,7 @@ String htmlDocument({
   required String title,
   required String canonical,
   required String generatorVersion,
+  required SiteAssets assets,
   required String body,
   String head = '',
 }) {
@@ -60,26 +67,18 @@ String htmlDocument({
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <link rel="canonical" href="$canonical">
-<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="${assets.stylesheet}">
 <meta name="generator" content="wisdom-ssg $generatorVersion">
 $head</head>
 <body>
-$body${searchDialog()}
-${siteScript()}
+$body${searchDialog(assets.searchIndex)}
+${siteScript(assets.script)}
 </body>
 </html>
 ''';
 }
 
-/// The site's one script: `?layout=` and the search dialog. Carries
-/// [searchContractVersion] because its second half reads `search-index.json` by
-/// field position — one contract, cache-busted as one.
-const String siteScriptUrl = '/assets/site.js?v=$searchContractVersion';
-
-/// That script's file name under the generator's `assets/` and the output's.
-const String siteScriptFileName = 'site.js';
-
 /// `defer` rather than `async`: the script touches the layout radios, and the
 /// two behave identically for a script this size except that `defer` guarantees
 /// the DOM is parsed, which saves a `DOMContentLoaded` listener.
-String siteScript() => '<script src="$siteScriptUrl" defer></script>';
+String siteScript(String url) => '<script src="$url" defer></script>';

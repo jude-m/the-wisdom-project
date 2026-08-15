@@ -3,8 +3,9 @@ import 'dart:convert';
 /// FNV-1a, 64-bit, as a 16-character lowercase hex string.
 ///
 /// **Change detection, not cryptography.** The only question asked of it is
-/// "did this source file change since the last build?", where an accidental
-/// collision across 285 files is somewhere around 1 in 10^15. Rolling it by
+/// "did these bytes change since the last build?" — by `.manifest.json` of the
+/// 285 corpus files, and by `SiteAssets` of everything the pages link — where
+/// an accidental collision is somewhere around 1 in 10^15. Rolling it by
 /// hand keeps the generator's dependency list empty, which is worth more here
 /// than a stronger digest: PREREQ-3's proof is that this package builds under a
 /// bare `dart` SDK.
@@ -21,11 +22,18 @@ import 'dart:convert';
 /// Halving the word sidesteps the sign, and makes the output match the
 /// published FNV-1a-64 vectors: `''` hashes to the offset basis
 /// `cbf29ce484222325`, and `'a'` to `af63dc4c8601ec8c`.
-String contentHash(String content) {
+String contentHash(String content) => contentHashOfBytes(utf8.encode(content));
+
+/// The same digest over bytes that are not text.
+///
+/// The emblem and the WOFF2 subsets are versioned by content like everything
+/// else the site links (`SiteAssets`), and decoding a PNG as UTF-8 to reach
+/// [contentHash] would throw on the first invalid sequence.
+String contentHashOfBytes(List<int> bytes) {
   const offsetBasis = 0xcbf29ce484222325;
   const prime = 0x100000001b3;
   var hash = offsetBasis;
-  for (final byte in utf8.encode(content)) {
+  for (final byte in bytes) {
     hash ^= byte;
     // Dart ints are 64-bit two's complement and wrap on overflow, which is
     // exactly the arithmetic FNV specifies.

@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:static_site_generator/render/cache_headers.dart';
+
 /// Previews the generated site the way Cloudflare Pages will serve it.
 ///
 ///     dart run static_site_generator/tool/serve.dart
@@ -99,6 +101,26 @@ Future<void> _handle(HttpRequest request, String rootPath) async {
       HttpHeaders.locationHeader,
       path.substring(0, path.length - '.html'.length),
     );
+    await response.close();
+    _log(request, response.statusCode);
+    return;
+  }
+
+  // Pages *consumes* `_headers` — it reads the caching rules out of it at
+  // deploy time and never serves the file. It sits in the build directory all
+  // the same, so a preview that streams it back is offering a URL production
+  // does not have.
+  //
+  // Stricter than production on purpose, and the one place this server is.
+  // Pages has no `404.html` yet, so it answers this path — and every other
+  // unknown one — with `200` and the landing page (measured 2026-08-15; it is
+  // seo-wins item 1). Refusing here says the file is not a page; mirroring the
+  // soft-404 would only reproduce a bug.
+  if (path == '/$cacheHeadersOutputPath') {
+    response.statusCode = HttpStatus.notFound;
+    response.headers.contentType = ContentType.html;
+    response.write('<h1>404</h1><p><code>$path</code> is read by Cloudflare '
+        'Pages at deploy time and is never served as a page.</p>');
     await response.close();
     _log(request, response.statusCode);
     return;

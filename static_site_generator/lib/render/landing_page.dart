@@ -1,6 +1,7 @@
 import 'package:wisdom_shared/wisdom_shared.dart';
 
 import 'document_shell.dart';
+import 'site_assets.dart';
 import 'site_chrome.dart';
 
 /// The site's front door — `/`, the one page outside the `/tipitaka/<nodeKey>`
@@ -40,7 +41,16 @@ class LandingPage {
 
   final String generatorVersion;
 
-  const LandingPage({required this.roots, required this.generatorVersion});
+  /// The stylesheet, script, index and emblem URLs, each carrying a hash of its
+  /// own bytes — see [SiteAssets]. Threaded like [generatorVersion]: decided
+  /// once per build, handed to both templates.
+  final SiteAssets assets;
+
+  const LandingPage({
+    required this.roots,
+    required this.generatorVersion,
+    required this.assets,
+  });
 
   /// Written flat at the site root, so its URL is `/`.
   static const String outputPath = 'index.html';
@@ -52,7 +62,7 @@ class LandingPage {
     // No layout radios — nothing here is readable text, and per P2's mechanism
     // that absence needs no CSS: with no radio checked, none of the
     // `#L-x:checked ~` rules match.
-    body.writeln(toolbar(withLayouts: false));
+    body.writeln(toolbar(withLayouts: false, assets: assets));
     // `nav`, for the same reason a container TOC gets it: a heading, a hint and
     // a list of links, with no running text to set a measure for.
     body.writeln('<main class="content nav">');
@@ -72,6 +82,7 @@ class LandingPage {
       title: _title,
       canonical: url,
       generatorVersion: generatorVersion,
+      assets: assets,
       body: body.toString(),
     );
   }

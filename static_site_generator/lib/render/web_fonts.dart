@@ -1,5 +1,14 @@
 import '../domain/theme_tokens.dart';
 
+/// Directory the faces are written to, under the output root — and, with
+/// `../` in front of it, the directory the stylesheet's `src` resolves to.
+///
+/// One constant because three places name it: the copier, the `@font-face`
+/// rules and the `_headers` rule that caches them. Two of the three used to
+/// spell it by hand, in a file whose stated contract is that a renamed asset
+/// cannot leave a caching rule pointing at nothing.
+const String fontsOutputDir = 'fonts';
+
 /// One WOFF2 face the site ships.
 class WebFontFace {
   /// CSS `font-family` name — matches the app's family, so a rule written

@@ -6,6 +6,7 @@ import 'document_shell.dart';
 import 'entry_renderer.dart';
 import 'node_labels.dart';
 import 'reading_layouts.dart';
+import 'site_assets.dart';
 import 'site_chrome.dart';
 
 /// Renders a complete HTML document for one [SitePage].
@@ -22,9 +23,16 @@ class PageTemplate {
   /// Cloudflare's content-hash dedup re-uploads all 16,356 files (§11.8).
   final String generatorVersion;
 
+  /// The stylesheet, script, index and emblem URLs, each carrying a hash of its
+  /// own bytes — see [SiteAssets]. Threaded in for the same reason
+  /// [generatorVersion] is: one value per build, and the template is not the
+  /// thing that knows it.
+  final SiteAssets assets;
+
   const PageTemplate({
     required this.tree,
     required this.generatorVersion,
+    required this.assets,
     this.entries = const EntryRenderer(),
   });
 
@@ -55,6 +63,7 @@ class PageTemplate {
     if (page.isReadable) body.writeln(_layoutRadios());
     body.writeln(toolbar(
       withLayouts: page.isReadable,
+      assets: assets,
       // Outermost first — `ancestorsOf` walks upwards, a trail reads downwards.
       trail: tree.ancestorsOf(page.nodeKey).reversed.toList(),
       current: page.node,
@@ -176,6 +185,7 @@ class PageTemplate {
         title: _titleText(page.node),
         canonical: page.url,
         generatorVersion: generatorVersion,
+        assets: assets,
         head: head,
         body: body,
       );

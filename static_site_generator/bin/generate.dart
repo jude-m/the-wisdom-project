@@ -11,8 +11,9 @@ import 'package:static_site_generator/sitegen.dart';
 ///     dart run static_site_generator/bin/generate.dart --root an-1,atta-an-1
 ///
 /// Writes `static_site_generator/build/` — one HTML file per sutta, one per
-/// grouped chapter, one per container TOC, plus `assets/site.css`, the copied
-/// WOFF2 subsets and `.manifest.json`.
+/// grouped chapter, one per container TOC, plus `assets/site.css`,
+/// `assets/site.js`, `assets/search-index.json`, the copied WOFF2 subsets,
+/// `_headers` (browser caching, read by Cloudflare Pages) and `.manifest.json`.
 ///
 /// `--root` takes a **list** because the corpus has seven disjoint roots and a
 /// canon subtree links into its `atta-*` twin, which lives under a different

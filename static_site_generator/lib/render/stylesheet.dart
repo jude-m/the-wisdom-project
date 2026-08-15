@@ -19,7 +19,11 @@ import 'web_fonts.dart';
 /// It emits no dark palette yet. The colours are custom properties on `:root`
 /// precisely so a `prefers-color-scheme` block drops in later without touching
 /// a single rule below.
-String buildStylesheet(ThemeTokens tokens) {
+///
+/// [fontVersion] is the cache token for the WOFF2 faces — see
+/// [_writeFontFaces]. It is the one input here that is not a theme value,
+/// because the stylesheet is the only file that names a font.
+String buildStylesheet(ThemeTokens tokens, {required String fontVersion}) {
   final css = StringBuffer();
 
   css.writeln(
@@ -29,7 +33,7 @@ String buildStylesheet(ThemeTokens tokens) {
       '   `flutter test tools/dump_theme_tokens.dart`, then rebuild. */');
   css.writeln();
 
-  _writeFontFaces(css, tokens);
+  _writeFontFaces(css, tokens, fontVersion);
   _writeRootVariables(css, tokens);
   _writePageChrome(css, tokens);
   _writeEntryStyles(css, tokens);
@@ -192,11 +196,18 @@ double _wideColumnRem(ThemeTokens tokens) =>
 /// render in a *different face than the app* — and the baked conjuncts (D1) are
 /// glyph-coverage-specific to Noto. Nirmala UI receiving our ZWJ is unverified
 /// behaviour, so the font is shipped, not hoped for.
-void _writeFontFaces(StringBuffer css, ThemeTokens tokens) {
+///
+/// [fontVersion] is a hash of the faces themselves, so a re-subset reaches a
+/// reader who already has the old one — see `fontsVersion`. It rides in the
+/// stylesheet because this is the only place a font file is named; the pages
+/// pick the change up through the CSS hash they link.
+void _writeFontFaces(StringBuffer css, ThemeTokens tokens, String fontVersion) {
   for (final face in webFontFaces(tokens)) {
     css.writeln('@font-face {');
     css.writeln('  font-family: "${face.family}";');
-    css.writeln('  src: url("../fonts/${face.relativePath}") format("woff2");');
+    // Relative, so it resolves against `/assets/site.css` to `/fonts/…`.
+    css.writeln('  src: url("../$fontsOutputDir/${face.relativePath}'
+        '?v=$fontVersion") format("woff2");');
     css.writeln('  font-weight: ${face.weight};');
     css.writeln('  font-style: normal;');
     // Text first, webfont when it lands. A blank page is worse than a

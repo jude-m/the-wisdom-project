@@ -23,6 +23,17 @@ The Wisdom Project - a Tipitaka and commentary browsing app with parallel Pali/S
 - ARB files: `lib/core/localization/l10n/app_en.arb`, `app_si.arb`
 - Access: `AppLocalizations.of(context)`
 
+## Static site generator (`static_site_generator/`)
+Separate Dart package, no Flutter. Builds the public HTML Tipitaka site.
+- Every `?v=` is a content hash from `lib/render/site_assets.dart`. Never add a
+  version constant to bump by hand. (`generatorVersion` is provenance, not a
+  cache key.)
+- Two builds of the same input must produce identical bytes: no timestamps, no
+  build ids, no `Map` order reaching the output.
+- Every page must work with JavaScript off. `assets/site.js` is the only
+  script; it holds no Sinhala and no URLs (those arrive on `data-` attributes)
+  and never uses `innerHTML`.
+
 
 ## DONT
 - Create/Update tests unless the user specifically ask you to. Notify the user that tests were not generated. Except for basic changes, a seperate test generator agent will write the tests.

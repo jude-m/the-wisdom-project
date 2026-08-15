@@ -53,6 +53,7 @@ import 'package:static_site_generator/render/entry_renderer.dart';
 import 'package:static_site_generator/render/landing_page.dart';
 import 'package:static_site_generator/render/page_template.dart';
 import 'package:static_site_generator/render/reading_layouts.dart';
+import 'package:static_site_generator/render/site_assets.dart';
 import 'package:static_site_generator/render/stylesheet.dart';
 import 'package:test/test.dart';
 import 'package:wisdom_shared/wisdom_shared.dart';
@@ -63,7 +64,10 @@ void main() {
   // then this file would be testing a fiction. It is 5.6 KB — a build input,
   // not the 340 MB corpus.
   final tokens = _readThemeTokens();
-  final css = buildStylesheet(tokens);
+  // A literal font token, like `_assets` below and for the same reason: these
+  // tests assert what reaches the page, and hashing the real WOFF2 faces here
+  // would make an expected string change whenever a face is re-subset.
+  final css = buildStylesheet(tokens, fontVersion: 'test');
 
   group('the wiring contract — markup ⇄ stylesheet', () {
     test('every #L- selector in the stylesheet names a real layout', () {
@@ -409,8 +413,11 @@ void main() {
         'chapter': _render(_chapterPage,
             slices: {'sp-grp-1': _bothLanguages('sp-grp-1')}),
         'toc': _render(_tocPage),
-        'landing':
-            LandingPage(roots: _tree.roots, generatorVersion: 'test').render(),
+        'landing': LandingPage(
+          roots: _tree.roots,
+          generatorVersion: 'test',
+          assets: _assets,
+        ).render(),
       };
 
       pages.forEach((kind, html) {
@@ -523,8 +530,21 @@ NodeSlice _bothLanguages([String nodeKey = 'sp-toc-1']) => _slice(nodeKey, [
       _row(pali: _entry('ධම්මං'), sinhala: _entry('ධර්මය')),
     ]);
 
-final PageTemplate _template =
-    PageTemplate(tree: _tree, generatorVersion: 'test');
+final PageTemplate _template = PageTemplate(
+  tree: _tree,
+  generatorVersion: 'test',
+  assets: _assets,
+);
+
+/// Literal URLs, not `SiteAssets.forContent(...)`: these tests assert what
+/// reaches the page, and hashing real bytes here would make every expected
+/// string change whenever the stylesheet, the script or the corpus does.
+const SiteAssets _assets = SiteAssets(
+  stylesheet: '/assets/site.css?v=test',
+  script: '/assets/site.js?v=test',
+  searchIndex: '/assets/search-index.json?v=test',
+  emblem: '/assets/emblem.png?v=test',
+);
 
 SitePage get _suttaPage => SitePage(
       kind: PageKind.sutta,

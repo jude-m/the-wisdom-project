@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:wisdom_shared/wisdom_shared.dart';
@@ -9,11 +10,11 @@ import 'domain/grouping_classifier.dart';
 import 'domain/site_page.dart';
 import 'domain/theme_tokens.dart';
 import 'manifest/build_manifest.dart';
-import 'render/document_shell.dart';
+import 'render/cache_headers.dart';
 import 'render/landing_page.dart';
 import 'render/page_template.dart';
 import 'render/search_index.dart';
-import 'render/site_chrome.dart';
+import 'render/site_assets.dart';
 import 'render/stylesheet.dart';
 import 'render/web_fonts.dart';
 
@@ -81,8 +82,46 @@ class SiteGenerator {
 
     final plan =
         SitePlan.build(tree: tree, rootKeys: rootKeys, classify: classify);
-    final template =
-        PageTemplate(tree: tree, generatorVersion: generatorVersion);
+
+    // Everything a page links is built or read before the first page, though
+    // most of it is written after them: each URL carries a hash of its own
+    // bytes (SiteAssets), so the bytes have to exist before a page can name
+    // them.
+    //
+    // The search index is the reason this is worth spelling out — it used to be
+    // built after the loop, and only the plan it needs was required to come
+    // first. That is still true, and the plan is already here.
+    final fonts = _readFonts();
+    final css = buildStylesheet(
+      tokens,
+      fontVersion: fontsVersion([for (final font in fonts) font.bytes]),
+    );
+    final searchIndex = buildSearchIndex(plan: plan);
+    final script = _readPackageAsset(
+      siteScriptFileName,
+      'the site will build without search or the ?layout= handler. Every page '
+      'still works; the toolbar button stays hidden.',
+    );
+    final emblem = _readPackageAsset(
+      emblemFileName,
+      "the toolbar's home link will show a broken image on every page. Fix: "
+      'run static_site_generator/assets/make_emblem.sh and commit its output.',
+    );
+
+    final assets = SiteAssets.forContent(
+      css: css,
+      // Decoded rather than passed as bytes: `site.js` is UTF-8 source, and
+      // hashing the decoded string is hashing the same bytes back.
+      script: script == null ? '' : utf8.decode(script),
+      searchIndex: searchIndex,
+      emblem: emblem ?? const <int>[],
+    );
+
+    final template = PageTemplate(
+      tree: tree,
+      generatorVersion: generatorVersion,
+      assets: assets,
+    );
     final manifest = BuildManifest();
 
     var suttaPages = 0;
@@ -162,26 +201,22 @@ class SiteGenerator {
       LandingPage(
         roots: [for (final key in rootKeys) tree[key]!],
         generatorVersion: generatorVersion,
+        assets: assets,
       ).render(),
     );
 
-    _write('$outputDir/assets/site.css', buildStylesheet(tokens));
-    // After the page loop, and from `plan` rather than `tree`: 1,603 of the
-    // corpus's nodes have no page of their own, and only the plan knows which
-    // chapter file swallowed each one. An index built from the tree alone would
-    // look correct and send those 1,603 rows to a URL that 404s.
-    _write('$outputDir/$searchIndexOutputPath', buildSearchIndex(plan: plan));
-    _copyPackageAsset(
-      emblemFileName,
-      "the toolbar's home link will show a broken image on every page. Fix: "
-      'run static_site_generator/assets/make_emblem.sh and commit its output.',
-    );
-    _copyPackageAsset(
-      siteScriptFileName,
-      'the site will build without search or the ?layout= handler. Every page '
-      'still works; the toolbar button stays hidden.',
-    );
-    _copyFonts();
+    _write('$outputDir/$stylesheetOutputPath', css);
+    _write('$outputDir/$searchIndexOutputPath', searchIndex);
+    // Root of the upload, not `assets/`: Cloudflare only reads it there. It is
+    // static text, so it costs the build nothing and is written unconditionally
+    // — a subtree preview caches exactly like production.
+    _write('$outputDir/$cacheHeadersOutputPath', buildCacheHeaders());
+    if (script != null) _writeBytes('$outputDir/$siteScriptOutputPath', script);
+    if (emblem != null) _writeBytes('$outputDir/$emblemOutputPath', emblem);
+    for (final font in fonts) {
+      _writeBytes(
+          '$outputDir/$fontsOutputDir/${font.face.relativePath}', font.bytes);
+    }
     manifest.writeTo('$outputDir/.manifest.json',
         generatorVersion: generatorVersion);
 
@@ -238,26 +273,27 @@ class SiteGenerator {
       page.node.contentFileId ??
       (page.suttas.isEmpty ? null : page.suttas.first.contentFileId);
 
-  /// Copies one committed asset (the emblem, `site.js`) into the build.
+  /// Reads one committed asset (the emblem, `site.js`) — null when it is not
+  /// there.
   ///
   /// Same contract as the fonts: made by hand, committed, and the build only
-  /// moves bytes (D9). The target is built from [fileName], never from the
-  /// asset's URL — `site.js`'s carries a `?v=` no file on disk will.
+  /// moves bytes (D9). **Read here rather than copied straight across** because
+  /// the URL every page links carries a hash of these bytes (`SiteAssets`), so
+  /// they have to be in hand before the first page is rendered, and written
+  /// afterwards.
   ///
-  /// A warning, not a throw, matching [_copyFonts]: neither absence makes a
+  /// A warning, not a throw, matching [_readFonts]: neither absence makes a
   /// page of scripture wrong, and [warning] says what the site loses.
-  void _copyPackageAsset(String fileName, String warning) {
+  List<int>? _readPackageAsset(String fileName, String warning) {
     final source = File('$packageAssetsPath/$fileName');
     if (!source.existsSync()) {
       stderr.writeln('WARNING  ${source.path} missing — $warning');
-      return;
+      return null;
     }
-    final target = File('$outputDir/assets/$fileName');
-    target.parent.createSync(recursive: true);
-    target.writeAsBytesSync(source.readAsBytesSync());
+    return source.readAsBytesSync();
   }
 
-  /// Copies the committed WOFF2 subsets (D7).
+  /// Reads the committed WOFF2 subsets (D7).
   ///
   /// Fonts are a build **input**, like `theme_tokens.json`: `subset_fonts.sh`
   /// is run by hand and its output committed, so the build loop stays pure Dart
@@ -267,13 +303,18 @@ class SiteGenerator {
   /// `@font-face` rules from — so the site ships exactly the faces it declares.
   /// Globbing `assets/fonts/` instead would also copy the Latin-only families
   /// the Flutter app bundles, which no CSS rule here names.
-  void _copyFonts() {
+  ///
+  /// Returns what it found rather than writing it, because the faces are hashed
+  /// into the `@font-face` URLs before the stylesheet those rules live in is
+  /// built — [_readPackageAsset] has the same shape for the same reason.
+  List<({WebFontFace face, List<int> bytes})> _readFonts() {
     final source = Directory('${reader.assetsPath}/fonts');
     if (!source.existsSync()) {
       stderr.writeln('WARNING  ${source.path} missing — no fonts copied.');
-      return;
+      return const [];
     }
 
+    final found = <({WebFontFace face, List<int> bytes})>[];
     final missing = <String>[];
     for (final face in webFontFaces(tokens)) {
       final file = File('${source.path}/${face.relativePath}');
@@ -281,12 +322,10 @@ class SiteGenerator {
         missing.add(face.relativePath);
         continue;
       }
-      final target = File('$outputDir/fonts/${face.relativePath}');
-      target.parent.createSync(recursive: true);
-      target.writeAsBytesSync(file.readAsBytesSync());
+      found.add((face: face, bytes: file.readAsBytesSync()));
     }
 
-    if (missing.isEmpty) return;
+    if (missing.isEmpty) return found;
     stderr.writeln(
       'WARNING  ${missing.length} of the declared WOFF2 faces are not in '
       '${source.path} (${missing.first}${missing.length > 1 ? ', …' : ''}). '
@@ -295,11 +334,18 @@ class SiteGenerator {
       'assets/fonts/subset_fonts.sh and commit its *-Subset.woff2 output '
       '(needs `pip install "fonttools[woff]"`).',
     );
+    return found;
   }
 
   void _write(String path, String contents) {
     final file = File(path);
     file.parent.createSync(recursive: true);
     file.writeAsStringSync(contents);
+  }
+
+  void _writeBytes(String path, List<int> bytes) {
+    final file = File(path);
+    file.parent.createSync(recursive: true);
+    file.writeAsBytesSync(bytes);
   }
 }

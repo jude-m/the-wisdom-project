@@ -5,6 +5,12 @@
 /// this searches **names only**, which is the question a static site can answer
 /// without shipping a database.
 ///
+/// Its output path and its cache token are in `site_assets.dart`, not here:
+/// `site.js` reads a row by field *position*, so the script and this file are
+/// one contract and are busted by one hash of both. That replaced a hand-bumped
+/// `searchContractVersion` whose trigger — bump when a field moves — missed
+/// every other way this file changes, an upstream re-sync first among them.
+///
 /// ## Why it is built here and not from `tree.json`
 ///
 /// 1,603 of the 16,355 nodes have no page of their own — they are leaves
@@ -33,27 +39,6 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 import '../domain/site_page.dart';
 import 'entry_renderer.dart';
 import 'node_labels.dart';
-
-/// Cache token stamped on **both** `site.js` and the index it reads by field
-/// position. **Bump it in the same edit that moves a field.**
-///
-/// Nothing enforces that contract at runtime, and neither file's URL carries a
-/// content hash (the build copies bytes — D9), so a cached script from before
-/// the change beside a fresh index gives plausible results pointing at the
-/// wrong sutta. A query string rather than a renamed file: caches key on the
-/// full URL, the build keeps writing one path.
-const String searchContractVersion = '1';
-
-/// URL the dialog fetches. One constant, so the `data-index` attribute and the
-/// file the build writes cannot name two different things — the same contract
-/// `emblemUrl` has.
-const String searchIndexUrl =
-    '/assets/search-index.json?v=$searchContractVersion';
-
-/// Path under the output directory. Built from the file name rather than by
-/// stripping [searchIndexUrl]'s leading slash: a URL is not a path — this one
-/// now carries a query string that no file on disk ever will.
-const String searchIndexOutputPath = 'assets/search-index.json';
 
 /// Builds the index for a planned site.
 ///

@@ -930,10 +930,13 @@ its name, not climb to it. "Nav collapse persistence" went with the rail.)*
     See "What P4 found" below.
   - Byte-deterministic (§11.8) by iterating the plan, never a `Map`. ✅
     Build-twice over all 14,766 output files is hash-identical.
-  - The index URL and `site.js` both carry `?v=<searchContractVersion>`, bumped by
-    hand when a field moves. Nothing checks the field order at runtime, and a
-    cached script from before a change beside a fresh index returns plausible
-    results pointing at the wrong sutta.
+  - The index URL and `site.js` both carry `?v=<one hash of both files>`,
+    computed by the build (`render/site_assets.dart`). Nothing checks the field
+    order at runtime, and a cached script from before a change beside a fresh
+    index returns plausible results pointing at the wrong sutta — so the two are
+    busted as one. This replaced a hand-bumped `searchContractVersion`, whose
+    trigger ("bump when a field moves") missed every other way either file
+    changes, an upstream re-sync first among them.
 - **⚠️ Store the welded name, normalize at match time.** ✅ The detail that would
   otherwise have shipped a search that silently misses. Names go through
   `weldTitle()` before display (D1), which inserts touching ZWJ; raw `tree.json`

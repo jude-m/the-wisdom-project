@@ -27,7 +27,6 @@ library;
 import '../domain/site_page.dart';
 import 'entry_renderer.dart';
 import 'node_labels.dart';
-import 'search_index.dart';
 
 /// Accessible name of the trigger, and of the dialog it opens.
 ///
@@ -88,12 +87,10 @@ const String searchCloseId = 'search-close';
 /// Shares its box with `.up` — one CSS rule names both — and sits beside it, so
 /// the two read as one set of controls. `hidden` until the script runs.
 ///
-/// The index URL and the link prefix ride on `data-` attributes rather than
-/// being written into the script. `site.js` therefore spells no path of its
-/// own: [searchIndexUrl] and [TipitakaLink.pathSegment] stay the single place
-/// each is written, which is the same contract `emblemUrl` has and the reason
-/// a result link cannot drift from the URL grammar the rest of the site — and
-/// the app's deep-link codec — agree on.
+/// It carries no `data-` attributes. The two it used to hold — the index URL
+/// and the link prefix — are the dialog's business, not the button's, and
+/// keeping them here would mean threading a build-time URL through `toolbar`
+/// and `breadcrumb` to reach a control that never uses it.
 ///
 /// `aria-haspopup="dialog"` so the label is not the only thing saying what the
 /// button does: it is announced as opening something, which is the difference
@@ -103,8 +100,7 @@ const String searchCloseId = 'search-close';
 /// dialog owns its own close.
 String searchTrigger() =>
     '<button class="search-trigger" id="$searchTriggerId" type="button" '
-    'hidden data-index="$searchIndexUrl" data-base="${tipitakaUrl('')}" '
-    'aria-haspopup="dialog" '
+    'hidden aria-haspopup="dialog" '
     'title="$searchLabel" aria-label="$searchLabel">$_searchGlyph</button>';
 
 /// The modal itself, emitted at the end of every page's body.
@@ -120,13 +116,25 @@ String searchTrigger() =>
 /// count are announced without moving focus off the field the reader is still
 /// typing in.
 ///
-/// Every string it can show arrives as a `data-` attribute for the same reason
-/// the URLs do: the script writes them into the page but must not *own* them,
-/// or the site would hold Sinhala in two places. `data-marker` is a piece of a
-/// *name* rather than a message, so it is welded (D1) to match the `<h1>` of
-/// the page it links to; which rows take it is the index's column 6.
-String searchDialog() => '<dialog class="search" id="$searchDialogId" '
+/// Every string it can show arrives as a `data-` attribute, and so does every
+/// URL, for the same reason: the script writes them into the page but must not
+/// *own* them, or the site would hold Sinhala — and its URL grammar — in two
+/// places. `data-marker` is a piece of a *name* rather than a message, so it is
+/// welded (D1) to match the `<h1>` of the page it links to; which rows take it
+/// is the index's column 6.
+///
+/// [indexUrl] is `SiteAssets.searchIndex`, carrying the hash that pairs this
+/// index with the script that reads it. `data-base` is
+/// [TipitakaLink.pathSegment]'s one spelling, which is what keeps a result link
+/// from drifting off the URL grammar the rest of the site — and the app's
+/// deep-link codec — agree on.
+///
+/// Both sit on the dialog rather than the trigger so that everything `site.js`
+/// is handed comes off one element.
+String searchDialog(String indexUrl) => '<dialog class="search" '
+    'id="$searchDialogId" '
     'aria-label="$searchLabel" '
+    'data-index="$indexUrl" data-base="${tipitakaUrl('')}" '
     'data-loading="$searchLoading" data-empty="$searchNoResults" '
     'data-error="$searchError" '
     'data-count="$searchResultCount" '

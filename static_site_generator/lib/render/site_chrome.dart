@@ -25,6 +25,7 @@ import '../domain/site_page.dart';
 import 'node_labels.dart';
 import 'reading_layouts.dart';
 import 'search_dialog.dart';
+import 'site_assets.dart';
 
 /// Accessible name for the home link. The app's `navHome` (`app_si.arb:198`),
 /// not new wording — two names for one thing is how surfaces drift.
@@ -47,17 +48,6 @@ const String breadcrumbLabel = 'ස්ථානය';
 /// `expand` ("ඉහළ​ට"), which is a disclosure toggle and means something else.
 const String upLabel = 'ඉහළ';
 
-/// A committed 200×200 derivative of `assets/icons/app_logo.png`, produced by
-/// `static_site_generator/assets/make_emblem.sh` — see that script for why the
-/// 634 KB source is never shipped.
-const String emblemFileName = 'emblem.png';
-
-/// The mark in the toolbar, on every page including `/`.
-///
-/// One constant, so the `<img src>` and the file the build copies cannot name
-/// two different things.
-const String emblemUrl = '/assets/$emblemFileName';
-
 /// The site's only route back to `/` — and, since the trail moved into the bar,
 /// the first segment of it.
 ///
@@ -70,8 +60,13 @@ const String emblemUrl = '/assets/$emblemFileName';
 /// Rendered on `/` too, where it points at the page you are already on. A logo
 /// that stops being a link on one page is the odder behaviour, and the
 /// alternative costs a branch through every caller to save one anchor.
-String homeLink() => '<a class="home" href="/" title="$homeLabel">'
-    '<img src="$emblemUrl" width="28" height="28" alt="$homeLabel"></a>';
+///
+/// The emblem's URL arrives from [SiteAssets] rather than being written here:
+/// it carries a hash of the image, which only the build that read the bytes can
+/// know.
+String homeLink(SiteAssets assets) => '<a class="home" href="/" '
+    'title="$homeLabel">'
+    '<img src="${assets.emblem}" width="28" height="28" alt="$homeLabel"></a>';
 
 /// The trail: home, the ancestors, and the page itself.
 ///
@@ -125,12 +120,13 @@ String homeLink() => '<a class="home" href="/" title="$homeLabel">'
 /// `title` — so this arrives as a description, and it is the same string either
 /// way.
 String breadcrumb({
+  required SiteAssets assets,
   List<TipitakaNode> trail = const <TipitakaNode>[],
   TipitakaNode? current,
 }) {
   final buffer =
       StringBuffer('<nav class="breadcrumb" aria-label="$breadcrumbLabel">');
-  buffer.write(homeLink());
+  buffer.write(homeLink(assets));
   for (final ancestor in trail) {
     // `nodeLabelHtml` escapes `"`, which is what lets one string be both the
     // text and the attribute.
@@ -238,6 +234,7 @@ String tocList(Iterable<TipitakaNode> nodes) {
 /// the group after it does not.
 String toolbar({
   required bool withLayouts,
+  required SiteAssets assets,
   List<TipitakaNode> trail = const <TipitakaNode>[],
   TipitakaNode? current,
   TipitakaNode? parent,
@@ -246,7 +243,7 @@ String toolbar({
   // Defaults render `/`'s bar: the emblem alone in a trail with nowhere to
   // climb. That is the same markup every other page carries, minus segments —
   // not a second bar shape with a branch guarding it.
-  buffer.write(breadcrumb(trail: trail, current: current));
+  buffer.write(breadcrumb(assets: assets, trail: trail, current: current));
   if (parent != null) buffer.write(upLink(parent));
   buffer.write(searchTrigger());
   if (withLayouts) {

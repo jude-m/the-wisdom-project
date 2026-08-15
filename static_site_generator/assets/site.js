@@ -22,9 +22,12 @@
  * say so. The one contract it does rely on is the *field order* of an index
  * row, named in the KEY/PALI/SINHALA/PARENT/CHAPTER/MARKED constants below —
  * get that wrong and search returns plausible results pointing at the wrong
- * sutta. `searchContractVersion` in the Dart stamps `?v=` on this file and the
- * index together, so no cache can hold an old one of the two beside a new
- * other; bump it in the same edit that moves a field.
+ * sutta.
+ *
+ * Nothing needs bumping when it changes. The build stamps `?v=` on this file
+ * and on the index with one hash of *both*, so no cache can hold an old one of
+ * the two beside a new other — and editing either one is what busts it. See
+ * `lib/render/site_assets.dart`.
  */
 (function () {
   'use strict';
@@ -115,9 +118,11 @@
   var status = document.getElementById('search-status');
   var list = document.getElementById('search-results');
 
-  /* Everything the generator hands this file. */
-  var INDEX_URL = trigger.getAttribute('data-index');
-  var BASE = trigger.getAttribute('data-base');
+  /* Everything the generator hands this file, and all of it off one element:
+   * the trigger is a button with a label, and the dialog is where the search
+   * contract lives. */
+  var INDEX_URL = dialog.getAttribute('data-index');
+  var BASE = dialog.getAttribute('data-base');
   var TEXT = {
     loading: dialog.getAttribute('data-loading'),
     empty: dialog.getAttribute('data-empty'),
@@ -386,11 +391,12 @@
     if (rows || loading || failed) return;
     loading = true;
 
-    /* Announced only if there is actually a wait. The fetch is per document but
-     * the response is HTTP-cached, so from the second page on it resolves in a
-     * few milliseconds — and a message drawn and pulled back inside 200 ms
-     * reads as the dialog glitching, not as it working. Late is the only time
-     * "loading" is information.
+    /* Announced only if there is actually a wait. The fetch is per document,
+     * but `_headers` serves the index `immutable` under a hashed URL, so from
+     * the second page on it comes out of the browser's cache with no round
+     * trip at all — and a message drawn and pulled back inside 200 ms reads as
+     * the dialog glitching, not as it working. Late is the only time "loading"
+     * is information.
      */
     loadingTimer = window.setTimeout(function () {
       loadingTimer = null;
