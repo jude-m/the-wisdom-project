@@ -114,8 +114,9 @@ Future<void> _handle(HttpRequest request, String rootPath) async {
   // Stricter than production on purpose, and the one place this server is.
   // Pages has no `404.html` yet, so it answers this path — and every other
   // unknown one — with `200` and the landing page (measured 2026-08-15; it is
-  // seo-wins item 1). Refusing here says the file is not a page; mirroring the
-  // soft-404 would only reproduce a bug.
+  // item A1 in docs/todo/web-strategy/static-site-backlog.md). Refusing here
+  // says the file is not a page; mirroring the soft-404 would only reproduce
+  // a bug.
   if (path == '/$cacheHeadersOutputPath') {
     response.statusCode = HttpStatus.notFound;
     response.headers.contentType = ContentType.html;

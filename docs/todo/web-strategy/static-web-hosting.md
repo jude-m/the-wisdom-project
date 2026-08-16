@@ -1,5 +1,10 @@
 # Static Web — Hosting (Cloudflare Pages), SEO Plumbing & the App Boundary
 
+> **Page-count figures are owned by
+> [`reading-units-and-grouping.md`](./reading-units-and-grouping.md).** What this
+> doc owns is the *invariant*: with stubs the total is always **16,356**, so the
+> 20,000-file cap is never in play whatever the grouping rule does.
+>
 > Status: **Direction decided 2026-06-11; hosting reworked for Cloudflare Pages
 > 2026-07-20** (the Dart content server is being retired).
 > This is the **hosting + deployment + crawl-plumbing** companion to the build
@@ -106,21 +111,21 @@ All of this is the **free** Pages plan:
   HTTP→HTTPS redirect. This is precisely what lets the App-Links `.well-known`
   files (below) be fetched over real HTTPS — the OS requirement for Universal /
   App Links.
-- **File cap = 20,000 files per project (exact numbers 2026-07-23).** The whole
-  corpus (canon + `atta-*` + `anya-*`) generates **16,356 files**: 14,753 real
-  pages (12,748 sutta + 146 chapter + 1,858 container TOC + 1 root) plus **1,603
-  grouped-leaf redirect stubs** — the stubs ride on the P5 stub-vs-Bulk-Redirects
-  gate below; with edge redirects instead, the total is 14,753 (build plan
-  §13.2). Note the invariant: with stubs, the total is *always* leaves (14,351)
-  + containers (2,004) + root —
-  **the grouping threshold does not move the file count at all** (an exploded
-  vagga = 1 TOC + N pages; a grouped one = 1 chapter + N stubs — same N+1).
-  Grouping is a UX/SEO choice, not a file-budget knob. The content project sits
-  at **~82% of the cap with stubs (~74% without), and its corpus is fixed** —
-  remaining additions (nav, sitemaps, CSS, `.well-known`) are dozens of files,
-  not thousands. (Canon DBs
-  are **not** in this count — R2, next bullet. The Flutter bundle isn't either —
-  own project, see "Project topology".)
+- **File cap = 20,000 files per project.** The whole corpus (canon + `atta-*` +
+  `anya-*`) generates **16,356 files** with stubs, and that number is an
+  *invariant*: leaves (14,351) + containers (2,004) + root, always —
+  **the grouping rule does not move the file count at all** (an exploded vagga
+  = 1 TOC + N pages; a grouped one = 1 chapter + N stubs — same N+1). Grouping
+  is a UX/SEO choice, not a file-budget knob, and this bullet needs no update
+  when the rule changes. The split between real pages and stubs *does* move and
+  is owned by
+  [`reading-units-and-grouping.md`](./reading-units-and-grouping.md); it only
+  matters here if the P5 gate below picks edge redirects, in which case the
+  total is the real-page count instead. Either way the content project sits at
+  **≤82% of the cap, and its corpus is fixed** — remaining additions (sitemaps,
+  CSS, `.well-known`) are dozens of files, not thousands. (Canon DBs are **not**
+  in this count — R2, next bullet. The Flutter bundle isn't either — own
+  project, see "Project topology".)
 - **Bandwidth and requests are unlimited** on the static side — Googlebot, GPTBot,
   ClaudeBot and human readers never hit a metered wall. This directly serves the
   SEO / LLM-ingestion / slow-connection goals.
@@ -139,7 +144,7 @@ All of this is the **free** Pages plan:
 - **`_redirects` rule caps: 2,000 static + 100 dynamic = 2,100 total (verified
   2026-07-22).** The content project now needs few or zero rules (the app moved
   to its own project) — but the cap still rules out per-sutta redirect rules for
-  the **1,603 grouped leaves** (and any higher threshold breaks the cap harder).
+  the grouped leaves, under every rule considered (a looser one breaks it harder).
   Grouped-leaf clean URLs are therefore never `_redirects` lines — they are
   **stub HTML files or Bulk Redirects** (P5 decision gate — see "Grouped-leaf
   clean URLs" below; build plan §6/§13.2).
@@ -347,21 +352,25 @@ surfaces no longer share a project.
 
 ### Grouped-leaf clean URLs — stub files vs Bulk Redirects (P5 decision gate, 2026-07-23)
 
-Something must answer at each of the 1,603 grouped-leaf URLs
-(`/tipitaka/<leafKey>` → `…/<vaggaKey>#<leafKey>`). The *requirement* is locked
-(exact-sutta links for no-app recipients, 2026-07-22); the *mechanism* is a
-**P5 decision — do NOT generate the stubs without asking the maintainer**:
+Something must answer at each grouped-leaf URL
+(`/tipitaka/<leafKey>` → `…/<vaggaKey>#<leafKey>`). How many there are is owned
+by [`reading-units-and-grouping.md`](./reading-units-and-grouping.md) and has
+stayed well inside the 10,000 free quota under every rule considered. The
+*requirement* is locked (exact-sutta links for no-app recipients, 2026-07-22);
+the *mechanism* is a **P5 decision — do NOT generate the stubs without asking
+the maintainer**:
 
 - **Stub HTML files** (build-plan default): meta-refresh-0 + canonical →
   chapter. In-repo and portable, work on `*.pages.dev` previews, no zone
-  needed. Cost: +1,603 files and a momentary blank stub before the jump.
+  needed. Cost: one file per grouped leaf, and a momentary blank stub before
+  the jump.
 - **Cloudflare Bulk Redirects** (verified 2026-07-23): an account-level
   redirect list serving **real edge 301s**; target URLs **may carry
   `#fragment`**; free quota = **10,000 list items / 5 lists — verified on the
   dev account 2026-07-23** (re-verify on the production wisdom.ops account at
   creation: dash.cloudflare.com → account → **Bulk Redirects**; the legacy-20
-  issue was old-account rollout lag). Cleaner (−1,603 files, no stub flash),
-  but needs the custom domain
+  issue was old-account rollout lag). Cleaner (one fewer file per grouped leaf,
+  no stub flash), but needs the custom domain
   as a Cloudflare zone (inert on `*.pages.dev`) and the list lives in the
   dashboard/API — the generator should emit the leaf→chapter#fragment mapping
   as CSV either way, so switching mechanisms is a re-upload, not a rebuild.
@@ -438,9 +447,9 @@ Two things to know before editing it:
   which is the only reason the file is this short. A rule setting a *different*
   header (a CSP on `/*`) can safely span both.
 
-**Deploy cost.** A change to any asset rewrites the `<head>` of all 14,753
-pages — fonts included, since their token rides inside the CSS the pages link —
-so the hash-incremental deploy re-uploads the whole ~388 MB instead of a handful
+**Deploy cost.** A change to any asset rewrites the `<head>` of **every** page
+— fonts included, since their token rides inside the CSS the pages link —
+so the hash-incremental deploy re-uploads the whole build instead of a handful
 of files. That is what `immutable` costs, and a hand-bumped token paid it too;
 the option it is being bought over is no version at all, which the point above
 rules out. Practical consequence: **batch asset work**, and expect a full upload

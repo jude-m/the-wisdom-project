@@ -2,6 +2,13 @@
 
 **Status:** active · **Created:** 2026-07-27 · **First slice:** `an-1`
 
+> **Page-count figures are owned by
+> [`reading-units-and-grouping.md`](./reading-units-and-grouping.md).** Numbers
+> quoted below inside a dated phase record (P1–P4 deliverables, measurements,
+> revision notes) are **history and stay as written** — they say what a
+> particular build measured on a particular day. Anything forward-looking points
+> at the grouping doc instead.
+
 This is the *execution* plan. The **model** (grouping, URL grammar, thresholds)
 stays locked in `static-html-site-plan.md`; hosting stays in
 `static-web-hosting.md`; link contracts stay in `deep-linking-and-shareable-urls.md`.
@@ -426,7 +433,7 @@ Build-twice diff is empty, so §11.8 holds from the first phase.
 #### Post-P1 review pass (2026-07-30)
 
 An audit of the finished phase against C1–C10 and the app. Page count, the 581-
-entry conservation check and the full-corpus 146 / 1,603 / 16,356 are all
+entry conservation check and the full-corpus grouping budget are all
 unchanged by it — these are structure and parity fixes, not behaviour.
 
 - **Layers now point one way.** `ContentEntry` / `ContentPage` / `ContentFile`
@@ -918,9 +925,10 @@ its name, not climb to it. "Nav collapse persistence" went with the rail.)*
   - `parentIdx` is an index into the same array, for the parent-path subtitle on
     a result row. An integer, not a repeated key string — it compresses far
     better.
-  - `chapterIdx` is `-1` when the node has its own page. **1,603 of 16,355 nodes
-    do not** (grouped into 146 chapter files), so their result links
-    `…/<chapterKey>#<key>`, never `…/<key>` — which 404s. All 1,603 resolve from
+  - `chapterIdx` is `-1` when the node has its own page. **The grouped leaves
+    do not** (they live inside chapter files — count in the grouping doc), so
+    their result links
+    `…/<chapterKey>#<key>`, never `…/<key>` — which 404s. All of them resolve from
     `SitePlan`, which is *why* the index is built after `SitePlan.build()` and
     not from `tree.json` alone. ✅ Verified on the build: every one of the 16,355
     rows resolves to a file that exists.
@@ -983,8 +991,8 @@ build-twice hash identical.
   state is the UA's `dialog:not([open]) { display: none }`, and **any** author
   declaration outranks it — cascade origin is settled before specificity is
   consulted. A bare `.search { display: flex }` therefore does not merely style
-  the panel; it leaves the dialog rendered, open, in the normal flow of all
-  14,753 pages. `display` lives on `.search[open]` and must stay there.
+  the panel; it leaves the dialog rendered, open, in the normal flow of **every
+  page in the build**. `display` lives on `.search[open]` and must stay there.
 - **The toolbar's breakpoints are a function of the pinned chrome, and this
   phase moved it.** The search button added a 36px control and the `gap` before
   it: **+46.8px** at every width, taking the bar's pinned width from 259/218 to
@@ -1011,7 +1019,7 @@ build-twice hash identical.
   copy of a Sinhala label or of `/tipitaka/` in a JS file fails the same silent
   way, and there is no analyzer on that side at all.
 - **The dialog and its script close every body, from `document_shell.dart`.**
-  Both are byte-identical on all 14,753 pages, so they belong to the shell for
+  Both are byte-identical on every page in the build, so they belong to the shell for
   the same reason the five head lines do. Position is not cosmetic: they must
   not come between the layout radios and `.toolbar`/`.content` (every layout
   rule is a sibling combinator off those radios), and they must not precede
@@ -1081,13 +1089,13 @@ build-twice hash identical.
   sutta N's name and continues into sutta N+1's body — a page that is wrong
   without looking wrong. **68 of the 77 are in `vp-pct-1-2`** (its majority),
   the rest scattered: `an-2-17-1/2/3`, `an-8-2-5`, `kn-pv-2-9`, `kn-pv-3-4`,
-  `kn-pv-4-3`, `kn-vv-4-7`, `vp-prj-1`. Five of the 146 grouped vaggas live in
+  `kn-pv-4-3`, `kn-vv-4-7`, `vp-prj-1`. Five grouped vaggas (as of 2026-08-09) live in
   `vp-pct-1-2`; on a chapter page the text is all present and in order, but each
   `#fragment` lands one sutta early. **Needs a build-time detector before this
   phase ships** — the shape is "the slice's first entry is a heading matching
   the node's own name, and a *numbering* entry follows it".
 - ⚠️ **Decision gate:** stub files vs Cloudflare Bulk Redirects for grouped-leaf
-  clean URLs. **Ask before emitting the 1,603 stubs.**
+  clean URLs. **Ask before emitting the stubs.**
 - **Link checker + HTML validator** over `build/` (Node CLIs, D9) — at 16k files
   broken links stop being findable by eye.
 - **Measure before minifying** (D9). Adopt only if the brotli'd win is real *and*
@@ -1129,7 +1137,7 @@ is what makes this phase cheap.
    `Dev/designs/Static Site Sketches.dc.html` were never shared. Resolved by D6
    (generate from the app theme) — but if those files surface, reconcile.
 3. **Stub files vs Bulk Redirects** — P6 gate, unchanged. Note P4 makes the
-   *search* half of it moot: result rows for the 1,603 grouped leaves link
+   *search* half of it moot: result rows for the grouped leaves link
    `…/<chapter>#<key>` directly and never need a redirect. The gate is now only
    about what a **pasted or inbound** `…/<key>` URL does.
 4. **A sutta's other names.** Name-only search finds what BJT prints, so the
@@ -1196,7 +1204,7 @@ that matter are corpus-wide invariants, not examples:
 
 | Tool | Reports |
 |---|---|
-| `tool/classify_corpus.dart` | reproduces 146 vaggas / 1,603 leaves / 16,356 files, and prints the two containers nearest the 1,500 line every run |
+| `tool/classify_corpus.dart` | reproduces the grouping budget owned by [`reading-units-and-grouping.md`](./reading-units-and-grouping.md), and prints the two containers nearest the canon line every run |
 | `tool/classify_corpus.dart --expect` | the same run, **asserted** against the locked budget — 10 rows including the two threshold neighbours, exit 1 on any drift. Run by `test/corpus_tools_test.dart` |
 | the `an-1` build | 581 source entries → 581 rendered elements (nothing dropped or duplicated), and a build-twice diff that is empty |
 
@@ -1265,7 +1273,7 @@ assert across the two outputs:
 | every class named in a rule that mentions a `#L-…` radio is emitted by the template | a class renamed on one side only |
 | every layout has at least one rule reaching `.content` | a layout with a radio and a button that changes nothing when chosen |
 | every class named in a rule that mentions `:target` is emitted — `.chapter`, `.chapter-bar`, `.sutta` | the grouped-chapter filter dying, so every deep link shows the whole run |
-| chapter `<section>`s are anchored by the bare nodeKey | search's `…/<chapter>#<leafKey>` links for the 1,603 grouped leaves silently landing on the chapter head |
+| chapter `<section>`s are anchored by the bare nodeKey | search's `…/<chapter>#<leafKey>` links for the grouped leaves silently landing on the chapter head |
 
 Both class checks **derive** their list from the sheet rather than holding one by
 hand, and that is the point rather than a convenience. A hand-kept array covers
@@ -1356,7 +1364,7 @@ designed away, only asserted:
 | the six DOM ids in `search_dialog.dart` vs. `getElementById` in the script | the dialog silently never opens, or its close button is drawn, focusable and dead |
 | the eight `data-` attributes vs. the names the script reads | dead links, or `null` printed as a status line |
 | `{n}` / `{shown}` in the count strings vs. the script's `replace` | the placeholder is announced literally |
-| `.search[open]`'s `display` guard | the dialog renders open, in flow, on all 14,753 pages |
+| `.search[open]`'s `display` guard | the dialog renders open, in flow, on every page in the build |
 
 The last two are exactly the bugs P4 shipped and caught by hand (see *What P4
 found*), which is the argument for the table rather than against it: both were
