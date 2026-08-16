@@ -364,6 +364,54 @@ the two size docs were written, and the reason `build/assets/` went from 64 KB t
 
 No action proposed; recorded so it is not rediscovered as a regression.
 
+## B6. The 29% no markup edit can reach — and why to stop trimming
+
+Brotli compresses by pointing back at repeats it has already seen, and **its
+memory covers one response**. Every page is compressed from a blank slate, so
+the `<head>`, toolbar, pager and search dialog are spelled out in full 14,752
+times — even though the reader downloaded all of them on the previous page.
+
+Measured by handing the compressor a sibling page first: `br(A+B) − br(A)`
+against `br(B)`, over 150 random pages, `A` a real page from the build.
+
+| | brotli B/page |
+|---|---|
+| page compressed alone (today) | 4,741 |
+| with a sibling page already in the window | 3,360 |
+| **repeated chrome** | **1,381 — 29% of a page** |
+
+**Raw bytes are not wire bytes, and this is where the two part company.** Every
+other figure in Part B is raw, which is right for the build and the upload and
+wrong for what a reader waits on. Repeated markup is the most compressible thing
+on a page, so hand-trimming it returns a fraction of its raw weight:
+
+| | raw B/page | brotli B/page |
+|---|---|---|
+| B2's three toolbar icons | 581 | **92** |
+| all five inline SVGs (incl. search, close) | 981 | 232 |
+| search dialog + trigger | 1,757 | 400 |
+
+⚠ **Correction to B2.** It is still worth doing for the ~8.6 MB it takes off the
+build, but "~575 B off every single page's wire payload" is a raw number; the
+wire saving is **~92 B/page, 1.4 MB corpus-wide**. Step 5 of the order repeats
+the same figure.
+
+**Compression Dictionary Transport** collects the whole 1,381 B without touching
+a template: page 1 is served with `Use-As-Dictionary`, the browser keeps it, and
+the next navigation sends `Available-Dictionary` so the server compresses
+against it — the measurement above, in production.
+
+**Why it waits.** Pages serves files off a disk; picking a dictionary per request
+and compressing against it needs a Worker in front. Chrome ships CDT, Safari and
+Firefox do not, so it is a bonus tier and never the baseline.
+
+**No action proposed.** Recorded as the standing answer to "this repeated markup
+looks wasteful". The search dialog is 400 B of the 1,381 and the toolbar icons
+92 B; the only edit that collects a meaningful share of the rest by hand is
+moving the dialog's markup into `site.js`, which puts Sinhala and URLs back in
+the script and is forbidden by `CLAUDE.md`. Measured 2026-08-16 — re-measure
+before acting, the chrome has grown twice already.
+
 ---
 
 # Part C — Correctness and hygiene
@@ -374,6 +422,10 @@ token, the `/fonts/*` literal, the wrong 404 message — is recorded in
 `static-web-hosting.md` and `render/site_assets.dart`, not here.
 
 ## C1. Tests for `buildCacheHeaders()` and the asset wiring
+
+**Not hygiene — the one hazard the `_headers` work introduced.** Everything else
+in Part C is a tidy-up that fails visibly. This one fails silently, on other
+people's machines, for a year. Rank it above C2.
 
 **Why it waited:** tests in this repo are written on request, not by reflex.
 
@@ -391,11 +443,24 @@ class of bug (two files that must agree with nothing connecting them):
 
 Collapsing to `/assets/*` made the third of those matter more than it did.
 Five exact paths failed **safe**: an asset with no rule of its own simply kept
-the revalidating default. A wildcard fails **unsafe** — anything that lands in
-that directory linked without a `?v=` is served `immutable` for a year, and a
-year of `immutable` cannot be recalled, since purging Cloudflare's cache does
-not reach a browser's disk. "Every asset URL comes from `SiteAssets`" is now an
-invariant that nothing enforces.
+the revalidating default, so forgetting one cost speed. A wildcard fails
+**unsafe** — anything that lands in that directory linked without a `?v=` is
+served `immutable` for a year, so forgetting one costs a year of a stale file on
+readers' disks. "Every asset URL comes from `SiteAssets`" went from a tidiness
+convention to the load-bearing invariant of the whole caching scheme, and
+nothing enforces it.
+
+Three properties make that worth a test rather than care:
+
+- **Purging Cloudflare's cache does not fix it.** That clears the edge, not the
+  copy on a reader's disk, and no API reaches a browser cache. The only exit is
+  to change the URL — i.e. add the `?v=` that was missing — which rewrites every
+  page's `<head>` and re-uploads the full ~425 MB.
+- **You will not notice.** Hard-refresh bypasses the browser cache, so the bug
+  is invisible to whoever shipped it and visible only to readers who already
+  loaded the page once.
+- **It is silent at build time.** An unhashed asset produces a valid build, a
+  green deploy, and a correct-looking page.
 
 The properties `SiteAssets` is supposed to hold are cheap to assert and were
 verified by hand once (2026-08-15, all passing): same inputs → same URLs;
@@ -488,22 +553,25 @@ bytes: no URL moves, and no page re-uploads because of the change.
 # Order to do them in
 
 1. **A1 `404.html`** — a correctness bug, not an optimisation. Take C3 with it.
-2. **A3 `robots.txt` + `sitemap.xml`** — discovery for 16K addresses.
-3. **A2 `<meta name="description">`** — the click-through lever.
-4. **B2 SVG icons → CSS** and **B1 re-cut the emblem** — *in one deploy.* Each is
+2. **C1 the asset-wiring tests** — before the next asset change, not after. A
+   `/assets/*` miss is unrecallable for a year and silent at build time, and
+   steps 5 and 9 below are both asset changes.
+3. **A3 `robots.txt` + `sitemap.xml`** — discovery for 16K addresses.
+4. **A2 `<meta name="description">`** — the click-through lever.
+5. **B2 SVG icons → CSS** and **B1 re-cut the emblem** — *in one deploy.* Each is
    a shared-chrome edit that invalidates all 14,752 hashes; shipping them
    separately pays the full push twice. Together: ~8 MB off the build, ~575 B off
    every page, ~40 KB off first paint.
-5. **A4 absolute canonical** — cheap now that the domain is settled.
-6. **A5 OG tags** — distribution, and this audience shares in messaging apps.
-7. **A6 `BreadcrumbList` JSON-LD.**
-8. **C2 CSP** — its own deploy and verify.
-9. **A7 `lang="pi-Sinh"`** — mostly an accessibility fix.
-10. **A9 font preload, A8 heading duplication** — measure first, both are small.
+6. **A4 absolute canonical** — cheap now that the domain is settled.
+7. **A5 OG tags** — distribution, and this audience shares in messaging apps.
+8. **A6 `BreadcrumbList` JSON-LD.**
+9. **C2 CSP** — its own deploy and verify.
+10. **A7 `lang="pi-Sinh"`** — mostly an accessibility fix.
+11. **A9 font preload, A8 heading duplication** — measure first, both are small.
 
 No action: **B3** (keep the provenance), **B4** (no fix exists), **B5**
-(recorded only). **C1**, **C4** and **C5** are tests and hygiene — do them when
-touching the code they cover, not as a campaign.
+(recorded only), **B6** (needs a Worker). **C4** and **C5** are hygiene — do them
+when touching the code they cover, not as a campaign.
 
 The build stays ~417 MB after all of it (425 less B2's ~8 MB; B1 is ~40 KB and
 does not show), because **the corpus is the corpus** — **365 MB of the 394 MB
