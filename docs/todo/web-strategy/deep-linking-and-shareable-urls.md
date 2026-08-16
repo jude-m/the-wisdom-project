@@ -336,7 +336,7 @@ Four layers carry a deep link. One has tests.
 |---|---|---|
 | **A** URL codec | `packages/wisdom_shared/lib/src/links/tipitaka_link.dart` | 68 (2026-07-29) — every shape in A covered; corpus sweep **A2 outstanding** |
 | **B** Reference resolver | `packages/wisdom_shared/lib/src/refs/suttacentral_ref_resolver.dart` | **zero** |
-| **C** Static-site URL emission | `static_site_generator/lib/domain/site_page.dart`, `lib/render/page_template.dart` | **zero** (no `test/` dir) |
+| **C** Static-site URL emission | `static_site_generator/lib/domain/site_page.dart`, `lib/render/page_template.dart` | **zero** automated (no `test/` dir); five-URL hand-testing sheet in C2 |
 | **D** App-side wiring | `lib/presentation/providers/deep_link_provider.dart`, `widgets/app/deep_link_listener.dart` | **zero** |
 
 Recommended order: **A2 + B** (pure Dart, no new infra, sub-second) → **C** →
@@ -452,7 +452,8 @@ the codec itself.
 - `lib/render/page_template.dart:274` — canon ↔ aṭṭhakathā twin cross-link
 - `lib/render/page_template.dart:97` — child lists on container TOCs (`tocList`)
 - `lib/render/page_template.dart:369` — `id="<nodeKey>"` anchors (the `:target`
-  single-view targets, i.e. the future `#fragment` link targets)
+  single-view targets, i.e. the `#fragment` link targets — live on the dev
+  deploy, hand-testing sheet in C2)
 - `lib/render/site_chrome.dart:134,174,196` — breadcrumb, up-link and TOC list
   items, all through the same helper
 
@@ -470,6 +471,53 @@ the same nodeKey.
 missing. **Timing:** `lib/domain` and `lib/render` were in flux when this was
 written — the generator has since landed, so the full href sweep is now the
 version to write.
+
+### C2 — hand-testing sheet: five live fragment pages
+
+C's `id="<nodeKey>"` anchors are no longer "future" targets — they are live and
+working on the dev deploy. These five URLs are the manual check, verified
+2026-08-14 against that build (14,752 pages, 146 grouped).
+
+Origin `https://dev.sammaditthi-dev.pages.dev` — Pages project `sammaditthi-dev`,
+preview branch `dev`. Production is `https://sammaditthi.pages.dev`; swap the
+host and every path below still holds.
+
+Open each **with** the fragment (one sutta showing) and **without** it (the whole
+vagga). That pair is the test — it is `:has(:target)` doing the single-view, so
+only the browser can prove it.
+
+| Link | Covers |
+|---|---|
+| [`/tipitaka/sn-1-1-7#sn-1-1-7-3`](https://dev.sammaditthi-dev.pages.dev/tipitaka/sn-1-1-7#sn-1-1-7-3) | Baseline. SN Devatāsaṃyutta, 7. අන්වවග්ගො, 10 prose suttas, middle anchor. |
+| [`/tipitaka/atta-sn-1-1-7#atta-sn-1-1-7-3`](https://dev.sammaditthi-dev.pages.dev/tipitaka/atta-sn-1-1-7#atta-sn-1-1-7-3) | Commentary twin of the row above — same vagga, aṭṭhakathā side, 10 anchors. The pair to open side by side. |
+| [`/tipitaka/sn-4-1-17#sn-4-1-17-30`](https://dev.sammaditthi-dev.pages.dev/tipitaka/sn-4-1-17#sn-4-1-17-30) | Most anchors in the corpus: 30 suttas, 47 KB, a peyyāla run. Also the **last** anchor. |
+| [`/tipitaka/kn-thig-1#kn-thig-1-18`](https://dev.sammaditthi-dev.pages.dev/tipitaka/kn-thig-1#kn-thig-1-18) | Verse, not prose — Therīgāthā ekakanipāta, 18 gāthā entries, last anchor. |
+| [`/tipitaka/vp-pct-1-3-1#vp-pct-1-3-1-1`](https://dev.sammaditthi-dev.pages.dev/tipitaka/vp-pct-1-3-1#vp-pct-1-3-1-1) | Different piṭaka — Vinaya sekhiya rules, 10 entries, **first** anchor. |
+
+Between them: canon and commentary, prose and verse, Sutta and Vinaya, first /
+middle / last anchor, and the largest grouped page there is.
+
+Two gotchas, both found the hard way:
+
+- **Drop the `.html`.** `/tipitaka/sn-1-1-7.html` 308-redirects to
+  `/tipitaka/sn-1-1-7`. The fragment survives the redirect (browsers reapply it
+  to the target), but the extensionless form is the real URL.
+- **Keep the `dev.` prefix.** `sammaditthi-dev.pages.dev` without it addresses the
+  project's *production* branch and 404s on these paths.
+
+**This proves the browser half only.** Per the first row of A's table, the codec
+still **drops** a nodeKey-shaped fragment, so the same URL that opens one sutta
+in a browser opens the whole vagga in the app. These five are the fixtures to
+re-run the day that flips.
+
+Grouped pages are exactly the files containing `class="chapter"`; anchor ids are
+always `<pageKey>-<n>`, `n` from 1:
+
+```sh
+cd static_site_generator/build/tipitaka
+grep -rl 'class="chapter"' .                        # the 146
+grep -o 'class="sutta" id="[^"]*"' sn-1-1-7.html    # anchors on one page
+```
 
 ## D — new app-side tests (flutter_test)
 
