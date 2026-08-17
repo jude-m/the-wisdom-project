@@ -2,16 +2,19 @@
 
 > **This document owns the page-count figures.** Every other doc that quotes them points here rather than repeating them — `static-html-site-plan.md` §6/§13.1, `static-html-site-build-plan.md`, `static-web-hosting.md`, `static-site-backlog.md`. The one exception, deliberately: dated phase records in the build plan keep the number that build actually measured.
 >
-> | | today (shipped) | after rules (a)(b)(c) |
+> | | today (shipped) | after the split rule |
 > |---|---:|---:|
-> | grouped containers | 146 | **508** |
-> | grouped leaves (→ stubs) | 1,603 | **3,580** |
-> | real pages | 14,753 | **12,776** |
+> | real pages | 14,753 | **10,298** |
+> |  ├ sutta | 12,748 | **7,687** |
+> |  ├ chapter | 146 | **1,221** |
+> |  └ container TOC | 1,858 | **1,389** |
+> | folded leaves (→ stubs) | 1,603 | **6,058** |
 > | with stubs | 16,356 | **16,356** |
+> | sutta pages under 1,500 chars | 3,707 | **738** |
 >
-> **Status:** rules (a)(b)(c) ready to implement, all classifier-only · the frozen snapshot (Part 2) is ready to build · the app rework (Part 4) is deliberately deferred.
+> **Status:** SETTLED 2026-08-17 — the split rule (Part 1) is ready to implement · the frozen snapshot (Part 2) is ready to build · the app rework (Part 4) is deliberately deferred.
 >
-> **History.** Merged 2026-08-15 from `unified-reading-units-plan.md` (decided 2026-07-29, reworked 2026-08-09 when the hand-override map was dropped for a frozen snapshot) and `collapse-single-leaf-containers-and-small-vaggas.md` (measured 2026-08-14/15). They were separate documents describing one subject, and they had begun to contradict each other.
+> **History.** Merged 2026-08-15 from `unified-reading-units-plan.md` (decided 2026-07-29, reworked 2026-08-09 when the hand-override map was dropped for a frozen snapshot) and `collapse-single-leaf-containers-and-small-vaggas.md` (measured 2026-08-14/15). **Rewritten 2026-08-16**: the three per-container rules (a)(b)(c) are replaced by one per-leaf split rule. The audit that prompted it found five errors in (c)'s sizing table and measured that no per-container rule could reach the problem it was aimed at — 2,776 sutta pages under 1,500 characters would have survived all three. **Settled 2026-08-17** after an independent re-measurement reproduced the rewrite's every figure: `atta-kn-dhp` joins the commentary carve-out, and the minor-KN reading books are promoted outright. **Reviewed and re-settled the same day** against a second, independently written implementation of the rule over the whole corpus, which reproduced every page count, the subtree table and the reconstruction identity exactly. Four things changed as a result: `kn-thag` and `kn-thig` join the promoted books (the canon side was folding 216 of 264 theras and 62 of 73 therīs while their commentaries kept every page); the two preconditions every measurement had silently carried are written into the rule itself; `_commentaryLink` is added to the list of renderers needing the folded-leaf resolver; and two Dhammapada support figures are corrected. Every figure in this document is measured under that final configuration.
 
 ---
 
@@ -23,9 +26,11 @@
   - Every one of the 16,355 tree nodes has a `contentFileId` — including `sp` (සුත්තපිටක → `dn-1`) — so a folder or root tap dumps raw text. The reader has no TOC concept at all.
   - Only `navigateToPreviousSuttaProvider` exists. **There is no "next".**
   - Tab label and breadcrumb never update while scrolling (`_onScroll` touches only `pageStart/entryStart/scrollOffset`), so scrolling from Mūlapariyāya into Sabbāsava leaves the app claiming you are still in Mūlapariyāya.
-- **Static site:** the unit is the *page* — `sutta` (own file) · `chapter` (grouped micro-run vagga) · `toc` (container: preamble + links), prev/next walking readable pages only.
+- **Static site:** the unit is the *page* — `sutta` (own file) · `chapter` (a contiguous run of short leaves, at the vagga's URL or at its first leaf's) · `toc` (container: preamble + links), prev/next walking readable pages only.
 
 **Decisions (2026-07-29):** the app adopts the site's bounded model at **strict parity**; grouped vaggas open in the app as a **chapter scrolled to the anchor**; the app rework is **deferred** until site review settles the vagga grouping; and **no new static/asset files may be added on the app side** — the shared truth is code, not a bundled data file.
+
+**Decisions (2026-08-17, the settle):** mid-vagga chapters are **blessed** against the "BJT structure is never compromised" rule — the navigable hierarchy stays tree-driven and untouched, only file boundaries are synthetic; the **6,058 folded leaves are accepted** as the price of cutting thin pages 3,707 → 738, with the stub-vs-Bulk-Redirects mechanism still open at the P5 gate; the commentary carve-out is **four prefixes** (`atta-kn-dhp` joins); **six canon books are promoted** because in them the leaf *is* a complete named work (`kn-khp`, `kn-snp`, `kn-ud`, `kn-iti`, `kn-thag`, `kn-thig` — see "Six books are promoted outright"); and the rule's **two structural preconditions are stated rather than implied** (see Part 1's rule, and "Constraints this plan respects").
 
 ### Where a book's opening headings go
 
@@ -47,109 +52,122 @@ Nothing is orphaned, nothing renders twice. The site already does this (`sitegen
 
 ---
 
-# Part 1 — The grouping rules
+# Part 1 — The grouping rule
 
-The base rule, shipped: **group iff the container is a deepest container (all children leaves, all in one content file) with at least `minLeaves`(6) children, none of them `maxLeafChars`(1,500) or longer.** Otherwise explode. Rules (a), (b) and (c) below are additions beside it. **Canon keeps the 1,500 line untouched.**
+> **A container groups its leaves only when every one of its children is a leaf and all of them live in one content file.** Inside such a container: **a leaf of 1,500 characters or more gets its own page, and each contiguous run of two or more shorter leaves becomes one page carrying them all**, each leaf a `<section id="<nodeKey>">` that the existing `:has(:target)` CSS filters to single view; a container holding exactly one leaf merges with it. **Commentary reads 15,000** instead of 1,500 — except `atta-kn-jat`, `atta-kn-thag`, `atta-kn-thig` and `atta-kn-dhp`, which stay with the canon. **Six canon books never fold against their siblings at all** — `kn-khp`, `kn-snp`, `kn-ud`, `kn-iti`, `kn-thag`, `kn-thig`, whatever their sizes.
+
+One line, one run length, two structural preconditions, and two closed exception lists (the carve-out and the promoted books, both argued below). No vagga totals, no minimum leaf count, no per-container verdict.
+
+**The two preconditions are not hygiene, they are part of the rule**, and both were carried by every measurement in this document from the start:
+
+- **Every child is a leaf.** A container that also holds sub-containers is a TOC, and a TOC is pure links. Letting it grow a chapter as well would produce the hybrid half-text-half-navigation page rejected under "Where a chapter lives". It blocks 45 runs covering 186 leaves (`atta-ap-dhk-3`'s run of 14, `atta-ap-pat-2`'s run of 8, `atta-kn-nc-5`, `atta-kn-bv-16` …).
+- **All in one content file.** A chapter page would otherwise have to splice two sources. This is the old classifier's `spansContentFiles` guard, still load-bearing; it blocks 4 more runs covering 9 leaves.
+
+Drop them and the rule yields **9,890 real pages, 6,466 folded, 400 thin** — so an implementation that omits them fails every verification in Part 3 while looking plausible. They belong to the planner that writes the snapshot (Part 3 step 2), not to the walk that reads it: the reconstruction in Part 2 A1 needs no knowledge of them, because a container they excluded simply has no folded leaves to find.
 
 Every character count in this document is **combined pali+sinh raw characters**, never pali alone — the distinction that `static-html-site-plan.md` §3 still carries a ⚠ about, and that `GroupingVerdict.maxLeafChars` documents in the code.
 
-## What triggered the revision
+## Why per-leaf, and not per-container
 
-Three vaggas in sequence under `sn-2-1` (අභිසමයසංයුත්තං) each render as a pile of tiny files that read like they should be one page:
+The shipped rule decides a whole vagga at once — *group iff a deepest single-file container has at least `minLeaves`(6) children, none of them `maxLeafChars`(1,500) or longer* — so one substantial sibling explodes everything around it. That is where the thin pages come from. Of the **3,707** sutta pages under 1,500 characters shipping today, **2,304 are blocked by exactly one big sibling** (`hasSubstantialLeaf`) and only 361 by leaf count. Moving the threshold cannot help: the leaf that blocks the vagga is usually a genuine sutta that must keep its page.
 
-- `sn-2-1-8` සමණබ්‍රාහ්මණවග්ගො
-- `sn-2-1-9` අන්තරපෙය්‍යාලො
-- `sn-2-1-10` අභිසමයවග්ගො
+The all-or-nothing shape is not a corner case. Of the 1,461 deepest single-file containers with two or more leaves (this table and the run counts below are the diagnosis, measured under the plain line before the exception lists):
 
-**No generator bug.** Each fails for a different, correct reason:
+| shape | containers | |
+|---|---:|---:|
+| all leaves short — one chapter at the vagga's own URL | 488 | 33.4% |
+| all leaves substantial — every sutta its own page | 366 | 25.1% |
+| **mixed** | **607** | **41.5%** |
 
-| vagga | shape | reason | numbers |
-|---|---|---|---|
-| `sn-2-1-8` | 11 leaves | `hasSubstantialLeaf` | max **1,788**; whole vagga **4,825** chars |
-| `sn-2-1-9` | **0 leaves**, 12 sub-containers | `notDeepest` | never measured |
-| `sn-2-1-10` | 11 leaves | `hasSubstantialLeaf` | max **2,227**; whole vagga 16,261 chars |
+`GroupingClassifier`'s class header rejected splitting per leaf on the grounds that *"on real data the big and micro suttas interleave (`an-4-2-3` runs `..D..D.DDD`), so hoisting the substantial ones out would leave non-contiguous chapter files."* The observation is correct; the conclusion does not follow. The answer to a non-contiguous run is **more than one chapter file**, not zero. Of the 607 mixed containers, 279 hold a single run of short suttas and 225 hold two; only 20 hold four or more.
 
-The one mechanical culprit worth ruling out was checked and cleared: the last leaf of every vagga swallows the colophon + uddāna under the slicing rule, and 53 of 120 near-miss containers do peak at their last leaf. But the mean tail is only **174 chars** and just **9** containers corpus-wide would drop under 1,500 without it. Not worth a rule change.
+```
+an-4-2-3    ..D..D.DDD     →  3 chapters + 5 suttas on their own
+sn-5-12-2   DDDDDD...D     →  Dhammacakkappavattana on its own + 1 chapter of 3
+sn-2-1-10   DD.......DD    →  4 suttas on their own + 1 chapter of 7
+sn-4-9-2    ...........D   →  1 chapter of 76 + 1 sutta on its own
+```
 
-### `sn-2-1-8` — one template, ten abbreviations
+Contiguity is a requirement, not a preference: a chapter page is read by scrolling, so a page that skipped a sutta in the middle of its own range would silently drop it from the reading order. Every chapter this rule emits is a maximal contiguous run.
 
-Nine of eleven leaves are ~200-char peyyāla stubs:
+### What triggered the revision
+
+Three vaggas in sequence under `sn-2-1` (අභිසමයසංයුත්තං) each rendered as a pile of tiny files that read like they should be one page. **No generator bug** — each failed for a different, correct reason, and the split rule now answers all three:
+
+| vagga | shape | why it failed | today | now |
+|---|---|---|---:|---:|
+| `sn-2-1-8` සමණබ්‍රාහ්මණවග්ගො | 11 leaves, max **1,788** | `hasSubstantialLeaf` | 12 | **3** |
+| `sn-2-1-9` අන්තරපෙය්‍යාලො | **0 leaves**, 12 sub-containers | `notDeepest` | 24 | **13** |
+| `sn-2-1-10` අභිසමයවග්ගො | 11 leaves, max **2,227** | `hasSubstantialLeaf` | 12 | **6** |
+
+`sn-2-1-8` is one template plus ten abbreviations — sizes `1788, 194, 184, 208, 204, 199, 197, 207, 207, 217, 1220`. Leaf 1 (ජරාමරණසුත්තං) is the template the rest abbreviate:
 
 ```
 72. [යෙ හි කෙචි -පෙ-] ජාතිං නප්පජානන්ති -පෙ- [යෙ ච ඛො කෙචි -පෙ- ජාතිං පජානන්ති -පෙ-]
 ```
 
-It explodes only because leaf 1 (ජරාමරණසුත්තං) is written out in full as the template the rest abbreviate — 1,788 chars, **288 over the line**. Sizes: `1788, 194, 184, 208, 204, 199, 197, 207, 207, 217, 1220`.
+It now becomes a TOC, the template as its own page, and one chapter holding the ten stubs. **Not one page** — the earlier draft's rule (b) would have folded the template in with its own abbreviations, which reads worse than keeping it addressable.
 
-The signal the classifier misses is not "max leaf < N". It is **the whole vagga is smaller than one ordinary sutta**.
+`sn-2-1-9` is not a vagga but a container of 12 sub-vaggas, 11 of which hold exactly one leaf each (BJT already collapsed those runs itself). It is fixed entirely by the lone-child rule below, not by any threshold.
 
-### `sn-2-1-9` — the one no threshold can reach
-
-Not a vagga. A container of 12 sub-vaggas:
-
-- `sn-2-1-9-1` සත්ථුවග්ගො — 11 leaves, max 1,041 → **already grouped correctly** into one page.
-- `sn-2-1-9-2` … `-12` — **11 sub-vaggas holding exactly one leaf each** (ජරාමරණාදීසුත්තානි, 260–911 chars). BJT already collapsed those runs itself.
-
-Each of those 11 burns **two files**: a TOC page whose entire body is one link (3,887 bytes) plus the leaf (6,866 bytes for 355 chars of text). Subtree total today: **24 HTML files for ~4,600 characters.** Blocked by `minLeaves = 6`, not by the char threshold, so moving the threshold does nothing here at any value.
-
-### `sn-2-1-10` — leave it exploded
-
-Eleven suttas averaging 1,478 chars with distinct names (නඛසිඛා, පොක්ඛරණී, පබ්බතූපම …). Four are already over 1,500. The only rule that reaches it is a flat threshold at ≥2,228, which also swallows `an-1-14 එතදග්ගපාළි`, `sn-1-1-1 නළවග්ගො`, `kn-thag-5/6` and a 77-leaf `sn-4-9-2`. **Not worth it.** This vagga stays as it is.
-
----
-
-## Rule (a) — collapse single-leaf containers
-
-**A container whose only child is a leaf becomes one page instead of two.**
-
-A TOC page holding a single link has no reason to exist. **159** containers corpus-wide. Judgment-free: no threshold, no measurement, no reviewable verdict needed.
-
-It is not a merge of two texts. The container's slice is its preamble (heading, `namo tassa`); the leaf's slice is the text. They already belong on adjacent pages and now share one. The biggest case, `atta-kn-mn-2` → `atta-kn-mn-2-1` at 333,558 chars, **already ships today** as a 996 KB leaf page; the largest file on the site stays `vp-mv-1.html` at 1.37 MB either way. Median single-leaf container's leaf: 1,754 chars. Smallest: 190.
-
-### The BJT structure is untouched — this is a file-count change only
-
-**The container keeps the URL. The leaf loses its file.** That direction is forced, not a preference.
-
-Breadcrumbs and TOC lists are built from the tree, never from the page set — `tree.ancestorsOf(page.nodeKey)` at `page_template.dart:68`, `tree.childrenOf(page.nodeKey)` at `:97`. So the rendered hierarchy is independent of how many files it is spread across, and both levels stay visible on the merged page:
+`sn-2-1-10` was previously argued to stay fully exploded, because the only flat threshold that reached it was ≥2,228 — which also swallowed `an-1-14 එතදග්ගපාළි`, `sn-1-1-1 නළවග්ගො`, `kn-thig-6` and a 77-leaf `sn-4-9-2`. **That argument is now void**, because the split rule does not have to choose. Its four substantial suttas keep their pages and its seven short ones share one:
 
 ```
-breadcrumb  … › ‹ancestors of X›       ← tree.ancestorsOf(X), byte-identical to today's X.html
-<h1>        X's name                    ← the container, from the tree
-<section id="X-1">
-   ‹leaf's heading rows›                ← from the BJT JSON, exactly as its own page renders them
-   …text…
+ 1. නඛසිඛාසුත්තං         1,906  own page      /tipitaka/sn-2-1-10-1
+ 2. පොක්ඛරණීසුත්තං       1,881  own page      /tipitaka/sn-2-1-10-2
+ 3. සම්භෙජ්ජඋදකසුත්තං    1,266  chapter       /tipitaka/sn-2-1-10-3
+ 4. දුතියසම්භෙජ්ජඋදක…    1,485    ↳ fragment  /tipitaka/sn-2-1-10-3#sn-2-1-10-4
+ 5. පඨවීසුත්තං           1,025    ↳ fragment  /tipitaka/sn-2-1-10-3#sn-2-1-10-5
+ 6. දුතියපඨවීසුත්තං      1,192    ↳ fragment  /tipitaka/sn-2-1-10-3#sn-2-1-10-6
+ 7. සමුද්දසුත්තං         1,048    ↳ fragment  /tipitaka/sn-2-1-10-3#sn-2-1-10-7
+ 8. දුතිය සමුද්දසුත්තං   1,237    ↳ fragment  /tipitaka/sn-2-1-10-3#sn-2-1-10-8
+ 9. පබ්බතූපමසුත්තං       1,083    ↳ fragment  /tipitaka/sn-2-1-10-3#sn-2-1-10-9
+10. දුතිය පබ්බතූපම…      1,911  own page      /tipitaka/sn-2-1-10-10
+11. තතියපබ්බතූපම…        2,227  own page      /tipitaka/sn-2-1-10-11
 ```
 
-A **leaf is never anyone's ancestor**, so no breadcrumb anywhere in the site links to `X-1`; removing its file breaks nothing. The reverse — letting the leaf win the URL — would delete `X.html`, and `X` *is* an ancestor, so every page below it would carry a breadcrumb segment pointing at a missing file. Container-wins is the only direction that preserves the structure.
+The one mechanical culprit worth ruling out was checked and cleared: the last leaf of every vagga swallows the colophon + uddāna under the slicing rule, and 53 of 120 near-miss containers do peak at their last leaf. But the mean tail is only **174 chars** and just **9** containers corpus-wide would drop under 1,500 without it. Not worth a rule change.
 
-Two knock-on effects, both benign:
+## The canon line stays at 1,500
 
-- **Pager.** `X` changes from `toc` (not in the chain) to `chapter` (in it), replacing `X-1`. Chain length and reading order are unchanged.
-- **Search.** `X-1` becomes a grouped leaf, so its result row links to `X.html#X-1` — the path the other grouped leaves already take.
+Unchanged in value, narrower in meaning. It no longer asks *"is this vagga worth grouping"* but *"does this one sutta deserve its own URL"* — and nothing named is at risk from it, because a substantial sutta keeps its page whatever its siblings do:
 
-One cosmetic item: `_chapter` always emits the `සම්පූර්ණ පරිච්ඡේදය` bar, which on a one-section chapter offers a return to a view identical to the one you are in. Suppress it when `page.suttas.length == 1`.
+| | chars | own page |
+|---|---:|---|
+| ධම්මචක්කප්පවත්තන `sn-5-12-2-1` | 10,762 | yes |
+| මඞ්ගල `kn-khp-5` | 3,544 | yes |
+| මෙත්ත `kn-khp-9` / `kn-snp-1-8` | 3,791 / 3,680 | yes |
+| මූලපරියාය `mn-1-1-1` | 27,791 | yes |
+| බ්‍රහ්මජාල `dn-1-1` | 149,075 | yes |
 
-## Rule (b) — group when the whole vagga is small
+This is the property the old rule could not give at any threshold, and it is why the line's exact value now matters far less than it did.
 
-**`max < 1500` OR `total < 5000`**, both still behind the existing `minLeaves`/`deepest`/`one content file` gates.
+## Six books are promoted outright — the leaf *is* the work
 
-Catches `sn-2-1-8` exactly, and pulls in only **8 others** (69 leaves total) — all peyyāla or commentary echo-vaggas:
+**`kn-khp`, `kn-snp`, `kn-ud`, `kn-iti`, `kn-thag`, `kn-thig` take `LeafPolicy.ownPage` in the book table (Part 3 step 2) — no leaf under them folds against its siblings.** Decided 2026-08-17: in these six books a leaf is not a section of a longer text, it is a complete named work — a chanted text, a named udāna, a named elder's poem. That is a structural property a size threshold cannot see, and unlike "fame" it can be checked. Under the plain line the rule would have folded **314** of them:
 
-```
-atta-sn-2-6-1   3,397      sn-5-12-10      3,738      atta-sn-5-4-6   4,264
-atta-an-5-5-3   4,495      atta-sn-2-1-10  4,502      atta-sn-2-7-2   4,655
-atta-an-5-2-5   4,691      sn-2-1-8        4,825      sn-4-1-5        4,917
-```
+| book | leaves | would fold | median of those | what it is |
+|---|---:|---:|---:|---|
+| `kn-khp` | 9 | 3 | 1,087 | the four opening texts share one page — **සරණගමනං**, දසසික්ඛාපදං, ද්වත්තිංසාකාරං, කුමාරපඤ්හා, daily-chanted every one |
+| `kn-snp` | 72 | 2 | 1,355 | තොදෙය්‍ය and කප්ප of the Pārāyana pucchās fold onto හෙමක's page |
+| `kn-ud` | 80 | 3 | 1,294 | කොලිත onto සාරිපුත්ත; පපඤ්චක්ඛය and කච්චාන onto තණ්හාඞ්ඛය |
+| `kn-iti` | 112 | 28 | 1,174 | seven runs through the Ones–Threes — the ලෝභ/දෝස/මෝහ recitation series, each a distinct named sutta |
+| **`kn-thag`** | 264 | **216** | 535 | one poem per named elder |
+| **`kn-thig`** | 73 | **62** | 771 | one poem per named elder nun |
 
-**Why 5,000 and not higher.** It is the largest cap that touches nothing named. `kn-thig-6` (10,247 total — the eight named elder nuns the strict `<` was written to protect), `sn-1-1-1 නළවග්ගො` (9,408) and `an-1-14 එතදග්ගපාළි` (11,062) are all untouched. At 6,000 the list doubles to 20 and starts taking `an-1-13 එකපුග්ගලවග්ගො`; at 8,000 it is 44 containers. The error asymmetry from `GroupingClassifier`'s header still holds — a wrong explode is cheap, a wrong group buries a named text — so this cap stays where nothing named is at risk.
+Cost: **+262 real pages**. **340 of the 738** sub-1,500 sutta pages in the header table are promoted-book pages, thin on purpose. The 52-leaf gap between 314 leaves saved and 262 pages gained is the lone-child interaction below.
 
-## Rule (c) — raise the line for commentary, not for canon
+**Theragāthā and Therīgāthā are the reason this list is six and not four.** Without them the canon folds 216 of 264 theras and 62 of 73 therīs, while the carve-out below gives every one of those elders a page in the *aṭṭhakathā*. That arrangement is right for Jātaka — there the canonical entry really is just the gāthā and the story exists only in the commentary — and backwards here, where the poem is the primary text and the vaṇṇanā is its backstory. It also runs `search_index.dart`'s own precedent in reverse: that flag exists because a vaṇṇanā and its canon twin compete for the same search *and the canon should win*. An external check agrees. Mahamevnawa (`tools/mahamevnawa_map/bjt-to-mahamevnawa.json`, 3,747 BJT keys resolved to published pages) publishes all 264 theras and all 73 therīs as individual pages, at exactly BJT leaf granularity; of their whole catalogue the split rule folds 1,068 pages, and thag/thig are far its sharpest disagreement at 82% and 85% of the book.
 
-**`maxLeafChars` becomes 15,000 for `atta-*` and stays 1,500 for canon — except `atta-kn-jat`, `atta-kn-thag` and `atta-kn-thig`, which stay at 1,500 with the canon.**
+**Promotion does not override the lone-child collapse.** 16 promoted leaves — `kn-thag-9-1`, `kn-thag-11-1`, `kn-thag-13-1`, `kn-thag-18-1`, `kn-thag-19-1` and eleven more — are the only child of their container and still merge into it. That is correct rather than an exception to paper over: promotion protects a named work from being *buried among siblings*, and a lone child has none. Its text keeps a page and a stable URL, one level up at the container's.
 
-### Why commentary is different
+**The list is closed and lives in the one book-policy table**, an input to `--write-snapshot` regeneration — never a hand edit of the generated file, so the snapshot stays fully re-derivable. It grows only by a decision recorded here, never by measurement. (This is not the rejected hand-override map returning: that bolted human exceptions onto a live build-time rule, leaving everything unlisted exposed to drift. Here the rule is frozen either way; the promotion list is part of the rule's definition, not a patch over its output.)
 
-`maxLeafChars` is an SEO guard: one substantial sutta in a vagga explodes the whole vagga so that sutta keeps its own rankable page. A *vaṇṇanā* does not need that guard. Nobody searches for ජරාසුත්තවණ්ණනා — they search the sutta, whose canonical page already exists and already carries the අට්ඨකථා cross-link.
+**Measured cost of the promotions not taken**, so the next one is a lookup rather than a re-measurement: `kn-vv` (85 leaves), `kn-bv` (29) and `kn-dhp` (26) fold nothing today and cost **0 pages** — promoting them buys only stability against a future resync. `kn-pv` costs 7 and `kn-cp` 5. Deliberately excluded: `kn-jat` (canon is bare gāthās; the stories live in the carved-out `atta-kn-jat`), `kn-ap` (601 formulaic apadāna verses), and `kn-mn` / `kn-nc` / `kn-ps` / `kn-nett` / `kn-petk`, which are treatises built of sections rather than collections of named works.
+
+## The commentary line: 15,000, except four books
+
+`maxLeafChars` is an SEO guard: one substantial sutta in a vagga must keep its own rankable page. A *vaṇṇanā* does not need that guard. Nobody searches for ජරාසුත්තවණ්ණනා — they search the sutta, whose canonical page already exists and already carries the අට්ඨකථා cross-link.
 
 The generator already treats canon and commentary as different in four places, always the same one-line test (`nodeKey.startsWith(TipitakaNodeKeys.commentary)`):
 
@@ -160,45 +178,52 @@ The generator already treats canon and commentary as different in four places, a
 | `search_index.dart:74-82` | ships that flag as a column — without it **127 commentary results were byte-identical to a canon result** |
 | `page_template.dart:186` | canonical URL is always self: *"a commentary and its canon twin are different texts, not duplicates"* |
 
-`search_index.dart` is the precedent that counts: it was changed *because* a vaṇṇanā and its sutta compete for the same searches, and the sutta should win. Rule (c) applies that same judgment to page structure.
+`search_index.dart` is the precedent that counts: it was changed *because* a vaṇṇanā and its sutta compete for the same searches, and the sutta should win. The commentary line applies that same judgment to page structure.
 
-### Why 15,000
+A second reason, measured: **commentary does not repeat the way the canon does.** Dropping the commentary line to 1,500 adds back 2,373 pages whose median size is 2,613 characters — and strands 574 *new* sub-1,500 thin pages when their runs break apart. There is nothing to consolidate there. What the 15,000 line actually buys is assembly of works BJT fragmented, which is a different job from suppressing peyyāla.
 
-Page weight is the only hard cost, and it does not bite until 20,000:
+### Where the line lands
 
-| commentary max | real pages | biggest chapter | chapters >100k chars |
-|---:|---:|---|---:|
-| 1,500 (today) | 14,753 | 24k ch ≈ 72 KB | 0 |
-| 6,000 | 13,653 | 49k ≈ 143 KB | 0 |
-| 10,000 | 13,199 | 75k ≈ 219 KB | 0 |
-| **15,000** | **12,803** | **90k ≈ 264 KB** | **0** |
-| 20,000 | 12,523 | 206k ≈ **604 KB** | 1 |
-| no gate | 10,162 | 897k ≈ 2.6 MB | 18 |
+Measured under the split rule with the final carve-outs and promotions, whole corpus. "Biggest chapter" means the biggest *multi-sutta* chapter as rendered — a whole-vagga chapter includes its own preamble; the single-leaf pages the carve-outs preserve (up to `atta-kn-mn-2` at 333,617 chars) exist at every line and say nothing about it. "Carve-out worth" is real pages kept versus the same line with no carve-out:
 
-15,000 is the last value at which **no chapter page exceeds 100k characters** (~3 bytes/char in this corpus, measured against four built pages). For scale, the build already ships `atta-kn-mn-2-1.html` at **996 KB** as a single leaf page, so a 264 KB chapter sets no record.
+| commentary line | real pages | biggest chapter | chapters >100k | carve-out worth |
+|---:|---:|---:|---:|---:|
+| 1,500 (same as canon) | 12,671 | 25,682 | 0 | 0 |
+| 3,000 | 11,888 | 37,374 | 0 | 33 |
+| 6,000 | 11,092 | 48,697 | 0 | 178 |
+| 10,000 | 10,610 | 87,024 | 0 | 541 |
+| **15,000** | **10,298** | **103,153** | **1** | **784** |
+| 20,000 | 10,086 | 206,355 | 5 | 899 |
+| no gate | 9,409 | 1,283,126 | 99 | 1,206 |
 
-**20,000 was considered and rejected** — not on weight (604 KB would be the site's 4th largest file, unremarkable) but on consistency. Its extra 253 pages come mostly from `atta-kn-snp-4` (the Aṭṭhakavagga, 16 named suttas), Dhammapada story-commentary, Apadāna and Vimānavatthu — the same "named people and named short texts" category the carve-out below exists to protect. Taking them would make the carve-out a list of three prefixes rather than a principle.
+15,000 is the last value before the biggest chapter roughly doubles and the >100k count quintuples. At ~3 bytes/char in this corpus a 103,153-char chapter is ≈ 300 KB, against `atta-kn-mn-2-1.html` at **996 KB** which the build already ships as a single leaf page. Page weight is not the binding constraint; the shape of the jump at 20,000 is. (The one >100k chapter at 15,000 is `atta-mn-1-1-4` — the Bhayabherava assembly argued for below.)
 
-### Why jat / thag / thig are carved back out
+**20,000 was considered and rejected** on consistency rather than weight. Its extra 212 pages are spread across the whole commentary — the biggest contributors (`atta-kn-snp`, the Aṭṭhakavagga's 16 named suttas; Apadāna; Itivuttaka-vaṇṇanā) are the same "named people and named short texts" category the carve-out below exists to protect. Taking them would stretch the carve-out from a principle into a list.
 
-Those three commentaries are not subsection prose. Their children are **distinct named people**:
+### Why jat / thag / thig / dhp are carved back out
+
+Those four commentaries are not subsection prose. Their children are **distinct named people and named stories**:
 
 ```
 atta-kn-thag-4  "4. චතුක්කනිපාතො"        ← twelve named elders
    atta-kn-thag-4-3   13,103  සභියත්ථෙරගාථාවණ්ණනා
    atta-kn-thag-4-8    9,908  රාහුලත්ථෙරගාථාවණ්ණනා
    atta-kn-thag-4-10   9,550  ධම්මිකත්ථෙරගාථාවණ්ණනා
+atta-kn-dhp-8   "8. සහස්සවග්ගො"          ← fifteen named stories
+   atta-kn-dhp-8-14    කිසාගොතමීවත්ථු      (Kisāgotamī)
+   atta-kn-dhp-8-13    පටාචාරාථෙරීවත්ථු    (Paṭācārā)
+   atta-kn-dhp-8-2     බාහියදාරුචීරියත්ථෙරවත්ථු
 ```
 
-The canon side already concedes the point: `kn-thig-6` — the eight elder *nuns* — is the container the strict `<` was written to protect, by a single character. Protecting Therīgāthā in the canon by one char while burying Theragāthā wholesale in the commentary is not a position. Jātaka is the same case for a different reason: there the aṭṭhakathā **is** the story, and the canonical entry is often just the closing verse.
+Nearly all of those sit between 1,500 and 15,000, so the commentary line would fold them wholesale. Measured for `atta-kn-dhp`: **266 of its 306 stories fall under the 15,000 line and 227 of them actually fold** — the other 39 survive only as run anchors or runs of one — with just 4 under 1,500; and the biggest chapter the uncarved rule produces anywhere is a Dhammapada vagga, `atta-kn-dhp-13` at 67,864 chars. Jātaka and Dhammapada carry a second argument the other two do not: there the aṭṭhakathā **is** the story — the canonical entry is often just the verse — and the stories (Kisāgotamī's mustard seed among them) are what people actually search.
 
-Cost: **32 containers / 319 leaves** stay exploded — about 159 pages against the uncarved figure.
+**Cost: 784 pages** — one per commentary that keeps its own URL. That is the carve-out's whole price and its whole value.
 
-**The carve-out is load-bearing on the canon side too, which is easy to miss.** These same three books are the biggest single block of *already-grouped canon*: `kn-jat-*` (33), `kn-thag-*` (19) and `kn-thig-*` (4) are **56 of today's 146 grouped vaggas**, because BJT's Jātaka pali is only the gāthās and each Theragāthā leaf is one short verse. `static-html-site-plan.md` §13.1 accepted that grouping on one condition — *the searched* **stories** *live in `atta-kn-jat-*`, which explodes* — and today it does (0 of the 146 grouped vaggas are `atta-kn-jat`). Rule (c) without this carve-out would group the commentary too, and the Jātaka stories would then have **no** page of their own on either side. That, not page count, is why these three prefixes cannot be traded away later.
+**Why it survives the promotion of `kn-thag` / `kn-thig`.** For Jātaka the carve-out is the only line of defence and cannot be traded away: BJT's Jātaka pali is only the gāthās, so `kn-jat` supplies 33 of today's 146 grouped vaggas and folds 370 of its 583 leaves under the split rule — the canon side of a Jātaka is never the story. `static-html-site-plan.md` §13.1 accepted that grouping on exactly one condition — *the searched* **stories** *live in `atta-kn-jat-*`, which explodes* — and this carve-out is what keeps that true. `atta-kn-dhp` rests on the same argument. For `atta-kn-thag` and `atta-kn-thig` it is now belt-and-braces rather than the only defence, since every elder holds a canon page again; it stays because a named elder's vaṇṇanā is a substantial text in its own right and not subsection prose, and because a commentary and its canon twin are different texts rather than duplicates — the policy `page_template.dart:186` already enforces by making every commentary page self-canonical.
 
-`atta-kn-ap` (Apadāna), `atta-kn-vv` and `atta-kn-pv` are the same argument one step weaker; adding all three costs a further ~150 pages. Left out for now, and the cheapest thing to change if it ever looks wrong.
+`atta-kn-ap` (Apadāna), `atta-kn-vv` and `atta-kn-pv` are the same argument one step weaker. Left out for now, and the cheapest thing to change if it ever looks wrong.
 
-### One place where grouping is a straight gain
+### One place where the high line is a straight gain
 
 ```
 atta-mn-1-1-4  "භයභෙරවසුත්තවණ්ණනා"      ← ONE commentary, split into 13 subsections
@@ -207,46 +232,118 @@ atta-mn-1-1-4  "භයභෙරවසුත්තවණ්ණනා"      ← ON
    atta-mn-1-1-4-3     8,565  භයභෙරවසෙනාසනාදිවණ්ණනා
 ```
 
-Today the site has 13 pages holding chunks of the Bhayabherava Sutta commentary and **not one page that is** the Bhayabherava Sutta commentary. After (c), one page is. Where a container is itself a single named work, the rule does not bury a document — it repairs one BJT fragmented. Many of the largest containers (c) recruits are this shape.
+Today the site has 13 pages holding chunks of the Bhayabherava Sutta commentary and **not one page that is** the Bhayabherava Sutta commentary. At 15,000, one page is. Where a container is itself a single named work, the line does not bury a document — it repairs one BJT fragmented. This is the argument that survives the "commentary doesn't repeat" finding above, and it is the reason the line is high rather than merely raised.
 
-### What it costs
+## Lone-child containers collapse
 
-**200 commentary containers / 1,791 leaves** grouped. Their largest leaves run 13–15k chars (`atta-kn-khp-9`, `atta-sn-5-1-1`, `atta-ap-yam-7`). Every one keeps its text, its `#fragment` and its search row; what it loses is a standalone URL.
+**A container whose only child is a leaf becomes one page instead of two.** **159** containers corpus-wide. Judgment-free: no threshold, no measurement, no reviewable verdict.
 
----
+It is not a merge of two texts. The container's slice is its preamble (heading, `namo tassa`); the leaf's slice is the text. They already belong on adjacent pages and now share one.
+
+**It is unconditional, and it outranks both the size line and promotion** — the one place where "a leaf of 1,500 characters or more gets its own page" does not hold literally. **62 of the 159** hold a leaf at or above its own line, including the largest leaf in the corpus (`atta-kn-mn-2-1`, 333,558 chars, which is why `atta-kn-mn-2`'s page measures 333,617 with the container's 59-char preamble), `atta-kn-thag-21` at 121,661 and `anya-vm-19-1` at 27,246; 34 of the 62 are canon. Another 16 sit inside promoted books. Nothing is buried in any of them: a lone child has no siblings to be buried among, so the text keeps a whole page to itself and simply answers at the container's URL instead of its own.
+
+**The container keeps the URL. The leaf loses its file.** That direction is forced, not a preference. Breadcrumbs and TOC lists are built from the tree, never from the page set — `tree.ancestorsOf(page.nodeKey)` at `page_template.dart:68`, `tree.childrenOf(page.nodeKey)` at `:97` — so the rendered hierarchy is independent of how many files it is spread across. A **leaf is never anyone's ancestor**, so no breadcrumb links to `X-1` and removing its file breaks nothing. The reverse would delete `X.html`, and `X` *is* an ancestor, so every page below it would carry a breadcrumb segment pointing at a missing file.
+
+In the frozen snapshot this needs no rule of its own: a lone-child container is simply a container all of whose leaves are folded, which is the same shape as a fully-short vagga. One mechanism covers both.
+
+## Retired: the small-whole-vagga rule
+
+The previous draft's rule (b) grouped a vagga when `total < 5000` even if one leaf was over the line. It is **dropped**. Its nine containers are all reached by the split rule, which does something better with them: the one substantial leaf keeps its URL instead of being buried with the abbreviations that reference it. `sn-2-1-8` is the worked case above — 3 pages rather than 1, and the extra two are the ones a reader would want.
+
+With it goes `minLeaves` entirely. A run of two short leaves is worth one page; a count of six was always a proxy for "this looks like a peyyāla run", and the run length measures that directly.
+
+## Where a chapter lives, and what it is called
+
+Two cases, and only the second needs a decision.
+
+**615 chapters cover the whole vagga.** Every leaf is short, so the chapter sits at the container's own URL with the container's own name — today's grouped chapter, unchanged. This is the shape the "one long sutta keeps its page, the rest group" rule has always protected, and it includes the 159 lone-child containers.
+
+**606 chapters start mid-vagga.** The vagga's own URL is already the TOC that lists all its suttas, so a run starting at sutta 3 cannot ride on it. **It takes its first leaf's URL** — `SitePage.node` becomes that leaf instead of the container.
+
+That single choice supplies every name for free, because the template derives all of them from `page.node`:
+
+| what | source | result for `/tipitaka/an-4-2-2-4` |
+|---|---|---|
+| `<h1>` | `_headingHtml(page.node)` `:82` | නිරයසුත්තං |
+| `<title>` | `_titleText(page.node)` `:486` | නිරයසුත්තං — පත්තකම්මවග්ගො — … |
+| canonical | `page.url` `:186` | `/tipitaka/an-4-2-2-4` |
+| breadcrumb | `tree.ancestorsOf(page.nodeKey)` `:68` | correct |
+| prev / next | the `isReadable` chain | correct |
+
+The URL was that sutta's URL before this change and still is; the page simply also carries the short suttas that follow it. Three checks that this holds up:
+
+- **No stutter.** `_withoutRepeatedTitle` (`:154`) drops a preamble heading that merely repeats `node.paliName`. For a chapter anchored on its own first leaf the two match, so the duplicated inline heading is suppressed automatically and the `<h1>` carries it.
+- **Collisions are already handled.** 49 of the 606 share an `<h1>` with another such page. `_titleText` appends vagga and collection precisely to disambiguate the 1,165 leaves titled with nothing but a number — the C2 duplicate-content defence already in place.
+- **Placeholder names are not a regression.** 22 of the 606 anchor on a leaf named `3. 3. 4. 11`. Corpus-wide 1,163 leaves are named that way and **803 already ship today** with exactly that `<h1>`.
+
+Shape of the 606: median 3 suttas (p90 9, max 76), median 5,741 chars (p90 31,003). They fall in 433 containers — 284 with one, 129 with two, 20 with three or more. 158 run to the vagga's last sutta.
+
+**A TOC page stays pure links.** The alternative considered was letting a run that starts at sutta 1 ride on the vagga's page while the rest of the vagga stays a link list — 171 hybrid pages, half text and half TOC, and 171 fewer files. Rejected: it makes `PageKind` ambiguous, forces `_chapter` to grow a link list, and gives the vagga page a canonical URL covering both some sutta text and a navigation index. The 171 pages buy one sentence that is true everywhere — *a chapter lives at its first sutta's URL, unless the chapter is the entire vagga.*
+
+Two code changes follow, both small:
+
+1. **`preamble: null` for a mid-vagga chapter.** The container's own slice is its TOC page's preamble and must not be repeated on a chapter that starts below it. The caller already passes `preamble` explicitly (`page_template.dart:45`), so this is a call-site condition.
+2. **One leaf → serving-URL map, built once and handed to three consumers.** A folded leaf must resolve to `<anchor>#<nodeKey>`, and three places currently emit a bare `tipitakaUrl(...)` that would land on the stub instead: `tocList` (`site_chrome.dart:193`), `_commentaryLink` (`page_template.dart:263-274`), and the P5 stub/redirect gate. Build the map in `SitePlan` and pass it in, so none of the three has to guess and they cannot drift apart.
+
+**`_commentaryLink` is a live bug this fixes, not one it creates.** Its comment claims the link "can never 404" because the twin key is checked against the tree — but existing in the tree and having a page are different questions, and **869 of today's cross-links already point at a leaf that has no file**. Under the split rule that becomes **3,595**, which is the whole reason it belongs in the map above rather than in a later cleanup.
 
 ## Impact
 
-(a) touches only 1-leaf containers and (b) only ≥6-leaf ones, so those two are additive. (c) overlaps (b) — 22 containers qualify under both — so the total is **not** the sum of the rows.
+| | today (shipped) | after |
+|---|---:|---:|
+| sutta pages | 12,748 | **7,687** |
+| chapter pages | 146 | **1,221** (615 whole-vagga + 606 mid-vagga) |
+| container TOC pages | 1,858 | **1,389** |
+| root | 1 | 1 |
+| **real pages** | **14,753** | **10,298** |
+| folded leaves → stubs | 1,603 | **6,058** |
+| **with stubs** | **16,356** | **16,356** |
 
-| rule | grouped containers | leaves swallowed | real pages | with stubs |
-|---|---|---|---|---|
-| locked (`max<1500`) | 146 | 1,603 | 14,753 | 16,356 |
-| + (a) | 305 | 1,762 | 14,594 | 16,356 |
-| + (b) | 155 | 1,672 | 14,684 | 16,356 |
-| + (c) | 346 | 3,394 | 12,962 | 16,356 |
-| + (a) + (b) | 314 | 1,831 | 14,525 | 16,356 |
-| **all three** | **508** | **3,580** | **12,776** | **16,356** |
+Down **4,455** real pages, a 30.2% cut. Both rows are derived, not counted, from two fixed corpus totals — **14,351 leaves** and **2,004 containers** (`static-web-hosting.md`):
 
-**12,776 real pages** = 12,775 under `/tipitaka/` plus the root `/`. Down **1,977** from today, a 13.4% cut. Biggest chapter page produced: 90,252 chars ≈ 264 KB.
+```
+sutta   = leaves − stubs − mid-vagga chapters   = 14,351 − 6,058 − 606 = 7,687
+chapter = whole-vagga chapters + mid-vagga      =      615 +      606 = 1,221
+toc     = containers − whole-vagga chapters     =    2,004 −      615 = 1,389
+```
 
-By page kind, which is where the real pages actually go:
+That expansion is the cheapest check that a new measurement is self-consistent, and it is what caught the previous draft's mixed-configuration table.
 
-| | sutta | chapter | container TOC | root | real pages |
-|---|---:|---:|---:|---:|---:|
-| today | 12,748 | 146 | 1,858 | 1 | 14,753 |
-| all three | **10,771** | **508** | **1,496** | 1 | **12,776** |
+**The 16,356 does not move**, and cannot: every leaf gets either a real page or a stub, so `leaves + containers + 1` is invariant to any grouping rule. The Cloudflare file cap is untouched. Only the stub count moves — 1,603 → **6,058**, still inside the Bulk Redirects free 10K quota, though with less headroom than before; the P5 gate should re-read that quota against 6,058 rather than 1,603. If that gate picks stub *files* instead, note what it is choosing: 6,058 near-empty HTML pages is a far larger thin-content surface for a crawler than today's 1,603, and it lands on a site that still answers HTTP 200 for paths that do not exist (`seo-wins.md` item 1).
 
-Both rows are derived, not counted, from two fixed corpus totals — **14,351 leaves** and **2,004 containers** (`static-web-hosting.md`): sutta = leaves − grouped leaves, chapter = grouped containers, TOC = containers − grouped containers. Any row of the impact table above expands the same way, which is the cheapest check that a new measurement is self-consistent.
+**The problem this was aimed at:** sutta pages under 1,500 characters fall from **3,707 to 738**, an 80% reduction — and 340 of the survivors are the promoted books, thin on purpose. The per-container rules would have left 2,776.
 
-**The 16,356 does not move**, and cannot: every leaf gets either a real page or a stub, so `leaves + containers + 1` is invariant to any grouping rule. The P5 stub gate and the Cloudflare file cap are untouched. Only the stub count moves — 1,603 → **3,580**, still inside the Bulk Redirects free 10K quota.
+Biggest multi-sutta chapter: **103,153 chars ≈ 300 KB** (`atta-mn-1-1-4`, the 13-section Bhayabherava assembly). It is the only chapter over 100k characters; the largest file on the site remains `vp-mv-1.html` at 1.37 MB, unchanged.
 
-Concretely:
+Subtree by subtree:
 
-- `sn-2-1-9` subtree: **24 → 13** pages
-- `sn-2-1-8`: **12 → 1** page
-- `sn-2-1-10`: unchanged at 12 — canon, and it stays exploded on purpose
-- `atta-sn-1-1-6` ජරාවග්ගො (max 2,572): **11 → 1** page, via (c)
+| subtree | today | after | |
+|---|---:|---:|---|
+| `sn-4-9-2` | 78 | **3** | 77-leaf peyyāla run |
+| `sn-2-1-9` | 24 | **13** | 12 sub-vaggas, 11 holding one leaf |
+| `sn-2-1-8` | 12 | **3** | template + 10 abbreviations |
+| `sn-2-1-10` | 12 | **6** | 11 distinct suttas |
+| `atta-sn-1-1-6` | 11 | **1** | ජරාවග්ගො, commentary |
+| `sn-5-12-2` | 11 | **9** | holds Dhammacakkappavattana |
+| `kn-khp` | 10 | **10** | promoted — all nine texts keep pages |
+| `kn-thig-6` | 9 | **9** | promoted — eight named elder nuns keep pages |
+| `kn-thag` | 106 | **296** | promoted — the one subtree that *grows*, one page per named elder |
+| `an-1-14` | 8 | **6** | එතදග්ගපාළි |
+
+### One property that got worse, and why it does not matter
+
+Per unit of threshold drift the split rule moves **more** URLs than the container rule, not fewer — every leaf near the line changes its own URL, where before only a whole vagga crossing the line changed anything (measured under the plain line; the promoted books shave a few off each split-rule count):
+
+| canon line | leaf URLs moved, container rule | leaf URLs moved, split rule (plain) | split rule (final config) |
+|---:|---:|---:|---:|
+| 1,450 | 51 | 206 | 74 |
+| 1,490 | 7 | 17 | 13 |
+| 1,510 | 36 | 36 | 11 |
+| 1,550 | 56 | 144 | 60 |
+
+The last column is the one that ships: the carve-out and the six promoted books between them take most of the exposed leaves out of the line's reach entirely.
+
+What falls is drift **severity**. A container-rule flip buries an entire named vagga — the `kn-thig-6` case, eight named elder nuns lost to one edited character. A split-rule flip confines itself to one sutta and the run beside it, and can never bury a substantial text; and in `kn-thig-6` specifically it can no longer do even that, because the book is promoted. Part 2 freezes the verdicts anyway, which makes the count moot and leaves only the severity difference standing.
 
 ---
 
@@ -262,22 +359,22 @@ anya     අන්‍ය             → anya-vm    විසුද්ධිම�
 
 The saṃyutta TOC page holds one link, to the vagga TOC page, which then lists the suttas. Two clicks and two files where one would do — worth ~42 pages.
 
-**Why it is not in this change — it breaks the structure, which rule (a) does not.**
+**Why it is not in this change — it breaks the structure, which the lone-child rule does not.**
 
-Rule (a) removes a **leaf's** file, and a leaf is never anyone's ancestor, so nothing links to it in a breadcrumb. These 42 would remove a **mid-tree container's** file. Whichever of the pair survives, the other stays in `ancestorsOf` for the whole subtree below it while no longer having a page to point at: roughly **634 leaves** sit under these 42, and every one of them would carry a dead breadcrumb segment. That is a change to the navigable BJT hierarchy, not a file-count optimisation.
+The lone-child rule removes a **leaf's** file, and a leaf is never anyone's ancestor, so nothing links to it in a breadcrumb. These 42 would remove a **mid-tree container's** file. Whichever of the pair survives, the other stays in `ancestorsOf` for the whole subtree below it while no longer having a page to point at: roughly **634 leaves** sit under these 42, and every one of them would carry a dead breadcrumb segment. That is a change to the navigable BJT hierarchy, not a file-count optimisation.
 
 Two further complications:
 
 - **It chains.** 7 of the 42 run deeper (`atta-sn-3-4 ඔක්කන්තිසංයුත්තං → atta-sn-3-4-1 චක්ඛුවග්ගො → 1 leaf` — three pages for one sutta). Collapsing one level exposes the next, so the rule has to decide how far to run and what the survivor is called.
 - **`anya` is in the list.** Its only child is the whole Visuddhimagga (183 leaves). Any rule here needs a root exemption, or a top-level pitaka node disappears.
 
-It also partly solves itself: those 7 deep chains each contain a single-leaf container that rule (a) removes anyway, so the remaining win is under 42 pages once (a) lands. Revisit then, if at all.
+It also partly solves itself: those 7 deep chains each contain a single-leaf container that the lone-child rule removes anyway, so the remaining win is under 42 pages once the split rule lands. Revisit then, if at all.
 
 ---
 
 # Part 2 — Freezing the verdicts
 
-The rules above are re-measured from the text on every run, and the measurement sits on a knife edge. Freeze the verdicts into shared code; demote the classifier to a sync-time advisor.
+The rule above is re-measured from the text on every run, and the measurement sits on a knife edge. Freeze the verdicts into shared code; demote the classifier to a sync-time advisor.
 
 ## Why frozen — the measurement has no safe place to draw a line
 
@@ -298,7 +395,7 @@ The line sits in the densest region of the whole distribution — a vagga every 
                                └ kn-thig-6 — ON the line; one edited char flips it
 ```
 
-Candidate placements, all bad:
+Under the old per-container rule, candidate placements were all bad:
 
 | line at | drift margin | flips vs today |
 |---|---|---|
@@ -307,78 +404,161 @@ Candidate placements, all bad:
 | 1,520 | ±10 | 4 vaggas / 36 suttas |
 | 2,266 (first gap ≥40 chars) | ±20 | **101 vaggas / 1,134 suttas lose their own pages** — voids "famous suttas keep own pages" |
 
-So *any* measured rule stays one resync away from a flip, and the `--expect` lock only converts silent breakage into recurring human decisions. Also rejected:
+**The split rule blunts this without removing it.** A flip can no longer bury a vagga — the worst it can do is move one sutta and the run beside it, and in `kn-thig-6`, the exemplar above, it can no longer do even that, because `kn-thig` is promoted and none of its eight nuns is exposed to the line at all. But the count of URLs that move per unit of drift goes *up*, not down (Part 1, "One property that got worse"), because every leaf near the line is individually exposed. So *any* measured rule stays one resync away from a URL change, and the `--expect` lock only converts silent breakage into recurring human decisions. Also rejected:
 
 - **Hand-override map** (this plan's first design): human-curated exceptions bolted onto a live rule — every unlisted vagga stays exposed, and the list only grows.
 - **Structural-only rule** (leaf count / tree shape, nothing a typo can move): would group all 1,165 candidates — buries substantial suttas.
 
-**Rule (c) does not escape this** — it moves the commentary line to 15,000, where the nearest datapoint above is `atta-sn-1-8-1` at 15,006, six characters away. What changes is the *stake*: a flip at 1,500 can bury a named sutta, a flip at 15,000 regroups one commentary vagga. Freezing is what makes both safe, and rule (c) is the first exercise of the regenerate path.
+The commentary line does not escape it either: at 15,000 the nearest datapoint above is `atta-sn-1-8-1` at 15,006, six characters away.
 
-**Decision (2026-08-09): stop measuring at build time.** Snapshot the verdicts; a resync may change page *contents*, never page *structure*.
+**Decision (2026-08-09, unchanged): stop measuring at build time.** Snapshot the verdicts; a resync may change page *contents*, never page *structure*.
 
 ## A1. Generate the snapshot into `wisdom_shared`
 
 `classify_corpus.dart --write-snapshot` emits `packages/wisdom_shared/lib/src/grouping/grouping_snapshot.dart`, exported from `wisdom_shared.dart`:
 
 ```dart
-/// GENERATED — the vaggas rendered as one chapter page, frozen from the
-/// classifier's full-corpus run. Every other container explodes.
+/// GENERATED — every leaf that does NOT get its own page, frozen from the
+/// split rule's full-corpus run. A leaf absent from this set owns its URL.
 /// Regenerating or editing this file is a deliberate act with URL
 /// consequences; a resync must never touch it.
-const Set<String> groupedVaggaKeys = { 'an-1-1', /* … */ };
+const Set<String> foldedLeafKeys = { 'an-1-1-2', /* … 6,058 keys … */ };
 ```
 
-Generated *code*, not an asset: strict parity means the app must read the same snapshot, the app may gain no new bundled file, and a `const` compiles into both surfaces from one place. Absent key = exploded, which makes new content self-handling: a container the snapshot has never heard of gets a page per sutta — the safe direction (a wrong explode costs thin pages; a wrong group buries named texts). Grouping a *new* micro-run later is a deliberate snapshot edit, never an obligation.
+The book-policy table of Part 3 step 2 is an *input* to `--write-snapshot` — it shapes which keys land in the set, and the generated file never needs to know it exists.
 
-**Regeneration is the supported way to move the cutoff.** The snapshot is always re-derivable from the rule: change the constants, rerun `--write-snapshot`, and the git diff of `grouping_snapshot.dart` *is* the impact review — every key added or removed is one vagga whose URLs change. Freezing removes the *accidental* path to a structure change (resync drift), not the deliberate one; a regenerate ships with the rebuilt site in a single commit, and the with-stubs total (16,356) never moves regardless of where the cutoff lands.
+**One set is enough** — verified 2026-08-16 by reconstructing every page from it and diffing against the planner's own output, and re-verified 2026-08-17 under the final configuration by an independent implementation, which rebuilt all **8,669** readable pages from the set alone and matched the planner key for key. The reconstruction rule:
+
+```
+a container whose FIRST leaf child is folded  → the container IS the chapter,
+                                                 holding every leaf below it
+otherwise                                      → the container is a TOC, and
+   a leaf NOT in foldedLeafKeys                → starts a page
+   a leaf IN foldedLeafKeys                    → appends to the page started by
+                                                 its nearest preceding unfolded
+                                                 sibling
+```
+
+The first line works because of an invariant the rule guarantees by construction: **a leaf at index 0 is folded only when the whole vagga is folded** — a run that starts at the first sutta anchors on that leaf, which stays unfolded and owns the URL. Measured: 615 containers have a folded first leaf, and **0** of them have an unfolded sibling. Assert it in the integrity check; if it ever fails, the snapshot has been hand-edited into a hybrid page.
+
+Lone-child containers need no separate entry: their single leaf is folded, so they fall out of the first line of the reconstruction like any fully-short vagga.
+
+Generated *code*, not an asset: strict parity means the app must read the same snapshot, the app may gain no new bundled file, and a `const` compiles into both surfaces from one place. **Absent key = owns a page**, which makes new content self-handling and errs in the safe direction — a wrong explode costs thin pages, a wrong fold hides a named text behind a fragment. Folding a *new* micro-run later is a deliberate snapshot edit, never an obligation.
+
+**Regeneration is the supported way to move a line.** The snapshot is always re-derivable from the rule: change the constants, rerun `--write-snapshot`, and the git diff of `grouping_snapshot.dart` *is* the impact review — every key added or removed is one sutta whose URL changes. Freezing removes the *accidental* path to a structure change (resync drift), not the deliberate one; a regenerate ships with the rebuilt site in a single commit, and the with-stubs total (16,356) never moves regardless of where the lines land.
 
 ## A2. Demote the classifier to sync-time advisor
 
-The classifier stays in `static_site_generator/` and stops running at build and app runtime. After a re-sync, `classify_corpus.dart` becomes a *report*: which new containers the rule would group (proposals), and which frozen verdicts it now disagrees with (informational — the snapshot wins). The `--expect` policy lock dies with the knife edge: the policy rows in `_locked` (`grouped vaggas`, `grouped leaves`, `real pages`, `with stubs`, both `nearest … chars`) and the whole `_lockedKeys` map guard a decision that no longer exists at build time. Their replacement is an integrity check with no judgment in it — every snapshot key must still exist in the tree as a deepest, single-content-file container; `orphan containers: 0` stays. `corpus_tools_test.dart`'s lock test keeps its shape and becomes the integrity test. The check fires only when upstream renumbers `nodeKey`s: the one event no local design survives, and the sync workflow's stop-the-line moment.
+The classifier stays in `static_site_generator/` and stops running at build and app runtime. After a re-sync, `classify_corpus.dart` becomes a *report*: which new leaves the rule would fold (proposals), and which frozen verdicts it now disagrees with (informational — the snapshot wins). The `--expect` policy lock dies with the knife edge: the policy rows in `_locked` (`grouped vaggas`, `grouped leaves`, `real pages`, `with stubs`, both `nearest … chars`) and the whole `_lockedKeys` map guard a decision that no longer exists at build time. Their replacement is an integrity check with no judgment in it:
+
+- every key in `foldedLeafKeys` still exists in the tree, and is still a leaf;
+- every folded leaf's parent is still a deepest, single-content-file container;
+- the index-0 invariant above holds;
+- `orphan containers: 0` stays.
+
+`corpus_tools_test.dart`'s lock test keeps its shape and becomes the integrity test. The check fires only when upstream renumbers `nodeKey`s: the one event no local design survives, and the sync workflow's stop-the-line moment.
 
 ## A3. The CSV stays a human review artifact
 
-`--write-csv` keeps regenerating the grouped-vaggas CSV beside this doc — now from the snapshot plus fresh measurements, so a reviewer can see how far each frozen verdict has drifted from what the rule would say today. Read by humans, parsed by nothing.
+`--write-csv` keeps regenerating the review CSV beside this doc — now from the snapshot plus fresh measurements, so a reviewer can see how far each frozen verdict has drifted from what the rule would say today. Its unit changes from the vagga to the **page**: one row per chapter page, with its anchor key, the leaves it carries, and their sizes. Read by humans, parsed by nothing.
 
 ## A4. Document the seam
 
 Name the snapshot as the single source in `static-html-site-plan.md` §6 and `static-html-site-build-plan.md` §5, noting the no-app-assets constraint as the reason. `static-html-site-plan.md` still calls for a committed `grouping.json` in §6, §8, §10, §12 and §13 — every place `grep -n 'grouping.json'` reports, all superseded by A1. Don't record the count here; it goes stale the moment one of them is touched. The knife-edge commentary goes in the same sweep — the exactly-1,500 margin note in `grouping_classifier.dart` and the nearest-to-line rows in `_locked` document a fragility A1 removes.
 
-**Verify Part 2:** `--write-snapshot` emits exactly the keys today's classifier reports, and `dart run static_site_generator/bin/generate.dart --root an-1` still emits its current file set, byte-identical to the current build — same verdicts, different source. Remove one key from the snapshot, confirm the counts and that vagga's file list move as predicted, restore.
+**Verify Part 2:** `--write-snapshot` emits exactly the keys the split rule reports, and reconstructing the page set from `foldedLeafKeys` alone reproduces the planner's output key for key. Then `dart run static_site_generator/bin/generate.dart --root an-1` emits the file set the rule predicts — same verdicts, different source. Remove one key from the snapshot, confirm the counts and that vagga's file list move as predicted, restore.
 
 ---
 
 # Part 3 — Implementation
 
-All three rules are pure `GroupingClassifier` changes. `SitePlan.build` already turns any `grouped` verdict into a `PageKind.chapter`, so nothing downstream changes structurally — a single-leaf chapter is a chapter with one `<section>`, and the `:has(:target)` single-view CSS handles it unchanged.
+Unlike the per-container rules this replaces, the split rule is **not** a pure `GroupingClassifier` change: a chapter page's `node` may now be a leaf, and `SitePlan.build` has to learn that. Everything downstream of `SitePage` — the `<section id>` markup, the `:has(:target)` single-view CSS, the pager, the sitemap — is unchanged.
 
-1. **`packages/wisdom_shared` — lift `isCommentary` onto `TipitakaNode`.** It has only `isLeaf` today, which is why the generator inlines `nodeKey.startsWith(TipitakaNodeKeys.commentary)` twice while the app has the getter (`tipitaka_tree_node.dart:69`). Rule (c) would be the third inline copy. Move it up, then use it in `node_labels.dart:43`, `page_template.dart:254` and the classifier.
+1. **`packages/wisdom_shared`**
+   - Generate `grouping_snapshot.dart` with `foldedLeafKeys` (Part 2 A1) and export it.
+   - **Lift `isCommentary` onto `TipitakaNode`.** It has only `isLeaf` today, which is why the generator inlines `nodeKey.startsWith(TipitakaNodeKeys.commentary)` twice while the app has the getter (`tipitaka_tree_node.dart:69`). The commentary line would be the third inline copy. Move it up, then use it in `node_labels.dart:43`, `page_template.dart:254` and the planner.
 
-2. **`domain/grouping_classifier.dart`**
-   - Three new `GroupingReason` values: `singleLeafContainer`, `smallWholeVagga`, `commentaryRun`.
-   - Move the `children.length == 1` check **above** the `minLeaves` gate and return grouped.
-   - Add `static const int maxVaggaChars = 5000;` beside `maxLeafChars`, and group when `longest < maxLeafChars || total < maxVaggaChars`. `GroupingVerdict` needs a `totalLeafChars` field so the CSV stays reviewable.
-   - Add `static const int commentaryMaxLeafChars = 15000;` and `static const Set<String> commentaryLineExemptions = {'atta-kn-jat', 'atta-kn-thag', 'atta-kn-thig'};`, with the reasoning from Part 1 kept next to them — 15,000 is where the biggest chapter page stops growing, and the three prefixes are the books whose children are named people.
-   - Rewrite the `minLeaves` doc comment: its "85 of them single-leaf nodes where BJT already collapsed the run itself" is exactly what rule (a) now handles, so that sentence stops being a justification and becomes stale.
-   - The class header's "**Group iff** the container is a deepest container … with at least `minLeaves` children, none of them `maxLeafChars` or longer" is now wrong on all three counts. Rewrite it, not patch it.
+2. **`domain/grouping_classifier.dart` — becomes a page planner.** Its unit changes from the container to the leaf, so the file is rewritten rather than patched:
+   - `minLeaves` and `maxVaggaChars` are deleted outright; `maxLeafChars` (1,500) stays and gains `commentaryMaxLeafChars = 15000` and `minRunLength = 2`.
+   - **Every per-book exception lives in one table**, in a new `domain/grouping_policy.dart`. The carve-out and the promoted books are the same kind of statement — *this book is treated differently* — and splitting them across two constants means two places to look and two places to forget:
 
-3. **`tool/classify_corpus.dart`** — update `_locked`: grouped vaggas 146 → **508**, grouped leaves 1,603 → **3,580**, real pages 14,753 → **12,776**. `with stubs` stays 16,356. The two nearest-the-line rows (`atta-an-10-1-1` 1490 / `kn-thig-6` 1500) now describe only the canon gate and only one of four; either scope them explicitly to canon or retire them in favour of per-reason counts. (Under Part 2 these rows go away entirely — do whichever lands first, not both.)
+     ```dart
+     enum LeafPolicy { ownPage, canonLine, commentaryLine }
 
-4. **`grouped-vaggas-threshold-1500.csv`** — regenerate with `--write-csv`. The filename names a rule that is now one of four; rename to `grouped-vaggas.csv` and add a `reason` column.
+     /// THE table. Longest matching key prefix wins; anything unlisted
+     /// defaults to canonLine for canon and commentaryLine for commentary.
+     const Map<String, LeafPolicy> bookPolicies = {
+       'kn-khp': LeafPolicy.ownPage,  'kn-snp': LeafPolicy.ownPage,
+       'kn-ud': LeafPolicy.ownPage,   'kn-iti': LeafPolicy.ownPage,
+       'kn-thag': LeafPolicy.ownPage, 'kn-thig': LeafPolicy.ownPage,
+       'atta-kn-jat': LeafPolicy.canonLine,
+       'atta-kn-thag': LeafPolicy.canonLine,
+       'atta-kn-thig': LeafPolicy.canonLine,
+       'atta-kn-dhp': LeafPolicy.canonLine,
+     };
+     ```
 
-5. **Stale figures in comments** (located 2026-08-16; `grep -rn '1,603\|14,753' lib bin test` finds all six) — `render/search_index.dart:16,20` and `test/wiring_contract_test.dart:201,228` say 1,603; `render/site_assets.dart:66`, `render/document_shell.dart:30`, `render/search_dialog.dart:109` and `render/stylesheet.dart:926` say 14,753. Note `site_assets.dart` — it is the one the earlier draft of this list missed, and `sitegen.dart` no longer carries either figure.
+     Adding or removing a book is then one line plus `--write-snapshot`. Exploding Buddhavaṃsa, for instance, is `'kn-bv': LeafPolicy.ownPage` and costs 0 pages today; the measured costs of the other candidates are recorded in Part 1 under "Six books are promoted outright". Longest-prefix matching is what lets a single vagga be overridden later without a second mechanism appearing to do it.
+   - Give `classify_corpus.dart` a **`--policy-diff`** mode that reports, for an edited table, the page totals before and after and the keys entering and leaving `foldedLeafKeys`. It makes a policy change reviewable *before* the snapshot moves, which is the same review the git diff gives afterwards.
+   - The output is a folded-leaf set, not a per-container boolean. `GroupingVerdict` / `GroupingReason` shrink accordingly: `hasSubstantialLeaf`, `tooFewLeaves` and `uniformMicroRun` describe a decision that no longer exists. What survives is per-leaf: *owns a page* vs *folded into the run at its left*.
+   - **`notDeepest` and `spansContentFiles` survive as container-level gates** — they are Part 1's two preconditions, and the corpus figures are only reachable with both applied. Keep them ahead of the per-leaf walk, not as reasons on a verdict.
+   - The class header — "**Group iff** the container is a deepest container … with at least `minLeaves` children, none of them `maxLeafChars` or longer" — keeps its first clause and loses the rest. Rewrite it to the rule as Part 1 states it, and **delete the paragraph rejecting per-leaf splitting**; Part 1 records why that reasoning was retired, and leaving it beside the opposite implementation is the failure mode this document exists to avoid.
 
-6. **The frozen snapshot** — `groupedVaggaKeys` grows 146 → **508** and must be regenerated in the same commit, or the app and the site disagree about what a document is.
+3. **`domain/site_page.dart` — `SitePlan.build`.** The walk changes shape:
+   ```
+   container whose first leaf child is folded → one chapter page, node = the
+                                                container, suttas = all children
+   otherwise → a TOC page, then walk children in order:
+       a container child   → recurse
+       an unfolded leaf    → start a page (node = that leaf) and attach every
+                             folded sibling that immediately follows it
+       a folded leaf       → already attached
+   ```
+   This walk reads the snapshot and needs no knowledge of Part 1's two preconditions — a container they excluded simply has no folded leaves in the set. Build the leaf → serving-URL map here too, and hand it to the renderers (steps 4 and 5). `SitePlan` is the only place that knows which page a folded leaf ends up on, so anything that derives that answer independently will eventually disagree with it.
+   `PageKind.sutta` and `PageKind.chapter` both survive; the difference is only how many entries `suttas` holds, and the doc comment on `PageKind.chapter` ("a grouped vagga") needs to say "a contiguous run of short leaves, which may start mid-vagga". Reading order and the prev/next chain are unchanged — pages still appear in tree order.
 
-7. **`render/page_template.dart`** — suppress the `සම්පූර්ණ පරිච්ඡේදය` bar in `_chapter` when `page.suttas.length == 1`.
+4. **`render/page_template.dart`**
+   - Pass `preamble: null` for a chapter whose `node` is a leaf. The container's own slice belongs to its TOC page and must not be repeated below it. This is the fix for the error the audit found in the old table — a preamble silently added 12,901 characters to `atta-mn-1-1-4`'s page weight.
+   - Suppress the `සම්පූර්ණ පරිච්ඡේදය` bar in `_chapter` when `page.suttas.length == 1`; on a one-section chapter it offers a return to the view you are already in. Lone-child containers make 159 of these.
+   - **`_commentaryLink` (`:263-274`) takes the resolver.** It emits a bare `tipitakaUrl(twinKey)`, so whenever the twin is folded the cross-link lands on a stub rather than the chapter fragment — **3,595** links under this rule, and **869 already broken today** against a comment that says it "can never 404". Existing in the tree and having a page are different tests; delete that claim with the fix.
+   - Nothing else. `_headingHtml`, `_titleText`, `_withoutRepeatedTitle` and the breadcrumb all read `page.node` and are correct as written for a leaf-anchored chapter (Part 1, "Where a chapter lives").
 
-8. **Rebuild and re-measure.** The build is byte-deterministic, so the deploy is hash-incremental; expect ~1,977 deletions and a large rewrite of the commentary tree. Check the biggest chapter page lands near the predicted 264 KB.
+5. **`render/site_chrome.dart` — `tocList` takes the same URL resolver.** `:196` emits a bare `tipitakaUrl(node.nodeKey)`; a folded leaf must resolve to `<anchor>#<nodeKey>`. Pass the resolver in from `SitePlan` rather than reaching for a global — it is the map built in step 3, shared with `_commentaryLink` and the P5 stub/redirect gate.
+
+6. **`render/search_index.dart` — one real bug and two stale figures.**
+   - `buildSearchIndex` does `nodes.add(page.node)` then, for a chapter, `nodes.addAll(page.suttas)`. For a mid-vagga chapter those are the same leaf, so **it would be indexed twice**. Guard it: add `page.node` separately only when it is not `page.suttas.first`.
+   - The header's "1,603 of the 16,355 nodes have no page of their own — they are leaves swallowed into 146 grouped chapter files" becomes 6,058 and 1,221, and "`/tipitaka/<chapter>#<key>`" should say the chapter's *anchor*, which is no longer always the leaf's parent. That distinction is the whole reason step 5 exists.
+   - "adding it here would index all 8,355 of them twice" is stale too — recount when the figures are refreshed.
+
+7. **`tool/classify_corpus.dart`** — `_locked` becomes the integrity check of Part 2 A2. The policy rows (`grouped vaggas` 146, `grouped leaves` 1603, `real pages` 14753, both `nearest … chars`) and `_lockedKeys` guard a build-time decision that no longer exists; replace them, don't renumber them. The prose at `:21` ("the correct rule the answer is **146 vaggas / 1,603 leaves**") and `:137` ("changes where 1,603 deep links have to point") are the same decision written twice more.
+
+8. **`grouped-vaggas-threshold-1500.csv`** — regenerate with `--write-csv`. The filename names a rule that no longer exists and a unit that is no longer the vagga; rename to `chapter-pages.csv` and give it one row per chapter page (Part 2 A3).
+
+9. **Stale `14,753` in comments** — `render/site_assets.dart:66`, `render/document_shell.dart:30`, `render/search_dialog.dart:109`, `render/stylesheet.dart:926` → **10,298**. And `1,603` in `test/wiring_contract_test.dart:201,228` → **6,058**. (`grep -rn '1,603\|14,753\|1603\|14753' lib bin test tool` finds all twelve, across eight files — the previous draft's list of six was short.)
+
+10. **Rebuild and re-measure.** The build is byte-deterministic, so the deploy is hash-incremental; expect ~4,455 deletions and a large rewrite of both trees. Confirm: 10,298 files under `/tipitaka/` plus `/`; the biggest multi-sutta chapter (`atta-mn-1-1-4`) near 300 KB; `vp-mv-1.html` still the largest file at 1.37 MB; and the derivation in Part 1's Impact reproducing exactly from the built manifest.
+
+**Verify Part 3:** build `--root sn-2-1` and check the three worked vaggas land at 3 / 13 / 6 pages with `sn-2-1-10-3` carrying seven sections. Build `--root kn-khp` and confirm all nine texts keep their own files — the promoted-book path. Build `--root kn-iti` and `--root kn-thag` and confirm the same: 112 and 264 poem files, the largest folds the promotion suppresses, and in `kn-thag` that the 16 lone-child poems sit at their container's URL rather than their own. Open a mid-vagga chapter and check the `<h1>`, `<title>`, canonical and breadcrumb all name the anchor sutta, and that the container's preamble appears on the TOC page and nowhere else. Follow a TOC link to a folded leaf and confirm it lands on the right `#fragment` in single view, then follow an අට්ඨකථා cross-link whose twin is folded and confirm the same. Per project convention, no tests unless asked.
 
 ---
 
 # Part 4 — The app half (deferred)
 
-Trigger: vagga grouping stops moving during static-site P2–P6. Rules (a)(b)(c) are part of that settling, so this waits on them.
+Trigger: vagga grouping stops moving during static-site P2–P6. The split rule is part of that settling, so this waits on it.
+
+## What the split rule costs the app, and what it saves
+
+Assessed 2026-08-17, because a rule this much simpler on the site could still have been harder on the app. It is not — with one specific exception.
+
+**Simpler in the way that matters.** The app runs no classifier, measures no text, and gains no bundled file: one frozen `const Set<String>` and the reconstruction walk of Part 2 A1, which was verified to rebuild all 8,669 pages from the set alone. Note what that buys beyond convenience — the two preconditions in Part 1 are properties of the *snapshot generator*, so even a wrong reading of them can produce only a wrong build, never a site and an app that disagree. Freezing converts every future ambiguity into the same class of failure.
+
+**The one real cost: a folded leaf's owning page is no longer its parent.** Today's 146 grouped vaggas are all whole-vagga chapters, so `node.parentNodeKey` answers correctly every time. Under the split rule 606 chapters anchor on a *sibling leaf*, so that shortcut is wrong for roughly half the folded leaves and wrong silently — it resolves to a container that exists. Every entry point must go through one shared resolver: deep links, RAG citations, search results, tree taps, prev/next, `?e=`, restored tabs. B2–B4 below each touch it; make it one named function so they cannot each grow their own.
+
+**Scale, not just shape.** 6,058 folded keys against 1,603 today means ~4× more nodeKeys that do not resolve to themselves, and some of those surfaces are already live: **6 of the 20 SN 15 keys in `assets/data/sc-to-bjt.json`** — the deployed RAG citation seed — fold under this rule. They resolve correctly through the resolver and incorrectly through anything else.
+
+**Bundle cost is real but small.** 6,058 keys is ~105 KB of Dart source compiled into both surfaces, including `main.dart.js`. Acceptable; if it ever isn't, one `const String` split on first use is far smaller than 6,058 literals and needs no change to the seam.
+
+**Thin pages are not the app's problem.** The 738 sub-1,500 pages are an SEO metric. In the app a 76-sutta peyyāla chapter is a *better* reading unit than 76 tabs, and the `kn-thag` / `kn-thig` promotion improves per-poem navigation. Nothing in Part 4 argues for a smaller promotion list.
 
 ## B1. Share the remaining logic
 
@@ -391,7 +571,7 @@ Trigger: vagga grouping stops moving during static-site P2–P6. Rules (a)(b)(c)
 `multi_pane_reader_widget.dart` + `document_provider.dart`:
 - Provider resolving `nodeKey → SitePage` (kind + owning page key) from the shared `SitePlan`.
 - `sutta` → render the bounded slice; **drop the run-to-end-of-file pagination** (`loadMorePagesProvider`, `_loadMorePagesIfNeeded`) for this kind. Printed page numbers stay.
-- `chapter` → all leaves of the grouped vagga with anchors; tapping a grouped leaf opens the chapter scrolled to it (the app equivalent of `#fragment`).
+- `chapter` → the run's leaves with anchors; tapping a folded leaf opens the chapter scrolled to it (the app equivalent of `#fragment`). A chapter may start mid-vagga, so the app resolves a leaf to its **owning page**, which is not always its parent — the same `foldedLeafKeys` walk the site uses (Part 2 A1), never `node.parentNodeKey`.
 - `toc` → **container preamble + child links** — the heading block shown above, then the list. 258 of 285 files carry preamble entries; rendering links only would delete that text from the app.
 
 ## B3. Navigation
@@ -424,6 +604,9 @@ Trigger: vagga grouping stops moving during static-site P2–P6. Rules (a)(b)(c)
 
 - **No new static/asset files on the app side** — the shared truth is generated Dart in `wisdom_shared`; the CSV under `docs/` stays human-only, parsed by nothing.
 - **Verdicts are frozen** — a resync may change what pages *say*, never which pages *exist*. Only a deliberate snapshot edit, or genuinely new content, moves URLs.
-- **The BJT hierarchy survives intact.** Every rule here changes how many files the tree is spread across, never the tree. Breadcrumbs and TOC lists read `tree.ancestorsOf` / `tree.childrenOf` and are unaffected by any of it.
-- **The same text never appears in two files.** A grouped leaf gets a `#fragment` inside its chapter and a stub or redirect at its old URL — never a second copy.
+- **The BJT hierarchy survives intact.** The rule here changes how many files the tree is spread across, never the tree. Breadcrumbs and TOC lists read `tree.ancestorsOf` / `tree.childrenOf` and are unaffected by any of it.
+- **The same text never appears in two files.** A folded leaf gets a `#fragment` inside its chapter and a stub or redirect at its old URL — never a second copy.
+- **A TOC page is pure links.** No page is half text and half navigation, which is what makes a chapter's canonical URL unambiguous and keeps `PageKind` a real distinction.
+- **A chapter is always contiguous.** It is read by scrolling, so a page that skipped a sutta inside its own range would drop it from the reading order silently.
+- **A container groups only if every child is a leaf and all of them share one content file.** The first keeps TOC pages pure links; the second is physical — a chapter page cannot splice two source files. Both are part of the rule, not tidiness, and every figure in this document assumes them.
 - Edition scope, URL grammar, hosting topology and the zero-JS site model stay exactly as locked.
