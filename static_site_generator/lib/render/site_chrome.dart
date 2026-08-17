@@ -190,10 +190,15 @@ const String _upGlyph = '<svg class="up-icon" viewBox="0 0 24 24" fill="none" '
 /// children are `tree.roots`, which no `childrenOf` call returns. One function
 /// either way, so the front page and a container TOC cannot drift into two list
 /// markups the stylesheet has to style twice.
-String tocList(Iterable<TipitakaNode> nodes) {
+///
+/// [urlFor] is required rather than defaulted to [tipitakaUrl] on purpose. A
+/// TOC lists *all* of a container's children, and 2,355 of those are folded
+/// leaves whose bare URL is served by no file — so the obvious default is
+/// exactly the wrong answer, and a caller that forgets should not compile.
+String tocList(Iterable<TipitakaNode> nodes, {required UrlResolver urlFor}) {
   final buffer = StringBuffer('<ul class="toc">');
   for (final node in nodes) {
-    buffer.write('<li><a href="${tipitakaUrl(node.nodeKey)}">'
+    buffer.write('<li><a href="${urlFor(node.nodeKey)}">'
         '${nodeLabelHtml(node)}</a></li>');
   }
   buffer.write('</ul>');

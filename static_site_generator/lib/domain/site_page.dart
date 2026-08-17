@@ -1,7 +1,5 @@
 import 'package:wisdom_shared/wisdom_shared.dart';
 
-import 'grouping_classifier.dart';
-
 /// `/tipitaka/<nodeKey>` — the site-root-relative URL of any node's page.
 ///
 /// Built from [TipitakaLink.pathSegment] rather than written out, because that
@@ -20,8 +18,14 @@ enum PageKind {
   /// and canonical URL. The unit that ranks for a name search.
   sutta,
 
-  /// A grouped vagga: the whole formulaic run in one file, each sutta a
+  /// A contiguous run of short leaves in one file, each a
   /// `<section id="<nodeKey>">` filtered into single view by the URL fragment.
+  ///
+  /// **The run may start mid-vagga**, in which case [SitePage.node] is its
+  /// first *leaf* rather than the container — the vagga's own URL is already
+  /// the TOC listing all of its suttas, so a run starting at sutta 3 cannot
+  /// ride on it. 615 chapters cover a whole vagga and sit at the container's
+  /// URL; 606 start below one.
   chapter,
 
   /// A higher container: links only, no body text.
@@ -56,7 +60,22 @@ class SitePage {
 
   /// True when this page carries body text — the pages prev/next walks.
   bool get isReadable => kind != PageKind.toc;
+
+  /// True when the page's own node has a slice to render above its contents.
+  ///
+  /// It is exactly *"is this page anchored on a container"*: a TOC node is
+  /// always a container and a sutta node always a leaf, so [kind] adds nothing.
+  /// A leaf-anchored chapter has no preamble — the container's slice belongs to
+  /// its TOC page, and repeating it below would print the vagga title twice.
+  bool get hasPreamble => !node.isLeaf;
 }
+
+/// Resolves a nodeKey to the URL that actually serves it — [SitePlan.urlFor].
+///
+/// Threaded into the renderers as a function rather than the whole [SitePlan],
+/// so a template declares the one thing it needs and cannot quietly grow a
+/// dependency on prev/next or the page list.
+typedef UrlResolver = String Function(String nodeKey);
 
 /// Every page for a subtree, in reading order, with prev/next resolved.
 class SitePlan {
@@ -66,14 +85,51 @@ class SitePlan {
   final Map<String, int> _readableIndex;
   final List<SitePage> readablePages;
 
-  SitePlan._(this.pages, this.readablePages, this._readableIndex);
+  /// Folded leaf → `<chapter>#<nodeKey>`. Only folded leaves are in here; see
+  /// [urlFor], the only way to read it.
+  final Map<String, String> _servingUrl;
+
+  SitePlan._(
+    this.pages,
+    this.readablePages,
+    this._readableIndex,
+    this._servingUrl,
+  );
 
   /// Walks each of [rootKeys] top-down and decides what every node becomes.
   ///
-  /// A grouped container swallows its leaves: they produce no file of their own
-  /// (their clean URLs become redirect stubs at the P6 gate, never a second
+  /// A chapter swallows the leaves it carries: they produce no file of their
+  /// own (their clean URLs become redirect stubs at the P5 gate, never a second
   /// copy of the text). That is the no-duplication rule made structural — a
   /// leaf is either its own page or inside a chapter, never both.
+  ///
+  /// ## Reconstruction from [foldedLeafKeys] alone
+  ///
+  /// The grouping rule is not re-measured here; it is *read*. Every leaf named
+  /// in the set lost its file, and that one flat set carries enough to rebuild
+  /// the whole page structure:
+  ///
+  /// ```text
+  /// a container whose FIRST child is folded → the container IS the chapter,
+  ///                                            holding every leaf below it
+  /// otherwise                                → the container is a TOC, and
+  ///    a leaf NOT in foldedLeafKeys          → starts a page
+  ///    a leaf IN foldedLeafKeys              → appends to the page started by
+  ///                                            its nearest preceding unfolded
+  ///                                            sibling
+  /// ```
+  ///
+  /// The first line works because of an invariant the rule guarantees by
+  /// construction: **a leaf at index 0 is folded only when the whole vagga is
+  /// folded.** A run that starts at the first sutta anchors on that leaf, which
+  /// stays unfolded and owns the URL. 615 containers have a folded first leaf
+  /// and none of them has an unfolded sibling. It is checked rather than
+  /// assumed, because a hand-edited snapshot violating it would otherwise
+  /// produce a page that is half text and half navigation.
+  ///
+  /// Absent key = owns a page, which errs in the safe direction: a wrong
+  /// explode costs a thin page, a wrong fold hides a named text behind a
+  /// fragment.
   ///
   /// **A list, not one key**, because the corpus has seven disjoint roots
   /// (`vp`, `sp`, `ap`, `atta-vp`, `atta-sp`, `atta-ap`, `anya`) with no common
@@ -93,7 +149,7 @@ class SitePlan {
   factory SitePlan.build({
     required TipitakaTree tree,
     required List<String> rootKeys,
-    required GroupingVerdict Function(TipitakaNode container) classify,
+    required Set<String> foldedLeafKeys,
   }) {
     final pages = <SitePage>[];
 
@@ -108,7 +164,34 @@ class SitePlan {
       }
 
       final children = tree.childrenOf(node.nodeKey);
-      if (classify(node).grouped) {
+
+      if (children.isNotEmpty &&
+          foldedLeafKeys.contains(children.first.nodeKey)) {
+        final unfolded = [
+          for (final child in children)
+            if (!foldedLeafKeys.contains(child.nodeKey)) child.nodeKey,
+        ];
+        if (unfolded.isNotEmpty) {
+          throw StateError(
+            'Container "${node.nodeKey}" has a folded first child but '
+            '${unfolded.length} unfolded sibling(s) (${unfolded.first}). That '
+            'is a page half text and half navigation, which the rule cannot '
+            'produce — the snapshot has been hand-edited.',
+          );
+        }
+        final containers = [
+          for (final child in children)
+            if (!child.isLeaf) child.nodeKey,
+        ];
+        if (containers.isNotEmpty) {
+          throw StateError(
+            'Container "${node.nodeKey}" folds wholesale but '
+            '${containers.length} of its children '
+            '${containers.length == 1 ? 'is a container' : 'are containers'} '
+            '(${containers.first}). Their own subtrees would be swallowed '
+            'unrendered — the snapshot has been hand-edited.',
+          );
+        }
         pages.add(SitePage(
           kind: PageKind.chapter,
           node: node,
@@ -118,8 +201,48 @@ class SitePlan {
       }
 
       pages.add(SitePage(kind: PageKind.toc, node: node, suttas: const []));
-      for (final child in children) {
-        walk(child);
+      // Every folded child has to end up inside some run. A leaf whose nearest
+      // preceding sibling is a *container* has none to join — runs only extend
+      // forwards from an unfolded leaf — so it would otherwise be dropped from
+      // the site in silence, and `urlFor` would hand out a URL with no file.
+      // The rule cannot produce that (a container groups only if all its
+      // children are leaves), but 94 mixed containers exist for a hand-edit to
+      // land in, and the aggregate counts cannot see it: the derivation
+      // identity reads a run's end index, not its members.
+      final attached = <String>{};
+      for (var i = 0; i < children.length; i++) {
+        final child = children[i];
+        if (!child.isLeaf) {
+          walk(child);
+          continue;
+        }
+        // Attached to the page an earlier sibling started, on the pass below.
+        if (foldedLeafKeys.contains(child.nodeKey)) continue;
+
+        final run = <TipitakaNode>[child];
+        for (var j = i + 1; j < children.length; j++) {
+          if (!foldedLeafKeys.contains(children[j].nodeKey)) break;
+          run.add(children[j]);
+          attached.add(children[j].nodeKey);
+        }
+        pages.add(SitePage(
+          kind: run.length == 1 ? PageKind.sutta : PageKind.chapter,
+          node: child,
+          suttas: run,
+        ));
+      }
+      final stranded = [
+        for (final child in children)
+          if (foldedLeafKeys.contains(child.nodeKey) &&
+              !attached.contains(child.nodeKey))
+            child.nodeKey,
+      ];
+      if (stranded.isNotEmpty) {
+        throw StateError(
+          'Container "${node.nodeKey}" has ${stranded.length} folded '
+          'child(ren) (${stranded.first}) that no run picked up, so they would '
+          'appear on no page at all — the snapshot has been hand-edited.',
+        );
       }
     }
 
@@ -169,13 +292,42 @@ class SitePlan {
       walk(tree[rootKey]!);
     }
 
+    // Where a folded leaf is actually served. Built here and nowhere else:
+    // this is the only place that knows which page a folded leaf ended up on,
+    // so anything deriving that answer independently would eventually disagree
+    // with it.
+    final serving = <String, String>{};
+    for (final page in pages) {
+      if (page.kind != PageKind.chapter) continue;
+      for (final sutta in page.suttas) {
+        // The anchor of a mid-vagga chapter is not folded — the chapter's own
+        // URL *is* its URL, and giving it a fragment would be a second URL for
+        // the same page.
+        if (sutta.nodeKey == page.nodeKey) continue;
+        serving[sutta.nodeKey] = '${page.url}#${sutta.nodeKey}';
+      }
+    }
+
     final readable = pages.where((page) => page.isReadable).toList();
     return SitePlan._(
       pages,
       readable,
       {for (var i = 0; i < readable.length; i++) readable[i].nodeKey: i},
+      serving,
     );
   }
+
+  /// Where a link to [nodeKey] must point.
+  ///
+  /// A folded leaf has no file of its own, so it resolves to
+  /// `<chapter>#<nodeKey>` — the page carrying it, which the `:has(:target)`
+  /// CSS then filters to single view. Everything else is its own URL.
+  ///
+  /// **Never `node.parentNodeKey`.** 606 chapters anchor on a sibling leaf
+  /// rather than the container, so the parent shortcut is wrong for roughly
+  /// half the folded leaves — and wrong *silently*, because it resolves to a
+  /// container that exists.
+  String urlFor(String nodeKey) => _servingUrl[nodeKey] ?? tipitakaUrl(nodeKey);
 
   /// The page a reader reaches by continuing backwards, or null at the start.
   ///

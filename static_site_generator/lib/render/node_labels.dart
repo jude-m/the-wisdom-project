@@ -40,7 +40,7 @@ const String commentaryMarker = 'අට්ඨකථා';
 /// `atta-ap-dhs-5` "අට්ඨකථාකණ්ඩො" is a section *about* the commentary and does
 /// need marking. Public because the search index ships the answer as a column.
 bool carriesCommentaryMarker(TipitakaNode node) =>
-    node.nodeKey.startsWith(TipitakaNodeKeys.commentary) &&
+    node.isCommentary &&
     !unweldTitle(node.paliName).trimRight().endsWith(commentaryMarker);
 
 /// A node's name as its **own page** names it — `<title>`, `<h1>`, and the row

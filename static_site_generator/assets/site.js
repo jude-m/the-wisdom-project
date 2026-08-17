@@ -243,7 +243,7 @@
   }
 
   /* `<base><key>` for a node with its own page; `<base><chapter>#<key>` for the
-   * 1,603 that live inside a grouped chapter file. Getting this wrong is
+   * 6,058 that live inside a grouped chapter file. Getting this wrong is
    * invisible in testing and 404s in production, which is why `chapterIdx` is
    * in the index at all.
    *

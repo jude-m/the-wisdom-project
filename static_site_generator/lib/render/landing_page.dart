@@ -1,5 +1,6 @@
 import 'package:wisdom_shared/wisdom_shared.dart';
 
+import '../domain/site_page.dart';
 import 'document_shell.dart';
 import 'site_assets.dart';
 import 'site_chrome.dart';
@@ -46,10 +47,19 @@ class LandingPage {
   /// once per build, handed to both templates.
   final SiteAssets assets;
 
+  /// Where a link to a nodeKey must point — [SitePlan.urlFor].
+  ///
+  /// A root is always a container and so always owns its own page, which makes
+  /// this the identity here. It is threaded in anyway rather than defaulted,
+  /// because [tocList] takes one resolver for both callers and a second answer
+  /// to "what is a link" is how the two lists drift apart.
+  final UrlResolver urlFor;
+
   const LandingPage({
     required this.roots,
     required this.generatorVersion,
     required this.assets,
+    required this.urlFor,
   });
 
   /// Written flat at the site root, so its URL is `/`.
@@ -75,7 +85,7 @@ class LandingPage {
     // build these are `vp` `sp` `ap` `atta-vp` `atta-sp` `atta-ap` `anya`, in
     // the order `tree.json` declares them, which is pinned by document order
     // (§11.8).
-    body.writeln(tocList(roots));
+    body.writeln(tocList(roots, urlFor: urlFor));
     body.writeln('</main>');
 
     return htmlDocument(

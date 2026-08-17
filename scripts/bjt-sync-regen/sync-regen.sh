@@ -382,7 +382,7 @@ else
   echo "  ${HILITE}WARNING: the corpus tests FAILED after this sync.${RESET}"
   echo "  Read the DRIFT rows above before rebuilding. A locked figure moving is"
   echo "  a decision: either update _locked in"
-  echo "  static_site_generator/tool/classify_corpus.dart plus the plan docs, or"
+  echo "  static_site_generator/tool/plan_corpus.dart plus the plan docs, or"
   echo "  find out why it moved."
 fi
 echo

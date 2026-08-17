@@ -193,7 +193,7 @@ between (1) and (2); (3) turns on the grouping manifest.
 > them.** Rules (a), (b) and (c) were added there on 2026-08-15; the counts
 > below this line are superseded, and the ones this section used to restate have
 > been removed rather than left to rot. Reproduce with
-> `dart run static_site_generator/tool/classify_corpus.dart`.
+> `dart run static_site_generator/tool/plan_corpus.dart`.
 >
 > What still holds, and is this section's own: the file boundary is **always an
 > existing BJT tree node**; nothing famous groups (kn-khp's smallest famous sutta

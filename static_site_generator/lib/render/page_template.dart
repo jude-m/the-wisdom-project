@@ -29,10 +29,18 @@ class PageTemplate {
   /// thing that knows it.
   final SiteAssets assets;
 
+  /// Where a link to a nodeKey must point — [SitePlan.urlFor].
+  ///
+  /// Every outgoing link the template writes to a key it did not get from a
+  /// [SitePage] has to go through this: a TOC child and an අට්ඨකථා twin are
+  /// both just keys, and a folded key's bare URL is served by no file.
+  final UrlResolver urlFor;
+
   const PageTemplate({
     required this.tree,
     required this.generatorVersion,
     required this.assets,
+    required this.urlFor,
     this.entries = const EntryRenderer(),
   });
 
@@ -94,7 +102,7 @@ class PageTemplate {
           body.writeln(
               '<div class="preamble">${_rows(shown.preamble, depths)}</div>');
         }
-        body.writeln(tocList(tree.childrenOf(page.nodeKey)));
+        body.writeln(tocList(tree.childrenOf(page.nodeKey), urlFor: urlFor));
     }
 
     if (page.isReadable) body.writeln(_pager(previous, next));
@@ -256,22 +264,26 @@ class PageTemplate {
     return buffer.toString();
   }
 
-  /// Canon ↔ commentary cross-link, emitted only when the twin key really
-  /// exists in the tree — a pure key test, so it can never 404. 4,627 of 8,355
-  /// canon leaves have one.
+  /// Canon ↔ commentary cross-link, emitted only when the twin key exists in
+  /// the tree. 9,272 pages carry one.
+  ///
+  /// **The key test is not enough on its own.** A key that exists may still be
+  /// a folded leaf, which owns no file — 3,595 of these twins are — so the
+  /// destination has to come from [urlFor] and not from [tipitakaUrl]. The
+  /// remaining way to 404 is a subtree build, where the twin lives under a root
+  /// that was not built at all: `an-1` sits under `sp` and `atta-an-1` under
+  /// `atta-sp`.
   String? _commentaryLink(TipitakaNode node) {
-    const prefix = TipitakaNodeKeys.commentary;
-    final isCommentary = node.nodeKey.startsWith(prefix);
-    final twinKey = isCommentary
-        ? node.nodeKey.substring(prefix.length)
-        : '$prefix${node.nodeKey}';
+    final twinKey = node.isCommentary
+        ? node.nodeKey.substring(TipitakaNodeKeys.commentary.length)
+        : '${TipitakaNodeKeys.commentary}${node.nodeKey}';
     if (tree[twinKey] == null) return null;
-    final label = isCommentary ? 'මූල පාඨය' : commentaryMarker;
+    final label = node.isCommentary ? 'මූල පාඨය' : commentaryMarker;
     // Same-site navigation, so no `target="_blank"`: the app opens the twin in
     // place, and forcing a new tab here would make the same link behave
     // differently on the two surfaces.
     return '<p class="commentary-link">'
-        '<a href="${tipitakaUrl(twinKey)}">$label</a></p>';
+        '<a href="${urlFor(twinKey)}">$label</a></p>';
   }
 
   String _pager(SitePage? previous, SitePage? next) {
@@ -355,8 +367,15 @@ class PageTemplate {
   ) {
     final buffer = StringBuffer('<div class="chapter">');
     // Shown only when a sutta is targeted — the way back to the whole run.
-    buffer.write('<p class="chapter-bar">'
-        '<a href="${page.url}">සම්පූර්ණ පරිච්ඡේදය</a></p>');
+    //
+    // A lone-child chapter (159 of them: a container merged with its only leaf)
+    // has no "rest" to go back to, so the bar would offer a link from the page
+    // to itself. The `:has(:target)` filter still applies and still does the
+    // right thing; there is simply nothing filtered away.
+    if (page.suttas.length > 1) {
+      buffer.write('<p class="chapter-bar">'
+          '<a href="${page.url}">සම්පූර්ණ පරිච්ඡේදය</a></p>');
+    }
     // After the bar, not before: in the filtered single-sutta view the bar is
     // the page's first line, and column captions above it would caption it.
     buffer.write(_columnHeads(

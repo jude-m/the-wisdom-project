@@ -174,7 +174,7 @@ succeeds and every link still resolves. It just isn't the site that was designed
 
 A failure **warns loudly and continues** rather than aborting, so a half-done sync
 isn't lost. A locked figure moving is a decision, not a flake: read the `DRIFT` rows,
-then either update `_locked` in `static_site_generator/tool/classify_corpus.dart`
+then either update `_locked` in `static_site_generator/tool/plan_corpus.dart`
 along with the plan docs, or find out why it moved before rebuilding.
 
 ### Step 6 — Rebuild what depends on the text

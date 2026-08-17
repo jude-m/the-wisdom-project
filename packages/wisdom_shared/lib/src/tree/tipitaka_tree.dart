@@ -28,6 +28,8 @@
 /// else rather than reading past the end.
 library;
 
+import '../constants/tipitaka_node_keys.dart';
+
 /// One node of the navigation tree.
 ///
 /// Children are held as keys rather than objects so the structure stays a flat,
@@ -77,6 +79,16 @@ class TipitakaNode {
 
   /// A node with no children — a sutta, or the smallest addressable unit.
   bool get isLeaf => childKeys.isEmpty;
+
+  /// An aṭṭhakathā node — every commentary key carries the `atta-` prefix.
+  ///
+  /// Here rather than at each call site because a commentary is treated
+  /// differently in five places and counting: the grouping line it is measured
+  /// against, the අට්ඨකථා title marker, the canon ↔ commentary cross-link, the
+  /// search index's own flag, and the self-canonical URL policy. The app has
+  /// carried this getter since `tipitaka_tree_node.dart:69`; the generator was
+  /// inlining the same `startsWith` twice.
+  bool get isCommentary => nodeKey.startsWith(TipitakaNodeKeys.commentary);
 
   @override
   String toString() => 'TipitakaNode($nodeKey, "$paliName", '

@@ -312,17 +312,25 @@ process.
 sum Pali + Sinhala.** A leaf spans from its own start coordinate to the start
 of the next node *anywhere in the file*, not the next sibling.
 
-This was not a free choice. It was **recovered** from
-`grouped-vaggas-threshold-1500.csv` by re-deriving the numbers three ways:
+This was not a free choice. It was **recovered** in 2026-07 from the
+then-existing review CSV — the only record of how the locked figures had been
+measured — by re-deriving the numbers three ways:
 
-| Convention | Grouped containers | Matches CSV? |
+| Convention | Grouped containers | Matched the CSV? |
 |---|---|---|
-| **Raw — markers included** | **146** | superset by exactly 1, misses nothing |
+| **Raw — markers included** | **146** | superset by exactly 1, missed nothing |
 | `**`/`__` stripped | 149 | no |
 | markers + `{footnote}` stripped | 150 | no |
 
-Raw also reproduces the CSV's per-row `min_sutta_chars` / `max_sutta_chars`
+Raw also reproduced the CSV's per-row `min_sutta_chars` / `max_sutta_chars`
 exactly (`an-1-1` → min 353, max 862). So raw is the convention that was used.
+
+The CSV itself was **deleted in S1** (2026-08-17) once the convention it was
+being read for had a name in code: `NodeSlice.rawCharCount`, measured against
+`GroupingPolicy.shortLineChars`. Nothing parsed it, and a frozen
+`grouping_snapshot.dart` under `git diff` is the review artifact it was standing
+in for. The derivation above is kept because it is *why* the convention is what
+it is; the file is not needed to re-run it.
 
 > ✅ **RATIFIED 2026-07-27, root cause found 2026-07-28: the count is 146, not
 > 145 — and the missing row was a *slicing* bug, not a classifier slip.** The
@@ -342,14 +350,16 @@ exactly (`an-1-1` → min 353, max 862). So raw is the convention that was used.
 > Note the earlier claim that `kn-thig-6` is the 145↔146 swing node was
 > measured under the *stripped* convention. Under the real one it is the
 > **nearest miss**: its longest leaf measures exactly **1,500**, so the strict
-> `<` is load-bearing to a single character. The nearest grouped container is
-> `atta-an-10-1-1` at 1,490 — a 10-char margin, which
-> `tool/classify_corpus.dart` now prints on every run.
+> `<` is load-bearing to a single character. The nearest grouped container was
+> `atta-an-10-1-1` at 1,490 — a 10-char margin. **Superseded 2026-08-17:** the
+> split rule asks the same question of one leaf rather than a whole vagga, so a
+> flip can no longer bury a vagga, and the verdicts freeze into a snapshot
+> anyway. See [`reading-units-and-grouping.md`](./reading-units-and-grouping.md).
 
-The classifier ships as committed source in P1
-(`lib/domain/grouping_classifier.dart`), and `tool/classify_corpus.dart
---write-csv` regenerates the CSV from it — so the number is reproducible, and
-the artefact that was previously unreviewable now has the code behind it.
+The rule ships as committed source (`lib/domain/grouping_planner.dart` +
+`lib/domain/grouping_policy.dart`) and `tool/plan_corpus.dart` reproduces its
+budget — so the number has the code behind it, where the original CSV was an
+artefact with no source to check it against.
 
 ### P1 — The reading page · frames 02 + 04 ✅ **done 2026-07-28**
 
@@ -1081,8 +1091,9 @@ build-twice hash identical.
 ### P6 — Full corpus
 
 - Scale `an-1` → 16,356 files (canon 9,414 / `atta-*` 6,731 / anya 210).
-- ~~Commit the classifier script~~ ✅ done in P1 —
-  `lib/domain/grouping_classifier.dart` + `tool/classify_corpus.dart`.
+- ~~Commit the classifier script~~ ✅ done in P1 — since 2026-08-17
+  `lib/domain/grouping_planner.dart` + `lib/domain/grouping_policy.dart` +
+  `tool/plan_corpus.dart`.
 - ⚠️ **77 leaves point at a *trailing colophon*, not a leading label** (found
   2026-07-28). BJT prints some sections' names *after* their text, so the tree
   coordinate sits at the end of the sutta it names. The slice then opens with
@@ -1204,8 +1215,8 @@ that matter are corpus-wide invariants, not examples:
 
 | Tool | Reports |
 |---|---|
-| `tool/classify_corpus.dart` | reproduces the grouping budget owned by [`reading-units-and-grouping.md`](./reading-units-and-grouping.md), and prints the two containers nearest the canon line every run |
-| `tool/classify_corpus.dart --expect` | the same run, **asserted** against the locked budget — 10 rows including the two threshold neighbours, exit 1 on any drift. Run by `test/corpus_tools_test.dart` |
+| `tool/plan_corpus.dart` | reproduces the grouping budget owned by [`reading-units-and-grouping.md`](./reading-units-and-grouping.md), the Impact derivation as a self-consistency check, and the ten worked subtrees that doc argues about |
+| `tool/plan_corpus.dart --expect` | the same run, **asserted** against the locked budget — 10 rows, exit 1 on any drift. Run by `test/corpus_tools_test.dart` |
 | the `an-1` build | 581 source entries → 581 rendered elements (nothing dropped or duplicated), and a build-twice diff that is empty |
 
 `--expect` landed 2026-08-06, closing the "it prints, it does not assert" gap
@@ -1324,8 +1335,8 @@ caught.** A guard that survives its own mutation is decoration.
 
 **Deliberately out:**
 
-- **The slicer and the classifier.** Corpus-wide invariants, already checked the
-  right way by `tool/verify_corpus_invariants.dart` and `tool/classify_corpus.dart`
+- **The slicer and the grouping rule.** Corpus-wide invariants, already checked
+  the right way by `tool/verify_corpus_invariants.dart` and `tool/plan_corpus.dart`
   — see §8.1, where `--expect` now makes the latter assert rather than print.
 - **Whether the CSS renders correctly** — that a 600 weight reads as distinct,
   that the sticky bar clears an anchor, that a phone shows three buttons. A

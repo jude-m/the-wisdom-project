@@ -13,11 +13,17 @@
 ///
 /// ## Why it is built here and not from `tree.json`
 ///
-/// 1,603 of the 16,355 nodes have no page of their own — they are leaves
-/// swallowed into 146 grouped chapter files — so their result row has to link
+/// 6,058 of the 16,355 nodes have no page of their own — they are leaves
+/// swallowed into 1,221 chapter files — so their result row has to link
 /// `/tipitaka/<chapter>#<key>`, never `/tipitaka/<key>`, which 404s. Only
 /// [SitePlan] knows which those are. An index built from the tree alone would
-/// look right and send 1,603 of its rows to a missing page.
+/// look right and send 6,058 of its rows to a missing page.
+///
+/// **And the chapter is not the leaf's parent.** 606 of the 1,221 chapters
+/// anchor on a sibling *leaf* rather than the container, so `parentNodeKey`
+/// would answer wrongly for roughly half of them — and wrongly in the way that
+/// hurts, resolving to a container that exists. `chapterOf` below is built from
+/// the plan's own walk for exactly this reason.
 ///
 /// ## Row shape
 ///
@@ -90,8 +96,15 @@ String buildSearchIndex({required SitePlan plan}) {
   for (final page in plan.pages) {
     nodes.add(page.node);
     // Only a chapter's leaves are extra: a sutta page's `suttas` is the page's
-    // own node, and adding it here would index all 8,355 of them twice.
-    if (page.kind == PageKind.chapter) nodes.addAll(page.suttas);
+    // own node, and adding it here would index all of them twice.
+    //
+    // A mid-vagga chapter is itself anchored on a leaf, so that leaf is in both
+    // `node` and `suttas` and has to be skipped — otherwise 606 keys arrive
+    // twice, and the second row wins `position`, which is what `site.js` reads
+    // to rank a hit.
+    if (page.kind == PageKind.chapter) {
+      nodes.addAll(page.suttas.where((s) => s.nodeKey != page.nodeKey));
+    }
   }
 
   final position = {
@@ -106,6 +119,10 @@ String buildSearchIndex({required SitePlan plan}) {
     if (page.kind != PageKind.chapter) continue;
     final chapterIndex = position[page.nodeKey]!;
     for (final sutta in page.suttas) {
+      // A mid-vagga chapter's anchor leaf *is* the page, so it has a file of
+      // its own and must stay out of here — otherwise `hrefFor` builds
+      // `<key>#<key>`, a fragment pointing at its own page.
+      if (sutta.nodeKey == page.nodeKey) continue;
       chapterOf[sutta.nodeKey] = chapterIndex;
     }
   }

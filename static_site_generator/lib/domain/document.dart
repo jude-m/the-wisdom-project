@@ -35,8 +35,8 @@ class DocRow {
 
   /// Combined length of both sides' *raw* text, markers included.
   ///
-  /// This is the unit the grouping threshold counts in — see
-  /// [GroupingClassifier.maxLeafChars]. Raw rather than stripped because that
+  /// This is the unit the grouping lines count in — see `GroupingPolicy`. Raw
+  /// rather than stripped, and *combined* rather than Pali alone, because that
   /// is the convention the locked 1,500 figure was measured under.
   int get rawCharCount =>
       (pali?.text.length ?? 0) + (sinhala?.text.length ?? 0);

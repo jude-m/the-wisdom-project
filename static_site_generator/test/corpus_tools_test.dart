@@ -21,7 +21,7 @@ void main() {
     // repeated here: a copy no assertion reads is a copy that goes quietly
     // wrong on the next legitimate update, which is the exact failure --expect
     // exists to prevent.
-    final result = _run('tool/classify_corpus.dart', ['--expect']);
+    final result = _run('tool/plan_corpus.dart', ['--expect']);
     expect(result.exitCode, 0, reason: _output(result));
   });
 

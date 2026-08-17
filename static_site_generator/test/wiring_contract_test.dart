@@ -417,6 +417,7 @@ void main() {
           roots: _tree.roots,
           generatorVersion: 'test',
           assets: _assets,
+          urlFor: tipitakaUrl,
         ).render(),
       };
 
@@ -534,6 +535,9 @@ final PageTemplate _template = PageTemplate(
   tree: _tree,
   generatorVersion: 'test',
   assets: _assets,
+  // These fixtures build `SitePage`s by hand, with no plan behind them and no
+  // folded leaf in the tree, so the serving URL is the bare one.
+  urlFor: tipitakaUrl,
 );
 
 /// Literal URLs, not `SiteAssets.forContent(...)`: these tests assert what

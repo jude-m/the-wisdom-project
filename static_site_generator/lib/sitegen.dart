@@ -6,7 +6,7 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 import 'data/corpus_reader.dart';
 import 'data/slicer_cache.dart';
 import 'domain/document.dart';
-import 'domain/grouping_classifier.dart';
+import 'domain/grouping_planner.dart';
 import 'domain/site_page.dart';
 import 'domain/theme_tokens.dart';
 import 'manifest/build_manifest.dart';
@@ -71,17 +71,13 @@ class SiteGenerator {
   BuildReport generate(List<String> rootKeys) {
     _clearOutputDir();
     final cache = SlicerCache(reader: reader, tree: tree);
-    final classifier = GroupingClassifier(tree: tree, slicerFor: cache.forFile);
+    final planner = GroupingPlanner(tree: tree, slicerFor: cache.forFile);
 
-    // Verdicts first, and memoised: SitePlan asks for a container's verdict as
-    // it walks, and the renderer would otherwise re-slice whole vaggas to
-    // re-derive an answer already known.
-    final verdicts = <String, GroupingVerdict>{};
-    GroupingVerdict classify(TipitakaNode container) =>
-        verdicts[container.nodeKey] ??= classifier.classify(container);
-
-    final plan =
-        SitePlan.build(tree: tree, rootKeys: rootKeys, classify: classify);
+    final plan = SitePlan.build(
+      tree: tree,
+      rootKeys: rootKeys,
+      foldedLeafKeys: planner.foldedLeaves(),
+    );
 
     // Everything a page links is built or read before the first page, though
     // most of it is written after them: each URL carries a hash of its own
@@ -121,6 +117,7 @@ class SiteGenerator {
       tree: tree,
       generatorVersion: generatorVersion,
       assets: assets,
+      urlFor: plan.urlFor,
     );
     final manifest = BuildManifest();
 
@@ -155,12 +152,11 @@ class SiteGenerator {
         slices[sutta.nodeKey] = cache.forFile(fileId).sliceFor(sutta.nodeKey);
       }
 
-      // The container's own slice is its preamble. On a leaf page there is
-      // none: a leaf owns its rows outright.
-      NodeSlice? preamble;
-      if (page.kind != PageKind.sutta) {
-        preamble = cache.forFile(sourceFileId).sliceFor(page.nodeKey);
-      }
+      // The container's own slice is its preamble; a leaf owns its rows
+      // outright and has none. See [SitePage.hasPreamble].
+      final preamble = page.hasPreamble
+          ? cache.forFile(sourceFileId).sliceFor(page.nodeKey)
+          : null;
 
       final html = template.render(
         page,
@@ -202,6 +198,7 @@ class SiteGenerator {
         roots: [for (final key in rootKeys) tree[key]!],
         generatorVersion: generatorVersion,
         assets: assets,
+        urlFor: plan.urlFor,
       ).render(),
     );
 
