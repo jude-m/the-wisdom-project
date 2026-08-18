@@ -174,40 +174,46 @@ over the tree + the file's flattened entries.
    case). Not needed earlier.
 
 Build (1) first, then (2) for nesting, then (3) for grouping. No code changes
-between (1) and (2); (3) turns on the grouping manifest.
+between any of them: the three differ only in `--root`, and grouping is read
+from `foldedLeafKeys` rather than switched on.
 
 ---
 
 ## 6. Page-generation strategy — per-sutta by default, group only formulaic runs
 
-> **Model LOCKED 2026-07-21 — per-container *binary*** (the SuttaCentral model,
-> refined). A vagga is **wholly exploded** (every leaf → its own
-> `/tipitaka/<nodeKey>` page) **or wholly grouped** (whole vagga → one chapter file,
-> single-view via `#<nodeKey>`), **never split** — the per-leaf "hoist substantial
-> siblings" mechanism is **retired**. The *threshold value* + *famous-sutta
-> allowlist* still tune on real data (P5); the **shareable-link target (app vs web)
-> is resolved** (both, per visitor — §13.2 + the deep-linking plan). Rationale +
-> numbers in **§13.1**.
-> **➜ The rule and every page-count figure now live in
+> **➜ The rule, its verdicts and every page-count figure live in
 > [`reading-units-and-grouping.md`](./reading-units-and-grouping.md), which owns
-> them.** Rules (a), (b) and (c) were added there on 2026-08-15; the counts
-> below this line are superseded, and the ones this section used to restate have
-> been removed rather than left to rot. Reproduce with
-> `dart run static_site_generator/tool/plan_corpus.dart`.
+> them.** The per-container binary model this section used to lock (a vagga
+> wholly exploded or wholly grouped, never split) was replaced on 2026-08-16 by
+> **one per-leaf split rule**, and the text stating it has been deleted rather
+> than left to rot beside its own replacement.
+>
+> **The verdicts are frozen** (2026-08-17, S2). `foldedLeafKeys` — a generated
+> `const Set<String>` in `packages/wisdom_shared/lib/src/grouping/` — is the
+> single source of which leaves lose their file, and `SitePlan.build`
+> reconstructs every page from it. **Nothing measures text to decide a page any
+> more**, at build time or app runtime, so a re-sync of `assets/` may change
+> what a page *says* and never which pages *exist*. Regenerate deliberately with
+> `plan_corpus.dart --write-snapshot`; the git diff of that file is the impact
+> review, one line per sutta whose URL moved.
+>
+> Generated Dart, not a data file, because the app reads the same verdicts and
+> **no new asset file may be added on the app side** — one `const` compiles into
+> both surfaces from one place.
 >
 > What still holds, and is this section's own: the file boundary is **always an
 > existing BJT tree node**; nothing famous groups (kn-khp's smallest famous sutta
-> = 3,544c combined; SN 15 fully explodes); no grouped vagga spans a content
+> = 3,544c combined; SN 15 fully explodes); no chapter spans a content
 > file; tree order == print order in all 285 files. ⚠️ §3's kn-khp char figures
 > are *pali-only* — the threshold is always **combined** (pali+sinh).
 
-**In plain words:** *exploded* = the normal case — every sutta in the vagga gets
-its **own** HTML file; the vagga page is just a TOC of links. *Grouped* = the
-exception for BJT's own repetition-runs (peyyāla, Apadāna/Jātaka verse runs) —
-the vagga becomes ONE file and each tiny sutta inside it is a `#anchor`. The
-file boundary is **always an existing BJT tree node** (sutta or vagga), never a
-unit we invent — the grouped leaves are ones BJT itself prints as ranges (their
-BJT labels are literally "1. 15. 14-16").
+**In plain words:** a sutta long enough to be worth searching for gets its
+**own** HTML file, and its container is a TOC of links. A contiguous run of tiny
+neighbours — BJT's own repetition-runs (peyyāla, Apadāna/Jātaka verse runs) —
+shares ONE file, each of them a `#anchor` inside it. The file boundary is
+**always an existing BJT tree node** (sutta or vagga), never a unit we invent —
+the grouped leaves are ones BJT itself prints as ranges (their BJT labels are
+literally "1. 15. 14-16").
 
 We considered three uniform rules and rejected both extremes:
 
@@ -215,7 +221,7 @@ We considered three uniform rules and rejected both extremes:
 |---|---|---|---|---|
 | **Per content-file (1:1)** | ❌ buried (kn-khp hides Maṅgala+Ratana+Mettā on one page) | ✅ fine | ✅ simplest | loses name-search SEO (fails C2) |
 | **Per vagga (uniform)** | ❌ buried (mn10 inside a vagga page) | ✅ ideal | ✅ deterministic | still fails C2 for DN/MN |
-| **Hybrid — per-container binary (chosen)** | ✅ own page → **ranks** | ✅ ranged | ✅ via manifest | wins both — the SuttaCentral model, refined |
+| **Hybrid — per-leaf split (chosen)** | ✅ own page → **ranks** | ✅ ranged | ✅ frozen snapshot | wins both — the SuttaCentral model, refined |
 
 ### The rules — a sutta's text lives in exactly one file
 Inspection corrects the model: `/an2.64` is **not** a second file — watch it load
@@ -224,14 +230,16 @@ sutta**. SuttaCentral has **one data unit (the range)** and renders two routes
 from it with JavaScript. We get the single-sutta view **without duplicating text
 and without a SPA**:
 
-1. **Leaf of an *exploded* vagga → its own file** `/tipitaka/<nodeKey>`: full text,
-   `<title>` = sutta name, canonical self → full per-sutta SEO (C2), shareable
-   (C3), single view (C4); mirrors the app's `/tipitaka/<id>`. Its container is a
-   **TOC** (links only); continuous reading via prev/next.
-2. **Leaf of a *grouped* vagga → lives *only* in its chapter file** `/tipitaka/<vaggaKey>`:
-   one page holding the whole run, each sutta `<section class="sutta" id="<nodeKey>">`.
-   The deepest page the site emits, the continuous-reading surface (C7), and the
-   SEO unit for the run.
+1. **A leaf not in `foldedLeafKeys` → its own file** `/tipitaka/<nodeKey>`: full
+   text, `<title>` = sutta name, canonical self → full per-sutta SEO (C2),
+   shareable (C3), single view (C4); mirrors the app's `/tipitaka/<id>`. Its
+   container is a **TOC** (links only); continuous reading via prev/next.
+2. **A folded leaf → lives *only* in its chapter file**: one page holding the
+   whole run, each sutta `<section class="sutta" id="<nodeKey>">`. The deepest
+   page the site emits, the continuous-reading surface (C7), and the SEO unit
+   for the run. Its URL is `/tipitaka/<vaggaKey>` when the run covers the whole
+   vagga, and `/tipitaka/<firstLeafKey>` when it starts below one — never guess
+   it, ask `SitePlan.urlFor`.
 3. **Single view of a micro-sutta = a URL filter on that chapter file** (next
    subsection) — no second file.
 4. **Higher containers** → TOC pages (links only, no full text). *(94 mixed
@@ -281,25 +289,26 @@ file, which you've ruled out. The cost is ~nil: grouped suttas are exactly the o
 nobody searches by individual name. **Distinct / famous suttas keep full per-sutta
 SEO** via their own files (the `/an2.64`-style #1 result lands on those).
 
-### Classifying explode vs group — per container (vagga), not per leaf
-Decide **per deepest container (vagga)**; every leaf inherits the verdict — a vagga
-is wholly **exploded** or wholly **grouped**, never split.
-- **Group iff the vagga is a uniform micro run** — heuristic **≥ ~6 leaves AND
-  max leaf < ~1500 combined chars**; else **explode**. The `< 1500` clause is the
-  SEO guard: the moment a vagga holds one substantial sutta it fails → explodes →
-  that sutta keeps its own rankable page (never buried). Threshold locked
-  2026-07-22 (§13.1); P5 just regenerates + reviews.
-- **~49 "awkward" vaggas** (mostly-micro + one buried substantial sutta, e.g.
-  `sn-1-1-2` = 9 micro + a 12K sutta) are the only editorial calls → decided by
-  hand, **leaning explode** (never bury the big one; the thin micro pages are
-  harmless — nobody name-searches them). A small **allowlist** likewise forces a
-  famous-but-short sutta to explode.
-- **Persist to committed `grouping.json`** (curated, stable → no URL drift); a text
-  correction never re-buckets. Re-grouping is an explicit edit.
-- **Why per-container, not per-leaf hoist:** on real data big & micro suttas
-  interleave (119/184 AN, 142/243 SN vaggas size-mixed; `an-4-2-3` = `..D..D.DDD`),
-  so hoisting the big ones out leaves non-contiguous chapter files. Whole-or-nothing
-  keeps every chapter a real contiguous tree range. Full numbers: §13.1.
+### Where the verdicts come from — one frozen set, read not measured
+`foldedLeafKeys` (`packages/wisdom_shared/lib/src/grouping/grouping_snapshot.dart`)
+lists every leaf that loses its file. Absent key = owns a page, which is the
+safe direction: new content self-handles, a wrong explode costs one thin page,
+and only a wrong fold could hide a named text behind a fragment.
+
+- **Nothing classifies at build time.** `SitePlan.build` reconstructs all 8,908
+  readable pages from the set alone. A text correction cannot re-bucket
+  anything, because no character is counted on the way to a page.
+- **The rule that wrote it** — a per-leaf split with two size lines and one
+  per-book exception table — lives in
+  [`reading-units-and-grouping.md`](./reading-units-and-grouping.md) and runs
+  only from `plan_corpus.dart` at sync time.
+- **Moving a line is deliberate:** edit `grouping_policy.dart`, rerun
+  `--write-snapshot`, review the diff, ship both in one commit.
+- **After a re-sync**, `plan_corpus.dart --check` asks the four questions that
+  can go wrong (a folded key that no longer names a leaf; a container that has
+  since grown a sub-container or split across content files; the index-0
+  invariant; orphan containers) and the default report prints what the rule
+  would now say about the new content. Neither is acted on automatically.
 
 ### Re-sync — the `source → [outputs]` manifest (satisfies C1)
 - The generator records, per source `assets/text/<fileId>.json`, the **list** of
@@ -309,9 +318,10 @@ is wholly **exploded** or wholly **grouped**, never split.
   output list**. Deterministic + idempotent ⇒ the git diff shows only the suttas
   whose rendered HTML actually changed. The same hashes feed per-URL `<lastmod>`
   in `sitemap.xml` (hosting doc) — corrections get recrawled fast.
-- `grouping.json` changes **only** on deliberate re-grouping, never from a content
-  correction. → You keep the trivial re-sync you liked about 1:1; you just emit
-  *N* files per source instead of 1.
+- `grouping_snapshot.dart` changes **only** on deliberate re-grouping, never from
+  a content correction — it is not even read during a re-sync. → You keep the
+  trivial re-sync you liked about 1:1; you just emit *N* files per source
+  instead of 1.
 
 ### Continuous reading (satisfies C7)
 - **Chapter files** are continuous by nature — the whole run in one scroll; an
@@ -503,19 +513,23 @@ Flutter widget. Fix the seam first.
 ### PREREQ-4 — Clean layering inside the generator
 ```
 static_site_generator/
-  bin/generate.dart      # entrypoint: args (root key), orchestrate
+  bin/generate.dart      # entrypoint: args (--root/--assets/--out), orchestrate
   lib/
-    domain/              # pure models: SiteNode, SuttaDoc, ContentSegment*
-    data/                # asset readers: tree.json, file-map.json, text/<id>.json
-    grouping/            # distinct-vs-formulaic classifier + grouping.json I/O
-    render/              # pure string→HTML: page template, chrome, entry
+    domain/              # pure: SitePlan/SitePage, ContentSlicer, GroupingPolicy
+    data/                # asset readers: tree.json, text/<id>.json, slicer cache
+    render/              # pure string→HTML: page template, chrome, entry, CSS
     manifest/            # source→[outputs] + content hashes (incremental builds)
-    sitegen.dart         # use-case: classify → slice → render → write
-  grouping.json          # committed, curated grouping data (analogue of child_range.json)
+    sitegen.dart         # use-case: plan → slice → render → write
+  assets/                # committed build inputs: site.js, emblem.png, tokens
+  tool/                  # plan_corpus.dart (sync-time), serve.dart, invariants
   build/                 # OUTPUT (gitignored)
 ```
 - `render/` is pure (domain → `String`), unit-testable. `data/` is the only layer
   touching the filesystem. `ContentSegment` is **imported from `wisdom_shared`**.
+- **No `grouping/` layer.** The classifier this sketch planned for became a
+  per-leaf planner, and then stopped running at build time altogether: the
+  verdicts are `foldedLeafKeys` in `wisdom_shared`, and `GroupingPlanner` /
+  `GroupingPolicy` stay in `domain/` as the sync-time writer behind them.
 
 ---
 
@@ -557,12 +571,15 @@ build/
   sitemap.xml                        # distinct files + chapter files (not redirect stubs)
   assets/site.css                    # one small stylesheet (layouts + chrome + type)
   fonts/…                            # Noto Sinhala WOFF2, font-display: swap — COPIED, not built
-  grouping.json  (source, not output)
   .manifest.json (source→[outputs] + hashes, for incremental builds)
 ```
+Which of these exist is decided by `foldedLeafKeys` in `wisdom_shared` — a build
+input, and the only one that is generated Dart rather than an asset (§6).
+
 - **Distinct sutta** → `/tipitaka/<nodeKey>` (own file, full per-sutta SEO); mirrors
   the app's `/tipitaka/<id>`.
-- **Chapter (grouped)** → `/tipitaka/<vaggaKey>`; single view `…#<nodeKey>`.
+- **Chapter (grouped)** → `/tipitaka/<vaggaKey>` for a whole-vagga run,
+  `/tipitaka/<firstLeafKey>` for one starting below it; single view `…#<nodeKey>`.
 - **Higher container** → `/tipitaka/<containerKey>` TOC (links only) — emitted
   as a **flat `<key>.html`, not `<key>/index.html`** (2026-07-23): the directory
   form gives containers a second URL shape (`…/kn-khp/` plus a 308 hop from
@@ -672,12 +689,12 @@ untreated they compete for the same name searches.
 - **P3** Add the 4-layout CSS shell (§7) + the Sinhala side. All 4 layouts.
 - **P4** Static `<details>` navigator (§9) + container **TOC** pages + canonical
   tags + prev/next.
-- **P5** Grouping: the distinct-vs-grouped classifier + `grouping.json` + chapter
-  files + the CSS `:has()` single-view filter + `sitemap.xml`. Run against `an-1`
-  (243 micro-suttas) → chapter files with working `#fragment` single-views (no
-  per-sutta files). The rule and its verdicts live in
-  [`reading-units-and-grouping.md`](./reading-units-and-grouping.md) — P5 just
-  regenerates the snapshot and reviews the grouped list.
+- **P5** Grouping: chapter files + the CSS `:has()` single-view filter +
+  `sitemap.xml`. Run against `an-1` (243 micro-suttas) → chapter files with
+  working `#fragment` single-views (no per-sutta files). The rule and its
+  verdicts live in
+  [`reading-units-and-grouping.md`](./reading-units-and-grouping.md), frozen
+  into `foldedLeafKeys` — P5 reviews the grouped list, it does not tune it.
   **Decision gate: ask the maintainer stub-files-vs-Bulk-Redirects *before*
   emitting the grouped-leaf stubs** (§6 / §13.2 / hosting doc).
 - **P6** Point at `kn-iti-1`; verify nesting + slicing across vaggas.
@@ -693,21 +710,26 @@ untreated they compete for the same name searches.
 
 ## 13. Open questions & deferred decisions
 
-1. **Grouping model & threshold** *(model **LOCKED 2026-07-21**; threshold
-   **LOCKED 2026-07-22** — nothing left to tune; kept for the record)*:
+1. **Grouping model & threshold** *(**SETTLED**; nothing left to tune — kept for
+   the evidence, which the owning doc cites)*:
 
-   **LOCKED: per-container *binary*, replacing §6's per-leaf "hoist"
-   mechanism.** Decide grouping **per deepest container (vagga)**, not per sutta —
-   a vagga is *either* fully **exploded** (every leaf → its own
-   `/tipitaka/<nodeKey>` page) *or* fully **grouped** (whole vagga → one chapter
-   file `/tipitaka/<vaggaKey>`, single-view via `#<nodeKey>`). **Never split a
-   vagga.**
-   - *Why not §6's "hoist the substantial siblings out":* on real data the big and
+   **The per-container binary model locked here on 2026-07-21 was retired on
+   2026-08-16** in favour of **one per-leaf split rule**, and frozen into
+   `foldedLeafKeys` on 2026-08-17. Its statement — *a vagga is wholly exploded or
+   wholly grouped, never split* — is deleted rather than left standing beside its
+   own replacement. What survives below is the measurement it rested on, because
+   the rule that replaced it answers the same data differently:
+
+   - *Why it rejected §6's "hoist the substantial siblings out":* on real data
+     the big and
      micro suttas are **interleaved**, not separable — **119/184 AN** and
      **142/243 SN** vaggas are size-mixed, and only ~half have the micro ones
      contiguous (e.g. `an-4-2-3` = `..D..D.DDD`). Hoisting ⇒ mostly *partial*,
-     often *non-contiguous* chapter files. Whole-or-nothing avoids that entirely.
-   - *Why per-container is safe:* the BJT compilers already package the true
+     often *non-contiguous* chapter files.
+     **The observation is right and the conclusion did not follow** — the answer
+     to a non-contiguous run is *more than one chapter file*, not zero, which is
+     what the split rule emits. That is the whole of the 2026-08-16 revision.
+   - *Why per-container looked safe:* the BJT compilers already package the true
      formulaic runs as their own vaggas (`an-3-7 කම්මපථ පෙය්යාලං` = 20 uniform
      micro) or collapse them into one node (`an-3-8 රාග පෙය්යාලං` = 1 leaf).
      **"Short" ≠ "formulaic"**: a short *named* sutta (`පඨමඅග්ගසුත්තං`, 316c) is
@@ -717,26 +739,19 @@ untreated they compete for the same name searches.
      key** (`sn-2-3-1`), never a synthesized `an-1-1-1--10`. (SuttaCentral must
      invent range keys — its data is flat segments; our tree already has the
      container node, so we don't.)
-   - *Classifier (seeds `grouping.json`):* group a container iff it is a uniform
-     micro run — heuristic: **≥ ~6 leaves AND max leaf < ~1500 combined chars**;
-     else explode. **~49 "awkward" vaggas** (mostly-micro + one buried substantial
-     sutta — `sn-1-1-2 නන්දනවග්ග` = 9 micro + one 12K sutta; `an-1-14 එතදග්ගපාළි`,
-     the foremost-disciples list) are the **only** editorial calls → the committed
-     `grouping.json` + a famous-sutta allowlist decide those by hand. (Threshold
-     locked 2026-07-22 — see below; P5 regenerates + reviews.)
-   - *Why the ≥ ~6-leaf gate (documented 2026-07-22):* "all tiny" alone ≠
-     "formulaic run" — **length is the run's fingerprint** (87/145 real groups
-     are exactly the classic vagga-of-ten; commentary echo-vaggas legitimately
-     run 6–9, hence 6 rather than 10). Dropping the gate would group 138 more
-     containers (260 suttas): **85 are single-leaf nodes where BJT already
-     collapsed the run itself** (names ending "…සුත්තානි" — grouping adds
-     nothing there), and the 2–5-leaf rest are mostly *named* short texts that
-     deserve own pages. Win ≈ 260 saved files (~1.8%); cost = burying named
-     texts + 260 stubs added back for the locked exact-sutta deep links → net
-     ~zero, SEO strictly worse. The gate encodes the design's error-asymmetry:
-     a wrong *explode* = a few harmless thin pages; a wrong *group* = a buried
-     named text (unacceptable) — so grouping stays the rare, high-confidence
-     verdict.
+   - *The "~49 awkward vaggas" that needed hand curation* (mostly-micro + one
+     buried substantial sutta — `sn-1-1-2 නන්දනවග්ග` = 9 micro + one 12K sutta;
+     `an-1-14 එතදග්ගපාළි`, the foremost-disciples list) **are the shape the split
+     rule dissolves**: the substantial sutta keeps its page and the micro ones
+     beside it share one, with no editorial call to make. The curated
+     `grouping.json` and the famous-sutta allowlist that were to decide them by
+     hand were never built, and are superseded by the frozen snapshot.
+   - *The ≥ ~6-leaf gate is gone too* (`minLeaves`, documented 2026-07-22): a run
+     length of 2 measures "this is a peyyāla run" directly, where a leaf count of
+     six was always a proxy for it. **The error-asymmetry it encoded still
+     governs the design** — a wrong *explode* = a few harmless thin pages; a wrong
+     *group* = a buried named text (unacceptable) — and it is now carried by
+     the snapshot's "absent key = owns a page" default rather than by a gate.
    - *Scale:* **➜ [`reading-units-and-grouping.md`](./reading-units-and-grouping.md)
      owns the page counts.** Whatever they are, the total **with stubs is
      invariant at 16,356** — every leaf gets a real page or a stub — so the
@@ -745,33 +760,30 @@ untreated they compete for the same name searches.
      The **SN 15 seed explodes cleanly** (both vaggas above threshold) → every
      SN 15 sutta keeps its own page + citation URL, which the RAG deep-links need.
 
-   **Locked 2026-07-21:** per-container-binary adopted over hoist; §6 body updated
-   to match. **Threshold locked 2026-07-22** after a full-corpus classifier run
-   (≥ 6 leaves AND max < 1,500 **combined** chars); savings vs no-grouping =
-   1,448; AN 119/186 & SN 142/243 size-mixed confirmed on data; the "awkward" set
-   is 85–164 depending on definition but needs **no** mandatory curation
-   (default = explode). Exploded thin pages: 1,870 leaves < 800c (only 119
-   number-only-named) — the accepted "harmless thin pages" set; unique scripture,
-   no noindex needed. DN/MN group **zero** vaggas — a good sanity signal.
+   **The 1,500 value survived the model change.** It was locked 2026-07-22 after
+   a full-corpus run (AN 119/186 & SN 142/243 size-mixed confirmed on data;
+   savings vs no-grouping = 1,448) and re-confirmed under the split rule, where
+   it asks a narrower question — *does this one sutta deserve its own URL*, not
+   *is this vagga worth grouping* — so its exact value now matters far less than
+   it did. Always **combined** pali+sinh chars, never pali alone. DN/MN group
+   **zero** vaggas, a sanity signal that held under both rules.
 
-   **Jātaka, Theragāthā and Therīgāthā — the canon side, still true.** These
-   three group heavily and always did: **56 of the 146 grouped vaggas** are
-   `kn-jat-*` (33), `kn-thag-*` (19), `kn-thig-*` (4). That was accepted, not
-   overlooked, on one stated condition — BJT's Jātaka pali is only the *gāthās*,
-   and the **stories people actually search for live in `atta-kn-jat-*`, which
-   explodes** (0 of the 146). `kn-thag-*`/`kn-thig-*` likewise: each leaf is one
-   short verse by a *named elder*, and the substance is in the commentary. So the
-   canon grouping is only safe while the commentary stays exploded.
+   **Jātaka, Theragāthā and Therīgāthā — the canon side, now split.** Under the
+   per-container rule these three grouped heavily: **56 of the 146 grouped
+   vaggas** were `kn-jat-*` (33), `kn-thag-*` (19), `kn-thig-*` (4). That was
+   accepted, not overlooked, on one stated condition — BJT's Jātaka pali is only
+   the *gāthās*, and the **stories people actually search for live in
+   `atta-kn-jat-*`, which explodes**.
 
-   **This paragraph called it.** It named those same prefixes as allowlist
-   candidates, and they are exactly the three rule (c) carves out of the
-   commentary threshold on 2026-08-15, arrived at independently from measurement.
-   The mechanism differs — a per-prefix exemption in the classifier, not a
-   hand-maintained allowlist, and applied to `atta-kn-*` where the risk actually
-   is — but the judgment is the same one. **The condition above is what the
-   carve-out protects**: drop it and both sides group, leaving the Jātaka stories
-   with no page of their own anywhere. See
-   [`reading-units-and-grouping.md`](./reading-units-and-grouping.md) rule (c).
+   **This paragraph called it, and the settle split its three cases apart.** The
+   condition holds for Jātaka and is exactly what the commentary carve-out
+   protects: drop it and both sides group, leaving the Jātaka stories with no
+   page of their own anywhere. For `kn-thag` / `kn-thig` the judgment was
+   **reversed on 2026-08-17** — those books are now *promoted*, so every named
+   elder keeps a canon page, because the poem is the primary text and the
+   vaṇṇanā is its backstory. See
+   [`reading-units-and-grouping.md`](./reading-units-and-grouping.md), "Six books
+   are promoted outright" and "Why jat / thag / thig / dhp are carved back out".
 
    **Re-examined & rejected again 2026-07-25 — "group *everything*, use `#`
    fragments throughout"** (measured, not estimated):

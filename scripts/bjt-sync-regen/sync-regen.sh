@@ -365,10 +365,12 @@ echo "Copied. assets/text now has $DEST_COUNT JSON files; tree.json + data files
 # ---------------------------------------------------------------------------
 # Step 5 — Verify the new corpus before rebuilding anything on top of it
 # ---------------------------------------------------------------------------
-# Before the rebuilds on purpose. Grouping compares against 1,500 chars strictly
-# less-than and `kn-thig-6` measures exactly 1,500, so one character of upstream
-# correction can regroup a vagga and delete its suttas' URLs. Nothing else here
-# would notice — the build still succeeds and every link still resolves.
+# Before the rebuilds on purpose. The site's page structure is frozen in
+# `foldedLeafKeys` (packages/wisdom_shared/lib/src/grouping/grouping_snapshot.dart),
+# so upstream text corrections can no longer regroup a vagga on their own. What
+# they can still do is rename the nodeKeys those frozen verdicts point at, which
+# is the one event no local design survives — and nothing else here would notice,
+# because the build still succeeds and every link still resolves.
 #
 # `if`, not bare, so a failure warns instead of aborting a half-done sync.
 step "Step 5 — Verify the new corpus"
@@ -376,14 +378,23 @@ echo "Running the Dart package checks against the text you just copied..."
 echo
 if "$ROOT/tools/check-dart-packages.sh"; then
   echo
-  echo "  Corpus verified — page budget and shared-logic invariants unchanged."
+  echo "  Corpus verified — the frozen grouping snapshot still describes this tree."
+  echo
+  echo "  Page COUNTS are deliberately not locked: new upstream content should add"
+  echo "  pages. If the text changed, read the advisor before rebuilding — it says"
+  echo "  where the grouping rule now disagrees with the frozen verdicts:"
+  echo "    dart run static_site_generator/tool/plan_corpus.dart"
 else
   echo
   echo "  ${HILITE}WARNING: the corpus tests FAILED after this sync.${RESET}"
-  echo "  Read the DRIFT rows above before rebuilding. A locked figure moving is"
-  echo "  a decision: either update _locked in"
-  echo "  static_site_generator/tool/plan_corpus.dart plus the plan docs, or"
-  echo "  find out why it moved."
+  echo "  The tool names the offending nodeKeys. Re-run it on its own to read them:"
+  echo "    dart run static_site_generator/tool/plan_corpus.dart --check"
+  echo
+  echo "  A frozen verdict pointing at a key that moved is a decision, not a"
+  echo "  flake. Either regenerate the snapshot and review its git diff —"
+  echo "    dart run static_site_generator/tool/plan_corpus.dart --write-snapshot"
+  echo "  one line per sutta whose URL moves, plus the plan docs — or find out"
+  echo "  why it moved before rebuilding."
 fi
 echo
 

@@ -33,6 +33,11 @@ Separate Dart package, no Flutter. Builds the public HTML Tipitaka site.
 - Every page must work with JavaScript off. `assets/site.js` is the only
   script; it holds no Sinhala and no URLs (those arrive on `data-` attributes)
   and never uses `innerHTML`.
+- Which leaves get their own page is **frozen**, not measured. `foldedLeafKeys`
+  (`packages/wisdom_shared/lib/src/grouping/grouping_snapshot.dart`) is the
+  single source; the build counts no characters to decide a page. Regenerate
+  deliberately with `dart run tool/plan_corpus.dart --write-snapshot` and review
+  its git diff — one line per sutta whose URL moved. Never hand-edit it.
 
 
 ## DONT

@@ -165,17 +165,30 @@ would be deleted", which trips the same gate):
 `dart analyze` + `dart test` across `packages/wisdom_shared`, `static_site_generator`
 and `server` (~35s). It runs **before** the rebuilds on purpose.
 
-The check that earns its place here is the static site's **page budget**. Grouping is
-decided by a 1,500-character threshold, compared strictly less-than: `kn-thig-6`
-measures exactly 1,500 and stays exploded because of it. A single character of
-upstream correction can regroup a vagga, delete eight real URLs and shift every count
-above it — and **nothing else in the pipeline would notice**, because the build still
-succeeds and every link still resolves. It just isn't the site that was designed.
+The check that earns its place here is the static site's **grouping snapshot**. Which
+suttas get their own page is frozen in `foldedLeafKeys`
+(`packages/wisdom_shared/lib/src/grouping/grouping_snapshot.dart`), so upstream text
+corrections can no longer regroup a vagga by themselves — that is what freezing bought.
+What a re-sync can still do is rename the nodeKeys those verdicts point at, and then
+every frozen fold names the wrong text or nothing at all. **Nothing else in the
+pipeline would notice**, because the build still succeeds and every link still
+resolves. It just isn't the site that was designed.
+
+Page *counts* are deliberately not locked any more. Nothing re-measures them at build
+time, so they cannot drift on their own, and new upstream content **should** add pages
+without failing a gate.
 
 A failure **warns loudly and continues** rather than aborting, so a half-done sync
-isn't lost. A locked figure moving is a decision, not a flake: read the `DRIFT` rows,
-then either update `_locked` in `static_site_generator/tool/plan_corpus.dart`
-along with the plan docs, or find out why it moved before rebuilding.
+isn't lost. The tool names the offending keys — re-run
+`dart run static_site_generator/tool/plan_corpus.dart --check` to read them. A frozen
+verdict pointing at a key that moved is a decision, not a flake: either regenerate with
+`--write-snapshot` and review the git diff (one line per sutta whose URL moves) along
+with the plan docs, or find out why it moved before rebuilding.
+
+If the text changed but the check passed, still run the tool with no arguments before
+rebuilding. That mode re-runs the grouping rule and prints where it now disagrees with
+the frozen verdicts — informational by design, and the only place that drift is
+visible.
 
 ### Step 6 — Rebuild what depends on the text
 

@@ -27,9 +27,12 @@ import 'grouping_policy.dart';
 ///
 /// The output is one flat set of folded leaf keys, and that is enough to
 /// rebuild every page — see `SitePlan.build`, which is the only reader of it.
-/// After the snapshot is frozen this class stops running at build time and
-/// becomes a sync-time advisor: the tool that regenerates the snapshot, and the
-/// report that says what the rule *would* do to newly synced content.
+///
+/// **It does not run at build time.** Since S2 the verdicts are frozen into
+/// `foldedLeafKeys`, a `const` in `wisdom_shared`, and this class runs only
+/// from `tool/plan_corpus.dart`: as the writer behind `--write-snapshot`, and
+/// as the advisor whose disagreements the report prints after a re-sync. The
+/// snapshot wins over both — a measurement on a knife edge is why it exists.
 class GroupingPlanner {
   final TipitakaTree tree;
 

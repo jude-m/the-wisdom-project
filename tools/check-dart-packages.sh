@@ -4,8 +4,8 @@
 # `dart` cannot cross package boundaries — each resolves its own deps — so this
 # can only be a loop that cd's into each one. Callers: tools/validate-release.sh,
 # scripts/web/deploy.sh (Phase 2), scripts/bjt-sync-regen/sync-regen.sh (Step 5,
-# where a re-sync of assets/ can move the static site's page budget with no code
-# change at all).
+# where a re-sync of assets/ can rename the nodeKeys the static site's frozen
+# grouping snapshot points at, with no code change at all).
 #
 # The Flutter app is not here — different runner, needs a device for integration:
 #   flutter test

@@ -7,26 +7,23 @@ import 'corpus_reader.dart';
 ///
 /// The corpus is 340 MB across 285 files and the median file is ~1 MB, so
 /// holding every parsed file would cost several gigabytes. It only ever holds
-/// **one**, which is enough: both the planner and the renderer walk the tree in
-/// order, and a content file's nodes are contiguous in that walk. Jumping
-/// between files re-parses, so callers that can group their work by file
-/// should.
+/// **one**, which is enough: every caller walks the tree in order, and a
+/// content file's nodes are contiguous in that walk. Jumping between files
+/// re-parses, so callers that can group their work by file should.
 ///
-/// ## Why a full build parses each file about twice (review D1 — not a bug)
+/// ## A build now parses each file once (review D1, closed by S2)
 ///
-/// A whole-corpus run parses each file about twice. That is **not** cache
-/// thrash — tree order already gives near-perfect locality within a pass. It is
-/// the two passes: `GroupingPlanner` has to measure every leaf before
-/// `SitePlan.build` can decide which nodes even become pages, and rendering
-/// then needs the same rows again. Neither pass can be folded into the other,
-/// because a page's prev/next link depends on how the tree groups further down.
+/// It used to be twice, and that was never cache thrash — tree order already
+/// gives near-perfect locality within a pass. It was two passes: the grouping
+/// planner had to measure every leaf before `SitePlan.build` could decide which
+/// nodes even became pages, and rendering then needed the same rows again.
+/// Neither could be folded into the other, because a page's prev/next link
+/// depends on how the tree groups further down.
 ///
-/// Collapsing it would mean keeping parsed files alive between the passes, i.e.
-/// the several gigabytes above. A one-minute saving on a manually-run build is
-/// not worth that, so the second pass stays.
-///
-/// **S2 removes the first pass outright**, not by caching: once the verdicts
-/// are a frozen `const Set`, nothing has to measure text to decide a page.
+/// Freezing the verdicts removed the first pass outright rather than caching
+/// around it: `foldedLeafKeys` is a `const`, so nothing measures text to decide
+/// a page. `GroupingPlanner` still uses this cache, but only from
+/// `tool/plan_corpus.dart` at sync time.
 class SlicerCache {
   final CorpusReader reader;
   final TipitakaTree tree;
@@ -38,8 +35,11 @@ class SlicerCache {
   /// See [ContentSlicer.nodesByFile] for why this is not computed per call.
   Map<String, List<TipitakaNode>>? _nodesByFile;
 
-  /// Files parsed so far — a re-parse of the same file counts again, so a
-  /// number far above the ~2×285 explained above means a caller is thrashing.
+  /// Files parsed so far — a re-parse of the same file counts again, so a number
+  /// far above the number of files the caller actually needs means it is
+  /// thrashing. A whole-corpus render parses 285, one per file; a caller that
+  /// walks the corpus twice pays twice, which is why `plan_corpus.dart` reports
+  /// this only once both of its passes are done.
   int parses = 0;
 
   SlicerCache({required this.reader, required this.tree});

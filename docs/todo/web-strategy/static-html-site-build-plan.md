@@ -357,9 +357,29 @@ it is; the file is not needed to re-run it.
 > anyway. See [`reading-units-and-grouping.md`](./reading-units-and-grouping.md).
 
 The rule ships as committed source (`lib/domain/grouping_planner.dart` +
-`lib/domain/grouping_policy.dart`) and `tool/plan_corpus.dart` reproduces its
-budget — so the number has the code behind it, where the original CSV was an
-artefact with no source to check it against.
+`lib/domain/grouping_policy.dart`) — so the number has code behind it, where the
+original CSV was an artefact with no source to check it against.
+
+**Since S2 (2026-08-17) that convention is not applied at build time at all.**
+The single source of which leaves lose their file is `foldedLeafKeys`, a
+generated `const Set<String>` in
+`packages/wisdom_shared/lib/src/grouping/grouping_snapshot.dart`; `SitePlan.build`
+reconstructs every page from it and no character is counted on the way. A
+re-sync of `assets/` can therefore change what a page *says* and never which
+pages *exist*.
+
+Generated Dart rather than a committed JSON asset, for a reason outside this
+package: **the app must read the same verdicts and may gain no new bundled
+file** (`reading-units-and-grouping.md`, "Constraints this plan respects"), and
+one `const` compiles into both surfaces from one place.
+
+`tool/plan_corpus.dart` keeps the rule alive at sync time in three modes —
+`--write-snapshot` regenerates the set, `--check` asks the four integrity
+questions that a re-sync can break (tree-only, ~1 s, run by
+`test/corpus_tools_test.dart`), and the bare run prints the budget plus what the
+rule would now say about newly synced content. Its old `--expect` page-budget
+lock is gone with the knife edge it guarded: counts that nothing re-measures
+cannot drift, and new upstream content should add pages without failing CI.
 
 ### P1 — The reading page · frames 02 + 04 ✅ **done 2026-07-28**
 
@@ -1190,19 +1210,20 @@ Actions runner in order to generate the site, so both can ride along in that job
 
 **Both corpus tools became tests on 2026-08-06.** They were kept out of
 `dart test` because each was thought to take about a minute. Measured, the page
-budget is **~3s** and the exhaustive run **~23s**, so `test/corpus_tools_test.dart`
-now runs both and the whole suite finishes in ~25s. Each test just runs the tool
-and expects exit 0, so `_locked` stays the one place the page budget lives.
+budget is **~9s** and the exhaustive run **~36s**, so `test/corpus_tools_test.dart`
+now runs both and the whole suite finishes in ~45s. Each test just runs the tool
+and expects exit 0; the assertions live in the tool itself.
 
 They carry the `corpus` tag, declared in `static_site_generator/dart_test.yaml`:
 
 | Command | Runs |
 |---|---|
-| `dart test` | everything, ~25s |
+| `dart test` | everything, ~45s |
 | `dart test -x corpus` | the 15 wiring cases only, under a second |
 
 Still run the tools by hand when reviewing a change. A test says pass or fail;
-only the printout gives you the margins either side of the 1,500-char line.
+only the printout gives you the page budget and what the rule would now say
+about newly synced content.
 
 The tree test's load-bearing case is **40 index-less siblings** — past the
 32-element cliff where `List.sort` stops being accidentally stable. The real
@@ -1215,21 +1236,31 @@ that matter are corpus-wide invariants, not examples:
 
 | Tool | Reports |
 |---|---|
-| `tool/plan_corpus.dart` | reproduces the grouping budget owned by [`reading-units-and-grouping.md`](./reading-units-and-grouping.md), the Impact derivation as a self-consistency check, and the ten worked subtrees that doc argues about |
-| `tool/plan_corpus.dart --expect` | the same run, **asserted** against the locked budget — 10 rows, exit 1 on any drift. Run by `test/corpus_tools_test.dart` |
+| `tool/plan_corpus.dart --check` | the four integrity questions the frozen snapshot can fail, plus the derivation identity — which, once those pass, can only catch a subtree no root can reach. Exit 1 on any. Tree-only, ~1 s. Run by `test/corpus_tools_test.dart` |
+| `tool/plan_corpus.dart` | the same, plus the page budget owned by [`reading-units-and-grouping.md`](./reading-units-and-grouping.md), the Impact derivation as a self-consistency check, the ten worked subtrees that doc argues about, and what the rule would now say about newly synced content |
 | the `an-1` build | 581 source entries → 581 rendered elements (nothing dropped or duplicated), and a build-twice diff that is empty |
 
-`--expect` landed 2026-08-06, closing the "it prints, it does not assert" gap
-this table used to carry. The locked figures live in `_locked` at the foot of the
-tool; moving one is a decision that changes the plan docs in the same commit.
-`kn-thig-6` measuring **exactly** 1,500 is now an asserted row, so the strict `<`
-in the classifier can no longer be loosened silently.
+**`--expect`'s locked page budget is gone (S2, 2026-08-17), and that is not a
+weakening.** It landed 2026-08-06 to close a real "it prints, it does not
+assert" gap, and it was the right guard while the rule ran at build time and one
+edited character could move a URL. Freezing the verdicts removed the thing it
+was guarding: nothing re-measures the counts, so they cannot drift on their own,
+and new upstream content *should* add pages without failing CI.
 
-The comparison runs **both ways**: a locked figure the run never produced fails
-just as a mismatched one does. Checking only the rows a run emits means deleting
-a line from the tool's own count list stops checking that figure and still exits
-0 — a green wall with one fewer row in it, which is not a thing anyone reads
-closely enough to catch.
+What replaced it asks only questions with no judgment in them — every folded key
+still names a leaf; its container still holds nothing but leaves, all in one
+content file; the index-0 invariant holds; orphan containers stay at 0. It fires
+on exactly one event: an upstream re-sync that renumbers `nodeKey`s, which is
+the sync workflow's stop-the-line moment. Verified by hand-editing the snapshot
+three ways — a key that names nothing, a first-child fold beside an unfolded
+sibling, and one legitimate unfold — and confirming the first two exit 1 naming
+the offending key, and the third moves the file set exactly as predicted.
+
+For deliberate moves the review artifact is the git diff of
+`grouping_snapshot.dart`: one line per sutta whose URL moved, which is a
+stronger review than ten aggregate rows ever gave. `kn-thig-6` measuring
+**exactly** 1,500 no longer needs an asserted row — `kn-thig` is a promoted book
+and none of its leaves is measured at all.
 
 ### 8.2 The gap P2's review exposed — the wiring contract
 
@@ -1324,6 +1355,11 @@ prefixed chapter-section id, `.content` renamed inside one layout rule, the
 and inert, and a locked row deleted from `--expect`'s count list. **15 of 15
 caught.** A guard that survives its own mutation is decoration.
 
+> The fifteenth no longer applies: S2 retired `--expect` and its count list
+> (§8.1). Its replacement was mutated the same way — a snapshot key that names
+> nothing, and a first-child fold beside an unfolded sibling — and both exit 1
+> naming the offending key.
+
 > The last six were added on 2026-08-06 after a review of this commit, and four
 > of them are why the class checks now derive their lists. The first version of
 > this file **survived** `.content` renamed inside a single layout rule, and
@@ -1336,8 +1372,8 @@ caught.** A guard that survives its own mutation is decoration.
 **Deliberately out:**
 
 - **The slicer and the grouping rule.** Corpus-wide invariants, already checked
-  the right way by `tool/verify_corpus_invariants.dart` and `tool/plan_corpus.dart`
-  — see §8.1, where `--expect` now makes the latter assert rather than print.
+  the right way by `tool/verify_corpus_invariants.dart` and
+  `tool/plan_corpus.dart --check` — see §8.1.
 - **Whether the CSS renders correctly** — that a 600 weight reads as distinct,
   that the sticky bar clears an anchor, that a phone shows three buttons. A
   string test cannot see a browser. That stays eyeball, `tool/serve.dart`, and

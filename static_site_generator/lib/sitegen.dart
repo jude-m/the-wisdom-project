@@ -6,7 +6,6 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 import 'data/corpus_reader.dart';
 import 'data/slicer_cache.dart';
 import 'domain/document.dart';
-import 'domain/grouping_planner.dart';
 import 'domain/site_page.dart';
 import 'domain/theme_tokens.dart';
 import 'manifest/build_manifest.dart';
@@ -71,12 +70,16 @@ class SiteGenerator {
   BuildReport generate(List<String> rootKeys) {
     _clearOutputDir();
     final cache = SlicerCache(reader: reader, tree: tree);
-    final planner = GroupingPlanner(tree: tree, slicerFor: cache.forFile);
 
+    // The grouping rule is **read, not run**. `foldedLeafKeys` is a frozen
+    // `const` in `wisdom_shared` (`tool/plan_corpus.dart --write-snapshot`
+    // writes it), so a re-sync of `assets/` can change what a page says and
+    // never which pages exist — and a one-subtree build no longer measures the
+    // whole corpus to find that out.
     final plan = SitePlan.build(
       tree: tree,
       rootKeys: rootKeys,
-      foldedLeafKeys: planner.foldedLeaves(),
+      foldedLeafKeys: foldedLeafKeys,
     );
 
     // Everything a page links is built or read before the first page, though
