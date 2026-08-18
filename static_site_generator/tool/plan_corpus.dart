@@ -4,6 +4,7 @@ import 'package:static_site_generator/data/corpus_reader.dart';
 import 'package:static_site_generator/data/slicer_cache.dart';
 import 'package:static_site_generator/domain/grouping_planner.dart';
 import 'package:static_site_generator/domain/grouping_policy.dart';
+import 'package:static_site_generator/domain/preamble_planner.dart';
 import 'package:static_site_generator/domain/site_page.dart';
 import 'package:static_site_generator/figures/corpus_figures.dart';
 import 'package:static_site_generator/figures/page_budget.dart';
@@ -16,30 +17,35 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 ///     dart run static_site_generator/tool/plan_corpus.dart --write-snapshot
 ///     dart run static_site_generator/tool/plan_corpus.dart --write-figures
 ///
-/// The build no longer measures anything: `foldedLeafKeys` in `wisdom_shared`
-/// is the frozen answer, and `SitePlan.build` reconstructs every page from it.
-/// The rule that *produced* those keys lives in `domain/grouping_planner.dart`
-/// and its per-book exceptions in `domain/grouping_policy.dart`, and from here
-/// on it runs only at sync time — as the writer behind `--write-snapshot`, and
-/// as the advisor whose disagreements the default report prints.
+/// The build no longer measures anything. Two frozen `const`s in
+/// `wisdom_shared` are the answers, and `SitePlan.build` reconstructs every
+/// page from them: `foldedLeafKeys`, which leaves own a file, and
+/// `textBearingContainerKeys`, which container pages carry an introduction and
+/// so belong in the reading chain. The rules that *produced* them live in
+/// `domain/grouping_planner.dart` (with its per-book exceptions in
+/// `domain/grouping_policy.dart`) and `domain/preamble_planner.dart`, and from
+/// here on they run only at sync time — as the writers behind
+/// `--write-snapshot`, and as the advisors whose disagreements the default
+/// report prints.
 ///
 /// **The modes cost very different things.** `--check` reads the tree only
-/// (~1 s): its four questions are about the shape of the snapshot against the
-/// shape of the tree, and none of them needs a character count. The rest
-/// re-measure, because the rule does — and the default report measures *twice*,
-/// once to run the rule and once to size the pages it planned.
+/// (~1 s): its questions are about the shape of the snapshots against the shape
+/// of the tree, and none of them needs a character count. The rest re-measure,
+/// because the rules do — and the default report walks the corpus *three*
+/// times: once for the grouping rule, once for the preamble rule, and once to
+/// size the pages it planned. `SlicerCache.parses` is what makes that visible.
 ///
 /// | mode | what it answers | on failure |
 /// |---|---|---|
 /// | `--check` | is the frozen snapshot still describable by this tree? | exit 1 |
 /// | *(none)* | what does the frozen site look like, and where does the rule now disagree? | prints |
-/// | `--write-snapshot` | rewrite the frozen set from the rule | writes |
+/// | `--write-snapshot` | rewrite both frozen sets from their rules | writes |
 /// | `--write-figures` | rewrite `CORPUS_FIGURES.md` from the frozen set | writes |
 ///
 /// The two writers are separate commands because they are different acts.
 /// `--write-snapshot` moves URLs and its diff needs reviewing sutta by sutta;
 /// `--write-figures` only restates what the site already is. A re-sync runs
-/// both, snapshot first — the figures describe the site the snapshot defines.
+/// both, snapshots first — the figures describe the site they define.
 ///
 /// **What is deliberately no longer here: a locked page budget.** `--expect`
 /// compared ten counted rows against a literal, which was the right guard while
@@ -72,19 +78,46 @@ void main(List<String> args) {
   // automatically the slowest of them all.
   if (args.contains('--write-snapshot')) {
     final cache = SlicerCache(reader: reader, tree: tree);
-    _writeSnapshot(
-      _snapshotPath(reader),
-      tree,
-      GroupingPlanner(tree: tree, slicerFor: cache.forFile).foldedLeaves(),
-    );
+    // Grouping first, and the preamble set from a second walk of the same
+    // cache. Two questions, two files, one command: they are frozen together
+    // because they are read together, and a run that wrote one of them would
+    // leave the plan describing a site half-built from each.
+    final folded =
+        GroupingPlanner(tree: tree, slicerFor: cache.forFile).foldedLeaves();
+    final bearing = PreamblePlanner(tree: tree, slicerFor: cache.forFile)
+        .textBearingContainers();
+
+    // Both sets clear every refusal before either file is opened. Asking
+    // inside the writers ran the same checks in the same order and still let
+    // the first file be written and the second refused — which is the
+    // half-built state the paragraph above is arranged to make impossible.
+    final orderedFolded = _orderedForWriting(tree, folded, 'folded');
+    final orderedBearing = _orderedForWriting(tree, bearing, 'text-bearing');
+    if (orderedFolded == null || orderedBearing == null) return;
+
+    // Built before anything is written, for two reasons. It proves the sets are
+    // *buildable* — `SitePlan.build` throws on each of the three shapes the
+    // rule cannot produce, so a snapshot that would break the site never
+    // reaches the working tree. And the page count in the header comes from the
+    // same walk that will serve it, so the two cannot describe different sites.
+    final readable = SitePlan.build(
+      tree: tree,
+      rootKeys: tree.rootKeys,
+      foldedLeafKeys: folded,
+      textBearingContainerKeys: bearing,
+    ).readablePages.length;
+
+    _writeSnapshot(_snapshotPath(reader), tree, orderedFolded, readable);
+    _writePreambleSnapshot(_preambleSnapshotPath(reader), orderedBearing);
     return;
   }
 
-  // The frozen set, not the rule's — this is what the site actually builds
-  // from, so it is what the budget below has to describe.
+  // The frozen sets, not the rules' — these are what the site actually builds
+  // from, so they are what the budget below has to describe.
   const folded = foldedLeafKeys;
+  const bearing = textBearingContainerKeys;
 
-  final violations = _integrity(tree, folded);
+  final violations = _integrity(tree, folded, bearing);
   if (violations.isNotEmpty) {
     stdout.writeln('integrity FAILED — ${violations.length} violation(s):');
     for (final line in violations) {
@@ -108,6 +141,7 @@ void main(List<String> args) {
     tree: tree,
     rootKeys: tree.rootKeys,
     foldedLeafKeys: folded,
+    textBearingContainerKeys: bearing,
   );
 
   // After the integrity check for the same reason the plan is built after it:
@@ -130,12 +164,16 @@ void main(List<String> args) {
   final cache = SlicerCache(reader: reader, tree: tree);
   final ruleSays =
       GroupingPlanner(tree: tree, slicerFor: cache.forFile).foldedLeaves();
+  final preambleSays =
+      PreamblePlanner(tree: tree, slicerFor: cache.forFile)
+          .textBearingContainers();
   final chars = _pageChars(plan, cache);
 
   if (!_printBudget(tree, plan, folded, parses: cache.parses)) exitCode = 1;
   _printSizes(plan, chars);
   _printSubtrees(tree, plan);
   _reportAdvice(folded, ruleSays);
+  _reportPreambleAdvice(bearing, preambleSays);
 }
 
 // ---------------------------------------------------------------------------
@@ -172,10 +210,14 @@ bool _printBudget(
   stdout.writeln('chapter pages     ${budget.chapterPages}   '
       '(${budget.wholeVaggaChapters} whole-vagga '
       '+ ${budget.midVaggaChapters} mid-vagga)');
-  stdout.writeln('container TOCs    ${budget.containerTocs}');
+  stdout.writeln('container TOCs    ${budget.containerTocs}   '
+      '(${budget.readableTocs} readable, an introduction rather than a '
+      'heading)');
   stdout.writeln('root index        ${PageBudget.rootIndex}');
   stdout.writeln('─────────────────────────');
   stdout.writeln('real pages        ${budget.realPages}');
+  stdout.writeln('readable pages    ${plan.readablePages.length}   '
+      '(the prev/next chain)');
   stdout.writeln('folded leaves     ${budget.foldedLeaves}   '
       '(stubs, if picked)');
   stdout.writeln('with stubs        ${budget.pagesWithStubs}   (cap 20,000)');
@@ -266,7 +308,11 @@ void _printSubtrees(TipitakaTree tree, SitePlan plan) {
 ///
 /// Returns one line per violation, most specific first, capped per check so a
 /// wholesale renumbering reports as a diagnosis rather than one line per leaf.
-List<String> _integrity(TipitakaTree tree, Set<String> folded) {
+List<String> _integrity(
+  TipitakaTree tree,
+  Set<String> folded,
+  Set<String> bearing,
+) {
   final violations = <String>[];
 
   void report(String what, List<String> offenders) {
@@ -344,7 +390,24 @@ List<String> _integrity(TipitakaTree tree, Set<String> folded) {
   report('containers whose first leaf folds beside an unfolded sibling',
       hybridPages);
 
-  // 4. Orphan containers — the one question here that is about the tree rather
+  // 4. Every text-bearing key still names a container. A key that vanished, or
+  //    that is now a leaf, would put a page in the reading chain that the walk
+  //    never emits as a TOC — silently, because `SitePlan.build` only ever
+  //    reads the set through `contains`.
+  final bearingMissing = <String>[];
+  final bearingLeaves = <String>[];
+  for (final key in bearing) {
+    final node = tree[key];
+    if (node == null) {
+      bearingMissing.add(key);
+    } else if (node.isLeaf) {
+      bearingLeaves.add(key);
+    }
+  }
+  report('text-bearing keys no longer in the tree', bearingMissing);
+  report('text-bearing keys that are now leaves', bearingLeaves);
+
+  // 5. Orphan containers — the one question here that is about the tree rather
   //    than the snapshot, which is why [_orphanContainers] is shared with the
   //    writer. Through [report] like the rest: naming the container is what
   //    turns "expected 0" into somewhere to look.
@@ -381,24 +444,64 @@ const int _maxOffendersShown = 5;
 /// would change. Disagreements mean an existing text has crossed its line since
 /// the freeze, which is exactly the drift freezing exists to absorb: the page
 /// contents move, the URL does not.
-void _reportAdvice(Set<String> folded, Set<String> ruleSays) {
-  final proposals = ruleSays.difference(folded).toList();
-  final disagreements = folded.difference(ruleSays).toList();
+void _reportAdvice(Set<String> folded, Set<String> ruleSays) => _printAdvice(
+      label: 'advisor',
+      frozen: folded,
+      ruleSays: ruleSays,
+      proposals: 'leaves the rule would now fold (they own a page today)',
+      disagreements: 'folded leaves the rule would now explode (snapshot wins)',
+      footer: 'Neither is acted on. Moving a URL is `--write-snapshot` plus a '
+          'review of its diff.',
+    );
+
+/// The preamble rule's opinion against its frozen set.
+///
+/// Cheaper to act on than the grouping advisor's, and worth reading first after
+/// a re-sync: nothing here moves a URL, so a proposal is a container that has
+/// gained an introduction upstream and is currently serving it as navigation.
+/// That is the exact defect the set was introduced to end, and it re-appears
+/// silently — the page still renders, still links, still looks finished.
+void _reportPreambleAdvice(Set<String> bearing, Set<String> ruleSays) =>
+    _printAdvice(
+      label: 'preamble advisor',
+      frozen: bearing,
+      ruleSays: ruleSays,
+      proposals:
+          'containers now carrying running text (served as navigation today)',
+      disagreements: 'frozen containers whose text is gone (snapshot wins)',
+      footer: 'Neither is acted on. `--write-snapshot` regenerates both sets; '
+          'no URL moves.',
+    );
+
+/// Both advisors, printed the same way: the two directions, their counts, and
+/// up to [_maxOffendersShown] keys each.
+///
+/// [label] is the only column that varies — everything after it is the same
+/// sentence about a different set, which is what makes the two blocks readable
+/// as one report rather than two.
+void _printAdvice({
+  required String label,
+  required Set<String> frozen,
+  required Set<String> ruleSays,
+  required String proposals,
+  required String disagreements,
+  required String footer,
+}) {
+  final proposed = ruleSays.difference(frozen).toList();
+  final disagreed = frozen.difference(ruleSays).toList();
 
   stdout.writeln('');
-  stdout.writeln('advisor           the rule re-run against the frozen set');
-  stdout.writeln('  proposals       ${proposals.length}   '
-      'leaves the rule would now fold (they own a page today)');
-  stdout.writeln('  disagreements   ${disagreements.length}   '
-      'folded leaves the rule would now explode (snapshot wins)');
-  if (proposals.isEmpty && disagreements.isEmpty) {
+  stdout.writeln('${label.padRight(18)}the rule re-run against the frozen set');
+  stdout.writeln('  proposals       ${proposed.length}   $proposals');
+  stdout.writeln('  disagreements   ${disagreed.length}   $disagreements');
+  if (proposed.isEmpty && disagreed.isEmpty) {
     stdout.writeln('  nothing to review — the frozen set is what the rule '
         'says today.');
     return;
   }
   for (final entry in [
-    ('  + ', proposals),
-    ('  − ', disagreements),
+    ('  + ', proposed),
+    ('  − ', disagreed),
   ]) {
     for (final key in entry.$2.take(_maxOffendersShown)) {
       stdout.writeln('${entry.$1}$key');
@@ -406,30 +509,41 @@ void _reportAdvice(Set<String> folded, Set<String> ruleSays) {
     final rest = entry.$2.length - _maxOffendersShown;
     if (rest > 0) stdout.writeln('${entry.$1}… +$rest more');
   }
-  stdout.writeln('  Neither is acted on. Moving a URL is `--write-snapshot` '
-      'plus a review of its diff.');
+  stdout.writeln('  $footer');
 }
 
 // ---------------------------------------------------------------------------
 // The snapshot writer
 // ---------------------------------------------------------------------------
 
-/// Rewrites `grouping_snapshot.dart` from one full-corpus run of the rule.
+/// Keys safe to interpolate into a single-quoted Dart string literal. Every
+/// nodeKey in the vendored `tree.json` matches.
+final RegExp _dartSafeKey = RegExp(r'^[A-Za-z0-9._-]+$');
+
+/// The keys of one snapshot in reading order, or null when it must not be
+/// written at all.
 ///
 /// **Reading order, one key per line.** The order is the site's own walk, so a
-/// book's folds land in one contiguous block and the file reads as a document
+/// book's keys land in one contiguous block and the file reads as a document
 /// rather than an index; one key per line is what makes the git diff the impact
 /// review the plan doc promises — every added or removed line is exactly one
-/// sutta whose URL moved. Nothing here varies per run (no timestamp, no build
+/// node whose page changed. Nothing here varies per run (no timestamp, no build
 /// id), so regenerating an unchanged corpus rewrites identical bytes (§11.8).
-void _writeSnapshot(
-  String path,
+///
+/// Both refusals are about the *file* rather than the site, and both are
+/// returned rather than acted on: the caller asks this of every snapshot before
+/// it writes any of them, so one bad set stops the whole command instead of
+/// leaving the pair describing two different corpora.
+///
+/// [noun] names the keys in those two messages — "folded", "text-bearing".
+List<String>? _orderedForWriting(
   TipitakaTree tree,
-  Set<String> folded,
+  Set<String> keys,
+  String noun,
 ) {
   final ordered = <String>[];
   void walk(TipitakaNode node) {
-    if (folded.contains(node.nodeKey)) ordered.add(node.nodeKey);
+    if (keys.contains(node.nodeKey)) ordered.add(node.nodeKey);
     for (final child in tree.childrenOf(node.nodeKey)) {
       walk(child);
     }
@@ -438,20 +552,20 @@ void _writeSnapshot(
   for (final root in tree.roots) {
     walk(root);
   }
-  // Only reachable if a folded key sits outside every root, which the tree's
-  // own parent check already rules out. Loud rather than silently short.
-  if (ordered.length != folded.length) {
-    stderr.writeln('${folded.length - ordered.length} folded key(s) are not '
+  // Only reachable if a key sits outside every root, which the tree's own
+  // parent check already rules out. Loud rather than silently short.
+  if (ordered.length != keys.length) {
+    stderr.writeln('${keys.length - ordered.length} $noun key(s) are not '
         'reachable from any root. Refusing to write a partial snapshot.');
     exitCode = 1;
-    return;
+    return null;
   }
 
   // Every key is interpolated into a single-quoted Dart literal below, so one
   // carrying a quote, a backslash or a `$` would emit a file that does not
   // compile — or, with `$`, one that compiles and means something else. Every
   // key in the vendored tree is safe; upstream is not bound by that, and
-  // absorbing re-syncs is the whole reason this file exists.
+  // absorbing re-syncs is the whole reason these files exist.
   final unsafe = ordered.where((key) => !_dartSafeKey.hasMatch(key)).toList();
   if (unsafe.isNotEmpty) {
     stderr.writeln('${unsafe.length} nodeKey(s) cannot be written as a Dart '
@@ -459,21 +573,36 @@ void _writeSnapshot(
     stderr.writeln('Refusing to write a file that would break every package '
         'importing it. Add escaping here first.');
     exitCode = 1;
-    return;
+    return null;
   }
+  return ordered;
+}
 
-  // Built before it is written, for two reasons. It proves the set is
-  // *buildable* — `SitePlan.build` throws on each of the three shapes the rule
-  // cannot produce, so a snapshot that would break the site never reaches the
-  // working tree. And the page count in the header comes from the same walk
-  // that will serve it, so the two cannot describe different sites.
-  final readable = SitePlan.build(
-    tree: tree,
-    rootKeys: tree.rootKeys,
-    foldedLeafKeys: folded,
-  ).readablePages.length;
+/// Writes one snapshot: [header], then [ordered] one key per line, then `};`.
+void _writeKeys(String path, String header, List<String> ordered) {
+  final buffer = StringBuffer(header);
+  for (final key in ordered) {
+    buffer.writeln("  '$key',");
+  }
+  buffer.writeln('};');
 
-  final buffer = StringBuffer('''
+  final file = File(path);
+  file.parent.createSync(recursive: true);
+  file.writeAsStringSync(buffer.toString());
+}
+
+/// Rewrites `grouping_snapshot.dart` from one full-corpus run of the rule.
+///
+/// [ordered] has already cleared [_orderedForWriting], and [readable] is the
+/// page count of the plan it was proved to build — the header states both, and
+/// they come from the same run that will serve them.
+void _writeSnapshot(
+  String path,
+  TipitakaTree tree,
+  List<String> ordered,
+  int readable,
+) {
+  _writeKeys(path, '''
 // GENERATED by `dart run static_site_generator/tool/plan_corpus.dart
 // --write-snapshot`. Hand-editing it moves URLs with no review behind them —
 // change the rule (`static_site_generator/lib/domain/grouping_policy.dart`)
@@ -502,22 +631,15 @@ void _writeSnapshot(
 ///
 /// See `docs/todo/web-strategy/reading-units-and-grouping.md` — Part 2.
 const Set<String> foldedLeafKeys = {
-''');
-  for (final key in ordered) {
-    buffer.writeln("  '$key',");
-  }
-  buffer.writeln('};');
+''', ordered);
 
   // What this run was *compiled* against, which is the committed file's
   // contents — Dart resolved the import before any of this ran, so reading the
   // file back off disk would only re-parse the same answer.
   const before = foldedLeafKeys;
-  final file = File(path);
-  file.parent.createSync(recursive: true);
-  file.writeAsStringSync(buffer.toString());
-
-  final added = folded.difference(before).length;
-  final removed = before.difference(folded).length;
+  final now = ordered.toSet();
+  final added = now.difference(before).length;
+  final removed = before.difference(now).length;
   stdout.writeln('wrote             $path');
   stdout.writeln('folded leaves     ${ordered.length}');
   stdout.writeln('diff              +$added / −$removed against the set this '
@@ -548,9 +670,79 @@ const Set<String> foldedLeafKeys = {
   }
 }
 
-/// Keys safe to interpolate into a single-quoted Dart string literal. Every
-/// nodeKey in the vendored `tree.json` matches.
-final RegExp _dartSafeKey = RegExp(r'^[A-Za-z0-9._-]+$');
+/// Rewrites `preamble_snapshot.dart` — which containers open with an
+/// introduction rather than a heading.
+///
+/// A separate file from `grouping_snapshot.dart`, and the separation is the
+/// point: the two diffs mean different things. A line moving there is a sutta
+/// changing address, which needs a redirect thought about; a line moving here
+/// is a container page gaining or losing its layout switcher and its place in
+/// prev/next, at an address that does not change. Reviewing them as one diff
+/// would make the cheap changes look like the expensive ones.
+///
+/// Written together all the same, from one command and one validation pass —
+/// see [_orderedForWriting].
+void _writePreambleSnapshot(String path, List<String> ordered) {
+  _writeKeys(path, '''
+// GENERATED by `dart run static_site_generator/tool/plan_corpus.dart
+// --write-snapshot`. Change the rule
+// (`static_site_generator/lib/domain/preamble_planner.dart`) and regenerate
+// rather than hand-editing.
+
+/// Every container whose preamble is the book's introduction to the chapter
+/// rather than its title — ${formatCount(ordered.length)} of them, frozen from one full-corpus
+/// run of the rule.
+///
+/// A container's page is normally pure navigation: no layout switcher, no
+/// prev/next, and a column sized for link rows. For the containers named here
+/// that would serve running text as if it were a menu, so they are **readable**
+/// instead — `SitePage.isReadable` is this set unioned with every sutta and
+/// chapter page.
+///
+/// **A superset of the pages it changes, deliberately.** Some of these
+/// containers are already whole-vagga chapters, which are readable whatever
+/// their preamble holds, so their key does nothing today.
+/// `FIGURES.readableContainerTocs` is the count that is actually load-bearing.
+/// Naming them anyway is what keeps the two snapshots orthogonal: this one
+/// answers "does this container own text", `foldedLeafKeys` answers "which
+/// pages exist", and neither has to be correct for the other to be. A grouping
+/// change that turns a chapter back into a TOC then finds the answer already
+/// here, rather than serving an introduction as a menu until someone notices.
+///
+/// **An absent key means "not readable".** That is the safe direction here, and
+/// it is the opposite of `foldedLeafKeys`: a container that gains an
+/// introduction upstream keeps the page it has until someone regenerates, where
+/// the opposite default would drop a bare link list into the reading chain that
+/// every reader walking prev/next would meet. Neither direction moves a URL —
+/// nothing in this file decides which pages *exist*.
+///
+/// Generated code rather than a bundled asset, for the same reason as
+/// `foldedLeafKeys`: one `const` compiles into both surfaces from one place.
+/// Written in reading order.
+///
+/// The count above is the only corpus figure written here, and it is
+/// interpolated by the writer rather than typed. Every other one lives in
+/// `static_site_generator/CORPUS_FIGURES.md`.
+///
+/// See `docs/todo/web-strategy/reading-units-and-grouping.md`.
+const Set<String> textBearingContainerKeys = {
+''', ordered);
+
+  const before = textBearingContainerKeys;
+  final now = ordered.toSet();
+  final added = now.difference(before).length;
+  final removed = before.difference(now).length;
+  stdout.writeln('wrote             $path');
+  stdout.writeln('text-bearing      ${ordered.length} containers');
+  stdout.writeln('diff              +$added / −$removed against the set this '
+      'run was compiled with');
+  if (added != 0 || removed != 0) {
+    stdout.writeln('');
+    stdout.writeln('That is ${added + removed} container page(s) entering or '
+        'leaving the reading chain.');
+    stdout.writeln('No URL moves. Review `git diff` on the snapshot.');
+  }
+}
 
 // ---------------------------------------------------------------------------
 // The figures writer
@@ -618,6 +810,11 @@ String _figuresPath(CorpusReader reader) =>
 String _snapshotPath(CorpusReader reader) =>
     '${Directory(reader.assetsPath).parent.path}'
     '/packages/wisdom_shared/lib/src/grouping/grouping_snapshot.dart';
+
+/// Where the frozen preamble verdicts live, beside the grouping ones.
+String _preambleSnapshotPath(CorpusReader reader) =>
+    '${Directory(reader.assetsPath).parent.path}'
+    '/packages/wisdom_shared/lib/src/grouping/preamble_snapshot.dart';
 
 /// Combined raw characters each page renders, preamble included.
 ///

@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:wisdom_shared/wisdom_shared.dart';
 
 import 'content_file.dart';
@@ -159,5 +161,32 @@ class ContentSlicer {
       });
     }
     return byFile;
+  }
+
+  /// Every **container** that has a content file, grouped by that file.
+  ///
+  /// The scaffolding both planners walk: [SlicerCache] holds exactly one parsed
+  /// file, so a rule that asks a question of every container has to visit them
+  /// file by file rather than in tree order.
+  ///
+  /// A [SplayTreeMap], so the walk is in sorted file-id order however the
+  /// caller iterates. That order reaches no file — the snapshot writers re-sort
+  /// into reading order — but it is what the advisors print, and a report whose
+  /// first five keys change between identical runs is a report nobody trusts.
+  ///
+  /// Containers with no content file are **absent**, and the two callers differ
+  /// on what that means: `GroupingPlanner` still plans them (their leaves have
+  /// text even when they do not), `PreamblePlanner` cannot (there is no
+  /// preamble to read). Neither exists in the vendored corpus, and
+  /// `plan_corpus.dart` reports any that appear.
+  static Map<String, List<TipitakaNode>> containersByFile(TipitakaTree tree) {
+    final byFile = <String, List<TipitakaNode>>{};
+    for (final node in tree.allNodes) {
+      if (node.isLeaf) continue;
+      final fileId = node.contentFileId;
+      if (fileId == null) continue;
+      (byFile[fileId] ??= <TipitakaNode>[]).add(node);
+    }
+    return SplayTreeMap<String, List<TipitakaNode>>.from(byFile);
   }
 }

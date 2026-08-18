@@ -33,8 +33,13 @@ class PageBudget {
   /// Chapters anchored on a leaf, because the run starts below the container.
   final int midVaggaChapters;
 
-  /// Pages of links and no body text.
+  /// Container pages — links, and on a few of them an introduction above them.
   final int containerTocs;
+
+  /// Of those, the ones whose preamble is the book's introduction to the
+  /// chapter rather than its title (`textBearingContainerKeys`). They are
+  /// readable: layout switcher, reading measure, and a place in prev/next.
+  final int readableTocs;
 
   /// Leaves with no page of their own, from the frozen snapshot.
   final int foldedLeaves;
@@ -46,6 +51,7 @@ class PageBudget {
     required this.wholeVaggaChapters,
     required this.midVaggaChapters,
     required this.containerTocs,
+    required this.readableTocs,
     required this.foldedLeaves,
   });
 
@@ -59,6 +65,7 @@ class PageBudget {
     var wholeVaggaChapters = 0;
     var midVaggaChapters = 0;
     var containerTocs = 0;
+    var readableTocs = 0;
     for (final page in plan.pages) {
       switch (page.kind) {
         case PageKind.sutta:
@@ -67,6 +74,7 @@ class PageBudget {
           page.node.isLeaf ? midVaggaChapters++ : wholeVaggaChapters++;
         case PageKind.toc:
           containerTocs++;
+          if (page.isReadable) readableTocs++;
       }
     }
     final leaves = tree.allNodes.where((n) => n.isLeaf).length;
@@ -77,6 +85,7 @@ class PageBudget {
       wholeVaggaChapters: wholeVaggaChapters,
       midVaggaChapters: midVaggaChapters,
       containerTocs: containerTocs,
+      readableTocs: readableTocs,
       foldedLeaves: folded.length,
     );
   }

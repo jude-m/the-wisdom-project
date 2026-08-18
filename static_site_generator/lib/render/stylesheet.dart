@@ -147,25 +147,43 @@ const String _trailKeepNone = '33rem';
 /// anchor from landing behind it.
 const String _toolbarHeight = '56px';
 
-/// A container page's column — `.content.nav`, set on TOC pages only.
+/// The width of a list of link rows — `.toc` wherever it appears, and
+/// `.content.nav` on the pages that hold nothing but one.
 ///
-/// Nothing there is running text: a preamble and a list of link labels, the
-/// widest 229px in the corpus. [_readingColumnRem] would buy them nothing and
-/// stretch each button to 863px around a 103px label.
+/// Nothing in either is running text: a heading, `namo tassa`, and link labels,
+/// the widest 229px in the corpus. [_readingColumnRem] would buy them nothing
+/// and stretch each button to 863px around a 103px label.
+///
+/// **One size, on every kind of page.** `.toc` carries the cap itself rather
+/// than inheriting a column, so a link row measures the same on a nav-only
+/// container, on one of the `FIGURES.readableContainerTocs` containers that
+/// read at the full measure, and on `/`. It narrows with the window, like any
+/// `max-width`, and with nothing else — which is the whole of what should
+/// decide the size of a button. Two consequences worth stating: a reader meets
+/// one button across the site instead of one per page type, and on a page wider
+/// than this the list ends inside the text above it rather than reaching past
+/// it.
+///
+/// Sizing the *page* was how this used to be done, and it broke the moment a
+/// container page stopped being pure navigation: `.content.nav` follows
+/// `SitePage.isReadable`, so a container whose preamble is the book's
+/// introduction (`textBearingContainerKeys`) drops the class — and took its
+/// buttons out to 863px with it.
 ///
 /// That 863 is [_readingColumnRem] itself, not a width derived from it: the
 /// sheet sets no `box-sizing`, so `max-width` caps `.content`'s *content* box
 /// and its 36px of padding sits outside — the same arithmetic [_wideColumnRem]
 /// does in the other direction when it adds that 36 back.
 ///
-/// Safe from the side-by-side override because the override says so: it is
-/// written `~ .content:not(.nav)` and cannot reach a container page at all.
-/// The guard belongs in the rule, not in the markup — `#sbs:checked ~ .content`
-/// is (1,0,1,0) against this rule's (0,0,2,0) and would win outright, and
-/// whether a container page emits layout radios is decided in two other files
-/// (`page_template.dart`'s `navOnly`, `landing_page.dart`'s
-/// `toolbar(withLayouts: false)`). Excluding `.nav` holds the width whatever
-/// those two emit.
+/// `.content.nav` is safe from the side-by-side override because the override
+/// says so: it is written `~ .content:not(.nav)`. It *does* reach a readable
+/// container page, deliberately — that page's preamble splits into two columns
+/// like any other text. The guard belongs in the rule, not in the markup —
+/// `#sbs:checked ~ .content` is (1,0,1,0) against this rule's (0,0,2,0) and
+/// would win outright, and whether a container page emits layout radios is
+/// decided in two other files (`page_template.dart`'s `navOnly`,
+/// `landing_page.dart`'s `toolbar(withLayouts: false)`). Excluding `.nav` holds
+/// the width whatever those two emit.
 const double _navColumnRem = 44;
 
 /// The gap between the two columns of side-by-side. Named because
@@ -329,7 +347,17 @@ void _writePageChrome(StringBuffer css, ThemeTokens tokens) {
   css.writeln('}');
   css.writeln('.commentary-link a { color: var(--c-primary); }');
   css.writeln();
-  css.writeln('.toc { list-style: none; padding: 0; margin: 0; }');
+  // `max-width` here and not on the page: see [_navColumnRem]. Left-aligned
+  // (`margin: 0`), so on a page wider than the list the buttons start on the
+  // text's own left edge and stop short of its right one. On a page exactly
+  // this wide — every nav-only container, and `/` — the two edges coincide,
+  // which is what they have always done.
+  css.writeln('.toc {');
+  css.writeln('  list-style: none;');
+  css.writeln('  padding: 0;');
+  css.writeln('  margin: 0;');
+  css.writeln('  max-width: ${_num(_navColumnRem)}rem;');
+  css.writeln('}');
   css.writeln('.toc li { margin: 0 0 0.5rem; }');
   css.writeln('.toc a {');
   css.writeln('  display: block;');
@@ -646,13 +674,16 @@ void _writeLayouts(StringBuffer css, ThemeTokens tokens) {
   // The text column widens — and only the text column. Adding `~ .toolbar` here
   // so the chrome keeps up is what this rule used to say, and what slid the
   // emblem and the layout group 144px apart on every layout switch.
-  // `:not(.nav)` so a container page keeps [_navColumnRem] whatever the markup
+  // `:not(.nav)` so a nav-only page keeps [_navColumnRem] whatever the markup
   // does. This rule is (1,0,1,0) and `.content.nav` is (0,0,2,0), so without
-  // the exclusion an id selector wins and every TOC link button stretches to
-  // the reading column — a failure held off today only by a pairing decided in
+  // the exclusion an id selector wins and a heading and `namo tassa` are laid
+  // out across 1,788px — held off today only by a pairing decided in
   // `page_template.dart` and `landing_page.dart`, neither of which this sheet
-  // can see. The sibling rules below need no such guard: they act on `.row`,
-  // `.pali`, `.si` and `.col-heads`, none of which a container page has.
+  // can see. The link buttons are no longer among the casualties: `.toc` caps
+  // itself. The sibling rules below need no such guard, and it is `.row`,
+  // `.pali`, `.si` and `.col-heads` that would want one — a readable container
+  // page has all four, and splitting its preamble into two columns is what
+  // side-by-side is for.
   css.writeln('  #$sideBySideLayoutId:checked ~ .content:not(.nav) '
       '{ max-width: ${_num(_wideColumnRem(tokens))}rem; }');
   css.writeln('  #$sideBySideLayoutId:checked ~ .content .row {');

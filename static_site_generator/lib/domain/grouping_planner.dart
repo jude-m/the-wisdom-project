@@ -44,34 +44,23 @@ class GroupingPlanner {
 
   /// Every leaf in the tree that does not get its own page.
   ///
-  /// Walks containers grouped by content file rather than in tree order,
-  /// because [SlicerCache] holds exactly one parsed file and a container's
-  /// leaves are always in a single one. Order is deterministic — file ids
-  /// sorted, tree document order within each — so the emitted snapshot is
-  /// byte-stable across runs (build plan §11.8).
+  /// Walks containers file by file rather than in tree order — see
+  /// [ContentSlicer.containersByFile], which is the same scaffolding
+  /// [PreamblePlanner] walks.
   Set<String> foldedLeaves() {
-    final containersByFile = <String, List<TipitakaNode>>{};
-    final orphans = <TipitakaNode>[];
-    for (final node in tree.allNodes) {
-      if (node.isLeaf) continue;
-      final fileId = node.contentFileId;
-      if (fileId == null) {
-        orphans.add(node);
-      } else {
-        (containersByFile[fileId] ??= []).add(node);
-      }
-    }
-
     final folded = <String>{};
-    for (final fileId in containersByFile.keys.toList()..sort()) {
-      for (final container in containersByFile[fileId]!) {
+    for (final containers in ContentSlicer.containersByFile(tree).values) {
+      for (final container in containers) {
         folded.addAll(foldedLeavesOf(container));
       }
     }
-    // None in the vendored corpus. Planned anyway rather than skipped: a
-    // container with no text of its own still has leaves that do.
-    for (final container in orphans) {
-      folded.addAll(foldedLeavesOf(container));
+    // Containers with no content file are absent from that map. None in the
+    // vendored corpus. Planned anyway rather than skipped: a container with no
+    // text of its own still has leaves that do.
+    for (final node in tree.allNodes) {
+      if (!node.isLeaf && node.contentFileId == null) {
+        folded.addAll(foldedLeavesOf(node));
+      }
     }
     return folded;
   }
@@ -83,8 +72,11 @@ class GroupingPlanner {
     if (children.isEmpty) return const {};
 
     // Precondition 1: every child is a leaf. A container that also holds
-    // sub-containers is a TOC, and a TOC is pure links — letting it grow a
-    // chapter as well would produce a half-text-half-navigation page.
+    // sub-containers is a TOC, and folding a chapter into it would print a
+    // *leaf's* text beside a list of links to the pages its other children own.
+    // A TOC carrying its own preamble (`textBearingContainerKeys`) is a
+    // different thing and is allowed: that text is the container's, at the
+    // container's URL, and it links to nothing it also prints.
     if (children.any((child) => !child.isLeaf)) return const {};
 
     // Precondition 2: all in one content file. A chapter page cannot splice two

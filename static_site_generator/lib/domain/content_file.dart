@@ -101,13 +101,17 @@ class ContentEntry {
   factory ContentEntry.fromJson(Map<String, dynamic> json) {
     final type = (json['type'] as String?)?.toLowerCase() ?? 'paragraph';
     return ContentEntry(
-      type: _knownTypes.contains(type) ? type : 'paragraph',
+      type: knownTypes.contains(type) ? type : 'paragraph',
       text: (json['text'] as String?) ?? '',
       level: json['level'] as int?,
     );
   }
 
-  static const Set<String> _knownTypes = {
+  /// Every entry type the corpus uses. Public because
+  /// `PreamblePlanner.runningTextTypes` partitions it: a type added here and
+  /// nowhere else would silently stop counting as running text, which is the
+  /// one direction that rule must never drift in.
+  static const Set<String> knownTypes = {
     'paragraph',
     'heading',
     'centered',

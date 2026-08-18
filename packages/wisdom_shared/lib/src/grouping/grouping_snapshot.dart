@@ -10,7 +10,7 @@
 /// new content self-handles, a wrong explode costs one thin page, and only a
 /// wrong fold could hide a named text behind a fragment.
 ///
-/// Nothing re-measures the rule. `SitePlan.build` reconstructs all 8,908
+/// Nothing re-measures the rule. `SitePlan.build` reconstructs all 8,973
 /// readable pages from this set alone, so a re-sync of `assets/` may change
 /// what a page *says* and never which pages *exist*. Regenerating is the
 /// supported way to move a line, and the git diff of this file is the impact
@@ -19,6 +19,10 @@
 /// Generated code rather than a bundled asset, because the app reads the same
 /// verdicts and may gain no new asset file — one `const` compiles into both
 /// surfaces from one place. Written in reading order.
+///
+/// The two counts above are the only corpus figures written here, and they are
+/// interpolated by the writer rather than typed. Every other one lives in
+/// `static_site_generator/CORPUS_FIGURES.md`.
 ///
 /// See `docs/todo/web-strategy/reading-units-and-grouping.md` — Part 2.
 const Set<String> foldedLeafKeys = {

@@ -267,7 +267,10 @@ List<FigureGroup> computeCorpusFigures({
         break;
     }
 
-    if (page.kind != PageKind.toc) {
+    // `isReadable`, not `kind != toc`: a container page carrying the book's
+    // introduction is a page a reader reads in a chosen layout, so a missing
+    // language side is the same defect there as on a sutta.
+    if (page.isReadable) {
       if (!pageHasLanguage(page, nodesWithSinhala)) {
         readablePagesWithoutSinhala++;
       }
@@ -393,11 +396,19 @@ List<FigureGroup> computeCorpusFigures({
               'the biggest leaf merged into its container '
                   '(`${largestLoneChild.key}`)'),
         Figure('containerTocs', formatCount(budget.containerTocs),
-            'pages of links and no body text'),
+            'container pages — a list of links, and above it whatever the '
+                'container itself owns'),
+        Figure(
+            'readableContainerTocs',
+            formatCount(budget.readableTocs),
+            "of those, the ones whose preamble is the book's introduction to "
+                'the chapter rather than its title, so the page is readable '
+                '(`textBearingContainerKeys`)'),
         Figure('realPages', formatCount(budget.realPages),
             'files the build writes, `/` included'),
         Figure('readablePages', formatCount(plan.readablePages.length),
-            'pages carrying text — sutta and chapter, the prev/next chain'),
+            'pages carrying text — sutta, chapter, and the container pages '
+                'that open with an introduction. The prev/next chain'),
         Figure(
             'pagesWithStubs',
             formatCount(budget.pagesWithStubs),

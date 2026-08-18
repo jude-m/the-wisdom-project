@@ -71,15 +71,16 @@ class SiteGenerator {
     _clearOutputDir();
     final cache = SlicerCache(reader: reader, tree: tree);
 
-    // The grouping rule is **read, not run**. `foldedLeafKeys` is a frozen
-    // `const` in `wisdom_shared` (`tool/plan_corpus.dart --write-snapshot`
-    // writes it), so a re-sync of `assets/` can change what a page says and
-    // never which pages exist — and a one-subtree build no longer measures the
-    // whole corpus to find that out.
+    // Both rules are **read, not run**. `foldedLeafKeys` and
+    // `textBearingContainerKeys` are frozen `const`s in `wisdom_shared`
+    // (`tool/plan_corpus.dart --write-snapshot` writes both), so a re-sync of
+    // `assets/` can change what a page says and never which pages exist — and a
+    // one-subtree build no longer measures the whole corpus to find that out.
     final plan = SitePlan.build(
       tree: tree,
       rootKeys: rootKeys,
       foldedLeafKeys: foldedLeafKeys,
+      textBearingContainerKeys: textBearingContainerKeys,
     );
 
     // Everything a page links is built or read before the first page, though

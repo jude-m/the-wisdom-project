@@ -81,10 +81,12 @@ class PageTemplate {
     // `<main>`, not a div: a landmark is what lets a screen reader skip the bar
     // and start at the text.
     //
-    // `nav` on a TOC page: links and a preamble, never running text, so it is
-    // sized for link rows rather than for a measure. The same predicate that
-    // gates the radios above — no radios is what keeps that width safe from the
-    // side-by-side override.
+    // `nav` on a TOC page whose preamble is a title and `namo tassa`: nothing
+    // there wants a measure, so the column is sized for link rows. The
+    // `FIGURES.readableContainerTocs` containers whose preamble is the book's
+    // introduction are excluded by the same predicate that gates the radios
+    // above, and read at the full measure like any other page. The link rows
+    // keep their own width either way — `.toc` caps itself.
     final navOnly = !page.isReadable;
     body.writeln('<main class="content${navOnly ? ' nav' : ''}">');
     body.writeln('<h1 class="page-title">${_headingHtml(page.node)}</h1>');
@@ -99,6 +101,14 @@ class PageTemplate {
         body.writeln(_chapter(page, slices, shown.preamble, depths));
       case PageKind.toc:
         if (shown.preamble != null && shown.preamble!.rows.isNotEmpty) {
+          // Captions only where there is a measure to caption. On a nav-only
+          // container the preamble is the title and `namo tassa`, laid out in
+          // one column with no layout switcher to split it — a පාළි/සිංහල
+          // header there would label a pair of columns the reader cannot
+          // produce.
+          if (page.isReadable) {
+            body.writeln(_columnHeads([shown.preamble]));
+          }
           body.writeln(
               '<div class="preamble">${_rows(shown.preamble, depths)}</div>');
         }

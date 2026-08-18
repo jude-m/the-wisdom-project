@@ -28,7 +28,15 @@ enum PageKind {
   /// the container's URL; `FIGURES.midVaggaChapters` start below one.
   chapter,
 
-  /// A higher container: links only, no body text.
+  /// A higher container, whose page is the list of links to its children.
+  ///
+  /// **Not necessarily links alone.** A TOC also prints its own preamble — the
+  /// rows between its coordinate and its first child's — and on
+  /// `FIGURES.readableContainerTocs` of them that preamble is the book's
+  /// introduction to the chapter rather than a title and `namo tassa`. Those
+  /// pages are readable: see [SitePage.isReadable]. What no TOC ever carries is
+  /// a *leaf's* text, which is what `GroupingPlanner`'s first precondition
+  /// holds off.
   toc,
 }
 
@@ -41,10 +49,21 @@ class SitePage {
   /// whole run for [PageKind.chapter], empty for a TOC.
   final List<TipitakaNode> suttas;
 
+  /// True when this page's own node opens with an introduction rather than a
+  /// heading — see [PreamblePlanner] and `textBearingContainerKeys`.
+  ///
+  /// Only ever set on a [PageKind.toc]. A sutta page's node is a leaf and has
+  /// no preamble at all; a chapter's preamble is already rendered on a page
+  /// that is readable whatever it holds. The TOC is the one kind where the
+  /// answer changes what the page *does*, so it is the one kind that carries
+  /// the flag.
+  final bool ownsRunningText;
+
   const SitePage({
     required this.kind,
     required this.node,
     required this.suttas,
+    this.ownsRunningText = false,
   });
 
   String get nodeKey => node.nodeKey;
@@ -58,8 +77,16 @@ class SitePage {
   /// uniform `/tipitaka/<nodeKey>` grammar the codec relies on.
   String get outputPath => '${TipitakaLink.pathSegment}/$nodeKey.html';
 
-  /// True when this page carries body text — the pages prev/next walks.
-  bool get isReadable => kind != PageKind.toc;
+  /// True when this page carries body text — the pages prev/next walks, and
+  /// the ones that get a layout switcher and the reading measure.
+  ///
+  /// **Not "is it a TOC".** It was, from P1 until the container preambles were
+  /// measured, and it was wrong for every container whose preamble is the
+  /// book's introduction to the chapter: those pages carry running text and
+  /// were served as pure navigation, skipped by prev/next so that nothing but a
+  /// click down the tree could reach them. The predicate now says what its name
+  /// always claimed.
+  bool get isReadable => kind != PageKind.toc || ownsRunningText;
 
   /// True when the page's own node has a slice to render above its contents.
   ///
@@ -131,6 +158,17 @@ class SitePlan {
   /// explode costs a thin page, a wrong fold hides a named text behind a
   /// fragment.
   ///
+  /// ## The second frozen set
+  ///
+  /// [textBearingContainerKeys] answers a different question about the same
+  /// walk: which of the containers that stayed TOCs open with an introduction
+  /// rather than a heading, and so belong in the reading chain. It moves no
+  /// URL — every page it names already existed at the same address — and is
+  /// read here rather than measured for the same reason the first set is: this
+  /// factory reads no text, and a page's prev/next depends on whether its
+  /// *neighbours* are readable, so the answer has to be known before the first
+  /// page renders. See [PreamblePlanner].
+  ///
   /// **A list, not one key**, because the corpus has seven disjoint roots
   /// (`vp`, `sp`, `ap`, `atta-vp`, `atta-sp`, `atta-ap`, `anya`) with no common
   /// ancestor. A single-root build is therefore never a whole site and often
@@ -150,6 +188,7 @@ class SitePlan {
     required TipitakaTree tree,
     required List<String> rootKeys,
     required Set<String> foldedLeafKeys,
+    required Set<String> textBearingContainerKeys,
   }) {
     final pages = <SitePage>[];
 
@@ -200,7 +239,12 @@ class SitePlan {
         return; // children are inside the chapter file
       }
 
-      pages.add(SitePage(kind: PageKind.toc, node: node, suttas: const []));
+      pages.add(SitePage(
+        kind: PageKind.toc,
+        node: node,
+        suttas: const [],
+        ownsRunningText: textBearingContainerKeys.contains(node.nodeKey),
+      ));
       // Every folded child has to end up inside some run. A leaf whose nearest
       // preceding sibling is a *container* has none to join — runs only extend
       // forwards from an unfolded leaf — so it would otherwise be dropped from

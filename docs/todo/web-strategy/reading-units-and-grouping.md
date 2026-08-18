@@ -43,7 +43,7 @@
   - Every one of the 16,355 tree nodes has a `contentFileId` — including `sp` (සුත්තපිටක → `dn-1`) — so a folder or root tap dumps raw text. The reader has no TOC concept at all.
   - Only `navigateToPreviousSuttaProvider` exists. **There is no "next".**
   - Tab label and breadcrumb never update while scrolling (`_onScroll` touches only `pageStart/entryStart/scrollOffset`), so scrolling from Mūlapariyāya into Sabbāsava leaves the app claiming you are still in Mūlapariyāya.
-- **Static site:** the unit is the *page* — `sutta` (own file) · `chapter` (a contiguous run of short leaves, at the vagga's URL or at its first leaf's) · `toc` (container: preamble + links), prev/next walking readable pages only.
+- **Static site:** the unit is the *page* — `sutta` (own file) · `chapter` (a contiguous run of short leaves, at the vagga's URL or at its first leaf's) · `toc` (container: preamble + links), prev/next walking readable pages only. A page is readable when it carries text, **not** when it is a non-TOC (see "A container that opens with an introduction").
 
 **Decisions (2026-07-29):** the app adopts the site's bounded model at **strict parity**; grouped vaggas open in the app as a **chapter scrolled to the anchor**; the app rework is **deferred** until site review settles the vagga grouping; and **no new static/asset files may be added on the app side** — the shared truth is code, not a bundled data file.
 
@@ -295,7 +295,31 @@ The URL was that sutta's URL before this change and still is; the page simply al
 
 Shape of the 606: median 3 suttas (p90 9, max 76), median 5,741 chars (p90 31,003). They fall in 433 containers — 284 with one, 129 with two, 20 with three or more. 158 run to the vagga's last sutta.
 
-**A TOC page stays pure links.** The alternative considered was letting a run that starts at sutta 1 ride on the vagga's page while the rest of the vagga stays a link list — 171 hybrid pages, half text and half TOC, and 171 fewer files. Rejected: it makes `PageKind` ambiguous, forces `_chapter` to grow a link list, and gives the vagga page a canonical URL covering both some sutta text and a navigation index. The 171 pages buy one sentence that is true everywhere — *a chapter lives at its first sutta's URL, unless the chapter is the entire vagga.*
+**No chapter rides on a TOC page.** The alternative considered was letting a run that starts at sutta 1 ride on the vagga's page while the rest of the vagga stays a link list — 171 hybrid pages, half text and half TOC, and 171 fewer files. Rejected: it makes `PageKind` ambiguous, forces `_chapter` to grow a link list, and gives the vagga page a canonical URL covering both some sutta text and a navigation index. The 171 pages buy one sentence that is true everywhere — *a chapter lives at its first sutta's URL, unless the chapter is the entire vagga.*
+
+### A container that opens with an introduction
+
+A container's slice is its preamble. On 1,321 of the 1,389 TOC pages that is the title, `namo tassa` and a pitaka banner — chrome the `<h1>` and breadcrumb already say. On **65** it is the book's introduction to the chapter: 9,726 characters on `anya-vm-2`, **125,148** on `atta-vp-prj-1`.
+
+Those 65 were served as navigation. `isReadable` was `kind != PageKind.toc` from P1 (`aa4fc90`), so all three reading affordances were withheld at once: no layout switcher, no prev/next — **and the neighbours skipped them too, so nothing but a click down the tree could reach the text** — and `.content.nav` at 44rem instead of the reading measure, with side-by-side unable to engage at all because the override is written `~ .content:not(.nav)`.
+
+Not a regression from the split rule. It **halved** it: replaying the per-container rule gives 1,858 TOC pages of which **97** owned running text, including `atta-kn-nett-3-4` at 204,809 characters. 32 of the 97 became whole-vagga chapters and were fixed as a side effect.
+
+**The fix is the same mechanism, applied to the 65 the leaf-size rule cannot reach** — there the children are legitimately big enough to keep their own pages, so no grouping verdict will ever rescue the parent's introduction. `isReadable` becomes *"this page carries text"*, which is what the name always claimed:
+
+```dart
+bool get isReadable => kind != PageKind.toc || ownsRunningText;
+```
+
+- **The rule**: a container owns running text when ≥1 preamble row is a `paragraph`, `gatha` or `unindented`. No threshold. Stated as the types that *are* text, so a type upstream invents arrives as `paragraph` and is counted. The groups do not overlap — heading rows average 31 characters and centered rows 47, against 739 for a paragraph.
+- **Frozen, in a second snapshot** (`preamble_snapshot.dart`, `textBearingContainerKeys`, 110 keys). It has to be: `SitePlan.build` reads no text, and a page's prev/next depends on whether its *neighbours* are readable, so deciding at render time would need the second corpus pass S2 removed. A tree-only proxy was measured and rejected — rows-to-first-child ≥4 has zero false negatives against a 500-char line but 24 against this one.
+- **110, not 65** — the rule is asked of every container, including the 615 already-readable chapters. The extra keys are inert today and keep the two snapshots orthogonal: a grouping change that turns a chapter back into a TOC finds the answer already there.
+- **The link list keeps its own width.** `.toc` caps itself at the nav column rather than inheriting whatever column the page has, so a link button is the same size everywhere. Without it a page becoming readable takes its buttons out to the reading measure with it — a 103px label in an 863px button, which is the arithmetic the nav column exists to avoid.
+- **The absent-key default is inverted** from `foldedLeafKeys`: absent means *not* readable, so a container that gains an introduction upstream keeps the page it has rather than dropping a bare link list into the reading chain. Neither direction moves a URL.
+
+**Impact: real pages 10,298 → 10,298.** Nothing is added, moved or split; 65 existing pages join the prev/next chain (readable pages 8,908 → 8,973) and get the measure and the switcher.
+
+**Splitting the introduction onto its own page was considered and rejected.** It needs a URL, and every URL is `/tipitaka/<nodeKey>` where the key is a tree node — grammar shared with the app's deep-link codec (C4). There is no node for "the preamble of `anya-vm-2`". A minted `anya-vm-2-intro` passes `TipitakaLink.parse`'s syntactic check and then resolves to "not found": the site serves it, the app 404s it, silently. It also leaves the container page *still* outside the chain, adds 65 files of which 33 are under the 1,500-char line, and on `anya-vm-2` separates the sentence naming the thirteen dhutaṅgas from the thirteen links below it.
 
 Two code changes follow, both small:
 
@@ -658,7 +682,7 @@ Assessed 2026-08-17, because a rule this much simpler on the site could still ha
 - **Verdicts are frozen** — a resync may change what pages *say*, never which pages *exist*. Only a deliberate snapshot edit, or genuinely new content, moves URLs.
 - **The BJT hierarchy survives intact.** The rule here changes how many files the tree is spread across, never the tree. Breadcrumbs and TOC lists read `tree.ancestorsOf` / `tree.childrenOf` and are unaffected by any of it.
 - **The same text never appears in two files.** A folded leaf gets a `#fragment` inside its chapter and a stub or redirect at its old URL — never a second copy.
-- **A TOC page is pure links.** No page is half text and half navigation, which is what makes a chapter's canonical URL unambiguous and keeps `PageKind` a real distinction.
+- **No page carries a leaf's text beside a link list.** That is what keeps a chapter's canonical URL unambiguous and `PageKind` a real distinction. It is *not* the stronger "a TOC page is pure links", which was never true: a container has always rendered its own preamble above its links, and on 65 of them that preamble is the book's introduction to the chapter.
 - **A chapter is always contiguous.** It is read by scrolling, so a page that skipped a sutta inside its own range would drop it from the reading order silently.
-- **A container groups only if every child is a leaf and all of them share one content file.** The first keeps TOC pages pure links; the second is physical — a chapter page cannot splice two source files. Both are part of the rule, not tidiness, and every figure in this document assumes them.
+- **A container groups only if every child is a leaf and all of them share one content file.** The first keeps a leaf's text off a link list; the second is physical — a chapter page cannot splice two source files. Both are part of the rule, not tidiness, and every figure in this document assumes them.
 - Edition scope, URL grammar, hosting topology and the zero-JS site model stay exactly as locked.
