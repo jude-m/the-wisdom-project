@@ -5,6 +5,8 @@ import 'package:static_site_generator/data/slicer_cache.dart';
 import 'package:static_site_generator/domain/grouping_planner.dart';
 import 'package:static_site_generator/domain/grouping_policy.dart';
 import 'package:static_site_generator/domain/site_page.dart';
+import 'package:static_site_generator/figures/corpus_figures.dart';
+import 'package:static_site_generator/figures/page_budget.dart';
 import 'package:wisdom_shared/wisdom_shared.dart';
 
 /// Reports the page budget, checks the frozen snapshot, and regenerates it.
@@ -12,6 +14,7 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 ///     dart run static_site_generator/tool/plan_corpus.dart
 ///     dart run static_site_generator/tool/plan_corpus.dart --check
 ///     dart run static_site_generator/tool/plan_corpus.dart --write-snapshot
+///     dart run static_site_generator/tool/plan_corpus.dart --write-figures
 ///
 /// The build no longer measures anything: `foldedLeafKeys` in `wisdom_shared`
 /// is the frozen answer, and `SitePlan.build` reconstructs every page from it.
@@ -20,17 +23,23 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 /// on it runs only at sync time — as the writer behind `--write-snapshot`, and
 /// as the advisor whose disagreements the default report prints.
 ///
-/// **The three modes cost very different things.** `--check` reads the tree
-/// only (~1 s): its four questions are about the shape of the snapshot against
-/// the shape of the tree, and none of them needs a character count. The other
-/// two re-measure, because the rule does — and the default report measures
-/// *twice*, once to run the rule and once to size the pages it planned.
+/// **The modes cost very different things.** `--check` reads the tree only
+/// (~1 s): its four questions are about the shape of the snapshot against the
+/// shape of the tree, and none of them needs a character count. The rest
+/// re-measure, because the rule does — and the default report measures *twice*,
+/// once to run the rule and once to size the pages it planned.
 ///
 /// | mode | what it answers | on failure |
 /// |---|---|---|
 /// | `--check` | is the frozen snapshot still describable by this tree? | exit 1 |
 /// | *(none)* | what does the frozen site look like, and where does the rule now disagree? | prints |
 /// | `--write-snapshot` | rewrite the frozen set from the rule | writes |
+/// | `--write-figures` | rewrite `CORPUS_FIGURES.md` from the frozen set | writes |
+///
+/// The two writers are separate commands because they are different acts.
+/// `--write-snapshot` moves URLs and its diff needs reviewing sutta by sutta;
+/// `--write-figures` only restates what the site already is. A re-sync runs
+/// both, snapshot first — the figures describe the site the snapshot defines.
 ///
 /// **What is deliberately no longer here: a locked page budget.** `--expect`
 /// compared ten counted rows against a literal, which was the right guard while
@@ -41,13 +50,14 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 /// and the git diff of `grouping_snapshot.dart`, which is the review artifact
 /// for every deliberate move.
 void main(List<String> args) {
-  const modes = {'--check', '--write-snapshot'};
+  const modes = {'--check', '--write-snapshot', '--write-figures'};
   final unknown = args.where((a) => !modes.contains(a)).toList();
   if (unknown.isNotEmpty || args.length > 1) {
     stderr.writeln(unknown.isEmpty
         ? 'One mode at a time.'
         : 'Unknown option "${unknown.first}".');
-    stderr.writeln('Usage: plan_corpus.dart [--check | --write-snapshot]');
+    stderr.writeln('Usage: plan_corpus.dart '
+        '[--check | --write-snapshot | --write-figures]');
     exitCode = 2;
     return;
   }
@@ -57,9 +67,9 @@ void main(List<String> args) {
   final tree = reader.readTree();
 
   // Each mode builds only what it needs, and only this one and the default
-  // report need the rule — `--check` asks nothing about text, and reading 340 MB
-  // to not use it would make the one mode meant to run automatically the
-  // slowest of the three.
+  // report need the rule — `--check` asks nothing about text, and reading the
+  // whole corpus to not use it would make the one mode meant to run
+  // automatically the slowest of them all.
   if (args.contains('--write-snapshot')) {
     final cache = SlicerCache(reader: reader, tree: tree);
     _writeSnapshot(
@@ -100,6 +110,14 @@ void main(List<String> args) {
     foldedLeafKeys: folded,
   );
 
+  // After the integrity check for the same reason the plan is built after it:
+  // a snapshot this tree cannot produce would be written up as a description of
+  // a site nobody can serve.
+  if (args.contains('--write-figures')) {
+    _writeFigures(_figuresPath(reader), tree, plan, folded, reader);
+    return;
+  }
+
   if (check) {
     if (!_printBudget(tree, plan, folded, parses: null)) exitCode = 1;
     return;
@@ -127,6 +145,10 @@ void main(List<String> args) {
 /// The page budget, every row of it derived from the frozen set and
 /// `SitePlan`'s own walk. Returns whether the derivation identity closed.
 ///
+/// Counted by [PageBudget], which `computeCorpusFigures` also reads — the two
+/// reports say the same thing because they share one tally, not because two
+/// hand-written loops happen to agree.
+///
 /// [parses] is null when no content was read. The row is then omitted rather
 /// than printed as a zero, which would read as a broken cache instead of a mode
 /// that never opened a file.
@@ -136,57 +158,39 @@ bool _printBudget(
   Set<String> folded, {
   required int? parses,
 }) {
-  final leaves = tree.allNodes.where((n) => n.isLeaf).length;
-  final containers = tree.length - leaves;
-
-  var suttaPages = 0;
-  var wholeVaggaChapters = 0;
-  var midVaggaChapters = 0;
-  var tocPages = 0;
-  for (final page in plan.pages) {
-    switch (page.kind) {
-      case PageKind.sutta:
-        suttaPages++;
-      case PageKind.chapter:
-        page.node.isLeaf ? midVaggaChapters++ : wholeVaggaChapters++;
-      case PageKind.toc:
-        tocPages++;
-    }
-  }
-  final chapterPages = wholeVaggaChapters + midVaggaChapters;
-  const rootIndex = 1;
-  final realPages = suttaPages + chapterPages + tocPages + rootIndex;
+  final budget = PageBudget.of(tree: tree, plan: plan, folded: folded);
 
   stdout.writeln('tree              ${tree.length} nodes '
-      '($leaves leaves, $containers containers)');
-  stdout.writeln('snapshot          ${folded.length} folded leaves');
+      '(${budget.leaves} leaves, ${budget.containers} containers)');
+  stdout.writeln('snapshot          ${budget.foldedLeaves} folded leaves');
   if (parses != null) stdout.writeln('files parsed      $parses');
   // No count of the checks: it can only ever drift from `_integrity`, and once
   // the answer is "none" the number of questions asked tells a reader nothing.
   stdout.writeln('integrity         ok   (no violations)');
   stdout.writeln('');
-  stdout.writeln('sutta pages       $suttaPages');
-  stdout.writeln('chapter pages     $chapterPages   '
-      '($wholeVaggaChapters whole-vagga + $midVaggaChapters mid-vagga)');
-  stdout.writeln('container TOCs    $tocPages');
-  stdout.writeln('root index        $rootIndex');
+  stdout.writeln('sutta pages       ${budget.suttaPages}');
+  stdout.writeln('chapter pages     ${budget.chapterPages}   '
+      '(${budget.wholeVaggaChapters} whole-vagga '
+      '+ ${budget.midVaggaChapters} mid-vagga)');
+  stdout.writeln('container TOCs    ${budget.containerTocs}');
+  stdout.writeln('root index        ${PageBudget.rootIndex}');
   stdout.writeln('─────────────────────────');
-  stdout.writeln('real pages        $realPages');
-  stdout.writeln('folded leaves     ${folded.length}   (stubs, if picked)');
-  stdout
-      .writeln('with stubs        ${realPages + folded.length}   (cap 20,000)');
+  stdout.writeln('real pages        ${budget.realPages}');
+  stdout.writeln('folded leaves     ${budget.foldedLeaves}   '
+      '(stubs, if picked)');
+  stdout.writeln('with stubs        ${budget.pagesWithStubs}   (cap 20,000)');
 
   // The derivation from Part 1's Impact table. Two fixed corpus totals decide
   // both moving rows, so an arithmetic mismatch here means the walk and the
   // snapshot disagree about what folded — the cheapest check that a measurement
   // is self-consistent, and the one that caught an earlier draft's mixed table.
-  final derivedSutta = leaves - folded.length - midVaggaChapters;
-  final derivedToc = containers - wholeVaggaChapters;
-  final holds = derivedSutta == suttaPages && derivedToc == tocPages;
+  final holds = budget.derivationHolds;
+  final derivedSutta = budget.derivedSuttaPages;
+  final derivedToc = budget.derivedContainerTocs;
   stdout.writeln('');
   stdout.writeln('derivation        '
-      'sutta ${derivedSutta == suttaPages ? 'ok' : 'MISMATCH $derivedSutta'} · '
-      'toc ${derivedToc == tocPages ? 'ok' : 'MISMATCH $derivedToc'}');
+      'sutta ${derivedSutta == budget.suttaPages ? 'ok' : 'MISMATCH $derivedSutta'} · '
+      'toc ${derivedToc == budget.containerTocs ? 'ok' : 'MISMATCH $derivedToc'}');
   if (!holds) {
     // Exits non-zero rather than only printing, because `--check` is the mode
     // that runs unattended and this is the one thing left that it alone can
@@ -194,8 +198,9 @@ bool _printBudget(
     // are here, so what remains is a node no root can reach — a parent cycle in
     // a re-synced tree.json, which nothing else in the pipeline would notice.
     stdout.writeln('');
-    stdout.writeln('The tree holds leaves the walk never reached. The integrity '
-        'checks passed, so this is');
+    stdout
+        .writeln('The tree holds leaves the walk never reached. The integrity '
+            'checks passed, so this is');
     stdout.writeln('not a snapshot problem: it is a subtree no root can reach, '
         'i.e. a parent cycle in');
     stdout.writeln('assets/data/tree.json. Those pages would be missing from '
@@ -260,7 +265,7 @@ void _printSubtrees(TipitakaTree tree, SitePlan plan) {
 /// nothing, deliberately, because an absent key already means "owns a page".
 ///
 /// Returns one line per violation, most specific first, capped per check so a
-/// wholesale renumbering reports as a diagnosis rather than 6,000 lines.
+/// wholesale renumbering reports as a diagnosis rather than one line per leaf.
 List<String> _integrity(TipitakaTree tree, Set<String> folded) {
   final violations = <String>[];
 
@@ -320,8 +325,8 @@ List<String> _integrity(TipitakaTree tree, Set<String> folded) {
   }
   report('containers of folded leaves that now hold a sub-container',
       hybridParents);
-  report('containers of folded leaves that now span content files',
-      splitParents);
+  report(
+      'containers of folded leaves that now span content files', splitParents);
 
   // 3. The index-0 invariant `SitePlan.build` reconstructs from: a first child
   //    folds only when the whole container folds. A run starting at the first
@@ -474,14 +479,14 @@ void _writeSnapshot(
 // change the rule (`static_site_generator/lib/domain/grouping_policy.dart`)
 // and regenerate instead.
 
-/// Every leaf that does **not** get its own page — ${_thousands(ordered.length)} of them, frozen
+/// Every leaf that does **not** get its own page — ${formatCount(ordered.length)} of them, frozen
 /// from one full-corpus run of the split rule.
 ///
 /// **A leaf absent from this set owns its URL.** That is the safe direction:
 /// new content self-handles, a wrong explode costs one thin page, and only a
 /// wrong fold could hide a named text behind a fragment.
 ///
-/// Nothing re-measures the rule. `SitePlan.build` reconstructs all ${_thousands(readable)}
+/// Nothing re-measures the rule. `SitePlan.build` reconstructs all ${formatCount(readable)}
 /// readable pages from this set alone, so a re-sync of `assets/` may change
 /// what a page *says* and never which pages *exist*. Regenerating is the
 /// supported way to move a line, and the git diff of this file is the impact
@@ -490,6 +495,10 @@ void _writeSnapshot(
 /// Generated code rather than a bundled asset, because the app reads the same
 /// verdicts and may gain no new asset file — one `const` compiles into both
 /// surfaces from one place. Written in reading order.
+///
+/// The two counts above are the only corpus figures written here, and they are
+/// interpolated by the writer rather than typed. Every other one lives in
+/// `static_site_generator/CORPUS_FIGURES.md`.
 ///
 /// See `docs/todo/web-strategy/reading-units-and-grouping.md` — Part 2.
 const Set<String> foldedLeafKeys = {
@@ -543,17 +552,56 @@ const Set<String> foldedLeafKeys = {
 /// nodeKey in the vendored `tree.json` matches.
 final RegExp _dartSafeKey = RegExp(r'^[A-Za-z0-9._-]+$');
 
-/// `6058` → `6,058`. Only ever sees counts, so it need not handle a sign or a
-/// fractional part.
-String _thousands(int value) {
-  final digits = value.toString();
-  final buffer = StringBuffer();
-  for (var i = 0; i < digits.length; i++) {
-    if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
-    buffer.write(digits[i]);
+// ---------------------------------------------------------------------------
+// The figures writer
+// ---------------------------------------------------------------------------
+
+/// Rewrites `CORPUS_FIGURES.md` — the one place a corpus count is written down.
+///
+/// Every literal that used to sit in a doc comment lives there now, cited by
+/// name. This mode is what keeps the citations honest: it is the only writer,
+/// and it derives all of them in one pass, so they cannot disagree with each
+/// other the way ~45 hand-maintained copies did.
+///
+/// Prints the counts it wrote rather than only the path. The mode exists to
+/// answer "what is the site now", and making the operator open a file to find
+/// out would be a worse report than the default one.
+void _writeFigures(
+  String path,
+  TipitakaTree tree,
+  SitePlan plan,
+  Set<String> folded,
+  CorpusReader reader,
+) {
+  final groups = computeCorpusFigures(
+    tree: tree,
+    plan: plan,
+    folded: folded,
+    reader: reader,
+  );
+  File(path).writeAsStringSync(renderCorpusFigures(groups));
+
+  stdout.writeln('wrote             $path');
+  for (final group in groups) {
+    stdout.writeln('');
+    stdout.writeln(group.title);
+    for (final figure in group.figures) {
+      stdout.writeln('  ${figure.name.padRight(34)}${figure.value}');
+    }
   }
-  return buffer.toString();
+  stdout.writeln('');
+  stdout.writeln('Review `git diff` on the file. Nothing fails when these '
+      'move — new upstream');
+  stdout.writeln('content should move them — but a comment citing a figure '
+      'that is no longer');
+  stdout.writeln('listed is a citation to fix.');
 }
+
+/// Where the generated figures live. Package root, beside `lib/` and `tool/`,
+/// resolved the same way [_snapshotPath] is and for the same reason.
+String _figuresPath(CorpusReader reader) =>
+    '${Directory(reader.assetsPath).parent.path}'
+    '/static_site_generator/CORPUS_FIGURES.md';
 
 /// Where the generated set lives, in the checkout whose corpus was measured.
 ///

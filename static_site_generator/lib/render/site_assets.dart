@@ -25,8 +25,8 @@
 /// no content to hash at the point the `<head>` was written.
 ///
 /// A field move is not the only way those files change. An upstream re-sync
-/// shifts nodeKeys and adds suttas; a vagga crossing the 1,500-character
-/// threshold regroups and every leaf under it gets a new `chapterIdx`; a bug in
+/// shifts nodeKeys and adds suttas; a vagga crossing `shortLineChars` regroups
+/// and every leaf under it gets a new `chapterIdx`; a bug in
 /// the matcher gets fixed. None of those moves a field, so none earns a bump —
 /// and each of them, under `immutable`, leaves a reader who opened search once
 /// holding last month's index for a year. Its rows still resolve, to URLs that
@@ -63,12 +63,13 @@
 ///
 /// ## What it costs
 ///
-/// A change to any of them rewrites the `<head>` of all 14,753 pages — the
-/// fonts included, since their token rides inside the CSS whose hash the pages
-/// carry — so the whole ~388 MB re-uploads on the next deploy instead of a
-/// handful of files. That is what `immutable` costs; a hand-bumped token paid
-/// it too. It is why asset work is worth batching, and why content edits, which
-/// touch only the pages they touch, are unaffected.
+/// A change to any of them rewrites the `<head>` of every page in the build
+/// (`FIGURES.realPages`) — the fonts included, since their token rides inside
+/// the CSS whose hash the pages carry — so the whole corpus re-uploads on the
+/// next deploy instead of a handful of files. That is what `immutable` costs;
+/// a hand-bumped token paid it too. It is why asset work is worth batching,
+/// and why content edits, which touch only the pages they touch, are
+/// unaffected.
 ///
 /// [contentHash] is FNV-1a: change detection, not cryptography, which is the
 /// question being asked. Same inputs give the same URLs, so §11.8's

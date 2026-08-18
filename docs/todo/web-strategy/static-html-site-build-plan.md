@@ -39,7 +39,7 @@ into the first content phase. That single change drives the reordering.
 | D1 | **Bake app conjunct defaults** into the HTML — `standardLigatures` + `touching` ON | Same as tipitaka.lk (`src/text-convert.mjs`), which is indexed with ZWJ baked in |
 | D2 | **Un-welded `<title>` / `<h1>` / OG / JSON-LD** — strip the touching ZWJ | Follows tipitaka.lk `src/views/Home.vue:118`; keeps the searched form clean |
 | D3 | **Footnotes deferred** to the last phase | Frame 02's `<sup>1</sup>` is omitted until then |
-| D4 | **Sinhala-only titles.** No romanized Pali yet | Tree has **0 Latin chars** in all 16,355 nodes — the data does not exist |
+| D4 | **Sinhala-only titles.** No romanized Pali yet | Tree has **0 Latin chars** in any node — the data does not exist |
 | D5 | Grouped chapters live at the **vagga's real nodeKey** | Frame 04's `an-2-64-76` is not in the tree; nodeKey form needs no codec change |
 | D6 | **Theme identical to the app. Light only**, structured so dark slots in | Tokens are *generated* from the app theme, not hand-copied — see §3 |
 | D7 | **Self-host WOFF2 fonts** | Not optional — see §3 |
@@ -49,7 +49,7 @@ into the first content phase. That single change drives the reordering.
 ### D4 — the romanization seam
 
 Titles render Sinhala-only, because `assets/data/tree.json` carries no Latin
-text for any of its 16,355 nodes.
+text for any of its nodes (`FIGURES.treeNodes`).
 
 > **Corrected 2026-07-30.** This section used to show a
 > `String? romanizedTitle(String nodeKey) => null;` stub and claim "the
@@ -131,7 +131,7 @@ normalise upstream, not a font range to widen.
 
 `app_colors.dart` and `text_entry_theme.dart` both `import
 package:flutter/material.dart`, so the Flutter-free generator cannot read them.
-Hand-porting across that boundary is a silent-drift generator across 16,356 pages.
+Hand-porting across that boundary is a silent-drift generator across every page.
 
 Instead — `tools/dump_theme_tokens.dart` (Flutter side) emits a committed
 `static_site_generator/assets/theme_tokens.json`; the generator reads that. Drift
@@ -158,7 +158,7 @@ are fine as **post-processing over finished bytes**:
 
 **Minify buys little.** CF brotlis at the edge, so pre-minifying saves single
 digits — and a build id or unstable attribute order breaks §11.8 and re-uploads
-all 16,356 files. If adopted: run after manifest hashing, must pass build-twice.
+every file. If adopted: run after manifest hashing, must pass build-twice.
 
 **Fonts are committed build inputs**, like `theme_tokens.json` — run
 `subset_fonts.sh` by hand, commit, generator copies bytes. Keeps Python out of
@@ -198,7 +198,7 @@ range says both.
 
 > ⚠️ **No build timestamp anywhere in the output.** §11.8 requires byte-identical
 > output on unchanged input because Cloudflare dedups by content hash. A timestamp
-> means every rebuild rewrites all 16,356 files and re-uploads the whole site.
+> means every rebuild rewrites every file and re-uploads the whole site.
 > Content hashes only.
 
 This is the **reverse** of the §10 `.manifest.json` (`source → [outputs]`, one file,
@@ -294,8 +294,8 @@ Each phase ends with something openable in a browser. `an-1` scoped through P5.
 - ~~Fix `_nodeKeyPattern`~~ ✅ — it rejected the **53 dotted
   nodeKeys** (`atta-ap-dhs-2-1-1.1`, `atta-vp-cv-3-2.5`), 50 of them leaves, so
   those deep links resolved to null in the shipping app. Now
-  `^[a-z0-9]+(?:[-.][a-z0-9]+)*$`: all 16,355 keys accepted, malformed input
-  still rejected.
+  `^[a-z0-9]+(?:[-.][a-z0-9]+)*$`: every key in the tree accepted, malformed
+  input still rejected.
 - **Char-counting convention** ✅ — see §5.1 below. Recovered empirically, and
   it surfaced a **146th container** the locked CSV is missing.
 - `tools/dump_theme_tokens.dart` ✅ → `static_site_generator/assets/theme_tokens.json`.
@@ -303,8 +303,8 @@ Each phase ends with something openable in a browser. `an-1` scoped through P5.
   so the normal suite never picks it up). Emits no timestamp, per §11.8.
 
 **Deliverable:** ✅ `dart run static_site_generator/bin/generate.dart --root an-1`
-prints the tree (16,355 nodes, 243 leaves under `an-1`) with no Flutter in the
-process.
+prints the tree (`FIGURES.treeNodes` nodes, 243 leaves under `an-1`) with no
+Flutter in the process.
 
 #### 5.1 — Char-counting convention for the 1,500 threshold
 
@@ -960,10 +960,11 @@ its name, not climb to it. "Nav collapse persistence" went with the rail.)*
     their result links
     `…/<chapterKey>#<key>`, never `…/<key>` — which 404s. All of them resolve from
     `SitePlan`, which is *why* the index is built after `SitePlan.build()` and
-    not from `tree.json` alone. ✅ Verified on the build: every one of the 16,355
-    rows resolves to a file that exists.
-  - `marked` is 1 on the **6,674** commentary nodes whose own page appends
-    අට්ඨකථා, and the script applies it to a row's own name only — never to the
+    not from `tree.json` alone. ✅ Verified on the build: every row resolves to a
+    file that exists.
+  - `marked` is 1 on the commentary nodes whose own page appends අට්ඨකථා
+    (`FIGURES.nodesCarryingCommentaryMarker`), and the script applies it to a
+    row's own name only — never to the
     ancestors in its trail, which follow the site's breadcrumb and stay bare.
     See "What P4 found" below.
   - Byte-deterministic (§11.8) by iterating the plan, never a `Map`. ✅

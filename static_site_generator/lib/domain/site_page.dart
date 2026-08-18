@@ -24,8 +24,8 @@ enum PageKind {
   /// **The run may start mid-vagga**, in which case [SitePage.node] is its
   /// first *leaf* rather than the container — the vagga's own URL is already
   /// the TOC listing all of its suttas, so a run starting at sutta 3 cannot
-  /// ride on it. 615 chapters cover a whole vagga and sit at the container's
-  /// URL; 606 start below one.
+  /// ride on it. `FIGURES.wholeVaggaChapters` cover a whole vagga and sit at
+  /// the container's URL; `FIGURES.midVaggaChapters` start below one.
   chapter,
 
   /// A higher container: links only, no body text.
@@ -122,10 +122,10 @@ class SitePlan {
   /// The first line works because of an invariant the rule guarantees by
   /// construction: **a leaf at index 0 is folded only when the whole vagga is
   /// folded.** A run that starts at the first sutta anchors on that leaf, which
-  /// stays unfolded and owns the URL. 615 containers have a folded first leaf
-  /// and none of them has an unfolded sibling. It is checked rather than
-  /// assumed, because a hand-edited snapshot violating it would otherwise
-  /// produce a page that is half text and half navigation.
+  /// stays unfolded and owns the URL. Every container with a folded first leaf
+  /// (`FIGURES.wholeVaggaChapters`) has no unfolded sibling in it. That is
+  /// checked rather than assumed, because a hand-edited snapshot violating it
+  /// would otherwise produce a page that is half text and half navigation.
   ///
   /// Absent key = owns a page, which errs in the safe direction: a wrong
   /// explode costs a thin page, a wrong fold hides a named text behind a
@@ -136,8 +136,8 @@ class SitePlan {
   /// ancestor. A single-root build is therefore never a whole site and often
   /// not even a coherent subtree: `an-1` sits under `sp` while its commentary
   /// `atta-an-1` sits under `atta-sp`, so the අට්ඨකථා cross-link every canon
-  /// page emits (`PageTemplate._commentaryLink`) points outside the build. On
-  /// the `an-1` subtree that was 32 dead links out of 144.
+  /// page emits (`PageTemplate._commentaryLink`) points outside the build —
+  /// on a single-book subtree, a large fraction of its links.
   ///
   /// Roots are walked in the order given and the order is preserved, so §11.8
   /// byte-determinism holds: the same list always yields the same manifest.
@@ -323,10 +323,10 @@ class SitePlan {
   /// `<chapter>#<nodeKey>` — the page carrying it, which the `:has(:target)`
   /// CSS then filters to single view. Everything else is its own URL.
   ///
-  /// **Never `node.parentNodeKey`.** 606 chapters anchor on a sibling leaf
-  /// rather than the container, so the parent shortcut is wrong for roughly
-  /// half the folded leaves — and wrong *silently*, because it resolves to a
-  /// container that exists.
+  /// **Never `node.parentNodeKey`.** `FIGURES.midVaggaChapters` anchor on a
+  /// sibling leaf rather than the container, so the parent shortcut is wrong
+  /// for roughly half the folded leaves — and wrong *silently*, because it
+  /// resolves to a container that exists.
   String urlFor(String nodeKey) => _servingUrl[nodeKey] ?? tipitakaUrl(nodeKey);
 
   /// The page a reader reaches by continuing backwards, or null at the start.
@@ -352,9 +352,9 @@ class SitePlan {
 ///
 /// Defined as the highest ancestor *below* the root-level pitaka node, which is
 /// the level BJT itself titles its volumes at. Used as the last part of every
-/// page title, where it does the disambiguating work: 2,216 leaves share a name
-/// with another leaf, and the collection plus the parent vagga separates all
-/// but 377 of them.
+/// page title, where it does the disambiguating work:
+/// `FIGURES.leavesSharingATitle` leaves share a name with another leaf, and the
+/// collection plus the parent vagga separates almost all of them.
 TipitakaNode? collectionOf(TipitakaTree tree, String nodeKey) {
   final ancestors = tree.ancestorsOf(nodeKey);
   if (ancestors.isEmpty) return null;

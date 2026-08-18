@@ -38,6 +38,13 @@ Separate Dart package, no Flutter. Builds the public HTML Tipitaka site.
   single source; the build counts no characters to decide a page. Regenerate
   deliberately with `dart run tool/plan_corpus.dart --write-snapshot` and review
   its git diff — one line per sutta whose URL moved. Never hand-edit it.
+- **Never write a corpus count in a comment or a doc.** Page counts, node
+  counts, file counts, character totals all live in one generated file,
+  `static_site_generator/CORPUS_FIGURES.md` (`--write-figures`). Prose cites a
+  figure by name — `` `FIGURES.realPages` `` — and carries no digits. Exceptions,
+  all deliberate: thresholds in `GroupingPolicy` (inputs, not outputs), layout
+  arithmetic in `stylesheet.dart`, external limits, and dated records of a
+  measurement taken on a particular day. See `lib/figures/corpus_figures.dart`.
 
 
 ## DONT

@@ -13,8 +13,8 @@ import 'grouping_policy.dart';
 ///
 /// The unit is the **leaf**, not the container. The rule this replaces decided
 /// a whole vagga at once, so one substantial sibling exploded everything around
-/// it: of the 3,707 sutta pages under 1,500 characters it shipped, 2,304 were
-/// blocked by exactly one big sibling. It rejected splitting per leaf on the
+/// it: most of the thin sutta pages it shipped were blocked by exactly one big
+/// sibling. It rejected splitting per leaf on the
 /// grounds that big and micro suttas interleave (`an-4-2-3` runs `..D..D.DDD`)
 /// and hoisting the substantial ones out would leave non-contiguous chapters.
 /// The observation is right; the conclusion is not — the answer to a
@@ -84,12 +84,11 @@ class GroupingPlanner {
 
     // Precondition 1: every child is a leaf. A container that also holds
     // sub-containers is a TOC, and a TOC is pure links — letting it grow a
-    // chapter as well would produce a half-text-half-navigation page. Blocks 45
-    // runs covering 186 leaves.
+    // chapter as well would produce a half-text-half-navigation page.
     if (children.any((child) => !child.isLeaf)) return const {};
 
     // Precondition 2: all in one content file. A chapter page cannot splice two
-    // sources. Blocks 4 more runs covering 9 leaves.
+    // sources. Blocks a handful more.
     final fileIds = {for (final child in children) child.contentFileId};
     if (fileIds.length != 1 || fileIds.first == null) return const {};
 
@@ -98,12 +97,12 @@ class GroupingPlanner {
     // `namo tassa`) and the leaf's slice is the text, and they already belonged
     // on adjacent pages.
     //
-    // **Unconditional, outranking both the size line and promotion.** 62 of the
-    // 159 hold a leaf at or above its own line, including the largest in the
-    // corpus (`atta-kn-mn-2-1`, 333,558 chars). Nothing is buried in any of
-    // them: promotion protects a named work from being lost *among siblings*,
-    // and a lone child has none — its text keeps a whole page and simply
-    // answers at the container's URL.
+    // **Unconditional, outranking both the size line and promotion.**
+    // `FIGURES.loneChildChaptersNotFoldedOnSize` of the merges hold a leaf the
+    // size rule would not have folded, up to `FIGURES.largestLoneChildChars`.
+    // Nothing is buried in any of them: promotion protects a named work from
+    // being lost *among siblings*, and a lone child has none — its text keeps a
+    // whole page and simply answers at the container's URL.
     if (children.length == 1) return {children.first.nodeKey};
 
     final slicer = slicerFor(fileIds.first!);

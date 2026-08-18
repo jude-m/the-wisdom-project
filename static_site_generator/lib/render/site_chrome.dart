@@ -5,7 +5,7 @@
 ///
 /// ## What used to be here
 ///
-/// P3 put a collapsing navigator rail on all 14,752 pages: a checkbox, a
+/// P3 put a collapsing navigator rail on every page: a checkbox, a
 /// hamburger, a scrim and a pruned `<details>` tree. It was measured on the full
 /// build and withdrawn (P3.5) — see the build plan's P3 revision note. What is
 /// left is the part that was doing real work: a way home.
@@ -87,8 +87,9 @@ String homeLink(SiteAssets assets) => '<a class="home" href="/" '
 /// on. The app includes it for the same reason and this now matches.
 ///
 /// A `<span>`, not an anchor — a link from a page to itself does nothing, and
-/// the 14,752 of them would be self-referential edges in the crawl graph.
-/// `aria-current="page"` is what carries "this segment is where you are".
+/// one per page (`FIGURES.realPages`) would be that many self-referential edges
+/// in the crawl graph. `aria-current="page"` is what carries "this segment is
+/// where you are".
 ///
 /// ## The emblem is segment zero
 ///
@@ -192,9 +193,10 @@ const String _upGlyph = '<svg class="up-icon" viewBox="0 0 24 24" fill="none" '
 /// markups the stylesheet has to style twice.
 ///
 /// [urlFor] is required rather than defaulted to [tipitakaUrl] on purpose. A
-/// TOC lists *all* of a container's children, and 2,355 of those are folded
-/// leaves whose bare URL is served by no file — so the obvious default is
-/// exactly the wrong answer, and a caller that forgets should not compile.
+/// TOC lists *all* of a container's children, and `FIGURES.tocRowsToFoldedLeaves`
+/// of those rows point at folded leaves whose bare URL is served by no file — so
+/// the obvious default is exactly the wrong answer, and a caller that forgets
+/// should not compile.
 String tocList(Iterable<TipitakaNode> nodes, {required UrlResolver urlFor}) {
   final buffer = StringBuffer('<ul class="toc">');
   for (final node in nodes) {

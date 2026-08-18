@@ -275,7 +275,8 @@ every rule considered, so too tight). Two viable mechanisms — **the pick is a 
 decision gate: ask the maintainer before generating stubs**:
 - **Stub HTML files** (meta-refresh-0 + canonical → chapter): in-repo, portable,
   work on `*.pages.dev` previews; the stub count is the grouped-leaf count and
-  the total lands at **16,356 < 20K** by construction, whatever the rule.
+  the total (`FIGURES.pagesWithStubs`) lands under the 20K cap by construction,
+  whatever the rule.
 - **Cloudflare Bulk Redirects**: real edge 301s; targets may carry `#fragment`;
   free quota 10,000 (verify in dashboard — some accounts still show the legacy
   20); needs the custom-domain zone. Details in
@@ -295,8 +296,9 @@ lists every leaf that loses its file. Absent key = owns a page, which is the
 safe direction: new content self-handles, a wrong explode costs one thin page,
 and only a wrong fold could hide a named text behind a fragment.
 
-- **Nothing classifies at build time.** `SitePlan.build` reconstructs all 8,908
-  readable pages from the set alone. A text correction cannot re-bucket
+- **Nothing classifies at build time.** `SitePlan.build` reconstructs every
+  readable page (`FIGURES.readablePages`) from the set alone. A text correction
+  cannot re-bucket
   anything, because no character is counted on the way to a page.
 - **The rule that wrote it** — a per-leaf split with two size lines and one
   per-book exception table — lives in
@@ -595,8 +597,8 @@ input, and the only one that is generated Dart rather than an asset (§6).
 
 ### Commentary titles & canonical (decided 2026-07-25)
 
-The 6,731 `atta-*` pages carry the **same sutta names** as their canon twins —
-untreated they compete for the same name searches.
+The `atta-*` pages (`FIGURES.commentaryPages`) carry the **same sutta names** as
+their canon twins — untreated they compete for the same name searches.
 
 - **Distinct `<title>` / OG title:** canon = `<sutta> — <vagga> — <collection>`;
   commentary = `<sutta> අට්ඨකථා — <vagga> — <collection>`.
@@ -653,7 +655,7 @@ untreated they compete for the same name searches.
    is purely **content-hash** based: it skips any file whose hash it already has
    ([direct-upload docs](https://developers.cloudflare.com/workers/static-assets/direct-upload/)),
    so a build timestamp, a random build id, or unstable map/set ordering in the
-   HTML makes all 16,356 hashes change and **re-uploads the whole site every
+   HTML makes every hash change and **re-uploads the whole site every
    deploy**. Byte-identical output when the input is unchanged is a hard
    requirement, not a nicety. *(Distinct from the `.manifest.json` in §10 — that
    decides what to **regenerate**; this is what gets **uploaded**.)*
@@ -752,9 +754,11 @@ untreated they compete for the same name searches.
      governs the design** — a wrong *explode* = a few harmless thin pages; a wrong
      *group* = a buried named text (unacceptable) — and it is now carried by
      the snapshot's "absent key = owns a page" default rather than by a gate.
-   - *Scale:* **➜ [`reading-units-and-grouping.md`](./reading-units-and-grouping.md)
-     owns the page counts.** Whatever they are, the total **with stubs is
-     invariant at 16,356** — every leaf gets a real page or a stub — so the
+   - *Scale:* **➜ [`CORPUS_FIGURES.md`](../../../static_site_generator/CORPUS_FIGURES.md)
+     owns the page counts**, and
+     [`reading-units-and-grouping.md`](./reading-units-and-grouping.md) the rule
+     behind them. Whatever they are, the total **with stubs is invariant**
+     (`FIGURES.pagesWithStubs`) — every leaf gets a real page or a stub — so the
      Cloudflare Pages 20,000-file free cap is never in play regardless of where
      the threshold sits (see [`static-web-hosting.md`](./static-web-hosting.md)).
      The **SN 15 seed explodes cleanly** (both vaggas above threshold) → every
@@ -805,10 +809,12 @@ untreated they compete for the same name searches.
    whole purpose; (b) **page weight** — `dn-1` ≈ 2–3 MB HTML against the "instant
    ~20 KB page" goal, and `:has(:target)` hides siblings only *after* transfer, so
    a single micro-sutta still costs the full download; (c) **redirects get ~9×
-   worse** — all 14,351 leaf URLs would need `<container>#<leaf>` redirects, over
-   the Bulk Redirects free quota (10 K) and far over `_redirects` (2 K), against
-   a grouped-leaf count that has stayed well inside 10 K under every rule since.
-   Underlying point: **the file cap was never the constraint** — 16,356 / 20,000
+   worse** — every leaf URL (`FIGURES.leaves`) would need `<container>#<leaf>`
+   redirects, over the Bulk Redirects free quota (10 K) and far over `_redirects`
+   (2 K), against a grouped-leaf count that has stayed well inside 10 K under
+   every rule since.
+   Underlying point: **the file cap was never the constraint** —
+   `FIGURES.pagesWithStubs` against 20,000
    with a corpus that never grows, and deploys are hash-incremental (§11.8), so
    shrinking the file count buys nothing worth C2.
 2. **Shareable-link target — app vs web** *(RESOLVED 2026-07-06, C3)*: **both,
@@ -831,8 +837,8 @@ untreated they compete for the same name searches.
    of the two.
    **LOCKED 2026-07-22 (user): exact-sutta deep links are required even for
    grouped suttas. Mechanism = P5 decision gate — PROMPT the maintainer before
-   generating the stubs** (budget either way: **16,356 < 20K** with stubs, or the
-   real-page count with redirects — see the grouping doc), paired with the codec fragment
+   generating the stubs** (budget either way: `FIGURES.pagesWithStubs` against
+   20K with stubs, or `FIGURES.realPages` with redirects), paired with the codec fragment
    fix (deep-linking doc Notes) so *both* URL forms land on the exact sutta for
    *both* app and no-app recipients. The static page is always the guaranteed
    fallback. Page furniture for later: OG meta tags

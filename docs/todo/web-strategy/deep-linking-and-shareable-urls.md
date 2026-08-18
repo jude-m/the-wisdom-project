@@ -384,7 +384,7 @@ implementation on 2026-07-29; the stated behaviour is what it does *today*.
 Not in `test/`. `_nodeKeyPattern` is the one gate every deep link passes, and
 the test file only pins **3** of the 53 dotted keys — a regression test for the
 bug we know about, silent about key #54 or any other shape in the tree. Sweep
-all 16,355 keys in `assets/data/tree.json`:
+every key in `assets/data/tree.json`:
 
 ```dart
 for (final key in tree.keys) {

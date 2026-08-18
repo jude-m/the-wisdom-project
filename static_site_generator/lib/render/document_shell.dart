@@ -27,10 +27,10 @@ import 'site_assets.dart';
 ///
 /// ## The search dialog and `site.js` close every body
 ///
-/// Both are byte-identical on all 14,753 pages, so they belong to the shell for
-/// the same reason the five head lines do: the alternative is `page_template`
-/// and `landing_page` each remembering to append them, which is two places to
-/// forget and one of them is the front page.
+/// Both are byte-identical on every page (`FIGURES.realPages`), so they belong
+/// to the shell for the same reason the five head lines do: the alternative is
+/// `page_template` and `landing_page` each remembering to append them, which is
+/// two places to forget and one of them is the front page.
 ///
 /// The script is **not** a search script — it resolves `?layout=` too — which
 /// is why it is named and owned here rather than in `search_dialog.dart`.

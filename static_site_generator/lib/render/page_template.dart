@@ -12,15 +12,15 @@ import 'site_chrome.dart';
 /// Renders a complete HTML document for one [SitePage].
 ///
 /// Pure: models in, string out, no filesystem. Everything the page needs is
-/// passed in, which is what lets the whole template be unit-tested without a
-/// 340 MB corpus on disk.
+/// passed in, which is what lets the whole template be unit-tested without the
+/// corpus on disk.
 class PageTemplate {
   final TipitakaTree tree;
   final EntryRenderer entries;
 
   /// Version stamped into `<meta name="generator">`. **Not** a build id — the
   /// output has to be byte-identical between runs on unchanged input, or
-  /// Cloudflare's content-hash dedup re-uploads all 16,356 files (§11.8).
+  /// Cloudflare's content-hash dedup re-uploads every file (§11.8).
   final String generatorVersion;
 
   /// The stylesheet, script, index and emblem URLs, each carrying a hash of its
@@ -125,8 +125,8 @@ class PageTemplate {
   /// node because every page needs exactly one — the breadcrumb, the `<title>`
   /// and every crawler key off it. The printed book *also* opens the container
   /// with its name, and that is a normal heading entry in the JSON, which the
-  /// preamble renders faithfully. On 15 of the 110 pages in `an-1` the two are
-  /// the same string, so the reader gets the vagga name twice in a row.
+  /// preamble renders faithfully. On many container pages the two are the same
+  /// string, so the reader would get the vagga name twice in a row.
   ///
   /// The `<h1>` wins and the source heading goes. Dropping the `<h1>` instead
   /// would leave the pages that *don't* repeat with no heading at all.
@@ -184,9 +184,9 @@ class PageTemplate {
 
   // ── head ──────────────────────────────────────────────────────────────────
 
-  /// Canonical is always **self**, including on the 6,731 `atta-*` pages: a
-  /// commentary and its canon twin are different texts, not duplicates, so
-  /// neither ever points at the other (§10).
+  /// Canonical is always **self**, including on the commentary pages
+  /// (`FIGURES.commentaryPages`): a commentary and its canon twin are different
+  /// texts, not duplicates, so neither ever points at the other (§10).
   String _document(SitePage page,
           {required String head, required String body}) =>
       htmlDocument(
@@ -265,14 +265,14 @@ class PageTemplate {
   }
 
   /// Canon ↔ commentary cross-link, emitted only when the twin key exists in
-  /// the tree. 9,272 pages carry one.
+  /// the tree — `FIGURES.pagesWithCommentaryLink` pages carry one.
   ///
   /// **The key test is not enough on its own.** A key that exists may still be
-  /// a folded leaf, which owns no file — 3,595 of these twins are — so the
-  /// destination has to come from [urlFor] and not from [tipitakaUrl]. The
-  /// remaining way to 404 is a subtree build, where the twin lives under a root
-  /// that was not built at all: `an-1` sits under `sp` and `atta-an-1` under
-  /// `atta-sp`.
+  /// a folded leaf, which owns no file — `FIGURES.commentaryTwinsFolded` of
+  /// these twins are — so the destination has to come from [urlFor] and not
+  /// from [tipitakaUrl]. The remaining way to 404 is a subtree build, where the
+  /// twin lives under a root that was not built at all: `an-1` sits under `sp`
+  /// and `atta-an-1` under `atta-sp`.
   String? _commentaryLink(TipitakaNode node) {
     final twinKey = node.isCommentary
         ? node.nodeKey.substring(TipitakaNodeKeys.commentary.length)
@@ -368,10 +368,10 @@ class PageTemplate {
     final buffer = StringBuffer('<div class="chapter">');
     // Shown only when a sutta is targeted — the way back to the whole run.
     //
-    // A lone-child chapter (159 of them: a container merged with its only leaf)
-    // has no "rest" to go back to, so the bar would offer a link from the page
-    // to itself. The `:has(:target)` filter still applies and still does the
-    // right thing; there is simply nothing filtered away.
+    // A lone-child chapter (`FIGURES.loneChildChapters`: a container merged
+    // with its only leaf) has no "rest" to go back to, so the bar would offer a
+    // link from the page to itself. The `:has(:target)` filter still applies
+    // and still does the right thing; there is simply nothing filtered away.
     if (page.suttas.length > 1) {
       buffer.write('<p class="chapter-bar">'
           '<a href="${page.url}">සම්පූර්ණ පරිච්ඡේදය</a></p>');
@@ -403,10 +403,11 @@ class PageTemplate {
   ///
   /// ## A missing side is a row class, not a missing row
   ///
-  /// 5,571 rows corpus-wide carry Sinhala against an *empty* Pali entry —
-  /// translator's matter the printed book has on one side only — and rows with
-  /// the reverse shape are commoner still. Both are rendered, with the absent
-  /// cell simply not emitted and the row marked `no-pali` / `no-si`.
+  /// Thousands of rows corpus-wide carry Sinhala against an *empty* Pali entry
+  /// (`FIGURES.rowsSinhalaWithEmptyPali`) — translator's matter the printed
+  /// book has on one side only — and rows with the reverse shape are commoner
+  /// still. Both are rendered, with the absent cell simply not emitted and the
+  /// row marked `no-pali` / `no-si`.
   ///
   /// That class is what lets a single-language layout skip the row entirely
   /// rather than print an empty gap where the other language would have been.
@@ -415,8 +416,8 @@ class PageTemplate {
   /// fill it; side-by-side keeps its columns honest with explicit
   /// `grid-column`, which needs no placeholder.
   ///
-  /// Genuinely empty rows — [DocRow.isEmpty], one in the whole corpus — are the
-  /// only ones dropped outright.
+  /// Genuinely empty rows — [DocRow.isEmpty], `FIGURES.rowsEmptyBothSides` in
+  /// the whole corpus — are the only ones dropped outright.
   String _rows(NodeSlice? slice, Map<int, int> depths) {
     if (slice == null) return '';
     final buffer = StringBuffer();
@@ -466,13 +467,14 @@ class PageTemplate {
   /// up with the text below. `aria-hidden` because the cells themselves carry
   /// `lang`, which is how a screen reader already announces the switch.
   ///
-  /// **Emitted only when the page really has both languages.** 210 readable
-  /// pages — every one of them in the 7 `ap-pat*` (Paṭṭhāna) files, the known
-  /// misalignment — carry no Sinhala at all, and captioning a column that is
-  /// empty from top to bottom labels the absence rather than explaining it. No
-  /// readable page in the corpus lacks Pali, so the reverse never fires, but
-  /// the test is symmetric because nothing guarantees that stays true after a
-  /// re-sync from upstream.
+  /// **Emitted only when the page really has both languages.**
+  /// `FIGURES.readablePagesWithoutSinhala` readable pages — every one of them
+  /// in the `ap-pat*` (Paṭṭhāna) files, the known misalignment — carry no
+  /// Sinhala at all, and captioning a column that is empty from top to bottom
+  /// labels the absence rather than explaining it. No readable page in the
+  /// corpus lacks Pali (`FIGURES.readablePagesWithoutPali`), so the reverse
+  /// never fires, but the test is symmetric because nothing guarantees that
+  /// stays true after a re-sync from upstream.
   String _columnHeads(Iterable<NodeSlice?> slices) {
     var hasPali = false;
     var hasSinhala = false;
@@ -496,10 +498,11 @@ class PageTemplate {
   /// D2. The only string on the page that gets that treatment — everything a
   /// reader looks at goes through [weldTitle] instead.
   ///
-  /// The three parts are not decoration. 1,165 leaves are titled with nothing
-  /// but a number ("1. 16. 8. 9-24"), and 2,216 share a name with another leaf
-  /// — a bare name would give thousands of pages an identical, meaningless
-  /// `<title>`, which is the duplicate-content signal C2 exists to avoid.
+  /// The three parts are not decoration. `FIGURES.numericOnlyLeafTitles` leaves
+  /// are titled with nothing but a number ("1. 16. 8. 9-24"), and
+  /// `FIGURES.leavesSharingATitle` share a name with another leaf — a bare name
+  /// would give thousands of pages an identical, meaningless `<title>`, which
+  /// is the duplicate-content signal C2 exists to avoid.
   /// Parts that repeat are dropped, so a node directly under its collection
   /// does not say the collection twice.
   String _titleText(TipitakaNode node) {
@@ -534,7 +537,7 @@ class PageTemplate {
   /// a repeat worth suppressing, unlike the preamble's in [_withoutRepeatedTitle]:
   /// one is the page's heading and the other is a position in a hierarchy, they
   /// are in different landmarks, and the marker means the two are not even the
-  /// same string on the 6,731 commentary pages.
+  /// same string on a commentary page.
   String _headingHtml(TipitakaNode node) =>
       escapeHtml(weldTitle(nodeTitle(node)));
 }

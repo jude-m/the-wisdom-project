@@ -1,9 +1,12 @@
 # Static Web — Hosting (Cloudflare Pages), SEO Plumbing & the App Boundary
 
-> **Page-count figures are owned by
-> [`reading-units-and-grouping.md`](./reading-units-and-grouping.md).** What this
-> doc owns is the *invariant*: with stubs the total is always **16,356**, so the
-> 20,000-file cap is never in play whatever the grouping rule does.
+> **Corpus counts are owned by
+> [`CORPUS_FIGURES.md`](../../../static_site_generator/CORPUS_FIGURES.md)**,
+> generated from the corpus; the grouping *rule* is owned by
+> [`reading-units-and-grouping.md`](./reading-units-and-grouping.md). What this
+> doc owns is the *invariant*: with stubs the total (`FIGURES.pagesWithStubs`) is
+> fixed by the tree's shape, so the 20,000-file cap is never in play whatever the
+> grouping rule does.
 >
 > Status: **Direction decided 2026-06-11; hosting reworked for Cloudflare Pages
 > 2026-07-20** (the Dart content server is being retired).
@@ -112,8 +115,8 @@ All of this is the **free** Pages plan:
   files (below) be fetched over real HTTPS — the OS requirement for Universal /
   App Links.
 - **File cap = 20,000 files per project.** The whole corpus (canon + `atta-*` +
-  `anya-*`) generates **16,356 files** with stubs, and that number is an
-  *invariant*: leaves (14,351) + containers (2,004) + root, always —
+  `anya-*`) generates `FIGURES.pagesWithStubs` files with stubs, and that number
+  is an *invariant*: `FIGURES.leaves` + `FIGURES.containers` + root, always —
   **the grouping rule does not move the file count at all** (an exploded vagga
   = 1 TOC + N pages; a grouped one = 1 chapter + N stubs — same N+1). Grouping
   is a UX/SEO choice, not a file-budget knob, and this bullet needs no update
@@ -157,11 +160,12 @@ entry (prototype plan §11) and a table row (build plan §3).
 
 **Generated HTML is never committed.** Measured 2026-07-31 against the P1 output:
 `assets/text/an-1.json` is 588 K and its 110 pages come to 578 K of HTML, so output
-runs **~1:1 with the source JSON** — the full corpus is therefore **~340 MB across
-16,356 files** (~21 K/page) landing on a `.git` already at 694 MB. It is derived
+runs **~1:1 with the source JSON** — the whole output is therefore about the size
+of the source corpus (`FIGURES.corpusMegabytes`) spread over
+`FIGURES.pagesWithStubs` files, landing on a `.git` already at 694 MB. It is derived
 data: corpus + generator determine it exactly, and byte-determinism holds from P1
 (build plan §11.8). `static_site_generator/build/` stays gitignored. Committing it
-would also make one CSS-token change rewrite the wrapper of all 16,356 files, and
+would also make one CSS-token change rewrite the wrapper of every file, and
 the real diff would be unreviewable underneath.
 
 **Cloudflare's own build system does not run the generator.** Dart ships in neither

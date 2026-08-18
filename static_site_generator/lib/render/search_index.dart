@@ -13,14 +13,15 @@
 ///
 /// ## Why it is built here and not from `tree.json`
 ///
-/// 6,058 of the 16,355 nodes have no page of their own — they are leaves
-/// swallowed into 1,221 chapter files — so their result row has to link
-/// `/tipitaka/<chapter>#<key>`, never `/tipitaka/<key>`, which 404s. Only
-/// [SitePlan] knows which those are. An index built from the tree alone would
-/// look right and send 6,058 of its rows to a missing page.
+/// `FIGURES.foldedLeaves` of the tree's nodes have no page of their own — they
+/// are leaves swallowed into the chapter files (`FIGURES.chapterPages`) — so
+/// their result row has to link `/tipitaka/<chapter>#<key>`, never
+/// `/tipitaka/<key>`, which 404s. Only [SitePlan] knows which those are. An
+/// index built from the tree alone would look right and send every one of those
+/// rows to a missing page.
 ///
-/// **And the chapter is not the leaf's parent.** 606 of the 1,221 chapters
-/// anchor on a sibling *leaf* rather than the container, so `parentNodeKey`
+/// **And the chapter is not the leaf's parent.** `FIGURES.midVaggaChapters` of
+/// them anchor on a sibling *leaf* rather than the container, so `parentNodeKey`
 /// would answer wrongly for roughly half of them — and wrongly in the way that
 /// hurts, resolving to a container that exists. `chapterOf` below is built from
 /// the plan's own walk for exactly this reason.
@@ -28,14 +29,13 @@
 /// ## Row shape
 ///
 /// `[key, pali, sinhala, parentIdx, chapterIdx, marked]` — positional, not a
-/// map with six key strings repeated 16,355 times. `parentIdx` and
-/// `chapterIdx` are indices into this same array rather than repeated key
-/// strings, which is worth ~15% gzipped and makes the parent-path walk a
-/// pointer chase instead of a lookup.
+/// map with six key strings repeated once per node (`FIGURES.treeNodes`).
+/// `parentIdx` and `chapterIdx` are indices into this same array rather than
+/// repeated key strings, which is worth ~15% gzipped and makes the parent-path
+/// walk a pointer chase instead of a lookup.
 ///
-/// Measured on the full corpus: **2,248 KB raw / 254 KB gzip / 180 KB
-/// brotli**. Fetched on first dialog open, never on page load, then cached for
-/// every page after it.
+/// Fetched on first dialog open, never on page load, then cached for every page
+/// after it.
 library;
 
 import 'dart:convert';
@@ -73,24 +73,24 @@ import 'node_labels.dart';
 ///
 /// Sinhala names ship raw because they are not Pali: `beautifyPaliText` must
 /// never touch a translation (it would bind consonants that should stay
-/// apart). The 8,536 that carry ligature ZWJ — rakaransaya, yansaya — are
-/// ordinary spelling, and the same zero-width strip removes it from query and
-/// row alike.
+/// apart). The names that carry ligature ZWJ — rakaransaya, yansaya,
+/// `FIGURES.namesWithLigatureZwj` of them — are ordinary spelling, and the same
+/// zero-width strip removes it from query and row alike.
 ///
 /// ## The commentary marker is a flag, not a second name
 ///
 /// A row is drawn two ways: as a result, where its page's own name applies
 /// ([nodeTitle], marked "X අට්ඨකථා"), and as one of the two ancestors under
 /// another result, where the trail's form applies ([nodeLabelHtml], bare). So
-/// the Pali column ships the bare name and column 6 ships the marker's
-/// verdict — 6,674 rows — for `site.js` to apply to a row's own name only.
+/// the Pali column ships the bare name and column 6 ships the marker's verdict
+/// (`FIGURES.nodesCarryingCommentaryMarker` rows) for `site.js` to apply to a
+/// row's own name only.
 ///
-/// Without it, 127 commentary results were byte-identical to a canon result,
-/// same name and same trail, one of them landing on a page whose `<h1>` said
+/// Without it, commentary results were byte-identical to a canon result, same
+/// name and same trail, one of them landing on a page whose `<h1>` said
 /// something else. Shipping the marked name as a sixth *string* instead costs
-/// 525 KB raw for what a bit says (the flag costs 33 KB raw, 748 bytes
-/// gzipped); deriving it in JavaScript puts the rule in a third place, which is
-/// what caused the bug.
+/// an order of magnitude more bytes for what a bit says; deriving it in
+/// JavaScript puts the rule in a third place, which is what caused the bug.
 String buildSearchIndex({required SitePlan plan}) {
   final nodes = <TipitakaNode>[];
   for (final page in plan.pages) {
@@ -99,9 +99,9 @@ String buildSearchIndex({required SitePlan plan}) {
     // own node, and adding it here would index all of them twice.
     //
     // A mid-vagga chapter is itself anchored on a leaf, so that leaf is in both
-    // `node` and `suttas` and has to be skipped — otherwise 606 keys arrive
-    // twice, and the second row wins `position`, which is what `site.js` reads
-    // to rank a hit.
+    // `node` and `suttas` and has to be skipped — otherwise one key per
+    // mid-vagga chapter (`FIGURES.midVaggaChapters`) arrives twice, and the
+    // second row wins `position`, which is what `site.js` reads to rank a hit.
     if (page.kind == PageKind.chapter) {
       nodes.addAll(page.suttas.where((s) => s.nodeKey != page.nodeKey));
     }
@@ -137,7 +137,7 @@ String buildSearchIndex({required SitePlan plan}) {
         // one and the JS reads `< 0` either way.
         position[node.parentNodeKey] ?? -1,
         chapterOf[node.nodeKey] ?? -1,
-        // 1/0 rather than true/false: three bytes a row saved across 16,355 of
+        // 1/0 rather than true/false: three bytes saved on every row of
         // them, and JavaScript reads either the same way.
         carriesCommentaryMarker(node) ? 1 : 0,
       ],

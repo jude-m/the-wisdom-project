@@ -144,7 +144,8 @@ class SiteGenerator {
       final slices = <String, NodeSlice>{};
       for (final sutta in page.suttas) {
         // A container's leaves can live in a different file than the container
-        // itself — 10 of them do — so each sutta resolves its own.
+        // itself (`FIGURES.containersWhoseLeavesSitElsewhere`), so each sutta
+        // resolves its own.
         final fileId = sutta.contentFileId;
         if (fileId == null) {
           throw StateError(

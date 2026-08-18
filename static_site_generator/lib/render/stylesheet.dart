@@ -98,8 +98,8 @@ double _readingColumnRem(ThemeTokens tokens) =>
 /// it (`padding` 36 + three `gap`s 32 + the up button 36 + the search button 36
 /// + the four layout buttons 165), and 264px below, where the side-by-side
 /// button is `display: none` and three buttons measure 124. The first step is
-/// set against 305, the other two against 264. Measured across all 14,752 built
-/// pages at the real 12.24px: a leaf name is 126px at the median and 162px at
+/// set against 305, the other two against 264. Measured across every built page
+/// at the real 12.24px: a leaf name is 126px at the median and 162px at
 /// p75, and a page carries 5 ancestors at the median, 6 at most. An ancestor
 /// squeezed under about 45px is three Sinhala clusters and an ellipsis —
 /// present, unreadable, and standing where the page's own name should be. Each
@@ -923,7 +923,7 @@ void _writeSearch(StringBuffer css) {
   // because cascade origin is settled before specificity is consulted. So a
   // bare `.search { display: flex }` does not merely style the panel: it
   // overrides that rule and leaves the dialog rendered, open, in the normal
-  // flow of all 14,753 pages. Guarding on `[open]` hands the closed state back
+  // flow of every page. Guarding on `[open]` hands the closed state back
   // to the UA.
   css.writeln('.search {');
   css.writeln('  width: min(34rem, calc(100vw - 2rem));');

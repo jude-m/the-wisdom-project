@@ -59,7 +59,8 @@ class TipitakaNode {
   final String? parentNodeKey;
 
   /// `assets/text/<id>.json` holding this node's text. May belong to an
-  /// ancestor — 10 containers hold leaves whose text sits in a different file.
+  /// ancestor — some containers hold leaves whose text sits in a different file
+  /// (`FIGURES.containersWhoseLeavesSitElsewhere`).
   final String? contentFileId;
 
   /// Child keys in display order (see [TipitakaTree.fromJson] for the rule).
@@ -118,8 +119,8 @@ class TipitakaTree {
   /// **Document order is the explicit tiebreak.** That reproduces what the app
   /// renders, but as a guarantee instead of an accident — and the generator
   /// needs the guarantee, because byte-identical output across builds is what
-  /// keeps Cloudflare's hash-incremental deploys from re-uploading all 16,356
-  /// files (see the build plan, §11.8).
+  /// keeps Cloudflare's hash-incremental deploys from re-uploading every file
+  /// (see the build plan, §11.8).
   ///
   /// The app used to compare those keys as *equal* and let `List.sort` decide,
   /// which is unspecified — `List.sort` is explicitly not stable — and only
@@ -132,13 +133,13 @@ class TipitakaTree {
   /// this same tiebreak on 2026-08-03; `tree_local_datasource.dart` now carries
   /// a line-for-line copy of [compare], and the two must not drift.
   ///
-  /// One residual, shared by both copies: the comparator is only a *total* order
-  /// while every indexed sibling sits in ascending document order relative to
-  /// its index-less siblings. Verified on the vendored asset — 8 of 2,005
-  /// parents mix the two kinds and none is intransitive — but `tree.json` is
-  /// re-synced from upstream, so a re-sync that reorders one of those 8 puts
-  /// `List.sort` back in unspecified territory. Re-run the check when the asset
-  /// moves.
+  /// One residual, shared by both copies: the comparator is only a *total*
+  /// order while every indexed sibling sits in ascending document order
+  /// relative to its index-less siblings. Verified on the vendored asset — 8
+  /// parents out of `FIGURES.containers` mix the two kinds and none is
+  /// intransitive — but `tree.json` is re-synced from upstream, so a re-sync
+  /// that reorders one of those 8 puts `List.sort` back in unspecified
+  /// territory. Re-run the check when the asset moves.
   factory TipitakaTree.fromJson(Map<String, dynamic> json) {
     final nodes = <String, _MutableNode>{};
     final documentOrder = <String, int>{};
@@ -147,8 +148,8 @@ class TipitakaTree {
 
     var ordinal = 0;
     json.forEach((nodeKey, value) {
-      // Shape is checked before it is indexed. All 16,355 rows in the vendored
-      // asset are well-formed, but the asset is re-synced from upstream
+      // Shape is checked before it is indexed. Every row in the vendored
+      // asset is well-formed, but the asset is re-synced from upstream
       // tipitaka.lk, so a shape change is a real scenario — and a named
       // FormatException beats a RangeError thrown from `data[3][0]`.
       if (value is! List) {

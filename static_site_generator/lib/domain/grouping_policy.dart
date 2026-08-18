@@ -51,8 +51,8 @@ class GroupingPolicy {
   /// its own rankable page. A commentary does not need that guard — nobody
   /// searches for ජරාසුත්තවණ්ණනා, they search the sutta, whose page already
   /// exists and already carries the අට්ඨකථා cross-link. What the high line buys
-  /// instead is assembly of works BJT fragmented: 13 pages holding chunks of
-  /// the Bhayabherava commentary become one page that *is* it.
+  /// instead is assembly of works BJT fragmented: the dozen pages holding
+  /// chunks of the Bhayabherava commentary become one page that *is* it.
   ///
   /// 15,000 is the last value before the biggest chapter roughly doubles and
   /// the count over 100k characters quintuples (the measured table is in the

@@ -10,8 +10,9 @@ import 'site_chrome.dart';
 ///
 /// ## Why it exists at all
 ///
-/// The first dev deploy (2026-08-03) shipped 14,752 pages and had no front door:
-/// `/` returned 404, and so did the first thing anyone tries next, `/<nodeKey>`.
+/// The first dev deploy (2026-08-03) shipped the whole corpus and had no front
+/// door: `/` returned 404, and so did the first thing anyone tries next,
+/// `/<nodeKey>`.
 /// The URL wrangler prints is the origin, so the deploy could not be clicked
 /// through at all — `deploy.sh` printed a hand-picked `entry` URL as a stopgap,
 /// gated on this file not existing yet. That stopgap is gone: the origin is now

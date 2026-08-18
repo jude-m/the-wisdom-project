@@ -11,7 +11,7 @@ import 'ancestor_dir.dart';
 ///
 /// Everything downstream (`domain/`, `grouping/`, `render/`) takes decoded
 /// models and returns strings, which is what keeps those layers unit-testable
-/// without a 340 MB corpus on disk. The models themselves live in
+/// without the corpus on disk. The models themselves live in
 /// `domain/content_file.dart`; this file only reads bytes and hands them to
 /// their factories.
 class CorpusReader {
@@ -47,7 +47,7 @@ class CorpusReader {
 
   File get _treeFile => File('$assetsPath/data/tree.json');
 
-  /// Decodes the full navigation tree (16,355 nodes).
+  /// Decodes the full navigation tree (`FIGURES.treeNodes` nodes).
   TipitakaTree readTree() {
     final file = _treeFile;
     if (!file.existsSync()) {

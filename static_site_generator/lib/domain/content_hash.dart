@@ -4,7 +4,7 @@ import 'dart:convert';
 ///
 /// **Change detection, not cryptography.** The only question asked of it is
 /// "did these bytes change since the last build?" — by `.manifest.json` of the
-/// 285 corpus files, and by `SiteAssets` of everything the pages link — where
+/// corpus files, and by `SiteAssets` of everything the pages link — where
 /// an accidental collision is somewhere around 1 in 10^15. Rolling it by
 /// hand keeps the generator's dependency list empty, which is worth more here
 /// than a stronger digest: PREREQ-3's proof is that this package builds under a

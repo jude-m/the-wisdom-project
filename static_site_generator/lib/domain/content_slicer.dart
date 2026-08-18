@@ -14,10 +14,10 @@ import 'document.dart';
 /// That "of any kind" is load-bearing and was the single most expensive thing
 /// to get wrong. The obvious reading — run to the next *readable* node — sounds
 /// equivalent, because containers usually sit right on top of their first
-/// child. They do not always: **1,418 of the corpus's 14,351 leaves** would get
-/// a different slice, and the worst (`atta-kn-nett-3-3`) would swallow
-/// **204,809 characters** of the *following* container's preamble and print it
-/// under the wrong sutta's title.
+/// child. They do not always: **roughly a tenth of the corpus's leaves** would
+/// get a different slice, and the worst (`atta-kn-nett-3-3`) would swallow the
+/// *following* container's entire preamble — hundreds of thousands of
+/// characters — and print it under the wrong sutta's title.
 ///
 /// Treating containers as boundaries also produces the preamble rule for free.
 /// The rows between a container's coordinate and its first child's are simply
@@ -45,7 +45,7 @@ class ContentSlicer {
   /// Builds a slicer for [file] from every tree node whose text lives in it.
   ///
   /// [nodesInFile] must be *all* of them, containers included. Passing only the
-  /// leaves silently reintroduces the 1,418-leaf bug described above, so the
+  /// leaves silently reintroduces the mis-slicing bug described above, so the
   /// caller is expected to use [nodesByFile].
   factory ContentSlicer.forFile(
       ContentFile file, Iterable<TipitakaNode> nodesInFile) {
@@ -74,7 +74,7 @@ class ContentSlicer {
         entry: node.entryIndexInPage,
       )];
       if (index == null) {
-        // Cannot fire on the vendored corpus (verified across all 16,355).
+        // Cannot fire on the vendored corpus (verified across every node).
         // Throws because dropping the node would quietly delete a sutta.
         throw StateError(
           'Node "${node.nodeKey}" points at page ${node.entryPageIndex}, '
@@ -134,9 +134,9 @@ class ContentSlicer {
   /// builds.
   ///
   /// Built for the **whole tree at once**, deliberately. The per-file form this
-  /// replaces walked all 16,355 nodes to number them on every call, and it is
-  /// called once per content file: ~500 walks of the full tree across a build,
-  /// for an ordering that never changes. One pass, one map, done.
+  /// replaces walked every node to number them on each call, and it is called
+  /// once per content file — one full-tree walk per file across a build, for an
+  /// ordering that never changes. One pass, one map, done.
   ///
   /// Nodes with no `contentFileId` are absent from the result — they have no
   /// text to slice. There are none in the vendored corpus.

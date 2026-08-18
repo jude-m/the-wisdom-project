@@ -9,10 +9,10 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 ///
 ///     dart run static_site_generator/tool/verify_corpus_invariants.dart
 ///
-/// **A script *and* a test.** Reading all 285 content files (~340 MB) plus the
-/// 4 MB tree costs ~23s, so `test/corpus_tools_test.dart` runs it under the
-/// `corpus` tag. Still worth running by hand: only the printout says *what* the
-/// corpus looks like.
+/// **A script *and* a test.** Reading every content file plus the tree
+/// (`FIGURES.corpusMegabytes` and `FIGURES.treeMegabytes`) costs ~23s, so
+/// `test/corpus_tools_test.dart` runs it under the `corpus` tag. Still worth
+/// running by hand: only the printout says *what* the corpus looks like.
 ///
 /// The invariants it establishes are also pinned as fast unit tests in
 /// `packages/wisdom_shared/test/`; this is the exhaustive backstop, re-run
@@ -137,8 +137,8 @@ bool _verifyMarkers(CorpusReader reader) {
   stdout.writeln('  underline segments    $underlineSegmentRuns '
       '(what a renderer receives)');
 
-  // These two counts disagreed at 268/267 before footnote segments carried
-  // their ambient style: `__{4}__` in mn-3-4.json wraps nothing but a reference,
+  // These two counts disagreed by one before footnote segments carried their
+  // ambient style: `__{4}__` in mn-3-4.json wraps nothing but a reference,
   // so the span reached a renderer with no styled segment and its underline was
   // silently lost. They should now match — but this is a diagnostic, not an
   // identity: two *adjacent* spans (`__a____b__`) would also read as one run,

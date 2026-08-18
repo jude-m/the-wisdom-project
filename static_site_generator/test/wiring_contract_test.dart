@@ -12,7 +12,7 @@
 /// | `dart analyze`                | clean — neither file is wrong alone |
 /// | `dart format`                 | clean |
 /// | build-twice hash (§11.8)      | identical — a broken site is deterministically broken |
-/// | entry conservation (581→581)  | passes — every element is present |
+/// | entry conservation            | passes — every element is present |
 /// | HTML validator (P6)           | passes — class names have no schema |
 /// | link checker (P6)             | passes — no URL changed |
 ///
@@ -62,7 +62,7 @@ void main() {
   // The real committed tokens, not a synthetic map: a hand-written stand-in
   // would drift from the schema `dump_theme_tokens.dart` actually emits, and
   // then this file would be testing a fiction. It is 5.6 KB — a build input,
-  // not the 340 MB corpus.
+  // not the corpus.
   final tokens = _readThemeTokens();
   // A literal font token, like `_assets` below and for the same reason: these
   // tests assert what reaches the page, and hashing the real WOFF2 faces here
@@ -198,8 +198,9 @@ void main() {
       // every sibling `.sutta`, and `.chapter-bar` is the way back to the whole
       // run. No radio appears in those rules, so the derivation above cannot
       // reach them — and this is the seam P4 leans on hardest. Rename either
-      // side and all 1,603 grouped-leaf deep links land on a chapter showing
-      // its whole run: HTTP 200, valid markup, no URL changed, nothing red.
+      // side and every grouped-leaf deep link (`FIGURES.foldedLeaves`) lands on
+      // a chapter showing its whole run: HTTP 200, valid markup, no URL
+      // changed, nothing red.
       final selectors = _rulesSelectingOn(css, ':target');
       expect(selectors, isNotEmpty,
           reason: 'Nothing in the stylesheet reacts to a URL fragment. The '
@@ -225,11 +226,12 @@ void main() {
     });
 
     test('chapter sections are anchored by nodeKey', () {
-      // Load-bearing for P4: the 1,603 grouped leaves have no page of their
-      // own, so a search result must link `/tipitaka/<chapter>#<leafKey>`. If
-      // the id here stops being the bare nodeKey, every one of those deep links
-      // lands on the chapter head instead of the sutta — and still returns 200,
-      // so no link checker sees it.
+      // Load-bearing for P4: the grouped leaves (`FIGURES.foldedLeaves`) have
+      // no page of their own, so a search result must link
+      // `/tipitaka/<chapter>#<leafKey>`. If the id here stops being the bare
+      // nodeKey, every one of those deep links lands on the chapter head
+      // instead of the sutta — and still returns 200, so no link checker sees
+      // it.
       final html = _render(_chapterPage, slices: {
         'sp-grp-1': _bothLanguages('sp-grp-1'),
         'sp-grp-2': _bothLanguages('sp-grp-2'),
@@ -321,9 +323,10 @@ void main() {
     });
 
     test('column captions are withheld when a language is wholly absent', () {
-      // 210 readable pages — every one in the 7 ap-pat* files — carry no
-      // Sinhala at all. Under the baked side-by-side default they widened to
-      // two columns and printed "සිංහල" over blank space.
+      // `FIGURES.readablePagesWithoutSinhala` readable pages — every one in
+      // the ap-pat* files — carry no Sinhala at all. Under the baked
+      // side-by-side default they widened to two columns and printed "සිංහල"
+      // over blank space.
       final paliOnly = _render(_suttaPage, slices: {
         'sp-toc-1': _slice('sp-toc-1', [_row(pali: _entry('පාළි'))]),
       });
@@ -391,8 +394,9 @@ void main() {
       });
 
       // Touching is ZWJ *before* the hal. The ligature form (hal + ZWJ) is
-      // ordinary Sinhala spelling — රකාරාංශය and යංශය, in 8,536 of the tree's
-      // names — and must survive untouched, so this is not a blanket ZWJ test.
+      // ordinary Sinhala spelling — රකාරාංශය and යංශය, in
+      // `FIGURES.namesWithLigatureZwj` of the tree's names — and must survive
+      // untouched, so this is not a blanket ZWJ test.
       const touching = '‍්';
 
       // Asserted in both directions: without the first expectation the second

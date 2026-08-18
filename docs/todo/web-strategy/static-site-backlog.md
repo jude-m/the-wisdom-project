@@ -9,8 +9,9 @@ noindex` (crawlable, not indexed) and the Flutter payload there is a separate
 problem with separate tooling — see `static-web-hosting.md`.
 
 **Cross-refs.** Phasing lives in `static-html-site-build-plan.md`; the deploy
-path in `static-web-hosting.md`; **all page-count figures in
-`reading-units-and-grouping.md`**, which owns them. Where an item below is also
+path in `static-web-hosting.md`; **all corpus counts in
+`static_site_generator/CORPUS_FIGURES.md`**, generated, with the rule behind them
+in `reading-units-and-grouping.md`. Where an item below is also
 named in the build plan, the build plan owns the schedule and this doc owns the
 reasoning. Don't restate a decision in both.
 
@@ -24,6 +25,13 @@ reasoning. Don't restate a decision in both.
 ## Measured state — 2026-08-15
 
 One place, so no item below has to carry its own copy.
+
+> ⚠ **This whole section, and every `× 14,752` total derived from it, describes
+> the build as it stood on 2026-08-15 — before the split rule regrouped the
+> corpus.** It is kept as the measurement it was, not corrected in place: the
+> per-page figures are still right, and the totals scale with the live page count
+> (`FIGURES.realPages`), which is smaller. Re-measure on a full build before
+> acting on a byte total.
 
 ```
 build/                      425 MB
@@ -49,8 +57,8 @@ Missing at this date: `404.html`, `sitemap.xml`, `robots.txt`,
 
 ⚠ **Correction on the merge.** `reduce-bundle-size.md` measured 394 MB and
 `site.css` at 12,578 B against the 2026-08-09 build. **P4's search dialog added
-~31 MB** — 2.2 MB of search index plus a script tag and dialog markup on all
-14,752 pages. Both figures above are current.
+~31 MB** — 2.2 MB of search index plus a script tag and dialog markup on every
+page. Both figures above are current as of that build.
 
 ## Two different "sizes" — don't conflate them
 
@@ -63,8 +71,8 @@ Every size item moves exactly one of these, and they have different stakes:
 
 The site's stated audience — slow connections, crawlers — is served by the wire
 number, and that number is already good. **Build size is a deploy problem, not a
-user problem.** It matters because a shared-chrome edit invalidates all 14,752
-content hashes and forces a full push, which is where the deploys documented in
+user problem.** It matters because a shared-chrome edit invalidates every page's
+content hash and forces a full push, which is where the deploys documented in
 `static-web-hosting.md` fail.
 
 Optimising for build size at the cost of wire size would be backwards. Nothing
@@ -82,7 +90,7 @@ free.
   page carries one `<link rel="stylesheet">` and nothing else. Inline CSS is not
   a lever here because there is none.
 - **Zero inline JS.** ⚠ *Both source docs claimed "zero JS" outright; that is no
-  longer true.* All 14,752 pages now carry a `<script src>` for the search
+  longer true.* Every page now carries a `<script src>` for the search
   dialog. What survives is the stronger property: **no inline script, no inline
   event handlers, no `eval`** — `site.js` builds result rows with
   `createElement`/`textContent`. That is what keeps the strict CSP in Part C
@@ -120,7 +128,8 @@ Without one it falls back to `index.html`, so — as observed on 2026-08-03 —
 `<link rel="canonical" href="/">`. Google classifies that as a **soft 404**, and
 the canonical tag actively tells it these are all the same page.
 
-At 16,356 addresses the surface for typo'd and stale inbound links is large, and
+Across `FIGURES.pagesWithStubs` addresses the surface for typo'd and stale
+inbound links is large, and
 soft 404s spend crawl budget and get logged as quality problems against the whole
 site. This is the worst item on the list and the cheapest to fix.
 
@@ -278,7 +287,7 @@ Build-size gain is trivial; **first-paint gain is ~40 KB**, the largest availabl
 
 ## B2. Move the toolbar SVG icons into the stylesheet — ~8 MB
 
-Three icons are emitted verbatim into all 14,752 pages:
+Three icons are emitted verbatim into every page:
 
 - the up-arrow — `render/site_chrome.dart:181` (`_upGlyph`)
 - side-by-side and stacked layout marks — `render/reading_layouts.dart:71,77`,
@@ -368,8 +377,8 @@ No action proposed; recorded so it is not rediscovered as a regression.
 
 Brotli compresses by pointing back at repeats it has already seen, and **its
 memory covers one response**. Every page is compressed from a blank slate, so
-the `<head>`, toolbar, pager and search dialog are spelled out in full 14,752
-times — even though the reader downloaded all of them on the previous page.
+the `<head>`, toolbar, pager and search dialog are spelled out in full on every
+page — even though the reader downloaded all of them on the previous one.
 
 Measured by handing the compressor a sibling page first: `br(A+B) − br(A)`
 against `br(B)`, over 150 random pages, `A` a real page from the build.
@@ -559,7 +568,7 @@ bytes: no URL moves, and no page re-uploads because of the change.
 3. **A3 `robots.txt` + `sitemap.xml`** — discovery for 16K addresses.
 4. **A2 `<meta name="description">`** — the click-through lever.
 5. **B2 SVG icons → CSS** and **B1 re-cut the emblem** — *in one deploy.* Each is
-   a shared-chrome edit that invalidates all 14,752 hashes; shipping them
+   a shared-chrome edit that invalidates every page's hash; shipping them
    separately pays the full push twice. Together: ~8 MB off the build, ~575 B off
    every page, ~40 KB off first paint.
 6. **A4 absolute canonical** — cheap now that the domain is settled.

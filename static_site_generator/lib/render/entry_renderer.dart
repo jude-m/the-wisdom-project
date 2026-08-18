@@ -71,13 +71,14 @@ class EntryRenderer {
   ///   `text_entry_widget.dart` styles `markedRanges` with nothing but
   ///   `FontWeight.bold`, and `markedRanges` is fed from `boldRanges` — so the
   ///   app strips `__` and shows the text unstyled. Emitting `<u>` here would
-  ///   underline 268 spans across 74 files that the app leaves plain, which is
-  ///   the drift the shared-surface rule exists to prevent. No text is lost
-  ///   either way; only the styling differs. Revisit **together with the app**,
-  ///   not on this side alone.
+  ///   underline spans that the app leaves plain, which is the drift the
+  ///   shared-surface rule exists to prevent. No text is lost either way; only
+  ///   the styling differs. Revisit **together with the app**, not on this side
+  ///   alone.
   /// - **Footnote references are dropped in this phase** (D3): the app renders
   ///   zero footnotes today, they need per-printed-page numbering, and
-  ///   half-rendering them now would put an orphan superscript on 30,514 spots.
+  ///   half-rendering them now would put an orphan superscript on every
+  ///   reference in the corpus.
   String renderText(String raw, {required bool isPali}) {
     final buffer = StringBuffer();
     var openBold = false;
@@ -143,7 +144,8 @@ String weldTitle(String title) =>
 ///
 /// Only the touching form goes. The **ligature** ZWJ that follows a hal —
 /// `සූත්‍ර`, rakaransaya and yansaya — is ordinary Sinhala spelling and appears
-/// in 8,536 of the tree's 32,710 names; removing it would misspell them.
+/// in `FIGURES.namesWithLigatureZwj` of the tree's `FIGURES.nodeNames`;
+/// removing it would misspell them.
 ///
 /// **Machine-read strings only** — `<title>`, and OG / JSON-LD when P5 adds
 /// them. A reader searching for a sutta types plain Sinhala, so baked ZWJ in an

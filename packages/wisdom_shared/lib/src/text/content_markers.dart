@@ -6,11 +6,17 @@
 ///
 /// Three markers exist, and only three:
 ///
-/// | Marker            | Meaning                    | Occurrences        |
-/// |-------------------|----------------------------|--------------------|
-/// | `**…**`           | bold / emphasised term     | very common        |
-/// | `__…__`           | underline                  | 268 spans, 74 files|
-/// | `{label}`         | footnote reference         | 30,514             |
+/// | Marker            | Meaning                    | How common          |
+/// |-------------------|----------------------------|---------------------|
+/// | `**…**`           | bold / emphasised term     | very common         |
+/// | `__…__`           | underline                  | rare, and clustered |
+/// | `{label}`         | footnote reference         | common              |
+///
+/// **No corpus counts are written down in this file.**
+/// `static_site_generator/tool/verify_corpus_invariants.dart` walks every entry
+/// and prints them — entries, footnote references, distinct labels, underline
+/// spans — which is the only form of those numbers that cannot go stale. Run it
+/// whenever this grammar is touched; that is what it is for.
 ///
 /// One parser, two renderers: Flutter builds `TextSpan`s from
 /// [parseContentMarkers], the static-site generator emits
@@ -18,14 +24,15 @@
 /// grammar in one pure-Dart place is what stops the two surfaces from drifting.
 ///
 /// **Markers are toggles, not matched delimiters.** `**` flips bold on/off
-/// wherever it appears. That matters because 12 entries in the corpus have an
-/// odd number of `**`; a delimiter-matching parser would either throw or lose
-/// their tail text. A toggle simply leaves the style on to end-of-entry, which
-/// is what the app has always rendered.
+/// wherever it appears. That matters because a handful of corpus entries carry
+/// an odd number of `**`; a delimiter-matching parser would either throw or
+/// lose their tail text. A toggle simply leaves the style on to end-of-entry,
+/// which is what the app has always rendered.
 ///
-/// Bold and underline nest (23 bold spans contain `__`, 6 underline spans
-/// contain `**`) but never *interleave* — verified across all 466,127 entries,
-/// so two independent toggles are sufficient and no span-repair is needed.
+/// Bold and underline nest — some bold spans contain `__`, and a few underline
+/// spans contain `**` — but they never *interleave*, verified across every
+/// entry in the corpus. So two independent toggles are sufficient and no
+/// span-repair is needed.
 library;
 
 /// A run of entry text sharing one style, or a single footnote reference.
@@ -50,10 +57,10 @@ class ContentSegment {
 
   /// The label inside `{…}`, or null for an ordinary text run.
   ///
-  /// Deliberately a `String`, not an `int`. The corpus footnote labels are
-  /// 29,417 numerics **plus** 1,097 non-numerics: `*` (621), `a`–`o` (441),
-  /// `†` (21), `‡` (2) and `එම` (11). Typing this as `int?` silently discards
-  /// all 1,097.
+  /// Deliberately a `String`, not an `int`. Corpus footnote labels are mostly
+  /// numeric, but a substantial minority are not — `*`, `a`–`o`, `†`, `‡` and
+  /// `එම` all appear. Typing this as `int?` silently discards every one of
+  /// them.
   final String? footnoteLabel;
 
   const ContentSegment({
@@ -147,11 +154,11 @@ abstract final class ContentMarkers {
   ///
   /// Equivalent to the app's historical
   /// `raw.replaceAll('**','').replaceAll('__','').replaceAll(RegExp(r'\{[^}]*\}'),'')`,
-  /// verified character-identical across all 466,127 corpus entries. The
-  /// single pass is also *safer* than chained `replaceAll`s, which can fabricate
-  /// a marker that was not in the source: stripping `**` from `_**_` leaves
-  /// `__`, which the next pass then deletes as an underline. No corpus entry
-  /// currently triggers that, but the walk cannot do it at all.
+  /// verified character-identical across every corpus entry. The single pass is
+  /// also *safer* than chained `replaceAll`s, which can fabricate a marker that
+  /// was not in the source: stripping `**` from `_**_` leaves `__`, which the
+  /// next pass then deletes as an underline. No corpus entry currently triggers
+  /// that, but the walk cannot do it at all.
   static String stripMarkers(String raw) {
     final buffer = StringBuffer();
     _scan(raw, onText: buffer.write);
@@ -166,7 +173,7 @@ abstract final class ContentMarkers {
   /// this is a drop-in for the app's previous `Entry.markedRanges`.
   ///
   /// Empty spans (`****`) are skipped, and a span left open at end-of-entry is
-  /// closed at the end (the 12 odd-`**` entries).
+  /// closed at the end — the odd-`**` entries noted at the top of this file.
   static List<({int start, int end})> boldRanges(String raw) {
     final ranges = <({int start, int end})>[];
     var index = 0; // position in the stripped string

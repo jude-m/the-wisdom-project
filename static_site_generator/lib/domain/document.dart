@@ -6,10 +6,11 @@ import 'content_file.dart';
 /// printed page, aligned by index. A [DocRow] is one index — the unit the
 /// side-by-side and stacked layouts put in a single grid row.
 ///
-/// Either side can be null. That is not corruption: 1,660 pages (all inside the
-/// 7 `ap-pat*` Paṭṭhāna files) have lists of different lengths, so the tail of
-/// the longer side has no counterpart. Every other file in the corpus pairs
-/// perfectly.
+/// Either side can be null. That is not corruption:
+/// `FIGURES.printedPagesWithUnequalSides` printed pages — all inside the
+/// `ap-pat*` Paṭṭhāna files (`FIGURES.filesWithUnequalSides`) — have lists of
+/// different lengths, so the tail of the longer side has no counterpart. Every
+/// other file in the corpus pairs perfectly.
 class DocRow {
   /// Index into `ContentFile.pages` — the `<page>` half of a `?e=` coordinate.
   final int pageIndex;
@@ -37,15 +38,16 @@ class DocRow {
   ///
   /// This is the unit the grouping lines count in — see `GroupingPolicy`. Raw
   /// rather than stripped, and *combined* rather than Pali alone, because that
-  /// is the convention the locked 1,500 figure was measured under.
+  /// is the convention `shortLineChars` was locked under.
   int get rawCharCount =>
       (pali?.text.length ?? 0) + (sinhala?.text.length ?? 0);
 
   /// True when neither side carries text — nothing to render in any phase.
   ///
   /// The guard a renderer wants, and **not** the same as "the Pali side is
-  /// empty": 5,571 rows in the corpus carry Sinhala with an empty Pali
-  /// counterpart, and only one row corpus-wide is empty on both sides.
+  /// empty": `FIGURES.rowsSinhalaWithEmptyPali` rows carry Sinhala with an
+  /// empty Pali counterpart, against `FIGURES.rowsEmptyBothSides` empty on both
+  /// sides.
   bool get isEmpty =>
       (pali?.text.isEmpty ?? true) && (sinhala?.text.isEmpty ?? true);
 }

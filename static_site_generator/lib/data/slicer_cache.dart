@@ -5,8 +5,9 @@ import 'corpus_reader.dart';
 
 /// Hands out [ContentSlicer]s, parsing each content file at most once in a row.
 ///
-/// The corpus is 340 MB across 285 files and the median file is ~1 MB, so
-/// holding every parsed file would cost several gigabytes. It only ever holds
+/// The corpus is `FIGURES.corpusMegabytes` across `FIGURES.contentFiles` files
+/// and the median file is ~1 MB, so holding every parsed file would cost
+/// several gigabytes. It only ever holds
 /// **one**, which is enough: every caller walks the tree in order, and a
 /// content file's nodes are contiguous in that walk. Jumping between files
 /// re-parses, so callers that can group their work by file should.
@@ -37,9 +38,9 @@ class SlicerCache {
 
   /// Files parsed so far — a re-parse of the same file counts again, so a number
   /// far above the number of files the caller actually needs means it is
-  /// thrashing. A whole-corpus render parses 285, one per file; a caller that
-  /// walks the corpus twice pays twice, which is why `plan_corpus.dart` reports
-  /// this only once both of its passes are done.
+  /// thrashing. A whole-corpus render parses `FIGURES.contentFiles`, one per
+  /// file; a caller that walks the corpus twice pays twice, which is why
+  /// `plan_corpus.dart` reports this only once both of its passes are done.
   int parses = 0;
 
   SlicerCache({required this.reader, required this.tree});

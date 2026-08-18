@@ -187,10 +187,10 @@ class _Options {
     }
 
     // Defaults to the whole corpus. The old default was `an-1`, which built a
-    // 110-page fragment with 32 dead අට්ඨකථා links — fine to ask for, wrong to
-    // get by accident, because the way that fails is a deploy that looks like a
-    // finished site. A slow default is recoverable; a silently partial one is
-    // not.
+    // one-book fragment whose අට්ඨකථා links mostly pointed outside it — fine to
+    // ask for, wrong to get by accident, because the way that fails is a deploy
+    // that looks like a finished site. A slow default is recoverable; a
+    // silently partial one is not.
     final raw = values['--root'] ?? _allRoots;
     if (raw == _allRoots) {
       return _Options(
@@ -241,6 +241,6 @@ Roots are walked in the order given, and prev/next chains across them.
 A canon subtree links into its atta-* commentary twin, which is under a
 different root — so build both, or those links 404:
 
-  --root all                 whole corpus, 14,752 pages in ~30s
+  --root all                 whole corpus, ~30s
   --root an-1,atta-an-1      one nikaya section and its commentary
 ''';

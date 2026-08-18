@@ -15,8 +15,8 @@ import 'entry_renderer.dart';
 /// page they are on.
 ///
 /// No romanized (IAST) variant is offered: D4 ships Sinhala-script titles
-/// because `tree.json` carries no Latin text for any of its 16,355 nodes. When
-/// it lands, this function and `PageTemplate`'s title helpers are the places to
+/// because `tree.json` carries no Latin text for any of its nodes. When it
+/// lands, this function and `PageTemplate`'s title helpers are the places to
 /// change.
 ///
 /// **Always the Pali field, never the Sinhala one** (locked 2026-08-03). The
@@ -35,10 +35,12 @@ const String commentaryMarker = 'අට්ඨකථා';
 
 /// Whether [node]'s own name needs the marker appended.
 ///
-/// `endsWith`, not `contains`: 57 nodes are named with the marker upstream
-/// (`atta-dn` "දීඝනිකාය අට්ඨකථා") and would read "… අට්ඨකථා අට්ඨකථා", while
-/// `atta-ap-dhs-5` "අට්ඨකථාකණ්ඩො" is a section *about* the commentary and does
-/// need marking. Public because the search index ships the answer as a column.
+/// `endsWith`, not `contains`: some nodes are named with the marker upstream
+/// (`atta-dn` "දීඝනිකාය අට්ඨකථා") and would read "… අට්ඨකථා අට්ඨකථා" — the gap
+/// between `FIGURES.commentaryNodes` and
+/// `FIGURES.nodesCarryingCommentaryMarker` — while `atta-ap-dhs-5`
+/// "අට්ඨකථාකණ්ඩො" is a section *about* the commentary and does need marking.
+/// Public because the search index ships the answer as a column.
 bool carriesCommentaryMarker(TipitakaNode node) =>
     node.isCommentary &&
     !unweldTitle(node.paliName).trimRight().endsWith(commentaryMarker);
@@ -51,8 +53,8 @@ bool carriesCommentaryMarker(TipitakaNode node) =>
 /// the way to one. Splitting them across files is how the search index came to
 /// ship a third form, unmarked, that no page ever showed.
 ///
-/// The 6,731 `atta-*` pages carry their canon twins' names, so without the
-/// marker the two compete for the same searches (§10).
+/// The `atta-*` pages carry their canon twins' names, so without the marker the
+/// two compete for the same searches (§10).
 ///
 /// Raw text and un-welded, unlike [nodeLabelHtml]: `<title>` takes it as it is
 /// (D2), visible uses weld it first (D1).

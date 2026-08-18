@@ -10,15 +10,15 @@
 /// ## Why a modal and not a page
 ///
 /// A `/search` page would need the index on load, cost a navigation away from
-/// what the reader is reading, and give a crawler a 16,355-row page with no
-/// content on it. The modal is opened from the bar, answers, and gets out of
-/// the way. `showModal()` also brings the focus trap, `::backdrop` and
-/// Esc-to-close that a hand-rolled overlay has to reimplement badly.
+/// what the reader is reading, and give a crawler a page of `FIGURES.treeNodes`
+/// rows with no content on it. The modal is opened from the bar, answers, and
+/// gets out of the way. `showModal()` also brings the focus trap, `::backdrop`
+/// and Esc-to-close that a hand-rolled overlay has to reimplement badly.
 ///
 /// ## The trigger ships `hidden`
 ///
 /// Everything else on this site works with JavaScript off (C8). This does not
-/// — there is no way to search 16,355 names without running code — so the
+/// — there is no way to search that many names without running code — so the
 /// control is emitted hidden and `site.js` unhides it. A reader with no JS
 /// sees no button rather than a button that does nothing, and the markup stays
 /// deterministic instead of being injected from a string at runtime.
@@ -49,7 +49,7 @@ const String searchCloseLabel = 'වසන්න';
 /// Shown while the index is in flight.
 ///
 /// The app's `loading` (`app_si.arb:22`). It earns its place here in a way it
-/// does not in the app: this fetch is 254 KB gzipped over whatever connection
+/// does not in the app: the index is a real download over whatever connection
 /// the reader has, and a modal that opens to an empty list reads as a broken
 /// modal rather than a busy one.
 const String searchLoading = 'පූරණය වෙමින්...';
@@ -106,7 +106,8 @@ String searchTrigger() =>
 /// The modal itself, emitted at the end of every page's body.
 ///
 /// Empty of results by design: nothing here is server-rendered, so the markup
-/// is identical on all 14,753 pages and compresses to nothing after the first.
+/// is identical on every page (`FIGURES.realPages`) and compresses to nothing
+/// after the first.
 ///
 /// `<ul>` and not a bare list of anchors — a screen reader announces "list, N
 /// items", which is the count a searcher wants and the one thing this markup
