@@ -134,11 +134,9 @@ class GroupingPlanner {
 
   /// Whether one leaf is short enough to share a page with its neighbours.
   ///
-  /// The line is per *leaf*, not per container: [LeafPolicy.ownPage] is never
-  /// short at any size, and the two lines differ by a factor of ten.
-  bool _isShort(TipitakaNode leaf, ContentSlicer slicer) {
-    final line = GroupingPolicy.lineFor(leaf);
-    if (line == null) return false;
-    return slicer.sliceFor(leaf.nodeKey).rawCharCount < line;
-  }
+  /// The question is per *leaf*, not per container: [LeafPolicy.ownPage] is
+  /// never short at any size, [LeafPolicy.grouped] always is, and the two
+  /// measured lines differ by a factor of ten.
+  bool _isShort(TipitakaNode leaf, ContentSlicer slicer) =>
+      GroupingPolicy.isShort(leaf, slicer.sliceFor(leaf.nodeKey).rawCharCount);
 }

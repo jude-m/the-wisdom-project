@@ -22,6 +22,7 @@
 > | **S3** | stale-figure sweep, rebuild, re-measure (Part 3 steps 9–10) | **shipped 2026-08-18/19** — the deploy is deliberately not run |
 > | **S4** | container preambles that are introductions join the reading chain — `preamble_planner.dart`, `textBearingContainerKeys` (Part 1, "A container that opens with an introduction") | **shipped 2026-08-19** |
 > | **S5** | correct the trailing-colophon coordinates upstream got wrong — `slice_alignment.dart`, `coordinate_planner.dart`, `correctedTreeCoordinates` (B5) | **shipped 2026-08-19** |
+> | **S6** | the sekhiya is grouped outright — `LeafPolicy.grouped`, `keyPolicies` (Part 1, "One section is grouped outright") | **shipped 2026-08-19** |
 >
 > **S1 verified 2026-08-17.** A third independent implementation of the rule reproduced every figure in this document on its first run: 10,298 real pages (7,687 / 1,221 = 615 + 606 / 1,389), 6,058 folded, 16,356 with stubs, 738 thin of which 340 promoted, biggest chapter 103,153 chars on `atta-mn-1-1-4` and exactly one over 100k, all ten subtree rows, and the Impact derivation closing on both moving rows. `sn-2-1-10-3` carries the seven sections listed below. The index-0 invariant holds at 615 containers with none violating it. **Four things changed against the plan as written**, all deletions: `GroupingVerdict`/`GroupingReason` are gone rather than shrunk (nothing per-container survives to describe); `--policy-diff` is not built (the snapshot's git diff is that review, done once); the review CSV is retired (same reason); and the leaf→URL map is `SitePlan.urlFor` rather than a `Map` threaded through three call sites. `grouping_classifier.dart` → `grouping_planner.dart`, `tool/classify_corpus.dart` → `tool/plan_corpus.dart`.
 >
@@ -36,6 +37,8 @@
 > **S3 verified 2026-08-19**, against the build on disk. The stale-figure sweep became one generated file rather than six hand-fixes (`CORPUS_FIGURES.md`, Part 3 step 9), so the counts below are cited by name everywhere and typed nowhere. `--check` is green — integrity ok, no violations — and the built tree holds 10,297 files under `/tipitaka/` plus `/`, which is `FIGURES.realPages` exactly. All four checks the plan left open pass: `kn-khp` keeps its nine texts as their own files (10 files with the container); `kn-iti` writes 112 poem files with **0** folds and `kn-thag` 264 leaves with **7** folded — precisely its seven lone-child containers, confirming the corrected 7 against an earlier draft's 16; `anya-vm-2`'s introduction appears on its own TOC page and on no other file in the corpus; and 2,754 of 7,472 අට්ඨකථා cross-links carry a `#fragment`, matching `FIGURES.commentaryTwinsFolded` and `FIGURES.pagesWithCommentaryLink`, with the target `id` present on the chapter page. All ten subtree rows of the Impact table reproduce file-for-file on the build. **Only the deploy is outstanding**, by instruction.
 >
 > **S5 verified 2026-08-19.** The whole `vp-pct-1-3-*` sekhiya block — seven vaggas, `FIGURES.correctedCoordinates` rules — was one unit out: the page titled *first training rule* served the second, the first rule's body sat unlabelled in the vagga's preamble, and the last rule of each vagga rendered as a title over an empty page. `FIGURES.misalignedSlices` is now 0 — colophons and stray dividers both — verified by re-running the detector against the corrected tree, and `vp-pct-1-3-1-1` was read page-for-page against BJT. **The correction re-measures both frozen sets**, because both were frozen against the wrong text: `foldedLeafKeys` moves 10 URLs (4 leaves fold, 6 explode, all inside `vp-pct-1-3-*`, all because a rule's character count is now its own rule's), and `textBearingContainerKeys` loses the seven vaggas whose preamble was only ever a swallowed body. Real pages 10,298 → **10,300**, folded 6,058 → **6,056**, text-bearing containers 110 → **103**, readable container TOCs 65 → **62**. `pagesWithStubs` is unmoved at 16,356, as it must be. Every figure in this document below this line was measured *before* the correction unless it cites `CORPUS_FIGURES.md` by name.
+>
+> **S6 verified 2026-08-19.** `--write-snapshot` moved exactly 15 URLs, all of them `vp-pct-1-3-*`, and `textBearingContainerKeys` did not move at all (+0 / −0) — the sekhiya vaggas' preambles were already just their titles after S5. All seven vaggas are now whole-vagga chapters at their own URLs; `--check` is green; `FIGURES.pagesWithStubs` is unmoved at 16,356, as it must be. The corpus-wide sweep that scoped this exception is recorded in Part 1 under "One section is grouped outright".
 >
 > **History.** Merged 2026-08-15 from `unified-reading-units-plan.md` (decided 2026-07-29, reworked 2026-08-09 when the hand-override map was dropped for a frozen snapshot) and `collapse-single-leaf-containers-and-small-vaggas.md` (measured 2026-08-14/15). **Rewritten 2026-08-16**: the three per-container rules (a)(b)(c) are replaced by one per-leaf split rule. The audit that prompted it found five errors in (c)'s sizing table and measured that no per-container rule could reach the problem it was aimed at — 2,776 sutta pages under 1,500 characters would have survived all three. **Settled 2026-08-17** after an independent re-measurement reproduced the rewrite's every figure: `atta-kn-dhp` joins the commentary carve-out, and the minor-KN reading books are promoted outright. **Reviewed and re-settled the same day** against a second, independently written implementation of the rule over the whole corpus, which reproduced every page count, the subtree table and the reconstruction identity exactly. Four things changed as a result: `kn-thag` and `kn-thig` join the promoted books (the canon side was folding 216 of 264 theras and 62 of 73 therīs while their commentaries kept every page); the two preconditions every measurement had silently carried are written into the rule itself; `_commentaryLink` is added to the list of renderers needing the folded-leaf resolver; and two Dhammapada support figures are corrected. Every figure in this document is measured under that final configuration.
 
@@ -167,7 +170,7 @@ This is the property the old rule could not give at any threshold, and it is why
 
 ## Six books are promoted outright — the leaf *is* the work
 
-**`kn-khp`, `kn-snp`, `kn-ud`, `kn-iti`, `kn-thag`, `kn-thig` take `LeafPolicy.ownPage` in the book table (Part 3 step 2) — no leaf under them folds against its siblings.** Decided 2026-08-17: in these six books a leaf is not a section of a longer text, it is a complete named work — a chanted text, a named udāna, a named elder's poem. That is a structural property a size threshold cannot see, and unlike "fame" it can be checked. Under the plain line the rule would have folded **314** of them:
+**`kn-khp`, `kn-snp`, `kn-ud`, `kn-iti`, `kn-thag`, `kn-thig` take `LeafPolicy.ownPage` in the key table (Part 3 step 2) — no leaf under them folds against its siblings.** Decided 2026-08-17: in these six books a leaf is not a section of a longer text, it is a complete named work — a chanted text, a named udāna, a named elder's poem. That is a structural property a size threshold cannot see, and unlike "fame" it can be checked. Under the plain line the rule would have folded **314** of them:
 
 | book | leaves | would fold | median of those | what it is |
 |---|---:|---:|---:|---|
@@ -187,6 +190,36 @@ Cost: **+262 real pages**. **340 of the 738** sub-1,500 sutta pages in the heade
 **The list is closed and lives in the one book-policy table**, an input to `--write-snapshot` regeneration — never a hand edit of the generated file, so the snapshot stays fully re-derivable. It grows only by a decision recorded here, never by measurement. (This is not the rejected hand-override map returning: that bolted human exceptions onto a live build-time rule, leaving everything unlisted exposed to drift. Here the rule is frozen either way; the promotion list is part of the rule's definition, not a patch over its output.)
 
 **Measured cost of the promotions not taken**, so the next one is a lookup rather than a re-measurement: `kn-vv` (85 leaves), `kn-bv` (29) and `kn-dhp` (26) fold nothing today and cost **0 pages** — promoting them buys only stability against a future resync. `kn-pv` costs 7 and `kn-cp` 5. Deliberately excluded: `kn-jat` (canon is bare gāthās; the stories live in the carved-out `atta-kn-jat`), `kn-ap` (601 formulaic apadāna verses), and `kn-mn` / `kn-nc` / `kn-ps` / `kn-nett` / `kn-petk`, which are treatises built of sections rather than collections of named works.
+
+## One section is grouped outright — the leaf is a *line of a code*
+
+**`vp-pct-1-3` — the සෙඛියකණ්ඩො — takes `LeafPolicy.grouped` in the key table: every leaf under it folds against its siblings, whatever it measures.** Decided 2026-08-19, and it is the exact mirror of the promotions above. There a leaf is a complete named work and no size threshold can see it; here a leaf is one line of a numbered code, and the size *differences between the lines* are printing conventions rather than differences in what a leaf is.
+
+BJT prints the sekhiya frame in full for the first rule of the section and elides it with `-පෙ-` thereafter, and appends the uddāna to the last rule of a vagga. So the rules that cross 1,500 characters are the ones that happen to carry the frame:
+
+| leaf | chars | why it is long |
+|---|---:|---|
+| `vp-pct-1-3-1-1` | 2,548 | the unabridged nidāna — first rule of the whole section |
+| `vp-pct-1-3-7-15` | 7,961 | the last rule, carrying the section's closing uddāna |
+| median sekhiya leaf | ~890 | the rule itself, one sentence |
+
+That is a measurement of BJT's typesetting, not of the text, and it was splitting four of the seven vaggas into a TOC plus a mixture of one-rule pages and part-vagga chapters. **The 1,500 line's whole job is unreachable here.** It exists as an SEO guard — one substantial sutta in a vagga must keep its own rankable page — and every sekhiya leaf is named for its position and nothing else: පඨමසික්ඛාපදං, දුතියසික්ඛාපදං … පණ්ණරසමසික්ඛාපදං, the same ten or fifteen names repeated in all seven vaggas. Nobody searches those, and a vagga TOC listing two of them, one of which silently holds nine rules, is worse navigation than the chapter it replaced.
+
+Cost: **−15 real pages**, from 22 sekhiya pages to 7. Four container TOCs become whole-vagga chapters; the largest is පාදුකවග්ගො at 23,810 characters, well inside the corpus's existing chapter range.
+
+### The sweep that kept this to one entry
+
+The exception is one key because the corpus was swept for the shape before it was written, 2026-08-19: every container the two preconditions admit, whose sibling titles differ only by an ordinal or a number, and which the rule splits or fully explodes. **53 containers match, in two families, and only the sekhiya belongs here.**
+
+| family | containers | median leaf | verdict |
+|---|---:|---:|---|
+| **sekhiya** — `vp-pct-1-3-1/4/6/7` | 4 | 848–936 | **grouped** |
+| bhikkhunī vibhaṅga & pārājika — `vp-pct-2-*`, `vp-prj-4` | 11 | 2,795–13,932 | left alone |
+| unnamed leaves — `an-2-*`, `an-3-*`, `kn-mn`, `kn-nc`, `kn-nett`, `atta-an-2-1-*`, `atta-kn-mn` | 38 | 1,335–48,561 | left alone |
+
+The median leaf is what separates them, but it is not the argument — it is the symptom. In the other two families the long leaves are long because they *are* longer texts: a bhikkhunī sikkhāpada is a full rule with its own origin story, and an AN vagga interleaving one 8,000-character sutta with nine short ones is precisely the case the per-leaf split rule was built for ("Why per-leaf, and not per-container"). Folding those would bury real content behind pages of 30,000–270,000 characters. Only in the sekhiya is every leaf the same kind of thing.
+
+**The 38 unnamed-leaf containers are a separate defect and are not this one.** Upstream gives those leaves no title at all — `3. 1. 1. 1`, `14. 2` — so their pages carry an unrankable `<title>` and their TOCs an unrankable link, exactly the way the sekhiya's ordinals do. Grouping cannot fix it (`an-3-2-2` alone would be a 140,098-character page) and neither can this table; it is a *labelling* question, logged in the backlog, and it touches AN 2 and 3, both Niddesas and the Nettippakaraṇa.
 
 ## The commentary line: 15,000, except four books
 
@@ -550,14 +583,14 @@ Unlike the per-container rules this replaces, the split rule is **not** a pure c
 
 2. ✅ **S1 — `domain/grouping_classifier.dart` → `domain/grouping_planner.dart`, a page planner.** Its unit changed from the container to the leaf, so the file was rewritten rather than patched:
    - `minLeaves` and `maxVaggaChars` are gone; the lines and the run length live in `GroupingPolicy` — `shortLineChars` (1,500), `longLineChars` (15,000), `minRunLength` (2). Named for their *size*, not for canon and commentary: those are only the defaults, and four commentary books sit on the short line by decision.
-   - **Every per-book exception lives in one table**, in a new `domain/grouping_policy.dart`. The carve-out and the promoted books are the same kind of statement — *this book is treated differently* — and splitting them across two constants means two places to look and two places to forget:
+   - **Every exception lives in one table**, in a new `domain/grouping_policy.dart`. The carve-out, the promoted books and the grouped section are the same kind of statement — *this part of the corpus is treated differently* — and splitting them across separate constants means separate places to look and separate places to forget:
 
      ```dart
-     enum LeafPolicy { ownPage, shortLine, longLine }
+     enum LeafPolicy { ownPage, grouped, shortLine, longLine }
 
      /// THE table. Longest matching key prefix wins; anything unlisted
      /// defaults to shortLine for canon and longLine for commentary.
-     const Map<String, LeafPolicy> bookPolicies = {
+     const Map<String, LeafPolicy> keyPolicies = {
        'kn-khp': LeafPolicy.ownPage,  'kn-snp': LeafPolicy.ownPage,
        'kn-ud': LeafPolicy.ownPage,   'kn-iti': LeafPolicy.ownPage,
        'kn-thag': LeafPolicy.ownPage, 'kn-thig': LeafPolicy.ownPage,
@@ -565,10 +598,13 @@ Unlike the per-container rules this replaces, the split rule is **not** a pure c
        'atta-kn-thag': LeafPolicy.shortLine,
        'atta-kn-thig': LeafPolicy.shortLine,
        'atta-kn-dhp': LeafPolicy.shortLine,
+       'vp-pct-1-3': LeafPolicy.grouped,
      };
      ```
 
-     Adding or removing a book is then one line plus `--write-snapshot`. Exploding Buddhavaṃsa, for instance, is `'kn-bv': LeafPolicy.ownPage` and costs 0 pages today; the measured costs of the other candidates are recorded in Part 1 under "Six books are promoted outright". Longest-prefix matching is what lets a single vagga be overridden later without a second mechanism appearing to do it. **Matching is on key segments, not characters** — `kn-ud` claims `kn-ud-1-3` and must never claim a future `kn-udx`, which a bare `startsWith` would, silently and only once upstream adds the book.
+     Adding or removing an entry is then one line plus `--write-snapshot`. Exploding Buddhavaṃsa, for instance, is `'kn-bv': LeafPolicy.ownPage` and costs 0 pages today; the measured costs of the other candidates are recorded in Part 1 under "Six books are promoted outright". Longest-prefix matching is what lets a single vagga be overridden without a second mechanism appearing to do it, and the sekhiya entry (S6) is the first to use it — which is why the table is `keyPolicies` and not `bookPolicies`: a name saying *book* over a key three levels below one reads as a mistake rather than as the feature it is. **Matching is on key segments, not characters** — `kn-ud` claims `kn-ud-1-3` and must never claim a future `kn-udx`, which a bare `startsWith` would, silently and only once upstream adds the book.
+
+     **`GroupingPolicy.isShort(node, chars)` is where a policy becomes a yes/no**, and the only place it does. It replaced a nullable `lineFor`, which handed each caller a line plus the convention that `null` means *promoted, never measured* — workable at two callers and wrong at three, since `grouped` is the second policy that never looks at the character count and would have needed a second sentinel. Two of the four values ignore `chars` entirely; a "line" is simply not a thing every leaf has.
    - The output is one flat set of folded leaf keys, not a per-container boolean. **`GroupingVerdict` and `GroupingReason` are deleted, not shrunk**: nothing per-container survives for them to describe, and the artifact they existed to make reviewable — a committed `grouping.json` — is exactly what the snapshot's git diff replaces.
    - **The two preconditions survive as container-level gates**, ahead of the per-leaf walk: every child a leaf, all in one content file. The corpus figures are only reachable with both applied.
    - The class header keeps its first clause and loses the rest, and **the paragraph rejecting per-leaf splitting is deleted**; Part 1 records why that reasoning was retired, and leaving it beside the opposite implementation is the failure mode this document exists to avoid.

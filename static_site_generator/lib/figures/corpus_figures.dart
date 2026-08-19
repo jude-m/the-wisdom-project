@@ -31,7 +31,7 @@
 /// ## What is deliberately absent
 ///
 /// - **Thresholds and policy.** `GroupingPolicy.shortLineChars`,
-///   `longLineChars`, `minRunLength` and `bookPolicies` are *inputs*, argued in
+///   `longLineChars`, `minRunLength` and `keyPolicies` are *inputs*, argued in
 ///   the plan doc and cited by name already. A figure is an output.
 /// - **Layout arithmetic.** The px and rem in `stylesheet.dart` are design
 ///   math, bound to the rule they justify, and no re-sync moves them.
@@ -268,13 +268,14 @@ List<FigureGroup> computeCorpusFigures({
         if (page.suttas.length == 1) {
           loneChildChapters++;
           final leaf = page.suttas.first;
-          final line = GroupingPolicy.lineFor(leaf);
           final chars = charsOf[leaf.nodeKey] ?? 0;
           // "The merge outranks both the size line and promotion" — so the
           // interesting count is leaves the rule would *not* have folded on
           // their own: at or above their line, or promoted and never measured
-          // at all. A null line is the promoted case.
-          if (line == null || chars >= line) loneChildChaptersNotFoldedOnSize++;
+          // at all. `isShort` is false in exactly those two cases.
+          if (!GroupingPolicy.isShort(leaf, chars)) {
+            loneChildChaptersNotFoldedOnSize++;
+          }
           if (largestLoneChild == null || chars > largestLoneChild.chars) {
             largestLoneChild = (key: leaf.nodeKey, chars: chars);
           }

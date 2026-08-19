@@ -11,6 +11,18 @@ enum LeafPolicy {
   /// leaf *is* a complete named work rather than a section of a longer text.
   ownPage,
 
+  /// Always short enough to fold, whatever its size. The mirror of [ownPage],
+  /// and for the mirror reason: where every leaf is one line of a numbered
+  /// code, the size differences between them are printing conventions rather
+  /// than differences in what a leaf *is*.
+  ///
+  /// It settles the size question and not the whole rule — the container's two
+  /// preconditions and [GroupingPolicy.minRunLength] still apply, so a lone
+  /// grouped leaf between two long siblings would keep its own page. Out of
+  /// reach while an entry covers a whole container, as `vp-pct-1-3` does;
+  /// worth re-reading before one does not.
+  grouped,
+
   /// [GroupingPolicy.shortLineChars] — the default for canon.
   shortLine,
 
@@ -18,12 +30,12 @@ enum LeafPolicy {
   longLine,
 }
 
-/// The per-book exceptions to the split rule, and the lines they select.
+/// The per-key exceptions to the split rule, and the lines they select.
 ///
-/// **One table, not two lists.** The promoted books and the commentary
-/// carve-out are the same kind of statement — *this book is treated
-/// differently* — and splitting them across two constants means two places to
-/// look and two places to forget.
+/// **One table, not three lists.** The promoted books, the commentary carve-out
+/// and the grouped section are the same kind of statement — *this part of the
+/// corpus is treated differently* — and splitting them across separate
+/// constants means three places to look and three places to forget.
 ///
 /// The table is closed. It grows only by a decision recorded in
 /// `docs/todo/web-strategy/reading-units-and-grouping.md`, never by
@@ -72,11 +84,16 @@ class GroupingPolicy {
   /// the mirror case: their children are distinct named people and named
   /// stories, so the long line would fold them wholesale.
   ///
-  /// Adding or removing a book is one line plus `--write-snapshot`. Exploding
+  /// **Keyed by prefix, not by book**, which is why the sekhiya entry can name
+  /// a section three levels down. Longest-prefix matching always allowed that;
+  /// `vp-pct-1-3` is the first entry to use it, and the name says `key` rather
+  /// than `book` so the narrower entry does not read as a mistake.
+  ///
+  /// Adding or removing an entry is one line plus `--write-snapshot`. Exploding
   /// Buddhavaṃsa, for instance, is `'kn-bv': LeafPolicy.ownPage` and costs 0
   /// pages today; the measured costs of the other candidates are recorded in
   /// the plan doc.
-  static const Map<String, LeafPolicy> bookPolicies = {
+  static const Map<String, LeafPolicy> keyPolicies = {
     // Promoted: the leaf IS the work.
     'kn-khp': LeafPolicy.ownPage,
     'kn-snp': LeafPolicy.ownPage,
@@ -89,6 +106,10 @@ class GroupingPolicy {
     'atta-kn-thag': LeafPolicy.shortLine,
     'atta-kn-thig': LeafPolicy.shortLine,
     'atta-kn-dhp': LeafPolicy.shortLine,
+    // Grouped: the leaf is one line of a numbered code, and every leaf under
+    // it is named for its position (පඨමසික්ඛාපදං … පණ්ණරසමසික්ඛාපදං) and
+    // nothing else.
+    'vp-pct-1-3': LeafPolicy.grouped,
   };
 
   /// The policy for one leaf.
@@ -99,7 +120,7 @@ class GroupingPolicy {
   static LeafPolicy policyFor(TipitakaNode node) {
     LeafPolicy? best;
     var bestLength = -1;
-    for (final entry in bookPolicies.entries) {
+    for (final entry in keyPolicies.entries) {
       final prefix = entry.key;
       final matches = node.nodeKey == prefix ||
           node.nodeKey.startsWith('$prefix-') ||
@@ -116,11 +137,19 @@ class GroupingPolicy {
     return node.isCommentary ? LeafPolicy.longLine : LeafPolicy.shortLine;
   }
 
-  /// The character line [policyFor] selects, or null when the leaf is promoted
-  /// and therefore never measured.
-  static int? lineFor(TipitakaNode node) => switch (policyFor(node)) {
-        LeafPolicy.ownPage => null,
-        LeafPolicy.shortLine => shortLineChars,
-        LeafPolicy.longLine => longLineChars,
+  /// Whether a leaf of [chars] characters is short enough to share a page with
+  /// its siblings.
+  ///
+  /// **The one place a policy becomes a yes/no**, rather than each caller
+  /// pairing a nullable line with its own reading of what a null means. Two of
+  /// the four policies never look at [chars] at all, so a "line" is not a thing
+  /// every leaf has — which is what the nullable `lineFor` this replaces was
+  /// quietly asking every caller to remember.
+  static bool isShort(TipitakaNode node, int chars) =>
+      switch (policyFor(node)) {
+        LeafPolicy.ownPage => false,
+        LeafPolicy.grouped => true,
+        LeafPolicy.shortLine => chars < shortLineChars,
+        LeafPolicy.longLine => chars < longLineChars,
       };
 }

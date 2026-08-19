@@ -251,6 +251,28 @@ most-used weight would pull that forward. Only the primary weight — preloading
 fonts a page never uses is a net loss. Worth measuring before and after rather
 than assuming.
 
+## A10. 38 containers whose leaves upstream never named
+
+Found by the corpus sweep that scoped S6 (`reading-units-and-grouping.md`, Part 1,
+"One section is grouped outright"). In 38 containers `tree.json` gives every leaf a
+title that is only its position in the numbering — `3. 1. 1. 1`, `14. 2`, `1 - 3` —
+so the page's `<title>`, its `<h1>` and every TOC link to it carry no words at all.
+Site-wide the link label is always the tree's Pali field, so there is nowhere else
+for a name to come from.
+
+Where: AN 2 and AN 3 (19 containers), Mahāniddesa `kn-mn` (7), Cūḷaniddesa `kn-nc`
+(7), `kn-nett-3-4`, `atta-an-2-1-2`, `atta-an-2-1-4`, `atta-kn-mn-1`, `atta-kn-mn-3`.
+
+**Grouping is not the fix and this is not S6.** The sekhiya had the same unrankable
+names *and* leaves small enough that one chapter page is the better reading unit;
+these hold real texts — `an-3-2-2` would be a 140,098-character page and
+`atta-kn-mn-1` a 271,895-character one. What is needed is a *label*, and the parents
+mostly already have one worth deriving from (`තුවටකසුත්තනිද්දෙසො § 14. 2`). Any
+such derivation is display-only: it must not touch `foldedLeafKeys`, and the tree's
+own field stays the source of truth for the `#fragment` id.
+
+Sized but unscoped — decide the derivation before estimating it.
+
 ## Not worth doing
 
 - **Shortening `/tipitaka/` in the URL.** Words in the URL are a very small

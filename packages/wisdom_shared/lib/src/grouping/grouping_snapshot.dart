@@ -3,14 +3,14 @@
 // change the rule (`static_site_generator/lib/domain/grouping_policy.dart`)
 // and regenerate instead.
 
-/// Every leaf that does **not** get its own page — 6,056 of them, frozen
+/// Every leaf that does **not** get its own page — 6,071 of them, frozen
 /// from one full-corpus run of the split rule.
 ///
 /// **A leaf absent from this set owns its URL.** That is the safe direction:
 /// new content self-handles, a wrong explode costs one thin page, and only a
 /// wrong fold could hide a named text behind a fragment.
 ///
-/// Nothing re-measures the rule. `SitePlan.build` reconstructs all 8,971
+/// Nothing re-measures the rule. `SitePlan.build` reconstructs all 8,960
 /// readable pages from this set alone, so a re-sync of `assets/` may change
 /// what a page *says* and never which pages *exist*. Regenerating is the
 /// supported way to move a line, and the git diff of this file is the impact
@@ -34,6 +34,8 @@ const Set<String> foldedLeafKeys = {
   'vp-prj-3-3-1',
   'vp-prj-3-4-1',
   'vp-prj-3-5-1',
+  'vp-pct-1-3-1-1',
+  'vp-pct-1-3-1-2',
   'vp-pct-1-3-1-3',
   'vp-pct-1-3-1-4',
   'vp-pct-1-3-1-5',
@@ -62,11 +64,14 @@ const Set<String> foldedLeafKeys = {
   'vp-pct-1-3-3-8',
   'vp-pct-1-3-3-9',
   'vp-pct-1-3-3-10',
+  'vp-pct-1-3-4-1',
   'vp-pct-1-3-4-2',
   'vp-pct-1-3-4-3',
   'vp-pct-1-3-4-4',
   'vp-pct-1-3-4-5',
   'vp-pct-1-3-4-6',
+  'vp-pct-1-3-4-7',
+  'vp-pct-1-3-4-8',
   'vp-pct-1-3-4-9',
   'vp-pct-1-3-4-10',
   'vp-pct-1-3-5-1',
@@ -79,10 +84,17 @@ const Set<String> foldedLeafKeys = {
   'vp-pct-1-3-5-8',
   'vp-pct-1-3-5-9',
   'vp-pct-1-3-5-10',
+  'vp-pct-1-3-6-1',
+  'vp-pct-1-3-6-2',
   'vp-pct-1-3-6-3',
   'vp-pct-1-3-6-4',
+  'vp-pct-1-3-6-5',
+  'vp-pct-1-3-6-6',
+  'vp-pct-1-3-6-7',
+  'vp-pct-1-3-6-8',
   'vp-pct-1-3-6-9',
   'vp-pct-1-3-6-10',
+  'vp-pct-1-3-7-1',
   'vp-pct-1-3-7-2',
   'vp-pct-1-3-7-3',
   'vp-pct-1-3-7-4',
@@ -90,10 +102,13 @@ const Set<String> foldedLeafKeys = {
   'vp-pct-1-3-7-6',
   'vp-pct-1-3-7-7',
   'vp-pct-1-3-7-8',
+  'vp-pct-1-3-7-9',
+  'vp-pct-1-3-7-10',
   'vp-pct-1-3-7-11',
   'vp-pct-1-3-7-12',
   'vp-pct-1-3-7-13',
   'vp-pct-1-3-7-14',
+  'vp-pct-1-3-7-15',
   'vp-pv-3-3',
   'vp-pv-3-7',
   'vp-pv-3-8',
