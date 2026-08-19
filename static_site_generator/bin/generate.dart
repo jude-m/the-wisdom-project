@@ -11,9 +11,10 @@ import 'package:static_site_generator/sitegen.dart';
 ///     dart run static_site_generator/bin/generate.dart --root an-1,atta-an-1
 ///
 /// Writes `static_site_generator/build/` — one HTML file per sutta, one per
-/// grouped chapter, one per container TOC, plus `assets/site.css`,
-/// `assets/site.js`, `assets/search-index.json`, the copied WOFF2 subsets,
-/// `_headers` (browser caching, read by Cloudflare Pages) and `.manifest.json`.
+/// grouped chapter, one per container TOC, plus `index.html`, `404.html`,
+/// `assets/site.css`, `assets/site.js`, `assets/search-index.json`, the copied
+/// WOFF2 subsets, `_headers` (the response headers Cloudflare Pages applies to
+/// the paths its defaults get wrong) and `.manifest.json`.
 ///
 /// `--root` takes a **list** because the corpus has seven disjoint roots and a
 /// canon subtree links into its `atta-*` twin, which lives under a different
@@ -92,6 +93,28 @@ void main(List<String> args) {
   stdout.writeln('');
   stdout.writeln('content files   ${report.contentFilesParsed} parsed');
   stdout.writeln('elapsed         ${stopwatch.elapsedMilliseconds} ms');
+
+  // Printed on every build that has any, and never fatal. These pages do not
+  // hold the text their title names — the one defect on this site that a reader
+  // cannot see and a link checker cannot find. The count is the standing
+  // reminder; the list is a mode of its own, being one line per
+  // `FIGURES.misalignedSlices`.
+  //
+  // What survives here is what `correctedTreeCoordinates` does not reach: the
+  // whole-unit shift it was written for is corrected before the build ever
+  // slices, and the count going *up* after a re-sync is the signal that the
+  // correction has stopped covering the defect.
+  if (report.misalignedSlices > 0) {
+    final n = report.misalignedSlices;
+    stdout.writeln('');
+    stdout.writeln('WARNING  $n rendered ${n == 1 ? 'leaf' : 'leaves'} '
+        '${n == 1 ? 'has a slice' : 'have slices'} not holding the text '
+        '${n == 1 ? 'it is' : 'they are'} named for.');
+    stdout.writeln('         Upstream coordinates, not a build decision. '
+        'List them with:');
+    stdout.writeln('           dart run '
+        'static_site_generator/tool/plan_corpus.dart --misaligned');
+  }
 }
 
 /// Reads the committed theme export.

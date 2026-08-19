@@ -7,13 +7,14 @@ import 'data/corpus_reader.dart';
 import 'data/slicer_cache.dart';
 import 'domain/document.dart';
 import 'domain/site_page.dart';
+import 'domain/slice_alignment.dart';
 import 'domain/theme_tokens.dart';
 import 'manifest/build_manifest.dart';
-import 'render/cache_headers.dart';
 import 'render/landing_page.dart';
 import 'render/page_template.dart';
 import 'render/search_index.dart';
 import 'render/site_assets.dart';
+import 'render/site_headers.dart';
 import 'render/stylesheet.dart';
 import 'render/web_fonts.dart';
 
@@ -29,11 +30,18 @@ class BuildReport {
   final int tocPages;
   final int contentFilesParsed;
 
+  /// Leaves this build rendered whose slice opens above where it should — a
+  /// page carrying a label that belongs to the text above it. See
+  /// [SliceAlignment]: upstream data the build can find but not fix, so it is
+  /// reported rather than thrown, and counted for the subtree actually built.
+  final int misalignedSlices;
+
   const BuildReport({
     required this.suttaPages,
     required this.chapterPages,
     required this.tocPages,
     required this.contentFilesParsed,
+    required this.misalignedSlices,
   });
 
   int get total => suttaPages + chapterPages + tocPages;
@@ -128,6 +136,7 @@ class SiteGenerator {
     var suttaPages = 0;
     var chapterPages = 0;
     var tocPages = 0;
+    var misalignedSlices = 0;
 
     for (final page in plan.pages) {
       final sourceFileId = _sourceFileOf(page);
@@ -154,7 +163,17 @@ class SiteGenerator {
             'be silently missing from "${page.nodeKey}".',
           );
         }
-        slices[sutta.nodeKey] = cache.forFile(fileId).sliceFor(sutta.nodeKey);
+        final slice = cache.forFile(fileId).sliceFor(sutta.nodeKey);
+        slices[sutta.nodeKey] = slice;
+
+        // Asked of the slice about to be rendered, so the count is of pages
+        // this build actually wrote and costs it nothing — no extra parse, no
+        // second walk. It cannot be fixed here: the coordinate is upstream
+        // data, so the build reports and carries on.
+        final verdict = SliceAlignment.verdictFor(sutta, slice);
+        if (verdict != null && SliceAlignment.isDefect(verdict)) {
+          misalignedSlices++;
+        }
       }
 
       // The container's own slice is its preamble; a leaf owns its rows
@@ -197,10 +216,25 @@ class SiteGenerator {
     // here (`bin/generate.dart`), so a whole-corpus `/` is unchanged; a subtree
     // `/` links only to pages that are in the upload, which is what lets
     // `deploy.sh` print the bare origin as the URL to smoke-test.
+    final roots = [for (final key in rootKeys) tree[key]!];
     _write(
       '$outputDir/${LandingPage.outputPath}',
       LandingPage(
-        roots: [for (final key in rootKeys) tree[key]!],
+        roots: roots,
+        generatorVersion: generatorVersion,
+        assets: assets,
+        urlFor: plan.urlFor,
+      ).render(),
+    );
+
+    // Written beside it, and on every build shape for the same reason: without
+    // this file Cloudflare answers every unknown path with `index.html` and a
+    // `200`. It offers the same roots, so a wrong address still lands somewhere
+    // a reader can go on from. See [LandingPage.notFoundOutputPath].
+    _write(
+      '$outputDir/${LandingPage.notFoundOutputPath}',
+      LandingPage.notFound(
+        roots: roots,
         generatorVersion: generatorVersion,
         assets: assets,
         urlFor: plan.urlFor,
@@ -212,14 +246,14 @@ class SiteGenerator {
     // Root of the upload, not `assets/`: Cloudflare only reads it there. It is
     // static text, so it costs the build nothing and is written unconditionally
     // — a subtree preview caches exactly like production.
-    _write('$outputDir/$cacheHeadersOutputPath', buildCacheHeaders());
+    _write('$outputDir/$siteHeadersOutputPath', buildSiteHeaders());
     if (script != null) _writeBytes('$outputDir/$siteScriptOutputPath', script);
     if (emblem != null) _writeBytes('$outputDir/$emblemOutputPath', emblem);
     for (final font in fonts) {
       _writeBytes(
           '$outputDir/$fontsOutputDir/${font.face.relativePath}', font.bytes);
     }
-    manifest.writeTo('$outputDir/.manifest.json',
+    manifest.writeTo('$outputDir/$manifestOutputPath',
         generatorVersion: generatorVersion);
 
     return BuildReport(
@@ -227,6 +261,7 @@ class SiteGenerator {
       chapterPages: chapterPages,
       tocPages: tocPages,
       contentFilesParsed: cache.parses,
+      misalignedSlices: misalignedSlices,
     );
   }
 
@@ -257,7 +292,7 @@ class SiteGenerator {
     // Probed directly rather than matched against `listSync()` paths: those are
     // joined with the platform separator, so a suffix test would silently never
     // fire on Windows and refuse every rebuild.
-    final isPreviousBuild = File('$outputDir/.manifest.json').existsSync();
+    final isPreviousBuild = File('$outputDir/$manifestOutputPath').existsSync();
     if (directory.listSync().isNotEmpty && !isPreviousBuild) {
       throw StateError(
         '"$outputDir" is not empty and holds no .manifest.json, so it does not '

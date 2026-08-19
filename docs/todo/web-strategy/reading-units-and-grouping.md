@@ -19,7 +19,9 @@
 > |---|---|---|
 > | **S1** | the split rule, the page walk and every link that reads it — `grouping_policy.dart`, `grouping_planner.dart`, `SitePlan.build`, `SitePlan.urlFor` and its three call sites | **shipped 2026-08-17** |
 > | **S2** | freeze the verdicts — `--write-snapshot`, the integrity check, the doc seam (Part 2) | **shipped 2026-08-17** |
-> | **S3** | stale-figure sweep, rebuild, re-measure (Part 3 steps 9–10) | next |
+> | **S3** | stale-figure sweep, rebuild, re-measure (Part 3 steps 9–10) | **shipped 2026-08-18/19** — the deploy is deliberately not run |
+> | **S4** | container preambles that are introductions join the reading chain — `preamble_planner.dart`, `textBearingContainerKeys` (Part 1, "A container that opens with an introduction") | **shipped 2026-08-19** |
+> | **S5** | correct the trailing-colophon coordinates upstream got wrong — `slice_alignment.dart`, `coordinate_planner.dart`, `correctedTreeCoordinates` (B5) | **shipped 2026-08-19** |
 >
 > **S1 verified 2026-08-17.** A third independent implementation of the rule reproduced every figure in this document on its first run: 10,298 real pages (7,687 / 1,221 = 615 + 606 / 1,389), 6,058 folded, 16,356 with stubs, 738 thin of which 340 promoted, biggest chapter 103,153 chars on `atta-mn-1-1-4` and exactly one over 100k, all ten subtree rows, and the Impact derivation closing on both moving rows. `sn-2-1-10-3` carries the seven sections listed below. The index-0 invariant holds at 615 containers with none violating it. **Four things changed against the plan as written**, all deletions: `GroupingVerdict`/`GroupingReason` are gone rather than shrunk (nothing per-container survives to describe); `--policy-diff` is not built (the snapshot's git diff is that review, done once); the review CSV is retired (same reason); and the leaf→URL map is `SitePlan.urlFor` rather than a `Map` threaded through three call sites. `grouping_classifier.dart` → `grouping_planner.dart`, `tool/classify_corpus.dart` → `tool/plan_corpus.dart`.
 >
@@ -30,6 +32,10 @@
 > Then the snapshot was hand-broken three ways. Removing `sn-2-1-10-4` moved the site exactly as Part 1's worked example predicts — real pages 10,298 → 10,299, folded 6,058 → 6,057, **with-stubs still 16,356**, the chapter re-anchoring from `sn-2-1-10-3` to `sn-2-1-10-4` and carrying 4–9, and every TOC link following it through `urlFor`. Adding a key that names nothing, and unfolding a non-first child of a wholly-folded vagga, both exit 1 naming the offending key *before* `SitePlan.build` can throw. Regenerating restored all three.
 >
 > **Three things changed against Part 2 as written**, all of them the plan meeting the code: `--expect` became `--check` rather than keeping the name of a lock it no longer performs; the integrity check reads the tree only, so it costs ~1 s instead of the measurement it replaced and stays cheap enough to run on every `dart test`; and the snapshot's header computes its own key and page counts from the walk that writes it, so the file cannot describe a different site than it builds.
+>
+> **S3 verified 2026-08-19**, against the build on disk. The stale-figure sweep became one generated file rather than six hand-fixes (`CORPUS_FIGURES.md`, Part 3 step 9), so the counts below are cited by name everywhere and typed nowhere. `--check` is green — integrity ok, no violations — and the built tree holds 10,297 files under `/tipitaka/` plus `/`, which is `FIGURES.realPages` exactly. All four checks the plan left open pass: `kn-khp` keeps its nine texts as their own files (10 files with the container); `kn-iti` writes 112 poem files with **0** folds and `kn-thag` 264 leaves with **7** folded — precisely its seven lone-child containers, confirming the corrected 7 against an earlier draft's 16; `anya-vm-2`'s introduction appears on its own TOC page and on no other file in the corpus; and 2,754 of 7,472 අට්ඨකථා cross-links carry a `#fragment`, matching `FIGURES.commentaryTwinsFolded` and `FIGURES.pagesWithCommentaryLink`, with the target `id` present on the chapter page. All ten subtree rows of the Impact table reproduce file-for-file on the build. **Only the deploy is outstanding**, by instruction.
+>
+> **S5 verified 2026-08-19.** The whole `vp-pct-1-3-*` sekhiya block — seven vaggas, `FIGURES.correctedCoordinates` rules — was one unit out: the page titled *first training rule* served the second, the first rule's body sat unlabelled in the vagga's preamble, and the last rule of each vagga rendered as a title over an empty page. `FIGURES.misalignedSlices` is now 0 — colophons and stray dividers both — verified by re-running the detector against the corrected tree, and `vp-pct-1-3-1-1` was read page-for-page against BJT. **The correction re-measures both frozen sets**, because both were frozen against the wrong text: `foldedLeafKeys` moves 10 URLs (4 leaves fold, 6 explode, all inside `vp-pct-1-3-*`, all because a rule's character count is now its own rule's), and `textBearingContainerKeys` loses the seven vaggas whose preamble was only ever a swallowed body. Real pages 10,298 → **10,300**, folded 6,058 → **6,056**, text-bearing containers 110 → **103**, readable container TOCs 65 → **62**. `pagesWithStubs` is unmoved at 16,356, as it must be. Every figure in this document below this line was measured *before* the correction unless it cites `CORPUS_FIGURES.md` by name.
 >
 > **History.** Merged 2026-08-15 from `unified-reading-units-plan.md` (decided 2026-07-29, reworked 2026-08-09 when the hand-override map was dropped for a frozen snapshot) and `collapse-single-leaf-containers-and-small-vaggas.md` (measured 2026-08-14/15). **Rewritten 2026-08-16**: the three per-container rules (a)(b)(c) are replaced by one per-leaf split rule. The audit that prompted it found five errors in (c)'s sizing table and measured that no per-container rule could reach the problem it was aimed at — 2,776 sutta pages under 1,500 characters would have survived all three. **Settled 2026-08-17** after an independent re-measurement reproduced the rewrite's every figure: `atta-kn-dhp` joins the commentary carve-out, and the minor-KN reading books are promoted outright. **Reviewed and re-settled the same day** against a second, independently written implementation of the rule over the whole corpus, which reproduced every page count, the subtree table and the reconstruction identity exactly. Four things changed as a result: `kn-thag` and `kn-thig` join the promoted books (the canon side was folding 216 of 264 theras and 62 of 73 therīs while their commentaries kept every page); the two preconditions every measurement had silently carried are written into the rule itself; `_commentaryLink` is added to the list of renderers needing the folded-leaf resolver; and two Dhammapada support figures are corrected. Every figure in this document is measured under that final configuration.
 
@@ -336,25 +342,25 @@ Live counts are not restated here — they are in
 
 | | before | after |
 |---|---:|---:|
-| sutta pages | 12,748 | **7,687** |
-| chapter pages | 146 | **1,221** (615 whole-vagga + 606 mid-vagga) |
-| container TOC pages | 1,858 | **1,389** |
+| sutta pages | 12,748 | **7,688** |
+| chapter pages | 146 | **1,221** (614 whole-vagga + 607 mid-vagga) |
+| container TOC pages | 1,858 | **1,390** |
 | root | 1 | 1 |
-| **real pages** | **14,753** | **10,298** |
-| folded leaves → stubs | 1,603 | **6,058** |
+| **real pages** | **14,753** | **10,300** |
+| folded leaves → stubs | 1,603 | **6,056** |
 | **with stubs** | **16,356** | **16,356** |
 
 Down **4,455** real pages, a 30.2% cut. Both rows are derived, not counted, from two fixed corpus totals — **14,351 leaves** and **2,004 containers** (`static-web-hosting.md`):
 
 ```
-sutta   = leaves − stubs − mid-vagga chapters   = 14,351 − 6,058 − 606 = 7,687
-chapter = whole-vagga chapters + mid-vagga      =      615 +      606 = 1,221
-toc     = containers − whole-vagga chapters     =    2,004 −      615 = 1,389
+sutta   = leaves − stubs − mid-vagga chapters   = 14,351 − 6,056 − 607 = 7,688
+chapter = whole-vagga chapters + mid-vagga      =      614 +      607 = 1,221
+toc     = containers − whole-vagga chapters     =    2,004 −      614 = 1,390
 ```
 
 That expansion is the cheapest check that a new measurement is self-consistent, and it is what caught the previous draft's mixed-configuration table.
 
-**The 16,356 does not move**, and cannot: every leaf gets either a real page or a stub, so `leaves + containers + 1` is invariant to any grouping rule. The Cloudflare file cap is untouched. Only the stub count moves — 1,603 → **6,058**, still inside the Bulk Redirects free 10K quota, though with less headroom than before; the P5 gate should re-read that quota against 6,058 rather than 1,603. If that gate picks stub *files* instead, note what it is choosing: 6,058 near-empty HTML pages is a far larger thin-content surface for a crawler than today's 1,603, and it lands on a site that still answers HTTP 200 for paths that do not exist (`seo-wins.md` item 1).
+**The 16,356 does not move**, and cannot: every leaf gets either a real page or a stub, so `leaves + containers + 1` is invariant to any grouping rule. The Cloudflare file cap is untouched. Only the stub count moves — 1,603 → **6,056**, still inside the Bulk Redirects free 10K quota, though with less headroom than before; the P5 gate should re-read that quota against 6,056 rather than 1,603. If that gate picks stub *files* instead, note what it is choosing: 6,056 near-empty HTML pages is a far larger thin-content surface for a crawler than today's 1,603. (The site's own soft-404 is fixed — `404.html` shipped 2026-08-19, backlog A1 — so a *missing* path now answers 404 honestly; a stub file is a present path, and answers 200 by definition.)
 
 **The problem this was aimed at:** sutta pages under 1,500 characters fall from **3,707 to 738**, an 80% reduction — and 340 of the survivors are the promoted books, thin on purpose. The per-container rules would have left 2,776.
 
@@ -610,11 +616,11 @@ Unlike the per-container rules this replaces, the split rule is **not** a pure c
 
 10. **Rebuild and re-measure.** The build is byte-deterministic, so the deploy is hash-incremental; expect ~4,455 deletions and a large rewrite of both trees.
 
-    ✅ **The measurement half is done** (2026-08-17, on the S2 snapshot). `--root all`: **10,297 files under `/tipitaka/` plus `/` = 10,298 real pages**, 393 MB, 22.2 s, **285 content files parsed once each** — the second pass is gone. `atta-mn-1-1-4.html` is **320 KB**, the predicted ≈300 KB; `vp-mv-1.html` is still the largest file at **1,365,863 bytes = 1.37 MB**; two consecutive whole-corpus builds diff empty. What is left is the deploy itself and step 9's comment sweep.
+    ✅ **The measurement half is done** (2026-08-17, on the S2 snapshot). `--root all`: **10,297 files under `/tipitaka/` plus `/` = 10,298 real pages**, 393 MB, 22.2 s, **285 content files parsed once each** — the second pass is gone. `atta-mn-1-1-4.html` is **320 KB**, the predicted ≈300 KB; `vp-mv-1.html` is still the largest file at **1,365,863 bytes = 1.37 MB**; two consecutive whole-corpus builds diff empty. **Only the deploy is left**, and it is deliberately not run: step 9 landed in `CORPUS_FIGURES.md` on 2026-08-18 and the S3 checks were verified against the build on 2026-08-19 (see the header).
 
 **Verify Part 3.** Done for S1 on `--root sn-2-1` (3 / 13 / 6 pages, `sn-2-1-10-3` carrying seven sections, `<h1>`/`<title>`/canonical all naming the anchor sutta) and on `--root an-1`, where every internal link was resolved against the files actually written: **32 dead, all of them out-of-build commentary** — the documented baseline for a subtree, and the same figure as before the split rule. All **58** fragment targets resolve to a real `id`; the one lone-child chapter carries no self-linking bar; the search index has 0 duplicate keys and 0 self-referencing `chapterIdx`.
 
-Still to check at **S3**, on the full build: `--root kn-khp` keeps all nine texts as their own files (the promoted-book path); `--root kn-iti` and `--root kn-thag` give 112 and 264 poem files, with the folds the promotion suppresses, and `kn-thag`'s 7 lone-child poems sitting at their container's URL rather than their own (step 9 — measured at 7, not the 16 an earlier draft claimed); a container's preamble appears on its TOC page and nowhere else; and an අට්ඨකථා cross-link whose twin is folded lands in single view. Per project convention, no tests unless asked — **S1 shipped without any**, and the run-detection loop, the three guards and the lone-child branch are covered only in aggregate by `--expect`.
+✅ **Checked at S3 on the full build, 2026-08-19** — the promoted-book path, the suppressed folds, the preamble's single home and the folded-twin cross-link all hold; the figures are in the S3 note in this document's header. Per project convention, no tests unless asked — **S1 shipped without any**, and the run-detection loop, the three guards and the lone-child branch are covered only in aggregate, by the integrity check and `SitePlan.build`'s own refusals.
 
 ---
 
@@ -665,7 +671,7 @@ Assessed 2026-08-17, because a rule this much simpler on the site could still ha
 ## B5. Persistence and known data hazards
 
 - `ReaderTab`'s `pageStart/pageEnd/entryStart` change meaning. Per the warning at `lib/presentation/models/reader_tab.dart:11-19`, bump `StorageKeys.openTabs` to `_v2` rather than misread saved tabs.
-- **77 trailing-colophon leaves** (68 in `vp-pct-1-2`): BJT prints those names *after* their text, so the coordinate sits at the end of what it names and a bounded slice opens with the wrong title. Continuous scroll hides this today; bounded units expose it in the app exactly as on the site. Build the detector once, in shared code — static-site P6 owes it too.
+- **Trailing-colophon slices — FIXED 2026-08-19, and the app inherits the fix.** BJT prints some section names *after* the text they name, and upstream took that closing line for the opening one, so a bounded slice opened with the wrong title and ran through the next unit's body. Continuous scroll hides this today; bounded units would have exposed it in the app exactly as on the site. The correction is `correctedTreeCoordinates` in **`wisdom_shared`** (`src/tree/tree_coordinate_corrections.dart`, `FIGURES.correctedCoordinates` leaves), applied inside `TipitakaTree.fromJson` — so the app gets it the moment it decodes the tree through `wisdom_shared` instead of its own `TreeLocalDataSourceImpl`. **That migration is the app's whole share of this item**; there is no second rule to write. Until it happens the app still reads the raw coordinates. The detector (`static_site_generator/lib/domain/slice_alignment.dart`) stays, asked of the *corrected* tree: `FIGURES.trailingColophonLeaves` is 0 and a re-sync that puts it back is the signal to re-run `plan_corpus.dart --write-alignment`. The `FIGURES.strayDividerLeaves` were fixed by the same map under a second rule — a `භාණවාරං` marker closing the division above, one row out rather than one unit, so the leaf moves onto its own number and the marker falls to the foot of the leaf it actually closes. What is left is `FIGURES.headingOnlyLeaves`, which are **not** a defect: each leaf's name matches the heading it opens on and the next node's name matches the heading below, so the rows underneath belong to a correctly-named sibling and moving one would recreate the bug. Different again from the `ap-pat*` row misalignment below.
 - `ap-pat*` row misalignment (1,660 pages, all 7 files) is unchanged by this work.
 
 ## B6. Two reading surfaces are still capped in fixed px

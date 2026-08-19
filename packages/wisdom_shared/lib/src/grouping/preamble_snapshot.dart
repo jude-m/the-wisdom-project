@@ -4,7 +4,7 @@
 // rather than hand-editing.
 
 /// Every container whose preamble is the book's introduction to the chapter
-/// rather than its title — 110 of them, frozen from one full-corpus
+/// rather than its title — 103 of them, frozen from one full-corpus
 /// run of the rule.
 ///
 /// A container's page is normally pure navigation: no layout switcher, no
@@ -50,13 +50,6 @@ const Set<String> textBearingContainerKeys = {
   'vp-prj-3-5',
   'vp-pct-1-2',
   'vp-pct-1-3',
-  'vp-pct-1-3-1',
-  'vp-pct-1-3-2',
-  'vp-pct-1-3-3',
-  'vp-pct-1-3-4',
-  'vp-pct-1-3-5',
-  'vp-pct-1-3-6',
-  'vp-pct-1-3-7',
   'vp-cv-4-8',
   'vp-pv-9',
   'vp-pv-10',

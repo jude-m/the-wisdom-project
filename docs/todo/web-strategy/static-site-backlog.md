@@ -53,7 +53,8 @@ Compression, corpus-wide sample: **gzip = 18.7% of raw**. A median page:
 automatically for text types; nothing to configure.
 
 Missing at this date: `404.html`, `sitemap.xml`, `robots.txt`,
-`<meta name="description">`. `_headers` exists.
+`<meta name="description">`. `_headers` exists. (`404.html` has since shipped —
+A1.)
 
 ⚠ **Correction on the merge.** `reduce-bundle-size.md` measured 394 MB and
 `site.css` at 12,578 B against the 2026-08-09 build. **P4's search dialog added
@@ -118,25 +119,30 @@ free.
 
 # Part A — Search performance
 
-## A1. `404.html` — missing
-
-Nothing in the generator writes one and there is none in the build.
+## A1. `404.html` ✅ **shipped 2026-08-19**
 
 Cloudflare Pages needs a `404.html` at the output root to serve a real 404.
 Without one it falls back to `index.html`, so — as observed on 2026-08-03 —
-**every missing path returns HTTP 200**, serving the landing page complete with
-`<link rel="canonical" href="/">`. Google classifies that as a **soft 404**, and
-the canonical tag actively tells it these are all the same page.
+**every missing path returned HTTP 200**, serving the landing page complete with
+`<link rel="canonical" href="/">`: a **soft 404** across the site's whole
+address space (`FIGURES.pagesWithStubs`), with the canonical tag actively
+telling Google they were all the same page.
 
-Across `FIGURES.pagesWithStubs` addresses the surface for typo'd and stale
-inbound links is large, and
-soft 404s spend crawl budget and get logged as quality problems against the whole
-site. This is the worst item on the list and the cheapest to fix.
+Written by `LandingPage.notFound` — the not-found page *is* the front door, same
+toolbar, same hint, same list of roots, so a wrong address still lands somewhere
+a reader can go on from. Three things differ, and each follows from Cloudflare
+serving these bytes back at whatever address was asked for: a heading that says
+so first (the app's `statusNoTreeContent`); **no canonical**, since one here
+would speak for every URL the site does not have; and `noindex`, which is not
+about the 404 responses — those are already uncrawlable — but about
+`/404.html` itself, a real file in the upload that answers `200` to anyone
+asking for it by name.
 
-The page should carry the toolbar and a link back to `/`, so a wrong URL still
-lands somewhere useful.
+`tool/serve.dart` now serves the same file with the same status, so the preview
+shows what ships; its `--root` diagnostic moved to the server's log, where it
+belongs and where it cannot leak into a production page.
 
-**Verify after deploying:** `curl -I https://<host>/tipitaka/does-not-exist`
+**Still owed, after the next deploy:** `curl -I https://<host>/tipitaka/does-not-exist`
 must return `404`, not `200`.
 
 ## A2. `<meta name="description">` — missing
@@ -430,7 +436,7 @@ caching work. What that review found and we *did* fix — the hand-bumped cache
 token, the `/fonts/*` literal, the wrong 404 message — is recorded in
 `static-web-hosting.md` and `render/site_assets.dart`, not here.
 
-## C1. Tests for `buildCacheHeaders()` and the asset wiring
+## C1. Tests for `buildSiteHeaders()` and the asset wiring
 
 **Not hygiene — the one hazard the `_headers` work introduced.** Everything else
 in Part C is a tidy-up that fails visibly. This one fails silently, on other
@@ -438,7 +444,7 @@ people's machines, for a year. Rank it above C2.
 
 **Why it waited:** tests in this repo are written on request, not by reflex.
 
-Nothing currently tests `render/cache_headers.dart` at all, and the wiring test
+Nothing currently tests `render/site_headers.dart` at all, and the wiring test
 hard-codes its asset URLs (`?v=test`), so the hashing in `sitegen.dart` is
 uncovered — an unhashed build would ship green. Three belong in
 `test/wiring_contract_test.dart`, which already exists to catch exactly this
@@ -500,24 +506,26 @@ Live headers already carry `x-content-type-options: nosniff` and
 `referrer-policy: strict-origin-when-cross-origin` from Pages' own defaults; CSP
 is the one that is missing.
 
-## C3. `.manifest.json` is publicly fetchable
-
-**Why it waited:** it is harmless, and the fix belongs with the `404.html` work.
+## C3. `.manifest.json` is publicly fetchable ✅ **shipped 2026-08-19**
 
 Measured on the dev deployment (2026-08-15): `GET /.manifest.json` → `200`,
 595 KB. It is the source-file → output-path map with content hashes — nothing
 secret, nothing linked from any page, and it has to stay in `build/` because
 `_clearOutputDir` uses it as the marker that says "this directory is mine".
 
-If it ever matters, the fix is a rule in `_headers`, not a deletion:
+So the fix is a rule in `_headers`, not a deletion, and it went in with A1 as
+planned — that pass is when unknown and non-page URLs get their answer sorted
+out generally:
 
 ```
 /.manifest.json
   X-Robots-Tag: noindex
 ```
 
-Worth doing in the same pass as A1 (`404.html`), since that is when unknown and
-non-page URLs get their answer sorted out generally.
+`cache_headers.dart` became `site_headers.dart` with it: the subject was always
+the one file, not one header in it, and C2's CSP is the next rule that is not
+about caching. The path is now a constant beside the writer
+(`manifestOutputPath`), so a rename cannot leave the rule pointing at nothing.
 
 ## C4. The preview server does not apply `_headers`
 
@@ -561,22 +569,24 @@ bytes: no URL moves, and no page re-uploads because of the change.
 
 # Order to do them in
 
-1. **A1 `404.html`** — a correctness bug, not an optimisation. Take C3 with it.
-2. **C1 the asset-wiring tests** — before the next asset change, not after. A
+~~1. **A1 `404.html`** — a correctness bug, not an optimisation. Take C3 with
+it.~~ ✅ **both done 2026-08-19**, in one pass as planned.
+
+1. **C1 the asset-wiring tests** — before the next asset change, not after. A
    `/assets/*` miss is unrecallable for a year and silent at build time, and
-   steps 5 and 9 below are both asset changes.
-3. **A3 `robots.txt` + `sitemap.xml`** — discovery for 16K addresses.
-4. **A2 `<meta name="description">`** — the click-through lever.
-5. **B2 SVG icons → CSS** and **B1 re-cut the emblem** — *in one deploy.* Each is
+   steps 4 and 8 below are both asset changes.
+2. **A3 `robots.txt` + `sitemap.xml`** — discovery for 16K addresses.
+3. **A2 `<meta name="description">`** — the click-through lever.
+4. **B2 SVG icons → CSS** and **B1 re-cut the emblem** — *in one deploy.* Each is
    a shared-chrome edit that invalidates every page's hash; shipping them
    separately pays the full push twice. Together: ~8 MB off the build, ~575 B off
    every page, ~40 KB off first paint.
-6. **A4 absolute canonical** — cheap now that the domain is settled.
-7. **A5 OG tags** — distribution, and this audience shares in messaging apps.
-8. **A6 `BreadcrumbList` JSON-LD.**
-9. **C2 CSP** — its own deploy and verify.
-10. **A7 `lang="pi-Sinh"`** — mostly an accessibility fix.
-11. **A9 font preload, A8 heading duplication** — measure first, both are small.
+5. **A4 absolute canonical** — cheap now that the domain is settled.
+6. **A5 OG tags** — distribution, and this audience shares in messaging apps.
+7. **A6 `BreadcrumbList` JSON-LD.**
+8. **C2 CSP** — its own deploy and verify.
+9. **A7 `lang="pi-Sinh"`** — mostly an accessibility fix.
+10. **A9 font preload, A8 heading duplication** — measure first, both are small.
 
 No action: **B3** (keep the provenance), **B4** (no fix exists), **B5**
 (recorded only), **B6** (needs a Worker). **C4** and **C5** are hygiene — do them

@@ -1,6 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 
+/// Path under the output directory. Flat at the root, and dot-prefixed so it
+/// sorts away from the site's own directories.
+///
+/// Named here rather than spelled at each use: `sitegen.dart` writes it and
+/// probes for it as the marker that a directory is a previous build, and
+/// `site_headers.dart` keeps it out of search results. Three literals is three
+/// chances for a rename to leave one of them pointing at nothing.
+const String manifestOutputPath = '.manifest.json';
+
 /// `source → [outputs]` plus a content hash per source (plan §10).
 ///
 /// The hashes are computed by `domain/content_hash.dart` and handed in — see

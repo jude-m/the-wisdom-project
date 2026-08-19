@@ -271,8 +271,9 @@ rule turns the URL fragment into a filter:
 sutta's clean `/tipitaka/<nodeKey>` must resolve via a **content-free redirect**
 → `…/<vaggaKey>#<nodeKey>`. No text, so no duplication. Never Pages `_redirects`
 (static-rule cap 2,000, verified 2026-07-22 — below the grouped-leaf count under
-every rule considered, so too tight). Two viable mechanisms — **the pick is a P5
-decision gate: ask the maintainer before generating stubs**:
+every rule considered, so too tight). Two viable mechanisms — **the pick was
+deferred 2026-08-19**; the mapping both need is emitted by
+`plan_corpus.dart --redirects`, so switching is a re-upload and not a rebuild:
 - **Stub HTML files** (meta-refresh-0 + canonical → chapter): in-repo, portable,
   work on `*.pages.dev` previews; the stub count is the grouped-leaf count and
   the total (`FIGURES.pagesWithStubs`) lands under the 20K cap by construction,
@@ -697,8 +698,10 @@ their canon twins — untreated they compete for the same name searches.
   verdicts live in
   [`reading-units-and-grouping.md`](./reading-units-and-grouping.md), frozen
   into `foldedLeafKeys` — P5 reviews the grouped list, it does not tune it.
-  **Decision gate: ask the maintainer stub-files-vs-Bulk-Redirects *before*
-  emitting the grouped-leaf stubs** (§6 / §13.2 / hosting doc).
+  **Decision gate: deferred 2026-08-19.** Stub-files-vs-Bulk-Redirects is still
+  open, but blocks nothing: neither can be exercised before a deploy on a custom
+  domain, and the mapping they share is emitted by
+  `plan_corpus.dart --redirects` (§6 / §13.2 / hosting doc).
 - **P6** Point at `kn-iti-1`; verify nesting + slicing across vaggas.
 - **Client-side search — built 2026-08-14** (build plan P4), a names-only index
   fetched on first dialog open. Server-rendered FTS stays retired with the
@@ -836,11 +839,14 @@ their canon twins — untreated they compete for the same name searches.
    a grouped sutta, so once links go public a no-app recipient 404s without one
    of the two.
    **LOCKED 2026-07-22 (user): exact-sutta deep links are required even for
-   grouped suttas. Mechanism = P5 decision gate — PROMPT the maintainer before
-   generating the stubs** (budget either way: `FIGURES.pagesWithStubs` against
-   20K with stubs, or `FIGURES.realPages` with redirects), paired with the codec fragment
-   fix (deep-linking doc Notes) so *both* URL forms land on the exact sutta for
-   *both* app and no-app recipients. The static page is always the guaranteed
+   grouped suttas. Mechanism = deferred 2026-08-19** (budget either way:
+   `FIGURES.pagesWithStubs` against 20K with stubs, or `FIGURES.realPages` with
+   redirects). The mapping both mechanisms consume is built and verified —
+   `plan_corpus.dart --redirects`, one row per `FIGURES.foldedLeaves`, every
+   target resolving to a real page and a real anchor — so the remaining choice
+   is an upload, not a rebuild. Paired with the codec fragment fix (deep-linking
+   doc Notes) so *both* URL forms land on the exact sutta for *both* app and
+   no-app recipients. The static page is always the guaranteed
    fallback. Page furniture for later: OG meta tags
    per sutta (share previews) + an optional dismissible "Open in app" banner
    (iOS Smart App Banner meta tag) — never a blocking interstitial.

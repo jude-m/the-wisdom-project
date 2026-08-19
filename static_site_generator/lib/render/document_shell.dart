@@ -16,6 +16,23 @@ import 'site_assets.dart';
 /// Relative is legal and resolved against the document URL; revisit when the
 /// domain is fixed at the P5 hosting gate.
 ///
+/// It is **nullable for exactly one page**, and the reason is the shape of the
+/// only page that is not a page. Cloudflare serves `404.html`'s bytes back at
+/// whatever address was asked for, so a canonical in them is a claim made on
+/// behalf of every URL the site does not have: pointing it at `/` is the soft
+/// 404 that file exists to end, and pointing it at `/404.html` aims every one
+/// of them at a `noindex` page, which is two signals contradicting each other.
+/// The HTTP status is the whole answer there, so that page sends no canonical
+/// at all. Every page that *is* a page passes one, and the parameter stays
+/// required-by-convention: it has no default.
+///
+/// The omission is written as an escaped `\n` inside a single-quoted string
+/// rather than the triple-quoted form it reads more naturally in. Dart drops
+/// the newline that immediately follows `'''`, so the natural spelling silently
+/// welds the canonical onto the `<title>` line — on every page in the corpus,
+/// which is a full re-upload of a site that is deployed hash-incrementally, for
+/// a line break.
+///
 /// [head] carries whatever the page adds to the contract above, already
 /// newline-terminated.
 ///
@@ -53,7 +70,7 @@ import 'site_assets.dart';
 /// included, trail and all.
 String htmlDocument({
   required String title,
-  required String canonical,
+  required String? canonical,
   required String generatorVersion,
   required SiteAssets assets,
   required String body,
@@ -65,8 +82,7 @@ String htmlDocument({
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)}</title>
-<link rel="canonical" href="$canonical">
+<title>${escapeHtml(title)}</title>${canonical == null ? '' : '\n<link rel="canonical" href="$canonical">'}
 <link rel="stylesheet" href="${assets.stylesheet}">
 <meta name="generator" content="wisdom-ssg $generatorVersion">
 $head</head>

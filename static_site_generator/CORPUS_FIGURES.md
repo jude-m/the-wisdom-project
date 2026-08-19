@@ -52,20 +52,20 @@ These move when the snapshot is regenerated, and each move is one URL.
 
 | figure | value | what it counts |
 | --- | ---: | --- |
-| `FIGURES.foldedLeaves` | 6,058 | leaves with no page of their own, served as `<chapter>#<key>` |
-| `FIGURES.suttaPages` | 7,687 | leaves that own a file |
+| `FIGURES.foldedLeaves` | 6,056 | leaves with no page of their own, served as `<chapter>#<key>` |
+| `FIGURES.suttaPages` | 7,688 | leaves that own a file |
 | `FIGURES.chapterPages` | 1,221 | files carrying a run of folded leaves |
-| `FIGURES.wholeVaggaChapters` | 615 | chapters covering a whole container, sitting at its URL |
-| `FIGURES.midVaggaChapters` | 606 | chapters starting below a container, anchored on their first leaf |
+| `FIGURES.wholeVaggaChapters` | 614 | chapters covering a whole container, sitting at its URL |
+| `FIGURES.midVaggaChapters` | 607 | chapters starting below a container, anchored on their first leaf |
 | `FIGURES.loneChildChapters` | 159 | chapters that are a container merged with its only leaf |
 | `FIGURES.loneChildChaptersNotFoldedOnSize` | 63 | of those, the ones the size rule would not have folded — at or above their line, or promoted and never measured. The merge outranks both |
 | `FIGURES.largestLoneChildChars` | 333,558 | the biggest leaf merged into its container (`atta-kn-mn-2-1`) |
-| `FIGURES.containerTocs` | 1,389 | container pages — a list of links, and above it whatever the container itself owns |
-| `FIGURES.readableContainerTocs` | 65 | of those, the ones whose preamble is the book's introduction to the chapter rather than its title, so the page is readable (`textBearingContainerKeys`) |
-| `FIGURES.realPages` | 10,298 | files the build writes, `/` included |
-| `FIGURES.readablePages` | 8,973 | pages carrying text — sutta, chapter, and the container pages that open with an introduction. The prev/next chain |
+| `FIGURES.containerTocs` | 1,390 | container pages — a list of links, and above it whatever the container itself owns |
+| `FIGURES.readableContainerTocs` | 62 | of those, the ones whose preamble is the book's introduction to the chapter rather than its title, so the page is readable (`textBearingContainerKeys`) |
+| `FIGURES.realPages` | 10,300 | pages the build writes, `/` included. Not `404.html`, which is the answer for addresses that have no page |
+| `FIGURES.readablePages` | 8,971 | pages carrying text — sutta, chapter, and the container pages that open with an introduction. The prev/next chain |
 | `FIGURES.pagesWithStubs` | 16,356 | the count if every folded leaf also got a redirect stub (the P5 gate). Cloudflare Pages caps a project at 20,000 files |
-| `FIGURES.tocRowsToFoldedLeaves` | 2,355 | TOC rows whose target owns no file, so the bare URL is wrong |
+| `FIGURES.tocRowsToFoldedLeaves` | 2,363 | TOC rows whose target owns no file, so the bare URL is wrong |
 | `FIGURES.commentaryPages` | 3,336 | pages under an `atta-*` key |
 | `FIGURES.pagesWithCommentaryLink` | 7,472 | pages whose canon ↔ commentary twin exists in the tree |
 | `FIGURES.commentaryTwinsFolded` | 2,754 | of those, twins that are folded leaves — so the link must be resolved through `urlFor`, never `tipitakaUrl` |
@@ -92,3 +92,8 @@ the grouping lines both use.
 | `FIGURES.filesWithUnequalSides` | 7 | content files holding such a page — the known `ap-pat*` (Paṭṭhāna) misalignment |
 | `FIGURES.readablePagesWithoutSinhala` | 209 | readable pages with no Sinhala at all, so column captions would label an absence |
 | `FIGURES.readablePagesWithoutPali` | 0 | the reverse. The test is symmetric anyway: nothing guarantees this stays 0 after a re-sync |
+| `FIGURES.correctedCoordinates` | 79 | leaves whose upstream coordinate pointed at the label closing their text instead of the number opening it, corrected before the tree is used at all (`correctedTreeCoordinates`). Every figure on this page is measured after that correction |
+| `FIGURES.misalignedSlices` | 0 | leaves whose slice still does not hold the text they are named for (`SliceAlignment`), which is what the correction above does not reach. **0 is the expected value** — anything here means a re-sync moved the defect and `--write-alignment` needs re-running. `plan_corpus.dart --misaligned` lists them |
+| `FIGURES.trailingColophonLeaves` | 0 | of those, the ones opening on the leaf's own name printed as a colophon, so the page would carry this leaf's title over the next leaf's text |
+| `FIGURES.strayDividerLeaves` | 0 | the rest: leaves gaining one stray row from a `භාණවාරං` recitation marker closing the division above |
+| `FIGURES.headingOnlyLeaves` | 7 | **not** part of the count above, and not a defect. Leaves whose slice is one heading and nothing a reader reads, because that is what BJT printed — a group title whose content is split across its siblings, an abbreviation standing in for two sections, or a recitation marker modelled as a node. The coordinate is right; the section renders with a title and no body |

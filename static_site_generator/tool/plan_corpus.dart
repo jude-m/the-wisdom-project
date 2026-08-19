@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:static_site_generator/data/corpus_reader.dart';
 import 'package:static_site_generator/data/slicer_cache.dart';
+import 'package:static_site_generator/domain/coordinate_planner.dart';
 import 'package:static_site_generator/domain/grouping_planner.dart';
 import 'package:static_site_generator/domain/grouping_policy.dart';
 import 'package:static_site_generator/domain/preamble_planner.dart';
 import 'package:static_site_generator/domain/site_page.dart';
+import 'package:static_site_generator/domain/slice_alignment.dart';
 import 'package:static_site_generator/figures/corpus_figures.dart';
 import 'package:static_site_generator/figures/page_budget.dart';
 import 'package:wisdom_shared/wisdom_shared.dart';
@@ -16,6 +18,9 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 ///     dart run static_site_generator/tool/plan_corpus.dart --check
 ///     dart run static_site_generator/tool/plan_corpus.dart --write-snapshot
 ///     dart run static_site_generator/tool/plan_corpus.dart --write-figures
+///     dart run static_site_generator/tool/plan_corpus.dart --misaligned
+///     dart run static_site_generator/tool/plan_corpus.dart --write-alignment
+///     dart run static_site_generator/tool/plan_corpus.dart --redirects > out.csv
 ///
 /// The build no longer measures anything. Two frozen `const`s in
 /// `wisdom_shared` are the answers, and `SitePlan.build` reconstructs every
@@ -41,6 +46,9 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 /// | *(none)* | what does the frozen site look like, and where does the rule now disagree? | prints |
 /// | `--write-snapshot` | rewrite both frozen sets from their rules | writes |
 /// | `--write-figures` | rewrite `CORPUS_FIGURES.md` from the frozen set | writes |
+/// | `--misaligned` | which leaves still do not hold their own text? | prints |
+/// | `--write-alignment` | rewrite the coordinate corrections from their rule | writes |
+/// | `--redirects` | where must each folded leaf's own URL send a reader? | prints |
 ///
 /// The two writers are separate commands because they are different acts.
 /// `--write-snapshot` moves URLs and its diff needs reviewing sutta by sutta;
@@ -56,20 +64,55 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 /// and the git diff of `grouping_snapshot.dart`, which is the review artifact
 /// for every deliberate move.
 void main(List<String> args) {
-  const modes = {'--check', '--write-snapshot', '--write-figures'};
+  const modes = {
+    '--check',
+    '--write-snapshot',
+    '--write-figures',
+    '--misaligned',
+    '--write-alignment',
+    '--redirects',
+  };
   final unknown = args.where((a) => !modes.contains(a)).toList();
   if (unknown.isNotEmpty || args.length > 1) {
     stderr.writeln(unknown.isEmpty
         ? 'One mode at a time.'
         : 'Unknown option "${unknown.first}".');
-    stderr.writeln('Usage: plan_corpus.dart '
-        '[--check | --write-snapshot | --write-figures]');
+    stderr.writeln('Usage: plan_corpus.dart [--check | --write-snapshot | '
+        '--write-figures | --misaligned | --write-alignment | --redirects]');
     exitCode = 2;
     return;
   }
   final check = args.contains('--check');
 
   final reader = CorpusReader.discover();
+
+  // First, and before the corrected tree is even decoded, because this is the
+  // one mode that must not read its own output: the defect it measures is by
+  // construction invisible once `correctedTreeCoordinates` has been applied, so
+  // a run against the corrected tree would find nothing and write an empty map
+  // over a good one. Its own slicer cache too — every other mode below shares
+  // one built on the corrected tree, and the two trees cut different slices.
+  if (args.contains('--write-alignment')) {
+    final rawTree = reader.readTree(raw: true);
+    final rawCache = SlicerCache(reader: reader, tree: rawTree);
+    final List<CoordinateCorrection> corrections;
+    try {
+      corrections = CoordinatePlanner(
+        tree: rawTree,
+        slicerFor: rawCache.forFile,
+      ).corrections();
+    } on CoordinateDerivationFailure catch (error) {
+      // The whole run, not the row — see [CoordinateDerivationFailure]. Printed
+      // as a refusal rather than a stack trace: it means the corpus changed
+      // shape, which is something to go and read, not something to debug.
+      stderr.writeln(error.message);
+      exitCode = 1;
+      return;
+    }
+    _writeAlignmentSnapshot(_alignmentSnapshotPath(reader), corrections);
+    return;
+  }
+
   final tree = reader.readTree();
 
   // Each mode builds only what it needs, and only this one and the default
@@ -157,6 +200,32 @@ void main(List<String> args) {
     return;
   }
 
+  // Its own mode rather than a block of the default report, for two reasons.
+  // It costs a whole extra pass over the corpus, and the answer changes only
+  // when upstream text does — so paying for it on every budget run would slow
+  // the mode people actually run to print a list that is nearly always the same
+  // one. And the list is the point: `FIGURES.misalignedSlices` keys would
+  // swamp a report whose other sections are a handful of lines each.
+  if (args.contains('--misaligned')) {
+    _printMisaligned(
+      tree,
+      plan,
+      SliceAlignment(
+        tree: tree,
+        slicerFor: SlicerCache(reader: reader, tree: tree).forFile,
+      ).misalignedSlices(),
+    );
+    return;
+  }
+
+  // Straight after the plan, because that is all it needs — the mapping is
+  // `SitePlan.urlFor` for every folded key and nothing else, so this mode reads
+  // no text at all.
+  if (args.contains('--redirects')) {
+    if (!_printRedirects(plan, folded)) exitCode = 1;
+    return;
+  }
+
   // Both passes over the corpus finish before anything is printed, so `files
   // parsed` can report the whole run. `_pageChars` is a *second* pass — the
   // cache holds one file — and a figure printed between the two describes
@@ -164,9 +233,8 @@ void main(List<String> args) {
   final cache = SlicerCache(reader: reader, tree: tree);
   final ruleSays =
       GroupingPlanner(tree: tree, slicerFor: cache.forFile).foldedLeaves();
-  final preambleSays =
-      PreamblePlanner(tree: tree, slicerFor: cache.forFile)
-          .textBearingContainers();
+  final preambleSays = PreamblePlanner(tree: tree, slicerFor: cache.forFile)
+      .textBearingContainers();
   final chars = _pageChars(plan, cache);
 
   if (!_printBudget(tree, plan, folded, parses: cache.parses)) exitCode = 1;
@@ -291,6 +359,162 @@ void _printSubtrees(TipitakaTree tree, SitePlan plan) {
         .where((p) => p.nodeKey == key || _isUnder(tree, p.nodeKey, key))
         .length;
     stdout.writeln('  ${key.padRight(16)} $count');
+  }
+}
+
+/// `source,target` for every folded leaf — the URL it would own against the URL
+/// that actually serves it. Returns whether every row resolved.
+///
+/// **The half both answers to the P5 gate need.** A folded leaf owns no file, so
+/// something has to answer at `/tipitaka/<leafKey>`: either a stub HTML file at
+/// that path or a Cloudflare Bulk Redirect rule. The *mechanism* is deferred
+/// (2026-08-19) and the *mapping* is not — it is the same list either way, so
+/// switching later is a re-upload rather than a rebuild.
+///
+/// Mechanism-neutral on purpose, which is why it carries two columns and not
+/// Cloudflare's upload schema. Bulk Redirects wants absolute sources and a
+/// status column, and the apex domain is exactly what is not settled yet (see
+/// [htmlDocument] on the canonical); a stub generator wants neither. Prefixing
+/// a host and appending `,301` is a line of `awk` at upload time, against a
+/// file that would otherwise have to be regenerated when the domain lands.
+///
+/// To **stdout**, not a path: this is deploy-time material and not part of the
+/// site, and the one place it must never end up is `build/`, where Pages would
+/// serve it. `> somewhere.csv` is the whole interface.
+///
+/// No quoting anywhere, and none needed: a nodeKey is lowercase letters, digits
+/// and hyphens, so neither column can contain a comma, a quote or a newline.
+bool _printRedirects(SitePlan plan, Set<String> folded) {
+  // Walk order rather than the set's, so the file diffs like the snapshot does
+  // — a book's rows stay contiguous, and a regeneration that moves one URL
+  // shows as one line.
+  final stranded = <String>[];
+  final rows = StringBuffer();
+  var emitted = 0;
+  for (final page in plan.pages) {
+    for (final leaf in page.suttas) {
+      if (!folded.contains(leaf.nodeKey)) continue;
+      final source = tipitakaUrl(leaf.nodeKey);
+      final target = plan.urlFor(leaf.nodeKey);
+      // Identity means the plan has no chapter serving this leaf, so the row
+      // would redirect a URL to itself — a loop at the edge, or a stub file
+      // pointing at the address it sits on. `SitePlan.build` already refuses
+      // the shapes that cause it; this is the cheap proof for the one mode
+      // whose whole output is that resolution.
+      if (target == source) {
+        stranded.add(leaf.nodeKey);
+        continue;
+      }
+      rows.writeln('$source,$target');
+      emitted++;
+    }
+  }
+
+  if (stranded.isNotEmpty) {
+    stderr.writeln('${stranded.length} folded leaves resolve to their own URL, '
+        'so no page serves them: ${stranded.take(_maxOffendersShown).join(', ')}'
+        '${stranded.length > _maxOffendersShown ? ', …' : ''}');
+    return false;
+  }
+
+  // The walk is over pages, and the file is claimed to be one row per folded
+  // leaf — so a folded key that reaches no page's `suttas` would leave the CSV
+  // quietly short rather than wrong. `_integrity` makes that hard to arrange
+  // and nothing in the corpus does it, but this is a deploy artifact: the whole
+  // point of it is that a reader lands somewhere, and a missing row is a leaf
+  // that lands nowhere. Counting is free where re-deriving the set is not.
+  if (emitted != folded.length) {
+    stderr.writeln('${folded.length} folded leaves, but only $emitted rows: '
+        '${folded.length - emitted} of them sit on no page at all. '
+        'Run --check before trusting this file.');
+    return false;
+  }
+
+  stdout.write('source,target\n');
+  stdout.write(rows.toString());
+  return true;
+}
+
+/// Every leaf whose slice does not hold its own text, and the page serving it.
+///
+/// **Asked of the corrected tree**, so what it lists is what
+/// `correctedTreeCoordinates` does not reach. That is the useful question after
+/// a re-sync: a colophon row reappearing here means the correction has stopped
+/// covering the defect and `--write-alignment` needs re-running against the new
+/// asset.
+///
+/// Grouped by content file, because that is how the defect arrives: BJT prints
+/// a book's section names one way throughout, so a bad file is bad in bulk.
+///
+/// The serving URL is the actionable half. A leaf that owns its page shows the
+/// defect as a whole page under the wrong title; a folded one shows it as a
+/// `#fragment` landing one sutta early inside a chapter that is itself
+/// complete and in order. Same cause, two things to look at, and the reader
+/// has to be told which — [SitePlan.urlFor] is the only thing that knows.
+///
+/// Prints and exits 0. What survives the correction is not fixable the same
+/// way: a stray divider is one row out rather than one unit, and an empty leaf
+/// may be a bare heading upstream really printed. Both want reading before
+/// anything moves (see [SliceAlignment]).
+void _printMisaligned(
+  TipitakaTree tree,
+  SitePlan plan,
+  Map<String, SliceMisalignment> misaligned,
+) {
+  // Tags are padded at the print sites, not here. A column width belongs to the
+  // column, and baking it into the data means the next value added to
+  // [SliceMisalignment] silently prints out of line.
+  const shapes = {
+    SliceMisalignment.trailingColophon: (
+      tag: 'colophon',
+      note: "the leaf's own name, printed after the text it names — "
+          'the page below it is the next leaf',
+    ),
+    SliceMisalignment.strayDivider: (
+      tag: 'divider',
+      note: 'a recitation marker closing the division above — one stray row',
+    ),
+    SliceMisalignment.headingOnlyLeaf: (
+      tag: 'heading',
+      note: 'NOT a defect — the leaf is where it should be and the book has '
+          'no body under that heading',
+    ),
+  };
+  final tagWidth =
+      shapes.values.map((s) => s.tag.length).reduce((a, b) => a > b ? a : b);
+
+  // The two totals are printed apart because they mean different things. The
+  // first is a bug count and should read 0; the second is a fact about the
+  // book, and reading 0 would only mean upstream had changed.
+  final defects = misaligned.values.where(SliceAlignment.isDefect).length;
+  stdout.writeln('misaligned leaves  ${defects.toString().padLeft(4)}   '
+      'slices not holding the text the leaf is named for — expect 0');
+  stdout.writeln('heading-only       '
+      '${(misaligned.length - defects).toString().padLeft(4)}   '
+      'correct, and carrying no body because the book prints none');
+  stdout.writeln('');
+  for (final shape in SliceMisalignment.values) {
+    final count = misaligned.values.where((v) => v == shape).length;
+    stdout.writeln('  ${shapes[shape]!.tag.padRight(tagWidth)}  '
+        '${count.toString().padLeft(4)}   ${shapes[shape]!.note}');
+  }
+  if (misaligned.isEmpty) return;
+
+  final byFile = <String, List<String>>{};
+  for (final key in misaligned.keys) {
+    // The file the *slice* was cut from, which is the file printed wrong.
+    final fileId = tree[key]?.contentFileId ?? '(no content file)';
+    (byFile[fileId] ??= <String>[]).add(key);
+  }
+
+  for (final entry in byFile.entries) {
+    stdout.writeln('');
+    stdout.writeln('${entry.key}   ${entry.value.length}');
+    for (final key in entry.value) {
+      stdout.writeln('  ${key.padRight(22)} '
+          '${shapes[misaligned[key]]!.tag.padRight(tagWidth)}  '
+          '${plan.urlFor(key)}');
+    }
   }
 }
 
@@ -578,6 +802,87 @@ List<String>? _orderedForWriting(
   return ordered;
 }
 
+/// Rewrites `tree_coordinate_corrections.dart` from one full-corpus run of the
+/// rule, against the **raw** tree.
+///
+/// One line per leaf whose text moves, in reading order, each carrying the
+/// coordinate it came from and the row it now opens on. The `from` and the
+/// printed text are comments rather than data: nothing reads them, and they are
+/// the whole review — a diff line saying only `(page: 12, entry: 4)` cannot be
+/// checked against anything, where one that also says it moved off
+/// `පඨමසික්ඛාපදං.` and onto `8. 1. 1.` can be read straight.
+void _writeAlignmentSnapshot(
+    String path, List<CoordinateCorrection> corrections) {
+  final buffer = StringBuffer('''
+// GENERATED by `dart run static_site_generator/tool/plan_corpus.dart
+// --write-alignment`. Change the rule
+// (`static_site_generator/lib/domain/coordinate_planner.dart`) and regenerate
+// rather than hand-editing.
+
+/// Leaves whose `tree.json` coordinate points at the wrong row, and the row it
+/// should point at — ${corrections.length} of them, frozen from one full-corpus
+/// run of the rule.
+///
+/// ## What is wrong upstream
+///
+/// A node's coordinate is the `[pageIndex, entryIndexInPage]` where its text
+/// **begins**, and every slice in the corpus is cut from one coordinate to the
+/// next. For the leaves named here upstream put the coordinate on the label
+/// that *closes* the unit instead — BJT prints those section names as a
+/// colophon, after the text they name — so the slice opens on one unit's name
+/// and runs through the *next* unit's body. The page then carries the right
+/// title over the wrong text, and its `#fragment` lands one unit early: a page
+/// that is wrong without looking wrong, which is why it survived every count,
+/// link check and byte-diff the build does.
+///
+/// `SliceAlignment` is the detector; this is the correction. They are kept
+/// apart on purpose — the detector is asked of whatever tree is loaded, so
+/// running it *after* this map is applied is what proves the correction still
+/// covers the defect rather than merely having covered it once.
+///
+/// ## Why a map and not an edit
+///
+/// `assets/data/tree.json` is vendored from tipitaka.lk with no provenance, and
+/// the next re-sync overwrites it. A hand-edit there is a fix that silently
+/// disappears; a `const` here is code, survives the re-sync, and its git diff
+/// is the review — one line per leaf whose text moves. It also reaches both
+/// surfaces from one place, which a per-app patch could not.
+///
+/// **It moves text, not URLs.** Nothing here changes which pages exist or what
+/// they are called. Both other snapshots are *measured* from the corrected tree
+/// and so must be regenerated after this file changes — a container whose
+/// preamble was holding a swallowed body stops being an introduction once the
+/// body goes back to the leaf that owns it.
+///
+/// **The defect is upstream's and the correction should be too.** This map is
+/// the local answer while the report is open; if tipitaka.lk fixes the
+/// coordinates, regenerating writes an empty map and nothing else changes.
+///
+/// The count above is the only corpus figure written here, and it is
+/// interpolated by the writer rather than typed. Every other one lives in
+/// `static_site_generator/CORPUS_FIGURES.md`.
+///
+/// See `docs/todo/web-strategy/reading-units-and-grouping.md` — B5.
+const Map<String, ({int page, int entry})> correctedTreeCoordinates = {
+''');
+  for (final c in corrections) {
+    buffer.writeln('  // was (page: ${c.from.page}, entry: ${c.from.entry}), '
+        'now opens on "${c.openingRow}"');
+    buffer.writeln(
+        "  '${c.nodeKey}': (page: ${c.to.page}, entry: ${c.to.entry}),");
+  }
+  buffer.writeln('};');
+
+  final file = File(path);
+  file.parent.createSync(recursive: true);
+  file.writeAsStringSync(buffer.toString());
+}
+
+/// Where the frozen coordinate corrections live, beside the tree they correct.
+String _alignmentSnapshotPath(CorpusReader reader) =>
+    '${Directory(reader.assetsPath).parent.path}'
+    '/packages/wisdom_shared/lib/src/tree/tree_coordinate_corrections.dart';
+
 /// Writes one snapshot: [header], then [ordered] one key per line, then `};`.
 void _writeKeys(String path, String header, List<String> ordered) {
   final buffer = StringBuffer(header);
@@ -602,7 +907,9 @@ void _writeSnapshot(
   List<String> ordered,
   int readable,
 ) {
-  _writeKeys(path, '''
+  _writeKeys(
+      path,
+      '''
 // GENERATED by `dart run static_site_generator/tool/plan_corpus.dart
 // --write-snapshot`. Hand-editing it moves URLs with no review behind them —
 // change the rule (`static_site_generator/lib/domain/grouping_policy.dart`)
@@ -631,7 +938,8 @@ void _writeSnapshot(
 ///
 /// See `docs/todo/web-strategy/reading-units-and-grouping.md` — Part 2.
 const Set<String> foldedLeafKeys = {
-''', ordered);
+''',
+      ordered);
 
   // What this run was *compiled* against, which is the committed file's
   // contents — Dart resolved the import before any of this ran, so reading the
@@ -683,7 +991,9 @@ const Set<String> foldedLeafKeys = {
 /// Written together all the same, from one command and one validation pass —
 /// see [_orderedForWriting].
 void _writePreambleSnapshot(String path, List<String> ordered) {
-  _writeKeys(path, '''
+  _writeKeys(
+      path,
+      '''
 // GENERATED by `dart run static_site_generator/tool/plan_corpus.dart
 // --write-snapshot`. Change the rule
 // (`static_site_generator/lib/domain/preamble_planner.dart`) and regenerate
@@ -726,7 +1036,8 @@ void _writePreambleSnapshot(String path, List<String> ordered) {
 ///
 /// See `docs/todo/web-strategy/reading-units-and-grouping.md`.
 const Set<String> textBearingContainerKeys = {
-''', ordered);
+''',
+      ordered);
 
   const before = textBearingContainerKeys;
   final now = ordered.toSet();

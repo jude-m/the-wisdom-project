@@ -359,10 +359,27 @@ surfaces no longer share a project.
 Something must answer at each grouped-leaf URL
 (`/tipitaka/<leafKey>` → `…/<vaggaKey>#<leafKey>`). How many there are is owned
 by [`reading-units-and-grouping.md`](./reading-units-and-grouping.md) and has
-stayed well inside the 10,000 free quota under every rule considered. The
-*requirement* is locked (exact-sutta links for no-app recipients, 2026-07-22);
-the *mechanism* is a **P5 decision — do NOT generate the stubs without asking
-the maintainer**:
+stayed inside the 10,000 free quota under every rule considered — the split rule
+takes it to `FIGURES.foldedLeaves`, which is a larger share of that quota than
+the gate was first costed against, and still inside it. The *requirement* is
+locked (exact-sutta links for no-app recipients, 2026-07-22).
+
+**The mechanism is deferred, decided 2026-08-19**, and the shared half is built.
+Nothing about the choice below has changed; what changed is that it no longer
+blocks anything, because neither mechanism can be exercised until there is a
+deploy with a custom domain on it, and a folded leaf's URL now answers an honest
+`404` rather than a soft `200` (backlog A1). The mapping both answers consume —
+`source,target` for every folded leaf, verified row for row against the built
+pages and their anchors — comes from:
+
+```sh
+dart run static_site_generator/tool/plan_corpus.dart --redirects > redirects.csv
+```
+
+It is deliberately **not** Cloudflare's upload schema: absolute sources need the
+apex domain, which is the thing not settled, so prefixing a host and appending
+`,301` stays a line of `awk` at upload time rather than a rebuild. The two
+mechanisms, unchanged:
 
 - **Stub HTML files** (build-plan default): meta-refresh-0 + canonical →
   chapter. In-repo and portable, work on `*.pages.dev` previews, no zone
@@ -413,7 +430,7 @@ between one sutta and the next. On the connections this surface exists for,
 that was the whole point of being static, given away at the last step.
 
 The SSG now emits `_headers` at the root of the upload
-(`lib/render/cache_headers.dart`, built from the same path constants the build
+(`lib/render/site_headers.dart`, built from the same path constants the build
 writes, so a renamed asset cannot leave a rule pointing at nothing):
 
 | path | policy | why |

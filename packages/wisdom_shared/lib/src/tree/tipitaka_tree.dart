@@ -29,6 +29,7 @@
 library;
 
 import '../constants/tipitaka_node_keys.dart';
+import 'tree_coordinate_corrections.dart';
 
 /// One node of the navigation tree.
 ///
@@ -140,7 +141,17 @@ class TipitakaTree {
   /// intransitive — but `tree.json` is re-synced from upstream, so a re-sync
   /// that reorders one of those 8 puts `List.sort` back in unspecified
   /// territory. Re-run the check when the asset moves.
-  factory TipitakaTree.fromJson(Map<String, dynamic> json) {
+  ///
+  /// [corrections] overrides the coordinate of the leaves upstream points at
+  /// the wrong row — see [correctedTreeCoordinates], which is the default and
+  /// the only value any *reader* of the tree should pass. Pass `const {}` to
+  /// decode the asset exactly as it is written, which is what the tool that
+  /// **writes** that map needs: the defect it measures is invisible in a tree
+  /// that has already had it corrected.
+  factory TipitakaTree.fromJson(
+    Map<String, dynamic> json, {
+    Map<String, ({int page, int entry})> corrections = correctedTreeCoordinates,
+  }) {
     final nodes = <String, _MutableNode>{};
     final documentOrder = <String, int>{};
     final childrenOf = <String, List<String>>{};
@@ -177,14 +188,21 @@ class TipitakaTree {
           ? null
           : rawParent as String;
 
+      // Applied here rather than at any reader, so that *everything* derived
+      // from the tree — the slicer's boundaries, the reading order
+      // `nodesByFile` sorts into, the app's own walk — sees one coordinate and
+      // not two. A correction applied further down would leave the sort keys
+      // disagreeing with the slices they order.
+      final corrected = corrections[nodeKey];
+
       documentOrder[nodeKey] = ordinal++;
       nodes[nodeKey] = _MutableNode(
         nodeKey: nodeKey,
         paliName: data[0] as String,
         sinhalaName: data[1] as String,
         hierarchyLevel: data[2] as int,
-        entryPageIndex: coordinates[0] as int,
-        entryIndexInPage: coordinates[1] as int,
+        entryPageIndex: corrected?.page ?? coordinates[0] as int,
+        entryIndexInPage: corrected?.entry ?? coordinates[1] as int,
         parentNodeKey: parent,
         contentFileId: data[5] as String?,
       );
@@ -225,7 +243,8 @@ class TipitakaTree {
 
     final resolved = <String, TipitakaNode>{
       for (final entry in nodes.entries)
-        entry.key: entry.value.freeze(childrenOf[entry.key] ?? const <String>[]),
+        entry.key:
+            entry.value.freeze(childrenOf[entry.key] ?? const <String>[]),
     };
 
     return TipitakaTree._(Map.unmodifiable(resolved), List.unmodifiable(roots));

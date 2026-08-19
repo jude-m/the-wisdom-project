@@ -75,8 +75,11 @@ class PreamblePlanner {
 
   /// The two that do not: a title, and a centred banner or `namo tassa`.
   ///
-  /// Named only so the partition check in [textBearingContainers] has both
-  /// halves to compare. Nothing reads it to make a decision.
+  /// Named first so the partition check in [textBearingContainers] has both
+  /// halves to compare, and now read directly by `SliceAlignment`, which asks
+  /// the same question from the other side — *is this row a label rather than
+  /// text* — of the row a leaf's slice opens on. One set, so a type upstream
+  /// invents cannot be chrome to one rule and text to the other.
   static const Set<String> chromeTypes = {'heading', 'centered'};
 
   /// Every container whose preamble is an introduction.

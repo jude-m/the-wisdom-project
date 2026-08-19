@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 
-import 'package:static_site_generator/render/cache_headers.dart';
+import 'package:static_site_generator/domain/site_page.dart';
+import 'package:static_site_generator/render/landing_page.dart';
+import 'package:static_site_generator/render/site_headers.dart';
 
 /// Previews the generated site the way Cloudflare Pages will serve it.
 ///
@@ -22,6 +25,7 @@ import 'package:static_site_generator/render/cache_headers.dart';
 ///
 ///  * `/tipitaka/an-1-2` → `tipitaka/an-1-2.html`
 ///  * `/tipitaka/an-1-2.html` → 308 to the extensionless form
+///  * anything with no file → `404.html`, with a real `404`
 ///
 /// The redirect matters as much as the rewrite: it is what makes a stray
 /// `.html` link show up as a URL change in the address bar instead of quietly
@@ -112,16 +116,14 @@ Future<void> _handle(HttpRequest request, String rootPath) async {
   // does not have.
   //
   // Stricter than production on purpose, and the one place this server is.
-  // Pages has no `404.html` yet, so it answers this path — and every other
-  // unknown one — with `200` and the landing page (measured 2026-08-15; it is
-  // item A1 in docs/todo/web-strategy/static-site-backlog.md). Refusing here
-  // says the file is not a page; mirroring the soft-404 would only reproduce
-  // a bug.
-  if (path == '/$cacheHeadersOutputPath') {
+  // Pages serves nothing for a path it consumed, so a request for it lands on
+  // the not-found page like any other miss; refusing outright is the more
+  // useful answer while a rule set is being edited, because it names the file
+  // rather than showing the page every wrong URL shows.
+  if (path == '/$siteHeadersOutputPath') {
     response.statusCode = HttpStatus.notFound;
-    response.headers.contentType = ContentType.html;
-    response.write('<h1>404</h1><p><code>$path</code> is read by Cloudflare '
-        'Pages at deploy time and is never served as a page.</p>');
+    _writeHtml(request, '<h1>404</h1><p><code>$path</code> is read by '
+        'Cloudflare Pages at deploy time and is never served as a page.</p>');
     await response.close();
     _log(request, response.statusCode);
     return;
@@ -130,16 +132,32 @@ Future<void> _handle(HttpRequest request, String rootPath) async {
   final file = _resolve(path, rootPath);
   if (file == null) {
     response.statusCode = HttpStatus.notFound;
-    response.headers.contentType = ContentType.html;
-    // The second line is the common case and is not a bug: on a partial build
-    // the breadcrumbs still climb to ancestors above `--root`, and every canon
-    // page links to its atta-* twin under a different root entirely. Without
-    // saying so, the first dead breadcrumb reads as a generator fault.
-    response.write('<h1>404</h1><p>No file for <code>$path</code>.</p>'
-        '<p>If this key exists in the tree, it was outside this build&rsquo;s '
-        '<code>--root</code>. Rebuild with <code>--root all</code>.</p>');
+
+    // The generated page when the build has one, which is what Pages serves —
+    // same bytes, same status, so the thing being previewed is the thing that
+    // ships. Its own diagnostic goes to the log instead of into the body: it is
+    // for whoever is running the server, and production's 404 must not grow a
+    // paragraph that only makes sense locally.
+    final notFoundPage = File('$rootPath/${LandingPage.notFoundOutputPath}');
+    _writeHtml(
+      request,
+      notFoundPage.existsSync()
+          ? notFoundPage.readAsStringSync()
+          : '<h1>404</h1><p>No file for <code>$path</code>.</p>',
+    );
     await response.close();
     _log(request, response.statusCode);
+    // Only where it is true. A partial build's dead breadcrumbs are the common
+    // case and not a bug — they climb to ancestors above `--root`, and every
+    // canon page links to its atta-* twin under a different root entirely, so
+    // without saying so the first one reads as a generator fault. But a browser
+    // asking for `/favicon.ico`, or a stale `/assets/*?v=` URL, is not a
+    // nodeKey, and telling someone to rebuild with `--root all` is then simply
+    // wrong.
+    if (path.startsWith(tipitakaUrl(''))) {
+      stdout.writeln('     ↳ no file. If this key is in the tree it was '
+          "outside this build's --root; rebuild with --root all.");
+    }
     return;
   }
 
@@ -202,6 +220,23 @@ ContentType _contentTypeOf(String path) {
   if (path.endsWith('.xml')) return ContentType('application', 'xml');
   if (path.endsWith('.svg')) return ContentType('image', 'svg+xml');
   return ContentType.binary;
+}
+
+/// Answers with one HTML body built in memory, honouring `HEAD`.
+///
+/// Both refusals above build their body as a string rather than streaming a
+/// file, and both are checked with `curl -I` — a `HEAD` that comes back with a
+/// body is not the answer production gives. One helper because they are the
+/// same answer twice, and because they diverged once already: the file path
+/// below has always had this branch, and each refusal had to grow its own.
+void _writeHtml(HttpRequest request, String body) {
+  final response = request.response;
+  response.headers.contentType = ContentType.html;
+  if (request.method == 'HEAD') {
+    response.headers.contentLength = utf8.encode(body).length;
+  } else {
+    response.write(body);
+  }
 }
 
 void _log(HttpRequest request, int status) =>

@@ -51,6 +51,7 @@ import '../data/corpus_reader.dart';
 import '../domain/content_slicer.dart';
 import '../domain/grouping_policy.dart';
 import '../domain/site_page.dart';
+import '../domain/slice_alignment.dart';
 import '../render/node_labels.dart';
 import 'page_budget.dart';
 
@@ -120,6 +121,7 @@ List<FigureGroup> computeCorpusFigures({
   var rowsEmptyBothSides = 0;
   var unequalPrintedPages = 0;
   final filesWithUnequalSides = <String>{};
+  final misaligned = <SliceMisalignment, int>{};
 
   for (final fileId in nodesByFile.keys.toList()..sort()) {
     final file = reader.readContentFile(fileId);
@@ -144,6 +146,15 @@ List<FigureGroup> computeCorpusFigures({
     for (final node in nodesByFile[fileId]!) {
       final slice = slicer.sliceFor(node.nodeKey);
       charsOf[node.nodeKey] = slice.rawCharCount;
+
+      // Free here, and nowhere else: the rule reads a slice's first two rows,
+      // and this is the one pass that already holds every slice.
+      if (node.isLeaf) {
+        final verdict = SliceAlignment.verdictFor(node, slice);
+        if (verdict != null) {
+          misaligned[verdict] = (misaligned[verdict] ?? 0) + 1;
+        }
+      }
       for (final row in slice.rows) {
         if (row.pali?.text.isNotEmpty ?? false) nodesWithPali.add(node.nodeKey);
         if (row.sinhala?.text.isNotEmpty ?? false) {
@@ -188,8 +199,15 @@ List<FigureGroup> computeCorpusFigures({
     }
   }
 
+  // The same predicate [SliceAlignment] asks of a *row*, rather than a second
+  // copy of it here — one statement about what BJT printed, asked of a name in
+  // one place and a row's text in the other. It differs in one way from the
+  // local regex it replaced: an empty name is not bare numbering, where the
+  // regex counted one as numeric-only. That is the better reading — a leaf with
+  // no name is not a leaf titled by number — and the figure does not move
+  // either way, because no leaf in the corpus has an empty `paliName`.
   final numericOnlyTitles =
-      leaves.where((n) => !_hasLetter.hasMatch(n.paliName)).length;
+      leaves.where((n) => SliceAlignment.isBareNumbering(n.paliName)).length;
 
   final leavesPerTitle = <String, int>{};
   for (final leaf in leaves) {
@@ -395,7 +413,9 @@ List<FigureGroup> computeCorpusFigures({
               formatCount(largestLoneChild.chars),
               'the biggest leaf merged into its container '
                   '(`${largestLoneChild.key}`)'),
-        Figure('containerTocs', formatCount(budget.containerTocs),
+        Figure(
+            'containerTocs',
+            formatCount(budget.containerTocs),
             'container pages — a list of links, and above it whatever the '
                 'container itself owns'),
         Figure(
@@ -404,9 +424,14 @@ List<FigureGroup> computeCorpusFigures({
             "of those, the ones whose preamble is the book's introduction to "
                 'the chapter rather than its title, so the page is readable '
                 '(`textBearingContainerKeys`)'),
-        Figure('realPages', formatCount(budget.realPages),
-            'files the build writes, `/` included'),
-        Figure('readablePages', formatCount(plan.readablePages.length),
+        Figure(
+            'realPages',
+            formatCount(budget.realPages),
+            'pages the build writes, `/` included. Not `404.html`, which is '
+                'the answer for addresses that have no page'),
+        Figure(
+            'readablePages',
+            formatCount(plan.readablePages.length),
             'pages carrying text — sutta, chapter, and the container pages '
                 'that open with an introduction. The prev/next chain'),
         Figure(
@@ -481,6 +506,44 @@ List<FigureGroup> computeCorpusFigures({
             formatCount(readablePagesWithoutPali),
             'the reverse. The test is symmetric anyway: nothing guarantees '
                 'this stays 0 after a re-sync'),
+        Figure(
+            'correctedCoordinates',
+            formatCount(correctedTreeCoordinates.length),
+            'leaves whose upstream coordinate pointed at the label closing '
+                'their text instead of the number opening it, corrected '
+                'before the tree is used at all (`correctedTreeCoordinates`). '
+                'Every figure on this page is measured after that correction'),
+        Figure(
+            'misalignedSlices',
+            formatCount(misaligned.entries
+                .where((e) => SliceAlignment.isDefect(e.key))
+                .fold(0, (sum, e) => sum + e.value)),
+            'leaves whose slice still does not hold the text they are named '
+                'for (`SliceAlignment`), which is what the correction above '
+                'does not reach. **0 is the expected value** — anything here '
+                'means a re-sync moved the defect and `--write-alignment` '
+                'needs re-running. `plan_corpus.dart --misaligned` lists them'),
+        Figure(
+            'trailingColophonLeaves',
+            formatCount(misaligned[SliceMisalignment.trailingColophon] ?? 0),
+            "of those, the ones opening on the leaf's own name printed as a "
+                "colophon, so the page would carry this leaf's title over the "
+                "next leaf's text"),
+        Figure(
+            'strayDividerLeaves',
+            formatCount(misaligned[SliceMisalignment.strayDivider] ?? 0),
+            'the rest: leaves gaining one stray row from a `භාණවාරං` '
+                'recitation marker closing the division above'),
+        Figure(
+            'headingOnlyLeaves',
+            formatCount(misaligned[SliceMisalignment.headingOnlyLeaf] ?? 0),
+            '**not** part of the count above, and not a defect. Leaves whose '
+                'slice is one heading and nothing a reader reads, because '
+                'that is what BJT printed — a group title whose content is '
+                'split across its siblings, an abbreviation standing in for '
+                'two sections, or a recitation marker modelled as a node. The '
+                'coordinate is right; the section renders with a title and no '
+                'body'),
       ],
     ),
   ];
@@ -563,10 +626,6 @@ String _wrap(String text) {
 /// (`සූත්‍ර`) and yansaya — is ordinary Sinhala spelling, not the touching form
 /// `weldTitle` inserts.
 const String _zwj = '‍';
-
-/// Anything that is not a digit, whitespace or numbering punctuation. A leaf
-/// name with no match is titled by number alone.
-final RegExp _hasLetter = RegExp(r'[^\s0-9.\-–]');
 
 /// `356789012` → `340 MB`. Binary megabytes, the unit `du -h` reports in.
 String _megabytes(int bytes) => '${(bytes / (1024 * 1024)).round()} MB';

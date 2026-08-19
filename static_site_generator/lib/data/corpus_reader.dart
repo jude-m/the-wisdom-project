@@ -48,14 +48,23 @@ class CorpusReader {
   File get _treeFile => File('$assetsPath/data/tree.json');
 
   /// Decodes the full navigation tree (`FIGURES.treeNodes` nodes).
-  TipitakaTree readTree() {
+  ///
+  /// [raw] decodes the vendored asset exactly as written, skipping
+  /// [correctedTreeCoordinates]. Only `--write-alignment` wants that: the
+  /// defect it measures is by construction invisible in a corrected tree, so
+  /// the tool that regenerates the map is the one caller that must not be
+  /// reading its own output. Every build path takes the default.
+  TipitakaTree readTree({bool raw = false}) {
     final file = _treeFile;
     if (!file.existsSync()) {
       throw StateError('Missing ${file.path}');
     }
     final decoded =
         json.decode(file.readAsStringSync()) as Map<String, dynamic>;
-    return TipitakaTree.fromJson(decoded);
+    return TipitakaTree.fromJson(
+      decoded,
+      corrections: raw ? const {} : correctedTreeCoordinates,
+    );
   }
 
   /// Reads one `assets/text/<fileId>.json` content file.
