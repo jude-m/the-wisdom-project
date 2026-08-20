@@ -11,13 +11,25 @@
 ///
 /// A node's coordinate is the `[pageIndex, entryIndexInPage]` where its text
 /// **begins**, and every slice in the corpus is cut from one coordinate to the
-/// next. For the leaves named here upstream put the coordinate on the label
-/// that *closes* the unit instead — BJT prints those section names as a
-/// colophon, after the text they name — so the slice opens on one unit's name
-/// and runs through the *next* unit's body. The page then carries the right
-/// title over the wrong text, and its `#fragment` lands one unit early: a page
-/// that is wrong without looking wrong, which is why it survived every count,
-/// link check and byte-diff the build does.
+/// next. For the leaves named here upstream put it somewhere else, in one of
+/// three shapes:
+///
+/// - **One unit late.** BJT prints some section names as a *colophon*, after
+///   the text they name, and upstream took that closing line for the opening
+///   one. The slice opens on one unit's name and runs through the *next*
+///   unit's body.
+/// - **One unit early.** Elsewhere the coordinate sits on the body *above* the
+///   number that should have opened the leaf, so the leaf's own number is
+///   stranded at the foot of its slice and the page carries its title over the
+///   section before it.
+/// - **One row late.** A `භාණවාරං` recitation marker closes the division above
+///   and lands at the top of the next leaf's slice, one stray row over text
+///   that is otherwise the leaf's own.
+///
+/// In each the page carries the right title over the wrong text, and its
+/// `#fragment` lands off its own opening: a page that is wrong without looking
+/// wrong, which is why it survived every count, link check and byte-diff the
+/// build does.
 ///
 /// `SliceAlignment` is the detector; this is the correction. They are kept
 /// apart on purpose — the detector is asked of whatever tree is loaded, so

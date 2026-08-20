@@ -1200,14 +1200,20 @@ build-twice hash identical.
   number `1.`, and the numeric exemption returned "the ordinary shape" *before*
   the question that asks whether the slice holds a body. **A leading number
   leads something**; the exemption was answering a question nobody had asked
-  yet. Question 1 now runs first — corpus-wide that changes exactly one verdict.
+  yet. Question 1 now runs ahead of it — corpus-wide that changes exactly one
+  verdict. (The blank-opening-row exemption still stands ahead of question 1,
+  and stays: a blank row is not a heading printed over nothing, it is no
+  heading.)
 
   `SliceMisalignment.strandedLeadingNumber` reads from the other end: the leaf's
   own leading number sitting at the *foot* of its slice, confirmed by the same
-  own-name test the colophon branch uses. `_correctSelfLed` then corrects the
+  own-name test the colophon branch uses. `_correctShiftedRun` then corrects the
   whole container, because the name test structurally misses the last leaf — the
-  same hole `_correctRun` has, here because `ap-vbh-18-10`'s slice closes on
-  `විභඞ්ගප්පකරණං සමත්තං.` rather than a stranded number. Nine coordinates moved;
+  same hole the colophon shape has, here because `ap-vbh-18-10`'s slice closes on
+  `විභඞ්ගප්පකරණං සමත්තං.` rather than a stranded number. It is **one** walk for
+  both shapes, differing only in which slice holds the number a leaf should open
+  on: the previous node's for a colophon run, the leaf's own for a stranded one.
+  Nine coordinates moved;
   leaf 1's was already correct and emits no row, and it got its text back the
   moment leaf 2 moved.
 

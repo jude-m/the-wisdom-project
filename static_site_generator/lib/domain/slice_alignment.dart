@@ -219,6 +219,13 @@ class SliceAlignment {
   /// keeps a book's findings contiguous. Deterministic, so a report built from
   /// it can be diffed run to run.
   Map<String, SliceMisalignment> misalignedSlices() {
+    // Asked here rather than only in [verdictFor], which is static and called
+    // once per leaf: this is the entry point, and two set comparisons per run
+    // is a price every caller can pay where ~16,000 is a price to think about.
+    // `CoordinatePlanner.corrections()` asks it too — the walk it runs reaches
+    // rows this one never sees.
+    PreamblePlanner.assertTypesPartitioned();
+
     final found = <String, SliceMisalignment>{};
     ContentSlicer.nodesByFile(tree).forEach((fileId, nodes) {
       final slicer = slicerFor(fileId);
@@ -252,21 +259,37 @@ class SliceAlignment {
     final opening = slice.rows[0].pali;
     if (opening == null) return null;
 
-    // `chromeTypes` rather than a second copy of {heading, centered}: "is this
-    // row a label or is it text" is one question, and `PreamblePlanner` already
-    // holds the answer — together with the check that it still partitions
-    // `ContentEntry.knownTypes`, which is what keeps either rule honest when
-    // upstream invents a type.
+    // `PreamblePlanner`'s two sets rather than a second copy of
+    // {heading, centered}: "is this row a label or is it text" is one question,
+    // and that class already holds the answer — together with
+    // [PreamblePlanner.assertTypesPartitioned], which is what keeps either rule
+    // honest when a type is added to `ContentEntry.knownTypes`.
     //
     // A slice opening on a body row has no opening *label* to reason about, and
     // used to end the walk here. It is still answerable from the other end.
-    if (!PreamblePlanner.chromeTypes.contains(opening.type)) {
+    //
+    // Both sides asked positively, so a type in neither reaches no verdict at
+    // all. Unreachable twice over as written — [ContentEntry.fromJson] already
+    // rewrites any type outside `knownTypes` to `paragraph`, and every caller
+    // of this file runs [PreamblePlanner.assertTypesPartitioned] first, so a
+    // type inside `knownTypes` is in one set or the run has already refused.
+    // Kept because those are two guarantees in two other files: the cost is one
+    // set test, and the shape it declines to guess about is one this rule would
+    // otherwise read as a body row and answer from the wrong end.
+    if (PreamblePlanner.runningTextTypes.contains(opening.type)) {
       return _strandedLeadingNumber(leaf, slice);
     }
+    if (!PreamblePlanner.chromeTypes.contains(opening.type)) return null;
 
     // An empty opening row is not a label at all, and [isBareNumbering] is
     // false for it — without this the row below would decide the verdict on its
     // own.
+    //
+    // The one exemption still standing ahead of question 1, and not for the
+    // reason the numeric one was moved: a blank row is not a heading printed
+    // over nothing, it is no heading. Whatever such a slice is, it is not
+    // [SliceMisalignment.headingOnlyLeaf], and the shape does not occur in the
+    // corpus.
     if (opening.text.trim().isEmpty) return null;
 
     // Question 1. Nothing a reader reads, so nothing below can argue: the text

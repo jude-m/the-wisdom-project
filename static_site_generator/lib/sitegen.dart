@@ -6,6 +6,7 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 import 'data/corpus_reader.dart';
 import 'data/slicer_cache.dart';
 import 'domain/document.dart';
+import 'domain/preamble_planner.dart';
 import 'domain/site_page.dart';
 import 'domain/slice_alignment.dart';
 import 'domain/theme_tokens.dart';
@@ -137,6 +138,12 @@ class SiteGenerator {
     var chapterPages = 0;
     var tocPages = 0;
     var misalignedSlices = 0;
+
+    // The loop below asks [SliceAlignment.verdictFor] directly, so the
+    // partition is this build's to check too — a type in neither set reaches no
+    // verdict, and `misalignedSlices` would report a clean corpus by never
+    // being asked the question. Once per build, before the first page.
+    PreamblePlanner.assertTypesPartitioned();
 
     for (final page in plan.pages) {
       final sourceFileId = _sourceFileOf(page);

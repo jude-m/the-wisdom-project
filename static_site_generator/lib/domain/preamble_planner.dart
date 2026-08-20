@@ -35,8 +35,9 @@ import 'content_slicer.dart';
 /// `ContentEntry.knownTypes` a new one — the natural first step when upstream
 /// introduces it — would take it out of `paragraph` and, with a bare list here,
 /// quietly out of running text: the unsafe direction, and the exact failure
-/// this class exists to prevent. So every run checks that the two halves
-/// partition [ContentEntry.knownTypes], and refuses to plan if they do not.
+/// this class exists to prevent. So every run that reads either set checks that
+/// the two halves still partition [ContentEntry.knownTypes] —
+/// [assertTypesPartitioned] — and refuses to go on if they do not.
 ///
 /// Measured across the corpus the two groups do not overlap: heading rows
 /// average 31 characters and centered rows 47 (pitaka banners and `namo
@@ -82,6 +83,41 @@ class PreamblePlanner {
   /// invents cannot be chrome to one rule and text to the other.
   static const Set<String> chromeTypes = {'heading', 'centered'};
 
+  /// Refuses the run unless the two sets above still partition
+  /// [ContentEntry.knownTypes].
+  ///
+  /// Checked here rather than at a declaration because a `const` cannot
+  /// compute. Thrown rather than asserted because every caller runs under
+  /// `dart run`, which runs with asserts *off* — an `assert` would be a guard
+  /// against silent drift that itself drifts silently. These are the sync runs
+  /// that would freeze the wrong answer, and the only moment it could still be
+  /// fixed cheaply.
+  ///
+  /// A static of its own rather than a line inside [textBearingContainers],
+  /// because the partition is not this class's private business. Every entry
+  /// point that reads either set asks for itself, because none of them reaches
+  /// the others: [textBearingContainers], `SliceAlignment.misalignedSlices`
+  /// (`--misaligned`), `CoordinatePlanner.corrections` (`--write-alignment`,
+  /// which freezes a snapshot without ever planning a preamble),
+  /// `computeCorpusFigures` (`--write-figures`) and the build in `sitegen.dart`,
+  /// which calls `SliceAlignment.verdictFor` straight. Two set comparisons per
+  /// run, so every one of them can afford it — and a new reader that assumes an
+  /// earlier call covered it is exactly the drift this exists to catch, so add
+  /// the call.
+  static void assertTypesPartitioned() {
+    if (ContentEntry.knownTypes.length !=
+            runningTextTypes.length + chromeTypes.length ||
+        !ContentEntry.knownTypes.containsAll(runningTextTypes) ||
+        !ContentEntry.knownTypes.containsAll(chromeTypes)) {
+      throw StateError(
+        'runningTextTypes and chromeTypes must partition '
+        'ContentEntry.knownTypes. A type was added to the parser without '
+        'deciding whether it is running text; leaving it out would silently '
+        'stop counting it.',
+      );
+    }
+  }
+
   /// Every container whose preamble is an introduction.
   ///
   /// **Every container, not only the ones that become TOC pages.** A container
@@ -99,25 +135,7 @@ class PreamblePlanner {
   /// as an integrity violation, rather than leaving it to be inferred from a
   /// page that renders empty.
   Set<String> textBearingContainers() {
-    // Checked here rather than at a declaration because a `const` cannot
-    // compute. Thrown rather than asserted because the only caller is
-    // `plan_corpus.dart` under `dart run`, which runs with asserts *off* — an
-    // `assert` here would be a guard against silent drift that itself drifts
-    // silently. This is the sync run that would freeze the wrong answer, and
-    // the only moment it could still be fixed cheaply.
-    //
-    // Two set comparisons, twice per corpus run.
-    if (ContentEntry.knownTypes.length !=
-            runningTextTypes.length + chromeTypes.length ||
-        !ContentEntry.knownTypes.containsAll(runningTextTypes) ||
-        !ContentEntry.knownTypes.containsAll(chromeTypes)) {
-      throw StateError(
-        'runningTextTypes and chromeTypes must partition '
-        'ContentEntry.knownTypes. A type was added to the parser without '
-        'deciding whether it is running text; leaving it out would silently '
-        'stop counting it.',
-      );
-    }
+    assertTypesPartitioned();
 
     final bearing = <String>{};
     ContentSlicer.containersByFile(tree).forEach((fileId, containers) {

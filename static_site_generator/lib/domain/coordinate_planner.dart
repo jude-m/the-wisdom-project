@@ -98,9 +98,12 @@ class CoordinateDerivationFailure implements Exception {
 /// for a chrome row — and the rule quote BJT centres inside each unit has
 /// letters in it, so [SliceAlignment.isBareNumbering] rejects it.
 ///
-/// [_correctSelfLed] runs the same walk over the mirrored shape, reading each
-/// leaf's number out of its *own* slice instead of the previous one's, and
-/// through the same one-candidate contract.
+/// The mirrored shape is the same walk with that window moved: a stranded run
+/// reads each leaf's number out of its *own* slice instead of the previous
+/// one's, through the same one-candidate contract. One function takes both —
+/// [_correctShiftedRun] — because which slice to read is the only thing they
+/// disagree about, and two copies of the walk would be two places for the
+/// contract to drift.
 ///
 /// ## The third rule: one row, not one unit
 ///
@@ -135,6 +138,12 @@ class CoordinatePlanner {
   /// file diffs the way the other snapshots do — a book's rows stay contiguous
   /// and one moved coordinate is one changed line.
   List<CoordinateCorrection> corrections() {
+    // Both the detector and [_soleLeadingNumber] read `PreamblePlanner`'s two
+    // type sets, and this is the run that *freezes* what they conclude. The
+    // check lives with the sets; `--write-alignment` returns long before
+    // anything plans a preamble, so it has to be asked here too.
+    PreamblePlanner.assertTypesPartitioned();
+
     final verdicts =
         SliceAlignment(tree: tree, slicerFor: slicerFor).misalignedSlices();
 
@@ -183,11 +192,14 @@ class CoordinatePlanner {
         // One walk, every rule, so the file stays in reading order however
         // many shapes end up being corrected. A container carries its whole
         // run; a divider leaf carries only itself.
-        if (!node.isLeaf && colophonRuns.contains(node.nodeKey)) {
-          out.addAll(_correctRun(node, slicer));
-          visited.add(node.nodeKey);
-        } else if (!node.isLeaf && strandedRuns.contains(node.nodeKey)) {
-          out.addAll(_correctSelfLed(node, slicer));
+        //
+        // Which run shape it is picks the window and nothing else. The two sets
+        // are disjoint — refused above if they are not — so reading the flag
+        // off `colophonRuns` cannot be answering for a container the other rule
+        // also claims.
+        if (!node.isLeaf && convicted.contains(node.nodeKey)) {
+          out.addAll(_correctShiftedRun(node, slicer,
+              numberInPreviousSlice: colophonRuns.contains(node.nodeKey)));
           visited.add(node.nodeKey);
         } else if (node.isLeaf &&
             verdicts[node.nodeKey] == SliceMisalignment.strayDivider) {
@@ -212,17 +224,17 @@ class CoordinatePlanner {
       );
     }
 
-    // Two rules, one leaf. The run rules correct every child of a convicted
-    // container and `_correctDivider` corrects a leaf on its own, so a divider
-    // sitting inside a shifted run would be corrected twice — two coordinates
-    // for one key, from two rules that cannot both be right. Nothing in the
-    // corpus is shaped that way (the dividers are in `kn-vv`/`kn-pv`, the
-    // colophon runs in `vp-pct`, the stranded one in `ap-vbh`), and the writer
-    // would emit both as duplicate
-    // keys in a `const` map, which the compiler refuses. But that refusal names
-    // a Dart error in a generated file rather than the run that produced it,
-    // and keeping either row is the half-corrected outcome
-    // [CoordinateDerivationFailure] exists to refuse.
+    // Two rules, one leaf. `_correctShiftedRun` corrects every child of a
+    // convicted container and `_correctDivider` corrects a leaf on its own, so
+    // a divider sitting inside a shifted run would be corrected twice — two
+    // coordinates for one key, from two rules that cannot both be right.
+    // Nothing in the corpus is shaped that way (the dividers are in
+    // `kn-vv`/`kn-pv`, the colophon runs in `vp-pct`, the stranded one in
+    // `ap-vbh`), and the writer would emit both as duplicate keys in a `const`
+    // map, which the compiler refuses. But that refusal names a Dart error in a
+    // generated file rather than the run that produced it, and keeping either
+    // row is the half-corrected outcome [CoordinateDerivationFailure] exists to
+    // refuse.
     final seen = <String>{};
     final duplicated = <String>{
       for (final correction in out)
@@ -246,10 +258,10 @@ class CoordinatePlanner {
   /// no text changes hands, because everything below the marker was already
   /// this leaf's.
   ///
-  /// Deliberately **not** folded into [_correctRun]. That rule shifts a whole
-  /// container because a colophon run moves as a body; here the leaves around it
-  /// are correct and only this one row is misplaced, so correcting its
-  /// neighbours would be the error rather than the fix.
+  /// Deliberately **not** folded into [_correctShiftedRun]. That rule shifts a
+  /// whole container because a shifted run moves as a body; here the leaves
+  /// around it are correct and only this one row is misplaced, so correcting
+  /// its neighbours would be the error rather than the fix.
   CoordinateCorrection _correctDivider(
       TipitakaNode leaf, ContentSlicer slicer) {
     final slice = slicer.sliceFor(leaf.nodeKey);
@@ -281,33 +293,51 @@ class CoordinatePlanner {
     );
   }
 
-  /// Shifts one container's run of leaves *forward* onto their own numbers.
+  /// Shifts one container's whole run of leaves onto their own numbers.
   ///
-  /// The mirror of [_correctRun], and the same shape of walk with one window
-  /// changed. A colophon run starts each leaf too late, so its number is in the
-  /// slice of the node *before* it; a stranded run starts each leaf too early,
-  /// so its number is at the foot of its **own** slice — the row
-  /// [SliceMisalignment.strandedLeadingNumber] proved is there, found again
-  /// here through the same [_soleLeadingNumber] contract rather than by
-  /// trusting the detector's reasoning.
+  /// One walk for both run shapes, which differ in exactly one thing: **which
+  /// slice holds the number a leaf should open on.** A colophon run starts each
+  /// leaf too *late*, so that number is in the slice of the node before it —
+  /// the container's own preamble for the first leaf, which is where its text
+  /// went. A stranded run starts each leaf too *early*, so the number is at the
+  /// foot of the leaf's **own** slice, the row
+  /// [SliceMisalignment.strandedLeadingNumber] proved is there. Either way it
+  /// is found again here through [_soleLeadingNumber] rather than by trusting
+  /// the detector's reasoning, and everything else about the two — the whole
+  /// container, the one-candidate contract, the refusals — is the same rule.
   ///
-  /// **A leaf already on its number emits nothing.** In this shape the first
-  /// leaf's coordinate is correct and only its text is missing, taken by a
-  /// sibling that started one row too soon; it gets that text back the moment
-  /// the sibling moves. `correctedTreeCoordinates` is one line per leaf whose
-  /// text moves, and a row that moves a coordinate onto itself is a line in the
-  /// review diff with nothing in it to review.
-  List<CoordinateCorrection> _correctSelfLed(
-      TipitakaNode container, ContentSlicer slicer) {
+  /// **A leaf already on its number emits nothing.** The stranded shape reaches
+  /// that routinely: there the first leaf's coordinate is correct and only its
+  /// text is missing, taken by a sibling that started one row too soon, and it
+  /// gets that text back the moment the sibling moves. A colophon run all but
+  /// cannot — [ContentSlicer.sliceFor] runs to the next *boundary* after the
+  /// start, so the previous node's slice holds this leaf's own row only where
+  /// the two share a coordinate, the case that method's own doc names, and no
+  /// colophon run in the corpus does. Written unconditionally rather than
+  /// branched for exactly that reason: the skip is right on both sides — one
+  /// line per leaf whose text *moves* — and a branch would suggest the two
+  /// rules disagree about what to emit when they do not. A row that moves a
+  /// coordinate onto itself is a line in the review diff with nothing in it to
+  /// review.
+  List<CoordinateCorrection> _correctShiftedRun(
+      TipitakaNode container, ContentSlicer slicer,
+      {required bool numberInPreviousSlice}) {
     final children = tree.childrenOf(container.nodeKey);
     if (children.any((child) => !child.isLeaf)) {
+      final readFrom =
+          numberInPreviousSlice ? 'its own preamble' : 'their own slices';
       throw CoordinateDerivationFailure(
         '"${container.nodeKey}" holds a sub-container, so its leaves are not '
-        'one printed run and the shift cannot be read off their own slices.',
+        'one printed run and the shift cannot be read off $readFrom.',
       );
     }
 
     final out = <CoordinateCorrection>[];
+    // The node whose slice holds the *next* leaf's opening number, for the
+    // colophon shape. Starts as the container, whose preamble swallowed the
+    // first leaf's text, and then walks the run. Unread in the stranded shape,
+    // where every leaf's number is inside its own slice.
+    var previous = container;
     for (final leaf in children) {
       final fileId = leaf.contentFileId;
       if (fileId == null || fileId != container.contentFileId) {
@@ -316,8 +346,13 @@ class CoordinatePlanner {
           'file, so the run is not one slice sequence.',
         );
       }
-      final row =
-          _soleLeadingNumber(slicer.sliceFor(leaf.nodeKey), leaf.nodeKey);
+      final window = slicer
+          .sliceFor(numberInPreviousSlice ? previous.nodeKey : leaf.nodeKey);
+      final row = _soleLeadingNumber(window, leaf.nodeKey);
+      // Advanced before the skip below, not after it: a leaf that emits nothing
+      // is still the next leaf's window, and stepping over it would read the
+      // wrong slice for every leaf after it.
+      previous = leaf;
       if (row.pageIndex == leaf.entryPageIndex &&
           row.entryIndex == leaf.entryIndexInPage) {
         continue;
@@ -328,43 +363,6 @@ class CoordinatePlanner {
         to: (page: row.pageIndex, entry: row.entryIndex),
         openingRow: row.pali?.text.trim() ?? '',
       ));
-    }
-    return out;
-  }
-
-  /// Shifts one container's whole run of leaves back onto their own text.
-  List<CoordinateCorrection> _correctRun(
-      TipitakaNode container, ContentSlicer slicer) {
-    final children = tree.childrenOf(container.nodeKey);
-    if (children.any((child) => !child.isLeaf)) {
-      throw CoordinateDerivationFailure(
-        '"${container.nodeKey}" holds a sub-container, so its leaves are not '
-        'one printed run and the shift cannot be read off its own preamble.',
-      );
-    }
-
-    final out = <CoordinateCorrection>[];
-    // The node whose slice holds the *next* leaf's opening number. Starts as
-    // the container, whose preamble swallowed the first leaf's text, and then
-    // walks the run.
-    var previous = container;
-    for (final leaf in children) {
-      final fileId = leaf.contentFileId;
-      if (fileId == null || fileId != container.contentFileId) {
-        throw CoordinateDerivationFailure(
-          '"${leaf.nodeKey}" does not share "${container.nodeKey}"\'s content '
-          'file, so the run is not one slice sequence.',
-        );
-      }
-      final window = slicer.sliceFor(previous.nodeKey);
-      final row = _soleLeadingNumber(window, leaf.nodeKey);
-      out.add(CoordinateCorrection(
-        nodeKey: leaf.nodeKey,
-        from: (page: leaf.entryPageIndex, entry: leaf.entryIndexInPage),
-        to: (page: row.pageIndex, entry: row.entryIndex),
-        openingRow: row.pali?.text.trim() ?? '',
-      ));
-      previous = leaf;
     }
     return out;
   }

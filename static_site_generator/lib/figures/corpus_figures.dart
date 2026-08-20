@@ -50,6 +50,7 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 import '../data/corpus_reader.dart';
 import '../domain/content_slicer.dart';
 import '../domain/grouping_policy.dart';
+import '../domain/preamble_planner.dart';
 import '../domain/site_page.dart';
 import '../domain/slice_alignment.dart';
 import '../render/node_labels.dart';
@@ -112,6 +113,15 @@ List<FigureGroup> computeCorpusFigures({
   required Set<String> folded,
   required CorpusReader reader,
 }) {
+  // This mode calls [SliceAlignment.verdictFor] directly rather than through
+  // `misalignedSlices()`, so it has to ask for itself. It matters more here
+  // than anywhere: a type classified by neither set reaches no verdict, the
+  // misalignment figures below quietly drop it, and `--write-figures` writes
+  // that undercount into `CORPUS_FIGURES.md` — a file the prose then cites by
+  // name. The one report whose whole purpose is to be trusted is the one that
+  // must not be allowed to under-report.
+  PreamblePlanner.assertTypesPartitioned();
+
   // ── the corpus pass ───────────────────────────────────────────────────────
   final nodesByFile = ContentSlicer.nodesByFile(tree);
   final charsOf = <String, int>{};
@@ -512,8 +522,10 @@ List<FigureGroup> computeCorpusFigures({
         Figure(
             'correctedCoordinates',
             formatCount(correctedTreeCoordinates.length),
-            'leaves whose upstream coordinate pointed at the label closing '
-                'their text instead of the number opening it, corrected '
+            'leaves whose upstream coordinate did not point at the row their '
+                'text begins on, in any of the shapes `SliceAlignment` finds — '
+                'a closing colophon taken for an opening line, a recitation '
+                'marker, or a coordinate a whole section early — corrected '
                 'before the tree is used at all (`correctedTreeCoordinates`). '
                 'Every figure on this page is measured after that correction'),
         Figure(
@@ -541,9 +553,9 @@ List<FigureGroup> computeCorpusFigures({
             'strandedLeadingNumberLeaves',
             formatCount(
                 misaligned[SliceMisalignment.strandedLeadingNumber] ?? 0),
-            "the rest: leaves whose own leading number is stranded at the "
-                'foot of their slice, so the page carries this leaf\'s title '
-                "over the previous leaf's text"),
+            "the rest: leaves whose own leading number is stranded at the foot "
+                "of their slice, so the page carries this leaf's title over "
+                "the previous leaf's text"),
         Figure(
             'headingOnlyLeaves',
             formatCount(misaligned[SliceMisalignment.headingOnlyLeaf] ?? 0),
