@@ -474,6 +474,11 @@ void _printMisaligned(
       tag: 'divider',
       note: 'a recitation marker closing the division above — one stray row',
     ),
+    SliceMisalignment.strandedLeadingNumber: (
+      tag: 'stranded',
+      note: "the leaf's own leading number left at the foot of its slice — "
+          'the page above it is the previous leaf',
+    ),
     SliceMisalignment.headingOnlyLeaf: (
       tag: 'heading',
       note: 'NOT a defect — the leaf is where it should be and the book has '

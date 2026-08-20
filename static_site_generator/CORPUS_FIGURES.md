@@ -81,7 +81,7 @@ the grouping lines both use.
 | `FIGURES.contentFiles` | 285 | `assets/text/*.json` — one printed book each |
 | `FIGURES.corpusMegabytes` | 339 MB | those files on disk |
 | `FIGURES.treeMegabytes` | 4 MB | `tree.json` on disk |
-| `FIGURES.thinSuttaPages` | 738 | sutta pages under `GroupingPolicy.shortLineChars` |
+| `FIGURES.thinSuttaPages` | 737 | sutta pages under `GroupingPolicy.shortLineChars` |
 | `FIGURES.thinSuttaPagesPromoted` | 340 | of those, leaves in a promoted book — thin on purpose, because the leaf is a complete named work |
 | `FIGURES.biggestChapterChars` | 103,153 | the largest multi-sutta chapter (`atta-mn-1-1-4`) |
 | `FIGURES.chaptersOver100k` | 1 | multi-sutta chapters over 100,000 characters |
@@ -92,8 +92,9 @@ the grouping lines both use.
 | `FIGURES.filesWithUnequalSides` | 7 | content files holding such a page — the known `ap-pat*` (Paṭṭhāna) misalignment |
 | `FIGURES.readablePagesWithoutSinhala` | 209 | readable pages with no Sinhala at all. They get no column captions, no layout switcher — one of the four would hide every row they have — and `solo` on `.content` in place of what the missing radios would have set |
 | `FIGURES.readablePagesWithoutPali` | 0 | the reverse. The test is symmetric anyway: nothing guarantees this stays 0 after a re-sync |
-| `FIGURES.correctedCoordinates` | 79 | leaves whose upstream coordinate pointed at the label closing their text instead of the number opening it, corrected before the tree is used at all (`correctedTreeCoordinates`). Every figure on this page is measured after that correction |
+| `FIGURES.correctedCoordinates` | 88 | leaves whose upstream coordinate pointed at the label closing their text instead of the number opening it, corrected before the tree is used at all (`correctedTreeCoordinates`). Every figure on this page is measured after that correction |
 | `FIGURES.misalignedSlices` | 0 | leaves whose slice still does not hold the text they are named for (`SliceAlignment`), which is what the correction above does not reach. **0 is the expected value** — anything here means a re-sync moved the defect and `--write-alignment` needs re-running. `plan_corpus.dart --misaligned` lists them |
 | `FIGURES.trailingColophonLeaves` | 0 | of those, the ones opening on the leaf's own name printed as a colophon, so the page would carry this leaf's title over the next leaf's text |
-| `FIGURES.strayDividerLeaves` | 0 | the rest: leaves gaining one stray row from a `භාණවාරං` recitation marker closing the division above |
-| `FIGURES.headingOnlyLeaves` | 8 | **not** part of the count above, and not a defect. Leaves whose slice is one heading and nothing a reader reads, because that is what BJT printed — a group title whose content is split across its siblings, an abbreviation standing in for two sections, or a recitation marker modelled as a node. The coordinate is right; the section renders with a title and no body |
+| `FIGURES.strayDividerLeaves` | 0 | leaves gaining one stray row from a `භාණවාරං` recitation marker closing the division above |
+| `FIGURES.strandedLeadingNumberLeaves` | 0 | the rest: leaves whose own leading number is stranded at the foot of their slice, so the page carries this leaf's title over the previous leaf's text |
+| `FIGURES.headingOnlyLeaves` | 7 | **not** part of the count above, and not a defect. Leaves whose slice is one heading and nothing a reader reads, because that is what BJT printed — a group title whose content is split across its siblings, an abbreviation standing in for two sections, or a recitation marker modelled as a node. The coordinate is right; the section renders with a title and no body |

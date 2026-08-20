@@ -535,8 +535,15 @@ List<FigureGroup> computeCorpusFigures({
         Figure(
             'strayDividerLeaves',
             formatCount(misaligned[SliceMisalignment.strayDivider] ?? 0),
-            'the rest: leaves gaining one stray row from a `භාණවාරං` '
-                'recitation marker closing the division above'),
+            'leaves gaining one stray row from a `භාණවාරං` recitation marker '
+                'closing the division above'),
+        Figure(
+            'strandedLeadingNumberLeaves',
+            formatCount(
+                misaligned[SliceMisalignment.strandedLeadingNumber] ?? 0),
+            "the rest: leaves whose own leading number is stranded at the "
+                'foot of their slice, so the page carries this leaf\'s title '
+                "over the previous leaf's text"),
         Figure(
             'headingOnlyLeaves',
             formatCount(misaligned[SliceMisalignment.headingOnlyLeaf] ?? 0),

@@ -4,7 +4,7 @@
 // rather than hand-editing.
 
 /// Leaves whose `tree.json` coordinate points at the wrong row, and the row it
-/// should point at — 79 of them, frozen from one full-corpus
+/// should point at — 88 of them, frozen from one full-corpus
 /// run of the rule.
 ///
 /// ## What is wrong upstream
@@ -56,6 +56,24 @@ const Map<String, ({int page, int entry})> correctedTreeCoordinates = {
   'kn-pv-3-4': (page: 42, entry: 5),
   // was (page: 65, entry: 9), now opens on "4. 3."
   'kn-pv-4-3': (page: 66, entry: 0),
+  // was (page: 41, entry: 2), now opens on "2."
+  'ap-vbh-18-2': (page: 42, entry: 6),
+  // was (page: 42, entry: 7), now opens on "3."
+  'ap-vbh-18-3': (page: 46, entry: 4),
+  // was (page: 46, entry: 5), now opens on "4."
+  'ap-vbh-18-4': (page: 48, entry: 10),
+  // was (page: 48, entry: 11), now opens on "5."
+  'ap-vbh-18-5': (page: 54, entry: 10),
+  // was (page: 54, entry: 11), now opens on "6."
+  'ap-vbh-18-6': (page: 55, entry: 7),
+  // was (page: 55, entry: 8), now opens on "7."
+  'ap-vbh-18-7': (page: 58, entry: 14),
+  // was (page: 58, entry: 15), now opens on "8."
+  'ap-vbh-18-8': (page: 60, entry: 2),
+  // was (page: 60, entry: 3), now opens on "9."
+  'ap-vbh-18-9': (page: 61, entry: 5),
+  // was (page: 61, entry: 6), now opens on "10."
+  'ap-vbh-18-10': (page: 62, entry: 0),
   // was (page: 12, entry: 10), now opens on "8. 1. 1."
   'vp-pct-1-3-1-1': (page: 12, entry: 4),
   // was (page: 13, entry: 5), now opens on "8. 1. 2."

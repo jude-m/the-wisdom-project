@@ -17,10 +17,36 @@ enum SliceMisalignment {
   /// stray row; the rest of the page is this leaf's own text.
   strayDivider,
 
+  /// The leaf's own **leading number is stranded at the foot** of its slice.
+  ///
+  /// BJT leads each section of `ap-vbh-18` with a bare number, and upstream
+  /// anchored every leaf one row past the *previous* section's number. The
+  /// slice then opens on the previous section's body and closes on the number
+  /// that should have opened this one:
+  ///
+  /// ```text
+  ///   1.                 ← ap-vbh-18-1's coordinate, and correct
+  ///   1020. කති ඛන්ධා …   ← ap-vbh-18-2's coordinate: section 1's first line
+  ///   …                   the rest of section 1
+  ///   2.                 ← where ap-vbh-18-2 should open, stranded at its foot
+  ///   1034. කාමධාතුයා …   ← ap-vbh-18-3's coordinate, and so on down the run
+  /// ```
+  ///
+  /// The mirror of [trailingColophon]: there the coordinate lands too *late*,
+  /// on the label closing the unit; here too *early*, on the body above. Both
+  /// print the right title over the wrong text and both shift a whole run — but
+  /// this one also starves the first leaf, whose own coordinate is correct and
+  /// whose text its next sibling has taken.
+  ///
+  /// Asked only of a slice that opens on a **body row**. The label-opening
+  /// shapes belong to the two rules above, and measured over the corpus no
+  /// slice is a candidate for both.
+  strandedLeadingNumber,
+
   /// The slice holds **no running text at all** — a label, perhaps a second
   /// label, and nothing a reader reads.
   ///
-  /// **Not a misalignment**, and counted apart from the two above for that
+  /// **Not a misalignment**, and counted apart from the three above for that
   /// reason. Two different causes reach this shape and the slice alone cannot
   /// tell them apart: a coordinate shifted off its own text (the last leaf of a
   /// trailing-colophon run, whose body sits in the slice above), and a node
@@ -37,12 +63,11 @@ enum SliceMisalignment {
   /// (`ආසව ගොච්ඡක කුසල දුකතික සදිසං`), or a recitation marker modelled as a
   /// node (`සන්ථතභාණවාරො`).
   ///
-  /// **`ap-vbh-18-1` is the one exception today** (2026-08-20). It is a section
-  /// number over an empty page, and the rows below it belong to a sibling that
-  /// is *not* correctly named for them: it heads a run whose coordinates each
-  /// start one section early. The slice alone cannot say so — no body is no
-  /// body — and it surfaced here at all only because question 1 is now asked
-  /// ahead of the numeric exemption that used to pass it over.
+  /// It stayed true through `ap-vbh-18-1`, which reported here for two days
+  /// (2026-08-20) as a section number over an empty page: the slice alone
+  /// cannot tell a bare heading from a starved one, and what convicted it was
+  /// its siblings — see [strandedLeadingNumber], the rule that moved the run
+  /// and gave it its text back.
   ///
   /// So it is reported and never warned about: the section renders with a title
   /// and no body because that is what the book has. It stays in this enum
@@ -84,9 +109,15 @@ enum SliceMisalignment {
 ///
 /// ## The rule
 ///
-/// Asked only of a slice that **opens on a label** — a heading or a centred
-/// line rather than a body row. From there two questions settle it, and the
-/// second is only reached when the first says there is text to reason about:
+/// The opening row decides which set of questions is asked. A slice opening on
+/// a **body row** cannot be a label question at all, and gets the one test that
+/// reads from the other end — see [SliceMisalignment.strandedLeadingNumber],
+/// where the leaf's own leading number is stranded at the foot of the slice
+/// because the coordinate started one unit early.
+///
+/// Everything below is the **label-opening** path — a heading or a centred
+/// line. From there two questions settle it, and the second is only reached
+/// when the first says there is text to reason about:
 ///
 /// 1. **Does the slice hold any running text?** If not, whatever the leaf is
 ///    named for is not on its page — [SliceMisalignment.headingOnlyLeaf],
@@ -149,11 +180,13 @@ enum SliceMisalignment {
 /// takes either side (the same rule, and the same reason, as
 /// [PreamblePlanner.ownsRunningText]).
 ///
-/// [SliceMisalignment] then splits the shapes by asking whether the opening
-/// label is the leaf's own name. Two of the three are defects and are counted
-/// as `FIGURES.misalignedSlices`; [SliceMisalignment.headingOnlyLeaf] is not
-/// one and is counted on its own, because the leaf is where it should be and
-/// the book simply has no body under that heading.
+/// [SliceMisalignment] then splits the label-opening shapes by asking whether
+/// the opening label is the leaf's own name, and the body-opening one asks the
+/// same question of the label the slice *closes* on. Three of the four are
+/// defects and are counted as `FIGURES.misalignedSlices`;
+/// [SliceMisalignment.headingOnlyLeaf] is not one and is counted on its own,
+/// because the leaf is where it should be and the book simply has no body under
+/// that heading.
 ///
 /// ## What it does *not* do
 ///
@@ -224,7 +257,12 @@ class SliceAlignment {
     // holds the answer — together with the check that it still partitions
     // `ContentEntry.knownTypes`, which is what keeps either rule honest when
     // upstream invents a type.
-    if (!PreamblePlanner.chromeTypes.contains(opening.type)) return null;
+    //
+    // A slice opening on a body row has no opening *label* to reason about, and
+    // used to end the walk here. It is still answerable from the other end.
+    if (!PreamblePlanner.chromeTypes.contains(opening.type)) {
+      return _strandedLeadingNumber(leaf, slice);
+    }
 
     // An empty opening row is not a label at all, and [isBareNumbering] is
     // false for it — without this the row below would decide the verdict on its
@@ -276,6 +314,35 @@ class SliceAlignment {
     return SliceMisalignment.trailingColophon;
   }
 
+  /// Whether the leaf's own leading number is stranded at the foot of [slice].
+  ///
+  /// The whole test for [SliceMisalignment.strandedLeadingNumber], asked of a
+  /// slice that opens on a body row. Every correctly cut slice ends either
+  /// mid-body or on a label naming what it just closed; ending on a *leading*
+  /// number means the number has nothing left to lead, because the rows it
+  /// belongs above are in the slice below.
+  ///
+  /// **The own-name test is what makes it safe**, and it is the same one the
+  /// colophon branch uses. Two leaves in the corpus end on a bare number that
+  /// is the *next* leaf's — `an-4-3-1-5` closing on `4. 3. 1. 6{*}` and
+  /// `sn-2-5-4-7` on `5. 4. 8–13.` — a one-row overshoot at the tail, the
+  /// mirror of [SliceMisalignment.strayDivider], where nothing on the page is
+  /// wrong. Comparing the number against this leaf's own name rejects both
+  /// without needing to know anything else about them.
+  ///
+  /// Never the opening row: `_lastTextBelow` starts at row 1, so a slice that
+  /// is one bare number and nothing else — its own coordinate, correctly
+  /// placed — is not "corrected" onto itself.
+  static SliceMisalignment? _strandedLeadingNumber(
+      TipitakaNode leaf, NodeSlice slice) {
+    final closing = _lastTextBelow(slice);
+    if (closing == null) return null;
+    if (!PreamblePlanner.chromeTypes.contains(closing.type)) return null;
+    if (!isBareNumbering(closing.text)) return null;
+    if (_nameKey(closing.text) != _nameKey(leaf.paliName)) return null;
+    return SliceMisalignment.strandedLeadingNumber;
+  }
+
   /// Whether [slice] holds a row of running text on either side.
   ///
   /// Either side is enough, and each is judged on its own type rather than
@@ -317,13 +384,26 @@ class SliceAlignment {
   /// distinction that means nothing here. What matters is that the slice
   /// finished something instead of stopping mid-body.
   static bool _closesItself(NodeSlice slice) {
+    final closing = _lastTextBelow(slice);
+    if (closing == null) return false;
+    return PreamblePlanner.chromeTypes.contains(closing.type) &&
+        !isBareNumbering(closing.text);
+  }
+
+  /// The last Pali entry below the opening row that carries any text.
+  ///
+  /// [_firstTextBelow] read from the other end, and skipping the same rows for
+  /// the same reason: a slice can end on an empty counterpart cell, and an
+  /// empty row is neither a closing label nor a body line. `i > 0` excludes the
+  /// opening row — a one-row slice closes on nothing, which is what both
+  /// callers mean by it.
+  static ContentEntry? _lastTextBelow(NodeSlice slice) {
     for (var i = slice.rows.length - 1; i > 0; i--) {
       final entry = slice.rows[i].pali;
       if (entry == null || entry.text.trim().isEmpty) continue;
-      return PreamblePlanner.chromeTypes.contains(entry.type) &&
-          !isBareNumbering(entry.text);
+      return entry;
     }
-    return false;
+    return null;
   }
 
   /// True when [text] is one of BJT's bare numbers rather than a name —
