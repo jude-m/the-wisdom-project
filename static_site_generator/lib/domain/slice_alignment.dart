@@ -37,6 +37,13 @@ enum SliceMisalignment {
   /// (`ආසව ගොච්ඡක කුසල දුකතික සදිසං`), or a recitation marker modelled as a
   /// node (`සන්ථතභාණවාරො`).
   ///
+  /// **`ap-vbh-18-1` is the one exception today** (2026-08-20). It is a section
+  /// number over an empty page, and the rows below it belong to a sibling that
+  /// is *not* correctly named for them: it heads a run whose coordinates each
+  /// start one section early. The slice alone cannot say so — no body is no
+  /// body — and it surfaced here at all only because question 1 is now asked
+  /// ahead of the numeric exemption that used to pass it over.
+  ///
   /// So it is reported and never warned about: the section renders with a title
   /// and no body because that is what the book has. It stays in this enum
   /// because one walk over one set of rows answers all three questions, and a
@@ -77,10 +84,9 @@ enum SliceMisalignment {
 ///
 /// ## The rule
 ///
-/// Asked only of a slice that **opens on a label which is not a number**. A
-/// numeric opening is the ordinary shape and is never misaligned. From there
-/// two questions settle it, and the second is only reached when the first says
-/// there is text to reason about:
+/// Asked only of a slice that **opens on a label** — a heading or a centred
+/// line rather than a body row. From there two questions settle it, and the
+/// second is only reached when the first says there is text to reason about:
 ///
 /// 1. **Does the slice hold any running text?** If not, whatever the leaf is
 ///    named for is not on its page — [SliceMisalignment.headingOnlyLeaf],
@@ -90,9 +96,18 @@ enum SliceMisalignment {
 ///    below it (the run has ended) and so answered "aligned" while holding its
 ///    own closing label and nothing else.
 ///
+///    Asked **first**, ahead of reading the label itself. The numeric exemption
+///    below used to come before it, which exempted a leaf whose slice is a bare
+///    number and nothing else — `ap-vbh-18-1` (found 2026-08-20), a section
+///    number printed over an empty page. A leading number leads something; a
+///    slice with nothing under it is the one place that is not true, and the
+///    exemption was answering a question nobody had asked yet.
+///
 /// 2. **Is the first label below it a bare number?** That second row is the
 ///    real leading label — the one the coordinate should have pointed at — so
-///    whatever sits above it was printed for the text further up.
+///    whatever sits above it was printed for the text further up. Reached only
+///    when the slice's *own* opening label is not a number: that is the
+///    ordinary shape and is never misaligned.
 ///
 /// **Except when the slice closes itself.** Some books print a leading title
 /// *above* the number rather than below it, which reads as exactly question 2's
@@ -216,16 +231,23 @@ class SliceAlignment {
     // own.
     if (opening.text.trim().isEmpty) return null;
 
-    // The ordinary shape: the coordinate is on the leading number.
-    if (isBareNumbering(opening.text)) return null;
-
     // Question 1. Nothing a reader reads, so nothing below can argue: the text
     // this leaf is named for is somewhere else. Answered before the rows below
     // are consulted, because a slice like `[දසමසික්ඛාපදං.] [පරිමණ්ඩලවග්ගො පඨමො.]`
     // has no number below it, closes on a label, and would otherwise read as a
     // whole self-contained unit — the one reading that is certainly wrong when
     // the unit is empty.
+    //
+    // Asked before the opening label is *read*, not only before the rows below
+    // it. The numeric exemption underneath used to come first, which made "the
+    // coordinate is on a leading number" an answer to a question nobody had
+    // asked yet — a leading number leads something, and a slice with nothing
+    // under it is the one place that is not true.
     if (!_holdsRunningText(slice)) return SliceMisalignment.headingOnlyLeaf;
+
+    // The ordinary shape: the coordinate is on the leading number of text that
+    // is really there.
+    if (isBareNumbering(opening.text)) return null;
 
     // Question 2. The first label *carrying text* below the opening row, not
     // literally row 1: a row can be an empty counterpart cell, and an empty row
