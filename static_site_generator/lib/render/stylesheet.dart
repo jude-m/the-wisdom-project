@@ -636,9 +636,16 @@ void _writeLayouts(StringBuffer css, ThemeTokens tokens) {
       '#$sinhalaOnlyLayoutId:checked ~ .content .row.no-si { display: none; }');
   // Nothing is paired when one language is showing, so rows fall back to the
   // app's plain single-column entry gap.
+  //
+  // `.content.solo` joins the list rather than declaring the gap again: a page
+  // holding one language is emitted with no radios at all (`page_template.dart`
+  // — there is nothing for a switcher to switch), so no `:checked` selector can
+  // reach it, and it is in the same state these two describe for exactly the
+  // same reason. The base `.row` keeps `--pair-bottom-gap`, which is the
+  // *stacked pair* rhythm and wrong where there is no pair.
   css.writeln('#$paliOnlyLayoutId:checked ~ .content .row,');
-  css.writeln('#$sinhalaOnlyLayoutId:checked ~ .content .row '
-      '{ margin-bottom: var(--entry-gap); }');
+  css.writeln('#$sinhalaOnlyLayoutId:checked ~ .content .row,');
+  css.writeln('.content.solo .row { margin-bottom: var(--entry-gap); }');
   css.writeln();
 
   // Stacked is the base `.row` state; stated anyway so the declaration exists
@@ -730,10 +737,13 @@ void _writeLayouts(StringBuffer css, ThemeTokens tokens) {
       'column. */');
   css.writeln('.pali { --body-weight: $paliWeight; }');
   // ...except when only one language is on the page, where there is nothing to
-  // distinguish it from and the bump would just be heavy type.
+  // distinguish it from and the bump would just be heavy type. `.content.solo`
+  // is that same state reached from the other end — a page the corpus gave one
+  // language, rather than a reader asking for one — and it carries no radios to
+  // hang a `:checked` selector on.
   css.writeln('#$paliOnlyLayoutId:checked ~ .content .pali,');
-  css.writeln('#$sinhalaOnlyLayoutId:checked ~ .content .pali '
-      '{ --body-weight: $bodyWeight; }');
+  css.writeln('#$sinhalaOnlyLayoutId:checked ~ .content .pali,');
+  css.writeln('.content.solo .pali { --body-weight: $bodyWeight; }');
   css.writeln('@media (min-width: $_twoColumnMinWidth) {');
   css.writeln('  #$sideBySideLayoutId:checked ~ .content .pali '
       '{ --body-weight: $bodyWeight; }');

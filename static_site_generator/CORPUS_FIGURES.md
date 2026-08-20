@@ -90,7 +90,7 @@ the grouping lines both use.
 | `FIGURES.rowsEmptyBothSides` | 1 | rows with nothing on either side, the only ones dropped outright |
 | `FIGURES.printedPagesWithUnequalSides` | 1,660 | printed pages whose two entry lists differ in length, so the tail of the longer side has no counterpart |
 | `FIGURES.filesWithUnequalSides` | 7 | content files holding such a page — the known `ap-pat*` (Paṭṭhāna) misalignment |
-| `FIGURES.readablePagesWithoutSinhala` | 209 | readable pages with no Sinhala at all, so column captions would label an absence |
+| `FIGURES.readablePagesWithoutSinhala` | 209 | readable pages with no Sinhala at all. They get no column captions, no layout switcher — one of the four would hide every row they have — and `solo` on `.content` in place of what the missing radios would have set |
 | `FIGURES.readablePagesWithoutPali` | 0 | the reverse. The test is symmetric anyway: nothing guarantees this stays 0 after a re-sync |
 | `FIGURES.correctedCoordinates` | 79 | leaves whose upstream coordinate pointed at the label closing their text instead of the number opening it, corrected before the tree is used at all (`correctedTreeCoordinates`). Every figure on this page is measured after that correction |
 | `FIGURES.misalignedSlices` | 0 | leaves whose slice still does not hold the text they are named for (`SliceAlignment`), which is what the correction above does not reach. **0 is the expected value** — anything here means a re-sync moved the defect and `--write-alignment` needs re-running. `plan_corpus.dart --misaligned` lists them |

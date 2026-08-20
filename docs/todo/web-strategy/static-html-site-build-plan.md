@@ -735,10 +735,37 @@ Six findings, all fixed. Page counts, the caption gate aside, are unchanged.
 - **210 pages captioned an empty column.** Every one in the 7 `ap-pat*` files,
   which carry no Sinhala: under the baked side-by-side default they widened to
   two columns, put all the text in column 1, and printed "සිංහල" over blank
-  space. `_columnHeads()` now takes the page's slices and emits nothing unless
-  **both** languages are actually present. Verified: 210 → 0, and 12,684 of
-  12,894 readable pages still caption. The test is symmetric even though no
-  readable page lacks Pali — nothing guarantees that after a re-sync.
+  space. Captions are now withheld unless **both** languages are actually
+  present on the page. Verified: 210 → 0, and 12,684 of 12,894 readable pages
+  still caption. The test is symmetric even though no readable page lacks
+  Pali — nothing guarantees that after a re-sync.
+
+  > **Finished 2026-08-20 — the same pages also offered a layout that emptied
+  > them.** Withholding the caption was half the fix. The layout group stayed,
+  > so *සිංහල පමණයි* was still on the toolbar of a page with no Sinhala at all,
+  > and `#L-si:checked ~ .content .row.no-si { display: none; }` hid every row on
+  > it. `site.js` remembers the choice, so picking it once anywhere blanked every
+  > Paṭṭhāna page a reader opened afterwards — reported from
+  > `/tipitaka/ap-pat-4-10`, a page holding 21 KB of Pali.
+  >
+  > The fact was there and used in one of the two places that needed it. It is
+  > now `_hasBothLanguages()`, asked **once per page** over the preamble and
+  > every slice, and it decides three things that must not disagree: the
+  > captions, the layout group (`withLayouts: page.isReadable && bothLanguages`
+  > — no radios, no labels, so the state is unreachable with JS on *or* off, and
+  > no focusable orphan is left behind), and a `solo` class on `.content`.
+  >
+  > `solo` exists only because two declarations lived on the single-language
+  > layouts and a page with no radios has no `:checked` selector to reach it:
+  > the `--entry-gap` between rows, and the Pali weight bump that exists to
+  > distinguish Pali from a translation the page does not have. Both join the
+  > existing selector lists rather than being restated.
+  >
+  > `FIGURES.readablePagesWithoutSinhala` is unchanged and now names three sets
+  > at once — the pages without captions, without a switcher, and marked `solo`.
+  > Verified over the whole corpus: the three counts are equal, no page is both
+  > `solo` and switchable, the page total does not move, and a both-languages
+  > page is byte-identical to the previous build apart from the `?v=` hash.
 - **The layout ids lived in two files with nothing tying them together**, and
   the stylesheet spelled each one out again across a dozen rules. Renaming one
   would have killed the entire layout engine silently — a CSS rule matching

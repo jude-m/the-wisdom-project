@@ -122,7 +122,9 @@ Future<void> _handle(HttpRequest request, String rootPath) async {
   // rather than showing the page every wrong URL shows.
   if (path == '/$siteHeadersOutputPath') {
     response.statusCode = HttpStatus.notFound;
-    _writeHtml(request, '<h1>404</h1><p><code>$path</code> is read by '
+    _writeHtml(
+        request,
+        '<h1>404</h1><p><code>$path</code> is read by '
         'Cloudflare Pages at deploy time and is never served as a page.</p>');
     await response.close();
     _log(request, response.statusCode);

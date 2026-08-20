@@ -500,8 +500,10 @@ List<FigureGroup> computeCorpusFigures({
         Figure(
             'readablePagesWithoutSinhala',
             formatCount(readablePagesWithoutSinhala),
-            'readable pages with no Sinhala at all, so column captions would '
-                'label an absence'),
+            'readable pages with no Sinhala at all. They get no column '
+                'captions, no layout switcher — one of the four would hide '
+                'every row they have — and `solo` on `.content` in place of '
+                'what the missing radios would have set'),
         Figure(
             'readablePagesWithoutPali',
             formatCount(readablePagesWithoutPali),

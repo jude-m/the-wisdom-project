@@ -167,11 +167,15 @@ void main() {
 
       // A chapter page carrying a mixed slice emits nearly the whole set at
       // once — both languages (col-heads), a Pali-only row (no-si) and a
-      // Sinhala-only row (no-pali). The one class it cannot show is `.nav`,
-      // which only a container page carries and which the side-by-side width
-      // override names in a `:not()`; the TOC page joins it for that. Worth
-      // keeping in scope rather than exempting `:not()`, since a `.nav` the
-      // template stopped emitting would make that guard silently inert.
+      // Sinhala-only row (no-pali). The two it cannot show belong to pages that
+      // are missing something, so two more renders join it below: `.nav`, which
+      // only a container page carries and which the side-by-side width override
+      // names in a `:not()`, from the TOC page; and `.solo`, which only a
+      // readable page holding one language carries and which the
+      // single-language rules name because such a page has no radios for a
+      // `:checked` selector to reach, from a Pali-only sutta page. Worth
+      // keeping both in scope rather than exempting them, since a class the
+      // template stopped emitting would make its guard silently inert.
       final emitted = _classNamesIn(_render(
         _chapterPage,
         slices: {
@@ -184,7 +188,13 @@ void main() {
           ]),
         },
       ))
-        ..addAll(_classNamesIn(_render(_tocPage)));
+        ..addAll(_classNamesIn(_render(_tocPage)))
+        ..addAll(_classNamesIn(_render(
+          _suttaPage,
+          slices: {
+            'sp-toc-1': _slice('sp-toc-1', [_row(pali: _entry('පාළි පමණයි'))]),
+          },
+        )));
 
       expect(emitted, containsAll(acted),
           reason: 'The layout CSS acts on ${acted.difference(emitted)}, which '

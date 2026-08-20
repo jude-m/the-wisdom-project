@@ -64,13 +64,35 @@ class PageTemplate {
     final shown = _withoutRepeatedTitle(preamble, page.node);
     final depths = _headingDepths(page, slices, shown.preamble);
 
+    // Every slice the page renders, in one list: the preamble a chapter or a
+    // readable TOC prints above the text, and the leaves themselves.
+    // [SitePage.suttas] is `[node]` for a sutta page, the whole run for a
+    // chapter and empty for a TOC, so the three kinds need no branch here — and
+    // asking the question once is what stops the caption and the switcher below
+    // from being two scans able to disagree.
+    final bothLanguages = _hasBothLanguages([
+      shown.preamble,
+      for (final sutta in page.suttas) slices[sutta.nodeKey],
+    ]);
+
     // Order is the contract. Every rule that switches a layout is a sibling
     // combinator off the radios, so they have to *precede* `.toolbar` and
     // `.content` and all three have to stay siblings. Nothing here may be
     // wrapped in a container without rewriting the stylesheet with it.
-    if (page.isReadable) body.writeln(_layoutRadios());
+    //
+    // **Not emitted where there is nothing to switch.** On a page holding one
+    // language three of the four layouts differ only in how much blank column
+    // they reserve, and the fourth — whichever hides the language the page
+    // *has* — renders nothing at all: the sinhalaOnly rule hides every
+    // `.row.no-si`, which on a `FIGURES.readablePagesWithoutSinhala` page is
+    // every row it has. `site.js` remembers the choice, so picking it once
+    // anywhere blanked every Paṭṭhāna page a reader opened afterwards.
+    // Withholding the control is what makes that state unreachable — with
+    // JavaScript on or off, which a runtime guard could not manage.
+    final withLayouts = page.isReadable && bothLanguages;
+    if (withLayouts) body.writeln(_layoutRadios());
     body.writeln(toolbar(
-      withLayouts: page.isReadable,
+      withLayouts: withLayouts,
       assets: assets,
       // Outermost first — `ancestorsOf` walks upwards, a trail reads downwards.
       trail: tree.ancestorsOf(page.nodeKey).reversed.toList(),
@@ -87,18 +109,28 @@ class PageTemplate {
     // introduction are excluded by the same predicate that gates the radios
     // above, and read at the full measure like any other page. The link rows
     // keep their own width either way — `.toc` caps itself.
+    //
+    // `solo` on a readable page holding one language. It carries no layout of
+    // its own — the base `.row` state is already what a page with no radios
+    // renders as — but two declarations live only on the single-language
+    // layouts, and with no radio checked the sheet has nothing else to hang
+    // them on: the entry gap, and the Pali weight bump that exists to
+    // distinguish Pali from a translation this page does not have.
     final navOnly = !page.isReadable;
-    body.writeln('<main class="content${navOnly ? ' nav' : ''}">');
+    final solo = page.isReadable && !bothLanguages;
+    body.writeln('<main class="content'
+        '${navOnly ? ' nav' : ''}${solo ? ' solo' : ''}">');
     body.writeln('<h1 class="page-title">${_headingHtml(page.node)}</h1>');
     final commentary = _commentaryLink(page.node);
     if (commentary != null) body.writeln(commentary);
 
     switch (page.kind) {
       case PageKind.sutta:
-        body.writeln(_columnHeads([slices[page.nodeKey]]));
+        body.writeln(_columnHeads(bothLanguages));
         body.writeln(_rows(slices[page.nodeKey], depths));
       case PageKind.chapter:
-        body.writeln(_chapter(page, slices, shown.preamble, depths));
+        body.writeln(_chapter(page, slices, shown.preamble, depths,
+            bothLanguages: bothLanguages));
       case PageKind.toc:
         if (shown.preamble != null && shown.preamble!.rows.isNotEmpty) {
           // Captions only where there is a measure to caption. On a nav-only
@@ -107,7 +139,7 @@ class PageTemplate {
           // header there would label a pair of columns the reader cannot
           // produce.
           if (page.isReadable) {
-            body.writeln(_columnHeads([shown.preamble]));
+            body.writeln(_columnHeads(bothLanguages));
           }
           body.writeln(
               '<div class="preamble">${_rows(shown.preamble, depths)}</div>');
@@ -373,8 +405,9 @@ class PageTemplate {
     SitePage page,
     Map<String, NodeSlice> slices,
     NodeSlice? preamble,
-    Map<int, int> depths,
-  ) {
+    Map<int, int> depths, {
+    required bool bothLanguages,
+  }) {
     final buffer = StringBuffer('<div class="chapter">');
     // Shown only when a sutta is targeted — the way back to the whole run.
     //
@@ -388,9 +421,7 @@ class PageTemplate {
     }
     // After the bar, not before: in the filtered single-sutta view the bar is
     // the page's first line, and column captions above it would caption it.
-    buffer.write(_columnHeads(
-      [preamble, for (final sutta in page.suttas) slices[sutta.nodeKey]],
-    ));
+    buffer.write(_columnHeads(bothLanguages));
     if (preamble != null && preamble.rows.isNotEmpty) {
       buffer.write('<div class="preamble">${_rows(preamble, depths)}</div>');
     }
@@ -477,29 +508,48 @@ class PageTemplate {
   /// up with the text below. `aria-hidden` because the cells themselves carry
   /// `lang`, which is how a screen reader already announces the switch.
   ///
-  /// **Emitted only when the page really has both languages.**
-  /// `FIGURES.readablePagesWithoutSinhala` readable pages — every one of them
-  /// in the `ap-pat*` (Paṭṭhāna) files, the known misalignment — carry no
-  /// Sinhala at all, and captioning a column that is empty from top to bottom
-  /// labels the absence rather than explaining it. No readable page in the
-  /// corpus lacks Pali (`FIGURES.readablePagesWithoutPali`), so the reverse
-  /// never fires, but the test is symmetric because nothing guarantees that
-  /// stays true after a re-sync from upstream.
-  String _columnHeads(Iterable<NodeSlice?> slices) {
+  /// **Emitted only when the page really has both languages** — see
+  /// [_hasBothLanguages], which is the same fact that decides whether the page
+  /// gets a layout switcher at all. Captioning a column that is empty from top
+  /// to bottom labels the absence rather than explaining it.
+  String _columnHeads(bool bothLanguages) {
+    if (!bothLanguages) return '';
+    return '<div class="row col-heads" aria-hidden="true">'
+        '<div class="pali">පාළි</div>'
+        '<div class="si">සිංහල</div>'
+        '</div>';
+  }
+
+  /// Whether both languages actually reach the page.
+  ///
+  /// One question, asked once per page over every slice it renders, because
+  /// three things turn on it and they must not be able to disagree: the column
+  /// captions above, the layout switcher, and the `solo` class that carries
+  /// what the missing radios would have set. It was the captions' private scan
+  /// until it turned out the switcher needed the same answer — see [render],
+  /// which has the incident.
+  ///
+  /// The `FIGURES.readablePagesWithoutSinhala` readable pages that answer *no*
+  /// are all in the `ap-pat*` (Paṭṭhāna) files, which carry no Sinhala at all.
+  /// No readable page in the corpus lacks Pali
+  /// (`FIGURES.readablePagesWithoutPali`), so the reverse never fires — but the
+  /// test is symmetric because nothing guarantees that stays true after a
+  /// re-sync from upstream.
+  ///
+  /// Judged on the text a row actually holds, matching [_rows]: an entry
+  /// present but empty is not a language on the page, and is exactly the row
+  /// [_rows] marks `no-pali` / `no-si`.
+  bool _hasBothLanguages(Iterable<NodeSlice?> slices) {
     var hasPali = false;
     var hasSinhala = false;
     for (final slice in slices) {
       for (final row in slice?.rows ?? const <DocRow>[]) {
         hasPali |= row.pali?.text.isNotEmpty ?? false;
         hasSinhala |= row.sinhala?.text.isNotEmpty ?? false;
-        if (hasPali && hasSinhala) break;
+        if (hasPali && hasSinhala) return true;
       }
     }
-    if (!hasPali || !hasSinhala) return '';
-    return '<div class="row col-heads" aria-hidden="true">'
-        '<div class="pali">පාළි</div>'
-        '<div class="si">සිංහල</div>'
-        '</div>';
+    return false;
   }
 
   // ── titles ────────────────────────────────────────────────────────────────
