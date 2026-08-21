@@ -86,6 +86,10 @@ class SitePage {
   /// were served as pure navigation, skipped by prev/next so that nothing but a
   /// click down the tree could reach them. The predicate now says what its name
   /// always claimed.
+  ///
+  /// Membership in the chain, not what a page draws: a readable container is a
+  /// stop for its neighbours but prints "prev" alone — see
+  /// `PageTemplate.render`.
   bool get isReadable => kind != PageKind.toc || ownsRunningText;
 
   /// True when the page's own node has a slice to render above its contents.

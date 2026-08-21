@@ -178,7 +178,7 @@ enum SliceMisalignment {
 /// — "is there running text here" is a question about the row, and a row
 /// printed on the Sinhala side alone is still text somebody reads, so that test
 /// takes either side (the same rule, and the same reason, as
-/// [PreamblePlanner.ownsRunningText]).
+/// [PreamblePlanner.runningTextTypes]).
 ///
 /// [SliceMisalignment] then splits the label-opening shapes by asking whether
 /// the opening label is the leaf's own name, and the body-opening one asks the
@@ -369,10 +369,12 @@ class SliceAlignment {
   /// Whether [slice] holds a row of running text on either side.
   ///
   /// Either side is enough, and each is judged on its own type rather than
-  /// through the row — the same rule as [PreamblePlanner.ownsRunningText], for
-  /// the same reason: a row printed on one side only is still text a reader in
-  /// that language reads, and taking the Pali type when the Pali cell is blank
-  /// would read those rows off the wrong side.
+  /// through the row — the same per-side rule as
+  /// [PreamblePlanner.runningTextTypes], for the same reason: a row printed on
+  /// one side only is still text a reader in that language reads, and taking
+  /// the Pali type when the Pali cell is blank would read those rows off the
+  /// wrong side. A presence test, not the planner's size floor: this asks what
+  /// a slice *opens* on, which one row settles.
   static bool _holdsRunningText(NodeSlice slice) {
     for (final row in slice.rows) {
       if (_isRunningText(row.pali) || _isRunningText(row.sinhala)) return true;

@@ -61,9 +61,9 @@ These move when the snapshot is regenerated, and each move is one URL.
 | `FIGURES.loneChildChaptersNotFoldedOnSize` | 63 | of those, the ones the size rule would not have folded — at or above their line, or promoted and never measured. The merge outranks both |
 | `FIGURES.largestLoneChildChars` | 333,558 | the biggest leaf merged into its container (`atta-kn-mn-2-1`) |
 | `FIGURES.containerTocs` | 1,386 | container pages — a list of links, and above it whatever the container itself owns |
-| `FIGURES.readableContainerTocs` | 62 | of those, the ones whose preamble is the book's introduction to the chapter rather than its title, so the page is readable (`textBearingContainerKeys`) |
+| `FIGURES.readableContainerTocs` | 42 | of those, the ones whose preamble is the book's introduction to the chapter rather than its title, so the page is readable (`textBearingContainerKeys`) |
 | `FIGURES.realPages` | 10,285 | pages the build writes, `/` included. Not `404.html`, which is the answer for addresses that have no page |
-| `FIGURES.readablePages` | 8,960 | pages carrying text — sutta, chapter, and the container pages that open with an introduction. The prev/next chain |
+| `FIGURES.readablePages` | 8,940 | pages carrying text — sutta, chapter, and the container pages that open with an introduction. The prev/next chain |
 | `FIGURES.pagesWithStubs` | 16,356 | the count if every folded leaf also got a redirect stub (the P5 gate). Cloudflare Pages caps a project at 20,000 files |
 | `FIGURES.tocRowsToFoldedLeaves` | 2,333 | TOC rows whose target owns no file, so the bare URL is wrong |
 | `FIGURES.commentaryPages` | 3,336 | pages under an `atta-*` key |

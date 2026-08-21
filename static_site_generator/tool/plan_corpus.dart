@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:static_site_generator/data/corpus_reader.dart';
 import 'package:static_site_generator/data/slicer_cache.dart';
+import 'package:static_site_generator/domain/content_slicer.dart';
 import 'package:static_site_generator/domain/coordinate_planner.dart';
 import 'package:static_site_generator/domain/grouping_planner.dart';
 import 'package:static_site_generator/domain/grouping_policy.dart';
@@ -18,6 +19,7 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 ///     dart run static_site_generator/tool/plan_corpus.dart --check
 ///     dart run static_site_generator/tool/plan_corpus.dart --write-snapshot
 ///     dart run static_site_generator/tool/plan_corpus.dart --write-figures
+///     dart run static_site_generator/tool/plan_corpus.dart --write-upstream
 ///     dart run static_site_generator/tool/plan_corpus.dart --misaligned
 ///     dart run static_site_generator/tool/plan_corpus.dart --write-alignment
 ///     dart run static_site_generator/tool/plan_corpus.dart --redirects > out.csv
@@ -46,6 +48,7 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 /// | *(none)* | what does the frozen site look like, and where does the rule now disagree? | prints |
 /// | `--write-snapshot` | rewrite both frozen sets from their rules | writes |
 /// | `--write-figures` | rewrite `CORPUS_FIGURES.md` from the frozen set | writes |
+/// | `--write-upstream` | rewrite `UPSTREAM_DEFECTS.md` — what to send back to tipitaka.lk | writes |
 /// | `--misaligned` | which leaves still do not hold their own text? | prints |
 /// | `--write-alignment` | rewrite the coordinate corrections from their rule | writes |
 /// | `--redirects` | where must each folded leaf's own URL send a reader? | prints |
@@ -68,6 +71,7 @@ void main(List<String> args) {
     '--check',
     '--write-snapshot',
     '--write-figures',
+    '--write-upstream',
     '--misaligned',
     '--write-alignment',
     '--redirects',
@@ -78,7 +82,8 @@ void main(List<String> args) {
         ? 'One mode at a time.'
         : 'Unknown option "${unknown.first}".');
     stderr.writeln('Usage: plan_corpus.dart [--check | --write-snapshot | '
-        '--write-figures | --misaligned | --write-alignment | --redirects]');
+        '--write-figures | --write-upstream | --misaligned | '
+        '--write-alignment | --redirects]');
     exitCode = 2;
     return;
   }
@@ -192,6 +197,13 @@ void main(List<String> args) {
   // a site nobody can serve.
   if (args.contains('--write-figures')) {
     _writeFigures(_figuresPath(reader), tree, plan, folded, reader);
+    return;
+  }
+
+  // Its own mode because it is the expensive one: two passes over the corpus,
+  // the second unaskable until the first has the list of lines to ask about.
+  if (args.contains('--write-upstream')) {
+    _writeUpstreamReport(_upstreamReportPath(reader), tree, plan, reader);
     return;
   }
 
@@ -896,8 +908,7 @@ const Map<String, ({int page, int entry})> correctedTreeCoordinates = {
 }
 
 /// Where the frozen coordinate corrections live, beside the tree they correct.
-String _alignmentSnapshotPath(CorpusReader reader) =>
-    '${Directory(reader.assetsPath).parent.path}'
+String _alignmentSnapshotPath(CorpusReader reader) => '${_repoRoot(reader)}'
     '/packages/wisdom_shared/lib/src/tree/tree_coordinate_corrections.dart';
 
 /// Writes one snapshot: [header], then [ordered] one key per line, then `};`.
@@ -1117,13 +1128,246 @@ void _writeFigures(
   stdout.writeln('listed is a citation to fix.');
 }
 
-/// Where the generated figures live. Package root, beside `lib/` and `tool/`,
-/// resolved the same way [_snapshotPath] is and for the same reason.
-String _figuresPath(CorpusReader reader) =>
-    '${Directory(reader.assetsPath).parent.path}'
-    '/static_site_generator/CORPUS_FIGURES.md';
+/// One cell of a preamble, as the report prints it.
+typedef _PreambleCell = ({String side, String type, String text});
 
-/// Where the generated set lives, in the checkout whose corpus was measured.
+/// One container whose preamble carries body text but not enough of it.
+typedef _FormulaContainer = ({
+  String fileId,
+  int page,
+  int entry,
+  int chars,
+  bool servesAPage,
+  List<_PreambleCell> cells,
+});
+
+/// Rewrites `UPSTREAM_DEFECTS.md` — the containers whose "introduction" is one
+/// printed line, and what those same lines are typed elsewhere in the corpus.
+///
+/// **The hand-off artefact for a report to tipitaka.lk**, and the reason a page
+/// is navigation written down rather than inferred from a key's absence from
+/// `textBearingContainerKeys`. Generated for the same reason
+/// `correctedTreeCoordinates` is: a hand-typed table describes the corpus of
+/// the day it was typed, and the next re-sync silently outdates it. Regenerate
+/// and read the diff.
+///
+/// What each of the report's three sections is for is written in its own
+/// header, which is where the reader deciding what to send upstream will be.
+void _writeUpstreamReport(
+  String path,
+  TipitakaTree tree,
+  SitePlan plan,
+  CorpusReader reader,
+) {
+  PreamblePlanner.assertTypesPartitioned();
+
+  final cache = SlicerCache(reader: reader, tree: tree);
+  final planner = PreamblePlanner(tree: tree, slicerFor: cache.forFile);
+  final tocPages = {
+    for (final page in plan.pages)
+      if (page.kind == PageKind.toc) page.nodeKey,
+  };
+
+  // Pass 1: size every container, and keep the rows of the ones the floor
+  // rejects. Sizes are kept for *all* of them because §3 compares siblings,
+  // and a sibling that clears the floor is exactly the comparison worth
+  // printing.
+  final chars = <String, int>{};
+  final formulas = <String, _FormulaContainer>{};
+  ContentSlicer.containersByFile(tree).forEach((fileId, containers) {
+    final slicer = cache.forFile(fileId);
+    for (final container in containers) {
+      final size = planner.runningTextChars(container, slicer);
+      chars[container.nodeKey] = size;
+      if (size == 0 || size >= PreamblePlanner.minIntroductionChars) continue;
+      final cells = <_PreambleCell>[];
+      for (final row in slicer.sliceFor(container.nodeKey).rows) {
+        final sides = [('pali', row.pali), ('sinh', row.sinhala)];
+        for (final (side, entry) in sides) {
+          if (entry == null || entry.text.isEmpty) continue;
+          cells.add((side: side, type: entry.type, text: entry.text));
+        }
+      }
+      formulas[container.nodeKey] = (
+        fileId: fileId,
+        page: container.entryPageIndex,
+        entry: container.entryIndexInPage,
+        chars: size,
+        servesAPage: tocPages.contains(container.nodeKey),
+        cells: cells,
+      );
+    }
+  });
+
+  final ordered = _orderedForWriting(tree, formulas.keys.toSet(), 'formula');
+  if (ordered == null) return;
+
+  // Pass 2: what the corpus types those same lines. Only the body cells are
+  // asked about — a heading typed as a heading everywhere is not the question.
+  //
+  // Straight through the reader rather than the slicer cache: nothing here
+  // needs a slice, and running it through the cache would evict the parsed
+  // files pass 1 is done with for no gain.
+  final wanted = <String>{
+    for (final key in ordered)
+      for (final cell in formulas[key]!.cells)
+        if (PreamblePlanner.runningTextTypes.contains(cell.type)) cell.text,
+  };
+  final typedAs = {for (final text in wanted) text: <String, int>{}};
+  for (final fileId in ContentSlicer.nodesByFile(tree).keys) {
+    final file = reader.readContentFile(fileId);
+    for (final page in file.pages) {
+      for (var i = 0; i < page.entryCount; i++) {
+        for (final entry in [page.paliAt(i), page.sinhalaAt(i)]) {
+          if (entry == null) continue;
+          final counts = typedAs[entry.text];
+          if (counts == null) continue;
+          counts[entry.type] = (counts[entry.type] ?? 0) + 1;
+        }
+      }
+    }
+  }
+
+  File(path).writeAsStringSync(
+    _renderUpstreamReport(tree, ordered, formulas, typedAs, chars),
+  );
+
+  final inconsistent = typedAs.values.where((c) => c.length > 1).length;
+  stdout.writeln('wrote             $path');
+  stdout.writeln('');
+  final serving = formulas.values.where((f) => f.servesAPage).length;
+  stdout.writeln('formula containers    ${formulas.length}   '
+      '($serving serve a page today)');
+  stdout.writeln('distinct lines        ${wanted.length}');
+  stdout.writeln('typed two ways        $inconsistent   '
+      '(verbatim matches only — §3 is where a formula that varies by a word '
+      'shows up)');
+}
+
+String _renderUpstreamReport(
+  TipitakaTree tree,
+  List<String> ordered,
+  Map<String, _FormulaContainer> formulas,
+  Map<String, Map<String, int>> typedAs,
+  Map<String, int> chars,
+) {
+  // Newlines and pipes both end a markdown table cell early, and the corpus is
+  // vendored: a `gatha` carries the first today and upstream may add the second
+  // tomorrow.
+  String cell(String text) =>
+      text.replaceAll('|', r'\|').replaceAll('\n', ' / ');
+
+  final out = StringBuffer()..write('''
+<!-- GENERATED by `dart run static_site_generator/tool/plan_corpus.dart --write-upstream`.
+     Do not hand-edit — regenerate and review the diff. -->
+
+# Upstream defects — entry types
+
+Every container here opens with body text too short to be the book's introduction
+to the chapter — one printed line, typically a formula, an announcement or a
+bracketed elision marker. `PreamblePlanner` declines them, so their pages are
+navigation rather than reading stops. **None of them loses text:** a container
+page prints its preamble whether or not it is readable, so every line below is
+still on its container's own page, at its own URL, linked from the list above it.
+What those pages lose is the pager, the layout switcher, the column captions and
+the reading measure. (The site's search indexes names, never body text, so no
+line here was ever in it.)
+
+**§2 and §3 are the parts to send upstream, and they catch different things.**
+§2 tallies each line against the corpus verbatim, so it finds a defect only where
+the wording repeats exactly. A formula that varies by a word — the number of
+rules in a section of the pātimokkha, the name of a sutta — is invisible to it, and
+that is the class §3 exists for: the same line, typed one way under one parent and
+another way under its sibling, shows up there as a column of sizes with a zero in
+it. A line typed one way everywhere and matched by neither is not a defect at
+all, however much it trips our rule — re-typing it upstream would change nothing.
+
+Counts and keys in this file are generated. Prose elsewhere cites them from here
+or from `CORPUS_FIGURES.md`, never by hand.
+
+## 1. Containers whose preamble is a formula
+
+''');
+
+  for (final key in ordered) {
+    final formula = formulas[key]!;
+    out
+      ..writeln('### `$key` — ${formatCount(formula.chars)} characters'
+          '${formula.servesAPage ? '' : ' (folded into a chapter; inert)'}')
+      ..writeln('')
+      ..writeln('${tipitakaUrl(key)} · `assets/text/${formula.fileId}.json` '
+          'page ${formula.page}, entry ${formula.entry}')
+      ..writeln('')
+      ..writeln('| side | type | text |')
+      ..writeln('|---|---|---|');
+    for (final c in formula.cells) {
+      final body = PreamblePlanner.runningTextTypes.contains(c.type);
+      out.writeln('| ${c.side} | ${body ? '**${c.type}**' : c.type} '
+          '| ${cell(c.text)} |');
+    }
+    out.writeln('');
+  }
+
+  out.write('''
+## 2. What those lines are typed elsewhere
+
+Body cells only, counted across every content file the tree references. **Bold**
+rows carry more than one type and are upstream's to fix.
+
+| line | typed as |
+|---|---|
+''');
+  // Sorted by the text itself: the map is built from a set and §11.8 wants the
+  // same bytes from the same corpus however the set iterates.
+  final lines = typedAs.keys.toList()..sort();
+  for (final text in lines) {
+    final counts = typedAs[text]!;
+    final types = counts.keys.toList()..sort();
+    final rendered = [
+      for (final type in types) '$type ×${formatCount(counts[type]!)}',
+    ].join(' · ');
+    final split = counts.length > 1;
+    out.writeln('| ${cell(text)} | ${split ? '**$rendered**' : rendered} |');
+  }
+
+  out.write('''
+
+## 3. The same question, asked of the siblings
+
+Running-text characters in each container preamble under a parent that has at
+least one of §1 below it. A section typed unlike the ones beside it shows up
+here as a column with an outlier in it.
+
+''');
+
+  // A `Set` literal keeps insertion order, so this is the reading order of §1
+  // with the duplicates dropped.
+  final parents = <String>{
+    for (final key in ordered)
+      if (tree[key]?.parentNodeKey case final parent?) parent,
+  };
+  for (final parent in parents) {
+    out
+      ..writeln('### under `$parent`')
+      ..writeln('')
+      ..writeln('| container | characters |')
+      ..writeln('|---|---|');
+    for (final child in tree.childrenOf(parent)) {
+      if (child.isLeaf) continue;
+      final size = chars[child.nodeKey];
+      if (size == null) continue;
+      final flagged = formulas.containsKey(child.nodeKey);
+      out.writeln(
+          '| ${flagged ? '**`${child.nodeKey}`**' : '`${child.nodeKey}`'}'
+          ' | ${formatCount(size)} |');
+    }
+    out.writeln('');
+  }
+
+  return out.toString();
+}
+
+/// The checkout whose corpus was measured — every path below hangs off it.
 ///
 /// Derived from the reader rather than from `Platform.script`, which is what
 /// `bin/generate.dart` uses for its own package root. That tool only *reads*;
@@ -1133,15 +1377,25 @@ String _figuresPath(CorpusReader reader) =>
 /// would measure one corpus and write the snapshot into another.
 ///
 /// `CorpusReader.discover` has already found the root by looking for
-/// `assets/data/tree.json`, so reusing its answer is what guarantees the
-/// snapshot lands beside the corpus it describes.
-String _snapshotPath(CorpusReader reader) =>
-    '${Directory(reader.assetsPath).parent.path}'
+/// `assets/data/tree.json`, so reusing its answer is what guarantees every
+/// generated file lands beside the corpus it describes.
+String _repoRoot(CorpusReader reader) =>
+    Directory(reader.assetsPath).parent.path;
+
+/// Where the upstream report lands, beside `CORPUS_FIGURES.md`.
+String _upstreamReportPath(CorpusReader reader) =>
+    '${_repoRoot(reader)}/static_site_generator/UPSTREAM_DEFECTS.md';
+
+/// Where the generated figures live. Package root, beside `lib/` and `tool/`.
+String _figuresPath(CorpusReader reader) =>
+    '${_repoRoot(reader)}/static_site_generator/CORPUS_FIGURES.md';
+
+/// Where the frozen grouping verdicts live.
+String _snapshotPath(CorpusReader reader) => '${_repoRoot(reader)}'
     '/packages/wisdom_shared/lib/src/grouping/grouping_snapshot.dart';
 
 /// Where the frozen preamble verdicts live, beside the grouping ones.
-String _preambleSnapshotPath(CorpusReader reader) =>
-    '${Directory(reader.assetsPath).parent.path}'
+String _preambleSnapshotPath(CorpusReader reader) => '${_repoRoot(reader)}'
     '/packages/wisdom_shared/lib/src/grouping/preamble_snapshot.dart';
 
 /// Combined raw characters each page renders, preamble included.

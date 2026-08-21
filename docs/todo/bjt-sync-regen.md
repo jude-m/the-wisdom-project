@@ -190,6 +190,19 @@ rebuilding. That mode re-runs the grouping rule and prints where it now disagree
 the frozen verdicts — informational by design, and the only place that drift is
 visible.
 
+Then regenerate the upstream report and read its diff:
+
+```bash
+dart run static_site_generator/tool/plan_corpus.dart --write-upstream
+```
+
+`UPSTREAM_DEFECTS.md` is the list of containers whose "introduction" is one printed
+line, what those lines are typed elsewhere in the corpus, and the same sizes for their
+siblings. Two things make it worth a look on every sync. It is the hand-off for a
+report back to tipitaka.lk, so a **new** entry is a data defect that arrived with this
+sync. And a **disappeared** entry means upstream fixed one — which is the good outcome,
+and the moment to stop citing it here.
+
 ### Step 6 — Rebuild what depends on the text
 
 Two things rebuild from the corrected JSON, **both asked (y/n), not automatic**:

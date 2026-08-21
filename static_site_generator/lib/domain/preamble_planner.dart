@@ -21,9 +21,10 @@ import 'content_slicer.dart';
 ///
 /// ## The rule
 ///
-/// **A container owns running text when at least one row of its preamble is a
-/// paragraph, a verse, or an unindented line.** No threshold, no character
-/// count — the presence of one body row is the whole test.
+/// **A container owns running text when its preamble carries at least
+/// [minIntroductionChars] characters of paragraph, verse or unindented text.**
+/// Both sides combined, raw, markers left in — the convention
+/// [DocRow.rawCharCount] counts in.
 ///
 /// Stated as the types that *are* running text rather than the two that are
 /// not, which is the safe direction on a re-sync: `ContentEntry.fromJson` maps
@@ -39,9 +40,14 @@ import 'content_slicer.dart';
 /// the two halves still partition [ContentEntry.knownTypes] —
 /// [assertTypesPartitioned] — and refuses to go on if they do not.
 ///
-/// Measured across the corpus the two groups do not overlap: heading rows
-/// average 31 characters and centered rows 47 (pitaka banners and `namo
-/// tassa`), against 739 for a paragraph.
+/// ## Why a floor and not the bare type test
+///
+/// The rule was the type test alone, and it read one-line formulas as
+/// introductions — the pātimokkha's section opener, the `[සාවත්ථිනිදානං]`
+/// elision marker, the line announcing a niddesa. A body *type* is not the
+/// claim the rule needs to make; a size is. The cases, and what the corpus
+/// types each line elsewhere, are in `UPSTREAM_DEFECTS.md`
+/// (`plan_corpus.dart --write-upstream`).
 ///
 /// ## It does not run at build time
 ///
@@ -66,6 +72,17 @@ class PreamblePlanner {
   final ContentSlicer Function(String fileId) slicerFor;
 
   const PreamblePlanner({required this.tree, required this.slicerFor});
+
+  /// Running-text characters a preamble needs before it counts as an
+  /// introduction rather than a formula. Combined Pali + Sinhala, raw.
+  ///
+  /// **An input, not a measurement** — the same standing as
+  /// `GroupingPolicy.shortLineChars`. It moves no URL; all it settles is
+  /// whether a container page joins the reading chain. It sits inside a wide
+  /// band every value of which gives the same verdict on today's corpus; the
+  /// band is measured in `docs/todo/web-strategy/reading-units-and-grouping.md`
+  /// and what lives here is the choice.
+  static const int minIntroductionChars = 200;
 
   /// The entry types that carry running text.
   static const Set<String> runningTextTypes = {
@@ -147,20 +164,27 @@ class PreamblePlanner {
     return bearing;
   }
 
-  /// Whether one container's preamble holds a row of running text.
-  bool ownsRunningText(TipitakaNode container, ContentSlicer slicer) {
+  /// Whether one container's preamble is an introduction.
+  bool ownsRunningText(TipitakaNode container, ContentSlicer slicer) =>
+      runningTextChars(container, slicer) >= minIntroductionChars;
+
+  /// How many characters of running text one container's preamble holds.
+  ///
+  /// The size, not the verdict, because `--write-upstream` prints it beside
+  /// every container the floor rejects.
+  int runningTextChars(TipitakaNode container, ContentSlicer slicer) {
+    var total = 0;
     for (final row in slicer.sliceFor(container.nodeKey).rows) {
-      // Either side is enough, and each is judged on its own type rather than
-      // through the row. A row printed on one side only is still text a reader
-      // in that language reads — `FIGURES.rowsSinhalaWithEmptyPali` rows across
-      // the corpus carry Sinhala against an empty Pali cell, and taking the
-      // Pali type when the Pali cell is blank would read those pages off the
-      // wrong side.
+      // Each side is judged on its own type rather than through the row. A row
+      // printed on one side only is still text a reader in that language reads
+      // — `FIGURES.rowsSinhalaWithEmptyPali` rows across the corpus carry
+      // Sinhala against an empty Pali cell, and taking the Pali type when the
+      // Pali cell is blank would read those pages off the wrong side.
       for (final entry in [row.pali, row.sinhala]) {
-        if (entry == null || entry.text.isEmpty) continue;
-        if (runningTextTypes.contains(entry.type)) return true;
+        if (entry == null) continue;
+        if (runningTextTypes.contains(entry.type)) total += entry.text.length;
       }
     }
-    return false;
+    return total;
   }
 }

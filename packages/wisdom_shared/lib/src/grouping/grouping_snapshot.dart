@@ -10,7 +10,7 @@
 /// new content self-handles, a wrong explode costs one thin page, and only a
 /// wrong fold could hide a named text behind a fragment.
 ///
-/// Nothing re-measures the rule. `SitePlan.build` reconstructs all 8,960
+/// Nothing re-measures the rule. `SitePlan.build` reconstructs all 8,940
 /// readable pages from this set alone, so a re-sync of `assets/` may change
 /// what a page *says* and never which pages *exist*. Regenerating is the
 /// supported way to move a line, and the git diff of this file is the impact

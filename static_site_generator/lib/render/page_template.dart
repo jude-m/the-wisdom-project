@@ -147,7 +147,15 @@ class PageTemplate {
         body.writeln(tocList(tree.childrenOf(page.nodeKey), urlFor: urlFor));
     }
 
-    if (page.isReadable) body.writeln(_pager(previous, next));
+    // A container never offers "next", for a structural reason rather than a
+    // judgment about clutter: every container has children and every sutta and
+    // chapter page is readable, so the next readable page is *always* inside
+    // its own subtree — "next" could only repeat a link the list above already
+    // prints. "Prev" stays: it is the one thing on the page pointing backwards
+    // out of the section, which neither the list nor the breadcrumb offers.
+    if (page.isReadable) {
+      body.writeln(_pager(previous, page.kind == PageKind.toc ? null : next));
+    }
     body.writeln('</main>');
 
     return _document(
