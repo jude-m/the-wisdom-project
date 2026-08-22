@@ -61,6 +61,10 @@ class LandingPage {
 
   final String generatorVersion;
 
+  /// Scheme and host this build is being uploaded to, no trailing slash.
+  /// Threaded like [generatorVersion], and for the same reason.
+  final String origin;
+
   /// The stylesheet, script, index and emblem URLs, each carrying a hash of its
   /// own bytes — see [SiteAssets]. Threaded like [generatorVersion]: decided
   /// once per build, handed to both templates.
@@ -82,6 +86,7 @@ class LandingPage {
   const LandingPage({
     required this.roots,
     required this.generatorVersion,
+    required this.origin,
     required this.assets,
     required this.urlFor,
   }) : isNotFound = false;
@@ -91,6 +96,7 @@ class LandingPage {
   const LandingPage.notFound({
     required this.roots,
     required this.generatorVersion,
+    required this.origin,
     required this.assets,
     required this.urlFor,
   }) : isNotFound = true;
@@ -139,6 +145,7 @@ class LandingPage {
 
     return htmlDocument(
       title: isNotFound ? _notFoundTitle : _title,
+      origin: origin,
       canonical: isNotFound ? null : url,
       head: isNotFound ? '<meta name="robots" content="noindex">\n' : '',
       generatorVersion: generatorVersion,

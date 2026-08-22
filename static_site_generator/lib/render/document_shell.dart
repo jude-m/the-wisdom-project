@@ -10,11 +10,24 @@ import 'site_assets.dart';
 /// generator stamp — and P5 adds OG and JSON-LD to all of them at once. A
 /// second copy for `/` would be a second place to forget.
 ///
-/// [canonical] is left **root-relative** on purpose. The absolute form is the
-/// usual recommendation, but the apex domain is not settled yet and a wrong
-/// absolute canonical points every page at a host that does not serve it.
-/// Relative is legal and resolved against the document URL; revisit when the
-/// domain is fixed at the P5 hosting gate.
+/// [origin] is the scheme and host this build is being uploaded to, without a
+/// trailing slash — `bin/generate.dart` validates it and strips one, so every
+/// caller may concatenate a root-relative path onto it without checking first.
+///
+/// [canonical] is the page's **root-relative path**; the URL the tag carries is
+/// [origin] + that. Relative was the shipping form through P4, because the apex
+/// domain is not settled and a wrong absolute canonical points every page at a
+/// host that does not serve it. The origin is now an *input* rather than a
+/// constant — `--origin`, passed by `deploy.sh` from the target it is actually
+/// uploading to — which lets the tag do the one job a canonical exists for:
+/// naming which of several hosts serving identical bytes is the real one.
+/// Relative can never do that, however legal it is.
+///
+/// It also settles `?e=`, the entry-level coordinate the app's deep links carry
+/// (`deep-linking-and-shareable-urls.md`). Nothing in this generator reads that
+/// query and no page emits per-entry ids, so `…/an-1-1?e=12.4` is the same
+/// bytes answering at a second address. A self-canonical folds it onto the
+/// clean one. There was never any code to write for it — only this.
 ///
 /// It is **nullable for exactly one page**, and the reason is the shape of the
 /// only page that is not a page. Cloudflare serves `404.html`'s bytes back at
@@ -70,6 +83,7 @@ import 'site_assets.dart';
 /// included, trail and all.
 String htmlDocument({
   required String title,
+  required String origin,
   required String? canonical,
   required String generatorVersion,
   required SiteAssets assets,
@@ -82,7 +96,7 @@ String htmlDocument({
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)}</title>${canonical == null ? '' : '\n<link rel="canonical" href="$canonical">'}
+<title>${escapeHtml(title)}</title>${canonical == null ? '' : '\n<link rel="canonical" href="$origin$canonical">'}
 <link rel="stylesheet" href="${assets.stylesheet}">
 <meta name="generator" content="wisdom-ssg $generatorVersion">
 $head</head>

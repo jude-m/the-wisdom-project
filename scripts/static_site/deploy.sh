@@ -239,10 +239,28 @@ if [ "$TARGET" = "prod" ]; then
   fi
 fi
 
+# --- Origin -----------------------------------------------------------------
+# Derived from the same three values as everything else about a target, so it
+# cannot disagree with the project the deploy actually goes to.
+#
+# Computed HERE, above the build, because the generator now bakes it into every
+# canonical URL, og:url and sitemap entry (build plan P5). It is also the URL
+# printed at the end as the one to smoke-test, which is the same string by
+# construction — a deploy you cannot click through is a deploy you have not
+# checked. Before the landing page (P3) the origin was a 404 and so was the
+# obvious next guess `/<nodeKey>`, since every page lives under `/tipitaka/`;
+# `/` is a real page now, built from the roots the build actually wrote, so a
+# `--root an-1` deploy's origin links only into that subtree.
+if [ "$TARGET" = "prod" ]; then
+  ORIGIN="https://$PROJECT.pages.dev"
+else
+  ORIGIN="https://$BRANCH.$PROJECT.pages.dev"
+fi
+
 # --- Build ------------------------------------------------------------------
 if [ "$SKIP_BUILD" = false ]; then
   echo "Building static site (--root $ROOTS)..."
-  dart run static_site_generator/bin/generate.dart --root "$ROOTS"
+  dart run static_site_generator/bin/generate.dart --root "$ROOTS" --origin "$ORIGIN"
   echo ""
 else
   if [ ! -d "$OUT" ]; then
@@ -255,6 +273,12 @@ else
     echo "warning: --root is ignored with --skip-build; uploading $OUT as it stands." >&2
     echo "" >&2
   fi
+  # --origin only reaches the generator too, and it is baked into every page.
+  # Dev-only, and both dev origins are noindex, so the cost is a preview whose
+  # canonicals name whatever host the last build was told about.
+  echo "warning: --skip-build uploads the origin baked by the previous build," >&2
+  echo "         which may not be $ORIGIN." >&2
+  echo "" >&2
 fi
 
 # --- Preflight --------------------------------------------------------------
@@ -361,21 +385,6 @@ if [ "$DRY_RUN" = false ]; then
   ACCOUNT_LINE="${ACCOUNT_NAME:-unknown}   (${ACCOUNT_IDS:-unresolved})"
   echo ""
 fi
-
-if [ "$TARGET" = "prod" ]; then
-  ORIGIN="https://$PROJECT.pages.dev"
-else
-  ORIGIN="https://$BRANCH.$PROJECT.pages.dev"
-fi
-
-# `url` below is the ORIGIN, and that is now the URL to smoke-test on every
-# build shape. Before the landing page (build plan P3) it was a 404, and so was
-# the obvious next guess `/<nodeKey>` — every page lives under `/tipitaka/` — so
-# this printed a hand-picked entry key read out of the output directory instead.
-# `/` is a real page now, and the generator builds it from the roots it actually
-# wrote, so a `--root an-1` deploy's origin links only into that subtree. The
-# rule that block existed for still holds: a deploy you cannot smoke-test by
-# clicking the URL it just printed is a deploy you have not checked.
 
 echo "target     $TARGET"
 echo "account    $ACCOUNT_LINE"

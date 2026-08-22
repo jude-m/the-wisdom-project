@@ -61,6 +61,18 @@ class SiteGenerator {
   /// Directory that receives `tipitaka/`, `assets/`, `fonts/`.
   final String outputDir;
 
+  /// Scheme and host the finished build will be served from, no trailing slash
+  /// — validated and normalised by `bin/generate.dart`.
+  ///
+  /// An input rather than a constant because the same generator builds for two
+  /// hosts. `deploy.sh` already computes the origin per target; passing it here
+  /// is what keeps a preview from canonicalising itself to production, and what
+  /// makes registering an apex domain later a one-value change rather than a
+  /// code change. It is also the only value in the build that is not derived
+  /// from the corpus, so it is the only one a wrong flag can poison — hence the
+  /// validation upstream and none here.
+  final String origin;
+
   /// `static_site_generator/assets/` — the generator's *own* build inputs, as
   /// opposed to [CorpusReader.assetsPath], which is the app's.
   ///
@@ -73,6 +85,7 @@ class SiteGenerator {
     required this.tree,
     required this.tokens,
     required this.outputDir,
+    required this.origin,
     required this.packageAssetsPath,
   });
 
@@ -129,6 +142,7 @@ class SiteGenerator {
     final template = PageTemplate(
       tree: tree,
       generatorVersion: generatorVersion,
+      origin: origin,
       assets: assets,
       urlFor: plan.urlFor,
     );
@@ -229,6 +243,7 @@ class SiteGenerator {
       LandingPage(
         roots: roots,
         generatorVersion: generatorVersion,
+        origin: origin,
         assets: assets,
         urlFor: plan.urlFor,
       ).render(),
@@ -243,6 +258,7 @@ class SiteGenerator {
       LandingPage.notFound(
         roots: roots,
         generatorVersion: generatorVersion,
+        origin: origin,
         assets: assets,
         urlFor: plan.urlFor,
       ).render(),

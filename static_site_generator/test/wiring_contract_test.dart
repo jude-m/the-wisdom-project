@@ -430,6 +430,7 @@ void main() {
         'landing': LandingPage(
           roots: _tree.roots,
           generatorVersion: 'test',
+          origin: _origin,
           assets: _assets,
           urlFor: tipitakaUrl,
         ).render(),
@@ -548,11 +549,17 @@ NodeSlice _bothLanguages([String nodeKey = 'sp-toc-1']) => _slice(nodeKey, [
 final PageTemplate _template = PageTemplate(
   tree: _tree,
   generatorVersion: 'test',
+  origin: _origin,
   assets: _assets,
   // These fixtures build `SitePage`s by hand, with no plan behind them and no
   // folded leaf in the tree, so the serving URL is the bare one.
   urlFor: tipitakaUrl,
 );
+
+/// A fixture host, spelled here rather than imported from `bin/generate.dart`,
+/// whose default is private to that file. These tests assert markup shape, not
+/// which host a build names.
+const String _origin = 'https://example.test';
 
 /// Literal URLs, not `SiteAssets.forContent(...)`: these tests assert what
 /// reaches the page, and hashing real bytes here would make every expected

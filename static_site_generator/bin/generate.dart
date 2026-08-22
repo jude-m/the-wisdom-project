@@ -69,6 +69,7 @@ void main(List<String> args) {
       tree: tree,
       tokens: _readThemeTokens('$packageAssetsPath/theme_tokens.json'),
       outputDir: outputDir,
+      origin: options.origin,
       packageAssetsPath: packageAssetsPath,
     ).generate(rootKeys);
   } on StateError catch (error) {
@@ -161,6 +162,12 @@ class _Options {
 
   final String? assetsPath;
   final String? outputDir;
+
+  /// Scheme and host, normalised and without a trailing slash. Never null: an
+  /// absent flag means [_defaultOrigin], not "no origin" — every page carries a
+  /// canonical and there is no shape of this build that can skip one.
+  final String origin;
+
   final bool showHelp;
 
   const _Options({
@@ -168,10 +175,16 @@ class _Options {
     required this.rootsAreAll,
     required this.assetsPath,
     required this.outputDir,
+    required this.origin,
     required this.showHelp,
   });
 
-  static const Set<String> _valueFlags = {'--root', '--assets', '--out'};
+  static const Set<String> _valueFlags = {
+    '--root',
+    '--assets',
+    '--out',
+    '--origin',
+  };
 
   /// Accepts both `--flag value` and `--flag=value`.
   ///
@@ -214,6 +227,8 @@ class _Options {
     // ask for, wrong to get by accident, because the way that fails is a deploy
     // that looks like a finished site. A slow default is recoverable; a
     // silently partial one is not.
+    final origin = _parseOrigin(values['--origin'] ?? _defaultOrigin);
+
     final raw = values['--root'] ?? _allRoots;
     if (raw == _allRoots) {
       return _Options(
@@ -221,6 +236,7 @@ class _Options {
         rootsAreAll: true,
         assetsPath: values['--assets'],
         outputDir: values['--out'],
+        origin: origin,
         showHelp: showHelp,
       );
     }
@@ -237,10 +253,60 @@ class _Options {
       rootsAreAll: false,
       assetsPath: values['--assets'],
       outputDir: values['--out'],
+      origin: origin,
       showHelp: showHelp,
     );
   }
+
+  /// Validates `--origin` and returns it as bare scheme-and-authority.
+  ///
+  /// Strict, because this is the one value in the build that the corpus cannot
+  /// check. Every other input is a nodeKey or a path, and a wrong one fails
+  /// loudly on the next line; a wrong origin builds a complete, correct-looking
+  /// site whose every canonical, `og:url` and sitemap entry names a host that
+  /// does not serve it — and the way that is discovered is a search engine
+  /// quietly declining to index anything.
+  ///
+  /// A path is refused rather than kept. Cloudflare Pages serves this build at
+  /// the root of a host, so `https://example.org/site` describes a deployment
+  /// that cannot exist, and honouring it would put the wrong prefix on
+  /// `FIGURES.realPages` URLs. Userinfo is refused for the same reason it never
+  /// belongs in a published URL.
+  static String _parseOrigin(String raw) {
+    final uri = Uri.tryParse(raw);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      throw FormatException('--origin must be an absolute URL like '
+          '"https://example.org", not "$raw".');
+    }
+    if (uri.scheme != 'http' && uri.scheme != 'https') {
+      throw FormatException(
+          '--origin must be http or https, not "${uri.scheme}".');
+    }
+    if (uri.userInfo.isNotEmpty) {
+      throw FormatException('--origin must carry no credentials: "$raw".');
+    }
+    if (uri.hasQuery || uri.hasFragment) {
+      throw FormatException(
+          '--origin is a scheme and a host, with no query or fragment: '
+          '"$raw".');
+    }
+    if (uri.path.isNotEmpty && uri.path != '/') {
+      throw FormatException('--origin must name a host root — the site is '
+          'served from "/" — so "${uri.path}" cannot be part of it.');
+    }
+    return '${uri.scheme}://${uri.authority}';
+  }
 }
+
+/// Where a build with no `--origin` says it will be served from.
+///
+/// `tool/serve.dart`'s own default host, which is where a hand-run build is
+/// actually opened, and the same value the app's `LINK_BASE_URL` falls back to
+/// (`lib/presentation/providers/deep_link_provider.dart`). A local build
+/// therefore describes itself as the thing that will serve it, and cannot
+/// silently claim to be production: `deploy.sh` passes the real origin on both
+/// of its targets, so nothing reaches Cloudflare wearing this one.
+const String _defaultOrigin = 'http://localhost:8080';
 
 /// `--root` value meaning "every root in the tree".
 ///
@@ -258,6 +324,8 @@ Options
                      "all" for every tree root
   --assets <path>    Path to assets/               (default: discovered upwards)
   --out <path>       Output directory              (default: <package>/build)
+  --origin <url>     Scheme and host the build     (default: http://localhost:8080)
+                     will be served from
   -h, --help         Show this help
 
 Roots are walked in the order given, and prev/next chains across them.
@@ -266,4 +334,9 @@ different root — so build both, or those links 404:
 
   --root all                 whole corpus, ~30s
   --root an-1,atta-an-1      one nikaya section and its commentary
+
+--origin is the only input that is not derived from the corpus, and it is
+baked into every canonical URL. scripts/static_site/deploy.sh passes the one
+belonging to the target it is uploading to; pass it by hand only to preview
+what a given host would produce.
 ''';

@@ -23,6 +23,12 @@ class PageTemplate {
   /// Cloudflare's content-hash dedup re-uploads every file (§11.8).
   final String generatorVersion;
 
+  /// Scheme and host this build is being uploaded to, no trailing slash. The
+  /// one place an absolute URL can come from, and threaded for the same reason
+  /// [generatorVersion] is: it is decided once per build, by the caller that
+  /// knows which target it is building for, not by the template.
+  final String origin;
+
   /// The stylesheet, script, index and emblem URLs, each carrying a hash of its
   /// own bytes — see [SiteAssets]. Threaded in for the same reason
   /// [generatorVersion] is: one value per build, and the template is not the
@@ -39,6 +45,7 @@ class PageTemplate {
   const PageTemplate({
     required this.tree,
     required this.generatorVersion,
+    required this.origin,
     required this.assets,
     required this.urlFor,
     this.entries = const EntryRenderer(),
@@ -241,6 +248,7 @@ class PageTemplate {
           {required String head, required String body}) =>
       htmlDocument(
         title: _titleText(page.node),
+        origin: origin,
         canonical: page.url,
         generatorVersion: generatorVersion,
         assets: assets,
