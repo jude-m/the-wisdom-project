@@ -275,10 +275,9 @@ else
   fi
   # --origin only reaches the generator too, and it is baked into every page.
   # Dev-only, and both dev origins are noindex, so the cost is a preview whose
-  # canonicals name whatever host the last build was told about.
-  echo "warning: --skip-build uploads the origin baked by the previous build," >&2
-  echo "         which may not be $ORIGIN." >&2
-  echo "" >&2
+  # canonicals name whatever host the last build was told about. No warning
+  # here: the preflight below reads the baked origin off disk, so it can name
+  # the host and stay quiet on the runs where it already matches.
 fi
 
 # --- Preflight --------------------------------------------------------------
@@ -295,6 +294,137 @@ fi
 BIG=$(find "$OUT" -type f -size +25M | head -1)
 if [ -n "$BIG" ]; then
   echo "error: $BIG exceeds Cloudflare Pages' 25 MiB per-file limit." >&2
+  exit 1
+fi
+
+# --- Preflight: what the build says about itself ----------------------------
+# The two caps above are Cloudflare's rules; these are the site's own. A second
+# before the upload beats hearing it from a search engine that quietly declined
+# to index anything. Every value below comes from the build, so a mismatch is
+# always a bug in the build.
+
+# The three committed inputs (make_emblem.sh's rasters, site.js by hand). The
+# generator only warns about a missing one — sitegen.dart's _readPackageAsset —
+# and a warning in a 10,000-page build scrolls past. None makes a page wrong,
+# which is exactly why they need catching here: SiteAssets emits the URL from
+# whatever bytes it got, so an absent file 404s on every page at once.
+#
+# Named one at a time, in sitegen.dart's order and its words.
+if [ ! -f "$OUT/assets/site.js" ]; then
+  echo "error: $OUT/assets/site.js is missing — the site would build without" >&2
+  echo "       search or the ?layout= handler, and every page would still ask" >&2
+  echo "       for it (document_shell.dart emits the tag unconditionally)." >&2
+  echo "       Restore static_site_generator/assets/site.js. Nothing uploaded." >&2
+  exit 1
+fi
+if [ ! -f "$OUT/assets/emblem.png" ]; then
+  echo "error: $OUT/assets/emblem.png is missing — the toolbar's home link" >&2
+  echo "       would show a broken image on every page. Run" >&2
+  echo "       static_site_generator/assets/make_emblem.sh and commit its" >&2
+  echo "       output. Nothing uploaded." >&2
+  exit 1
+fi
+if [ ! -f "$OUT/assets/og-card.png" ]; then
+  echo "error: $OUT/assets/og-card.png is missing — every page would point" >&2
+  echo "       og:image at a 404, so every shared link previews as a bare" >&2
+  echo "       URL rather than a card. Run" >&2
+  echo "       static_site_generator/assets/make_emblem.sh and commit its" >&2
+  echo "       output. Nothing uploaded." >&2
+  exit 1
+fi
+
+# The generated ones: sitegen.dart writes all five unconditionally, so an
+# absence is a generator bug. `_headers` is why this is more than the two names
+# a crawler reads — lose it and the site serves perfectly while every asset
+# drops from `immutable` to Pages' default `max-age=0` and `.manifest.json`
+# loses its noindex.
+for GENERATED in sitemap.xml robots.txt _headers \
+                 assets/site.css assets/search-index.json; do
+  if [ ! -f "$OUT/$GENERATED" ]; then
+    echo "error: $OUT/$GENERATED is missing. The generator writes it on every" >&2
+    echo "       build shape, so its absence is a generator bug, not a flag." >&2
+    echo "       Nothing uploaded." >&2
+    exit 1
+  fi
+done
+
+# One <loc> per page, and one page deliberately left out: 404.html, which has no
+# URL worth naming (lib/render/sitemap.dart). A page written straight to disk
+# without going through SitePlan.pages is invisible to every crawler, and this
+# count is the only sign it gives.
+#
+# The "one" stops being one the day the P5 gate picks stub files (see
+# $MAX_FILES): a stub belongs in the upload but not in the sitemap. Subtract
+# them here rather than read the failure as a bug.
+HTML_COUNT=$(find "$OUT" -name '*.html' -type f | wc -l | tr -d ' ')
+LOC_COUNT=$(grep -c '<loc>' "$OUT/sitemap.xml" | tr -d ' ')
+if [ "$LOC_COUNT" -ne "$((HTML_COUNT - 1))" ]; then
+  echo "error: sitemap.xml names $LOC_COUNT URLs for $HTML_COUNT HTML files." >&2
+  echo "       404.html is the one deliberate omission, so these must differ" >&2
+  echo "       by exactly one. Fewer URLs than that and a page was written" >&2
+  echo "       outside SitePlan.pages, where no crawler will ever see it; more" >&2
+  echo "       and the sitemap names an address no file answers." >&2
+  echo "       Nothing uploaded." >&2
+  exit 1
+fi
+
+# The origin the build actually baked, read back rather than assumed. One
+# --origin reaches every canonical, og:url, og:image, the sitemap and
+# robots.txt, so a wrong one produces a complete, correct-looking deploy whose
+# every page names a host that does not serve it.
+BAKED_ORIGIN=$(sed -n 's|.*<loc>\(https\{0,1\}://[^/]*\)/.*|\1|p' \
+  "$OUT/sitemap.xml" | head -1)
+if [ -z "$BAKED_ORIGIN" ]; then
+  echo "error: no absolute <loc> in $OUT/sitemap.xml — the build baked no" >&2
+  echo "       origin, so no page can name which host is the real one." >&2
+  echo "       Nothing uploaded." >&2
+  exit 1
+fi
+
+if [ "$BAKED_ORIGIN" != "$ORIGIN" ]; then
+  # --skip-build is gated to dev and means "upload what is already there", so a
+  # stale origin is the flag's documented cost, not a fault. Said here and only
+  # here, because by now it is a fact on disk with a host to name.
+  if [ "$SKIP_BUILD" = true ]; then
+    echo "warning: this build is baked for $BAKED_ORIGIN, not $ORIGIN." >&2
+    echo "" >&2
+  else
+    echo "error: the build names $BAKED_ORIGIN but this deploy goes to" >&2
+    echo "       $ORIGIN. Nothing uploaded." >&2
+    exit 1
+  fi
+fi
+
+# And no page disagrees with it. The canonical is the one of the three absolute
+# URLs a crawler acts on, and all three come from SiteBuild.absolute(), so an
+# odd page means the threading regressed, not that the page is special.
+FOREIGN=$(grep -r 'rel="canonical"' "$OUT" --include='*.html' \
+  | grep -vF "href=\"$BAKED_ORIGIN/" | head -1)
+if [ -n "$FOREIGN" ]; then
+  echo "error: a canonical does not name $BAKED_ORIGIN:" >&2
+  echo "       $FOREIGN" >&2
+  echo "       Nothing uploaded." >&2
+  exit 1
+fi
+
+# Counted as well as read: the test above only sees lines that already carry the
+# tag, so a canonical DROPPED rather than misaimed passes it in silence. Every
+# page but 404.html has one — the same exemption the sitemap count makes.
+CANONICAL_COUNT=$(grep -rl 'rel="canonical"' "$OUT" --include='*.html' \
+  | wc -l | tr -d ' ')
+if [ "$CANONICAL_COUNT" -ne "$((HTML_COUNT - 1))" ]; then
+  echo "error: $CANONICAL_COUNT of $HTML_COUNT HTML files carry a canonical," >&2
+  echo "       and 404.html is the only page allowed to go without one. A page" >&2
+  echo "       with no canonical is one Google may index under whichever" >&2
+  echo "       address it was reached by. Nothing uploaded." >&2
+  exit 1
+fi
+
+# robots.txt exists to carry one line nothing else can say: where the sitemap
+# is. A robots.txt pointing at the wrong host is worse than none at all.
+if ! grep -qF "Sitemap: $BAKED_ORIGIN/sitemap.xml" "$OUT/robots.txt"; then
+  echo "error: $OUT/robots.txt does not point at" >&2
+  echo "       $BAKED_ORIGIN/sitemap.xml. Nothing uploaded." >&2
   exit 1
 fi
 
