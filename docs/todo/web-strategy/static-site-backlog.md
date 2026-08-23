@@ -53,8 +53,10 @@ Compression, corpus-wide sample: **gzip = 18.7% of raw**. A median page:
 automatically for text types; nothing to configure.
 
 Missing at this date: `404.html`, `sitemap.xml`, `robots.txt`,
-`<meta name="description">`. `_headers` exists. (`404.html` has since shipped —
-A1.)
+`<meta name="description">`. `_headers` exists. **All four have since shipped**
+— `404.html` with A1 (2026-08-19), the other three with P5 (2026-08-22), which
+also added `assets/og-card.png` to the tree above. Re-measure before quoting
+any byte total here.
 
 ⚠ **Correction on the merge.** `reduce-bundle-size.md` measured 394 MB and
 `site.css` at 12,578 B against the 2026-08-09 build. **P4's search dialog added
@@ -145,100 +147,174 @@ belongs and where it cannot leak into a production page.
 **Still owed, after the next deploy:** `curl -I https://<host>/tipitaka/does-not-exist`
 must return `404`, not `200`.
 
-## A2. `<meta name="description">` — missing
-
-`document_shell.dart:66-71` emits six things: charset, viewport, title,
-canonical, stylesheet, generator. No description.
+## A2. `<meta name="description">` ✅ **shipped 2026-08-22**
 
 Google writes the SERP snippet from the description when there is one and from
 scraped page text when there isn't. Scraped text on a canon page is the opening
-line of Pali — accurate, but it tells a searcher nothing about what they found.
-This is the **click-through** lever, and it's the largest one available.
+line of Pali — accurate, and it tells a searcher nothing about what they found.
+This was the **click-through** lever, and the largest one available.
 
-Descriptions have to be generated, not written — there are thousands. The
-material is already on hand: node name, its place in the tree, the collection,
-and how many suttas the page holds. Something like *"<leaf>, from <vagga> of
-<collection>. Pali with Sinhala translation."* Keep it under ~155 characters and
-never emit an empty one — no description beats a blank description.
+Generated, because there are `FIGURES.realPages` of them:
+`render/page_description.dart` composes `<title>. කොටස් {n}ක්. පාළි පෙළ සහ සිංහල
+පරිවර්තනය.`, capped at 155 characters and cut on a word boundary. It opens on
+the `<title>` string rather than re-deriving a location, so the tab and the
+snippet cannot disagree about where a page sits.
 
-`/` gets a hand-written description, not a generated one. It's the highest-value
-page on the site.
+**The words are borrowed, not invented.** `පාළි පෙළ` / `සිංහල පරිවර්තනය` is
+tipitaka.lk's own pairing for this exact material (`src/views/Welcome.vue`);
+`කොටස්` is the app's `researchMatchedPassage`; `{n}ක්` is the counting form the
+search dialog already uses. Upstream sets no per-page description of its own —
+its `metaInfo` carries a title and an `og:title` and nothing else — so there was
+vocabulary to copy and no sentence.
 
-## A3. `sitemap.xml` + `robots.txt` — missing
+Two claims it never makes. It does not promise a translation on the
+`FIGURES.readablePagesWithoutSinhala` pages, which is the fifth thing now
+hanging off the single `bothLanguages` answer; verified on the full build, the
+`solo` pages and the Pali-only descriptions coming to the same count exactly.
+And it does not describe a nav-only container as reading text — those pages
+count their subdivisions instead, which is what a reader arriving there actually
+gets.
 
-Neither is generated. Discovery currently depends entirely on Google crawling the
-TOC chain down from `/`.
+`/` gets a hand-written one, assembled from the same upstream sentence. It is
+the highest-value page on the site.
 
-- **`sitemap.xml`** — all pages, one file (the 50,000-URL / 50 MB limit is not
-  close). `<lastmod>` from the manifest hashes, as P5 already specifies, so a
-  rebuild that doesn't change a page doesn't claim it changed. Lying in
-  `<lastmod>` gets the whole signal ignored.
-- **`robots.txt`** — allow all, plus a `Sitemap:` line. That line is the main
-  reason the file needs to exist; the apex has nothing to hide.
+## A3. `sitemap.xml` + `robots.txt` ✅ **shipped 2026-08-22**
 
-Note the app origin is handled differently and deliberately: `X-Robots-Tag:
-noindex` on `app.<domain>`, **not** `Disallow`. Disallow would block the crawl
-and the `noindex` would never be read.
+Discovery used to depend entirely on Google walking the TOC chain down from `/`,
+which made a sutta's depth in the tree decide how long it waited to be found.
 
-## A4. Absolute canonical — currently root-relative
+- **`sitemap.xml`** — `FIGURES.realPages` URLs, one file (the 50,000-URL / 50 MB
+  ceilings are not close). Built by walking `SitePlan.pages`, so the folded
+  leaves are absent by construction — they are `#fragment`s in a chapter, not
+  addresses — and `404.html` cannot appear. Verified on the full build: every
+  `<loc>` resolves to a file in the upload, and every page in the upload has a
+  `<loc>`.
+- **`robots.txt`** — allow all, plus the `Sitemap:` line that is the only reason
+  the file needs to exist. Written on dev previews too, saying the same thing:
+  Cloudflare keeps a preview out of the index with `X-Robots-Tag: noindex`,
+  which is a *response* header, and a crawler told `Disallow` never fetches the
+  response to read it. Same reasoning the app origin already follows.
 
-`document_shell.dart:13-15` parks this on purpose: an absolute canonical needs a
-settled apex domain, and a wrong one points every page at a host that doesn't
-serve it. That was the right call at the time.
+**`<lastmod>` is deliberately absent, against what P5 originally specified.**
+"From the manifest hashes" does not survive contact with the manifest: it holds
+FNV-1a content hashes and by §11.8 carries no date anywhere, and a hash answers
+"did this change", never "when". The one date available is
+`bjt-provenance.json`'s single `synced_on`, which would stamp every URL with the
+same day — the uninformative signal that gets discounted, and being discounted
+for lying is worse than being believed for saying nothing. Revisit when a second
+corpus sync produces per-file dates worth publishing.
 
-The domain is settled now, so this is unblocked. Relative canonicals are legal
-and resolve against the document URL, but they can't do the one job canonicals
-are for — telling Google which of several hosts serving identical bytes is the
-real one. Preview deployments are covered today by Cloudflare's automatic
-`noindex`, so this is insurance rather than a live bug. Do it when the domain is
-wired.
+## A4. Absolute canonical ✅ **shipped 2026-08-22**
 
-## A5. Open Graph tags — missing
+Relative canonicals are legal and resolve against the document URL, but they
+cannot do the one job a canonical exists for: naming which of several hosts
+serving identical bytes is the real one.
 
-Parked at P5 alongside JSON-LD. Not a ranking factor at all — this is the
-**sharing** story, and for this audience sharing happens in WhatsApp and
-Facebook, not in search results. A pasted link with no OG tags renders as a bare
-URL; with them it renders as a card carrying the sutta name.
+**The domain is still not settled** — `static-web-hosting.md` owns that decision
+and still lists it as open. What unblocked this was noticing the generator never
+needed to *know* an origin. `deploy.sh` already computes one per target from the
+same constants that decide everything else about a deploy, so it is passed in:
+`--origin`, validated in `bin/generate.dart`, threaded beside
+`generatorVersion`. A preview canonicalises to the preview, production to
+production, and registering an apex later is one string in one shell script.
 
-`og:title` (un-welded per D2, same as `<title>`), `og:description` (reuse A2),
-`og:url`, `og:type`, `og:site_name`, `og:locale`. An `og:image` needs a real
-image — a generated one per page is out of scope, so a single site-wide image is
-the sane version. See B1: the OG raster is its own file, not the toolbar emblem.
+> ⚠️ **This item used to assert "the domain is settled now, so this is
+> unblocked", in its body and again in the order below.** That was never
+> sourced, named no domain, and contradicted its own closing sentence ("do it
+> when the domain is wired"). Deleted rather than corrected in place, so the
+> hosting doc stays the only owner of that question.
 
-## A6. JSON-LD structured data — missing
+It also answered P5's `?e=` bullet with no code. Nothing in the generator reads
+that query and no page emits per-entry ids, so `…/an-1-1?e=12.4` was the same
+bytes at a second address; a self-canonical folds it onto the clean one.
 
-Also parked at P5. The one with visible payoff is **`BreadcrumbList`**: it
-replaces the URL line in a search result with the readable trail, which is worth
-more to a browsing reader than the path ever was. The tree already has
-everything needed — the breadcrumb is built in `site_chrome.dart:122`.
+## A5. Open Graph tags ✅ **shipped 2026-08-22**
 
-Beyond that, `Book` / `Chapter` for the canon structure is defensible but has no
-rich-result treatment, so it's speculative. Do `BreadcrumbList` first and stop
-there unless there's a reason not to.
+Not a ranking factor at all — this is the **sharing** story, and for this
+audience sharing happens in WhatsApp and Facebook, not in search results. A
+pasted link with no OG tags renders as a bare URL; with them it renders as a
+card carrying the sutta's name.
 
-## A7. Pali text isn't marked as Pali
+`og:type` (`website` on `/`, `article` everywhere else), `og:title` (the
+un-welded `<title>`, D2), `og:description`, `og:url`, `og:image`,
+`og:site_name`, `og:locale` (`si_LK` — Open Graph's locale is a language *and* a
+territory, where `<html lang>` is only the language).
 
-Every page is `<html lang="si">` (`document_shell.dart:64`), and the Pali cells
-carry no `lang` of their own — they inherit Sinhala.
+**`og:description` is not the `<meta name="description">` string**, though it is
+the same grammar. The snippet opens on the title, which is right beneath a
+search result and wrong on a card: a card draws `og:title` in bold and the
+description immediately under it, so the snippet's form renders as a subtitle
+repeating its own heading word for word before adding six words. `A2`'s
+`pageDescription` returns both forms — the snippet, and the same clauses with
+the leading title dropped — and the card takes the second. On a page with
+nothing to say past its own name the tag is omitted rather than emitted empty;
+no page in the corpus is currently in that state.
 
-The Pali *is* in Sinhala script, so the rendering is right, but the language
-declaration isn't: `lang` is a language attribute, not a script one. The correct
-value on `.pali` cells is `lang="pi-Sinh"` — Pali, Sinhala script.
+Gated on the canonical rather than a flag of its own, which is what keeps
+`404.html` out: one condition for two tags that must agree, and no way to set
+one without the other.
 
-Modest SEO effect (it sharpens language targeting on pages that are half
-non-Sinhala). Real accessibility effect: a screen reader currently pronounces
-Pali using Sinhala rules.
+**`og:image` is its own raster**, `assets/og-card.png` — 1200×630, the logo at
+440px padded out with the site's own page background, cut by `make_emblem.sh`
+beside the emblem and committed like it. That retires the last reason the
+toolbar emblem was kept at 200px, so **B1 is now unopposed**.
+
+`og:image:width` / `:height` deliberately omitted: they save a scraper one fetch
+per URL ever shared, and cost the card's dimensions being written in Dart as
+well as in the shell script that already decides them. Twitter Card tags too —
+X falls back to Open Graph.
+
+## A6. JSON-LD structured data ✅ **shipped 2026-08-22**
+
+`BreadcrumbList`, and nothing else — it is the one type with a visible payoff,
+replacing the URL line in a result with the readable trail. `Book` / `Chapter`
+would describe the canon more fully and have no rich-result treatment, so they
+would be markup nothing reads.
+
+Built in `render/structured_data.dart` from the *same* trail list the toolbar
+draws, computed once in `page_template.dart` and used twice — a structured trail
+disagreeing with the visible one is worse than none. What it does not share is
+the string treatment: un-welded (D2), JSON-escaped rather than HTML-escaped
+(there is no entity parsing inside a `<script>`, so `&quot;` would arrive
+literally), and `<` escaped to `\u003c` so a name can never close the element
+early.
+
+Names follow the site's existing two-way rule: ancestors take the bare Pali
+name, the last item takes `nodeTitle` with the commentary marker, matching the
+`<h1>`, the `<title>`, `og:title` and the row search draws. That is the
+distinction the search index lost once. The last item carries no `item`, per
+Google's guidance and mirroring the `<span aria-current="page">` the visible
+trail ends on. Not emitted on `/`, where a one-item breadcrumb says only what
+the URL already says.
+
+## A7. ~~Pali text isn't marked as Pali~~ — **it always was**
+
+Deleted 2026-08-22, and not by this pass. A7 said every page was `<html
+lang="si">` with the Pali cells inheriting Sinhala, and asked for
+`lang="pi-Sinh"` on them. **P2 shipped exactly that** —
+`page_template.dart` emits `<div class="pali" lang="pi-Sinh">` on every Pali
+cell and `lang="si"` on every Sinhala one, with the reasoning in a comment two
+lines above.
+
+The number is kept as a marker rather than closing the gap, because A8–A10 are
+cited by number elsewhere. The item itself is gone: it described work that
+existed, which is worse than a stale figure — someone would have done it twice.
 
 ## A8. Duplicate headings when both languages render
 
-Flagged in the build plan (§ around line 727) and carried to P5: rendering both
+Flagged in the build plan's P2 revision notes and carried to P5: rendering both
 languages emits two `<hN>` per heading row, so the document outline says
 everything twice. Rendering only one would leave the single-language layouts with
 no outline at all, which is why it wasn't fixed inline.
 
-Low priority — Google is tolerant of messy outlines — but it belongs on this list
-because the fix probably falls out of the structured-data work rather than
-standing on its own.
+**P5 did not fix it, and could not have.** The hope on record was that the
+structured-data work would decide what a document claims about itself;
+`BreadcrumbList` describes a page's *place*, not its outline, and nothing else
+P5 emits reads the headings at all. So this stands on its own, and whoever picks
+it up is picking up the whole of it.
+
+Low priority — Google is tolerant of messy outlines — but it belongs on this
+list.
 
 ## A9. Preload the primary font
 
@@ -478,6 +554,12 @@ class of bug (two files that must agree with nothing connecting them):
 | every non-wildcard rule names a file the build writes | a renamed asset leaving a rule pointing at nothing |
 | a page's `<link rel="stylesheet">` equals `SiteAssets.forContent(...)`'s | the hashing wiring itself, which no test sees today |
 
+> **P5 widened this, 2026-08-22.** `assets/og-card.png` is a sixth asset and a
+> fifth token, added with no test — and it is the first one whose absence is
+> *invisible on the site*: a stale or unhashed stylesheet is eventually
+> noticeable, a stale link-preview card is only ever seen by a scraper. The
+> third test below is now one file further from covering what it should.
+
 Collapsing to `/assets/*` made the third of those matter more than it did.
 Five exact paths failed **safe**: an asset with no rule of its own simply kept
 the revalidating default, so forgetting one cost speed. A wildcard fails
@@ -542,7 +624,16 @@ out generally:
 ```
 /.manifest.json
   X-Robots-Tag: noindex
+
+/sitemap.xml
+  X-Robots-Tag: noindex
 ```
+
+`sitemap.xml` joined it in the A3 review: same shape of file, same reasoning,
+and the header does not touch what the sitemap is *for* — `noindex` governs
+whether a URL may appear in results, not whether a crawler may fetch and act on
+the file, and a sitemap is consumed rather than indexed. What it prevents is a
+page of raw XML surfacing as a result for a `site:` query.
 
 `cache_headers.dart` became `site_headers.dart` with it: the subject was always
 the one file, not one header in it, and C2's CSP is the next rule that is not
@@ -594,21 +685,31 @@ bytes: no URL moves, and no page re-uploads because of the change.
 ~~1. **A1 `404.html`** — a correctness bug, not an optimisation. Take C3 with
 it.~~ ✅ **both done 2026-08-19**, in one pass as planned.
 
+Steps 2, 3, 5, 6 and 7 — **A3** sitemap + robots, **A2** description, **A4**
+canonical, **A5** OG, **A6** JSON-LD — ✅ **all done 2026-08-22**, in one pass —
+build plan P5. They were ranked apart, and shipping them apart would have been
+the mistake B1+B2 are paired to avoid: every one of them edits the shared
+`<head>`, so each would have invalidated every page's content hash and paid the
+full push again. One deploy, not five.
+
+Step 9, **A7 `lang="pi-Sinh"`** — struck, not done: P2 had already shipped it.
+See A7.
+
+What is left, re-ranked:
+
 1. **C1 the asset-wiring tests** — before the next asset change, not after. A
    `/assets/*` miss is unrecallable for a year and silent at build time, and
-   steps 4 and 8 below are both asset changes.
-2. **A3 `robots.txt` + `sitemap.xml`** — discovery for 16K addresses.
-3. **A2 `<meta name="description">`** — the click-through lever.
-4. **B2 SVG icons → CSS** and **B1 re-cut the emblem** — *in one deploy.* Each is
+   step 2 is an asset change. P5 added `og-card.png` as a sixth asset and a
+   fifth token without adding a test, so the gap is one file wider than when
+   this was written.
+2. **B2 SVG icons → CSS** and **B1 re-cut the emblem** — *in one deploy.* Each is
    a shared-chrome edit that invalidates every page's hash; shipping them
    separately pays the full push twice. Together: ~8 MB off the build, ~575 B off
-   every page, ~40 KB off first paint.
-5. **A4 absolute canonical** — cheap now that the domain is settled.
-6. **A5 OG tags** — distribution, and this audience shares in messaging apps.
-7. **A6 `BreadcrumbList` JSON-LD.**
-8. **C2 CSP** — its own deploy and verify.
-9. **A7 `lang="pi-Sinh"`** — mostly an accessibility fix.
-10. **A9 font preload, A8 heading duplication** — measure first, both are small.
+   every page, ~40 KB off first paint. **B1 is unopposed now** — the OG card is
+   its own file, so the emblem's 200px is subsidising nothing.
+3. **C2 CSP** — its own deploy and verify.
+4. **A9 font preload, A8 heading duplication** — measure first, both are small.
+5. **A10 the 38 unnamed containers** — decide the derivation before estimating it.
 
 No action: **B3** (keep the provenance), **B4** (no fix exists), **B5**
 (recorded only), **B6** (needs a Worker). **C4** and **C5** are hygiene — do them

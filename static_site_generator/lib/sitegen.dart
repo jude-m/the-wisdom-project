@@ -13,9 +13,12 @@ import 'domain/theme_tokens.dart';
 import 'manifest/build_manifest.dart';
 import 'render/landing_page.dart';
 import 'render/page_template.dart';
+import 'render/robots.dart';
 import 'render/search_index.dart';
 import 'render/site_assets.dart';
+import 'render/site_build.dart';
 import 'render/site_headers.dart';
+import 'render/sitemap.dart';
 import 'render/stylesheet.dart';
 import 'render/web_fonts.dart';
 
@@ -129,6 +132,12 @@ class SiteGenerator {
       "the toolbar's home link will show a broken image on every page. Fix: "
       'run static_site_generator/assets/make_emblem.sh and commit its output.',
     );
+    final ogCard = _readPackageAsset(
+      ogCardFileName,
+      'shared links will preview without an image — a bare URL in WhatsApp '
+      'rather than a card. No page renders differently. Fix: run '
+      'static_site_generator/assets/make_emblem.sh and commit its output.',
+    );
 
     final assets = SiteAssets.forContent(
       css: css,
@@ -137,15 +146,19 @@ class SiteGenerator {
       script: script == null ? '' : utf8.decode(script),
       searchIndex: searchIndex,
       emblem: emblem ?? const <int>[],
+      ogCard: ogCard ?? const <int>[],
     );
 
-    final template = PageTemplate(
-      tree: tree,
-      generatorVersion: generatorVersion,
+    // The four values every template needs and none of them can work out: one
+    // record, built once, handed down. See [SiteBuild].
+    final build = SiteBuild(
       origin: origin,
+      generatorVersion: generatorVersion,
       assets: assets,
       urlFor: plan.urlFor,
     );
+
+    final template = PageTemplate(tree: tree, build: build);
     final manifest = BuildManifest();
 
     var suttaPages = 0;
@@ -240,13 +253,7 @@ class SiteGenerator {
     final roots = [for (final key in rootKeys) tree[key]!];
     _write(
       '$outputDir/${LandingPage.outputPath}',
-      LandingPage(
-        roots: roots,
-        generatorVersion: generatorVersion,
-        origin: origin,
-        assets: assets,
-        urlFor: plan.urlFor,
-      ).render(),
+      LandingPage(roots: roots, build: build).render(),
     );
 
     // Written beside it, and on every build shape for the same reason: without
@@ -255,13 +262,7 @@ class SiteGenerator {
     // a reader can go on from. See [LandingPage.notFoundOutputPath].
     _write(
       '$outputDir/${LandingPage.notFoundOutputPath}',
-      LandingPage.notFound(
-        roots: roots,
-        generatorVersion: generatorVersion,
-        origin: origin,
-        assets: assets,
-        urlFor: plan.urlFor,
-      ).render(),
+      LandingPage.notFound(roots: roots, build: build).render(),
     );
 
     _write('$outputDir/$stylesheetOutputPath', css);
@@ -270,8 +271,16 @@ class SiteGenerator {
     // static text, so it costs the build nothing and is written unconditionally
     // — a subtree preview caches exactly like production.
     _write('$outputDir/$siteHeadersOutputPath', buildSiteHeaders());
+    // Beside `_headers`, and unconditionally for the same reason: root-level
+    // text that costs the build nothing, so a subtree preview is discoverable
+    // exactly the way production is. Both name [origin], which is why they are
+    // here rather than anywhere a page is written.
+    _write('$outputDir/$sitemapOutputPath',
+        buildSitemap(origin: origin, plan: plan));
+    _write('$outputDir/$robotsOutputPath', buildRobots(origin: origin));
     if (script != null) _writeBytes('$outputDir/$siteScriptOutputPath', script);
     if (emblem != null) _writeBytes('$outputDir/$emblemOutputPath', emblem);
+    if (ogCard != null) _writeBytes('$outputDir/$ogCardOutputPath', ogCard);
     for (final font in fonts) {
       _writeBytes(
           '$outputDir/$fontsOutputDir/${font.face.relativePath}', font.bytes);

@@ -1,23 +1,32 @@
 import 'entry_renderer.dart';
+import 'page_description.dart';
 import 'search_dialog.dart';
-import 'site_assets.dart';
+import 'site_build.dart';
 
 /// The `<head>` every page on the site shares, and the `<html>`/`<body>`
 /// around it.
 ///
-/// Extracted when the landing page arrived (P3). The five things in this head
-/// are a contract — charset, viewport, canonical, the one stylesheet, the
-/// generator stamp — and P5 adds OG and JSON-LD to all of them at once. A
-/// second copy for `/` would be a second place to forget.
+/// Extracted when the landing page arrived (P3), because `/` needs the same
+/// head as every sutta and a second copy of it is a second place to forget.
+/// What that head holds is a contract — charset, viewport, title, description,
+/// canonical, the one stylesheet, the generator stamp — and P5 grew it from
+/// five to this by hanging the whole SEO surface off the same parameters,
+/// which is the alternative to two templates each remembering a meta tag.
 ///
-/// [origin] is the scheme and host this build is being uploaded to, without a
-/// trailing slash — `bin/generate.dart` validates it and strips one, so every
-/// caller may concatenate a root-relative path onto it without checking first.
+/// [description] is raw text in both its forms; the shell escapes it, as it
+/// does [title]. Null emits no tag at all — `pageDescription` in
+/// `page_description.dart` is what decides that, and it is deliberately not
+/// defaulted to the empty string here: an empty `content` attribute is a worse
+/// signal to a crawler than an absent element.
+///
+/// [build] carries the four values that are the same on every page — the
+/// origin, the generator stamp, the hashed asset URLs and the link resolver.
+/// See [SiteBuild] for why they arrive as one field rather than four.
 ///
 /// [canonical] is the page's **root-relative path**; the URL the tag carries is
-/// [origin] + that. Relative was the shipping form through P4, because the apex
-/// domain is not settled and a wrong absolute canonical points every page at a
-/// host that does not serve it. The origin is now an *input* rather than a
+/// the origin + that. Relative was the shipping form through P4, because the
+/// apex domain is not settled and a wrong absolute canonical points every page
+/// at a host that does not serve it. The origin is now an *input* rather than a
 /// constant — `--origin`, passed by `deploy.sh` from the target it is actually
 /// uploading to — which lets the tag do the one job a canonical exists for:
 /// naming which of several hosts serving identical bytes is the real one.
@@ -49,12 +58,6 @@ import 'site_assets.dart';
 /// [head] carries whatever the page adds to the contract above, already
 /// newline-terminated.
 ///
-/// [assets] is passed in rather than written here because every URL in it
-/// carries a hash of the bytes behind it ([SiteAssets]) — the head cannot know
-/// those, and the one caller that builds them can. Threaded like
-/// [generatorVersion]: one value, decided once per build, handed to both
-/// templates.
-///
 /// ## The search dialog and `site.js` close every body
 ///
 /// Both are byte-identical on every page (`FIGURES.realPages`), so they belong
@@ -83,22 +86,47 @@ import 'site_assets.dart';
 /// included, trail and all.
 String htmlDocument({
   required String title,
-  required String origin,
+  required SiteBuild build,
   required String? canonical,
-  required String generatorVersion,
-  required SiteAssets assets,
+  required PageDescription? description,
   required String body,
+  bool isFrontDoor = false,
   String head = '',
 }) {
+  final assets = build.assets;
+  // Built above the template rather than interpolated into it. Three optional
+  // head lines were already at the edge of readable as inline conditionals on
+  // the `<title>` line, and Open Graph is six more; a page whose `<head>` is
+  // wrong is debugged by reading this file.
+  final meta = StringBuffer('<title>${escapeHtml(title)}</title>');
+  if (description != null) {
+    meta.write('\n<meta name="description" '
+        'content="${escapeHtml(description.snippet)}">');
+  }
+  if (canonical != null) {
+    final url = build.absolute(canonical);
+    meta.write('\n<link rel="canonical" href="$url">');
+    meta.write(_openGraph(
+      title: title,
+      // The card's form, not the snippet's: `og:title` is written one line
+      // above and a subtitle repeating it verbatim is the failure the two
+      // forms exist to avoid. See [PageDescription].
+      subtitle: description?.subtitle,
+      url: url,
+      imageUrl: build.absolute(assets.ogCard),
+      isFrontDoor: isFrontDoor,
+    ));
+  }
+
   return '''
 <!DOCTYPE html>
 <html lang="si">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)}</title>${canonical == null ? '' : '\n<link rel="canonical" href="$origin$canonical">'}
+$meta
 <link rel="stylesheet" href="${assets.stylesheet}">
-<meta name="generator" content="wisdom-ssg $generatorVersion">
+<meta name="generator" content="wisdom-ssg ${build.generatorVersion}">
 $head</head>
 <body>
 $body${searchDialog(assets.searchIndex)}
@@ -106,6 +134,73 @@ ${siteScript(assets.script)}
 </body>
 </html>
 ''';
+}
+
+/// The site's own name, for `og:site_name` and for `/`'s `<title>`.
+///
+/// The app's `appTitle` (`app_si.arb`), under the rule every string on this
+/// surface follows: a name the app already says is not re-invented here.
+const String siteName = 'ප්‍රඥා ව්‍යාපෘතිය';
+
+/// Open Graph — what a pasted link looks like in a message.
+///
+/// **Not a ranking signal.** Google reads none of this. It matters because this
+/// audience shares in WhatsApp and Facebook, where a link with no OG tags
+/// renders as a bare URL and one with them renders as a card carrying the
+/// sutta's name.
+///
+/// Gated on [canonical] rather than on a flag of its own, which is what keeps
+/// `404.html` out: that file's bytes are served at every address the site has
+/// no page for, so an `og:url` in them would be a claim made on behalf of URLs
+/// nobody has seen — the same reason it sends no canonical. One condition, two
+/// tags that must agree, no way to set one without the other.
+///
+/// `og:title` is the un-welded `<title>` string (D2). Every reference here
+/// agrees with the tag beside it because all three are the *same variables*,
+/// not three lookups of the same idea.
+///
+/// [subtitle] is **not** the `<meta name="description">` string. That one opens
+/// on the title, which is right under a search result and wrong here: a card
+/// draws `og:title` in bold and this directly beneath it, so the snippet's form
+/// renders as a subtitle repeating its own heading word for word before adding
+/// anything. Null when the page has nothing to add past its own name, and then
+/// the tag is omitted rather than emitted empty.
+///
+/// Deliberately absent:
+///
+/// - **`og:image:width` / `:height`.** They let a scraper lay the card out
+///   before it has fetched the image, which is worth something on a first
+///   share — and it costs the card's dimensions being written in Dart as well
+///   as in `make_emblem.sh`, where they are already decided. Two places to
+///   disagree about one picture, on every page in the build, to save one
+///   fetch that happens once per URL ever shared.
+/// - **Twitter Card tags.** X falls back to Open Graph.
+String _openGraph({
+  required String title,
+  required String? subtitle,
+  required String url,
+  required String imageUrl,
+  required bool isFrontDoor,
+}) {
+  final tags = StringBuffer();
+  tags.write('\n<meta property="og:type" content="'
+      // `website` is the whole site; `article` is a document within it. `/`
+      // is the only page here that is the former.
+      '${isFrontDoor ? 'website' : 'article'}">');
+  tags.write('\n<meta property="og:title" content="${escapeHtml(title)}">');
+  if (subtitle != null) {
+    tags.write('\n<meta property="og:description" '
+        'content="${escapeHtml(subtitle)}">');
+  }
+  tags.write('\n<meta property="og:url" content="$url">');
+  tags.write('\n<meta property="og:image" content="$imageUrl">');
+  tags.write(
+      '\n<meta property="og:site_name" content="${escapeHtml(siteName)}">');
+  // Sinhala as written in Sri Lanka. The `<html lang>` above says `si`, which
+  // is the language; Open Graph's locale is a language *and* a territory, and
+  // there is only one that prints this canon.
+  tags.write('\n<meta property="og:locale" content="si_LK">');
+  return tags.toString();
 }
 
 /// `defer` rather than `async`: the script touches the layout radios, and the

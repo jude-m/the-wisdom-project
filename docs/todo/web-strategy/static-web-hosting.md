@@ -448,6 +448,7 @@ writes, so a renamed asset cannot leave a rule pointing at nothing):
 | `site.js` | hash of the script **and** the index |
 | `search-index.json` | the same hash |
 | `emblem.png` | hash of the image |
+| `og-card.png` | hash of the image (its own token, not the emblem's — the two are re-cut independently) |
 | `fonts/*.woff2` | one hash of all eight faces, carried in the CSS |
 
 Two things to know before editing it:
@@ -496,19 +497,30 @@ needs no change — the OS just starts delivering `https` URIs through the same
 The prototype plan (§10/§12) delegates the crawl-discovery layer to this doc.
 The SSG emits all of it as static files:
 
-- **Per page:** `<title>`, `<meta name="description">`, `<link rel="canonical">`
-  (self), Open Graph / Twitter Card tags (chat previews), JSON-LD
-  (`Book` / `CreativeWork`), language attributes — `lang="si"` on the page,
-  `lang="pi-Sinh"` (Pali in Sinhala script) on Pali blocks: screen readers +
-  crawler language detection, zero cost (2026-07-22).
-- **`sitemap.xml`:** one `<url>` per **distinct sutta file + chapter file** (not
-  the content-free redirect stubs) — this is what takes Google from "found one
-  page" to "indexed ~13,000 pages" (full-canon count, §"Free-tier fit" above).
-  Emit **`<lastmod>` per URL from the build manifest's content hashes**
-  (2026-07-23 — the manifest already knows exactly which outputs changed): after
-  a text correction Google recrawls just the changed pages fast, the C1 payoff.
-- **`robots.txt`:** apex — allow crawl, point to the sitemap (no `/app/` rule
-  needed anymore).
+- **Per page** ✅ **all shipped** — `<title>` and `lang="si"` / `lang="pi-Sinh"`
+  with P1–P2, the rest with P5 (2026-08-22): `<meta name="description">`,
+  self-`<link rel="canonical">` (absolute), and Open Graph. **JSON-LD is
+  `BreadcrumbList` only**, not the `Book` / `CreativeWork` sketched here —
+  those have no rich-result treatment, so they would be markup nothing reads.
+  No Twitter Card tags either; X falls back to Open Graph.
+- **`sitemap.xml`** ✅ **shipped with P5** — `FIGURES.realPages` URLs, one per
+  file the build writes, with the folded leaves absent by construction (they are
+  `#fragment`s in a chapter, not addresses) and `404.html` excluded. This is what
+  takes Google from "found one page" to the whole corpus indexed.
+  > ⚠️ **`<lastmod>` is NOT emitted, and the 2026-07-23 plan for it was wrong.**
+  > "Per URL from the build manifest's content hashes" cannot be done: the
+  > manifest holds FNV-1a hashes and, by the build plan's §11.8, carries no date
+  > anywhere — a hash says *whether* something changed, never *when*, and
+  > `<lastmod>` is a W3C datetime. The only date available is
+  > `bjt-provenance.json`'s one `synced_on`, which would stamp every URL the
+  > same day: the uninformative signal Google discounts. Omitted until a second
+  > corpus sync gives per-file dates. The recrawl payoff described here is
+  > therefore **not** collected yet.
+- **`robots.txt`** ✅ **shipped with P5** — apex: allow crawl, point at the
+  sitemap (no `/app/` rule needed anymore). Written on dev previews too, saying
+  the same thing, for the crawl-then-noindex reason spelled out in the next
+  bullet: `X-Robots-Tag` is a response header, and a crawler told `Disallow`
+  never fetches the response to read it.
 - **Keep the app out of the index — `noindex`, NOT `Disallow` (fixed 2026-07-23):**
   the app project sends `X-Robots-Tag: noindex` on every response (one
   `_headers` rule: `/*` → `X-Robots-Tag: noindex`) and its `robots.txt`
@@ -546,6 +558,25 @@ The SSG emits all of it as static files:
    "Two targets, one per account" above. Only the **domain** is still open; the
    two are independent, since a project keeps its `.pages.dev` name whatever
    custom domain is later attached.
+
+   > **It stopped blocking the build, 2026-08-22 (P5).** Canonical URLs, OG tags
+   > and `sitemap.xml` all need an absolute origin, and all three shipped
+   > without this being answered: `deploy.sh` computes the origin from the
+   > target it is uploading to and passes it as `--origin`, so the generator
+   > never holds a domain at all. Registering an apex later changes one string
+   > in one line of that script and nothing in `lib/`.
+   >
+   > **What it now costs to wait, stated plainly.** A production deploy names
+   > `sammaditthi.pages.dev` in every canonical, every `og:url` and all
+   > `FIGURES.realPages` sitemap entries, and prod is the indexable target. Once
+   > Google has indexed those, moving to an apex is a migration — redirects and
+   > a re-crawl — rather than a rename. The cheap moment to decide is before the
+   > first prod deploy that anyone links to. The `.well-known` files in this
+   > question have the same deadline for a different reason.
+   >
+   > ⚠️ `static-site-backlog.md`'s A4 used to claim "the domain is settled now".
+   > It was unsourced and named no domain. **Deleted there**; this question
+   > remains the only owner.
 3. ~~One Pages project (path-split) vs two (subdomain).~~ **RESOLVED 2026-07-23:
    one project per surface** — apex = static content, `app.<domain>` = Flutter
    web, `tika.<domain>` = ටීකා later (see "Project topology" above).

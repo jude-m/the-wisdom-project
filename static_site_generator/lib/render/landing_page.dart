@@ -2,7 +2,8 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 
 import '../domain/site_page.dart';
 import 'document_shell.dart';
-import 'site_assets.dart';
+import 'page_description.dart';
+import 'site_build.dart';
 import 'site_chrome.dart';
 
 /// The site's front door — `/`, the one page outside the `/tipitaka/<nodeKey>`
@@ -59,24 +60,14 @@ class LandingPage {
   /// dead links on the front page of the dev preview it was built for.
   final List<TipitakaNode> roots;
 
-  final String generatorVersion;
-
-  /// Scheme and host this build is being uploaded to, no trailing slash.
-  /// Threaded like [generatorVersion], and for the same reason.
-  final String origin;
-
-  /// The stylesheet, script, index and emblem URLs, each carrying a hash of its
-  /// own bytes — see [SiteAssets]. Threaded like [generatorVersion]: decided
-  /// once per build, handed to both templates.
-  final SiteAssets assets;
-
-  /// Where a link to a nodeKey must point — [SitePlan.urlFor].
+  /// The origin, the generator stamp, the hashed asset URLs and the link
+  /// resolver — see [SiteBuild].
   ///
-  /// A root is always a container and so always owns its own page, which makes
-  /// this the identity here. It is threaded in anyway rather than defaulted,
-  /// because [tocList] takes one resolver for both callers and a second answer
-  /// to "what is a link" is how the two lists drift apart.
-  final UrlResolver urlFor;
+  /// Its resolver is the identity here: a root is always a container and so
+  /// always owns its own page. Used anyway rather than reaching for
+  /// [tipitakaUrl], because [tocList] takes one resolver for both callers and a
+  /// second answer to "what is a link" is how the two lists drift apart.
+  final SiteBuild build;
 
   /// Whether this is the not-found page rather than the front door. See the
   /// class comment for the three things it changes and why each one follows
@@ -85,20 +76,14 @@ class LandingPage {
 
   const LandingPage({
     required this.roots,
-    required this.generatorVersion,
-    required this.origin,
-    required this.assets,
-    required this.urlFor,
+    required this.build,
   }) : isNotFound = false;
 
   /// `404.html` — the same page under a heading that says the address was
   /// wrong.
   const LandingPage.notFound({
     required this.roots,
-    required this.generatorVersion,
-    required this.origin,
-    required this.assets,
-    required this.urlFor,
+    required this.build,
   }) : isNotFound = true;
 
   /// Written flat at the site root, so its URL is `/`.
@@ -123,15 +108,21 @@ class LandingPage {
     // No layout radios — nothing here is readable text, and per P2's mechanism
     // that absence needs no CSS: with no radio checked, none of the
     // `#L-x:checked ~` rules match.
-    body.writeln(toolbar(withLayouts: false, assets: assets));
+    body.writeln(toolbar(withLayouts: false, assets: build.assets));
     // `nav`, for the same reason a container TOC gets it: a heading, a hint and
     // a list of links, with no running text to set a measure for.
     body.writeln('<main class="content nav">');
     // The site's only page with no node to name it, so its heading has to be
     // written rather than derived. Without one, `/` is the highest-value page on
     // the site for search and the only one with no heading at all.
-    body.writeln(
-        '<h1 class="page-title">${isNotFound ? _notFoundTitle : _title}</h1>');
+    //
+    // [siteName] and not a name of its own. The rest of the site titles itself
+    // `<leaf> — <vagga> — <collection>` because a bare name would repeat across
+    // `FIGURES.realPages` pages; `/` has no ancestors to disambiguate it
+    // against, and is the one page whose name *is* the whole site's name — the
+    // same string `og:site_name` carries everywhere else.
+    final title = isNotFound ? _notFoundTitle : siteName;
+    body.writeln('<h1 class="page-title">$title</h1>');
     // The same hint under both headings, and it is the right sentence twice:
     // what follows is the list of roots either way, and the reader's next move
     // is the same one.
@@ -140,16 +131,24 @@ class LandingPage {
     // build these are `vp` `sp` `ap` `atta-vp` `atta-sp` `atta-ap` `anya`, in
     // the order `tree.json` declares them, which is pinned by document order
     // (§11.8).
-    body.writeln(tocList(roots, urlFor: urlFor));
+    body.writeln(tocList(roots, urlFor: build.urlFor));
     body.writeln('</main>');
 
     return htmlDocument(
-      title: isNotFound ? _notFoundTitle : _title,
-      origin: origin,
+      title: title,
+      build: build,
       canonical: isNotFound ? null : url,
+      // None on the not-found page, for the same reason it sends no canonical:
+      // Cloudflare serves these bytes at every address the site has no file
+      // for, so a description here is a sentence written on behalf of URLs
+      // nobody has seen. The `noindex` below is the whole answer.
+      description:
+          isNotFound ? null : const PageDescription.written(_description),
+      // The one page on the site that is the site rather than a document in it,
+      // which is the whole of `og:type`'s question. `404.html` never reaches
+      // the branch — it has no canonical, so it emits no Open Graph at all.
+      isFrontDoor: true,
       head: isNotFound ? '<meta name="robots" content="noindex">\n' : '',
-      generatorVersion: generatorVersion,
-      assets: assets,
       body: body.toString(),
     );
   }
@@ -163,13 +162,22 @@ class LandingPage {
 /// app" rule exists to catch, so the wrong one would have looked right.
 const String _hint = 'කියවීම ආරම්භ කිරීමට ව්‍යූහයෙන් සූත්‍රයක් තෝරන්න';
 
-/// The app's `appTitle` (`app_si.arb:4`).
+/// The one description on the site that is written rather than generated.
 ///
-/// Bare for now. `/` is the highest-value page on the site for SEO — its
-/// `<title>`, description and OG matter more than any single sutta's — and P5 is
-/// where that gets decided properly, together with the `<title>` grammar the
-/// rest of the site already follows.
-const String _title = 'ප්‍රඥා ව්‍යාපෘතිය';
+/// `/` is the highest-value page here for search — it is what `sitemap.xml`
+/// names as the entry and what an unqualified query for the site should land
+/// on — so it gets a sentence about the whole corpus instead of the
+/// per-page grammar in `page_description.dart`, which has a node to describe
+/// and this page does not.
+///
+/// Assembled from what tipitaka.lk's Welcome page says about this exact
+/// material — *"ශ්‍රී ලංකා තිපිටක පෙළ, අටුවා සහ සිංහල පරිවර්තනය"*
+/// (`src/views/Welcome.vue`) — because the two sites are describing the same
+/// books and should not invent separate vocabulary for them. `අට්ඨකථා` rather
+/// than upstream's `අටුවා`, per the site-wide rule that every node is named by
+/// the tree's Pali field.
+const String _description = 'බුද්ධ ජයන්ති තිපිටකයේ පාළි පෙළ, අට්ඨකථා සහ '
+    'සිංහල පරිවර්තනය. සම්පූර්ණ ත්‍රිපිටකය සහ අට්ඨකථා නොමිලේ කියවන්න.';
 
 /// The app's `statusNoTreeContent` (`app_si.arb:190`) — "no content available",
 /// which is what a missing address has.

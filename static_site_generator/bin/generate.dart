@@ -12,9 +12,10 @@ import 'package:static_site_generator/sitegen.dart';
 ///
 /// Writes `static_site_generator/build/` — one HTML file per sutta, one per
 /// grouped chapter, one per container TOC, plus `index.html`, `404.html`,
-/// `assets/site.css`, `assets/site.js`, `assets/search-index.json`, the copied
-/// WOFF2 subsets, `_headers` (the response headers Cloudflare Pages applies to
-/// the paths its defaults get wrong) and `.manifest.json`.
+/// `assets/site.css`, `assets/site.js`, `assets/search-index.json`,
+/// `assets/emblem.png`, `assets/og-card.png`, the copied WOFF2 subsets,
+/// `sitemap.xml`, `robots.txt`, `_headers` (the response headers Cloudflare
+/// Pages applies to the paths its defaults get wrong) and `.manifest.json`.
 ///
 /// `--root` takes a **list** because the corpus has seven disjoint roots and a
 /// canon subtree links into its `atta-*` twin, which lives under a different
@@ -150,7 +151,7 @@ ThemeTokens _readThemeTokens(String path) {
 final String _packageRoot = File.fromUri(Platform.script).parent.parent.path;
 
 /// Parsed command line. Hand-rolled rather than pulling in `package:args` —
-/// three flags is not worth a dependency in a package whose whole point is that
+/// four flags is not worth a dependency in a package whose whole point is that
 /// `dart pub deps` shows nothing but `wisdom_shared`.
 class _Options {
   /// Subtrees to build, in walk order. Empty when [rootsAreAll] is set.
@@ -222,13 +223,13 @@ class _Options {
       values[name] = value;
     }
 
+    final origin = _parseOrigin(values['--origin'] ?? _defaultOrigin);
+
     // Defaults to the whole corpus. The old default was `an-1`, which built a
     // one-book fragment whose අට්ඨකථා links mostly pointed outside it — fine to
     // ask for, wrong to get by accident, because the way that fails is a deploy
     // that looks like a finished site. A slow default is recoverable; a
     // silently partial one is not.
-    final origin = _parseOrigin(values['--origin'] ?? _defaultOrigin);
-
     final raw = values['--root'] ?? _allRoots;
     if (raw == _allRoots) {
       return _Options(
@@ -300,13 +301,22 @@ class _Options {
 
 /// Where a build with no `--origin` says it will be served from.
 ///
-/// `tool/serve.dart`'s own default host, which is where a hand-run build is
-/// actually opened, and the same value the app's `LINK_BASE_URL` falls back to
-/// (`lib/presentation/providers/deep_link_provider.dart`). A local build
-/// therefore describes itself as the thing that will serve it, and cannot
-/// silently claim to be production: `deploy.sh` passes the real origin on both
-/// of its targets, so nothing reaches Cloudflare wearing this one.
-const String _defaultOrigin = 'http://localhost:8080';
+/// `tool/serve.dart`'s own default — host *and* port, which is the half that
+/// matters: a hand-run build is opened by that server and by nothing else, so
+/// this is the one value that makes a local build describe the thing actually
+/// serving it. It cannot silently claim to be production either, because
+/// `deploy.sh` passes the real origin on both of its targets and nothing
+/// reaches Cloudflare wearing this.
+///
+/// **Not `:8080`**, which it was until the port was checked against the server
+/// it named. 8080 is the app's `LINK_BASE_URL` fallback
+/// (`lib/presentation/providers/deep_link_provider.dart`) and Flutter web's
+/// slot in this repo's dev port map — a different surface, serving different
+/// bytes at the same paths. Sharing a number with it bought nothing and made
+/// every canonical in a hand-run build name a host that serves the app.
+///
+/// It tracks `serve.dart`. If that default moves, this moves with it.
+const String _defaultOrigin = 'http://localhost:8083';
 
 /// `--root` value meaning "every root in the tree".
 ///
@@ -324,7 +334,7 @@ Options
                      "all" for every tree root
   --assets <path>    Path to assets/               (default: discovered upwards)
   --out <path>       Output directory              (default: <package>/build)
-  --origin <url>     Scheme and host the build     (default: http://localhost:8080)
+  --origin <url>     Scheme and host the build     (default: http://localhost:8083)
                      will be served from
   -h, --help         Show this help
 

@@ -6,7 +6,7 @@
 /// is what makes each URL change when its bytes do — computed by the build,
 /// with nothing for anyone to remember.
 ///
-/// Five files, four tokens:
+/// Six files, five tokens:
 ///
 /// | file                | token                                     |
 /// |---------------------|-------------------------------------------|
@@ -14,6 +14,7 @@
 /// | `site.js`           | hash of the script **and** the index      |
 /// | `search-index.json` | the same hash                             |
 /// | `emblem.png`        | hash of the image                         |
+/// | `og-card.png`       | hash of the image                         |
 /// | `fonts/*.woff2`     | one hash of all eight faces, in the CSS   |
 ///
 /// ## Why not a hand-bumped token
@@ -89,13 +90,14 @@ const String assetsOutputDir = 'assets';
 /// URLs above are built from. **Paths, not URLs**: each URL carries a query
 /// string that no file on disk ever will.
 ///
-/// All four here rather than beside the code that generates each one, because
+/// All five here rather than beside the code that generates each one, because
 /// the caching rule has to name the directory they share and deriving that from
-/// one of them would make the other three look independent of it.
+/// one of them would make the other four look independent of it.
 const String stylesheetOutputPath = '$assetsOutputDir/site.css';
 const String siteScriptOutputPath = '$assetsOutputDir/$siteScriptFileName';
 const String searchIndexOutputPath = '$assetsOutputDir/search-index.json';
 const String emblemOutputPath = '$assetsOutputDir/$emblemFileName';
+const String ogCardOutputPath = '$assetsOutputDir/$ogCardFileName';
 
 /// The site's one script, under the generator's `assets/` and the output's.
 const String siteScriptFileName = 'site.js';
@@ -108,6 +110,20 @@ const String siteScriptFileName = 'site.js';
 /// *copies*: the name is read from the generator's own `assets/` as well as
 /// written to the output's.
 const String emblemFileName = 'emblem.png';
+
+/// A committed 1200×630 link-preview card, from the same script and the same
+/// source as [emblemFileName].
+///
+/// Its own file rather than a second use of the emblem: an OG image wants
+/// 1.91:1 at ~1200px, so a 200px square is the wrong shape at any size. That is
+/// also what frees the emblem to be re-cut (backlog B1) — it was kept large
+/// partly to serve this, and no longer serves it.
+///
+/// The only asset here that no page's *rendering* depends on. It is fetched by
+/// link scrapers, so a missing one costs a bare URL in a WhatsApp message
+/// rather than a broken page, which is why its absence warns like the emblem's
+/// rather than failing the build.
+const String ogCardFileName = 'og-card.png';
 
 /// The URLs the pages link, decided once per build.
 ///
@@ -126,19 +142,29 @@ class SiteAssets {
   /// `/assets/emblem.png?v=<hash of the image>`.
   final String emblem;
 
+  /// `/assets/og-card.png?v=<hash of the image>`.
+  ///
+  /// Root-relative like the rest. `og:image` must be absolute, so the origin is
+  /// put in front of it where the tag is written — not stored here, because
+  /// this is the one URL on the site with two forms and keeping both would
+  /// invite the wrong one being linked.
+  final String ogCard;
+
   const SiteAssets({
     required this.stylesheet,
     required this.script,
     required this.searchIndex,
     required this.emblem,
+    required this.ogCard,
   });
 
   /// Derives every URL from the bytes that will be written.
   ///
-  /// [script] and [emblem] are files the build *copies* rather than generates,
-  /// and either can be absent — the case `SiteGenerator` already warns about.
-  /// An absent one arrives here empty: the URL is still emitted and still 404s,
-  /// exactly as before, and the build stays deterministic.
+  /// [script], [emblem] and [ogCard] are files the build *copies* rather than
+  /// generates, and any of them can be absent — the case `SiteGenerator`
+  /// already warns about. An absent one arrives here empty: the URL is still
+  /// emitted and still 404s, exactly as before, and the build stays
+  /// deterministic.
   ///
   /// The fonts have no URL here because no page names a font file. Their token
   /// reaches the browser inside the stylesheet, so it is already folded into
@@ -148,6 +174,7 @@ class SiteAssets {
     required String script,
     required String searchIndex,
     required List<int> emblem,
+    required List<int> ogCard,
   }) {
     final searchVersion = contentHash('$script$_nul$searchIndex');
     return SiteAssets(
@@ -155,6 +182,13 @@ class SiteAssets {
       script: '/$siteScriptOutputPath?v=$searchVersion',
       searchIndex: '/$searchIndexOutputPath?v=$searchVersion',
       emblem: '/$emblemOutputPath?v=${contentHashOfBytes(emblem)}',
+      // Its own token, not the emblem's, even though one script writes both
+      // from one source. The fonts share a token because `subset_fonts.sh`
+      // regenerates all eight together and eight answers to one question is
+      // eight chances to disagree; these two are re-cut independently — B1
+      // moves the emblem and leaves the card exactly as it is — so a shared
+      // token would change a URL whose bytes did not.
+      ogCard: '/$ogCardOutputPath?v=${contentHashOfBytes(ogCard)}',
     );
   }
 }

@@ -38,7 +38,10 @@
 /// them retired the compromise and, with it, the second tier and the three
 /// exact-path rules that kept the two apart.
 ///
-/// ## The one rule that is not about caching
+/// ## The two rules that are not about caching
+///
+/// Both say the same thing about a root-level file written for a machine: it
+/// belongs in the upload, and it does not belong in a result page.
 ///
 /// `.manifest.json` is the source → output map with a content hash per source.
 /// It is nothing secret and nothing links to it, but it has to stay in the
@@ -47,6 +50,14 @@
 /// (measured on the dev deployment, 2026-08-15, 595 KB). `X-Robots-Tag` keeps
 /// it out of search results without taking it out of the build, which a
 /// deletion would.
+///
+/// `sitemap.xml` is the same shape and gets the same header. It is *linked*,
+/// by `robots.txt`, which is the whole reason it exists — and the header does
+/// not touch that: `noindex` governs whether a URL may appear in results, not
+/// whether a crawler may fetch and act on the file, and a sitemap is consumed
+/// rather than indexed. What it prevents is the file itself surfacing as a
+/// result for a site: query, which is a page of raw XML offered to a reader
+/// who wanted the canon.
 ///
 /// ## Rules must not overlap
 ///
@@ -65,6 +76,7 @@ library;
 
 import '../manifest/build_manifest.dart';
 import 'site_assets.dart';
+import 'sitemap.dart';
 import 'web_fonts.dart';
 
 /// Path under the output directory. Root of the upload, not `assets/`.
@@ -91,6 +103,7 @@ String buildSiteHeaders() {
     '/$assetsOutputDir/*': ['Cache-Control: $_immutable'],
     '/$fontsOutputDir/*': ['Cache-Control: $_immutable'],
     '/$manifestOutputPath': ['X-Robots-Tag: noindex'],
+    '/$sitemapOutputPath': ['X-Robots-Tag: noindex'],
   };
 
   final out = StringBuffer();

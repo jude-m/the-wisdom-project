@@ -54,6 +54,7 @@ import 'package:static_site_generator/render/landing_page.dart';
 import 'package:static_site_generator/render/page_template.dart';
 import 'package:static_site_generator/render/reading_layouts.dart';
 import 'package:static_site_generator/render/site_assets.dart';
+import 'package:static_site_generator/render/site_build.dart';
 import 'package:static_site_generator/render/stylesheet.dart';
 import 'package:test/test.dart';
 import 'package:wisdom_shared/wisdom_shared.dart';
@@ -427,13 +428,7 @@ void main() {
         'chapter': _render(_chapterPage,
             slices: {'sp-grp-1': _bothLanguages('sp-grp-1')}),
         'toc': _render(_tocPage),
-        'landing': LandingPage(
-          roots: _tree.roots,
-          generatorVersion: 'test',
-          origin: _origin,
-          assets: _assets,
-          urlFor: tipitakaUrl,
-        ).render(),
+        'landing': LandingPage(roots: _tree.roots, build: _build).render(),
       };
 
       pages.forEach((kind, html) {
@@ -546,15 +541,17 @@ NodeSlice _bothLanguages([String nodeKey = 'sp-toc-1']) => _slice(nodeKey, [
       _row(pali: _entry('ධම්මං'), sinhala: _entry('ධර්මය')),
     ]);
 
-final PageTemplate _template = PageTemplate(
-  tree: _tree,
-  generatorVersion: 'test',
+/// The four per-build values, as one fixture — see [SiteBuild].
+const SiteBuild _build = SiteBuild(
   origin: _origin,
+  generatorVersion: 'test',
   assets: _assets,
   // These fixtures build `SitePage`s by hand, with no plan behind them and no
   // folded leaf in the tree, so the serving URL is the bare one.
   urlFor: tipitakaUrl,
 );
+
+final PageTemplate _template = PageTemplate(tree: _tree, build: _build);
 
 /// A fixture host, spelled here rather than imported from `bin/generate.dart`,
 /// whose default is private to that file. These tests assert markup shape, not
@@ -569,6 +566,7 @@ const SiteAssets _assets = SiteAssets(
   script: '/assets/site.js?v=test',
   searchIndex: '/assets/search-index.json?v=test',
   emblem: '/assets/emblem.png?v=test',
+  ogCard: '/assets/og-card.png?v=test',
 );
 
 SitePage get _suttaPage => SitePage(

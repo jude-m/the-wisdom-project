@@ -5,9 +5,11 @@ import '../domain/site_page.dart';
 import 'document_shell.dart';
 import 'entry_renderer.dart';
 import 'node_labels.dart';
+import 'page_description.dart';
 import 'reading_layouts.dart';
-import 'site_assets.dart';
+import 'site_build.dart';
 import 'site_chrome.dart';
+import 'structured_data.dart';
 
 /// Renders a complete HTML document for one [SitePage].
 ///
@@ -18,36 +20,14 @@ class PageTemplate {
   final TipitakaTree tree;
   final EntryRenderer entries;
 
-  /// Version stamped into `<meta name="generator">`. **Not** a build id — the
-  /// output has to be byte-identical between runs on unchanged input, or
-  /// Cloudflare's content-hash dedup re-uploads every file (§11.8).
-  final String generatorVersion;
-
-  /// Scheme and host this build is being uploaded to, no trailing slash. The
-  /// one place an absolute URL can come from, and threaded for the same reason
-  /// [generatorVersion] is: it is decided once per build, by the caller that
-  /// knows which target it is building for, not by the template.
-  final String origin;
-
-  /// The stylesheet, script, index and emblem URLs, each carrying a hash of its
-  /// own bytes — see [SiteAssets]. Threaded in for the same reason
-  /// [generatorVersion] is: one value per build, and the template is not the
-  /// thing that knows it.
-  final SiteAssets assets;
-
-  /// Where a link to a nodeKey must point — [SitePlan.urlFor].
-  ///
-  /// Every outgoing link the template writes to a key it did not get from a
-  /// [SitePage] has to go through this: a TOC child and an අට්ඨකථා twin are
-  /// both just keys, and a folded key's bare URL is served by no file.
-  final UrlResolver urlFor;
+  /// The origin, the generator stamp, the hashed asset URLs and the link
+  /// resolver — everything that is decided once per build and is then the same
+  /// on every page this template writes. See [SiteBuild].
+  final SiteBuild build;
 
   const PageTemplate({
     required this.tree,
-    required this.generatorVersion,
-    required this.origin,
-    required this.assets,
-    required this.urlFor,
+    required this.build,
     this.entries = const EntryRenderer(),
   });
 
@@ -98,11 +78,15 @@ class PageTemplate {
     // JavaScript on or off, which a runtime guard could not manage.
     final withLayouts = page.isReadable && bothLanguages;
     if (withLayouts) body.writeln(_layoutRadios());
+    // Outermost first — `ancestorsOf` walks upwards, a trail reads downwards.
+    // Computed once and used twice: the toolbar draws it and the JSON-LD
+    // restates it, and a structured trail that disagrees with the visible one
+    // is worse markup than none.
+    final trail = tree.ancestorsOf(page.nodeKey).reversed.toList();
     body.writeln(toolbar(
       withLayouts: withLayouts,
-      assets: assets,
-      // Outermost first — `ancestorsOf` walks upwards, a trail reads downwards.
-      trail: tree.ancestorsOf(page.nodeKey).reversed.toList(),
+      assets: build.assets,
+      trail: trail,
       current: page.node,
       parent: tree.parentOf(page.nodeKey),
     ));
@@ -151,7 +135,8 @@ class PageTemplate {
           body.writeln(
               '<div class="preamble">${_rows(shown.preamble, depths)}</div>');
         }
-        body.writeln(tocList(tree.childrenOf(page.nodeKey), urlFor: urlFor));
+        body.writeln(
+            tocList(tree.childrenOf(page.nodeKey), urlFor: build.urlFor));
     }
 
     // A container never offers "next", for a structural reason rather than a
@@ -167,14 +152,32 @@ class PageTemplate {
 
     return _document(
       page,
+      bothLanguages: bothLanguages,
       // The *unfiltered* slice: provenance answers "what did the slicer grab",
       // which stays true whether or not the renderer showed all of it. The
       // suppressed row is named separately so the two never have to be guessed
       // apart.
-      head: _provenance(page, slices, preamble, shown.dropped, sourceFile),
+      head: _provenance(page, slices, preamble, shown.dropped, sourceFile) +
+          breadcrumbJsonLd(
+            build: build,
+            trail: trail,
+            current: page.node,
+          ),
       body: body.toString(),
     );
   }
+
+  /// How many subdivisions the page names, for the description — the run a
+  /// chapter carries, or the children a container lists.
+  ///
+  /// Null on a single-sutta page, whose one entry in [SitePage.suttas] is the
+  /// page itself: "1 section" describes nothing, and the sentence reads better
+  /// without a clause than with a true but empty one.
+  int? _sectionCount(SitePage page) => switch (page.kind) {
+        PageKind.sutta => null,
+        PageKind.chapter => page.suttas.length,
+        PageKind.toc => tree.childrenOf(page.nodeKey).length,
+      };
 
   /// The preamble minus a heading that merely repeats the page's own `<h1>`.
   ///
@@ -245,16 +248,28 @@ class PageTemplate {
   /// (`FIGURES.commentaryPages`): a commentary and its canon twin are different
   /// texts, not duplicates, so neither ever points at the other (§10).
   String _document(SitePage page,
-          {required String head, required String body}) =>
-      htmlDocument(
-        title: _titleText(page.node),
-        origin: origin,
-        canonical: page.url,
-        generatorVersion: generatorVersion,
-        assets: assets,
-        head: head,
-        body: body,
-      );
+      {required bool bothLanguages,
+      required String head,
+      required String body}) {
+    // Composed once and used twice. The description opens on the same string
+    // the tab does, because that string is already this site's one answer to
+    // "where does this page sit" — deriving a second location for the snippet
+    // would be free to disagree with the first.
+    final title = _titleText(page.node);
+    return htmlDocument(
+      title: title,
+      build: build,
+      canonical: page.url,
+      description: pageDescription(
+        title: title,
+        readable: page.isReadable,
+        bothLanguages: bothLanguages,
+        sections: _sectionCount(page),
+      ),
+      head: head,
+      body: body,
+    );
+  }
 
   /// Where this page's text came from, in the direction debugging runs.
   ///
@@ -327,10 +342,10 @@ class PageTemplate {
   ///
   /// **The key test is not enough on its own.** A key that exists may still be
   /// a folded leaf, which owns no file — `FIGURES.commentaryTwinsFolded` of
-  /// these twins are — so the destination has to come from [urlFor] and not
-  /// from [tipitakaUrl]. The remaining way to 404 is a subtree build, where the
-  /// twin lives under a root that was not built at all: `an-1` sits under `sp`
-  /// and `atta-an-1` under `atta-sp`.
+  /// these twins are — so the destination has to come from [SiteBuild.urlFor]
+  /// and not from [tipitakaUrl]. The remaining way to 404 is a subtree build,
+  /// where the twin lives under a root that was not built at all: `an-1` sits
+  /// under `sp` and `atta-an-1` under `atta-sp`.
   String? _commentaryLink(TipitakaNode node) {
     final twinKey = node.isCommentary
         ? node.nodeKey.substring(TipitakaNodeKeys.commentary.length)
@@ -341,7 +356,7 @@ class PageTemplate {
     // place, and forcing a new tab here would make the same link behave
     // differently on the two surfaces.
     return '<p class="commentary-link">'
-        '<a href="${urlFor(twinKey)}">$label</a></p>';
+        '<a href="${build.urlFor(twinKey)}">$label</a></p>';
   }
 
   String _pager(SitePage? previous, SitePage? next) {

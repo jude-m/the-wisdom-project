@@ -221,6 +221,18 @@ ContentType _contentTypeOf(String path) {
   if (path.endsWith('.json')) return ContentType.json;
   if (path.endsWith('.xml')) return ContentType('application', 'xml');
   if (path.endsWith('.svg')) return ContentType('image', 'svg+xml');
+  // `robots.txt`, and the same trap as the `.js` one above: a crawler sent
+  // `application/octet-stream` ignores the file, so the preview would agree
+  // with production about the bytes and disagree about whether anything reads
+  // them.
+  if (path.endsWith('.txt')) {
+    return ContentType('text', 'plain', charset: 'utf-8');
+  }
+  // The emblem and the OG card. Also octet-stream until now; browsers sniff a
+  // PNG and render it anyway, which is exactly why nobody noticed — a host
+  // sending `X-Content-Type-Options: nosniff` would not, and a link scraper
+  // fetching the card rejects it on the type alone.
+  if (path.endsWith('.png')) return ContentType('image', 'png');
   return ContentType.binary;
 }
 
@@ -296,6 +308,11 @@ class _Options {
     // runs wrangler regularly (scripts/static_site/deploy.sh, research_server).
     // 8083 is the next free slot in the dev port map — 8080 Flutter web on
     // macOS, 8081 Flutter web on the Windows box, 8082 research server.
+    //
+    // `bin/generate.dart`'s `_defaultOrigin` is this number: a build run with
+    // no `--origin` writes `http://localhost:8083` into every canonical, so
+    // that a hand-run build names the server that will actually open it.
+    // Moving this default means moving that one in the same edit.
     final rawPort = values['--port'] ?? '8083';
     final port = int.tryParse(rawPort);
     if (port == null || port < 1 || port > 65535) {
