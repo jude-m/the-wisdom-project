@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:wisdom_shared/wisdom_shared.dart';
 import '../entities/failure.dart';
 import '../entities/navigation/tipitaka_tree_node.dart';
 
@@ -44,4 +45,17 @@ abstract class NavigationTreeRepository {
     bool searchInPali = true,
     bool searchInSinhala = true,
   });
+
+  /// Loads the page plan: which page serves each node, and in what order a
+  /// reader walks them.
+  ///
+  /// The same [SitePlan] the static site is generated from, rebuilt here from
+  /// the same tree and the same frozen snapshot — so "which page is this sutta
+  /// on" has one answer on both surfaces, and regenerating the snapshot moves
+  /// them together.
+  ///
+  /// Returns Either:
+  /// - Left(Failure): If the tree cannot be loaded
+  /// - Right(SitePlan): The whole-corpus plan on success
+  Future<Either<Failure, SitePlan>> loadSitePlan();
 }

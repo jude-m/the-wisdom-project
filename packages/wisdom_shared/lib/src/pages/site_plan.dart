@@ -1,4 +1,10 @@
-import 'package:wisdom_shared/wisdom_shared.dart';
+// Prefixed because the two frozen sets are also the names of the parameters
+// they default to on `SitePlan.build`, and a parameter shadows a top-level
+// const of the same name.
+import '../grouping/grouping_snapshot.dart' as snapshot;
+import '../grouping/preamble_snapshot.dart' as snapshot;
+import '../links/tipitaka_link.dart';
+import '../tree/tipitaka_tree.dart';
 
 /// `/tipitaka/<nodeKey>` — the site-root-relative URL of any node's page.
 ///
@@ -59,23 +65,22 @@ class SitePage {
   /// the flag.
   final bool ownsRunningText;
 
-  const SitePage({
+  /// Not `const`, because [suttas] is frozen on the way in — the same stance
+  /// [TipitakaTree] takes on `childKeys`. A plan now outlives the build that
+  /// made it (the app caches one for its whole run and hands pages to the UI),
+  /// so "nobody mutates it" stopped being something one file could promise.
+  SitePage({
     required this.kind,
     required this.node,
-    required this.suttas,
+    required List<TipitakaNode> suttas,
     this.ownsRunningText = false,
-  });
+  }) : suttas = List.unmodifiable(suttas);
 
   String get nodeKey => node.nodeKey;
 
   /// `/tipitaka/an-1-1` — the same grammar the app's deep links use, so one URL
   /// serves both surfaces.
   String get url => tipitakaUrl(nodeKey);
-
-  /// Flat `<key>.html`, never `<key>/index.html`: the directory form would give
-  /// containers a second URL shape (`…/an-1-1/` plus a 308 hop) and break the
-  /// uniform `/tipitaka/<nodeKey>` grammar the codec relies on.
-  String get outputPath => '${TipitakaLink.pathSegment}/$nodeKey.html';
 
   /// True when this page carries body text — the pages prev/next walks, and
   /// the ones that get a layout switcher and the reading measure.
@@ -116,16 +121,26 @@ class SitePlan {
   final Map<String, int> _readableIndex;
   final List<SitePage> readablePages;
 
-  /// Folded leaf → `<chapter>#<nodeKey>`. Only folded leaves are in here; see
-  /// [urlFor], the only way to read it.
-  final Map<String, String> _servingUrl;
+  /// Every nodeKey this plan can answer for → the page that serves it.
+  ///
+  /// A page's own key maps to itself; a folded leaf maps to the chapter
+  /// carrying it. Built here and nowhere else: this is the only place that
+  /// knows which page a folded leaf ended up on, so anything deriving that
+  /// answer independently would eventually disagree with it. Read through
+  /// [pageOf] (which page) or [urlFor] (which URL) — the two questions the two
+  /// surfaces ask of the same map, which is why it is one map and not two.
+  final Map<String, SitePage> _owningPage;
 
+  /// Both public lists are frozen here for the same reason [SitePage] freezes
+  /// its own — one plan is cached for the app's lifetime and read from the UI,
+  /// where an accidental `sort` would silently rewrite prev/next for everyone.
   SitePlan._(
-    this.pages,
-    this.readablePages,
+    List<SitePage> pages,
+    List<SitePage> readablePages,
     this._readableIndex,
-    this._servingUrl,
-  );
+    this._owningPage,
+  )   : pages = List.unmodifiable(pages),
+        readablePages = List.unmodifiable(readablePages);
 
   /// Walks each of [rootKeys] top-down and decides what every node becomes.
   ///
@@ -188,11 +203,17 @@ class SitePlan {
   /// `an-1` sutta's "next" is the first `atta-an-1` page. That is the right
   /// reading for a continuous corpus walk, and on a partial build it just means
   /// the pager runs off one subtree into the next rather than dead-ending.
+  /// **The two frozen sets default to the snapshot**, so an app or a tool that
+  /// only wants "the site as it ships" cannot accidentally plan a different
+  /// one. They stay parameters because the planners that *write* the snapshot
+  /// build a plan from freshly measured sets to check them before they are
+  /// frozen (`plan_corpus.dart --write-snapshot`), and because a test needs a
+  /// hand-made set over a hand-made tree.
   factory SitePlan.build({
     required TipitakaTree tree,
     required List<String> rootKeys,
-    required Set<String> foldedLeafKeys,
-    required Set<String> textBearingContainerKeys,
+    Set<String> foldedLeafKeys = snapshot.foldedLeafKeys,
+    Set<String> textBearingContainerKeys = snapshot.textBearingContainerKeys,
   }) {
     final pages = <SitePage>[];
 
@@ -340,19 +361,14 @@ class SitePlan {
       walk(tree[rootKey]!);
     }
 
-    // Where a folded leaf is actually served. Built here and nowhere else:
-    // this is the only place that knows which page a folded leaf ended up on,
-    // so anything deriving that answer independently would eventually disagree
-    // with it.
-    final serving = <String, String>{};
+    // Which page serves which key — see [_owningPage]. Every page answers for
+    // its own key and for every leaf it swallowed; a sutta page's single entry
+    // is both at once, and a TOC answers only for itself.
+    final owning = <String, SitePage>{};
     for (final page in pages) {
-      if (page.kind != PageKind.chapter) continue;
+      owning[page.nodeKey] = page;
       for (final sutta in page.suttas) {
-        // The anchor of a mid-vagga chapter is not folded — the chapter's own
-        // URL *is* its URL, and giving it a fragment would be a second URL for
-        // the same page.
-        if (sutta.nodeKey == page.nodeKey) continue;
-        serving[sutta.nodeKey] = '${page.url}#${sutta.nodeKey}';
+        owning[sutta.nodeKey] = page;
       }
     }
 
@@ -361,7 +377,7 @@ class SitePlan {
       pages,
       readable,
       {for (var i = 0; i < readable.length; i++) readable[i].nodeKey: i},
-      serving,
+      owning,
     );
   }
 
@@ -375,7 +391,54 @@ class SitePlan {
   /// sibling leaf rather than the container, so the parent shortcut is wrong
   /// for roughly half the folded leaves — and wrong *silently*, because it
   /// resolves to a container that exists.
-  String urlFor(String nodeKey) => _servingUrl[nodeKey] ?? tipitakaUrl(nodeKey);
+  String urlFor(String nodeKey) {
+    final page = _owningPage[nodeKey];
+    // Not in this build at all — a subtree build's out-of-tree commentary
+    // twin, say. Its own URL is the best answer available and the right one on
+    // a whole-corpus build, where every key has a page.
+    if (page == null) return tipitakaUrl(nodeKey);
+    // The page's own key carries no fragment: the chapter's URL *is* the
+    // anchor's URL, and adding one would be a second URL for the same page.
+    return page.nodeKey == nodeKey ? page.url : '${page.url}#$nodeKey';
+  }
+
+  /// The same link, addressed the way the site actually serves it.
+  ///
+  /// A link the app builds names the node the reader is looking at, which for a
+  /// folded leaf is not a page: shared as-is it would point at a URL the site
+  /// has no file for. This fills in [TipitakaLink.pageKey] so the URL names the
+  /// chapter and the fragment names the leaf — the same answer [urlFor] writes
+  /// into the site's own HTML, from the same map, so a link copied out of the
+  /// app and a link copied off the site are the same string.
+  ///
+  /// Unchanged when the target owns its page, and when this build has never
+  /// heard of it (a plan is built per-subtree; only a whole-corpus plan knows
+  /// every key).
+  TipitakaLink servingLink(TipitakaLink link) {
+    final page = _owningPage[link.nodeKey];
+    if (page == null || page.nodeKey == link.nodeKey) return link;
+    return TipitakaLink(
+      nodeKey: link.nodeKey,
+      pageKey: page.nodeKey,
+      pageIndex: link.pageIndex,
+      entryIndex: link.entryIndex,
+    );
+  }
+
+  /// The page a reader lands on when they ask for [nodeKey], or null when this
+  /// build has no page for it.
+  ///
+  /// The app's question, where [urlFor] is the site's: a folded leaf resolves
+  /// to the chapter that carries it, so the app can open that unit and scroll
+  /// to the leaf rather than opening the leaf as if it owned a page. Same map,
+  /// same answer, so the two surfaces cannot disagree about which page a key
+  /// belongs to.
+  ///
+  /// **Never `node.parentNodeKey`** — see [urlFor]. The
+  /// `FIGURES.midVaggaChapters` chapters anchor on a sibling leaf, so for every
+  /// leaf they carry the parent shortcut is wrong, and wrong while resolving to
+  /// a container that exists.
+  SitePage? pageOf(String nodeKey) => _owningPage[nodeKey];
 
   /// The page a reader reaches by continuing backwards, or null at the start.
   ///
@@ -393,20 +456,4 @@ class SitePlan {
     if (index == null || index + 1 >= readablePages.length) return null;
     return readablePages[index + 1];
   }
-}
-
-/// The "book" a node belongs to — `an` (අඞ්ගුත්තරනිකායො), `vp-pct`
-/// (පාචිත්තියපාළි), `kn` (ඛුද්දකනිකායො).
-///
-/// Defined as the highest ancestor *below* the root-level pitaka node, which is
-/// the level BJT itself titles its volumes at. Used as the last part of every
-/// page title, where it does the disambiguating work:
-/// `FIGURES.leavesSharingATitle` leaves share a name with another leaf, and the
-/// collection plus the parent vagga separates almost all of them.
-TipitakaNode? collectionOf(TipitakaTree tree, String nodeKey) {
-  final ancestors = tree.ancestorsOf(nodeKey);
-  if (ancestors.isEmpty) return null;
-  return ancestors.length >= 2
-      ? ancestors[ancestors.length - 2]
-      : ancestors.last;
 }

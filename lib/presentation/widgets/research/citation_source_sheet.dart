@@ -75,7 +75,7 @@ class _CitationSourceSheetState extends ConsumerState<CitationSourceSheet> {
   }
 
   Future<void> _copyLink(String nodeKey) async {
-    final url = ref
+    final url = await ref
         .read(tipitakaLinkUrlBuilderProvider)(TipitakaLink(nodeKey: nodeKey));
     await Clipboard.setData(ClipboardData(text: url.toString()));
     if (!mounted) return;

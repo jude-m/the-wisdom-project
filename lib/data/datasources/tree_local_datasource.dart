@@ -1,16 +1,30 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:flutter/services.dart';
+import 'package:wisdom_shared/wisdom_shared.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 
 /// Local data source for loading the navigation tree from assets
 abstract class TreeLocalDataSource {
   /// Load the complete navigation tree from tree.json
   Future<List<TipitakaTreeNode>> loadNavigationTree();
+
+  /// The same tree in its shared form, which is what `SitePlan` reads.
+  ///
+  /// Exposed beside [loadNavigationTree] rather than derived from it: the app
+  /// entity nests its children and drops the flat key index, so rebuilding a
+  /// [TipitakaTree] from it would be a second decode of a 4 MB asset and a
+  /// second chance to disagree with the site.
+  Future<TipitakaTree> loadSharedTree();
 }
 
 class TreeLocalDataSourceImpl implements TreeLocalDataSource {
   static const String _treeJsonPath = 'assets/data/tree.json';
+
+  /// Decoded once and shared by both accessors — the asset is 4 MB and neither
+  /// caller wants a private copy of it. Held as the Future, so two callers
+  /// racing at startup await one decode rather than starting two.
+  Future<TipitakaTree>? _sharedTree;
 
   // Mirrors the pattern in DictionaryDataSourceImpl. dart:developer.log is a
   // no-op in release builds, so this costs nothing in production.
@@ -18,37 +32,34 @@ class TreeLocalDataSourceImpl implements TreeLocalDataSource {
     developer.log(message, name: 'TreeDataSource', error: error, stackTrace: stack);
   }
 
+  /// Decodes `tree.json` through [TipitakaTree.fromJson] and maps the result
+  /// onto the app's entity.
+  ///
+  /// **The decoding is not done here**, and that is the point. This file used
+  /// to hold its own copy of the row parsing and the sibling comparator, kept
+  /// deliberately line-for-line identical to the shared one — two copies of a
+  /// rule that decides where every node sits, with nothing but a comment
+  /// holding them together. The static site reads the shared decoder, so any
+  /// drift between the copies would have shown up as the same tap landing in
+  /// two different places on the two surfaces.
+  ///
+  /// Reading the shared decoder also brings [correctedTreeCoordinates] in: the
+  /// leaves whose upstream coordinate points at the wrong row (a closing
+  /// colophon taken for an opening line, and two other shapes) are corrected
+  /// before the tree is used at all. Until this migration the app opened those
+  /// leaves one unit off — the page titled for one section carrying the text of
+  /// the one beside it — while the site had been serving them correctly since
+  /// the map landed.
   @override
   Future<List<TipitakaTreeNode>> loadNavigationTree() async {
     try {
-      // Load JSON from assets
-      final jsonString = await rootBundle.loadString(_treeJsonPath);
-      final Map<String, dynamic> jsonData = json.decode(jsonString);
+      final tree = await loadSharedTree();
 
-      // Parse into flat list of nodes
-      final nodesList = <TipitakaTreeNode>[];
-
-      jsonData.forEach((nodeKey, nodeDataArray) {
-        final List<dynamic> data = nodeDataArray as List<dynamic>;
-
-        final node = TipitakaTreeNode(
-          nodeKey: nodeKey,
-          paliName: data[0] as String,
-          sinhalaName: data[1] as String,
-          hierarchyLevel: data[2] as int,
-          entryPageIndex: (data[3] as List<dynamic>)[0] as int,
-          entryIndexInPage: (data[3] as List<dynamic>)[1] as int,
-          parentNodeKey: data[4] == 'root' ? null : data[4] as String?,
-          contentFileId: data[5] as String?,
-          childNodes: const [], // Will be populated when building tree
-          hasAudioAvailable: false,
-        );
-
-        nodesList.add(node);
-      });
-
-      // Build tree structure with parent-child relationships
-      return _buildTreeStructure(nodesList);
+      // The shared tree is flat — a node names its children by key — while the
+      // app's entity nests them, so the only work left here is to inflate one
+      // shape into the other. Children arrive already sorted; re-sorting them
+      // is precisely the duplication this migration removes.
+      return [for (final root in tree.roots) _toEntity(tree, root)];
     } catch (e, stack) {
       // rethrow (instead of wrapping) preserves the original stack trace —
       // FormatException, PlatformException, etc. flow up unchanged so the
@@ -58,89 +69,48 @@ class TreeLocalDataSourceImpl implements TreeLocalDataSource {
     }
   }
 
-  /// Build hierarchical tree structure from flat list
-  List<TipitakaTreeNode> _buildTreeStructure(List<TipitakaTreeNode> flatList) {
-    // Build parent-child relationships
-    final Map<String, List<TipitakaTreeNode>> childrenMap = {};
+  @override
+  Future<TipitakaTree> loadSharedTree() async {
+    final cached = _sharedTree;
+    if (cached != null) return cached;
 
-    // Position in tree.json, used as the tiebreak below. `json.decode` returns a
-    // LinkedHashMap, so `flatList` is already in file order.
-    final Map<String, int> documentOrder = {
-      for (var i = 0; i < flatList.length; i++) flatList[i].nodeKey: i,
-    };
-
-    // Add root nodes to the map under 'root' key for consistent handling
-    for (var node in flatList) {
-      final parentKey = node.parentNodeKey ?? 'root';
-      childrenMap.putIfAbsent(parentKey, () => []);
-      childrenMap[parentKey]!.add(node);
+    final decoding = _decodeSharedTree();
+    _sharedTree = decoding;
+    try {
+      return await decoding;
+    } catch (e, stack) {
+      // A failed decode must not stay cached, or every later caller replays
+      // the same error and a retry can never succeed.
+      _sharedTree = null;
+      _log('Failed to decode navigation tree', error: e, stack: stack);
+      rethrow;
     }
-
-    // Sort all children lists ONCE by extracting the last number from the node key
-    // e.g., "sp-1-2-13" -> 13
-    // This matches the behavior in the Vue.js app (tree.js:7-12)
-    //
-    // Document order is the explicit tiebreak, because 113 keys have no trailing
-    // number — `vp`, `sp`, `ap`, `kn-khp`, and every dotted commentary key such
-    // as `atta-ap-dhs-2-1-1.1`. They cluster under 18 parents, including `root`,
-    // `sp`, `kn` and `ap`: the app's most visible navigation. Comparing those as
-    // equal and letting `List.sort` decide is unspecified — `List.sort` is
-    // explicitly not stable — and only produced the right answer because Dart
-    // falls back to insertion sort below 32 elements and the largest of those 18
-    // parents has 23 children. A margin of 9 against an undocumented VM detail.
-    //
-    // Mirrors `TipitakaTree.fromJson` in wisdom_shared, which the static site
-    // generator uses; the two surfaces must order siblings identically or the
-    // same node lands in a different place on each.
-    childrenMap.forEach((parentKey, children) {
-      children.sort((a, b) {
-        final aIndex = _extractChildIndex(a.nodeKey);
-        final bIndex = _extractChildIndex(b.nodeKey);
-
-        if (aIndex != null && bIndex != null) {
-          final byIndex = aIndex.compareTo(bIndex);
-          if (byIndex != 0) return byIndex;
-        }
-        return documentOrder[a.nodeKey]!.compareTo(documentOrder[b.nodeKey]!);
-      });
-    });
-
-    // Recursively build nodes with children (children are already sorted)
-    TipitakaTreeNode buildNodeWithChildren(TipitakaTreeNode node) {
-      final children = childrenMap[node.nodeKey] ?? [];
-      final childrenWithTheirChildren =
-          children.map((child) => buildNodeWithChildren(child)).toList();
-
-      return TipitakaTreeNode(
-        nodeKey: node.nodeKey,
-        paliName: node.paliName,
-        sinhalaName: node.sinhalaName,
-        hierarchyLevel: node.hierarchyLevel,
-        entryPageIndex: node.entryPageIndex,
-        entryIndexInPage: node.entryIndexInPage,
-        parentNodeKey: node.parentNodeKey,
-        contentFileId: node.contentFileId,
-        childNodes: childrenWithTheirChildren,
-        hasAudioAvailable: node.hasAudioAvailable,
-      );
-    }
-
-    // Get all root nodes and build them with their children (already sorted in childrenMap)
-    final rootNodes = (childrenMap['root'] ?? [])
-        .map((node) => buildNodeWithChildren(node))
-        .toList();
-
-    return rootNodes;
   }
 
-  /// Extract the last number from a node key for sorting
-  /// e.g., "sp-1-2-13" -> 13
-  /// Matches the childInd function in Vue.js app (tree.js:7)
-  int? _extractChildIndex(String nodeKey) {
-    final parts = nodeKey.split('-');
-    if (parts.isEmpty) return null;
+  Future<TipitakaTree> _decodeSharedTree() async {
+    final jsonString = await rootBundle.loadString(_treeJsonPath);
+    final Map<String, dynamic> jsonData = json.decode(jsonString);
+    return TipitakaTree.fromJson(jsonData);
+  }
 
-    final lastPart = parts.last;
-    return int.tryParse(lastPart);
+  /// One shared node, with its whole subtree built underneath it.
+  ///
+  /// `hasAudioAvailable` keeps its default: the old parser set it to `false`
+  /// on every node and nothing has ever set it otherwise, so there is nothing
+  /// in the shared tree for it to carry.
+  TipitakaTreeNode _toEntity(TipitakaTree tree, TipitakaNode node) {
+    return TipitakaTreeNode(
+      nodeKey: node.nodeKey,
+      paliName: node.paliName,
+      sinhalaName: node.sinhalaName,
+      hierarchyLevel: node.hierarchyLevel,
+      entryPageIndex: node.entryPageIndex,
+      entryIndexInPage: node.entryIndexInPage,
+      parentNodeKey: node.parentNodeKey,
+      contentFileId: node.contentFileId,
+      childNodes: [
+        for (final childKey in node.childKeys) _toEntity(tree, tree[childKey]!),
+      ],
+    );
   }
 }

@@ -21,7 +21,6 @@ library;
 
 import 'package:wisdom_shared/wisdom_shared.dart';
 
-import '../domain/site_page.dart';
 import 'node_labels.dart';
 import 'reading_layouts.dart';
 import 'search_dialog.dart';

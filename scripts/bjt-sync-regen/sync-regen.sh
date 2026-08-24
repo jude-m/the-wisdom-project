@@ -244,6 +244,13 @@ if [ "$TREE_CHANGED" = 1 ]; then
   echo "(/tipitaka/<nodeKey>) and the SuttaCentral<->BJT concordance. If a key MOVED,"
   echo "already-shared links can silently break. Review before accepting:"
   echo
+  echo "Since 2026-08-23 the APP reads this file through the same shared decoder as"
+  echo "the site (TipitakaTree.fromJson). It rejects a malformed row or a node naming"
+  echo "a parent that isn't there, where the old app parser silently dropped that"
+  echo "subtree — so a structurally bad tree.json is now a visible tree-load failure"
+  echo "in the app, not just a site-build one. Step 5 below is the smoke check for"
+  echo "both surfaces; do not skip it after a tree.json change."
+  echo
   if [ "$HAVE_BASELINE" = 1 ]; then
     git -C "$MIRROR" diff --stat "$OLD_SHA" "$NEW_SHA" -- public/static/data/tree.json || true
     echo
@@ -389,6 +396,12 @@ else
   echo "  ${HILITE}WARNING: the corpus tests FAILED after this sync.${RESET}"
   echo "  The tool names the offending nodeKeys. Re-run it on its own to read them:"
   echo "    dart run static_site_generator/tool/plan_corpus.dart --check"
+  echo
+  echo "  Read the failure before assuming it is about grouping. These checks decode"
+  echo "  tree.json through the decoder the APP now shares, so a FormatException here"
+  echo "  ('row has N fields', 'names parent(s) that do not exist') is a tree the app"
+  echo "  will refuse to load at launch — a different, worse problem than a frozen"
+  echo "  verdict pointing at a renamed key, and not one --write-snapshot can fix."
   echo
   echo "  A frozen verdict pointing at a key that moved is a decision, not a"
   echo "  flake. Either regenerate the snapshot and review its git diff —"

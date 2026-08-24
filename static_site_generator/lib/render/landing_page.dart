@@ -1,6 +1,5 @@
 import 'package:wisdom_shared/wisdom_shared.dart';
 
-import '../domain/site_page.dart';
 import 'document_shell.dart';
 import 'page_description.dart';
 import 'site_build.dart';

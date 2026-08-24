@@ -1,7 +1,6 @@
 import 'package:wisdom_shared/wisdom_shared.dart';
 
 import '../domain/document.dart';
-import '../domain/site_page.dart';
 import 'document_shell.dart';
 import 'entry_renderer.dart';
 import 'node_labels.dart';
@@ -10,6 +9,19 @@ import 'reading_layouts.dart';
 import 'site_build.dart';
 import 'site_chrome.dart';
 import 'structured_data.dart';
+
+/// Path under the output directory for the page this template renders.
+///
+/// Here rather than on [SitePage], beside the other `*OutputPath` declarations
+/// and next to the renderer that produces the bytes: a `.html` file is what the
+/// *generator* makes of a page, and `SitePage` is now read by the app too,
+/// where nothing writes files.
+///
+/// Flat `<key>.html`, never `<key>/index.html`: the directory form would give
+/// containers a second URL shape (`…/an-1-1/` plus a 308 hop) and break the
+/// uniform `/tipitaka/<nodeKey>` grammar the codec relies on.
+String pageOutputPath(SitePage page) =>
+    '${TipitakaLink.pathSegment}/${page.nodeKey}.html';
 
 /// Renders a complete HTML document for one [SitePage].
 ///
@@ -603,7 +615,7 @@ class PageTemplate {
     // under a same-named parent would have said the name twice.
     final seen = <String>{unweldTitle(node.paliName)};
     final parent = tree.parentOf(node.nodeKey);
-    final collection = collectionOf(tree, node.nodeKey);
+    final collection = tree.collectionOf(node.nodeKey);
     for (final extra in [parent, collection]) {
       if (extra == null) continue;
       final name = unweldTitle(extra.paliName);

@@ -272,19 +272,35 @@ Universal Links = only with the real domain.
   grouped-leaf links), not two.
 - Keep parsing **lenient** — unknown/malformed parts → defaults, never throw.
 - **Grouped-sutta fragments (found 2026-07-22; fix LOCKED same day — user
-  requires exact-sutta deep links even for grouped suttas):** a grouped sutta's
-  canonical URL is `…/tipitaka/<vaggaKey>#<leafKey>` (static plan §6).
-  `TipitakaLink.parse` currently ignores fragments → the app would open the
-  *vagga*, not the sutta. **Required with static P5:** extend the codec — if the
-  fragment matches the nodeKey pattern, prefer it over the path key (the opener
-  can sanity-check it's a descendant). OS link delivery does preserve fragments.
-  **Converse hole (also LOCKED, static plan §13.2):** the share button emits the
-  **leaf** URL (`/tipitaka/an-2-64`) even for a grouped sutta — a no-app web
-  recipient 404s unless something answers at the leaf URL. The requirement is
-  locked; the *mechanism* (stub files vs Cloudflare Bulk Redirects) is a P5
-  decision gate — see the hosting doc's "Grouped-leaf clean URLs". Together the two fixes complete the matrix: *both* URL
-  forms land on the exact sutta for *both* app and no-app recipients, and the
-  share button never needs to know grouping exists.
+  requires exact-sutta deep links even for grouped suttas): ✅ BOTH HALVES SHIPPED
+  2026-08-23** (grouping plan S8). A folded leaf's canonical URL is
+  `…/tipitaka/<pageKey>#<leafKey>` (static plan §6).
+  - **Inbound.** `TipitakaLink.parse` prefers a nodeKey-shaped fragment over the
+    path key and keeps the path key as `pageKey`, so the leaf opens and the page
+    it came from is not lost. The descendant sanity-check turned out to be the
+    wrong test — a mid-vagga chapter's leaves are its *siblings*, not its
+    descendants — so the opener asks `SitePlan` instead: the target opens only
+    when `plan.pageOf(fragment)` is the page named in the path, and otherwise
+    the page does, which is what keeps a decorative `#top` from resolving the
+    whole link to nothing. Asking the *tree* ("is this a real node") was the
+    first shape and is the weaker question: it accepts a fragment naming a node
+    served by some other page, where the site would show the path's page. Same
+    map as the outbound half, so both directions agree with the site. The tree
+    remains the fallback if the plan cannot be built — opening a link must not
+    be where a snapshot problem first surfaces as an exception.
+  - **Outbound.** The share button emits the URL the site actually serves —
+    `plan.servingLink(link)` fills in the page, the fragment keeps the leaf —
+    rather than a bare leaf URL that 404s. **This is a deliberate deviation from
+    the line this bullet used to end on** ("the share button never needs to know
+    grouping exists"): that held only once *something* answered at the leaf URL,
+    and the mechanism for that (stub files vs Cloudflare Bulk Redirects) is still
+    open at the P5 gate — see the hosting doc's "Grouped-leaf clean URLs". Rather
+    than hand out URLs that 404 until a gate that has been deferred twice
+    resolves, the app asks the plan. The knowledge stays in one place —
+    `SitePlan`, which is where "which page serves this key" already lived for the
+    site — so no caller grows its own idea of grouping. When P5 lands, the leaf
+    URL starts working too and **both** forms land on the exact sutta, which is
+    what the matrix always required; nothing here needs undoing.
 - **`?layout=` — one token set, both surfaces, backward-compatible.** Token =
   `ReaderLayout.name`; absent/unknown → the reader's preferred layout
   (`resolveSeedLayout`), a valid token overrides for that open. The single sink
@@ -369,7 +385,7 @@ implementation on 2026-07-29; the stated behaviour is what it does *today*.
 
 | Shape | Today | Why it needs pinning |
 |---|---|---|
-| `…/tipitaka/sn-2-3#sn-2-3-1-3` | fragment **dropped** → opens the vagga | The locked grouped-vagga form (see "Grouped-sutta fragments" above). Pin the baseline + `TODO`, so the day `parse` starts preferring a nodeKey-shaped fragment it shows as a deliberate flip, not a silent one. |
+| `…/tipitaka/sn-2-3#sn-2-3-1-3` | fragment **wins** → opens the leaf, path kept as `pageKey` | ✅ Shipped 2026-08-23; the deliberate flip is made and pinned in `tipitaka_link_test.dart`. Still worth covering here: a fragment that names no node (falls back to the page), and a `.html` suffix on the path. |
 | `…?layout=stacked` | ignored, link survives | Part of the documented grammar (layout decision, 2026-07-20) but **not implemented anywhere in `lib/`**. Also test `?e=12.4&layout=stacked` for param independence. |
 | `https://sammaditthi.app/tipitaka/<key>` | parses | The static-site production host. |
 | `https://app.sammaditthi.app/tipitaka/<key>` | parses | The Flutter-web host — same path, no `/app/` prefix (topology decision, 2026-07-23). |

@@ -21,10 +21,34 @@ final linkBaseUrlProvider = Provider<String>(
 
 /// Builds the canonical shareable URL for a [TipitakaLink]
 /// (e.g. for "Copy link" actions).
+///
+/// **Addressed the way the site serves it**, not the way the app holds it. A
+/// short sutta has no page of its own on the site — it is a section of a
+/// chapter — so a link naming it directly points at a URL that was never
+/// written, and the reader who follows it gets a 404 rather than the sutta.
+/// [SitePlan.servingLink] fills in the page, and the fragment still names the
+/// sutta, so the link opens on the right text on both surfaces.
+///
+/// Async because the plan is built on first use; the tree it walks is already
+/// in memory by the time any UI can offer a copy button.
+///
+/// Never throws. Building a URL used to be pure string work that could not
+/// fail, and its callers are written that way — a copy button hands the result
+/// straight to the clipboard. If the plan is unavailable, the target's own URL
+/// is the answer the app gave before the plan existed: wrong only for a folded
+/// leaf, and only until the P5 stub gate makes bare leaf URLs resolve. A link
+/// that is right in most cases beats a button that silently does nothing.
 final tipitakaLinkUrlBuilderProvider =
-    Provider<Uri Function(TipitakaLink)>((ref) {
+    Provider<Future<Uri> Function(TipitakaLink)>((ref) {
   final baseUrl = ref.watch(linkBaseUrlProvider);
-  return (link) => link.toUri(baseUrl);
+  return (link) async {
+    try {
+      final plan = await ref.read(sitePlanProvider.future);
+      return plan.servingLink(link).toUri(baseUrl);
+    } catch (_) {
+      return link.toUri(baseUrl);
+    }
+  };
 });
 
 /// Opens a [TipitakaLink] in the reader. The single sink for every link source —
@@ -49,7 +73,7 @@ final openTipitakaLinkProvider =
         link.pageIndex != null ? (link.entryIndex ?? 0) : null;
 
     final newIndex = ref.read(openTabFromNodeKeyProvider)(
-      link.nodeKey,
+      await _resolveTarget(ref, link),
       isPortraitMode: isPortraitMode,
       pageIndex: link.pageIndex,
       entryStart: entryStart,
@@ -63,3 +87,41 @@ final openTipitakaLinkProvider =
     return true;
   };
 });
+
+/// Which node a link actually opens: the fragment when the site really serves
+/// it from the path's page, otherwise the page itself.
+///
+/// `/tipitaka/<page>#<leaf>` names the leaf, and the leaf is what opens. But
+/// the codec is pure grammar — it cannot tell a folded sutta's key from a page
+/// anchor like `#top`, which is the same shape — so something with knowledge of
+/// the corpus has to decide.
+///
+/// **[SitePlan] is that something, not the tree.** "Is this a real node" is the
+/// weaker question: it accepts any key that exists, so `/tipitaka/sn-2-3#an-1-1`
+/// would open `an-1-1` while the site, finding no such section on that page,
+/// shows `sn-2-3`. `plan.pageOf` asks the question the site answers — *is this
+/// leaf served by that page* — from the same map the site's own HTML is written
+/// from, so both surfaces resolve a link the same way.
+///
+/// Falls back to the tree if the plan cannot be built. Opening a link must not
+/// become the one place a snapshot problem surfaces as a thrown exception:
+/// before the plan existed this branch was a map lookup, and the tree still
+/// answers well enough to open something.
+Future<String> _resolveTarget(Ref ref, TipitakaLink link) async {
+  // A link with no fragment names its own page, so the comparison below is
+  // `pageOf(k)?.nodeKey == k` — true exactly when the target owns a page.
+  final pageKey = link.pageKey ?? link.nodeKey;
+  try {
+    final plan = await ref.read(sitePlanProvider.future);
+    return plan.pageOf(link.nodeKey)?.nodeKey == pageKey
+        ? link.nodeKey
+        : pageKey;
+  } catch (_) {
+    // Read through the index directly rather than `nodeByKeyProvider`: that one
+    // is `autoDispose.family`, so a single lookup would create and tear down a
+    // provider for this key.
+    return ref.read(nodeIndexProvider).containsKey(link.nodeKey)
+        ? link.nodeKey
+        : pageKey;
+  }
+}

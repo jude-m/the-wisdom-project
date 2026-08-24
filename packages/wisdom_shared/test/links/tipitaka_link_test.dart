@@ -119,33 +119,117 @@ void main() {
     }
   });
 
-  group('fragments are ignored — for now', () {
-    // A grouped sutta's canonical URL is `…/tipitaka/<vaggaKey>#<leafKey>`
+  group('a nodeKey-shaped fragment names the target', () {
+    // A folded leaf's URL is `…/tipitaka/<pageKey>#<leafKey>`
     // (docs/todo/web-strategy/deep-linking-and-shareable-urls.md, "Grouped-sutta
-    // fragments" — LOCKED), and the codec must then *prefer* a nodeKey-shaped
-    // fragment over the path key. These pin today's behaviour so that lands as
-    // a deliberate flip rather than a silent one: when it does, the first
-    // expectation below inverts and this comment goes away.
-    test('a nodeKey-shaped fragment does not override the path key', () {
+    // fragments" — LOCKED). The path names the file, the fragment names the
+    // sutta, and the sutta is what the reader asked for.
+    test('the fragment wins over the path key', () {
       expect(
         TipitakaLink.tryParse(
           'https://host/tipitaka/sn-2-3#atta-ap-dhs-2-1-1.1',
         )?.nodeKey,
+        'atta-ap-dhs-2-1-1.1',
+      );
+    });
+
+    test('and the path key is kept as the page serving it', () {
+      expect(
+        TipitakaLink.tryParse('https://host/tipitaka/sn-2-1-10-3#sn-2-1-10-4'),
+        const TipitakaLink(nodeKey: 'sn-2-1-10-4', pageKey: 'sn-2-1-10-3'),
+      );
+    });
+
+    test('a fragment does not disturb the position', () {
+      expect(
+        TipitakaLink.tryParse('https://host/tipitaka/sn-2-3?e=12.4#an-2-64'),
+        const TipitakaLink(
+          nodeKey: 'an-2-64',
+          pageKey: 'sn-2-3',
+          pageIndex: 12,
+          entryIndex: 4,
+        ),
+      );
+    });
+
+    test('a fragment that cannot be a nodeKey leaves the path key alone', () {
+      for (final url in [
+        'https://host/tipitaka/sn-2-3#note_4', // underscore is not a separator
+        'https://host/tipitaka/sn-2-3#', // empty
+      ]) {
+        expect(TipitakaLink.tryParse(url), const TipitakaLink(nodeKey: 'sn-2-3'),
+            reason: url);
+      }
+    });
+
+    test('a page anchor that happens to be key-shaped keeps both keys', () {
+      // `#top` is a legal nodeKey *shape*, so the grammar cannot tell it from a
+      // real leaf — and this codec deliberately knows nothing about which keys
+      // exist. Both survive parsing, and the reader that has a tree resolves
+      // the target first and falls back to the page (openTipitakaLinkProvider).
+      expect(
+        TipitakaLink.tryParse('https://host/tipitaka/sn-2-3#top'),
+        const TipitakaLink(nodeKey: 'top', pageKey: 'sn-2-3'),
+      );
+    });
+
+    test('a fragment repeating the path key is not a second address', () {
+      // What a chapter's own anchor would produce if a builder forgot that a
+      // page's own key never carries a fragment.
+      expect(
+        TipitakaLink.tryParse('https://host/tipitaka/sn-2-3#sn-2-3'),
+        const TipitakaLink(nodeKey: 'sn-2-3'),
+      );
+    });
+
+    test('nothing emits one unless the target is served elsewhere', () {
+      expect(
+        const TipitakaLink(nodeKey: 'sn-2-3').toUri('https://host').fragment,
+        isEmpty,
+      );
+      expect(
+        const TipitakaLink(nodeKey: 'sn-2-1-10-4', pageKey: 'sn-2-1-10-3')
+            .toUri('https://host')
+            .toString(),
+        'https://host/tipitaka/sn-2-1-10-3#sn-2-1-10-4',
+      );
+    });
+
+    test('round trips through both schemes', () {
+      const link = TipitakaLink(
+        nodeKey: 'sn-2-1-10-4',
+        pageKey: 'sn-2-1-10-3',
+        pageIndex: 7,
+        entryIndex: 2,
+      );
+      expect(TipitakaLink.parse(link.toUri('https://host')), link);
+      expect(TipitakaLink.parse(link.toCustomSchemeUri()), link);
+    });
+  });
+
+  group('a copied file URL still resolves', () {
+    // The site's own files are `<nodeKey>.html`; its links are extensionless,
+    // but a URL copied from a browser served the file directly carries it.
+    test('a .html suffix is tolerated on the path', () {
+      expect(
+        TipitakaLink.tryParse('https://host/tipitaka/sn-2-3.html')?.nodeKey,
         'sn-2-3',
       );
     });
 
-    test('a fragment does not disturb the position either', () {
+    test('and on the page key beside a fragment', () {
       expect(
-        TipitakaLink.tryParse('https://host/tipitaka/sn-2-3?e=12.4#an-2-64'),
-        const TipitakaLink(nodeKey: 'sn-2-3', pageIndex: 12, entryIndex: 4),
+        TipitakaLink.tryParse(
+          'https://host/tipitaka/sn-2-1-10-3.html#sn-2-1-10-4',
+        ),
+        const TipitakaLink(nodeKey: 'sn-2-1-10-4', pageKey: 'sn-2-1-10-3'),
       );
     });
 
-    test('and nothing we build emits one', () {
+    test('but nothing we build writes one', () {
       expect(
-        const TipitakaLink(nodeKey: 'sn-2-3').toUri('https://host').fragment,
-        isEmpty,
+        const TipitakaLink(nodeKey: 'sn-2-3').toUri('https://host').toString(),
+        'https://host/tipitaka/sn-2-3',
       );
     });
   });

@@ -24,7 +24,7 @@
 /// deterministic instead of being injected from a string at runtime.
 library;
 
-import '../domain/site_page.dart';
+import 'package:wisdom_shared/wisdom_shared.dart';
 import 'entry_renderer.dart';
 import 'node_labels.dart';
 

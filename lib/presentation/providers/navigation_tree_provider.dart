@@ -1,10 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/constants/constants.dart';
+// `TipitakaNodeKeys` comes from here too — the app's constants.dart re-exports
+// the shared one, so importing both is what the analyzer flags.
+import 'package:wisdom_shared/wisdom_shared.dart';
 import '../../data/datasources/tree_local_datasource.dart';
 import '../../data/repositories/navigation_tree_repository_impl.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../../domain/repositories/navigation_tree_repository.dart';
 import '../../domain/usecases/load_navigation_tree_usecase.dart';
+import '../../domain/usecases/load_site_plan_usecase.dart';
 
 // Datasource provider
 final treeLocalDataSourceProvider = Provider<TreeLocalDataSource>((ref) {
@@ -18,11 +21,16 @@ final navigationTreeRepositoryProvider =
   return NavigationTreeRepositoryImpl(dataSource);
 });
 
-// Use case provider
+// Use case providers
 final loadNavigationTreeUseCaseProvider =
     Provider<LoadNavigationTreeUseCase>((ref) {
   final repository = ref.watch(navigationTreeRepositoryProvider);
   return LoadNavigationTreeUseCase(repository);
+});
+
+final loadSitePlanUseCaseProvider = Provider<LoadSitePlanUseCase>((ref) {
+  final repository = ref.watch(navigationTreeRepositoryProvider);
+  return LoadSitePlanUseCase(repository);
 });
 
 // Navigation tree state provider
@@ -34,6 +42,28 @@ final navigationTreeProvider =
   return result.fold(
     (failure) => throw Exception(failure.userMessage),
     (tree) => tree,
+  );
+});
+
+/// Which page serves each node, and in what order a reader walks them — the
+/// same plan the static site is generated from.
+///
+/// **The one place the app asks "where does this node live".** A folded leaf
+/// has no page of its own; `plan.pageOf(key)` names the chapter carrying it and
+/// `plan.servingLink(link)` addresses it the way the site does. Neither answer
+/// is derivable from the tree — `node.parentNodeKey` is wrong for every leaf on
+/// a chapter that starts mid-vagga, and wrong while naming a container that
+/// exists — so nothing may reconstruct either one locally.
+///
+/// Built lazily: nothing watches it during startup, and it costs one walk of an
+/// already-decoded tree when the first link is built or resolved.
+final sitePlanProvider = FutureProvider<SitePlan>((ref) async {
+  final useCase = ref.watch(loadSitePlanUseCaseProvider);
+  final result = await useCase.execute();
+
+  return result.fold(
+    (failure) => throw Exception(failure.userMessage),
+    (plan) => plan,
   );
 });
 

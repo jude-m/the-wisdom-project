@@ -7,7 +7,6 @@ import 'package:static_site_generator/domain/coordinate_planner.dart';
 import 'package:static_site_generator/domain/grouping_planner.dart';
 import 'package:static_site_generator/domain/grouping_policy.dart';
 import 'package:static_site_generator/domain/preamble_planner.dart';
-import 'package:static_site_generator/domain/site_page.dart';
 import 'package:static_site_generator/domain/slice_alignment.dart';
 import 'package:static_site_generator/figures/corpus_figures.dart';
 import 'package:static_site_generator/figures/page_budget.dart';

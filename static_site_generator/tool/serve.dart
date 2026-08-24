@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:static_site_generator/domain/site_page.dart';
+import 'package:wisdom_shared/wisdom_shared.dart';
 import 'package:static_site_generator/render/landing_page.dart';
 import 'package:static_site_generator/render/site_headers.dart';
 

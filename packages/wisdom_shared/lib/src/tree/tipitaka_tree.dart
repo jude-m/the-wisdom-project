@@ -131,10 +131,11 @@ class TipitakaTree {
   /// detail. (The tree's widest parent, `ap-pat-2` at 90 children, was well past
   /// that threshold but safe anyway — all 90 keys carry a trailing integer, so
   /// the comparator is total there and stability never arises.) The app adopted
-  /// this same tiebreak on 2026-08-03; `tree_local_datasource.dart` now carries
-  /// a line-for-line copy of [compare], and the two must not drift.
+  /// the same tiebreak on 2026-08-03 as a hand-kept copy, and now has no copy
+  /// at all: `tree_local_datasource.dart` decodes through this factory, so
+  /// there is one comparator and nothing left to drift.
   ///
-  /// One residual, shared by both copies: the comparator is only a *total*
+  /// One residual: the comparator is only a *total*
   /// order while every indexed sibling sits in ascending document order
   /// relative to its index-less siblings. Verified on the vendored asset — 8
   /// parents out of `FIGURES.containers` mix the two kinds and none is
@@ -296,6 +297,26 @@ class TipitakaTree {
       current = node.parentNodeKey;
     }
     return chain;
+  }
+
+  /// The "book" [nodeKey] belongs to — `an` (අඞ්ගුත්තරනිකායො), `vp-pct`
+  /// (පාචිත්තියපාළි), `kn` (ඛුද්දකනිකායො).
+  ///
+  /// Defined as the highest ancestor *below* the root-level pitaka node, which
+  /// is the level BJT itself titles its volumes at. Used as the last part of
+  /// every page title, where it does the disambiguating work:
+  /// `FIGURES.leavesSharingATitle` leaves share a name with another leaf, and
+  /// the collection plus the parent vagga separates almost all of them.
+  ///
+  /// A method here rather than a free function beside `SitePlan`, where it used
+  /// to live: it reads [ancestorsOf] and returns a [TipitakaNode], and no part
+  /// of it knows what a page is.
+  TipitakaNode? collectionOf(String nodeKey) {
+    final ancestors = ancestorsOf(nodeKey);
+    if (ancestors.isEmpty) return null;
+    return ancestors.length >= 2
+        ? ancestors[ancestors.length - 2]
+        : ancestors.last;
   }
 
   /// Every leaf at or below [nodeKey], in reading order.

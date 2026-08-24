@@ -7,7 +7,6 @@ import 'data/corpus_reader.dart';
 import 'data/slicer_cache.dart';
 import 'domain/document.dart';
 import 'domain/preamble_planner.dart';
-import 'domain/site_page.dart';
 import 'domain/slice_alignment.dart';
 import 'domain/theme_tokens.dart';
 import 'manifest/build_manifest.dart';
@@ -225,10 +224,11 @@ class SiteGenerator {
         sourceFile: sourceFileId,
       );
 
-      _write('$outputDir/${page.outputPath}', html);
+      final outputPath = pageOutputPath(page);
+      _write('$outputDir/$outputPath', html);
       manifest.record(
         sourceFileId: sourceFileId,
-        outputPath: page.outputPath,
+        outputPath: outputPath,
         sourceHash: reader.contentFileHash(sourceFileId),
       );
 
