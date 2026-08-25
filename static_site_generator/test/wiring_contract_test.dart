@@ -30,6 +30,10 @@
 /// Part 2 covers the template's own decisions — every one of them a branch that
 /// has already been wrong once and was fixed by hand.
 ///
+/// Part 3 is the same shape one layer out: `render/search_index.dart` writes a
+/// positional row, `assets/site.js` reads it back by position, and the links
+/// are only assembled in a browser, where none of the six signals can look.
+///
 /// ## Deliberately not here
 ///
 /// Whether the CSS *renders* correctly: that a 600 weight reads as distinct,
@@ -52,6 +56,8 @@ import 'package:static_site_generator/render/entry_renderer.dart';
 import 'package:static_site_generator/render/landing_page.dart';
 import 'package:static_site_generator/render/page_template.dart';
 import 'package:static_site_generator/render/reading_layouts.dart';
+import 'package:static_site_generator/render/search_dialog.dart';
+import 'package:static_site_generator/render/search_index.dart';
 import 'package:static_site_generator/render/site_assets.dart';
 import 'package:static_site_generator/render/site_build.dart';
 import 'package:static_site_generator/render/stylesheet.dart';
@@ -243,6 +249,26 @@ void main() {
       // instead of the sutta — and still returns 200, so no link checker sees
       // it.
       final html = _render(_chapterPage, slices: {
+        'sp-grp-1': _bothLanguages('sp-grp-1'),
+        'sp-grp-2': _bothLanguages('sp-grp-2'),
+      });
+
+      expect(html, contains('<section class="sutta" id="sp-grp-1">'));
+      expect(html, contains('<section class="sutta" id="sp-grp-2">'));
+    });
+
+    test('a run anchored on a leaf anchors that leaf too', () {
+      // The one shape where `page.node` is also one of `page.suttas` — and the
+      // shape `<key>#<key>` exists for. If the anchor gets no section of its
+      // own, that URL lands on a page with no such id and shows the whole run.
+      final page = SitePage(
+        kind: PageKind.chapter,
+        node: _tree['sp-grp-1']!,
+        suttas: [_tree['sp-grp-1']!, _tree['sp-grp-2']!],
+      );
+      expect(page.anchorsRunOnLeaf, isTrue);
+
+      final html = _render(page, slices: {
         'sp-grp-1': _bothLanguages('sp-grp-1'),
         'sp-grp-2': _bothLanguages('sp-grp-2'),
       });
@@ -447,6 +473,159 @@ void main() {
       expect(_countOf(pages['landing']!, 'class="layout-input"'), 0);
     });
   });
+
+  // The same class of bug as the stylesheet contract above, in the other
+  // direction: `search_index.dart` writes a positional row and `site.js` reads
+  // it back by position, and nothing connects the two. A field that moves, or a
+  // `chapterIdx` that names the wrong page, is invisible to `dart analyze`, to
+  // the build-twice hash, and to a link checker — the index is a data file, and
+  // its links are only assembled in a browser.
+  group('the search index ⇄ site.js contract', () {
+    // Read out of the script rather than written here. Copying the offsets into
+    // this file would make it agree with a snapshot of `site.js` taken the day
+    // it was written, which is the failure it exists to catch.
+    final columns = _readJsRowColumns();
+    final key = columns['KEY']!;
+    final chapter = columns['CHAPTER']!;
+    final parent = columns['PARENT']!;
+    final marked = columns['MARKED']!;
+
+    final rows =
+        (jsonDecode(buildSearchIndex(plan: _planFixture)) as List<dynamic>)
+            .cast<List<dynamic>>();
+    final keys = [for (final row in rows) row[key] as String];
+
+    test('a row has one cell per name site.js reads it by', () {
+      // The cheapest way for the two files to disagree is a field inserted on
+      // one side only, which shifts every column after it. Comparing lengths
+      // only says that while the offsets are 0..n — a skipped one would keep
+      // the count and turn the next test into a RangeError.
+      expect(
+          columns.values.toSet(), {for (var i = 0; i < columns.length; i++) i},
+          reason: 'site.js no longer numbers its columns 0..n');
+      for (final row in rows) {
+        expect(row.length, columns.length);
+      }
+    });
+
+    test('each column holds the type its name promises', () {
+      // What catches a *reorder*, which keeps the length right: a swap of
+      // `PALI` and `CHAPTER` reads a name where an offset should be.
+      for (final row in rows) {
+        expect(row[key], isA<String>());
+        expect(row[columns['PALI']!], isA<String>());
+        expect(row[columns['SINHALA']!], isA<String>());
+        expect(row[parent], isA<int>());
+        expect(row[chapter], isA<int>());
+        expect(row[marked], isIn(const [0, 1]));
+      }
+    });
+
+    test('every node is indexed, and none of them twice', () {
+      // The anchor leaf of a mid-vagga chapter is both a page's `node` and one
+      // of its `suttas`, and used to arrive as two rows — the second winning
+      // `position`, which is what ranks a hit.
+      expect(keys.toSet(), _planTree.allNodes.map((n) => n.nodeKey).toSet());
+      expect(keys.length, keys.toSet().length,
+          reason: 'a key is indexed twice: '
+              '${keys.where((k) => keys.where((o) => o == k).length > 1).toSet()}');
+    });
+
+    test('an index of this row is an index of this array', () {
+      // `parentIdx` and `chapterIdx` are offsets into the same array rather
+      // than repeated key strings, so an off-by-one is a link to the wrong
+      // sutta rather than a crash.
+      for (final row in rows) {
+        for (final pointer in [row[parent] as int, row[chapter] as int]) {
+          expect(pointer, inInclusiveRange(-1, rows.length - 1));
+        }
+      }
+    });
+
+    test('parentIdx names the node the tree calls the parent', () {
+      // Range alone leaves a systematically wrong `parentIdx` passing, and
+      // `site.js` walks it to build the breadcrumb under every result: the hit
+      // would be right and its ancestry plausible and wrong.
+      for (final row in rows) {
+        final parentKey = _planTree[row[key] as String]!.parentNodeKey;
+        final pointer = row[parent] as int;
+        expect(pointer < 0 ? null : keys[pointer],
+            parentKey == null ? null : _planTree[parentKey]?.nodeKey);
+      }
+    });
+
+    test('marked is set for commentary that does not already say so', () {
+      // Spelled per key rather than as `startsWith('atta-')`, which would be a
+      // transcription of `isCommentary` and could only agree with it. The
+      // predicate has a second clause — a name that *ends* in the marker must
+      // not be given it twice — and only a name can exercise that.
+      const expected = {
+        'atta-sp': 0, // "දීඝනිකාය අට්ඨකථා" — already ends in the marker
+        'atta-sp-1': 1, // "අට්ඨකථාකණ්ඩො" — contains it, but not at the end
+      };
+      for (final row in rows) {
+        final nodeKey = row[key] as String;
+        expect(row[marked], expected[nodeKey] ?? 0,
+            reason: 'the commentary marker is wrong on $nodeKey');
+      }
+    });
+
+    test('site.js still says what the test below transcribes', () {
+      // The transcription is the one thing here that is copied rather than
+      // read, so it is pinned the way the offsets are. Without this, rewriting
+      // `hrefFor` to drop the fragment leaves the whole suite green — verified.
+      expect(
+        _readJsHrefFor(),
+        "if (row[CHAPTER] < 0) return BASE + row[KEY]; "
+        "return BASE + rows[row[CHAPTER]][KEY] + '#' + row[KEY];",
+        reason: 'hrefFor changed shape, so the Dart copy below is now a '
+            'snapshot of a script that no longer says this. Update both.',
+      );
+    });
+
+    test('hrefFor builds exactly the URL SitePlan.urlFor writes', () {
+      // The headline. `hrefFor` reproduced from `site.js` — including
+      // `data-base`, taken off the dialog rather than spelled `/tipitaka/`
+      // here — and compared against the resolver the site's HTML is written
+      // from. Only one of the two failures is loud: a folded leaf sent to its
+      // bare URL 404s, a mid-vagga anchor sent to its bare URL returns 200
+      // showing the suttas either side of the one the reader clicked.
+      final base = RegExp(r'data-base="([^"]*)"')
+          .firstMatch(searchDialog('/assets/search-index.json'))!
+          .group(1)!;
+
+      String hrefFor(List<dynamic> row) {
+        if ((row[chapter] as int) < 0) return base + (row[key] as String);
+        return '$base${rows[row[chapter] as int][key]}#${row[key]}';
+      }
+
+      for (final row in rows) {
+        expect(hrefFor(row), _planFixture.urlFor(row[key] as String),
+            reason: 'search sends ${row[key]} somewhere the site does not');
+      }
+    });
+
+    test('the anchor leaf of a mid-vagga chapter points at its own row', () {
+      // The line deleted to fix this was a guard skipping the anchor, on the
+      // reasoning that `<key>#<key>` is a fragment naming its own page. On a
+      // chapter it is not — it is the `:has(:target)` filter narrowing the run
+      // to one sutta. Re-adding the guard sets this row to -1.
+      final anchor = rows[keys.indexOf('sp-mid-2')];
+      expect(anchor[chapter], keys.indexOf('sp-mid-2'));
+    });
+
+    test('a folded leaf points at its chapter, which is not its parent', () {
+      // `sp-mid-3`'s run is anchored on a *sibling*. Deriving the chapter from
+      // `parentNodeKey` would answer `sp-mid`, a container that exists and
+      // renders — a TOC listing the sutta rather than the sutta.
+      final folded = rows[keys.indexOf('sp-mid-3')];
+      expect(keys[folded[chapter] as int], 'sp-mid-2');
+    });
+
+    test('a leaf with its own file carries no chapter', () {
+      expect(rows[keys.indexOf('sp-mid-1')][chapter], -1);
+    });
+  });
 }
 
 // ── fixtures ─────────────────────────────────────────────────────────────────
@@ -583,6 +762,66 @@ SitePage get _chapterPage => SitePage(
 SitePage get _tocPage =>
     SitePage(kind: PageKind.toc, node: _tree['sp-toc']!, suttas: const []);
 
+/// A second tree, for the search index alone — deliberately not [_tree], which
+/// builds its [SitePage]s by hand and so has no run starting below a container.
+///
+/// ```text
+/// sp                    TOC
+///   sp-solo             TOC — neither child folds
+///     sp-solo-1           own file          → chapterIdx -1
+///     sp-solo-2           own file          → chapterIdx -1
+///   sp-whole            chapter — first child folded, so the vagga folds whole
+///     sp-whole-1          folded            → chapterIdx = sp-whole (its parent)
+///     sp-whole-2          folded            → chapterIdx = sp-whole
+///   sp-mid              TOC — mixed, which is what makes the anchor case
+///     sp-mid-1            own file          → chapterIdx -1
+///     sp-mid-2            anchors the run   → chapterIdx = ITSELF
+///     sp-mid-3            folded            → chapterIdx = sp-mid-2, a SIBLING
+/// atta-sp               a second root, so `marked` has both values to be
+///   atta-sp-1           wrong about
+/// ```
+final TipitakaTree _planTree = TipitakaTree.fromJson({
+  'sp': _planRow(null),
+  'sp-solo': _planRow('sp'),
+  'sp-solo-1': _planRow('sp-solo'),
+  'sp-solo-2': _planRow('sp-solo'),
+  'sp-whole': _planRow('sp'),
+  'sp-whole-1': _planRow('sp-whole'),
+  'sp-whole-2': _planRow('sp-whole'),
+  'sp-mid': _planRow('sp'),
+  'sp-mid-1': _planRow('sp-mid'),
+  'sp-mid-2': _planRow('sp-mid'),
+  'sp-mid-3': _planRow('sp-mid'),
+  'atta-sp': _planRow(null, pali: 'දීඝනිකාය අට්ඨකථා'),
+  'atta-sp-1': _planRow('atta-sp', pali: 'අට්ඨකථාකණ්ඩො'),
+});
+
+/// Hand-made sets, never the shipped snapshot: none of these keys is in the
+/// corpus, and a test reading the frozen set would measure the corpus instead
+/// of the rule.
+final SitePlan _planFixture = SitePlan.build(
+  tree: _planTree,
+  rootKeys: const ['sp', 'atta-sp'],
+  foldedLeafKeys: const {
+    'sp-whole-1',
+    'sp-whole-2',
+    'sp-mid-3',
+    'atta-sp-1',
+  },
+  textBearingContainerKeys: const {},
+);
+
+/// One `tree.json` row for [_planTree]. The name is a placeholder except on the
+/// `atta-*` nodes, where [carriesCommentaryMarker] reads it.
+List<dynamic> _planRow(String? parent, {String pali = 'pali'}) => [
+      pali,
+      'sinh',
+      1,
+      const <int>[0, 0],
+      parent ?? 'root',
+      'f'
+    ];
+
 String _render(
   SitePage page, {
   Map<String, NodeSlice> slices = const {},
@@ -605,6 +844,69 @@ ThemeTokens _readThemeTokens() {
   }
   return ThemeTokens(
       jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
+}
+
+/// The row offsets `site.js` reads a search result by, taken from the script
+/// itself: `var KEY = 0, PALI = 1, … MARKED = 5;`.
+///
+/// Parsed rather than copied. Both halves of this contract are positional and
+/// neither can see the other, so a test holding its own copy of the offsets
+/// would only ever prove that the copy still agrees with itself.
+Map<String, int> _readJsRowColumns() {
+  final file = File('assets/site.js');
+  if (!file.existsSync()) {
+    fail('assets/site.js not found. Run `dart test` from the '
+        'static_site_generator/ package root — the path is relative to it.');
+  }
+  final line = file.readAsLinesSync().firstWhere(
+        (line) => line.contains('var KEY ='),
+        orElse: () => fail('site.js no longer declares its row offsets as '
+            '`var KEY = 0, …`. Whatever replaced it is now the contract, and '
+            'this helper has to read that instead.'),
+      );
+  return {
+    for (final match in RegExp(r'(\w+)\s*=\s*(\d+)').allMatches(line))
+      match.group(1)!: int.parse(match.group(2)!),
+  };
+}
+
+/// The body of `site.js`'s `hrefFor`, on one line with runs of whitespace
+/// collapsed — so a reflow of the script is not a failure but a rewrite is.
+String _readJsHrefFor() {
+  final source = File('assets/site.js').readAsStringSync();
+  final at = source.indexOf('function hrefFor(row)');
+  if (at < 0) fail('site.js no longer declares `function hrefFor(row)`.');
+  final open = source.indexOf('{', at);
+  var depth = 0;
+  String? quote;
+  for (var i = open; i < source.length; i++) {
+    // A brace inside a string or a comment is not a brace. The body has none
+    // today; skipping them keeps a later edit from failing this as "never
+    // closed" when it is closed.
+    if (quote != null) {
+      if (source[i] == quote) quote = null;
+      continue;
+    }
+    if (source[i] == '"' || source[i] == "'") {
+      quote = source[i];
+      continue;
+    }
+    if (source.startsWith('//', i) || source.startsWith('/*', i)) {
+      final end = source.indexOf(source[i + 1] == '/' ? '\n' : '*/', i);
+      if (end < 0) break;
+      i = end;
+      continue;
+    }
+    if (source[i] == '{') depth++;
+    if (source[i] == '}') depth--;
+    if (depth == 0) {
+      return source
+          .substring(open + 1, i)
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+    }
+  }
+  fail('site.js: `hrefFor` is never closed.');
 }
 
 /// Every individual class name the markup uses.

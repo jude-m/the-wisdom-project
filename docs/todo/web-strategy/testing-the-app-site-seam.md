@@ -60,16 +60,22 @@ Audited file by file. Two of these are stronger than expected and one is weaker.
 | what | where | verdict |
 |---|---|---|
 | Sibling order is identical to the pre-extraction app code, over every parent in the corpus | `static_site_generator/tool/verify_corpus_invariants.dart`, run by `test/corpus_tools_test.dart` | **Strong — this is the guard that de-risks change 2.** Both oracles are frozen copies from commit `4bb320c`; if one has to change to pass, the extraction changed behaviour and that is the finding. Independently reproduced 2026-08-23: 0 parents differ. |
-| The frozen snapshot still describes this tree, and the rule still runs | `static_site_generator/test/corpus_tools_test.dart` | **Strong.** Catches a snapshot that no longer matches the corpus — which is exactly what "the app follows the site" depends on. |
+| The frozen snapshot still describes this tree, and the rule still runs | `static_site_generator/test/corpus_tools_test.dart` | **Strong.** Catches a snapshot that no longer matches the corpus — which is exactly what "the app follows the site" depends on. Runs `SitePlan.build`'s guards only in the direction that passes (Gap 3). |
 | Sibling ordering, malformed input, ancestors, leaves, determinism | `packages/wisdom_shared/test/tree/tipitaka_tree_test.dart` | Good for the decoder's *shape*, but see Gap 2: it never passes `corrections`. |
 | URL grammar, both schemes, round trips, rejection cases, and now the fragment form | `packages/wisdom_shared/test/links/tipitaka_link_test.dart` | **Updated in Stage A.** The old group was named "fragments are ignored — for now" and pinned the deferred behaviour deliberately; that flip is now made, with the `.html` and page-anchor cases added. |
-| Tree load, caching, node lookup, failure mapping | `test/data/repositories/navigation_tree_repository_impl_test.dart` | Covers `loadNavigationTree`, not `loadSitePlan` (Gap 3). |
+| One address per node, asked of `urlFor` and `servingLink` alike, over every key a plan can answer for | `packages/wisdom_shared/test/pages/site_plan_test.dart` | **New.** The seam's own rule, held by prose until now — it had already come apart once, `urlFor` learning the `<key>#<key>` form while `servingLink` ten lines below kept returning the bare URL. Runs on a synthetic eleven-node tree carrying all four page shapes, with the shapes themselves pinned so the loops cannot go vacuous. |
+| The search index's positional row against the offsets and the `hrefFor` that `assets/site.js` reads it by | `static_site_generator/test/wiring_contract_test.dart` | **New.** The third surface, and the one no other signal reaches: the links are assembled in a browser, so a wrong `chapterIdx` passes `dart analyze`, the build-twice hash and a link checker alike. Offsets and the `hrefFor` body are both read out of the script rather than copied. |
+| Tree load, caching, node lookup, failure mapping | `test/data/repositories/navigation_tree_repository_impl_test.dart` | Covers `loadNavigationTree`, not `loadSitePlan` (Gap 4). |
 | Tab open from search result, switching, closing, scroll bookkeeping | `test/presentation/providers/tab_provider_test.dart` | Untouched by Stage A and still passing. |
 | Reader, breadcrumb, prev-sutta, scroll restoration against the **real** tree and real content | `integration_test/*` | Valuable, and the only place the real asset is exercised end to end — but none of them names a corrected leaf (Gap 1). |
 
 **The honest summary:** the *site* half of the seam is well guarded, mostly by
-the generator's corpus tools. The *app* half of it — the part Stage A added — is
-guarded by nothing yet, because until Stage A the app had no seam to guard.
+the generator's corpus tools. The *app* half — the part Stage A added — was
+guarded by nothing until `site_plan_test.dart`, which now holds `servingLink`
+to the same answer `urlFor` writes. That is both sides of one shared function,
+not both surfaces: what no test yet does is open a real sutta in the app and
+compare it against the HTML the site serves at that URL — Gap 8, and still the
+one worth most.
 
 ---
 
@@ -100,7 +106,37 @@ alignment tool depends on. Currently untested (see Gap 2).
 never passes the `corrections` parameter. Two small tests over a hand-made tree:
 a corrected key takes the map's coordinate, an uncorrected sibling keeps its own.
 
-### Gap 3 — `loadSitePlan` / `sitePlanProvider` are untested
+### Gap 3 — `SitePlan.build`'s seven guards are never seen to throw
+
+`SitePlan.build` refuses seven shapes. Three are about the snapshot — a folded
+first child with unfolded siblings (a page half text and half navigation), a
+container that folds wholesale but holds containers (their subtrees swallowed
+unrendered), a folded leaf no run picked up (a leaf on no page at all, with
+`urlFor` still handing out a URL for it). Four are about the roots — none,
+unknown, listed twice, or nested; the last two walk a subtree twice, which
+writes every page twice and threads prev/next through the second copy.
+
+**None of the seven has a test on the throwing path.** `corpus_tools_test.dart`
+runs `SitePlan.build` against the real corpus, which by definition satisfies all
+of them, so they are exercised only in the direction that cannot fail. Invert a
+condition or drop one in a refactor and every suite stays green while the
+hand-edit they exist to catch sails through — and these are the guards standing
+between a hand-edited snapshot and a site that is quietly wrong, so a silent one
+is worse than none.
+
+**Pin:** seven cases in
+`packages/wisdom_shared/test/pages/site_plan_test.dart`, which already carries a
+synthetic tree with every page shape on it. Each is one `SitePlan.build` with an
+altered folded set or root list and a `throwsStateError`. Assert the message
+names the offending key: that key is the whole value of the guard on the day it
+fires. Write the three snapshot guards first — the root guards already fail
+loudly at the command line the moment anyone types the wrong `--root`, while a
+bad snapshot fails on a page nobody is looking at.
+
+Needs no corpus, so it belongs in the shared package's suite rather than the
+generator's.
+
+### Gap 4 — `loadSitePlan` / `sitePlanProvider` are untested
 
 The new repository method and provider are the app's whole answer to "which page
 serves this node". Worth pinning:
@@ -111,7 +147,7 @@ serves this node". Worth pinning:
 - the plan is built once and cached (the repository caches it beside the tree);
 - a failed tree load surfaces as `Left(Failure)`, not an exception.
 
-### Gap 4 — copy-link can regress to a 404 without failing a test
+### Gap 5 — copy-link can regress to a 404 without failing a test
 
 `tipitakaLinkUrlBuilderProvider` is now async and rewrites folded keys. If it
 ever loses the `servingLink` call, the app silently goes back to copying URLs
@@ -125,9 +161,9 @@ Verified by hand 2026-08-23 over a sample of folded leaves spread across the
 corpus: every URL named a file that exists in the built site, every file carried
 the matching `id="<leafKey>"` anchor, every URL round-tripped back through
 `TipitakaLink.parse`, and no own-page key was rewritten. That check is a script,
-not a test — Gap 4 is about keeping it true.
+not a test — Gap 5 is about keeping it true.
 
-### Gap 5 — the deep-link fallback branch
+### Gap 6 — the deep-link fallback branch
 
 `openTipitakaLinkProvider` now prefers the fragment and falls back to the page
 key when `SitePlan` says that page does not serve it. Four cases, one test each:
@@ -140,7 +176,7 @@ Worth one more: with the plan unavailable, the tree fallback still opens
 something rather than throwing. That branch is the reason a snapshot problem
 cannot turn a tapped citation into a crash.
 
-### Gap 6 — mocks drift silently when a datasource grows a method
+### Gap 7 — mocks drift silently when a datasource grows a method
 
 `TreeLocalDataSource` gained `loadSharedTree`, so `test/helpers/mocks.mocks.dart`
 had to be regenerated (`dart run build_runner build --delete-conflicting-outputs`
@@ -148,7 +184,7 @@ had to be regenerated (`dart run build_runner build --delete-conflicting-outputs
 misses a new method fails at the call, not at compile time, so it surfaces as an
 unrelated test failing far from the change.
 
-### Gap 7 — no test compares the two surfaces on the same sutta
+### Gap 8 — no test compares the two surfaces on the same sutta
 
 This is the one that would have caught the original defect, and the only gap
 whose value is *cross-surface*: take a handful of keys — a corrected sekhiya

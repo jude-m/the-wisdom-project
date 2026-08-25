@@ -436,6 +436,26 @@ void main() {
       TipitakaLink(nodeKey: 'sn-2-3', pageIndex: 0),
       TipitakaLink(nodeKey: 'sn-2-3', pageIndex: 0, entryIndex: 0),
       TipitakaLink(nodeKey: 'sn-2-3', pageIndex: 412, entryIndex: 17),
+      // The two-key forms. Every row above leaves `pageKey` null, so the whole
+      // path-and-fragment half of the grammar — the half `SitePlan.servingLink`
+      // builds and the static site writes into every grouped chapter's links —
+      // used to round-trip nowhere.
+      //
+      // A folded leaf: the path is the chapter carrying it, the fragment is the
+      // sutta the reader asked for.
+      TipitakaLink(nodeKey: 'sn-2-3-1-3', pageKey: 'sn-2-3-1'),
+      // The same key on both sides, which is one address and not one written
+      // twice: a chapter anchored on its first leaf, asked for that leaf alone
+      // rather than for the whole run. `parse` used to collapse this form and
+      // the constructor used to refuse to hold it, so it is the shape most
+      // likely to be normalised away again by mistake.
+      TipitakaLink(nodeKey: 'sn-2-3-1', pageKey: 'sn-2-3-1'),
+      // Both keys and a position — what a research citation deep link carries.
+      TipitakaLink(
+          nodeKey: 'sn-2-3-1-3',
+          pageKey: 'sn-2-3-1',
+          pageIndex: 4,
+          entryIndex: 1),
     ];
 
     for (final link in links) {
