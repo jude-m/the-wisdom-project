@@ -118,10 +118,17 @@ String buildSearchIndex({required SitePlan plan}) {
     if (page.kind != PageKind.chapter) continue;
     final chapterIndex = position[page.nodeKey]!;
     for (final sutta in page.suttas) {
-      // A mid-vagga chapter's anchor leaf *is* the page, so it has a file of
-      // its own and must stay out of here — otherwise `hrefFor` builds
-      // `<key>#<key>`, a fragment pointing at its own page.
-      if (sutta.nodeKey == page.nodeKey) continue;
+      // No guard, and not by omission: `SitePage.needsFragmentFor` is true of
+      // every sutta on a chapter page — the folded ones because the page merely
+      // carries them, the anchor leaf because the page is the run it starts. A
+      // test here could only ever be true, so the rule is cited rather than
+      // re-asked.
+      //
+      // The anchor is the case worth naming. It gets `<key>#<key>`, which reads
+      // like a fragment pointing at its own page and is not one: on a chapter
+      // that fragment is the filter that shows the single sutta. Left out, a
+      // search hit on the anchor opened its whole run while a hit on the sutta
+      // directly below it opened alone.
       chapterOf[sutta.nodeKey] = chapterIndex;
     }
   }

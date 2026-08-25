@@ -192,10 +192,13 @@ const String _upGlyph = '<svg class="up-icon" viewBox="0 0 24 24" fill="none" '
 /// markups the stylesheet has to style twice.
 ///
 /// [urlFor] is required rather than defaulted to [tipitakaUrl] on purpose. A
-/// TOC lists *all* of a container's children, and `FIGURES.tocRowsToFoldedLeaves`
-/// of those rows point at folded leaves whose bare URL is served by no file — so
-/// the obvious default is exactly the wrong answer, and a caller that forgets
-/// should not compile.
+/// TOC lists *all* of a container's children, and `FIGURES.tocRowsNeedingUrlFor`
+/// of those rows are ones the bare URL gets wrong. Two ways, and the second is
+/// the argument: a folded leaf's bare URL is served by no file, while an anchor
+/// leaf's is served by the chapter it starts, which answers with the whole run
+/// instead of the sutta the row named. The first 404s and any link check finds
+/// it; the second returns 200 and nothing downstream notices. So the obvious
+/// default is the wrong answer, and a caller that forgets should not compile.
 String tocList(Iterable<TipitakaNode> nodes, {required UrlResolver urlFor}) {
   final buffer = StringBuffer('<ul class="toc">');
   for (final node in nodes) {

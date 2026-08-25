@@ -173,16 +173,17 @@ void main() {
       );
     });
 
-    test('a fragment repeating the path key is not a second address', () {
-      // What a chapter's own anchor would produce if a builder forgot that a
-      // page's own key never carries a fragment.
+    test('a fragment repeating the path key asks for the anchor alone', () {
+      // What a chapter anchored on its first leaf writes for that leaf: same
+      // key both sides, and not one address written twice. Bare, that path is
+      // the whole run; with the fragment it is the anchor sutta on its own.
       expect(
         TipitakaLink.tryParse('https://host/tipitaka/sn-2-3#sn-2-3'),
-        const TipitakaLink(nodeKey: 'sn-2-3'),
+        const TipitakaLink(nodeKey: 'sn-2-3', pageKey: 'sn-2-3'),
       );
     });
 
-    test('nothing emits one unless the target is served elsewhere', () {
+    test('a target that owns its URL emits no fragment', () {
       expect(
         const TipitakaLink(nodeKey: 'sn-2-3').toUri('https://host').fragment,
         isEmpty,

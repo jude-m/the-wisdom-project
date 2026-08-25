@@ -65,7 +65,7 @@ These move when the snapshot is regenerated, and each move is one URL.
 | `FIGURES.realPages` | 10,285 | pages the build writes, `/` included. Not `404.html`, which is the answer for addresses that have no page |
 | `FIGURES.readablePages` | 8,940 | pages carrying text — sutta, chapter, and the container pages that open with an introduction. The prev/next chain |
 | `FIGURES.pagesWithStubs` | 16,356 | the count if every folded leaf also got a redirect stub (the P5 gate). Cloudflare Pages caps a project at 20,000 files |
-| `FIGURES.tocRowsToFoldedLeaves` | 2,333 | TOC rows whose target owns no file, so the bare URL is wrong |
+| `FIGURES.tocRowsNeedingUrlFor` | 2,933 | TOC rows the bare URL gets wrong, so `tocList` has to resolve them through `SitePlan.urlFor`: folded leaves, which 404, and anchor leaves, which answer with their whole run |
 | `FIGURES.commentaryPages` | 3,336 | pages under an `atta-*` key |
 | `FIGURES.pagesWithCommentaryLink` | 7,472 | pages whose canon ↔ commentary twin exists in the tree |
 | `FIGURES.commentaryTwinsFolded` | 2,754 | of those, twins that are folded leaves — so the link must be resolved through `urlFor`, never `tipitakaUrl` |

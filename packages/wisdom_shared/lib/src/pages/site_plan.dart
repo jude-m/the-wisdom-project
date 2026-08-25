@@ -104,6 +104,42 @@ class SitePage {
   /// A leaf-anchored chapter has no preamble — the container's slice belongs to
   /// its TOC page, and repeating it below would print the vagga title twice.
   bool get hasPreamble => !node.isLeaf;
+
+  /// True when this page's *own* key still needs a fragment to name its own
+  /// node — the one case where `<key>#<key>` is not a redundant address.
+  ///
+  /// A chapter anchored on its first leaf (`FIGURES.midVaggaChapters`) is the
+  /// only page whose key is not the whole of what it serves: bare, its URL
+  /// prints the entire run, and the anchor sutta alone is what the
+  /// `:has(:target)` CSS filters to. A chapter sitting at its container's URL
+  /// is the opposite case — the container *is* the run, so the bare URL is
+  /// already the right answer, and so is a lone-child chapter's (its node is
+  /// the container it was merged with).
+  ///
+  /// Read through [needsFragmentFor] wherever a link is being built — the site's
+  /// HTML, a link copied out of the app, a search hit — so none of them can name
+  /// the anchor sutta differently. Read directly by `PageBudget`, which counts
+  /// exactly these pages as the `FIGURES.midVaggaChapters` this doc names: the
+  /// figure and the predicate define each other, so they must not be two
+  /// separate spellings of `node.isLeaf`.
+  bool get anchorsRunOnLeaf => kind == PageKind.chapter && node.isLeaf;
+
+  /// True when a link to [nodeKey] needs a fragment to name only that node on
+  /// this page.
+  ///
+  /// The question every link builder is actually asking, kept here rather than
+  /// spelled out at each of them. Its two clauses look unrelated — *is the
+  /// target something this page merely carries*, and *is this page a run
+  /// anchored on the target itself* — and they are one test: does the bare URL
+  /// already name nothing but what was asked for. Written out separately they
+  /// drifted within ten lines of each other, [SitePlan.urlFor] answering the
+  /// second clause and [SitePlan.servingLink] skipping it.
+  ///
+  /// Every sutta on a chapter page returns true here: the folded ones on the
+  /// first clause, the anchor on the second. That is why `buildSearchIndex`
+  /// needs no guard when it writes a chapter's `chapterOf` rows.
+  bool needsFragmentFor(String nodeKey) =>
+      nodeKey != this.nodeKey || anchorsRunOnLeaf;
 }
 
 /// Resolves a nodeKey to the URL that actually serves it — [SitePlan.urlFor].
@@ -385,7 +421,9 @@ class SitePlan {
   ///
   /// A folded leaf has no file of its own, so it resolves to
   /// `<chapter>#<nodeKey>` — the page carrying it, which the `:has(:target)`
-  /// CSS then filters to single view. Everything else is its own URL.
+  /// CSS then filters to single view. So does the leaf a chapter is *anchored*
+  /// on, whose fragment repeats the path: see [SitePage.anchorsRunOnLeaf].
+  /// Everything else is its own bare URL.
   ///
   /// **Never `node.parentNodeKey`.** `FIGURES.midVaggaChapters` anchor on a
   /// sibling leaf rather than the container, so the parent shortcut is wrong
@@ -397,9 +435,7 @@ class SitePlan {
     // twin, say. Its own URL is the best answer available and the right one on
     // a whole-corpus build, where every key has a page.
     if (page == null) return tipitakaUrl(nodeKey);
-    // The page's own key carries no fragment: the chapter's URL *is* the
-    // anchor's URL, and adding one would be a second URL for the same page.
-    return page.nodeKey == nodeKey ? page.url : '${page.url}#$nodeKey';
+    return page.needsFragmentFor(nodeKey) ? '${page.url}#$nodeKey' : page.url;
   }
 
   /// The same link, addressed the way the site actually serves it.
@@ -411,15 +447,25 @@ class SitePlan {
   /// into the site's own HTML, from the same map, so a link copied out of the
   /// app and a link copied off the site are the same string.
   ///
-  /// Unchanged when the target owns its page, and when this build has never
-  /// heard of it (a plan is built per-subtree; only a whole-corpus plan knows
-  /// every key).
+  /// The page key is **decided here, never passed through**, so the result is a
+  /// function of [TipitakaLink.nodeKey] and this plan alone: a link that owns
+  /// its URL comes back with no page key even if it arrived carrying one. That
+  /// used to be guaranteed further down, by a constructor that dropped a page
+  /// key repeating the node key — which is also what made `<key>#<key>`
+  /// unholdable, so it had to go when the anchor leaves started needing that
+  /// form. Deciding rather than short-circuiting is what replaces it: a link
+  /// parsed off a URL can now carry a page key the site would not have written,
+  /// and an early return would hand it straight back out.
+  ///
+  /// Unchanged only when this build has never heard of the key (a plan is built
+  /// per-subtree; only a whole-corpus plan knows every one), where the plan has
+  /// no answer to substitute.
   TipitakaLink servingLink(TipitakaLink link) {
     final page = _owningPage[link.nodeKey];
-    if (page == null || page.nodeKey == link.nodeKey) return link;
+    if (page == null) return link;
     return TipitakaLink(
       nodeKey: link.nodeKey,
-      pageKey: page.nodeKey,
+      pageKey: page.needsFragmentFor(link.nodeKey) ? page.nodeKey : null,
       pageIndex: link.pageIndex,
       entryIndex: link.entryIndex,
     );

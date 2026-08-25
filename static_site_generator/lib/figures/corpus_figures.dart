@@ -326,12 +326,18 @@ List<FigureGroup> computeCorpusFigures({
           .map((l) => (key: l.nodeKey, chars: charsOf[l.nodeKey] ?? 0))
           .reduce((a, b) => b.chars > a.chars ? b : a));
 
-  var tocRowsToFoldedLeaves = 0;
+  // Rows whose serving URL is not the bare one — asked of `urlFor` rather than
+  // of the folded set, because owning a file and owning the bare URL stopped
+  // being the same question. An anchor leaf owns its file and still needs the
+  // fragment, and it is the half of this count that fails quietly: a folded
+  // leaf's bare URL 404s, an anchor leaf's answers 200 with its whole run.
+  var tocRowsNeedingUrlFor = 0;
   for (final page in plan.pages) {
     if (page.kind != PageKind.toc) continue;
-    tocRowsToFoldedLeaves += tree
+    tocRowsNeedingUrlFor += tree
         .childrenOf(page.nodeKey)
-        .where((child) => folded.contains(child.nodeKey))
+        .where((child) =>
+            plan.urlFor(child.nodeKey) != tipitakaUrl(child.nodeKey))
         .length;
   }
 
@@ -449,8 +455,12 @@ List<FigureGroup> computeCorpusFigures({
             formatCount(budget.pagesWithStubs),
             'the count if every folded leaf also got a redirect stub (the P5 '
                 'gate). Cloudflare Pages caps a project at 20,000 files'),
-        Figure('tocRowsToFoldedLeaves', formatCount(tocRowsToFoldedLeaves),
-            'TOC rows whose target owns no file, so the bare URL is wrong'),
+        Figure(
+            'tocRowsNeedingUrlFor',
+            formatCount(tocRowsNeedingUrlFor),
+            'TOC rows the bare URL gets wrong, so `tocList` has to resolve '
+                'them through `SitePlan.urlFor`: folded leaves, which 404, and '
+                'anchor leaves, which answer with their whole run'),
         Figure('commentaryPages', formatCount(commentaryPages),
             'pages under an `atta-*` key'),
         Figure('pagesWithCommentaryLink', formatCount(pagesWithCommentaryLink),

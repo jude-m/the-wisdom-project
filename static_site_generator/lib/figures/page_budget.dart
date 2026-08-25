@@ -28,7 +28,11 @@ class PageBudget {
   /// folded.
   final int wholeVaggaChapters;
 
-  /// Chapters anchored on a leaf, because the run starts below the container.
+  /// Chapters anchored on a leaf, because the run starts below the container —
+  /// the pages `SitePage.anchorsRunOnLeaf` is true of, counted through that
+  /// getter rather than beside it. The predicate's own doc cites this figure as
+  /// its definition, so a second spelling here would let the two drift while
+  /// each claimed the other.
   final int midVaggaChapters;
 
   /// Container pages — links, and on a few of them an introduction above them.
@@ -69,7 +73,7 @@ class PageBudget {
         case PageKind.sutta:
           suttaPages++;
         case PageKind.chapter:
-          page.node.isLeaf ? midVaggaChapters++ : wholeVaggaChapters++;
+          page.anchorsRunOnLeaf ? midVaggaChapters++ : wholeVaggaChapters++;
         case PageKind.toc:
           containerTocs++;
           if (page.isReadable) readableTocs++;

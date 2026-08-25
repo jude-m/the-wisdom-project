@@ -242,10 +242,18 @@
     return row[MARKED] ? row[PALI] + ' ' + MARKER : row[PALI];
   }
 
-  /* `<base><key>` for a node with its own page; `<base><chapter>#<key>` for the
-   * 6,058 that live inside a grouped chapter file. Getting this wrong is
-   * invisible in testing and 404s in production, which is why `chapterIdx` is
-   * in the index at all.
+  /* `<base><key>` when the bare URL already names nothing but this node;
+   * `<base><chapter>#<key>` when it does not. Two kinds of row take the second
+   * form: the `FIGURES.foldedLeaves` that live inside a grouped chapter file,
+   * and the `FIGURES.midVaggaChapters` anchor leaves, which do own a page —
+   * that page is the chapter they start, and bare it shows the whole run rather
+   * than the one sutta. So the test is `chapterIdx`, never "does this key own a
+   * file": those two used to be the same question and are not.
+   *
+   * Getting it wrong is invisible in testing and wrong in production two
+   * different ways: a folded leaf 404s, and an anchor leaf answers 200 with
+   * three or four neighbouring suttas. That is why `chapterIdx` is in the index
+   * at all.
    *
    * Extensionless, matching every other link the site emits — `tipitakaUrl` in
    * Dart, and the URL grammar the app's deep-link codec parses.

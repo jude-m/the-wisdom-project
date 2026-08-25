@@ -34,12 +34,15 @@ class TipitakaLink {
   /// BJT tree node key, e.g. `sn-2-3-1-3` (always lowercase).
   final String nodeKey;
 
-  /// The page that *serves* [nodeKey], when the site does not give the target
-  /// its own file — `/tipitaka/<pageKey>#<nodeKey>`.
+  /// The page that *serves* [nodeKey], when the path alone would not name the
+  /// target — `/tipitaka/<pageKey>#<nodeKey>`.
   ///
   /// Null means the target owns its URL, which is the common case and the only
   /// one the grammar had until the split rule folded `FIGURES.foldedLeaves`
-  /// leaves onto chapter pages. **It is addressing, not identity**: [nodeKey]
+  /// leaves onto chapter pages. It may also *equal* [nodeKey], for the chapters
+  /// anchored on their first leaf: there the bare path is the whole run and the
+  /// fragment is the one sutta, so the repetition is the question being asked
+  /// (`SitePage.anchorsRunOnLeaf`). **It is addressing, not identity**: [nodeKey]
   /// is always what the reader asked for, so every consumer reads that one
   /// field and only a link *builder* needs this one. Which page serves a key is
   /// `SitePlan`'s answer, never a guess from the tree — see [SitePlan.urlFor].
@@ -53,18 +56,20 @@ class TipitakaLink {
   /// together with [pageIndex]; null with a page present means entry 0.
   final int? entryIndex;
 
-  /// [pageKey] is dropped when it repeats [nodeKey]: a page's own key never
-  /// carries a fragment, so the two together are one address written twice.
-  /// [parse] already collapses that form on the way in; normalising here too
-  /// means the state cannot be *held*, so `parse(link.toUri(…)) == link` holds
-  /// for every value the constructor accepts — including a hand-written one,
-  /// which is the only way the pair could ever have been built.
+  /// [pageKey] may repeat [nodeKey], and the pair is then one address, not one
+  /// written twice: `<key>#<key>` asks a chapter for the leaf it is anchored on
+  /// rather than for the whole run. This used to be normalised away here, and
+  /// collapsed in [parse], on the reasoning that a page's own key never carries
+  /// a fragment — true of every page except the one kind that is a run of them.
+  ///
+  /// Both ends were relaxed together, so `parse(link.toUri(…)) == link` still
+  /// holds for every value the constructor accepts.
   const TipitakaLink({
     required this.nodeKey,
-    String? pageKey,
+    this.pageKey,
     this.pageIndex,
     this.entryIndex,
-  }) : pageKey = pageKey == nodeKey ? null : pageKey;
+  });
 
   /// The dev/QA custom scheme (never used in shared links).
   static const String customScheme = 'sammaditthi';
@@ -127,17 +132,20 @@ class TipitakaLink {
     // the fragment is the sutta the reader asked for and the path is merely
     // the file carrying it. Reading the path alone would silently open the
     // chapter's anchor sutta instead — a wrong answer that looks like a right
-    // one. Any other fragment (`#top`, a footnote id) is not a target and
-    // leaves the path key alone.
+    // one. A fragment that cannot be a nodeKey at all (a footnote id, an empty
+    // one) is not a target and leaves the path key alone.
+    //
+    // A fragment repeating the path key is a target too, and is kept as one.
+    // Same key on both sides, different questions: bare, that path is a chapter
+    // showing its whole run; with the fragment it is the anchor sutta alone.
+    // Collapsing it here erased the difference on the way in.
     final fragment = uri.fragment.toLowerCase();
-    final servedElsewhere = fragment.isNotEmpty &&
-        fragment != pathKey &&
-        _nodeKeyPattern.hasMatch(fragment);
+    final targeted = fragment.isNotEmpty && _nodeKeyPattern.hasMatch(fragment);
 
     final (page, entry) = _parseEntry(uri.queryParameters[entryParam]);
     return TipitakaLink(
-      nodeKey: servedElsewhere ? fragment : pathKey,
-      pageKey: servedElsewhere ? pathKey : null,
+      nodeKey: targeted ? fragment : pathKey,
+      pageKey: targeted ? pathKey : null,
       pageIndex: page,
       entryIndex: entry,
     );
