@@ -58,4 +58,20 @@ abstract class NavigationTreeRepository {
   /// - Left(Failure): If the tree cannot be loaded
   /// - Right(SitePlan): The whole-corpus plan on success
   Future<Either<Failure, SitePlan>> loadSitePlan();
+
+  /// Loads the decoded [TipitakaTree] itself — parents, siblings and titles.
+  ///
+  /// The app's own [TipitakaTreeNode] answers most questions, but two it
+  /// cannot: sibling *order* within a container, and the numeric range a
+  /// vaṇṇanā's title declares. `crossLinkTargetKey` needs both to decide
+  /// whether a sutta has a commentary at all, so the shared tree is exposed
+  /// rather than the answer re-derived from the nested entity.
+  ///
+  /// Already decoded and cached for [loadSitePlan] — this hands back the same
+  /// instance and costs nothing extra.
+  ///
+  /// Returns Either:
+  /// - Left(Failure): If the tree cannot be loaded
+  /// - Right(TipitakaTree): The whole-corpus tree on success
+  Future<Either<Failure, TipitakaTree>> loadSharedTree();
 }

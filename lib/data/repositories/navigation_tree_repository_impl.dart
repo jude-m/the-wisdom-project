@@ -157,6 +157,18 @@ class NavigationTreeRepositoryImpl implements NavigationTreeRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, TipitakaTree>> loadSharedTree() async {
+    try {
+      return Right(await _localDataSource.loadSharedTree());
+    } catch (e) {
+      return Left(Failure.dataLoadFailure(
+        message: 'Failed to load the navigation tree',
+        error: e,
+      ));
+    }
+  }
+
   Future<SitePlan> _buildSitePlan() async {
     final tree = await _localDataSource.loadSharedTree();
     // Whole corpus, and the frozen sets by default — the app reads the site

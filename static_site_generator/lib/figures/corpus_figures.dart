@@ -249,7 +249,9 @@ List<FigureGroup> computeCorpusFigures({
   var loneChildChapters = 0;
   var loneChildChaptersNotFoldedOnSize = 0;
   ({String key, int chars})? largestLoneChild;
-  var pagesWithCommentaryLink = 0;
+  var nodesWithCommentaryLink = 0;
+  var commentaryLinksResolvedByNeighbour = 0;
+  var canonNodesWithNoCommentary = 0;
   var commentaryTwinsFolded = 0;
   var commentaryPages = 0;
   var readablePagesWithoutSinhala = 0;
@@ -260,12 +262,22 @@ List<FigureGroup> computeCorpusFigures({
   for (final page in plan.pages) {
     if (page.node.isCommentary) commentaryPages++;
 
-    final twinKey = page.node.isCommentary
-        ? page.nodeKey.substring(TipitakaNodeKeys.commentary.length)
-        : '${TipitakaNodeKeys.commentary}${page.nodeKey}';
-    if (tree[twinKey] != null) {
-      pagesWithCommentaryLink++;
-      if (folded.contains(twinKey)) commentaryTwinsFolded++;
+    // Exactly what `PageTemplate` emits: a TOC links from its own container
+    // node, every other page links once per section it carries. Counting pages
+    // instead would undercount the chapters, which is the shape that hid the
+    // container-anchored bug — one wrong link served a whole run.
+    final linked = page.kind == PageKind.toc ? [page.node] : page.suttas;
+    for (final node in linked) {
+      final target = crossLinkTargetKey(tree, node.nodeKey);
+      if (target == null) {
+        if (!node.isCommentary) canonNodesWithNoCommentary++;
+        continue;
+      }
+      nodesWithCommentaryLink++;
+      if (target != twinKeyOf(node.nodeKey)) {
+        commentaryLinksResolvedByNeighbour++;
+      }
+      if (folded.contains(target)) commentaryTwinsFolded++;
     }
 
     switch (page.kind) {
@@ -463,13 +475,31 @@ List<FigureGroup> computeCorpusFigures({
                 'anchor leaves, which answer with their whole run'),
         Figure('commentaryPages', formatCount(commentaryPages),
             'pages under an `atta-*` key'),
-        Figure('pagesWithCommentaryLink', formatCount(pagesWithCommentaryLink),
-            'pages whose canon ↔ commentary twin exists in the tree'),
+        Figure(
+            'nodesWithCommentaryLink',
+            formatCount(nodesWithCommentaryLink),
+            'texts carrying a canon ↔ commentary cross-link, counted where the '
+                'link is emitted: once per section, plus one per TOC. Nodes '
+                'and not leaves — a TOC links from its container'),
+        Figure(
+            'commentaryLinksResolvedByNeighbour',
+            formatCount(commentaryLinksResolvedByNeighbour),
+            'of those, links whose exact twin key names no node and which a '
+                'neighbour answers for instead. Three shapes: a vaṇṇanā whose '
+                'declared range reaches the sutta, the canon node a merge put '
+                'the root text in, and — where the commentary subdivides below '
+                'the canon — the nearest canon ancestor, which is about half'),
+        Figure(
+            'canonNodesWithNoCommentary',
+            formatCount(canonNodesWithNoCommentary),
+            'canon nodes no commentary claims, which carry no link at all — '
+                'mostly suttas the vaṇṇanā is silent on, plus the containers '
+                'whose twin never existed; the page says so by omission'),
         Figure(
             'commentaryTwinsFolded',
             formatCount(commentaryTwinsFolded),
-            'of those, twins that are folded leaves — so the link must be '
-                'resolved through `urlFor`, never `tipitakaUrl`'),
+            'of the linked, targets that are folded leaves — so the link must '
+                'be resolved through `urlFor`, never `tipitakaUrl`'),
       ],
     ),
     FigureGroup(

@@ -9,6 +9,7 @@ export 'src/dictionary/dictionary_sql_helpers.dart';
 export 'src/fts/fts_query_builder.dart';
 export 'src/grouping/grouping_snapshot.dart';
 export 'src/grouping/preamble_snapshot.dart';
+export 'src/links/commentary_link.dart';
 export 'src/links/tipitaka_link.dart';
 export 'src/pages/site_plan.dart';
 export 'src/refs/suttacentral_ref_resolver.dart';

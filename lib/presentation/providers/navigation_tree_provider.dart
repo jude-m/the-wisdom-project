@@ -7,6 +7,7 @@ import '../../data/repositories/navigation_tree_repository_impl.dart';
 import '../../domain/entities/navigation/tipitaka_tree_node.dart';
 import '../../domain/repositories/navigation_tree_repository.dart';
 import '../../domain/usecases/load_navigation_tree_usecase.dart';
+import '../../domain/usecases/load_shared_tree_usecase.dart';
 import '../../domain/usecases/load_site_plan_usecase.dart';
 
 // Datasource provider
@@ -31,6 +32,11 @@ final loadNavigationTreeUseCaseProvider =
 final loadSitePlanUseCaseProvider = Provider<LoadSitePlanUseCase>((ref) {
   final repository = ref.watch(navigationTreeRepositoryProvider);
   return LoadSitePlanUseCase(repository);
+});
+
+final loadSharedTreeUseCaseProvider = Provider<LoadSharedTreeUseCase>((ref) {
+  final repository = ref.watch(navigationTreeRepositoryProvider);
+  return LoadSharedTreeUseCase(repository);
 });
 
 // Navigation tree state provider
@@ -64,6 +70,29 @@ final sitePlanProvider = FutureProvider<SitePlan>((ref) async {
   return result.fold(
     (failure) => throw Exception(failure.userMessage),
     (plan) => plan,
+  );
+});
+
+/// The decoded tree, for the questions the nested [TipitakaTreeNode] cannot
+/// answer: sibling order inside a container, and the range a vaṇṇanā's title
+/// declares.
+///
+/// **The one place the app asks "does this text have a commentary".** A key
+/// that exists is not the same question — `atta-sn-2-5-4-2` is
+/// "2-4. කුසලමූලසමුච්ඡෙදසුත්තාදිවණ්ණනා" and covers two suttas whose own keys
+/// name no node, while `atta-an-5-5-5-1` declares one sutta and the seven after
+/// it have no commentary at all. `crossLinkTargetKey` tells those apart; a
+/// `startsWith`/`substring` pair cannot.
+///
+/// Decoded once for [sitePlanProvider] and handed back here, so watching both
+/// costs one parse.
+final sharedTreeProvider = FutureProvider<TipitakaTree>((ref) async {
+  final useCase = ref.watch(loadSharedTreeUseCaseProvider);
+  final result = await useCase.execute();
+
+  return result.fold(
+    (failure) => throw Exception(failure.userMessage),
+    (tree) => tree,
   );
 });
 

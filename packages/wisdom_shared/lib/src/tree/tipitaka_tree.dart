@@ -216,8 +216,8 @@ class TipitakaTree {
     });
 
     int compare(String a, String b) {
-      final ai = _childIndex(a);
-      final bi = _childIndex(b);
+      final ai = trailingIndexOf(a);
+      final bi = trailingIndexOf(b);
       if (ai != null && bi != null) {
         final byIndex = ai.compareTo(bi);
         if (byIndex != 0) return byIndex;
@@ -353,7 +353,11 @@ const int _fieldsPerRow = 6;
 /// Mirrors `childInd` in the Vue app (`tree.js:7`) and the Flutter datasource's
 /// `_extractChildIndex`, including its blind spot for dotted keys — parity is
 /// the point, so navigation order matches across surfaces.
-int? _childIndex(String nodeKey) {
+///
+/// Public because sibling ordering is not the only question that needs it:
+/// `crossLinkTargetKey` reads the same index to decide whether a vaṇṇanā's
+/// declared range reaches a sutta, and a second copy of this could drift.
+int? trailingIndexOf(String nodeKey) {
   final lastSeparator = nodeKey.lastIndexOf('-');
   if (lastSeparator == -1) return null;
   return int.tryParse(nodeKey.substring(lastSeparator + 1));

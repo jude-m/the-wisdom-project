@@ -124,8 +124,14 @@ class PageTemplate {
     body.writeln('<main class="content'
         '${navOnly ? ' nav' : ''}${solo ? ' solo' : ''}">');
     body.writeln('<h1 class="page-title">${_headingHtml(page.node)}</h1>');
-    final commentary = _commentaryLink(page.node);
-    if (commentary != null) body.writeln(commentary);
+    // A chapter's own node answers for at most one of the sections it carries,
+    // so its cross-link is emitted per section inside [_chapter] instead. A
+    // sutta page's node *is* its text, and a TOC's is the container whose twin
+    // is the other side's container — both are answered here.
+    if (page.kind != PageKind.chapter) {
+      final commentary = _commentaryLink(page.node);
+      if (commentary != null) body.writeln(commentary);
+    }
 
     switch (page.kind) {
       case PageKind.sutta:
@@ -349,8 +355,15 @@ class PageTemplate {
     return buffer.toString();
   }
 
-  /// Canon ↔ commentary cross-link, emitted only when the twin key exists in
-  /// the tree — `FIGURES.pagesWithCommentaryLink` pages carry one.
+  /// Canon ↔ commentary cross-link for one *text*, or nothing when no
+  /// commentary claims it — `FIGURES.nodesWithCommentaryLink` texts carry
+  /// one.
+  ///
+  /// **Takes the node being read, never the page's own node.** On a chapter
+  /// page those differ: `atta-sn-2-5-4` holds five vaṇṇanā and its node is the
+  /// *container*, whose twin is the canon container — so a page-level link sent
+  /// every reader of every section back to a TOC. [crossLinkTargetKey] answers
+  /// for the section instead, and `render` calls it once per section.
   ///
   /// **The key test is not enough on its own.** A key that exists may still be
   /// a folded leaf, which owns no file — `FIGURES.commentaryTwinsFolded` of
@@ -359,10 +372,8 @@ class PageTemplate {
   /// where the twin lives under a root that was not built at all: `an-1` sits
   /// under `sp` and `atta-an-1` under `atta-sp`.
   String? _commentaryLink(TipitakaNode node) {
-    final twinKey = node.isCommentary
-        ? node.nodeKey.substring(TipitakaNodeKeys.commentary.length)
-        : '${TipitakaNodeKeys.commentary}${node.nodeKey}';
-    if (tree[twinKey] == null) return null;
+    final twinKey = crossLinkTargetKey(tree, node.nodeKey);
+    if (twinKey == null) return null;
     final label = node.isCommentary ? 'මූල පාඨය' : commentaryMarker;
     // Same-site navigation, so no `target="_blank"`: the app opens the twin in
     // place, and forcing a new tab here would make the same link behave
@@ -468,8 +479,16 @@ class PageTemplate {
     if (preamble != null && preamble.rows.isNotEmpty) {
       buffer.write('<div class="preamble">${_rows(preamble, depths)}</div>');
     }
+    // Inside the section, so the `:has(:target)` filter carries it: the
+    // single-sutta view shows the one link belonging to the sutta on screen and
+    // hides the rest, with no second rule to keep in step with the first. Above
+    // the text rather than below it because that is where the link sits on a
+    // sutta page, and `--page-gap` between sections is what groups it with the
+    // text it introduces rather than the one it follows.
     for (final sutta in page.suttas) {
       buffer.write('<section class="sutta" id="${sutta.nodeKey}">');
+      final commentary = _commentaryLink(sutta);
+      if (commentary != null) buffer.write(commentary);
       buffer.write(_rows(slices[sutta.nodeKey], depths));
       buffer.write('</section>');
     }
