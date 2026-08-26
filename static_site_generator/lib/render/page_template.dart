@@ -23,6 +23,9 @@ import 'structured_data.dart';
 String pageOutputPath(SitePage page) =>
     '${TipitakaLink.pathSegment}/${page.nodeKey}.html';
 
+/// One end of a pager: where the link goes and whose name it prints.
+typedef _PagerTarget = ({String url, TipitakaNode node});
+
 /// Renders a complete HTML document for one [SitePage].
 ///
 /// Pure: models in, string out, no filesystem. Everything the page needs is
@@ -139,7 +142,7 @@ class PageTemplate {
         body.writeln(_rows(slices[page.nodeKey], depths));
       case PageKind.chapter:
         body.writeln(_chapter(page, slices, shown.preamble, depths,
-            bothLanguages: bothLanguages));
+            bothLanguages: bothLanguages, previous: previous, next: next));
       case PageKind.toc:
         if (shown.preamble != null && shown.preamble!.rows.isNotEmpty) {
           // Captions only where there is a measure to caption. On a nav-only
@@ -164,7 +167,17 @@ class PageTemplate {
     // prints. "Prev" stays: it is the one thing on the page pointing backwards
     // out of the section, which neither the list nor the breadcrumb offers.
     if (page.isReadable) {
-      body.writeln(_pager(previous, page.kind == PageKind.toc ? null : next));
+      body.writeln(_pager(
+        switch (page.kind) {
+          PageKind.chapter => _wholePage(previous),
+          PageKind.sutta || PageKind.toc => _runEdge(previous, first: false),
+        },
+        switch (page.kind) {
+          PageKind.chapter => _wholePage(next),
+          PageKind.sutta => _runEdge(next, first: true),
+          PageKind.toc => null,
+        },
+      ));
     }
     body.writeln('</main>');
 
@@ -382,16 +395,46 @@ class PageTemplate {
         '<a href="${build.urlFor(twinKey)}">$label</a></p>';
   }
 
-  String _pager(SitePage? previous, SitePage? next) {
+  /// The whole page, for the pager a reader sees when nothing is targeted.
+  _PagerTarget? _wholePage(SitePage? page) =>
+      page == null ? null : (url: page.url, node: page.node);
+
+  /// One section, addressed the way the site serves it — `<chapter>#<key>` for
+  /// a folded leaf, a bare URL for a leaf that owns its file.
+  _PagerTarget _section(TipitakaNode node) =>
+      (url: build.urlFor(node.nodeKey), node: node);
+
+  /// The neighbouring page at *section* granularity: its first or last section,
+  /// so a reader stepping out of one sutta lands on one sutta. A readable TOC
+  /// carries no sections and answers with itself.
+  ///
+  /// Not the inverse of the unfiltered pager, and cannot be: a chapter's
+  /// whole-run view and its last section share a next, which has one prev.
+  _PagerTarget? _runEdge(SitePage? page, {required bool first}) {
+    if (page == null) return null;
+    if (page.suttas.isEmpty) return _wholePage(page);
+    return _section(first ? page.suttas.first : page.suttas.last);
+  }
+
+  /// [rel] only on the pager that speaks for the document — the file's own
+  /// neighbours. A chapter's sections are inside one document and would give a
+  /// reader mode a second, conflicting answer.
+  String _pager(
+    _PagerTarget? previous,
+    _PagerTarget? next, {
+    bool rel = true,
+  }) {
     final buffer = StringBuffer('<nav class="pager" aria-label="ගමන්">');
     if (previous != null) {
-      buffer.write('<a class="prev" rel="prev" href="${previous.url}">'
+      buffer.write('<a class="prev"${rel ? ' rel="prev"' : ''} '
+          'href="${previous.url}">'
           '<span class="label">පෙර</span>${nodeLabelHtml(previous.node)}</a>');
     } else {
       buffer.write('<span class="spacer"></span>');
     }
     if (next != null) {
-      buffer.write('<a class="next" rel="next" href="${next.url}">'
+      buffer.write('<a class="next"${rel ? ' rel="next"' : ''} '
+          'href="${next.url}">'
           '<span class="label">ඊළඟ</span>${nodeLabelHtml(next.node)}</a>');
     } else {
       buffer.write('<span class="spacer"></span>');
@@ -461,6 +504,8 @@ class PageTemplate {
     NodeSlice? preamble,
     Map<int, int> depths, {
     required bool bothLanguages,
+    SitePage? previous,
+    SitePage? next,
   }) {
     final buffer = StringBuffer('<div class="chapter">');
     // Shown only when a sutta is targeted — the way back to the whole run.
@@ -485,11 +530,28 @@ class PageTemplate {
     // the text rather than below it because that is where the link sits on a
     // sutta page, and `--page-gap` between sections is what groups it with the
     // text it introduces rather than the one it follows.
-    for (final sutta in page.suttas) {
+    for (var i = 0; i < page.suttas.length; i++) {
+      final sutta = page.suttas[i];
       buffer.write('<section class="sutta" id="${sutta.nodeKey}">');
       final commentary = _commentaryLink(sutta);
       if (commentary != null) buffer.write(commentary);
       buffer.write(_rows(slices[sutta.nodeKey], depths));
+      // The page's own pager walks files, which in the filtered view would skip
+      // the rest of the run. One per section walks the run instead, and the CSS
+      // shows whichever belongs to the view. Emitted on a lone-child chapter
+      // too — where it differs from the page's whenever a neighbour is a
+      // chapter — so no rule has to count sections.
+      buffer.write(
+        _pager(
+          i > 0
+              ? _section(page.suttas[i - 1])
+              : _runEdge(previous, first: false),
+          i < page.suttas.length - 1
+              ? _section(page.suttas[i + 1])
+              : _runEdge(next, first: true),
+          rel: false,
+        ),
+      );
       buffer.write('</section>');
     }
     buffer.write('</div>');

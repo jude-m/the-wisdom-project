@@ -1138,11 +1138,12 @@ void _writeLandingPage(StringBuffer css) {
 void _writeGroupedChapter(StringBuffer css) {
   css.writeln('/* Grouped chapter: no #fragment shows the whole run;');
   css.writeln('   #<nodeKey> filters to that one sutta. */');
-  // Written as `:not(:target):not(:has(:target))` from the start, not the
-  // shorter `.chapter:has(.sutta:target) .sutta:not(:target)`. When P7 adds
-  // footnotes, targeting a footnote *inside* a sutta makes the short form stop
-  // matching and every hidden sutta reappears. This form keeps a sutta visible
-  // whenever the target is anywhere within it.
+  // `:not(:has(:target))` is the shape P7 needs but is inert today, and stays
+  // inert until the outer gate moves with it: `:has(.sutta:target)` requires a
+  // *section* to be the target, so a footnote id fails the gate and un-filters
+  // the whole run before this clause is ever consulted. What replaces the gate
+  // depends on where footnote ids sit — a bare `:has(:target)` would hide every
+  // section when the target is in the preamble.
   css.writeln(
       '.chapter:has(.sutta:target) .sutta:not(:target):not(:has(:target)) {');
   css.writeln('  display: none;');
@@ -1169,6 +1170,20 @@ void _writeGroupedChapter(StringBuffer css) {
   css.writeln('  background: var(--c-surface-container-low);');
   css.writeln('}');
   css.writeln('.chapter-bar a { color: var(--c-primary); }');
+  css.writeln();
+  // Two pagers per chapter page, one view each. Unfiltered, the page's own
+  // pager walks files and the per-section ones stay hidden; filtered, they
+  // swap — the filter above has already hidden every section but the targeted
+  // one, so only its pager can show.
+  //
+  // `display: grid` restates `.pager`'s own value from `_writePageChrome`;
+  // there is no way to say "back to the earlier author rule". Hiding by default
+  // rather than showing the page's pager conditionally is what the no-`:has()`
+  // fallback rides on: neither rule below applies there, so those browsers keep
+  // the file-walking pager they have today.
+  css.writeln('.sutta .pager { display: none; }');
+  css.writeln('.chapter:has(.sutta:target) .sutta .pager { display: grid; }');
+  css.writeln('.chapter:has(.sutta:target) ~ .pager { display: none; }');
 }
 
 String _kebab(String camel) => camel.replaceAllMapped(
