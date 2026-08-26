@@ -210,7 +210,8 @@ void main() {
 
     test('the grouped-chapter filter selects on classes the template emits',
         () {
-      // The zero-JS single-sutta view: `.chapter:has(.sutta:target)` hides
+      // The zero-JS single-sutta view: `.chapter:has(.sutta:target, .sutta
+      // :target)` hides
       // every sibling `.sutta`, and `.chapter-bar` is the way back to the whole
       // run. No radio appears in those rules, so the derivation above cannot
       // reach them — and this is the seam P4 leans on hardest. Rename either

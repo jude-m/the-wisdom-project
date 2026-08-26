@@ -1138,14 +1138,20 @@ void _writeLandingPage(StringBuffer css) {
 void _writeGroupedChapter(StringBuffer css) {
   css.writeln('/* Grouped chapter: no #fragment shows the whole run;');
   css.writeln('   #<nodeKey> filters to that one sutta. */');
-  // `:not(:has(:target))` is the shape P7 needs but is inert today, and stays
-  // inert until the outer gate moves with it: `:has(.sutta:target)` requires a
-  // *section* to be the target, so a footnote id fails the gate and un-filters
-  // the whole run before this clause is ever consulted. What replaces the gate
-  // depends on where footnote ids sit — a bare `:has(:target)` would hide every
-  // section when the target is in the preamble.
-  css.writeln(
-      '.chapter:has(.sutta:target) .sutta:not(:target):not(:has(:target)) {');
+  // One gate, every rule below. `.sutta:target` answers only when a *section*
+  // is the thing named in the address bar; `.sutta :target` — note the space —
+  // also answers when the target is an element *inside* a section, which is how
+  // an origin marker addresses a merged vaṇṇanā today and how a footnote id
+  // will address its sutta under P7.
+  //
+  // Scoped to `.sutta` on purpose. A bare `:has(:target)` would fire on a
+  // preamble id too and hide every section on the page, since none of them
+  // would contain the target.
+  const filtered = '.chapter:has(.sutta:target, .sutta :target)';
+  // `:not(:has(:target))` is what keeps the *containing* section visible when
+  // the target is nested inside it. Written from the start, inert until the
+  // gate above learned to admit a nested target, and load-bearing from now on.
+  css.writeln('$filtered .sutta:not(:target):not(:has(:target)) {');
   css.writeln('  display: none;');
   css.writeln('}');
   css.writeln();
@@ -1160,7 +1166,7 @@ void _writeGroupedChapter(StringBuffer css) {
   // Only meaningful in the filtered view, so it is hidden until a sutta is
   // targeted — no JS, same :has() test as the filter itself.
   css.writeln('.chapter-bar { display: none; }');
-  css.writeln('.chapter:has(.sutta:target) .chapter-bar {');
+  css.writeln('$filtered .chapter-bar {');
   css.writeln('  display: block;');
   css.writeln('  font-family: var(--font-ui);');
   css.writeln('  font-size: 0.9em;');
@@ -1182,8 +1188,8 @@ void _writeGroupedChapter(StringBuffer css) {
   // fallback rides on: neither rule below applies there, so those browsers keep
   // the file-walking pager they have today.
   css.writeln('.sutta .pager { display: none; }');
-  css.writeln('.chapter:has(.sutta:target) .sutta .pager { display: grid; }');
-  css.writeln('.chapter:has(.sutta:target) ~ .pager { display: none; }');
+  css.writeln('$filtered .sutta .pager { display: grid; }');
+  css.writeln('$filtered ~ .pager { display: none; }');
 }
 
 String _kebab(String camel) => camel.replaceAllMapped(
