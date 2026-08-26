@@ -233,13 +233,19 @@ void main() {
           reason: 'The filter no longer names all three of .chapter, '
               '.chapter-bar and .sutta: $acted.');
 
+      // Both chapter shapes, because the `:target` rules now span both: the
+      // canon side carries the filter and the bar, the commentary side the
+      // origin markers a merged vaṇṇanā returns through.
       final emitted = _classNamesIn(_render(_chapterPage, slices: {
         'sp-grp-1': _bothLanguages('sp-grp-1'),
         'sp-grp-2': _bothLanguages('sp-grp-2'),
-      }));
+      }))
+        ..addAll(_classNamesIn(_render(_commentaryChapterPage, slices: {
+          'atta-sp-grp-1': _bothLanguages('atta-sp-grp-1'),
+        })));
       expect(emitted, containsAll(acted),
-          reason: 'The filter acts on ${acted.difference(emitted)}, which a '
-              'chapter page does not emit.');
+          reason: 'The filter acts on ${acted.difference(emitted)}, which no '
+              'chapter page emits.');
     });
 
     test('chapter sections are anchored by nodeKey', () {
@@ -698,6 +704,26 @@ final TipitakaTree _tree = TipitakaTree.fromJson({
     'sp-grp',
     'an-1'
   ],
+  // A commentary side, so the cross-link has somewhere to point. The one
+  // vaṇṇanā declares `1-2.`, so it answers for BOTH canon suttas — the merged
+  // shape whose return trip needs a marker per sutta rather than one link.
+  'atta-sp': ['අට්ඨකථා', 'අටුවාව', 6, [0, 0], null, 'atta-an-1'],
+  'atta-sp-grp': [
+    'චිත්තපරියාදානවග්ගවණ්ණනා',
+    'චිත්ත වර්ග වර්ණනාව',
+    5,
+    [0, 1],
+    'atta-sp',
+    'atta-an-1'
+  ],
+  'atta-sp-grp-1': [
+    '1-2. පඨමාදිවණ්ණනා',
+    '1-2. පළමු ආදි වර්ණනාව',
+    1,
+    [0, 2],
+    'atta-sp-grp',
+    'atta-an-1'
+  ],
 });
 
 ContentEntry _entry(String text, {String type = 'paragraph', int? level}) =>
@@ -758,6 +784,14 @@ SitePage get _chapterPage => SitePage(
       kind: PageKind.chapter,
       node: _tree['sp-grp']!,
       suttas: [_tree['sp-grp-1']!, _tree['sp-grp-2']!],
+    );
+
+/// The merged vaṇṇanā, whose section carries one origin marker per canon sutta
+/// it answers for. The only fixture that emits `.origin` / `.back-default`.
+SitePage get _commentaryChapterPage => SitePage(
+      kind: PageKind.chapter,
+      node: _tree['atta-sp-grp']!,
+      suttas: [_tree['atta-sp-grp-1']!],
     );
 
 SitePage get _tocPage =>

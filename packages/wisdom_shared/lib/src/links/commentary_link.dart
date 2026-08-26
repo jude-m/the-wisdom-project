@@ -127,3 +127,37 @@ String? crossLinkTargetKey(TipitakaTree tree, String nodeKey) {
   final width = _declaredWidth(vannana) ?? 1;
   return index <= start + width - 1 ? vannana.nodeKey : null;
 }
+
+/// The `id` of the marker standing for [canonKey] inside the vaṇṇanā that
+/// answers for it: `sn-2-5-4-3` → `via_sn-2-5-4-3`.
+///
+/// **The underscore is load-bearing.** `TipitakaLink` reads a nodeKey-shaped
+/// fragment as the node the reader asked for, and `via-sn-2-5-4-3` matches that
+/// shape — an app deep link would open nothing. No nodeKey contains an
+/// underscore, so the codec passes this over and falls back to the path: the
+/// commentary page, which is what a reader without a marker gets anyway.
+String originId(String canonKey) => 'via_$canonKey';
+
+/// Every canon key whose `අට්ඨකථා` link resolves to [commentaryKey], in reading
+/// order — the inverse of [crossLinkTargetKey] on the canon side.
+///
+/// Usually one key, its own twin. Several when the vaṇṇanā declares a range:
+/// `atta-sn-2-5-4-2` is "2-4. කුසලමූලසමුච්ඡෙදසුත්තාදිවණ්ණනා" and answers for
+/// suttas 2, 3 and 4 — which is what makes the return trip answerable. Going in,
+/// several suttas collapse onto one commentary; coming back its key names only
+/// the first, so a caller that knows where the reader came from can offer that
+/// sutta instead. One key means there is nothing to disambiguate.
+///
+/// Empty for a canon node, and for a vaṇṇanā no canon sutta points at.
+List<String> canonKeysCoveredBy(TipitakaTree tree, String commentaryKey) {
+  final node = tree[commentaryKey];
+  if (node == null || !node.isCommentary) return const [];
+  // Coverage never leaves one container: the rule only ever consults preceding
+  // *siblings*, so the canon twin's parent bounds the whole search.
+  final parent = tree.parentOf(twinKeyOf(commentaryKey));
+  if (parent == null) return const [];
+  return [
+    for (final key in parent.childKeys)
+      if (crossLinkTargetKey(tree, key) == commentaryKey) key,
+  ];
+}

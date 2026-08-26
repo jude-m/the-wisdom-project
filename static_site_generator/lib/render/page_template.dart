@@ -387,13 +387,46 @@ class PageTemplate {
   String? _commentaryLink(TipitakaNode node) {
     final twinKey = crossLinkTargetKey(tree, node.nodeKey);
     if (twinKey == null) return null;
-    final label = node.isCommentary ? 'මූල පාඨය' : commentaryMarker;
+
     // Same-site navigation, so no `target="_blank"`: the app opens the twin in
     // place, and forcing a new tab here would make the same link behave
     // differently on the two surfaces.
-    return '<p class="commentary-link">'
-        '<a href="${build.urlFor(twinKey)}">$label</a></p>';
+    String link(String url, String label, [String className = '']) =>
+        '<p class="commentary-link$className"><a href="$url">$label</a></p>';
+
+    if (!node.isCommentary) {
+      // Where suttas share a vaṇṇanā, address the marker standing for *this*
+      // one rather than the section, and the section answers with the matching
+      // return link. Otherwise there is nothing to disambiguate and no marker
+      // to aim at.
+      final shared = canonKeysCoveredBy(tree, twinKey).length > 1;
+      final url = shared
+          ? '${_pageOf(build.urlFor(twinKey))}#${originId(node.nodeKey)}'
+          : build.urlFor(twinKey);
+      return link(url, commentaryMarker);
+    }
+
+    const rootText = 'මූල පාඨය';
+    final covered = canonKeysCoveredBy(tree, node.nodeKey);
+    if (covered.length <= 1) return link(build.urlFor(twinKey), rootText);
+
+    // One marker per sutta, each immediately followed by its own return link:
+    // `.origin:target + .origin-link` picks one, so the pairing is positional
+    // and no CSS is generated per sutta. The default comes first and wins
+    // whenever no marker is targeted — from search, a shared link, or a browser
+    // without `:has()` — pointing where this link always pointed.
+    final buffer = StringBuffer(
+        link(build.urlFor(twinKey), rootText, ' back-default'));
+    for (final canonKey in covered) {
+      buffer
+        ..write('<span class="origin" id="${originId(canonKey)}"></span>')
+        ..write(link(build.urlFor(canonKey), rootText, ' origin-link'));
+    }
+    return buffer.toString();
   }
+
+  /// A URL with any `#fragment` dropped — the file, without the sutta.
+  static String _pageOf(String url) => url.split('#').first;
 
   /// The whole page, for the pager a reader sees when nothing is targeted.
   _PagerTarget? _wholePage(SitePage? page) =>

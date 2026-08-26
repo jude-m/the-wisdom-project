@@ -204,6 +204,47 @@ void main() {
       expect(crossLinkTargetKey(tree, 'atta-solo'), isNull);
     });
   });
+
+  group('who a vaṇṇanā answers for', () {
+    final tree = _tree({
+      'bk': (null, 'පොත'),
+      'bk-1': ('bk', 'වග්ගො'),
+      'bk-1-1': ('bk-1', 'පඨමසුත්තං'),
+      'bk-1-2': ('bk-1', 'දුතියසුත්තං'),
+      'bk-1-3': ('bk-1', 'තතියසුත්තං'),
+      'bk-1-4': ('bk-1', 'චතුත්ථසුත්තං'),
+      'atta-bk': (null, 'අට්ඨකථා'),
+      'atta-bk-1': ('atta-bk', 'වග්ගවණ්ණනා'),
+      'atta-bk-1-1': ('atta-bk-1', '1. පඨමසුත්තවණ්ණනා'),
+      'atta-bk-1-2': ('atta-bk-1', '2-3. දුතියසුත්තාදිවණ්ණනා'),
+    });
+
+    test('a merged vaṇṇanā names every sutta, in reading order', () {
+      expect(canonKeysCoveredBy(tree, 'atta-bk-1-2'), ['bk-1-2', 'bk-1-3']);
+    });
+
+    test('an ordinary vaṇṇanā names only its own twin', () {
+      // One key means nothing to disambiguate, which is how a caller knows the
+      // plain link is right and no marker is needed.
+      expect(canonKeysCoveredBy(tree, 'atta-bk-1-1'), ['bk-1-1']);
+    });
+
+    test('empty for a canon node and for a sutta nothing claims', () {
+      expect(canonKeysCoveredBy(tree, 'bk-1-1'), isEmpty);
+      expect(crossLinkTargetKey(tree, 'bk-1-4'), isNull);
+    });
+
+    test('the marker id cannot be mistaken for a nodeKey', () {
+      // `TipitakaLink` reads a nodeKey-shaped fragment as the node the reader
+      // asked for. `via-bk-1-3` would match that shape and open nothing; the
+      // underscore is what makes the codec pass it over.
+      expect(originId('bk-1-3'), 'via_bk-1-3');
+      expect(
+        TipitakaLink.tryParse('https://host/tipitaka/atta-bk-1#via_bk-1-3'),
+        const TipitakaLink(nodeKey: 'atta-bk-1'),
+      );
+    });
+  });
 }
 
 /// A tree from `key: (parentKey, title)`, with the title on both language

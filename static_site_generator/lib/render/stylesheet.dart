@@ -347,6 +347,18 @@ void _writePageChrome(StringBuffer css, ThemeTokens tokens) {
   css.writeln('}');
   css.writeln('.commentary-link a { color: var(--c-primary); }');
   css.writeln();
+  // Several suttas can share one vaṇṇanā, so its `මූල පාඨය` has several right
+  // answers and the URL says which. Each `.origin` is an empty span carrying
+  // one sutta's id, and its return link is the very next element — `+` does the
+  // pairing, which is why no rule here names a sutta and this stylesheet stays
+  // constant while the corpus does not.
+  css.writeln('.origin-link { display: none; }');
+  css.writeln('.origin:target + .origin-link { display: block; }');
+  // The default is the run's first sutta, where this link pointed before any of
+  // the above existed. Visible unless a marker claims the page, so search
+  // arrivals, shared URLs and browsers without `:has()` keep the old behaviour.
+  css.writeln('body:has(.origin:target) .back-default { display: none; }');
+  css.writeln();
   // `max-width` here and not on the page: see [_navColumnRem]. Left-aligned
   // (`margin: 0`), so on a page wider than the list the buttons start on the
   // text's own left edge and stop short of its right one. On a page exactly
@@ -1139,18 +1151,15 @@ void _writeGroupedChapter(StringBuffer css) {
   css.writeln('/* Grouped chapter: no #fragment shows the whole run;');
   css.writeln('   #<nodeKey> filters to that one sutta. */');
   // One gate, every rule below. `.sutta:target` answers only when a *section*
-  // is the thing named in the address bar; `.sutta :target` — note the space —
-  // also answers when the target is an element *inside* a section, which is how
-  // an origin marker addresses a merged vaṇṇanā today and how a footnote id
-  // will address its sutta under P7.
-  //
-  // Scoped to `.sutta` on purpose. A bare `:has(:target)` would fire on a
-  // preamble id too and hide every section on the page, since none of them
-  // would contain the target.
+  // is named in the address bar; `.sutta :target` — note the space — also when
+  // the target sits *inside* one, which is how an origin marker addresses a
+  // merged vaṇṇanā today and how a footnote will under P7. Scoped to `.sutta`
+  // on purpose: a bare `:has(:target)` would fire on a preamble id and hide
+  // every section, since none of them contains it.
   const filtered = '.chapter:has(.sutta:target, .sutta :target)';
-  // `:not(:has(:target))` is what keeps the *containing* section visible when
-  // the target is nested inside it. Written from the start, inert until the
-  // gate above learned to admit a nested target, and load-bearing from now on.
+  // `:not(:has(:target))` keeps the *containing* section visible when the
+  // target is nested inside it — written from the start, inert until the gate
+  // learned to admit a nested target, load-bearing from now on.
   css.writeln('$filtered .sutta:not(:target):not(:has(:target)) {');
   css.writeln('  display: none;');
   css.writeln('}');
