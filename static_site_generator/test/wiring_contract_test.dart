@@ -211,10 +211,10 @@ void main() {
     test('the grouped-chapter filter selects on classes the template emits',
         () {
       // The zero-JS single-sutta view: `.chapter:has(.sutta:target, .sutta
-      // :target)` hides
-      // every sibling `.sutta`, and `.chapter-bar` is the way back to the whole
-      // run. No radio appears in those rules, so the derivation above cannot
-      // reach them — and this is the seam P4 leans on hardest. Rename either
+      // :target)` hides every sibling `.sutta`, and `.chapter-bar` is the way
+      // back to the whole run. No radio appears in those rules, so the
+      // derivation above cannot reach them — and this is the seam P4 leans on
+      // hardest. Rename either
       // side and every grouped-leaf deep link (`FIGURES.foldedLeaves`) lands on
       // a chapter showing its whole run: HTTP 200, valid markup, no URL
       // changed, nothing red.
@@ -246,6 +246,77 @@ void main() {
       expect(emitted, containsAll(acted),
           reason: 'The filter acts on ${acted.difference(emitted)}, which no '
               'chapter page emits.');
+    });
+
+    test('a shared vaṇṇanā answers at the marker its canon links aim at', () {
+      // The round trip, both halves in one test because either alone is green
+      // while the link is broken: a canon href naming an id nothing emits lands
+      // on an unfiltered page, and a marker nothing aims at is dead weight.
+      // Neither shows up as a 404 — the page exists and returns 200.
+      final canon = _render(_chapterPage, slices: {
+        'sp-grp-1': _bothLanguages('sp-grp-1'),
+        'sp-grp-2': _bothLanguages('sp-grp-2'),
+      });
+      final commentary = _render(_commentaryChapterPage, slices: {
+        'atta-sp-grp-1': _bothLanguages('atta-sp-grp-1'),
+      });
+
+      // `sp-grp-2` is a follower: its own key names no vaṇṇanā, so the only
+      // thing that can say it was the door is the marker.
+      expect(canon,
+          contains('href="/tipitaka/atta-sp-grp-1#via_sp-grp-2">'));
+      expect(commentary, contains('<span class="origin" id="via_sp-grp-2">'));
+
+      // The run's first sutta keeps the plain URL. It is where `.back-default`
+      // already points, and the fragment it would spend is the one naming the
+      // vaṇṇanā — all a reader arriving in the app has.
+      expect(canon, contains('href="/tipitaka/atta-sp-grp-1">'));
+
+      // And so it gets no marker: with nothing aiming at it, the span could
+      // never be `:target` and its return link could never be shown — one dead
+      // element pair per merged run, saying what `.back-default` already says.
+      expect(commentary,
+          isNot(contains('<span class="origin" id="via_sp-grp-1">')),
+          reason: 'a marker no link aims at is markup nothing can reach');
+    });
+
+    test('the default return link comes after every marked one', () {
+      // Load-bearing for `.origin:target ~ .back-default`, which is what hides
+      // the default once a marker claims the page. `~` only reaches forward, so
+      // written first the default needs a `:has()` gate instead — and a browser
+      // without `:has()` drops the gate while still honouring
+      // `.origin:target + .origin-link`, showing both links at once.
+      final html = _render(_commentaryChapterPage, slices: {
+        'atta-sp-grp-1': _bothLanguages('atta-sp-grp-1'),
+      });
+      expect(html.indexOf('back-default'),
+          greaterThan(html.lastIndexOf('origin-link')),
+          reason: 'the default is no longer last, so `~` cannot reach it');
+    });
+
+    test('the marker replaces the section fragment, never appends to it', () {
+      // `urlFor` answers `<chapter>#<vaṇṇanā>` for a folded leaf, and a URL
+      // holds one fragment. The default `urlFor` in these fixtures is the bare
+      // one, so nothing else here exercises the drop.
+      final template = PageTemplate(
+        tree: _tree,
+        build: SiteBuild(
+          origin: _origin,
+          generatorVersion: 'test',
+          assets: _assets,
+          urlFor: (key) => key == 'atta-sp-grp-1'
+              ? '/tipitaka/atta-sp-grp#atta-sp-grp-1'
+              : tipitakaUrl(key),
+        ),
+      );
+      final html = template.render(_chapterPage,
+          slices: {
+            'sp-grp-1': _bothLanguages('sp-grp-1'),
+            'sp-grp-2': _bothLanguages('sp-grp-2'),
+          },
+          sourceFile: 'an-1');
+      expect(html, contains('href="/tipitaka/atta-sp-grp#via_sp-grp-2">'));
+      expect(html, isNot(contains('#atta-sp-grp-1#')));
     });
 
     test('chapter sections are anchored by nodeKey', () {

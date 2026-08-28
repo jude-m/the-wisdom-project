@@ -355,9 +355,12 @@ void _writePageChrome(StringBuffer css, ThemeTokens tokens) {
   css.writeln('.origin-link { display: none; }');
   css.writeln('.origin:target + .origin-link { display: block; }');
   // The default is the run's first sutta, where this link pointed before any of
-  // the above existed. Visible unless a marker claims the page, so search
-  // arrivals, shared URLs and browsers without `:has()` keep the old behaviour.
-  css.writeln('body:has(.origin:target) .back-default { display: none; }');
+  // the above existed, and it is last in the section so `~` can reach it from
+  // whichever marker was addressed. Visible unless one was, so search arrivals
+  // and shared URLs keep the old behaviour — and so, unlike a `:has()` gate
+  // here, does a browser too old to read one: `.origin:target + .origin-link`
+  // needs no `:has()`, so a dropped gate would leave both links showing.
+  css.writeln('.origin:target ~ .back-default { display: none; }');
   css.writeln();
   // `max-width` here and not on the page: see [_navColumnRem]. Left-aligned
   // (`margin: 0`), so on a page wider than the list the buttons start on the

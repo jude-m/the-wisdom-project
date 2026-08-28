@@ -100,6 +100,20 @@ void main() {
       });
     }
 
+    test('an origin link keeps its door instead of being given a page', () {
+      // `sp-mid-2` is the one key whose own page still wants `<key>#<key>`, so
+      // it is the only place the two fragments can collide. The door has to
+      // win: the page key would only repeat what the path already says, while
+      // dropping the door loses the vaṇṇanā the reader clicked and lands them
+      // on the anchor sutta — silently, and on a page that returns 200.
+      const link = TipitakaLink(nodeKey: 'sp-mid-2', originKey: 'sp-mid-3');
+      expect(_plan.servingLink(link), link);
+      expect(
+        _plan.servingLink(link).toUri(_base).toString(),
+        '$_base/tipitaka/sp-mid-2#via_sp-mid-3',
+      );
+    });
+
     test('the round trip a shared link actually takes', () {
       // Copy a URL off the site, paste it into the app, share it again. It is
       // `sp-mid-1` — a leaf owning its page — that used to come back with a
@@ -154,7 +168,7 @@ void main() {
       expect(_plan.pageOf('atta-an-1'), isNull);
     });
 
-    test('is the one case servingLink leaves alone', () {
+    test('is one of the two cases servingLink leaves alone', () {
       // Including the page key it arrived with: there is no plan answer to
       // substitute, so passing it through beats inventing one.
       const link = TipitakaLink(nodeKey: 'atta-an-1', pageKey: 'atta-an');

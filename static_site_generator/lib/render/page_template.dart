@@ -397,10 +397,16 @@ class PageTemplate {
     if (!node.isCommentary) {
       // Where suttas share a vaṇṇanā, address the marker standing for *this*
       // one rather than the section, and the section answers with the matching
-      // return link. Otherwise there is nothing to disambiguate and no marker
-      // to aim at.
-      final shared = canonKeysCoveredBy(tree, twinKey).length > 1;
-      final url = shared
+      // return link.
+      //
+      // **Never for the run's first sutta**, which is where `.back-default`
+      // already points: a marker would buy it nothing and cost it the fragment
+      // naming the vaṇṇanā. Most merged vaṇṇanā are folded leaves, so
+      // [SiteBuild.urlFor] answers `<chapter>#<vaṇṇanā>` and dropping that
+      // fragment leaves the URL naming only the chapter — harmless to the CSS,
+      // which reads the marker, but it is the whole of what the app has.
+      final covered = canonKeysCoveredBy(tree, twinKey);
+      final url = covered.length > 1 && node.nodeKey != covered.first
           ? '${_pageOf(build.urlFor(twinKey))}#${originId(node.nodeKey)}'
           : build.urlFor(twinKey);
       return link(url, commentaryMarker);
@@ -410,18 +416,27 @@ class PageTemplate {
     final covered = canonKeysCoveredBy(tree, node.nodeKey);
     if (covered.length <= 1) return link(build.urlFor(twinKey), rootText);
 
-    // One marker per sutta, each immediately followed by its own return link:
-    // `.origin:target + .origin-link` picks one, so the pairing is positional
-    // and no CSS is generated per sutta. The default comes first and wins
-    // whenever no marker is targeted — from search, a shared link, or a browser
-    // without `:has()` — pointing where this link always pointed.
-    final buffer = StringBuffer(
-        link(build.urlFor(twinKey), rootText, ' back-default'));
-    for (final canonKey in covered) {
+    // One marker per sutta *after the first*, each immediately followed by its
+    // own return link: `.origin:target + .origin-link` picks one, so the
+    // pairing is positional and no CSS is generated per sutta.
+    //
+    // The first is skipped because nothing can address it. The canon side
+    // declines to aim at the run's first sutta — it is where `.back-default`
+    // below already points — so a marker for it could only ever be a dead span
+    // and a permanently hidden return link, once per merged run.
+    final buffer = StringBuffer();
+    for (final canonKey in covered.skip(1)) {
       buffer
         ..write('<span class="origin" id="${originId(canonKey)}"></span>')
         ..write(link(build.urlFor(canonKey), rootText, ' origin-link'));
     }
+    // The default is the run's first sutta, where this link pointed before any
+    // marker existed, and it wins whenever no marker is targeted — from search,
+    // from a shared URL. **Last, not first**: `.origin:target ~ .back-default`
+    // is what hides it, and `~` only reaches forward. Written the other way
+    // round the rule needs `:has()`, and a browser without it would show this
+    // link *and* the marked one — two `මූල පාඨය` on the same screen.
+    buffer.write(link(build.urlFor(twinKey), rootText, ' back-default'));
     return buffer.toString();
   }
 

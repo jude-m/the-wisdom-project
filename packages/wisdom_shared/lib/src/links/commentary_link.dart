@@ -128,15 +128,43 @@ String? crossLinkTargetKey(TipitakaTree tree, String nodeKey) {
   return index <= start + width - 1 ? vannana.nodeKey : null;
 }
 
+/// What an origin marker's `id` starts with. Underscore, and no nodeKey
+/// contains one — see [originId].
+const String originIdPrefix = 'via_';
+
 /// The `id` of the marker standing for [canonKey] inside the vaṇṇanā that
 /// answers for it: `sn-2-5-4-3` → `via_sn-2-5-4-3`.
 ///
-/// **The underscore is load-bearing.** `TipitakaLink` reads a nodeKey-shaped
-/// fragment as the node the reader asked for, and `via-sn-2-5-4-3` matches that
-/// shape — an app deep link would open nothing. No nodeKey contains an
-/// underscore, so the codec passes this over and falls back to the path: the
-/// commentary page, which is what a reader without a marker gets anyway.
-String originId(String canonKey) => 'via_$canonKey';
+/// **The underscore is load-bearing.** A nodeKey-shaped fragment is the node
+/// the reader asked for, and `via-sn-2-5-4-3` matches that shape — the app
+/// would open a node that does not exist. The underscore is what keeps the two
+/// grammars apart, so `TipitakaLink` can read this fragment as
+/// `TipitakaLink.originKey` and hand it back to [crossLinkTargetKey], which
+/// answers with the vaṇṇanā the marker sits in.
+///
+/// **The path cannot answer instead.** Most vaṇṇanā that merge are folded
+/// leaves, so the path names the *chapter* carrying them, not the vaṇṇanā —
+/// a reader dropped there gets a run of commentaries rather than the one they
+/// clicked. The fragment is the only part of the URL that can name it, which
+/// is why it is read rather than skipped.
+String originId(String canonKey) => '$originIdPrefix$canonKey';
+
+/// The canon key inside an origin marker's `id`, or null when [fragment] is
+/// not one: `via_sn-2-5-4-3` → `sn-2-5-4-3`.
+///
+/// The inverse of [originId], and the whole of what a URL consumer needs —
+/// [crossLinkTargetKey] turns the answer back into the vaṇṇanā, so nothing has
+/// to carry the commentary key through the fragment as well.
+///
+/// Reads the prefix and nothing else. Whether the payload is *shaped* like a
+/// node key is the caller's question, because the shape belongs to the URL
+/// grammar rather than to this file: `TipitakaLink.parse` holds it to the same
+/// pattern it holds the path key to.
+String? canonKeyFromOriginId(String fragment) =>
+    fragment.length > originIdPrefix.length &&
+            fragment.startsWith(originIdPrefix)
+        ? fragment.substring(originIdPrefix.length)
+        : null;
 
 /// Every canon key whose `අට්ඨකථා` link resolves to [commentaryKey], in reading
 /// order — the inverse of [crossLinkTargetKey] on the canon side.

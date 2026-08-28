@@ -1,3 +1,5 @@
+import 'commentary_link.dart';
+
 /// A shareable / universal link to a location in the canon.
 ///
 /// One URL grammar serves every surface (app, static site, OS deep links —
@@ -13,6 +15,11 @@
 /// link to one names the page in the path and the leaf in the fragment. The
 /// leaf is the target either way: [nodeKey] is what the reader asked for and
 /// [pageKey] is only where it is kept.
+///
+/// A fragment that is *not* nodeKey-shaped can still carry meaning: the site
+/// writes `#via_<canonKey>` on a commentary link to name the sutta the reader
+/// followed it *from*. That one is [originKey], and it is the one fragment
+/// whose target cannot be read off the URL — see [originId].
 ///
 /// "tipitaka" is used in the umbrella sense (as tipitaka.lk and Access to
 /// Insight use it): the nodeKey may point anywhere in the tree — suttas,
@@ -42,10 +49,13 @@ class TipitakaLink {
   /// leaves onto chapter pages. It may also *equal* [nodeKey], for the chapters
   /// anchored on their first leaf: there the bare path is the whole run and the
   /// fragment is the one sutta, so the repetition is the question being asked
-  /// (`SitePage.anchorsRunOnLeaf`). **It is addressing, not identity**: [nodeKey]
-  /// is always what the reader asked for, so every consumer reads that one
-  /// field and only a link *builder* needs this one. Which page serves a key is
-  /// `SitePlan`'s answer, never a guess from the tree — see [SitePlan.urlFor].
+  /// (`SitePage.anchorsRunOnLeaf`). **It is addressing, not identity**: where
+  /// this is set, [nodeKey] is what the reader asked for and this is only where
+  /// it is kept, so a consumer reads that one field and only a link *builder*
+  /// needs this one. [originKey] is where that stops holding — there the path
+  /// names the page, nothing in the URL names the target, and it has to be
+  /// resolved through the tree. Which page serves a key is `SitePlan`'s answer,
+  /// never a guess from the tree — see [SitePlan.urlFor].
   final String? pageKey;
 
   /// Optional page override (`?e=<page>…`). Null → open at the node's own
@@ -55,6 +65,20 @@ class TipitakaLink {
   /// Optional entry-in-page override (`?e=<page>.<entry>`). Only meaningful
   /// together with [pageIndex]; null with a page present means entry 0.
   final int? entryIndex;
+
+  /// The canon sutta a reader followed `අට්ඨකථා` *from*, when the link came
+  /// through an origin marker (`#via_<canonKey>`) — null on every other link.
+  ///
+  /// **Which door, not which node.** Several suttas can share one vaṇṇanā, so
+  /// the way back has several right answers and the URL has to say which one
+  /// the reader is owed. [nodeKey] stays what the path named, because the
+  /// vaṇṇanā itself is usually a folded leaf the path cannot name: a consumer
+  /// with the tree turns this key into the vaṇṇanā with [crossLinkTargetKey],
+  /// which is the same answer the marker's own position on the page gives.
+  ///
+  /// Excludes [pageKey]: both are written into the fragment, and a URL has
+  /// only one.
+  final String? originKey;
 
   /// [pageKey] may repeat [nodeKey], and the pair is then one address, not one
   /// written twice: `<key>#<key>` asks a chapter for the leaf it is anchored on
@@ -69,7 +93,9 @@ class TipitakaLink {
     this.pageKey,
     this.pageIndex,
     this.entryIndex,
-  });
+    this.originKey,
+  }) : assert(pageKey == null || originKey == null,
+            'pageKey and originKey both claim the fragment');
 
   /// The dev/QA custom scheme (never used in shared links).
   static const String customScheme = 'sammaditthi';
@@ -139,8 +165,22 @@ class TipitakaLink {
     // Same key on both sides, different questions: bare, that path is a chapter
     // showing its whole run; with the fragment it is the anchor sutta alone.
     // Collapsing it here erased the difference on the way in.
+    //
+    // A `via_` fragment is neither: it names the canon sutta the reader came
+    // *from*, and the underscore is what keeps it out of the shape above. See
+    // [originId] — the target it implies needs the tree, so it is carried as
+    // [originKey] and resolved by whoever opens the link. The two cases need no
+    // precedence rule between them: the pattern admits no underscore, so no
+    // fragment can satisfy both.
+    //
+    // The payload is held to that same pattern, for the reason the path key is:
+    // one that cannot name a node cannot be resolved into one, so reporting it
+    // would describe a door that is not there.
     final fragment = uri.fragment.toLowerCase();
     final targeted = fragment.isNotEmpty && _nodeKeyPattern.hasMatch(fragment);
+    final door = canonKeyFromOriginId(fragment);
+    final origin =
+        door != null && _nodeKeyPattern.hasMatch(door) ? door : null;
 
     final (page, entry) = _parseEntry(uri.queryParameters[entryParam]);
     return TipitakaLink(
@@ -148,6 +188,7 @@ class TipitakaLink {
       pageKey: targeted ? pathKey : null,
       pageIndex: page,
       entryIndex: entry,
+      originKey: origin,
     );
   }
 
@@ -199,7 +240,7 @@ class TipitakaLink {
         pageKey ?? nodeKey,
       ],
       queryParameters: entryValue == null ? null : {entryParam: entryValue},
-      fragment: pageKey == null ? null : nodeKey,
+      fragment: _fragment,
     );
   }
 
@@ -211,8 +252,18 @@ class TipitakaLink {
       host: pathSegment,
       pathSegments: [pageKey ?? nodeKey],
       queryParameters: entryValue == null ? null : {entryParam: entryValue},
-      fragment: pageKey == null ? null : nodeKey,
+      fragment: _fragment,
     );
+  }
+
+  /// The one fragment both writers share: the target when the path is only the
+  /// page carrying it, the origin marker when the link came through one, and
+  /// nothing when the path already names the node. The constructor's assert is
+  /// what makes those three exclusive.
+  String? get _fragment {
+    if (pageKey != null) return nodeKey;
+    final origin = originKey;
+    return origin == null ? null : originId(origin);
   }
 
   @override
@@ -221,12 +272,15 @@ class TipitakaLink {
       other.nodeKey == nodeKey &&
       other.pageKey == pageKey &&
       other.pageIndex == pageIndex &&
-      other.entryIndex == entryIndex;
+      other.entryIndex == entryIndex &&
+      other.originKey == originKey;
 
   @override
-  int get hashCode => Object.hash(nodeKey, pageKey, pageIndex, entryIndex);
+  int get hashCode =>
+      Object.hash(nodeKey, pageKey, pageIndex, entryIndex, originKey);
 
   @override
   String toString() => 'TipitakaLink(nodeKey: $nodeKey, pageKey: $pageKey, '
-      'pageIndex: $pageIndex, entryIndex: $entryIndex)';
+      'pageIndex: $pageIndex, entryIndex: $entryIndex, '
+      'originKey: $originKey)';
 }

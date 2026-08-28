@@ -237,12 +237,25 @@ void main() {
     test('the marker id cannot be mistaken for a nodeKey', () {
       // `TipitakaLink` reads a nodeKey-shaped fragment as the node the reader
       // asked for. `via-bk-1-3` would match that shape and open nothing; the
-      // underscore is what makes the codec pass it over.
+      // underscore is what makes the codec read it as an origin instead.
       expect(originId('bk-1-3'), 'via_bk-1-3');
-      expect(
-        TipitakaLink.tryParse('https://host/tipitaka/atta-bk-1#via_bk-1-3'),
-        const TipitakaLink(nodeKey: 'atta-bk-1'),
-      );
+      expect(canonKeyFromOriginId('via_bk-1-3'), 'bk-1-3');
+      expect(canonKeyFromOriginId('bk-1-3'), isNull, reason: 'no prefix');
+      expect(canonKeyFromOriginId('via_'), isNull, reason: 'no key after it');
+    });
+
+    test('a marked URL still resolves to the vaṇṇanā, through the tree', () {
+      // The round trip the whole marker exists for. The path names `atta-bk-1`
+      // because `atta-bk-1-2` is the kind of leaf the site folds onto a chapter
+      // page, so the fragment is the only part of the URL that can say which
+      // sutta was left — and `crossLinkTargetKey` turns that back into the
+      // vaṇṇanā. Without it the link opens the chapter: a run of commentaries
+      // instead of the one clicked.
+      final link =
+          TipitakaLink.tryParse('https://host/tipitaka/atta-bk-1#via_bk-1-3');
+      expect(link?.nodeKey, 'atta-bk-1', reason: 'the path, as before');
+      expect(link?.originKey, 'bk-1-3');
+      expect(crossLinkTargetKey(tree, link!.originKey!), 'atta-bk-1-2');
     });
   });
 }

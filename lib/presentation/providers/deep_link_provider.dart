@@ -88,8 +88,9 @@ final openTipitakaLinkProvider =
   };
 });
 
-/// Which node a link actually opens: the fragment when the site really serves
-/// it from the path's page, otherwise the page itself.
+/// Which node a link actually opens: the vaṇṇanā an origin marker implies, the
+/// fragment when the site really serves it from the path's page, otherwise the
+/// page itself.
 ///
 /// `/tipitaka/<page>#<leaf>` names the leaf, and the leaf is what opens. But
 /// the codec is pure grammar — it cannot tell a folded sutta's key from a page
@@ -108,6 +109,24 @@ final openTipitakaLinkProvider =
 /// before the plan existed this branch was a map lookup, and the tree still
 /// answers well enough to open something.
 Future<String> _resolveTarget(Ref ref, TipitakaLink link) async {
+  // `#via_<canonKey>` names the door, not the room. Several suttas share one
+  // vaṇṇanā, so the site cannot put the vaṇṇanā's own key in the fragment *and*
+  // say which sutta the reader came from — and the vaṇṇanā is usually a folded
+  // leaf, so the path names the chapter carrying it rather than the vaṇṇanā.
+  // `crossLinkTargetKey` is the same function that built the link on the canon
+  // side, run backwards, so the app lands where the browser's `:target` does.
+  final originKey = link.originKey;
+  if (originKey != null) {
+    try {
+      final tree = await ref.read(sharedTreeProvider.future);
+      final vannana = crossLinkTargetKey(tree, originKey);
+      if (vannana != null) return vannana;
+    } catch (_) {
+      // Fall through to the path. A tree that will not load is not a reason to
+      // open nothing — the chapter is still the page the link names.
+    }
+  }
+
   // A link with no fragment names its own page, so the comparison below is
   // `pageOf(k)?.nodeKey == k` — true exactly when the target owns a page.
   final pageKey = link.pageKey ?? link.nodeKey;

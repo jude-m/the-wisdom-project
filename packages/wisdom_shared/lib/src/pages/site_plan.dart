@@ -457,10 +457,17 @@ class SitePlan {
   /// parsed off a URL can now carry a page key the site would not have written,
   /// and an early return would hand it straight back out.
   ///
-  /// Unchanged only when this build has never heard of the key (a plan is built
-  /// per-subtree; only a whole-corpus plan knows every one), where the plan has
-  /// no answer to substitute.
+  /// Unchanged in two cases. When this build has never heard of the key (a plan
+  /// is built per-subtree; only a whole-corpus plan knows every one), there is
+  /// no answer to substitute. And when the link came through an origin marker,
+  /// it is *already* addressed the way the site writes it: `_commentaryLink`
+  /// drops the page fragment before appending `#via_…`, so the path names the
+  /// page and the fragment names the door. A [TipitakaLink] holds one fragment,
+  /// so filling in a page key there would have to drop the door — landing the
+  /// reader on the chapter's anchor sutta rather than the vaṇṇanā they clicked,
+  /// which is the one thing the marker exists to say.
   TipitakaLink servingLink(TipitakaLink link) {
+    if (link.originKey != null) return link;
     final page = _owningPage[link.nodeKey];
     if (page == null) return link;
     return TipitakaLink(

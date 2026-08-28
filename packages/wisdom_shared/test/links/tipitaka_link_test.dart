@@ -162,6 +162,46 @@ void main() {
       }
     });
 
+    test('a via_ fragment names the door instead of the target', () {
+      // What the site writes on a canon sutta whose vaṇṇanā is shared with the
+      // suttas after it. The path is the page — usually the *chapter*, since a
+      // merged vaṇṇanā is normally folded onto one — so it cannot name the
+      // vaṇṇanā, and the fragment says which sutta was left rather than which
+      // node to open. Turning one into the other needs the tree, so the codec
+      // carries it and `openTipitakaLinkProvider` resolves it.
+      expect(
+        TipitakaLink.tryParse(
+            'https://host/tipitaka/atta-sn-2-3-1#via_sn-2-3-1-3'),
+        const TipitakaLink(
+            nodeKey: 'atta-sn-2-3-1', originKey: 'sn-2-3-1-3'),
+      );
+    });
+
+    test('a via_ payload that cannot name a node names no door', () {
+      // The prefix alone does not make a fragment an origin. `parse` rejects a
+      // *path* that cannot be a nodeKey, and the payload is held to the same
+      // pattern, so a link never reports a door that could not be walked
+      // through. The link itself survives: the path is still a valid address,
+      // and a fragment the grammar cannot read has always been ignorable.
+      for (final fragment in ['via_', 'via_%20junk', 'via_../etc', 'via_a_b']) {
+        expect(
+          TipitakaLink.tryParse('https://host/tipitaka/atta-sn-2-3#$fragment'),
+          const TipitakaLink(nodeKey: 'atta-sn-2-3'),
+          reason: '#$fragment reported an origin key',
+        );
+      }
+    });
+
+    test('a nodeKey-shaped fragment is still a target, not a door', () {
+      // `via-sn-2-3` — hyphen, not underscore — is a legal nodeKey shape, and
+      // the grammar must keep reading it as one. This is the whole reason the
+      // marker id uses an underscore.
+      expect(
+        TipitakaLink.tryParse('https://host/tipitaka/atta-sn-2-3-1#via-sn-2-3'),
+        const TipitakaLink(nodeKey: 'via-sn-2-3', pageKey: 'atta-sn-2-3-1'),
+      );
+    });
+
     test('a page anchor that happens to be key-shaped keeps both keys', () {
       // `#top` is a legal nodeKey *shape*, so the grammar cannot tell it from a
       // real leaf — and this codec deliberately knows nothing about which keys
@@ -456,6 +496,14 @@ void main() {
           pageKey: 'sn-2-3-1',
           pageIndex: 4,
           entryIndex: 1),
+      // The origin form: the other user of the fragment, and the reason
+      // `pageKey` and `originKey` exclude each other.
+      TipitakaLink(nodeKey: 'atta-sn-2-3-1', originKey: 'sn-2-3-1-3'),
+      TipitakaLink(
+          nodeKey: 'atta-sn-2-3-1',
+          originKey: 'sn-2-3-1-3',
+          pageIndex: 4,
+          entryIndex: 1),
     ];
 
     for (final link in links) {
@@ -502,6 +550,24 @@ void main() {
       expect(base, isNot(const TipitakaLink(nodeKey: 'sn-2-4', pageIndex: 12, entryIndex: 4)));
       expect(base, isNot(const TipitakaLink(nodeKey: 'sn-2-3', pageIndex: 13, entryIndex: 4)));
       expect(base, isNot(const TipitakaLink(nodeKey: 'sn-2-3', pageIndex: 12, entryIndex: 5)));
+      const marked = TipitakaLink(nodeKey: 'atta-sn-2-3', originKey: 'sn-2-4');
+      expect(marked, isNot(const TipitakaLink(nodeKey: 'atta-sn-2-3')));
+      expect(
+          marked,
+          isNot(const TipitakaLink(
+              nodeKey: 'atta-sn-2-3', originKey: 'sn-2-5')));
+    });
+
+    test('a link cannot be both served elsewhere and arrived at through a door',
+        () {
+      // Both write the fragment and a URL has one. Caught in the constructor
+      // rather than silently resolved by the writer, where whichever branch
+      // came first would quietly win.
+      expect(
+        () => TipitakaLink(
+            nodeKey: 'sn-2-3', pageKey: 'sn-2', originKey: 'sn-2-4'),
+        throwsA(isA<AssertionError>()),
+      );
     });
 
     test('a missing position is not the same as position zero', () {
