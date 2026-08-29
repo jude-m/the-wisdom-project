@@ -128,6 +128,75 @@ void main() {
     });
   });
 
+  group('resolveTarget reads back what servingLink writes', () {
+    for (final key in _servedKeys) {
+      test('$key survives the trip out and back', () {
+        // The invariant the whole URL contract rests on, and the one the two
+        // surfaces could previously only be trusted to share: the site writes
+        // a URL for a node, and reading it back names that node again. Every
+        // key here; every key in the corpus in `verify_corpus_invariants.dart`.
+        final link = TipitakaLink.tryParse('$_base${_plan.urlFor(key)}')!;
+        expect(_plan.resolveTarget(link), key);
+      });
+    }
+
+    test('a fragment the page does not serve opens the page', () {
+      // `sp-mid-1` is a real node — it just owns its own page, so this page
+      // carries no section for it. "Is this a real node" would open it; the
+      // site, finding nothing to target, shows `sp-mid-2`. Asking the plan is
+      // what stops the two surfaces disagreeing about a URL neither of them is
+      // locally wrong about.
+      final link = TipitakaLink.tryParse('$_base/tipitaka/sp-mid-2#sp-mid-1')!;
+      expect(_plan.resolveTarget(link), 'sp-mid-2');
+    });
+
+    test('a fragment naming no node at all opens the page', () {
+      // `#top` is nodeKey-shaped, so the codec cannot rule it out — only the
+      // plan can say the page serves no such section.
+      final link = TipitakaLink.tryParse('$_base/tipitaka/sp-mid-2#top')!;
+      expect(_plan.resolveTarget(link), 'sp-mid-2');
+    });
+
+    test('a door opens the vaṇṇanā, not the chapter carrying it', () {
+      // `atta-ck-2` answers for three suttas, so its own key names only the
+      // first of them. It is folded as well, so the path can name nothing
+      // finer than the chapter — the fragment is the only part of the URL that
+      // can say which sutta the reader left.
+      expect(canonKeysCoveredBy(_mergedTree, 'atta-ck-2'),
+          ['ck-2', 'ck-3', 'ck-4']);
+
+      final link = TipitakaLink.tryParse('$_base/tipitaka/atta-ck#via_ck-3')!;
+      expect(_mergedPlan.resolveTarget(link), 'atta-ck-2');
+    });
+
+    test('a door on a page that does not carry the vaṇṇanā opens the page', () {
+      // The same marker, moved onto a page that has no such marker in it — a
+      // hand-edited fragment, or a link kept across a re-sync that moved a key.
+      // The tree alone still answers `atta-ck-2`, and following it would put
+      // the app on a text the browser cannot show: `ck` carries no `via_ck-3`,
+      // so the site shows `ck`. The door is a claim about *this* page.
+      final link = TipitakaLink.tryParse('$_base/tipitaka/ck#via_ck-3')!;
+      expect(_mergedPlan.resolveTarget(link), 'ck');
+    });
+
+    test('a door into a vaṇṇanā this build has no page for opens the page', () {
+      // A plan over the canon alone — the shape a subtree build produces. The
+      // commentary is still in the tree, so `crossLinkTargetKey` answers; what
+      // is missing is a page, and a plan cannot vouch for a page it never made.
+      final canonOnly = SitePlan.build(
+        tree: _mergedTree,
+        rootKeys: const ['ck'],
+        foldedLeafKeys: const {'ck-3', 'ck-4'},
+        textBearingContainerKeys: const {},
+      );
+      expect(crossLinkTargetKey(_mergedTree, 'ck-3'), 'atta-ck-2',
+          reason: 'the tree still knows; only the plan does not');
+
+      final link = TipitakaLink.tryParse('$_base/tipitaka/atta-ck#via_ck-3')!;
+      expect(canonOnly.resolveTarget(link), 'atta-ck');
+    });
+  });
+
   group('the leaf-anchored chapter', () {
     // Named as well as looped, so a regression reads as a sentence rather than
     // as "key sp-mid-2 failed".
@@ -239,11 +308,42 @@ final List<String> _servedKeys = <String>{
   ],
 }.toList();
 
+/// The commentary shape `_tree` has no side for: one vaṇṇanā answering for a
+/// run of suttas, which is what makes a door necessary in the first place.
+///
+/// ```text
+/// ck                  TOC
+///   ck-1                its own page
+///   ck-2                unfolded, and anchors the run below it
+///   ck-3                folded onto ck-2
+///   ck-4                folded onto ck-2
+/// atta-ck             chapter — every child folded, so it carries both
+///   atta-ck-1           "1." — answers for ck-1 alone
+///   atta-ck-2           "2-4." — answers for ck-2, ck-3 and ck-4
+/// ```
+final TipitakaTree _mergedTree = TipitakaTree.fromJson({
+  'ck': _row(null),
+  'ck-1': _row('ck'),
+  'ck-2': _row('ck'),
+  'ck-3': _row('ck'),
+  'ck-4': _row('ck'),
+  'atta-ck': _row(null),
+  'atta-ck-1': _row('atta-ck', '1. පඨමසුත්තවණ්ණනා'),
+  'atta-ck-2': _row('atta-ck', '2-4. දුතියසුත්තාදිවණ්ණනා'),
+});
+
+final SitePlan _mergedPlan = SitePlan.build(
+  tree: _mergedTree,
+  rootKeys: const ['ck', 'atta-ck'],
+  foldedLeafKeys: const {'ck-3', 'ck-4', 'atta-ck-1', 'atta-ck-2'},
+  textBearingContainerKeys: const {},
+);
+
 /// One `tree.json` row: `[pali, sinh, level, [page, entry], parent, fileId]`.
 /// Placeholder names — [SitePlan] reads only keys and parentage.
-List<dynamic> _row(String? parent) => [
-      'pali',
-      'sinh',
+List<dynamic> _row(String? parent, [String title = 'pali']) => [
+      title,
+      title,
       1,
       const <int>[0, 0],
       parent ?? 'root',

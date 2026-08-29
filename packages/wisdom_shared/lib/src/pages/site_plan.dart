@@ -3,6 +3,7 @@
 // const of the same name.
 import '../grouping/grouping_snapshot.dart' as snapshot;
 import '../grouping/preamble_snapshot.dart' as snapshot;
+import '../links/commentary_link.dart';
 import '../links/tipitaka_link.dart';
 import '../tree/tipitaka_tree.dart';
 
@@ -167,6 +168,11 @@ class SitePlan {
   /// surfaces ask of the same map, which is why it is one map and not two.
   final Map<String, SitePage> _owningPage;
 
+  /// The tree these pages were planned from — held so [resolveTarget] needs no
+  /// second load, and cannot be asked with a tree the plan was not built from.
+  /// A reference, not a copy: [SitePage.node] holds this tree's nodes.
+  final TipitakaTree tree;
+
   /// Both public lists are frozen here for the same reason [SitePage] freezes
   /// its own — one plan is cached for the app's lifetime and read from the UI,
   /// where an accidental `sort` would silently rewrite prev/next for everyone.
@@ -175,6 +181,7 @@ class SitePlan {
     List<SitePage> readablePages,
     this._readableIndex,
     this._owningPage,
+    this.tree,
   )   : pages = List.unmodifiable(pages),
         readablePages = List.unmodifiable(readablePages);
 
@@ -414,6 +421,7 @@ class SitePlan {
       readable,
       {for (var i = 0; i < readable.length; i++) readable[i].nodeKey: i},
       owning,
+      tree,
     );
   }
 
@@ -476,6 +484,41 @@ class SitePlan {
       pageIndex: link.pageIndex,
       entryIndex: link.entryIndex,
     );
+  }
+
+  /// Which node a URL actually opens — [servingLink] run backwards.
+  ///
+  /// Three shapes arrive here, and only the plan can tell them apart:
+  ///
+  /// - `#via_<canonKey>` names the *door*, not the room: several suttas share
+  ///   one vaṇṇanā, and it is usually a folded leaf, so the path can name only
+  ///   the chapter carrying it. [crossLinkTargetKey] turns the door back into
+  ///   the vaṇṇanā the browser's `:target` lands on.
+  /// - `<page>#<leaf>` names a leaf the page really carries — the leaf opens.
+  /// - `<page>#<anything else>` is a fragment this page does not serve — a
+  ///   `#top`, or a real key belonging elsewhere — so the page opens.
+  ///
+  /// **[pageOf], never "is this a real node".** The weaker question accepts any
+  /// key that exists, so `/tipitaka/sn-2-3#an-1-1` would open `an-1-1` while
+  /// the site, finding no such section there, shows `sn-2-3`.
+  ///
+  /// A door is held to that same question. [crossLinkTargetKey] answers from
+  /// the tree alone, so a marker moved onto another page — hand-edited, or kept
+  /// across a re-sync — would otherwise open a vaṇṇanā the page does not carry
+  /// and the browser cannot show. One the site itself wrote always passes.
+  String resolveTarget(TipitakaLink link) {
+    final originKey = link.originKey;
+    if (originKey != null) {
+      final vannana = crossLinkTargetKey(tree, originKey);
+      if (vannana != null && pageOf(vannana)?.nodeKey == link.nodeKey) {
+        return vannana;
+      }
+    }
+
+    // A link with no fragment names its own page, so this comparison reads
+    // `pageOf(k)?.nodeKey == k` — true exactly when the target owns a page.
+    final pageKey = link.pageKey ?? link.nodeKey;
+    return pageOf(link.nodeKey)?.nodeKey == pageKey ? link.nodeKey : pageKey;
   }
 
   /// The page a reader lands on when they ask for [nodeKey], or null when this

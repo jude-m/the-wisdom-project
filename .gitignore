@@ -31,7 +31,9 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
+# Unanchored, unlike the stock Flutter template's `/build/`: the Dart-only
+# packages get one too, whenever `flutter test` is run in them by habit.
+build/
 
 # Symbolication related
 app.*.symbols

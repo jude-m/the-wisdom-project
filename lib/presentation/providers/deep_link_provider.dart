@@ -88,59 +88,29 @@ final openTipitakaLinkProvider =
   };
 });
 
-/// Which node a link actually opens: the vaṇṇanā an origin marker implies, the
-/// fragment when the site really serves it from the path's page, otherwise the
-/// page itself.
+/// Which node a link opens, with the plan loaded and not trusted to load.
 ///
-/// `/tipitaka/<page>#<leaf>` names the leaf, and the leaf is what opens. But
-/// the codec is pure grammar — it cannot tell a folded sutta's key from a page
-/// anchor like `#top`, which is the same shape — so something with knowledge of
-/// the corpus has to decide.
+/// The rule is [SitePlan.resolveTarget], which lives beside the one that writes
+/// a URL so `verify_corpus_invariants.dart` can assert the round trip over the
+/// whole corpus. What is left here is the app's own half: getting the plan, and
+/// answering anyway when it will not load.
 ///
-/// **[SitePlan] is that something, not the tree.** "Is this a real node" is the
-/// weaker question: it accepts any key that exists, so `/tipitaka/sn-2-3#an-1-1`
-/// would open `an-1-1` while the site, finding no such section on that page,
-/// shows `sn-2-3`. `plan.pageOf` asks the question the site answers — *is this
-/// leaf served by that page* — from the same map the site's own HTML is written
-/// from, so both surfaces resolve a link the same way.
-///
-/// Falls back to the tree if the plan cannot be built. Opening a link must not
-/// become the one place a snapshot problem surfaces as a thrown exception:
-/// before the plan existed this branch was a map lookup, and the tree still
-/// answers well enough to open something.
+/// One load, not two — the plan carries the tree it was planned from, so the
+/// rule is never asked with half its inputs. A plan that fails leaves no map at
+/// all, and the flat node index answers as the app did before the plan existed:
+/// weaker for a folded leaf, and weaker in the right direction, since it opens
+/// the text the path names. Opening a link must not become the one place a
+/// snapshot problem surfaces as a throw.
 Future<String> _resolveTarget(Ref ref, TipitakaLink link) async {
-  // `#via_<canonKey>` names the door, not the room. Several suttas share one
-  // vaṇṇanā, so the site cannot put the vaṇṇanā's own key in the fragment *and*
-  // say which sutta the reader came from — and the vaṇṇanā is usually a folded
-  // leaf, so the path names the chapter carrying it rather than the vaṇṇanā.
-  // `crossLinkTargetKey` is the same function that built the link on the canon
-  // side, run backwards, so the app lands where the browser's `:target` does.
-  final originKey = link.originKey;
-  if (originKey != null) {
-    try {
-      final tree = await ref.read(sharedTreeProvider.future);
-      final vannana = crossLinkTargetKey(tree, originKey);
-      if (vannana != null) return vannana;
-    } catch (_) {
-      // Fall through to the path. A tree that will not load is not a reason to
-      // open nothing — the chapter is still the page the link names.
-    }
-  }
-
-  // A link with no fragment names its own page, so the comparison below is
-  // `pageOf(k)?.nodeKey == k` — true exactly when the target owns a page.
-  final pageKey = link.pageKey ?? link.nodeKey;
   try {
     final plan = await ref.read(sitePlanProvider.future);
-    return plan.pageOf(link.nodeKey)?.nodeKey == pageKey
-        ? link.nodeKey
-        : pageKey;
+    return plan.resolveTarget(link);
   } catch (_) {
     // Read through the index directly rather than `nodeByKeyProvider`: that one
     // is `autoDispose.family`, so a single lookup would create and tear down a
     // provider for this key.
     return ref.read(nodeIndexProvider).containsKey(link.nodeKey)
         ? link.nodeKey
-        : pageKey;
+        : link.pageKey ?? link.nodeKey;
   }
 }
