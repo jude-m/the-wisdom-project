@@ -367,7 +367,7 @@ void _printSubtrees(TipitakaTree tree, SitePlan plan) {
   stdout.writeln('subtree            pages');
   for (final key in _watchedSubtrees) {
     final count = plan.pages
-        .where((p) => p.nodeKey == key || _isUnder(tree, p.nodeKey, key))
+        .where((p) => p.nodeKey == key || tree.isAncestorOf(key, p.nodeKey))
         .length;
     stdout.writeln('  ${key.padRight(16)} $count');
   }
@@ -1523,15 +1523,6 @@ Map<String, int> _pageChars(SitePlan plan, SlicerCache cache) {
     chars[page.nodeKey] = total;
   }
   return chars;
-}
-
-bool _isUnder(TipitakaTree tree, String key, String ancestorKey) {
-  for (String? at = tree[key]?.parentNodeKey;
-      at != null;
-      at = tree[at]?.parentNodeKey) {
-    if (at == ancestorKey) return true;
-  }
-  return false;
 }
 
 /// The subtrees the plan doc argues about, printed every run so a review can

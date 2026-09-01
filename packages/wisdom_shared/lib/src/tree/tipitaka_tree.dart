@@ -299,6 +299,34 @@ class TipitakaTree {
     return chain;
   }
 
+  /// Whether [maybeAncestor] lies somewhere above [key] — the containment
+  /// question, without building the chain to answer it.
+  ///
+  /// `ancestorsOf(key).any((a) => a.nodeKey == maybeAncestor)` says the same
+  /// thing and allocates a list of nodes to say it. This walks parent keys and
+  /// stops at the first match, which is worth having where it is asked once per
+  /// section of every chapter page.
+  ///
+  /// Strict: a key is never its own ancestor, so a caller that also accepts the
+  /// node itself writes `key == maybeAncestor ||` out loud. Cyclic data
+  /// terminates rather than hanging, on the same rule as [ancestorsOf] — the
+  /// three hand-rolled copies this replaced each walked `parentNodeKey` with no
+  /// such guard, and each spelled the argument order differently.
+  bool isAncestorOf(String maybeAncestor, String key) {
+    final seen = <String>{key};
+    var at = _nodes[key]?.parentNodeKey;
+    // Guard before the match, exactly as [ancestorsOf] adds before it appends.
+    // Tested the other way round it still terminates, but it answers `true` for
+    // `isAncestorOf(a, a)` on a self-parent or a cycle, where the chain
+    // [ancestorsOf] builds does not contain `a` at all — two spellings of one
+    // question disagreeing on the malformed data the guard is here for.
+    while (at != null && seen.add(at)) {
+      if (at == maybeAncestor) return true;
+      at = _nodes[at]?.parentNodeKey;
+    }
+    return false;
+  }
+
   /// The "book" [nodeKey] belongs to — `an` (අඞ්ගුත්තරනිකායො), `vp-pct`
   /// (පාචිත්තියපාළි), `kn` (ඛුද්දකනිකායො).
   ///

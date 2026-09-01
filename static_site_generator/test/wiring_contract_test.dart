@@ -354,6 +354,64 @@ void main() {
       expect(html, contains('<section class="sutta" id="sp-grp-1">'));
       expect(html, contains('<section class="sutta" id="sp-grp-2">'));
     });
+
+    test('a chapter named after its group offers the run one cross-link', () {
+      // The two views. A reader on the bare URL asked for the run and gets one
+      // `අට්ඨකථා`; a reader on a fragment asked for one sutta and gets that
+      // sutta's. Both sets are in the DOM on every such page and the stylesheet
+      // picks, so this asserts the markup half — that the two are separately
+      // addressable at all. The rules that hide each one are asserted by
+      // `the grouped-chapter filter selects on classes the template emits`,
+      // which fails if either class stops being emitted.
+      final html = _render(_chapterPage, slices: {
+        'sp-grp-1': _bothLanguages('sp-grp-1'),
+        'sp-grp-2': _bothLanguages('sp-grp-2'),
+      });
+
+      expect(html, contains('<div class="run-link">'),
+          reason: 'the whole-run view has no cross-link of its own');
+      // Inside `.chapter`, because the rule that hides it is scoped there —
+      // `:has()` may not be nested, so a run-link above `.chapter` could not be
+      // reached from the filter at all and would show in both views.
+      expect(html.indexOf('<div class="chapter">'),
+          lessThan(html.indexOf('<div class="run-link">')),
+          reason: 'the run-link sits outside the element the filter gates on');
+      // One wrapper per section that has a link, and the section links still
+      // name the sutta rather than the run.
+      expect('section-links'.allMatches(html), hasLength(2));
+      expect(html, contains('href="/tipitaka/atta-sp-grp-1">'));
+      expect(html, contains('href="/tipitaka/atta-sp-grp-1#via_sp-grp-2">'));
+      // The run's own link names the run's own twin, not sutta one's.
+      expect(html, contains('href="/tipitaka/atta-sp-grp">'));
+    });
+
+    test('a run anchored on a leaf keeps its per-section cross-links', () {
+      // `SitePage.speaksForRun`'s anchor clause, isolated: these two sections
+      // share one merged vaṇṇanā, so they *agree* about where the coarse link
+      // would point and the subtree clause waves the page through. Only the
+      // anchor test refuses it — which is the point, because `page.node` here
+      // is sutta one, whose own URL is `<page>#<key>`. Drop the clause as
+      // redundant and this goes green, along with every page shaped like
+      // `sn-2-1-8-2`, which claims a run of ten under sutta two's name.
+      final page = SitePage(
+        kind: PageKind.chapter,
+        node: _tree['sp-grp-1']!,
+        suttas: [_tree['sp-grp-1']!, _tree['sp-grp-2']!],
+      );
+      expect(page.anchorsRunOnLeaf, isTrue);
+
+      final html = _render(page, slices: {
+        'sp-grp-1': _bothLanguages('sp-grp-1'),
+        'sp-grp-2': _bothLanguages('sp-grp-2'),
+      });
+
+      expect(html, isNot(contains('run-link')),
+          reason: 'sutta one is speaking for a run it does not name');
+      // Bare, not wrapped: with no run-link above them these must not be
+      // hidden in the unfiltered view, and `.section-links` is what hides them.
+      expect(html, isNot(contains('section-links')));
+      expect(html, contains('<p class="commentary-link">'));
+    });
   });
 
   group("the template's own decisions", () {

@@ -251,6 +251,35 @@ void main() {
       expect(cyclic.ancestorsOf('a').map((n) => n.nodeKey), ['b']);
       expect(cyclic.ancestorsOf('b').map((n) => n.nodeKey), ['a']);
     });
+
+    test('isAncestorOf answers what ancestorsOf lists, cycles included', () {
+      // Two spellings of one question, so they may not disagree anywhere —
+      // including on data that should not exist. Testing the match before the
+      // cycle guard passes every well-formed case below and still calls `a` its
+      // own ancestor on the last two.
+      expect(tree.isAncestorOf('an-1', 'an-1-1-1'), isTrue);
+      expect(tree.isAncestorOf('an-1-1', 'an-1-1-1'), isTrue);
+      expect(tree.isAncestorOf('an-1-1-1', 'an-1'), isFalse);
+      expect(tree.isAncestorOf('an-1-2', 'an-1-1-1'), isFalse);
+      expect(tree.isAncestorOf('an-1', 'an-1'), isFalse,
+          reason: 'a key is never its own ancestor');
+      expect(tree.isAncestorOf('nope', 'an-1-1'), isFalse);
+      expect(tree.isAncestorOf('an-1', 'nope'), isFalse);
+
+      final cyclic = TipitakaTree.fromJson({
+        'a': _row('b'),
+        'b': _row('a'),
+        'x': _row('x'),
+      });
+      expect(cyclic.isAncestorOf('b', 'a'), isTrue);
+      expect(cyclic.isAncestorOf('a', 'a'), isFalse);
+      expect(cyclic.isAncestorOf('x', 'x'), isFalse);
+      for (final key in ['a', 'b', 'x']) {
+        expect(cyclic.isAncestorOf(key, key),
+            cyclic.ancestorsOf(key).any((n) => n.nodeKey == key),
+            reason: 'the two spellings disagree on $key');
+      }
+    });
   });
 }
 

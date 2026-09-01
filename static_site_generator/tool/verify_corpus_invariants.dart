@@ -374,6 +374,26 @@ bool _verifyLinks(CorpusReader reader) {
     }
   }
 
+  // --- every marker-bearing link is actually printed -----------------------
+  // The doors above ask whether a URL still resolves through the plan. This
+  // asks whether any page prints it, which is a different question and the one
+  // that goes quiet: a link dropped as "the coarser of two" leaves every door
+  // round-tripping perfectly at an id no page emits any more. That is exactly
+  // how three lone-child chapters — `atta-sn-5-1-7` among them, whose own
+  // vaṇṇanā answers for a run of vaggas while its section answers for that
+  // vagga's suttas — once took seven live links down with them.
+  var unprinted = 0;
+  for (final node in tree.allNodes) {
+    if (!linksThroughOriginMarkers(tree, node.nodeKey)) continue;
+    final page = plan.pageOf(node.nodeKey);
+    if (page == null) continue; // already counted as `unplanned`
+    if (page.crossLinkedNodes(tree).any((n) => n.nodeKey == node.nodeKey)) {
+      continue;
+    }
+    unprinted++;
+    _sample(samples, 'unprinted    ${node.nodeKey} on page ${page.nodeKey}');
+  }
+
   stdout.writeln('LINKS');
   stdout.writeln('  pages planned         ${plan.pages.length}');
   stdout.writeln('  keys served           ${servedKeys.length}');
@@ -385,6 +405,7 @@ bool _verifyLinks(CorpusReader reader) {
   stdout.writeln('  round-trip failures   $roundTripFails');
   stdout.writeln('  door failures         $doorFails');
   stdout.writeln('  vannana with no page  $unplanned');
+  stdout.writeln('  marker links unprinted $unprinted');
   for (final sample in samples) {
     stdout.writeln('  ! $sample');
   }
@@ -392,7 +413,8 @@ bool _verifyLinks(CorpusReader reader) {
   return parseFails == 0 &&
       roundTripFails == 0 &&
       doorFails == 0 &&
-      unplanned == 0;
+      unplanned == 0 &&
+      unprinted == 0;
 }
 
 // ---------------------------------------------------------------------------

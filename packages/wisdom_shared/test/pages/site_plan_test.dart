@@ -228,6 +228,124 @@ void main() {
     });
   });
 
+  group('speaksForRun — one cross-link for the run, or one per sutta', () {
+    test('a chapter named after its container speaks for the whole run', () {
+      // `atta-ck` folded both its vaṇṇanā, so the page is the container and its
+      // twin `ck` is the container the sections' own twins sit under. One
+      // `අට්ඨකථා` answers the question the bare URL asked.
+      final page = _mergedPlan.pageOf('atta-ck')!;
+      expect(page.kind, PageKind.chapter);
+      expect(page.anchorsRunOnLeaf, isFalse);
+      expect(page.speaksForRun(_mergedTree), isTrue);
+    });
+
+    test('a run anchored on its own first leaf does not', () {
+      // The clause that is not implied by the subtree test below: `ck-2` and
+      // the leaves folded behind it all resolve to `atta-ck-2`, so they *agree*
+      // — and the page would still be claiming the run under sutta two's name,
+      // whose own URL is `<page>#<key>`.
+      final page = _mergedPlan.pageOf('ck-3')!;
+      expect(page.nodeKey, 'ck-2');
+      expect(page.anchorsRunOnLeaf, isTrue);
+      for (final key in ['ck-2', 'ck-3', 'ck-4']) {
+        expect(crossLinkTargetKey(_mergedTree, key), 'atta-ck-2',
+            reason: 'fixture no longer isolates the anchor clause');
+      }
+      expect(page.speaksForRun(_mergedTree), isFalse);
+    });
+
+    test('a lone-child chapter has no run to speak for', () {
+      // One sutta wearing its container's URL. Built on `_mergedTree` and not
+      // on `sp-lone`, which has no commentary side at all: there the predicate
+      // would refuse on the null target and the test would pass with the clause
+      // deleted. Here every earlier clause *accepts* — the node is a container,
+      // its twin `ck` exists, and the one section's twin `ck-1` sits under it,
+      // so the subtree test is satisfied — and only the count refuses.
+      final lone = SitePage(
+        kind: PageKind.chapter,
+        node: _mergedTree['atta-ck']!,
+        suttas: [_mergedTree['atta-ck-1']!],
+      );
+      expect(lone.anchorsRunOnLeaf, isFalse);
+      expect(crossLinkTargetKey(_mergedTree, 'atta-ck'), 'ck');
+      expect(crossLinkTargetKey(_mergedTree, 'atta-ck-1'), 'ck-1');
+      expect(_mergedTree.isAncestorOf('ck', 'ck-1'), isTrue,
+          reason: 'fixture no longer isolates the lone-child clause');
+      expect(lone.speaksForRun(_mergedTree), isFalse,
+          reason: 'the coarse link would be the container TOC, and the one '
+              'section already has a nearer answer');
+    });
+
+    test('a lone child still speaks where its own link carries markers', () {
+      // The exception, and the reason the lone-child clause is a condition
+      // rather than a flat refusal. `atta-mk-1` answers for a run of two
+      // *containers* while its one section answers for a *sutta* inside the
+      // first — disjoint sets at different levels, both addressed by id from
+      // the canon side. Suppress this link as "the coarser one" and the markers
+      // it prints go with it, while the canon pages keep aiming at them.
+      expect(canonKeysCoveredBy(_markerTree, 'atta-mk-1'), ['mk-1', 'mk-2'],
+          reason: 'fixture no longer declares a range');
+      expect(linksThroughOriginMarkers(_markerTree, 'atta-mk-1'), isTrue);
+      final lone = SitePage(
+        kind: PageKind.chapter,
+        node: _markerTree['atta-mk-1']!,
+        suttas: [_markerTree['atta-mk-1-1']!],
+      );
+      expect(lone.anchorsRunOnLeaf, isFalse);
+      // Every other clause would suppress it: one section, and that section's
+      // twin `mk-1-1` sits under the run's twin `mk-1`.
+      expect(crossLinkTargetKey(_markerTree, 'atta-mk-1-1'), 'mk-1-1');
+      expect(_markerTree.isAncestorOf('mk-1', 'mk-1-1'), isTrue);
+      expect(lone.speaksForRun(_markerTree), isTrue);
+      // Unordered on purpose — see [SitePage.crossLinkedNodes]. What matters is
+      // that the page's own node is in there beside its section.
+      expect(lone.crossLinkedNodes(_markerTree).map((n) => n.nodeKey),
+          unorderedEquals(['atta-mk-1', 'atta-mk-1-1']));
+    });
+
+    test('a chapter with no sections answers rather than throwing', () {
+      // `SitePlan.build` never emits one, but `SitePage` is public and both
+      // suites hand-build pages — as does the app, which reads the same plan.
+      // The lone-child clause reads `suttas.single`, so a `< 2` guard lets a
+      // sectionless page reach it and blow up on `Bad state: No element`.
+      final empty = SitePage(
+        kind: PageKind.chapter,
+        node: _markerTree['atta-mk-1']!,
+        suttas: const [],
+      );
+      expect(crossLinkTargetKey(_markerTree, 'atta-mk-1'), isNotNull,
+          reason: 'an early null target would mask the throw');
+      expect(empty.speaksForRun(_markerTree), isTrue);
+      expect(empty.crossLinkedNodes(_markerTree).map((n) => n.nodeKey),
+          ['atta-mk-1']);
+    });
+
+    test('a section whose commentary escapes the run keeps its own link', () {
+      // The subtree clause. `ck-1`'s twin is `atta-ck-1`, which sits under
+      // `atta-ck` — so a page whose own twin were `atta-ck-1` could not speak
+      // for it. Built by hand: no grouping produces this shape, which is why
+      // the corpus has almost none of it.
+      final escaping = SitePage(
+        kind: PageKind.chapter,
+        node: _mergedTree['atta-ck-1']!,
+        suttas: [_mergedTree['atta-ck-2']!],
+      );
+      expect(crossLinkTargetKey(_mergedTree, 'atta-ck-1'), 'ck-1');
+      expect(crossLinkTargetKey(_mergedTree, 'atta-ck-2'), 'ck-2');
+      expect(escaping.speaksForRun(_mergedTree), isFalse,
+          reason: '`ck-2` does not sit under `ck-1`, so one link cannot reach '
+              'both');
+    });
+
+    test('a TOC and a sutta page never speak for a run', () {
+      // The predicate is a chapter's question. Both other kinds answer their
+      // own cross-link at page level already, and a second one would double it.
+      expect(_mergedPlan.pageOf('ck-1')!.speaksForRun(_mergedTree), isFalse);
+      expect(_plan.pageOf('sp-mid')!.kind, PageKind.toc);
+      expect(_plan.pageOf('sp-mid')!.speaksForRun(_tree), isFalse);
+    });
+  });
+
   group('a key this build never heard of', () {
     // A plan is built per subtree, and a single-book build does not walk the
     // root a commentary lives under. The bare URL is right on a whole-corpus
@@ -330,6 +448,30 @@ final TipitakaTree _mergedTree = TipitakaTree.fromJson({
   'atta-ck': _row(null),
   'atta-ck-1': _row('atta-ck', '1. පඨමසුත්තවණ්ණනා'),
   'atta-ck-2': _row('atta-ck', '2-4. දුතියසුත්තාදිවණ්ණනා'),
+});
+
+/// A lone-child chapter whose *own* vaṇṇanā answers for a run, mirroring
+/// `atta-sn-5-1-7`: the container's link and its one section's link carry
+/// disjoint marker sets at different levels of the tree, so neither can stand
+/// in for the other.
+///
+/// ```text
+/// mk                  TOC
+///   mk-1                answered by atta-mk-1 …
+///     mk-1-1              … while this is answered by its leaf
+///   mk-2                also answered by atta-mk-1, which declares "1-2."
+/// atta-mk             TOC
+///   atta-mk-1           chapter — a container with one folded child
+///     atta-mk-1-1         folded
+/// ```
+final TipitakaTree _markerTree = TipitakaTree.fromJson({
+  'mk': _row(null),
+  'mk-1': _row('mk'),
+  'mk-1-1': _row('mk-1'),
+  'mk-2': _row('mk'),
+  'atta-mk': _row(null),
+  'atta-mk-1': _row('atta-mk', '1-2. පඨමවග්ගාදිවණ්ණනා'),
+  'atta-mk-1-1': _row('atta-mk-1', '1. පඨමසුත්තවණ්ණනා'),
 });
 
 final SitePlan _mergedPlan = SitePlan.build(

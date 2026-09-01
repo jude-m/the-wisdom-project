@@ -125,6 +125,129 @@ class SitePage {
   /// separate spellings of `node.isLeaf`.
   bool get anchorsRunOnLeaf => kind == PageKind.chapter && node.isLeaf;
 
+  /// True when this chapter's *own* cross-link can stand for every section it
+  /// carries — so the whole-run view can offer one `අට්ඨකථා` instead of one per
+  /// sutta, and the per-section links can be held back for the filtered view.
+  ///
+  /// A reader who opened the bare URL asked for the run; answering with a link
+  /// per sutta makes them pick a sutta before they can leave. A reader on a
+  /// fragment asked for one sutta, and the run's link would send them to a
+  /// container. Both questions have an answer here, and the two views never
+  /// show the same page's link twice.
+  ///
+  /// **Only where the page is named after the group.** A run anchored on its
+  /// own first leaf ([anchorsRunOnLeaf]) is named after *sutta one*, so its
+  /// cross-link is that sutta's wearing a page-level hat: on `an-1-14-1`
+  /// several sibling vaggas share a page and each has its own vaṇṇanā, and
+  /// letting the first speak for all of them would strand the rest — reachable
+  /// from nowhere else on the site.
+  ///
+  /// That clause is **not** subsumed by the next one, so it cannot be dropped
+  /// as a simplification. `an-1-14-1` does not show why: its sections disagree,
+  /// so the subtree test refuses that page unaided. `sn-2-1-8-2` does — ten
+  /// sections all resolving to `atta-sn-2-1-8-1`, so they agree and the subtree
+  /// test would wave it straight through. It is refused on the URL grammar
+  /// instead: [needsFragmentFor] returns true for these pages' own key, so a
+  /// link built from that node is a section address by construction, and
+  /// dressing it as the run's would have the page disagree with the plan about
+  /// what its own key means.
+  ///
+  /// **And only where there is a run.** A lone-child chapter (a container
+  /// merged with its only leaf — `FIGURES.loneChildChapters`) is one sutta
+  /// wearing a container's URL. Nobody there has to pick a sutta before they
+  /// can leave, which is the whole reason a coarse link exists, and the
+  /// container's twin is strictly further from that one sutta's vaṇṇanā than
+  /// the sutta's own twin is — often the commentary's TOC, the destination
+  /// `PageTemplate._commentaryLink` documents as the wrong answer for a section
+  /// reader. Worse, it would be the answer only on the *bare* URL, which is
+  /// what the parent TOC and the sitemap both point at, while a reader arriving
+  /// by prev/next — fragment and all — still saw the precise link: one sutta,
+  /// two answers, decided by how you got there. `PageTemplate._chapter` refuses
+  /// the whole-run *bar* on this same shape for the matching reason: there is
+  /// no rest of the run to go back to.
+  ///
+  /// **The two guards are not the same guard.** The bar's is flat — a lone
+  /// child never gets one — and this is a condition, because "coarser" is only
+  /// true where the section says the same thing more precisely; see
+  /// [_loneChildIsAnsweredByItsSection]. Where the section has no link at all,
+  /// or where the page's own link is a merged vaṇṇanā's marker block, the two
+  /// are different edges and dropping one breaks inbound URLs. A page taking
+  /// that exception therefore carries a run-link and no bar, which is what the
+  /// two guards mean read literally: somewhere to leave by, nowhere to go back
+  /// to.
+  ///
+  /// One asymmetry falls out of that and is meant to. Where such a page's
+  /// section has no link of its own, the coarse one is the only link on the
+  /// page, and the filtered view hides it with no `.section-links` to show in
+  /// its place — the bare URL offers a link and the fragment offers none. That
+  /// is `PageTemplate._commentaryLink`'s rule holding, not a link gone missing:
+  /// a container is the wrong answer for a section reader, and where there is
+  /// no right one, nothing is the honest answer.
+  ///
+  /// **And only where the sections agree.** Every section's twin has to be the
+  /// run's twin or sit beneath it, so the coarse link is genuinely the way in
+  /// to all of them rather than a further destination.
+  ///
+  /// Asked in key space, not against resolved URLs: whether one text lies under
+  /// another is a fact about the corpus, and reading it off page grouping would
+  /// make the answer depend on which leaves happened to be folded.
+  bool speaksForRun(TipitakaTree tree) {
+    if (kind != PageKind.chapter || anchorsRunOnLeaf) return false;
+    final target = crossLinkTargetKey(tree, nodeKey);
+    if (target == null) return false;
+    // `== 1`, not `< 2`: the helper reads `suttas.single`, and a sectionless
+    // chapter is a shape [SitePlan.build] never emits but a caller can hand-
+    // build — both test suites do, and the app reads these pages too.
+    if (suttas.length == 1 && _loneChildIsAnsweredByItsSection(tree)) {
+      return false;
+    }
+    for (final sutta in suttas) {
+      final section = crossLinkTargetKey(tree, sutta.nodeKey);
+      // A section with no commentary of its own has nothing to be stranded.
+      if (section == null || section == target) continue;
+      if (!tree.isAncestorOf(target, section)) return false;
+    }
+    return true;
+  }
+
+  /// Whether a lone-child chapter's one section already says everything the
+  /// page's own cross-link would — the exception in [speaksForRun]'s
+  /// lone-child clause, and the reason that clause is a condition rather than
+  /// a flat refusal.
+  bool _loneChildIsAnsweredByItsSection(TipitakaTree tree) {
+    // Nothing finer to prefer, so the argument for dropping the coarse link
+    // never gets started: it is the only link the page has.
+    if (crossLinkTargetKey(tree, suttas.single.nodeKey) == null) return false;
+    // A merged vaṇṇanā's link is not a coarser spelling of its section's, it is
+    // a different edge. On `atta-sn-5-1-7` the page's own link answers for a run
+    // of *vaggas* and its section's for one vagga's *suttas* — disjoint sets at
+    // different levels of the tree, both addressed by id from the canon side.
+    // Drop either and live links point at markers no page emits any more.
+    return !linksThroughOriginMarkers(tree, nodeKey);
+  }
+
+  /// The nodes whose canon ↔ commentary cross-link this page prints.
+  ///
+  /// A set, written as a list. **No order is promised** — `PageTemplate` puts
+  /// the run's link above the sections and this does not, and matching them
+  /// would tie a plan-level answer to a decision the stylesheet owns. Both
+  /// readers ask how many and whether-this-one.
+  ///
+  /// A TOC speaks only for its own container; every other page speaks once per
+  /// section it carries, and a chapter that [speaksForRun] speaks once more for
+  /// the run itself. **The page's own node is not always in it** — a lone-child
+  /// chapter that its section answers for prints no link of its own, which is
+  /// deliberate and is why this is a list rather than "node plus suttas".
+  ///
+  /// The mirror of what the template emits, and the reason it is here: the
+  /// figures count these, and `verify_corpus_invariants` checks that no
+  /// marker-bearing link falls outside them. Both used to spell it out
+  /// themselves, and a page whose link moved silently changed what they meant.
+  List<TipitakaNode> crossLinkedNodes(TipitakaTree tree) => [
+        if (kind == PageKind.toc) node else ...suttas,
+        if (speaksForRun(tree)) node,
+      ];
+
   /// True when a link to [nodeKey] needs a fragment to name only that node on
   /// this page.
   ///
@@ -362,15 +485,6 @@ class SitePlan {
       throw StateError('No roots to build.');
     }
 
-    bool isAncestorOf(String maybeAncestor, String key) {
-      for (String? at = tree[key]?.parentNodeKey;
-          at != null;
-          at = tree[at]?.parentNodeKey) {
-        if (at == maybeAncestor) return true;
-      }
-      return false;
-    }
-
     // The whole list is validated before any of it is walked, so a bad key
     // fails on itself rather than after a partial site has been planned.
     //
@@ -393,7 +507,7 @@ class SitePlan {
         if (a == b) {
           throw StateError('Root "$a" is listed twice.');
         }
-        if (isAncestorOf(a, b) || isAncestorOf(b, a)) {
+        if (tree.isAncestorOf(a, b) || tree.isAncestorOf(b, a)) {
           throw StateError('Roots "$a" and "$b" overlap — one contains the '
               'other. Roots must not repeat or nest.');
         }

@@ -58,6 +58,7 @@ These move when the snapshot is regenerated, and each move is one URL.
 | `FIGURES.wholeVaggaChapters` | 618 | chapters covering a whole container, sitting at its URL |
 | `FIGURES.midVaggaChapters` | 600 | chapters starting below a container, anchored on their first leaf |
 | `FIGURES.loneChildChapters` | 159 | chapters that are a container merged with its only leaf |
+| `FIGURES.runLinkChapters` | 455 | chapters named after their group whose own cross-link stands for the whole run — the unfiltered view offers it instead of one link per sutta (`SitePage.speaksForRun`) |
 | `FIGURES.loneChildChaptersNotFoldedOnSize` | 63 | of those, the ones the size rule would not have folded — at or above their line, or promoted and never measured. The merge outranks both |
 | `FIGURES.largestLoneChildChars` | 333,558 | the biggest leaf merged into its container (`atta-kn-mn-2-1`) |
 | `FIGURES.containerTocs` | 1,386 | container pages — a list of links, and above it whatever the container itself owns |
@@ -67,10 +68,10 @@ These move when the snapshot is regenerated, and each move is one URL.
 | `FIGURES.pagesWithStubs` | 16,356 | the count if every folded leaf also got a redirect stub (the P5 gate). Cloudflare Pages caps a project at 20,000 files |
 | `FIGURES.tocRowsNeedingUrlFor` | 2,933 | TOC rows the bare URL gets wrong, so `tocList` has to resolve them through `SitePlan.urlFor`: folded leaves, which 404, and anchor leaves, which answer with their whole run |
 | `FIGURES.commentaryPages` | 3,336 | pages under an `atta-*` key |
-| `FIGURES.nodesWithCommentaryLink` | 12,737 | texts carrying a canon ↔ commentary cross-link, counted where the link is emitted: once per section, plus one per TOC. Nodes and not leaves — a TOC links from its container |
-| `FIGURES.commentaryLinksResolvedByNeighbour` | 2,181 | of those, links whose exact twin key names no node and which a neighbour answers for instead. Three shapes: a vaṇṇanā whose declared range reaches the sutta, the canon node a merge put the root text in, and — where the commentary subdivides below the canon — the nearest canon ancestor, which is about half |
+| `FIGURES.nodesWithCommentaryLink` | 13,192 | texts carrying a canon ↔ commentary cross-link, counted where the link is emitted: once per section, one per TOC, and once more per `FIGURES.runLinkChapters` chapter for the run itself. Nodes and not leaves — a TOC links from its container |
+| `FIGURES.commentaryLinksResolvedByNeighbour` | 2,186 | of those, links whose exact twin key names no node and which a neighbour answers for instead. Three shapes: a vaṇṇanā whose declared range reaches the sutta, the canon node a merge put the root text in, and — where the commentary subdivides below the canon — the nearest canon ancestor, which is about half |
 | `FIGURES.canonNodesWithNoCommentary` | 3,000 | canon nodes no commentary claims, which carry no link at all — mostly suttas the vaṇṇanā is silent on, plus the containers whose twin never existed; the page says so by omission |
-| `FIGURES.commentaryTwinsFolded` | 4,622 | of the linked, targets that are folded leaves — so the link must be resolved through `urlFor`, never `tipitakaUrl` |
+| `FIGURES.commentaryTwinsFolded` | 4,632 | of the linked, targets that are folded leaves — so the link must be resolved through `urlFor`, never `tipitakaUrl` |
 
 ## The text
 

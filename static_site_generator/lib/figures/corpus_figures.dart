@@ -250,6 +250,7 @@ List<FigureGroup> computeCorpusFigures({
   var loneChildChaptersNotFoldedOnSize = 0;
   ({String key, int chars})? largestLoneChild;
   var nodesWithCommentaryLink = 0;
+  var runLinkChapters = 0;
   var commentaryLinksResolvedByNeighbour = 0;
   var canonNodesWithNoCommentary = 0;
   var commentaryTwinsFolded = 0;
@@ -262,12 +263,12 @@ List<FigureGroup> computeCorpusFigures({
   for (final page in plan.pages) {
     if (page.node.isCommentary) commentaryPages++;
 
-    // Exactly what `PageTemplate` emits: a TOC links from its own container
-    // node, every other page links once per section it carries. Counting pages
-    // instead would undercount the chapters, which is the shape that hid the
-    // container-anchored bug — one wrong link served a whole run.
-    final linked = page.kind == PageKind.toc ? [page.node] : page.suttas;
-    for (final node in linked) {
+    // Exactly what `PageTemplate` emits, asked of the plan rather than spelled
+    // out again here — see [SitePage.crossLinkedNodes]. Counting pages instead
+    // would undercount the chapters, which is the shape that hid the
+    // container-anchored bug: one wrong link served a whole run.
+    if (page.speaksForRun(tree)) runLinkChapters++;
+    for (final node in page.crossLinkedNodes(tree)) {
       final target = crossLinkTargetKey(tree, node.nodeKey);
       if (target == null) {
         if (!node.isCommentary) canonNodesWithNoCommentary++;
@@ -430,6 +431,12 @@ List<FigureGroup> computeCorpusFigures({
         Figure('loneChildChapters', formatCount(loneChildChapters),
             'chapters that are a container merged with its only leaf'),
         Figure(
+            'runLinkChapters',
+            formatCount(runLinkChapters),
+            'chapters named after their group whose own cross-link stands for '
+                'the whole run — the unfiltered view offers it instead of one '
+                'link per sutta (`SitePage.speaksForRun`)'),
+        Figure(
             'loneChildChaptersNotFoldedOnSize',
             formatCount(loneChildChaptersNotFoldedOnSize),
             'of those, the ones the size rule would not have folded — at or '
@@ -479,8 +486,9 @@ List<FigureGroup> computeCorpusFigures({
             'nodesWithCommentaryLink',
             formatCount(nodesWithCommentaryLink),
             'texts carrying a canon ↔ commentary cross-link, counted where the '
-                'link is emitted: once per section, plus one per TOC. Nodes '
-                'and not leaves — a TOC links from its container'),
+                'link is emitted: once per section, one per TOC, and once more '
+                'per `FIGURES.runLinkChapters` chapter for the run itself. '
+                'Nodes and not leaves — a TOC links from its container'),
         Figure(
             'commentaryLinksResolvedByNeighbour',
             formatCount(commentaryLinksResolvedByNeighbour),

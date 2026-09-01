@@ -189,3 +189,28 @@ List<String> canonKeysCoveredBy(TipitakaTree tree, String commentaryKey) {
       if (crossLinkTargetKey(tree, key) == commentaryKey) key,
   ];
 }
+
+/// Whether [nodeKey]'s cross-link goes through a merged vaṇṇanā's `via_`
+/// markers instead of being a plain one-to-one link.
+///
+/// Both sides of one fact, which is why it is one function. A vaṇṇanā
+/// answering for several suttas *emits* a marker per sutta after the first;
+/// each of those suttas *aims* at its own marker. The first sutta aims at the
+/// page instead — nothing marks it, deliberately, because the vaṇṇanā's
+/// `.back-default` already points there — so its link is plain.
+///
+/// Read by `PageTemplate._commentaryLink`, which builds both shapes; by
+/// `SitePage.speaksForRun`, which must not drop a link that carries them, since
+/// these markers are addressed by id from the other side of the corpus and a
+/// link suppressed as "the coarser one" takes live inbound URLs down with it;
+/// and by `verify_corpus_invariants`, which is what turns that from a rule
+/// someone has to remember into one the corpus is checked against.
+bool linksThroughOriginMarkers(TipitakaTree tree, String nodeKey) {
+  final node = tree[nodeKey];
+  if (node == null) return false;
+  if (node.isCommentary) return canonKeysCoveredBy(tree, nodeKey).length > 1;
+  final twin = crossLinkTargetKey(tree, nodeKey);
+  if (twin == null) return false;
+  final covered = canonKeysCoveredBy(tree, twin);
+  return covered.length > 1 && nodeKey != covered.first;
+}

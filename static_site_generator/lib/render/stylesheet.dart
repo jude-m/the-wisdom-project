@@ -1189,6 +1189,24 @@ void _writeGroupedChapter(StringBuffer css) {
   css.writeln('}');
   css.writeln('.chapter-bar a { color: var(--c-primary); }');
   css.writeln();
+  // The two cross-link views. A reader on the bare URL asked for the run and
+  // gets one `අට්ඨකථා` for it; a reader on a fragment asked for one sutta and
+  // gets that sutta's. Never both, so neither has to be worded to excuse the
+  // other — and `SitePage.speaksForRun` has already decided that the coarse
+  // link really does reach every section, so nothing is hidden here that is
+  // reachable nowhere else.
+  //
+  // `.section-links` is emitted *only* on the pages that carry a run-link, so
+  // its presence is the whole of the switch — a chapter without one has bare
+  // `.commentary-link` children that no rule below can see.
+  css.writeln('$filtered .run-link { display: none; }');
+  css.writeln('.section-links { display: none; }');
+  css.writeln('$filtered .section-links { display: block; }');
+  // Hiding the section links by default rather than showing them conditionally
+  // is what keeps the no-`:has()` fallback coherent: such a browser can never
+  // enter the filtered view, so the unfiltered view is the only one it has, and
+  // these two defaults are exactly that view's link set.
+  css.writeln();
   // Two pagers per chapter page, one view each. Unfiltered, the page's own
   // pager walks files and the per-section ones stay hidden; filtered, they
   // swap — the filter above has already hidden every section but the targeted

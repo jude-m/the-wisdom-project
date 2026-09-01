@@ -127,10 +127,11 @@ class PageTemplate {
     body.writeln('<main class="content'
         '${navOnly ? ' nav' : ''}${solo ? ' solo' : ''}">');
     body.writeln('<h1 class="page-title">${_headingHtml(page.node)}</h1>');
-    // A chapter's own node answers for at most one of the sections it carries,
-    // so its cross-link is emitted per section inside [_chapter] instead. A
-    // sutta page's node *is* its text, and a TOC's is the container whose twin
-    // is the other side's container — both are answered here.
+    // A chapter carries two link sets — one for the run, one per section — and
+    // which of them a reader wants is decided by the URL fragment rather than
+    // at build time, so [_chapter] emits both and the stylesheet picks. A sutta
+    // page's node *is* its text, and a TOC's is the container whose twin is the
+    // other side's container — both have one reader and are answered here.
     if (page.kind != PageKind.chapter) {
       final commentary = _commentaryLink(page.node);
       if (commentary != null) body.writeln(commentary);
@@ -372,11 +373,12 @@ class PageTemplate {
   /// commentary claims it — `FIGURES.nodesWithCommentaryLink` texts carry
   /// one.
   ///
-  /// **Takes the node being read, never the page's own node.** On a chapter
-  /// page those differ: `atta-sn-2-5-4` holds five vaṇṇanā and its node is the
-  /// *container*, whose twin is the canon container — so a page-level link sent
-  /// every reader of every section back to a TOC. [crossLinkTargetKey] answers
-  /// for the section instead, and `render` calls it once per section.
+  /// **Takes the node being read, which on a chapter page is not always the
+  /// page's own.** `atta-sn-2-5-4` holds five vaṇṇanā and its node is the
+  /// *container*, whose twin is the canon container: right for a reader of the
+  /// whole run, wrong for a reader of one section, who would be sent to a TOC.
+  /// So a chapter asks twice — once for the run and once per section — and the
+  /// stylesheet shows whichever the URL asked for. See `SitePage.speaksForRun`.
   ///
   /// **The key test is not enough on its own.** A key that exists may still be
   /// a folded leaf, which owns no file — `FIGURES.commentaryTwinsFolded` of
@@ -405,16 +407,17 @@ class PageTemplate {
       // [SiteBuild.urlFor] answers `<chapter>#<vaṇṇanā>` and dropping that
       // fragment leaves the URL naming only the chapter — harmless to the CSS,
       // which reads the marker, but it is the whole of what the app has.
-      final covered = canonKeysCoveredBy(tree, twinKey);
-      final url = covered.length > 1 && node.nodeKey != covered.first
+      final url = linksThroughOriginMarkers(tree, node.nodeKey)
           ? '${_pageOf(build.urlFor(twinKey))}#${originId(node.nodeKey)}'
           : build.urlFor(twinKey);
       return link(url, commentaryMarker);
     }
 
     const rootText = 'මූල පාඨය';
+    if (!linksThroughOriginMarkers(tree, node.nodeKey)) {
+      return link(build.urlFor(twinKey), rootText);
+    }
     final covered = canonKeysCoveredBy(tree, node.nodeKey);
-    if (covered.length <= 1) return link(build.urlFor(twinKey), rootText);
 
     // One marker per sutta *after the first*, each immediately followed by its
     // own return link: `.origin:target + .origin-link` picks one, so the
@@ -556,6 +559,20 @@ class PageTemplate {
     SitePage? next,
   }) {
     final buffer = StringBuffer('<div class="chapter">');
+    // The whole-run cross-link, shown only in the unfiltered view — see
+    // `SitePage.speaksForRun`. First, so that view opens on it exactly as a
+    // sutta page opens on its own; the bar below takes the same position in
+    // the other view, and the two are never visible together.
+    //
+    // Bound rather than asked twice. [SitePage.speaksForRun] does guarantee a
+    // link here — it refuses a page whose `crossLinkTargetKey` is null, which is
+    // [_commentaryLink]'s only null — but that invariant spans two packages with
+    // nothing local holding it, and its failure would be silent *and* doubled:
+    // the literal `null` in the page, and every section link wrapped away below
+    // behind a run-link that was never written.
+    final runLink =
+        page.speaksForRun(tree) ? _commentaryLink(page.node) : null;
+    if (runLink != null) buffer.write('<div class="run-link">$runLink</div>');
     // Shown only when a sutta is targeted — the way back to the whole run.
     //
     // A lone-child chapter (`FIGURES.loneChildChapters`: a container merged
@@ -578,11 +595,23 @@ class PageTemplate {
     // the text rather than below it because that is where the link sits on a
     // sutta page, and `--page-gap` between sections is what groups it with the
     // text it introduces rather than the one it follows.
+    //
+    // Wrapped where a run-link stands above them, and left bare where none
+    // does. **The wrapper is the switch** — one class on the section links says
+    // "this page has a coarser answer above", so the stylesheet needs no second
+    // marker on `.chapter` and cannot disagree with the template about which
+    // pages carry one. The wrapper also keeps the origin machinery inside it
+    // arguing only with itself: `.origin:target + .origin-link` and
+    // `.origin:target ~ .back-default` still see the siblings they always did.
     for (var i = 0; i < page.suttas.length; i++) {
       final sutta = page.suttas[i];
       buffer.write('<section class="sutta" id="${sutta.nodeKey}">');
       final commentary = _commentaryLink(sutta);
-      if (commentary != null) buffer.write(commentary);
+      if (commentary != null) {
+        buffer.write(runLink != null
+            ? '<div class="section-links">$commentary</div>'
+            : commentary);
+      }
       buffer.write(_rows(slices[sutta.nodeKey], depths));
       // The page's own pager walks files, which in the filtered view would skip
       // the rest of the run. One per section walks the run instead, and the CSS
