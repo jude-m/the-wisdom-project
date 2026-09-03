@@ -200,7 +200,7 @@ List<String> canonKeysCoveredBy(TipitakaTree tree, String commentaryKey) {
 /// `.back-default` already points there — so its link is plain.
 ///
 /// Read by `PageTemplate._commentaryLink`, which builds both shapes; by
-/// `SitePage.speaksForRun`, which must not drop a link that carries them, since
+/// `SitePlan.speaksForRun`, which must not drop a link that carries them, since
 /// these markers are addressed by id from the other side of the corpus and a
 /// link suppressed as "the coarser one" takes live inbound URLs down with it;
 /// and by `verify_corpus_invariants`, which is what turns that from a rule

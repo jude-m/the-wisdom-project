@@ -307,6 +307,7 @@ void main() {
           urlFor: (key) => key == 'atta-sp-grp-1'
               ? '/tipitaka/atta-sp-grp#atta-sp-grp-1'
               : tipitakaUrl(key),
+          speaksForRun: _plan.speaksForRun,
         ),
       );
       final html = template.render(_chapterPage,
@@ -386,7 +387,7 @@ void main() {
     });
 
     test('a run anchored on a leaf keeps its per-section cross-links', () {
-      // `SitePage.speaksForRun`'s anchor clause, isolated: these two sections
+      // `SitePlan.speaksForRun`'s anchor clause, isolated: these two sections
       // share one merged vaṇṇanā, so they *agree* about where the coarse link
       // would point and the subtree clause waves the page through. Only the
       // anchor test refuses it — which is the point, because `page.node` here
@@ -875,14 +876,25 @@ NodeSlice _bothLanguages([String nodeKey = 'sp-toc-1']) => _slice(nodeKey, [
       _row(pali: _entry('ධම්මං'), sinhala: _entry('ධර්මය')),
     ]);
 
-/// The four per-build values, as one fixture — see [SiteBuild].
-const SiteBuild _build = SiteBuild(
+/// The per-build values, as one fixture — see [SiteBuild].
+final SiteBuild _build = SiteBuild(
   origin: _origin,
   generatorVersion: 'test',
   assets: _assets,
   // These fixtures build `SitePage`s by hand, with no plan behind them and no
   // folded leaf in the tree, so the serving URL is the bare one.
   urlFor: tipitakaUrl,
+  speaksForRun: _plan.speaksForRun,
+);
+
+/// A plan over [_tree], held only so the pages above can be asked
+/// [SitePlan.speaksForRun]; its page list is unused. Nothing folds here, so the
+/// lone-child same-file clause cannot fire.
+final SitePlan _plan = SitePlan.build(
+  tree: _tree,
+  rootKeys: _tree.rootKeys,
+  foldedLeafKeys: const {},
+  textBearingContainerKeys: const {},
 );
 
 final PageTemplate _template = PageTemplate(tree: _tree, build: _build);

@@ -236,7 +236,7 @@ void main() {
       final page = _mergedPlan.pageOf('atta-ck')!;
       expect(page.kind, PageKind.chapter);
       expect(page.anchorsRunOnLeaf, isFalse);
-      expect(page.speaksForRun(_mergedTree), isTrue);
+      expect(_mergedPlan.speaksForRun(page), isTrue);
     });
 
     test('a run anchored on its own first leaf does not', () {
@@ -251,7 +251,7 @@ void main() {
         expect(crossLinkTargetKey(_mergedTree, key), 'atta-ck-2',
             reason: 'fixture no longer isolates the anchor clause');
       }
-      expect(page.speaksForRun(_mergedTree), isFalse);
+      expect(_mergedPlan.speaksForRun(page), isFalse);
     });
 
     test('a lone-child chapter has no run to speak for', () {
@@ -271,7 +271,7 @@ void main() {
       expect(crossLinkTargetKey(_mergedTree, 'atta-ck-1'), 'ck-1');
       expect(_mergedTree.isAncestorOf('ck', 'ck-1'), isTrue,
           reason: 'fixture no longer isolates the lone-child clause');
-      expect(lone.speaksForRun(_mergedTree), isFalse,
+      expect(_mergedPlan.speaksForRun(lone), isFalse,
           reason: 'the coarse link would be the container TOC, and the one '
               'section already has a nearer answer');
     });
@@ -296,11 +296,46 @@ void main() {
       // twin `mk-1-1` sits under the run's twin `mk-1`.
       expect(crossLinkTargetKey(_markerTree, 'atta-mk-1-1'), 'mk-1-1');
       expect(_markerTree.isAncestorOf('mk-1', 'mk-1-1'), isTrue);
-      expect(lone.speaksForRun(_markerTree), isTrue);
-      // Unordered on purpose — see [SitePage.crossLinkedNodes]. What matters is
+      expect(_markerPlan.speaksForRun(lone), isTrue);
+      // Unordered on purpose — see [SitePlan.crossLinkedNodes]. What matters is
       // that the page's own node is in there beside its section.
-      expect(lone.crossLinkedNodes(_markerTree).map((n) => n.nodeKey),
+      expect(_markerPlan.crossLinkedNodes(lone).map((n) => n.nodeKey),
           unorderedEquals(['atta-mk-1', 'atta-mk-1-1']));
+    });
+
+    test('a lone child speaks where its coarse link is its section\'s page',
+        () {
+      // The same-file exception, mirroring `atta-sn-4-1-17`: one vaṇṇanā on a
+      // whole vagga, whose own link (`wr-1`) and its section's (`wr-1-1`) name
+      // one file — so the coarse link is that page unfiltered, and a reader
+      // taking it loses nothing.
+      final lone = _wholeRunPlan.pageOf('atta-wr-1')!;
+      expect(lone.kind, PageKind.chapter);
+      expect(lone.suttas.map((s) => s.nodeKey), ['atta-wr-1-1']);
+      // Every earlier clause would suppress it: one section, no markers, and
+      // that section's twin sits under the run's.
+      expect(linksThroughOriginMarkers(_wholeRunTree, 'atta-wr-1'), isFalse,
+          reason: 'the marker exception would mask the clause under test');
+      expect(_wholeRunTree.isAncestorOf('wr-1', 'wr-1-1'), isTrue);
+      // The two halves of the exception, stated rather than implied.
+      expect(
+          _wholeRunPlan.pageOf('wr-1'), same(_wholeRunPlan.pageOf('wr-1-1')));
+      expect(_wholeRunPlan.pageOf('wr-1')!.needsFragmentFor('wr-1'), isFalse);
+      expect(_wholeRunPlan.speaksForRun(lone), isTrue);
+    });
+
+    test('and refuses once those canon leaves own their own files', () {
+      // The same tree with nothing folded. `wr-1-1` is now its own page, so the
+      // coarse link is no longer the section's page and the reader would be
+      // handed a different file. Grouping alone flips the answer, which is why
+      // the predicate needs the plan rather than the page.
+      final lone = SitePage(
+        kind: PageKind.chapter,
+        node: _wholeRunTree['atta-wr-1']!,
+        suttas: [_wholeRunTree['atta-wr-1-1']!],
+      );
+      expect(_unfoldedRunPlan.pageOf('wr-1-1')!.nodeKey, 'wr-1-1');
+      expect(_unfoldedRunPlan.speaksForRun(lone), isFalse);
     });
 
     test('a chapter with no sections answers rather than throwing', () {
@@ -315,8 +350,8 @@ void main() {
       );
       expect(crossLinkTargetKey(_markerTree, 'atta-mk-1'), isNotNull,
           reason: 'an early null target would mask the throw');
-      expect(empty.speaksForRun(_markerTree), isTrue);
-      expect(empty.crossLinkedNodes(_markerTree).map((n) => n.nodeKey),
+      expect(_markerPlan.speaksForRun(empty), isTrue);
+      expect(_markerPlan.crossLinkedNodes(empty).map((n) => n.nodeKey),
           ['atta-mk-1']);
     });
 
@@ -332,7 +367,7 @@ void main() {
       );
       expect(crossLinkTargetKey(_mergedTree, 'atta-ck-1'), 'ck-1');
       expect(crossLinkTargetKey(_mergedTree, 'atta-ck-2'), 'ck-2');
-      expect(escaping.speaksForRun(_mergedTree), isFalse,
+      expect(_mergedPlan.speaksForRun(escaping), isFalse,
           reason: '`ck-2` does not sit under `ck-1`, so one link cannot reach '
               'both');
     });
@@ -340,9 +375,9 @@ void main() {
     test('a TOC and a sutta page never speak for a run', () {
       // The predicate is a chapter's question. Both other kinds answer their
       // own cross-link at page level already, and a second one would double it.
-      expect(_mergedPlan.pageOf('ck-1')!.speaksForRun(_mergedTree), isFalse);
+      expect(_mergedPlan.speaksForRun(_mergedPlan.pageOf('ck-1')!), isFalse);
       expect(_plan.pageOf('sp-mid')!.kind, PageKind.toc);
-      expect(_plan.pageOf('sp-mid')!.speaksForRun(_tree), isFalse);
+      expect(_plan.speaksForRun(_plan.pageOf('sp-mid')!), isFalse);
     });
   });
 
@@ -474,10 +509,58 @@ final TipitakaTree _markerTree = TipitakaTree.fromJson({
   'atta-mk-1-1': _row('atta-mk-1', '1. පඨමසුත්තවණ්ණනා'),
 });
 
+/// A vaṇṇanā covering a whole vagga, mirroring `atta-sn-4-1-17`: the
+/// commentary container's link and its one section's link land on the same
+/// canon file, one bare and one on a fragment.
+///
+/// ```text
+/// wr                  TOC
+///   wr-1                chapter — both leaves folded, so it carries both
+///     wr-1-1              folded
+///     wr-1-2              folded
+/// atta-wr             TOC
+///   atta-wr-1           chapter — a container merged with its only child
+///     atta-wr-1-1         folded — "1-2.", the whole vagga in one vaṇṇanā
+/// ```
+final TipitakaTree _wholeRunTree = TipitakaTree.fromJson({
+  'wr': _row(null),
+  'wr-1': _row('wr'),
+  'wr-1-1': _row('wr-1'),
+  'wr-1-2': _row('wr-1'),
+  'atta-wr': _row(null),
+  'atta-wr-1': _row('atta-wr'),
+  'atta-wr-1-1': _row('atta-wr-1', '1-2. පඨමසුත්තාදිවණ්ණනා'),
+});
+
+final SitePlan _wholeRunPlan = SitePlan.build(
+  tree: _wholeRunTree,
+  rootKeys: const ['wr', 'atta-wr'],
+  foldedLeafKeys: const {'wr-1-1', 'wr-1-2', 'atta-wr-1-1'},
+  textBearingContainerKeys: const {},
+);
+
+/// [_wholeRunTree] with nothing folded, so every canon leaf owns its own file.
+/// The commentary page is hand-built there — unfolded, its container is a TOC.
+final SitePlan _unfoldedRunPlan = SitePlan.build(
+  tree: _wholeRunTree,
+  rootKeys: const ['wr', 'atta-wr'],
+  foldedLeafKeys: const {},
+  textBearingContainerKeys: const {},
+);
+
 final SitePlan _mergedPlan = SitePlan.build(
   tree: _mergedTree,
   rootKeys: const ['ck', 'atta-ck'],
   foldedLeafKeys: const {'ck-3', 'ck-4', 'atta-ck-1', 'atta-ck-2'},
+  textBearingContainerKeys: const {},
+);
+
+/// A plan over [_markerTree], so that fixture's hand-built pages can be asked
+/// [SitePlan.speaksForRun].
+final SitePlan _markerPlan = SitePlan.build(
+  tree: _markerTree,
+  rootKeys: const ['mk', 'atta-mk'],
+  foldedLeafKeys: const {},
   textBearingContainerKeys: const {},
 );
 

@@ -18,6 +18,10 @@ The Wisdom Project - a Tipitaka and commentary browsing app with parallel Pali/S
 
 ## Code Style
 - **Always use `const`**: Use `const` for constructors, variables, and collections when values are compile-time constants. Avoids `prefer_const_constructors` and `prefer_const_declarations` lint warnings.
+- **Keep doc comments to a minimum.** Few lines max saying what it does and why,
+  where the why is not obvious. No multi-paragraph essays, no restating the
+  code, no worked examples. If a rule is subtle enough to need a long
+  explanation, that belongs in a doc under `docs/`, not above the function.
 
 ## Localization
 - ARB files: `lib/core/localization/l10n/app_en.arb`, `app_si.arb`

@@ -387,7 +387,7 @@ bool _verifyLinks(CorpusReader reader) {
     if (!linksThroughOriginMarkers(tree, node.nodeKey)) continue;
     final page = plan.pageOf(node.nodeKey);
     if (page == null) continue; // already counted as `unplanned`
-    if (page.crossLinkedNodes(tree).any((n) => n.nodeKey == node.nodeKey)) {
+    if (plan.crossLinkedNodes(page).any((n) => n.nodeKey == node.nodeKey)) {
       continue;
     }
     unprinted++;

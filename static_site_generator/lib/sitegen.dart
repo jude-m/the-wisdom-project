@@ -155,6 +155,7 @@ class SiteGenerator {
       generatorVersion: generatorVersion,
       assets: assets,
       urlFor: plan.urlFor,
+      speaksForRun: plan.speaksForRun,
     );
 
     final template = PageTemplate(tree: tree, build: build);

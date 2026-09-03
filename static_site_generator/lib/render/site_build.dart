@@ -58,11 +58,16 @@ class SiteBuild {
   /// keys, and a folded key's bare URL is served by no file.
   final UrlResolver urlFor;
 
+  /// Whether a chapter page's own `අට්ඨකථා` stands for its whole run —
+  /// [SitePlan.speaksForRun]. Threaded for the same reason [urlFor] is.
+  final RunLinkPredicate speaksForRun;
+
   const SiteBuild({
     required this.origin,
     required this.generatorVersion,
     required this.assets,
     required this.urlFor,
+    required this.speaksForRun,
   });
 
   /// [origin] with a root-relative [path] on the end — the absolute form

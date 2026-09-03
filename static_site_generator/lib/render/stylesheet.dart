@@ -1192,7 +1192,7 @@ void _writeGroupedChapter(StringBuffer css) {
   // The two cross-link views. A reader on the bare URL asked for the run and
   // gets one `අට්ඨකථා` for it; a reader on a fragment asked for one sutta and
   // gets that sutta's. Never both, so neither has to be worded to excuse the
-  // other — and `SitePage.speaksForRun` has already decided that the coarse
+  // other — and `SitePlan.speaksForRun` has already decided that the coarse
   // link really does reach every section, so nothing is hidden here that is
   // reachable nowhere else.
   //

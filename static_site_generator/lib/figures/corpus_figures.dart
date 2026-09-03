@@ -264,11 +264,11 @@ List<FigureGroup> computeCorpusFigures({
     if (page.node.isCommentary) commentaryPages++;
 
     // Exactly what `PageTemplate` emits, asked of the plan rather than spelled
-    // out again here — see [SitePage.crossLinkedNodes]. Counting pages instead
+    // out again here — see [SitePlan.crossLinkedNodes]. Counting pages instead
     // would undercount the chapters, which is the shape that hid the
     // container-anchored bug: one wrong link served a whole run.
-    if (page.speaksForRun(tree)) runLinkChapters++;
-    for (final node in page.crossLinkedNodes(tree)) {
+    if (plan.speaksForRun(page)) runLinkChapters++;
+    for (final node in plan.crossLinkedNodes(page)) {
       final target = crossLinkTargetKey(tree, node.nodeKey);
       if (target == null) {
         if (!node.isCommentary) canonNodesWithNoCommentary++;
@@ -435,7 +435,7 @@ List<FigureGroup> computeCorpusFigures({
             formatCount(runLinkChapters),
             'chapters named after their group whose own cross-link stands for '
                 'the whole run — the unfiltered view offers it instead of one '
-                'link per sutta (`SitePage.speaksForRun`)'),
+                'link per sutta (`SitePlan.speaksForRun`)'),
         Figure(
             'loneChildChaptersNotFoldedOnSize',
             formatCount(loneChildChaptersNotFoldedOnSize),

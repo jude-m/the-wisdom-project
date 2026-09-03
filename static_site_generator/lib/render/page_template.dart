@@ -378,7 +378,7 @@ class PageTemplate {
   /// *container*, whose twin is the canon container: right for a reader of the
   /// whole run, wrong for a reader of one section, who would be sent to a TOC.
   /// So a chapter asks twice — once for the run and once per section — and the
-  /// stylesheet shows whichever the URL asked for. See `SitePage.speaksForRun`.
+  /// stylesheet shows whichever the URL asked for. See `SitePlan.speaksForRun`.
   ///
   /// **The key test is not enough on its own.** A key that exists may still be
   /// a folded leaf, which owns no file — `FIGURES.commentaryTwinsFolded` of
@@ -560,18 +560,18 @@ class PageTemplate {
   }) {
     final buffer = StringBuffer('<div class="chapter">');
     // The whole-run cross-link, shown only in the unfiltered view — see
-    // `SitePage.speaksForRun`. First, so that view opens on it exactly as a
+    // `SitePlan.speaksForRun`. First, so that view opens on it exactly as a
     // sutta page opens on its own; the bar below takes the same position in
     // the other view, and the two are never visible together.
     //
-    // Bound rather than asked twice. [SitePage.speaksForRun] does guarantee a
+    // Bound rather than asked twice. [SitePlan.speaksForRun] does guarantee a
     // link here — it refuses a page whose `crossLinkTargetKey` is null, which is
     // [_commentaryLink]'s only null — but that invariant spans two packages with
     // nothing local holding it, and its failure would be silent *and* doubled:
     // the literal `null` in the page, and every section link wrapped away below
     // behind a run-link that was never written.
     final runLink =
-        page.speaksForRun(tree) ? _commentaryLink(page.node) : null;
+        build.speaksForRun(page) ? _commentaryLink(page.node) : null;
     if (runLink != null) buffer.write('<div class="run-link">$runLink</div>');
     // Shown only when a sutta is targeted — the way back to the whole run.
     //
