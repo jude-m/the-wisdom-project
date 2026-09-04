@@ -1,6 +1,8 @@
 # Static HTML Site — Build Plan (per-sutta SEO, 4 Layouts, no JS framework)
 
-> Status: **Plan / not started — the real build spec, not a throwaway prototype.**
+> Status: **Built — this is the spec the live site implements.** It stays the
+> standing reference for the grouping model, thresholds, URL grammar and C1–C10;
+> execution state lives in [`static-html-site-build-plan.md`](./static-html-site-build-plan.md) (§12 here is the only stale section, and says so).
 > Captured 2026-06-12 (revised after field research into tipitaka.lk, buddhadust,
 > and SuttaCentral; grouping model refined 2026-07-20).
 > Scope: the honest static-HTML surface of the Tipitaka content from
@@ -36,7 +38,7 @@ and scales to the whole canon unchanged — same code, more input.
 > **Edition scope (locked 2026-07-21): this static site renders BJT only.** Its job
 > is BJT-based discoverability / SEO / fast reading — not an edition browser.
 > **Multi-edition** (SuttaCentral, A.P. de Zoysa) lives in the **app** (Flutter web
-> on `app.<domain>` + native — subdomain topology decided 2026-07-23), never here —
+> on `app.sammaditthi.net` + native — subdomain topology decided 2026-07-23), never here —
 > so the static pages never emit an `?edition=` param and need no
 > `hreflang`/`canonical` edition handling. The URL grammar is shared with the app
 > (identical path on the `app.` host, plus `?edition=`); full
@@ -589,7 +591,7 @@ input, and the only one that is generated Dart rather than an asset (§6).
   `…/kn-khp`), breaking the uniform `/tipitaka/<nodeKey>` grammar the codec and
   deep links rely on. Flat files keep one URL per node for every node type.
 - **Every sutta's text is in exactly one file.** Hosting split (static on the
-  apex, app on `app.<domain>` — decided 2026-07-23) lives in
+  apex, app on `app.sammaditthi.net` — decided 2026-07-23) lives in
   `static-web-hosting.md` → "Project topology".
 - **`fonts/` is a build *input*, not output** (2026-07-27). `subset_fonts.sh`
   runs by hand (subsets to TTF, then `fonttools ttLib.woff2 compress`), output

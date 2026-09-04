@@ -6,16 +6,22 @@ import 'navigation_tree_provider.dart';
 import 'navigator_sync_provider.dart';
 import 'tab_provider.dart';
 
-/// Where shared links point: the web host that serves the `/tipitaka/*` pages
-/// (static site in production, the Dart content server's SPA fallback in dev).
+/// Where shared links point: the web host that serves the `/tipitaka/*` pages.
 ///
-/// Defaults to the local dev server on :8080. Override at build/run time with
-/// `--dart-define=LINK_BASE_URL=https://sammaditthi.app`.
+/// Defaults to the apex, because a shared link is a gift to someone who may not
+/// have the app: the static site renders without JS and previews in WhatsApp.
+/// It will also open the *native* app on a device that has it — but only once
+/// the App Links files ship (`.well-known/apple-app-site-association` and
+/// `assetlinks.json` on both origins, plus the associated-domains entitlement);
+/// none of that is built yet, so today this URL opens a browser. Override at
+/// build/run time with `--dart-define=LINK_BASE_URL=…` — pointing a dev build
+/// at a local server, or at `app.sammaditthi.net` for a reading the static site
+/// cannot render (non-BJT editions).
 /// See `docs/todo/deep-linking-and-shareable-urls.md` for the URL grammar.
 final linkBaseUrlProvider = Provider<String>(
   (ref) => const String.fromEnvironment(
     'LINK_BASE_URL',
-    defaultValue: 'http://localhost:8080',
+    defaultValue: 'https://sammaditthi.net',
   ),
 );
 

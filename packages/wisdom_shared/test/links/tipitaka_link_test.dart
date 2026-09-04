@@ -17,11 +17,11 @@ void main() {
       // lets the share button stay ignorant of which surface it is on.
       const expected = TipitakaLink(nodeKey: 'sn-2-3-1-3');
       expect(
-        TipitakaLink.tryParse('https://sammaditthi.app/tipitaka/sn-2-3-1-3'),
+        TipitakaLink.tryParse('https://sammaditthi.net/tipitaka/sn-2-3-1-3'),
         expected,
       );
       expect(
-        TipitakaLink.tryParse('https://app.sammaditthi.app/tipitaka/sn-2-3-1-3'),
+        TipitakaLink.tryParse('https://app.sammaditthi.net/tipitaka/sn-2-3-1-3'),
         expected,
       );
     });
@@ -398,32 +398,32 @@ void main() {
   group('building URLs', () {
     test('the canonical form has no query when there is no position', () {
       expect(
-        const TipitakaLink(nodeKey: 'sn-2-3').toUri('https://sammaditthi.app'),
-        Uri.parse('https://sammaditthi.app/tipitaka/sn-2-3'),
+        const TipitakaLink(nodeKey: 'sn-2-3').toUri('https://sammaditthi.net'),
+        Uri.parse('https://sammaditthi.net/tipitaka/sn-2-3'),
       );
     });
 
     test('page and entry are joined with a dot', () {
       expect(
         const TipitakaLink(nodeKey: 'sn-2-3', pageIndex: 12, entryIndex: 4)
-            .toUri('https://sammaditthi.app'),
-        Uri.parse('https://sammaditthi.app/tipitaka/sn-2-3?e=12.4'),
+            .toUri('https://sammaditthi.net'),
+        Uri.parse('https://sammaditthi.net/tipitaka/sn-2-3?e=12.4'),
       );
     });
 
     test('a page with no entry emits the bare page', () {
       expect(
         const TipitakaLink(nodeKey: 'sn-2-3', pageIndex: 12)
-            .toUri('https://sammaditthi.app'),
-        Uri.parse('https://sammaditthi.app/tipitaka/sn-2-3?e=12'),
+            .toUri('https://sammaditthi.net'),
+        Uri.parse('https://sammaditthi.net/tipitaka/sn-2-3?e=12'),
       );
     });
 
     test('an entry with no page emits nothing — the entry is meaningless alone', () {
       expect(
         const TipitakaLink(nodeKey: 'sn-2-3', entryIndex: 4)
-            .toUri('https://sammaditthi.app'),
-        Uri.parse('https://sammaditthi.app/tipitaka/sn-2-3'),
+            .toUri('https://sammaditthi.net'),
+        Uri.parse('https://sammaditthi.net/tipitaka/sn-2-3'),
       );
     });
 
@@ -452,7 +452,7 @@ void main() {
       // test holds because `dart test` runs with asserts enabled — it pins the
       // debug guard, not a release-mode guarantee.
       expect(
-        () => const TipitakaLink(nodeKey: 'sn-2-3').toUri('sammaditthi.app'),
+        () => const TipitakaLink(nodeKey: 'sn-2-3').toUri('sammaditthi.net'),
         throwsA(isA<AssertionError>()),
       );
     });
@@ -508,7 +508,7 @@ void main() {
 
     for (final link in links) {
       test('shareable URL: $link', () {
-        expect(TipitakaLink.parse(link.toUri('https://sammaditthi.app')), link);
+        expect(TipitakaLink.parse(link.toUri('https://sammaditthi.net')), link);
       });
 
       test('custom scheme: $link', () {
@@ -523,7 +523,7 @@ void main() {
       // the codec ever starts carrying a page-less entry, it fails here first.
       const orphan = TipitakaLink(nodeKey: 'sn-2-3', entryIndex: 4);
       expect(
-        TipitakaLink.parse(orphan.toUri('https://sammaditthi.app')),
+        TipitakaLink.parse(orphan.toUri('https://sammaditthi.net')),
         const TipitakaLink(nodeKey: 'sn-2-3'),
       );
       expect(TipitakaLink.parse(orphan.toCustomSchemeUri()), isNot(orphan));

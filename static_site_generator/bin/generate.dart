@@ -309,11 +309,10 @@ class _Options {
 /// reaches Cloudflare wearing this.
 ///
 /// **Not `:8080`**, which it was until the port was checked against the server
-/// it named. 8080 is the app's `LINK_BASE_URL` fallback
-/// (`lib/presentation/providers/deep_link_provider.dart`) and Flutter web's
-/// slot in this repo's dev port map — a different surface, serving different
-/// bytes at the same paths. Sharing a number with it bought nothing and made
-/// every canonical in a hand-run build name a host that serves the app.
+/// it named. 8080 is Flutter web's slot in this repo's dev port map — a
+/// different surface, serving different bytes at the same paths. Sharing a
+/// number with it bought nothing and made every canonical in a hand-run build
+/// name a host that serves the app.
 ///
 /// It tracks `serve.dart`. If that default moves, this moves with it.
 const String _defaultOrigin = 'http://localhost:8083';

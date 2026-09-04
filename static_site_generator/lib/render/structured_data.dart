@@ -14,7 +14,7 @@ import 'site_chrome.dart';
 /// **`BreadcrumbList` and nothing else.** It is the one type here with a
 /// visible payoff: Google replaces the URL line in a result with the readable
 /// trail, which is worth more to someone browsing scripture than
-/// `sammaditthi.pages.dev › tipitaka › an-1-1` ever was. `Book` and `Chapter`
+/// `sammaditthi.net › tipitaka › an-1-1` ever was. `Book` and `Chapter`
 /// would describe the canon more fully and have no rich-result treatment at
 /// all, so they would be markup nothing reads.
 ///

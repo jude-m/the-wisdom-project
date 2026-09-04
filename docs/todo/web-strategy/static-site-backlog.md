@@ -4,7 +4,7 @@ Every small, independently shippable item on the apex static site — search
 performance, build size, and the leftovers from review. None of these blocks
 anything; each can go on its own.
 
-**Scope:** the apex static site only. `app.<domain>` stays `X-Robots-Tag:
+**Scope:** the apex static site only. `app.sammaditthi.net` stays `X-Robots-Tag:
 noindex` (crawlable, not indexed) and the Flutter payload there is a separate
 problem with separate tooling — see `static-web-hosting.md`.
 

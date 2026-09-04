@@ -26,7 +26,7 @@
 #   dev    personal account, `wrangler login`    sammaditthi-dev, branch dev
 #          -> dev.sammaditthi-dev.pages.dev      (preview, noindex)
 #   prod   ops account, .prod.env token          sammaditthi,     branch main
-#          -> sammaditthi.pages.dev              (production, INDEXABLE)
+#          -> sammaditthi.net                    (production, INDEXABLE)
 #
 # Dev and prod are separate Cloudflare ACCOUNTS — prod under wisdom.ops so a
 # handover can transfer prod alone. A Pages project belongs to exactly ONE
@@ -66,6 +66,12 @@ DEV_BRANCH="dev"
 PROD_PROJECT="sammaditthi"
 PROD_BRANCH="main"
 PROD_ENV_FILE="scripts/static_site/.prod.env"
+
+# The custom domain, attached to $PROD_PROJECT in the ops account. Registered
+# 2026-09-01; `.net` because `.app` was the docs' guess and never bought. This
+# is the only place a domain is written down on the way to Cloudflare — the
+# generator holds none, it is handed one as --origin (build plan P5).
+PROD_ORIGIN="https://sammaditthi.net"
 
 # $PROD_BRANCH does double duty: it is both the Pages branch a release deploys
 # to and the git branch a release must be cut from. They are the same name
@@ -187,6 +193,77 @@ if [ "$TARGET" = "prod" ]; then
     exit 1
   fi
 
+  # --- The apex is actually attached ------------------------------------------
+  # Asked HERE, before the build, because the build is the whole corpus and this
+  # answer does not depend on it.
+  #
+  # $PROD_ORIGIN is baked into every canonical, og:url and sitemap entry, and
+  # prod is the indexable target — so a release cut before the custom domain is
+  # attached publishes FIGURES.realPages pages all naming a host that resolves
+  # to nothing. Every other precondition in this script is enforced; leaving
+  # this one as a comment made the most expensive failure the only unguarded
+  # one.
+  #
+  # The Pages API, not a request to the apex. `curl $PROD_ORIGIN` only proves
+  # something answers on that name — a registrar parking page passes it, and so
+  # does a Cloudflare zone whose domain has not been attached to this project.
+  # That is precisely the state being checked for, so the cheap test would pass
+  # exactly when it needed to fail. wrangler has no Pages custom-domain command
+  # (`pages project` is list/create/delete only), so this is a raw call either
+  # way and the exact question costs nothing extra to ask.
+  PROD_HOST=${PROD_ORIGIN#https://}
+  echo "Checking $PROD_HOST is attached to $PROD_PROJECT..."
+  DOMAIN_JSON=$(curl -sS --max-time 15 \
+    -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+    "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROD_PROJECT/domains" \
+    2>/dev/null || true)
+
+  if ! printf '%s' "$DOMAIN_JSON" | tr -d ' \n' | grep -q '"success":true'; then
+    echo "error: could not list the custom domains on $PROD_PROJECT." >&2
+    echo "       Either the network is down, or the $PROD_ENV_FILE token is" >&2
+    echo "       expired or missing the 'Cloudflare Pages: Read' permission." >&2
+    echo "       Refusing to upload to production unverified." >&2
+    exit 1
+  fi
+
+  # One record per domain, so the name and the status have to be read off the
+  # SAME one: a project may carry several (apex and www), and a grep for
+  # "active" anywhere in the payload would happily accept a sibling's.
+  DOMAIN_RECORD=$(printf '%s' "$DOMAIN_JSON" | tr -d ' \n' | tr '{' '\n' \
+    | grep -F "\"name\":\"$PROD_HOST\"" | head -1)
+  if [ -z "$DOMAIN_RECORD" ]; then
+    echo "error: $PROD_HOST is not attached to the Pages project" >&2
+    echo "       '$PROD_PROJECT' in account $CLOUDFLARE_ACCOUNT_ID." >&2
+    echo "       Attach it there first — a release cut now would bake" >&2
+    echo "       $PROD_ORIGIN into every canonical, og:url and sitemap entry" >&2
+    echo "       on an indexable deploy, and nothing would resolve." >&2
+    echo "       Nothing uploaded." >&2
+    exit 1
+  fi
+
+  # The record was split at its first nested object, so the only status left in
+  # it is the domain's own. Empty therefore means the field moved, not that the
+  # domain is inactive — said separately, because a parse that has gone blind
+  # must not read as a Cloudflare problem and send you to the dashboard.
+  DOMAIN_STATUS=$(printf '%s' "$DOMAIN_RECORD" \
+    | sed -n 's/.*"status":"\([^"]*\)".*/\1/p')
+  if [ -z "$DOMAIN_STATUS" ]; then
+    echo "error: found $PROD_HOST on $PROD_PROJECT but could not read its" >&2
+    echo "       status. The API's field order has probably changed, so this" >&2
+    echo "       check can no longer tell an active domain from a pending" >&2
+    echo "       one. Fix the parse above rather than assuming it is fine." >&2
+    echo "       Nothing uploaded." >&2
+    exit 1
+  fi
+  if [ "$DOMAIN_STATUS" != "active" ]; then
+    echo "error: $PROD_HOST is attached to $PROD_PROJECT but its status is" >&2
+    echo "       '$DOMAIN_STATUS', not 'active' — Cloudflare is still" >&2
+    echo "       validating it, so it does not serve yet. Wait for it to go" >&2
+    echo "       active and re-run. Nothing uploaded." >&2
+    exit 1
+  fi
+  echo ""
+
   PROJECT="$PROD_PROJECT"
   BRANCH="$PROD_BRANCH"
   EXPECTED_ACCOUNT="$CLOUDFLARE_ACCOUNT_ID"
@@ -251,8 +328,17 @@ fi
 # obvious next guess `/<nodeKey>`, since every page lives under `/tipitaka/`;
 # `/` is a real page now, built from the roots the build actually wrote, so a
 # `--root an-1` deploy's origin links only into that subtree.
+#
+# PROD NAMES THE APEX, NOT `.pages.dev`. A release is reachable at both, and the
+# one it *claims* is the one Google keeps: baking $PROD_ORIGIN consolidates the
+# duplicate on `sammaditthi.pages.dev` onto the apex from the first crawl, which
+# is the whole reason the domain had to be settled before the first prod deploy.
+# It also means a release cut before the custom domain is attached in Cloudflare
+# would ship canonicals nobody can resolve. That is enforced, not merely warned
+# about: the prod branch above asks the Pages API whether $PROD_ORIGIN is an
+# active custom domain on $PROD_PROJECT and refuses the deploy if it is not.
 if [ "$TARGET" = "prod" ]; then
-  ORIGIN="https://$PROJECT.pages.dev"
+  ORIGIN="$PROD_ORIGIN"
 else
   ORIGIN="https://$BRANCH.$PROJECT.pages.dev"
 fi

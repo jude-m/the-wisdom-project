@@ -225,10 +225,10 @@ class TipitakaLink {
   /// Any path on the base (e.g. `https://host/app`) is preserved as a prefix.
   Uri toUri(String baseUrl) {
     final base = Uri.parse(baseUrl);
-    // A scheme-less base ("sammaditthi.app") parses as a path, producing a
+    // A scheme-less base ("sammaditthi.net") parses as a path, producing a
     // broken URL. Developer-controlled input (LINK_BASE_URL) → dev-time guard.
     assert(base.hasScheme,
-        'baseUrl must include a scheme, e.g. https://sammaditthi.app — got "$baseUrl"');
+        'baseUrl must include a scheme, e.g. https://sammaditthi.net — got "$baseUrl"');
     final entryValue = _entryValue;
     return Uri(
       scheme: base.scheme,

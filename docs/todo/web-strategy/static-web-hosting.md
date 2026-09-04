@@ -90,7 +90,7 @@ Two things ship as **static builds**; one **Worker** stays. Nothing is always-on
 | Surface | Build artifact | Served by | Indexed? |
 |---|---|---|---|
 | Static HTML site (apex: `/`, `/tipitaka/*`) | SSG (`static_site_generator/`) → flat `.html` | **Cloudflare Pages** (own project) | ✅ canonical |
-| Flutter web app (`app.<domain>`) | `flutter build web` (JS/wasm bundle) | **Cloudflare Pages** (own project — see "Project topology") | ❌ noindex |
+| Flutter web app (`app.sammaditthi.net`) | `flutter build web` (JS/wasm bundle) | **Cloudflare Pages** (own project — see "Project topology") | ❌ noindex |
 | Canon DBs (content+FTS, `dict.db`) | prebuilt `.db` blobs → **Drift wasm/OPFS**, downloaded once | **Cloudflare R2** (too big for Pages — see 25 MiB note) | ❌ |
 | Research Q&A | TypeScript on **Cloudflare Workers** (scale-to-zero) | Workers | ❌ |
 
@@ -110,7 +110,7 @@ All of this is the **free** Pages plan:
 
 - **HTTPS is automatic and free.** Every project is served over HTTPS on
   `‹project›.pages.dev` out of the box (Cloudflare wildcard cert). A custom domain
-  (`sammaditthi.app`) gets a **free auto-provisioned SSL cert** (Universal SSL) +
+  (`sammaditthi.net`) gets a **free auto-provisioned SSL cert** (Universal SSL) +
   HTTP→HTTPS redirect. This is precisely what lets the App-Links `.well-known`
   files (below) be fetched over real HTTPS — the OS requirement for Universal /
   App Links.
@@ -257,7 +257,7 @@ short only the root index page, which is not generated yet).
 | | Account | Auth | Project | Branch | URL |
 |---|---|---|---|---|---|
 | **dev** (default) | personal | `wrangler login` | `sammaditthi-dev` | `dev` | `dev.sammaditthi-dev.pages.dev` — preview, **noindex** |
-| **prod** (`--prod`) | wisdom.ops | `.prod.env` token | `sammaditthi` | `main` | `sammaditthi.pages.dev` — **indexable** |
+| **prod** (`--prod`) | wisdom.ops | `.prod.env` token | `sammaditthi` | `main` | `sammaditthi.net` — **indexable** (also answers on `sammaditthi.pages.dev`; canonicals name the apex) |
 
 **The production project name is `sammaditthi`** (settled 2026-08-02, closing the
 naming half of open-Q #2 below; the custom *domain* is still open). It is fixed
@@ -320,9 +320,9 @@ and the surfaces gain nothing from sharing an origin:
 
 | Project | Domain | Files (budget of 20 K each) |
 |---|---|---|
-| Static content site | apex (`<domain>`) | ~16.4 K — corpus is fixed, never grows |
-| Flutter web app | `app.<domain>` | a few hundred (until/if retired) |
-| ටීකා (sub-commentaries), when digitized | `tika.<domain>` | ~6–7 K projected (≈ `atta-*` scale) |
+| Static content site | apex (`sammaditthi.net`) | ~16.4 K — corpus is fixed, never grows |
+| Flutter web app | `app.sammaditthi.net` | a few hundred (until/if retired) |
+| ටීකා (sub-commentaries), when digitized | `tika.sammaditthi.net` | ~6–7 K projected (≈ `atta-*` scale) |
 
 Why (recorded from the 2026-07-23 discussion):
 
@@ -403,7 +403,7 @@ at all). None is planned.
 ### The nav button (static → app) and the root rule
 
 - **Button:** a plain absolute link,
-  `<a href="https://app.<domain>/tipitaka/<nodeKey>">Open in the full reader
+  `<a href="https://app.sammaditthi.net/tipitaka/<nodeKey>">Open in the full reader
   app →</a>` (cross-origin now — always absolute). **No `flutter_bootstrap.js`
   auto-boot on the static pages** — that auto-swap-into-canvas is exactly what
   made the rejected "Option A" hacky.
@@ -526,7 +526,7 @@ The SSG emits all of it as static files:
   `_headers` rule: `/*` → `X-Robots-Tag: noindex`) and its `robots.txt`
   **allows** crawling. The earlier `Disallow: /` idea backfires: a robots.txt
   block stops Google from ever *fetching* the page, so it never sees a noindex —
-  yet every static page links `https://app.<domain>/tipitaka/…` ("Open in app"),
+  yet every static page links `https://app.sammaditthi.net/tipitaka/…` ("Open in app"),
   so those URLs could still index as bare "indexed, though blocked by
   robots.txt" entries. Crawl-then-noindex removes them properly. (The Flutter
   `index.html` may keep `<meta name="robots" content="noindex">` as
@@ -546,42 +546,52 @@ The SSG emits all of it as static files:
    searches pays nothing for it. That is what answers the zero-JS objection this
    question raised against option (c): every page still renders, navigates and
    switches layout with JS off, and the search button simply never appears.
-2. **Production domain** (`sammaditthi.app`?) — feeds canonical URLs, OG tags, and
-   the App Links `.well-known` files. **Production Cloudflare account
-   (2026-07-23): a separate account under wisdom.ops is planned** (today's
-   personal account stays dev — it runs the research Worker). Everything
-   production must land in that ONE account: the Pages projects, the
-   custom-domain zone, R2, and the Worker (Bulk Redirects only fire on a zone
-   in the same account; the Worker needs a re-deploy + CORS re-pin from there).
-   ~~Pages *project* names.~~ **RESOLVED 2026-08-02: `sammaditthi` (prod) and
-   `sammaditthi-dev` (dev)**, fixed in `scripts/static_site/deploy.sh` — see
-   "Two targets, one per account" above. Only the **domain** is still open; the
-   two are independent, since a project keeps its `.pages.dev` name whatever
-   custom domain is later attached.
+2. ~~**Production domain.**~~ **RESOLVED 2026-09-01: `sammaditthi.net`**,
+   registered, and written down in exactly one place —
+   `PROD_ORIGIN` in `scripts/static_site/deploy.sh`. `.net` because `.app` was
+   this question's guess and was never bought; the guess had spread to four docs
+   and seven code sites, all corrected. The apex serves the static content site,
+   `app.sammaditthi.net` the Flutter web app, `tika.sammaditthi.net` the ටීකා
+   later (question 3). Pages *project* names were resolved separately on
+   2026-08-02 (`sammaditthi` / `sammaditthi-dev`) and are unaffected: a project
+   keeps its `.pages.dev` name whatever custom domain is attached to it.
 
-   > **It stopped blocking the build, 2026-08-22 (P5).** Canonical URLs, OG tags
-   > and `sitemap.xml` all need an absolute origin, and all three shipped
-   > without this being answered: `deploy.sh` computes the origin from the
-   > target it is uploading to and passes it as `--origin`, so the generator
-   > never holds a domain at all. Registering an apex later changes one string
-   > in one line of that script and nothing in `lib/`.
+   > **It cost nothing to wait, which was the bet.** Canonical URLs, OG tags and
+   > `sitemap.xml` all need an absolute origin, and all three shipped in P5
+   > without this being answered: `deploy.sh` computes the origin and passes it
+   > as `--origin`, so the generator never holds a domain at all. Registering the
+   > apex changed one string in that script and nothing in `lib/`, exactly as
+   > predicted.
    >
-   > **What it now costs to wait, stated plainly.** A production deploy names
-   > `sammaditthi.pages.dev` in every canonical, every `og:url` and all
-   > `FIGURES.realPages` sitemap entries, and prod is the indexable target. Once
-   > Google has indexed those, moving to an apex is a migration — redirects and
-   > a re-crawl — rather than a rename. The cheap moment to decide is before the
-   > first prod deploy that anyone links to. The `.well-known` files in this
-   > question have the same deadline for a different reason.
+   > **And it landed inside the free window.** The cheap moment was *before the
+   > first prod deploy anyone links to*, because a release names its origin in
+   > every canonical, every `og:url` and all `FIGURES.realPages` sitemap
+   > entries — and once Google has indexed those, moving is a migration rather
+   > than a rename. Prod had never been deployed. Nothing to redirect, nothing
+   > to re-crawl.
    >
    > ⚠️ `static-site-backlog.md`'s A4 used to claim "the domain is settled now".
    > It was unsourced and named no domain. **Deleted there**; this question
    > remains the only owner.
+
+   **Still open, and now the blocker: the production Cloudflare account.** A
+   separate account under wisdom.ops is planned (today's personal account stays
+   dev — it runs the research Worker). Everything production must land in that
+   ONE account: the Pages projects, the `sammaditthi.net` zone, R2, and the
+   Worker (Bulk Redirects only fire on a zone in the same account; the Worker
+   needs a re-deploy + CORS re-pin from there). **Attaching the apex to
+   `sammaditthi` is the next physical step, and it must happen before the first
+   `--prod`** — until then a release would bake canonicals nobody can resolve.
 3. ~~One Pages project (path-split) vs two (subdomain).~~ **RESOLVED 2026-07-23:
-   one project per surface** — apex = static content, `app.<domain>` = Flutter
-   web, `tika.<domain>` = ටීකා later (see "Project topology" above).
-4. **`LINK_BASE_URL`** for shared links moves from the `:8080` dev server default
-   to the Pages production domain (deep-linking plan).
+   one project per surface** — apex = static content, `app.sammaditthi.net` = Flutter
+   web, `tika.sammaditthi.net` = ටීකා later (see "Project topology" above).
+4. ~~**`LINK_BASE_URL`** for shared links.~~ **RESOLVED 2026-09-01 with the
+   domain**: the default in `deep_link_provider.dart` is now
+   `https://sammaditthi.net`, not the retired `:8080` dev server. The apex and
+   not `app.` because that is what the deep-linking plan's emit table already
+   says — a BJT reading shared from any surface emits the apex form, since the
+   static site is the better gift to a recipient with no app and still opens the
+   native app when there is one. A dev build overrides with `--dart-define`.
 
 ---
 
@@ -595,5 +605,5 @@ server** (canon → client-side Drift; research → Worker). The *intent* carrie
 — root is the content home, the app never swallows content URLs — but the
 **mechanism** changed twice: first to Cloudflare Pages path-split (`/app/*` +
 `_redirects`), then **2026-07-23 to one Pages project per surface** (app on
-`app.<domain>` — see "Project topology"). The old per-sutta HTML was going
+`app.sammaditthi.net` — see "Project topology"). The old per-sutta HTML was going
 to be rendered by a shelf handler *or* SSG; now it is **only** SSG flat files.

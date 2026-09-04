@@ -400,7 +400,7 @@ void main() {
 }
 
 /// Any host works — [TipitakaLink.parse] accepts them all.
-const String _base = 'https://sammaditthi.app';
+const String _base = 'https://sammaditthi.net';
 
 /// The smallest tree carrying every shape the split rule produces.
 ///

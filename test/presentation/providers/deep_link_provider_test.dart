@@ -253,8 +253,10 @@ void main() {
 }
 
 /// Both the host links are parsed from and the one they are built back to —
-/// see [_containerFor], which overrides the dev-server default.
-const String _base = 'https://sammaditthi.app';
+/// see [_containerFor], which overrides the production default. Spelled here
+/// rather than read from `linkBaseUrlProvider`: the point is that the codec
+/// round-trips a host, not that it round-trips whichever host ships today.
+const String _base = 'https://sammaditthi.net';
 
 /// What `openTabFromNodeKey` was asked to open — the only observable
 /// [openTipitakaLinkProvider] has, since the resolver itself is private.
