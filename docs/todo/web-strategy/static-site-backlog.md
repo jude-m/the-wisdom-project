@@ -1,8 +1,9 @@
 # Static site backlog
 
-Every small, independently shippable item on the apex static site — search
-performance, build size, and the leftovers from review. None of these blocks
-anything; each can go on its own.
+Every independently shippable item on the apex static site — search performance,
+build size, the leftovers from review, and since 2026-09-04 the two pieces the
+build plan had left (C6 footnotes, C7 CI). None of these blocks anything; each
+can go on its own. Most are small; C6 is not.
 
 **Scope:** the apex static site only. `app.sammaditthi.net` stays `X-Robots-Tag:
 noindex` (crawlable, not indexed) and the Flutter payload there is a separate
@@ -534,6 +535,12 @@ caching work. What that review found and we *did* fix — the hand-bumped cache
 token, the `/fonts/*` literal, the wrong 404 message — is recorded in
 `static-web-hosting.md` and `render/site_assets.dart`, not here.
 
+**C6 and C7 arrived differently** (2026-09-04): they were the last two pieces of
+work left standing in `static-html-site-build-plan.md` and neither blocks the
+site, so they moved to where unblocking work lives. They are bigger than C1–C5
+and share the part for the reason the part is named: the site drops content its
+source carries, and a suite that runs nowhere catches nothing.
+
 ## C1. Tests for `buildSiteHeaders()` and the asset wiring
 
 **Not hygiene — the one hazard the `_headers` work introduced.** Everything else
@@ -678,6 +685,74 @@ contentHashOfBytes([...script, 0, ...utf8.encode(searchIndex)])
 That literal is one `0x00` in UTF-8, so this is the same digest over the same
 bytes: no URL moves, and no page re-uploads because of the change.
 
+## C6. Footnotes — every `{n}` in the corpus is dropped
+
+**Moved here 2026-09-04**, from `static-html-site-build-plan.md` where it was
+P7, the last phase. It is the largest item on this list and the only one that
+adds something a reader can see; it is here because it blocks nothing and the
+site is complete without it, which is the test every item on this page has to
+pass. The build plan keeps the decision (D3, footnotes deferred) and no
+schedule.
+
+**What happens today.** `EntryRenderer.renderText` skips every footnote segment
+(`if (segment.isFootnote) continue;`), so a `{1}` in the source reaches no page.
+The app does the same — `Entry` parses the marker and nothing consumes it — so
+whichever surface renders one first is the first place either has ever shown a
+footnote, and the two will not match until both do. That is the argument for
+doing this on the app and the site together rather than here alone.
+
+**What it needs**, all of it known:
+
+- **Per-printed-page numbering.** Numbering restarts on every printed page
+  (verified corpus-wide 2026-07-22), so a multi-page slice holds two different
+  `{1}`s. Anchor ids must carry the printed page — `#fn-p4-1` — while the
+  *displayed* number stays as printed, or the page stops matching the book.
+  `document.dart` already carries the page number for exactly this.
+- **Per-`<section>` placement in a chapter file.** A grouped run's notes go
+  inside each sutta's own `<section>`; a single block at the foot means the
+  `:has(:target)` single view shows one sutta with every other sutta's
+  footnotes.
+- **The `:target` interaction is already handled.** P1 wrote the filter as
+  `.sutta:not(:target):not(:has(:target))` for this reason — the naive form
+  stops matching when a footnote is targeted and every hidden sutta reappears —
+  and P2's `scroll-padding-top` covers anchors that did not exist yet. Neither
+  needs revisiting; both were paid forward.
+- **`assets/data/footnote-abbreviations.json`** — fold into rendering or not.
+  Open since the site plan's §13.8 and never decided, because nothing has needed
+  it.
+
+## C7. CI — six test rows, and nothing runs them
+
+**Moved here 2026-09-04**, from the build plan's §8 where it was the standing
+"the moment a workflow lands" clause on two separate items. It is a real gap and
+it has never had an owner, which is what makes it a backlog item rather than a
+phase.
+
+`.github/workflows/` exists and is **empty**. Every test and tool in the build
+plan's §8.1 table is run by hand: four rows need nothing but a checkout
+(`content_markers`, `tipitaka_tree`, `tipitaka_link`, `wiring_contract`), two
+need the 340 MB corpus, and the whole suite finishes in ~45s.
+
+Three things are already decided and would otherwise be re-derived:
+
+- **Order matters.** The wiring guard runs **ahead** of the exhaustive corpus
+  run, not beside it — a markup ⇄ stylesheet disagreement should stop a deploy
+  before the full build is generated, not after. It needs no corpus, so it is
+  also the cheapest thing to put in a workflow first.
+- ⚠️ **Working directory is `static_site_generator/`.** Two paths in the suite
+  are CWD-relative (`assets/theme_tokens.json`, and `tool/` in
+  `corpus_tools_test.dart`). From the repo root you hit a blunter error first:
+  the root pubspec has no `test` dev_dependency, so resolution fails before any
+  test runs. The fix is in the workflow, not the tests.
+- **It rides the deploy job.** The pipeline decided 2026-07-31 (`static-web-hosting.md`,
+  "Build & deploy pipeline") already checks the corpus out on a runner in order
+  to generate the site, so the two corpus rows cost nothing extra there, and the
+  job calls `deploy.sh --prod --yes` rather than a raw wrangler action.
+
+That pipeline is not built either, and this item does not wait for it: the four
+no-corpus rows are a workflow that needs a checkout and `dart test`, and they
+are the half that catches the silent failures.
+
 ---
 
 # Order to do them in
@@ -707,9 +782,18 @@ What is left, re-ranked:
    separately pays the full push twice. Together: ~8 MB off the build, ~575 B off
    every page, ~40 KB off first paint. **B1 is unopposed now** — the OG card is
    its own file, so the emblem's 200px is subsidising nothing.
-3. **C2 CSP** — its own deploy and verify.
-4. **A9 font preload, A8 heading duplication** — measure first, both are small.
-5. **A10 the 38 unnamed containers** — decide the derivation before estimating it.
+3. **C7 CI, the four no-corpus rows** — a checkout and `dart test`, and it makes
+   every item below it cheaper to ship. Its corpus half waits for the deploy
+   pipeline; this half does not.
+4. **C2 CSP** — its own deploy and verify.
+5. **A9 font preload, A8 heading duplication** — measure first, both are small.
+6. **A10 the 38 unnamed containers** — decide the derivation before estimating it.
+
+**C6 footnotes is unranked**, deliberately. It is the one item here that is a
+feature rather than a fix, it wants an app-side decision it cannot make alone,
+and it is worth more than everything above it put together on a day someone
+wants to build it. Ranking it against a font preload would only make that
+comparison look real.
 
 No action: **B3** (keep the provenance), **B4** (no fix exists), **B5**
 (recorded only), **B6** (needs a Worker). **C4** and **C5** are hygiene — do them

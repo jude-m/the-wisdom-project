@@ -38,7 +38,7 @@ into the first content phase. That single change drives the reordering.
 |---|---|---|
 | D1 | **Bake app conjunct defaults** into the HTML — `standardLigatures` + `touching` ON | Same as tipitaka.lk (`src/text-convert.mjs`), which is indexed with ZWJ baked in |
 | D2 | **Un-welded `<title>` / `<h1>` / OG / JSON-LD** — strip the touching ZWJ | Follows tipitaka.lk `src/views/Home.vue:118`; keeps the searched form clean |
-| D3 | **Footnotes deferred** to the last phase | Frame 02's `<sup>1</sup>` is omitted until then |
+| D3 | **Footnotes deferred.** Frame 02's `<sup>1</sup>` is omitted | The work moved to the backlog (C6) on 2026-09-04; the decision stands |
 | D4 | **Sinhala-only titles.** No romanized Pali yet | Tree has **0 Latin chars** in any node — the data does not exist |
 | D5 | Grouped chapters live at the **vagga's real nodeKey** | Frame 04's `an-2-64-76` is not in the tree; nodeKey form needs no codec change |
 | D6 | **Theme identical to the app. Light only**, structured so dark slots in | Tokens are *generated* from the app theme, not hand-copied — see §3 |
@@ -229,6 +229,7 @@ Restated here because it is the constraint every phase below inherits.
 ## 5. Phases
 
 Each phase ends with something openable in a browser. `an-1` scoped through P5.
+**P6 is the last one** — P7 became backlog C6 on 2026-09-04.
 
 ### P0 — Shared foundations *(no HTML)* ✅ **done 2026-07-27**
 
@@ -450,7 +451,8 @@ cannot drift, and new upstream content should add pages without failing CI.
   rather than a table of contents (C7); a chapter file is one stop.
 - Grouped chapter: `:has(:target)` single view + the "සම්පූර්ණ පරිච්ඡේදය" context bar.
   ⚠️ Write the filter as `.sutta:not(:target):not(:has(:target))` from the start.
-  The naive `.chapter:has(.sutta:target)` form **breaks in P7**: targeting a
+  The naive `.chapter:has(.sutta:target)` form **breaks once footnotes land**
+  (backlog C6): targeting a
   footnote makes it stop matching and every hidden sutta reappears. Costs nothing
   now; a rewrite later. ✅ written in the guarded form.
 
@@ -704,7 +706,8 @@ Six findings, all fixed. Page counts, the caption gate aside, are unchanged.
   P1's `scroll-margin-top: 1rem` — written when the page had no fixed chrome —
   which is 14.4px against a 56px bar, so every `#fragment` landed ~42px behind
   it. Masked today only because nothing emits a fragment yet; `#<nodeKey>` is
-  the locked deep-link form and P7's footnotes will hit it constantly. Now
+  the locked deep-link form and footnote anchors (backlog C6) will hit it
+  constantly. Now
   `html { scroll-padding-top: calc(var(--toolbar-height) + 1rem) }` — on the
   scroll container, so it covers anchors that do not exist yet — and the
   per-target margin is gone rather than stacking a second offset. The 56px is
@@ -1387,11 +1390,17 @@ pairing B1 with B2.
   doesn't run the generator) is decided in the hosting doc, "Build & deploy
   pipeline".
 
-### P7 — Footnotes
+### ~~P7 — Footnotes~~ → backlog **C6** *(moved 2026-09-04)*
 
-Greenfield — the app renders **zero** footnotes today (parser and entity only, no
-presentation consumer). Needs per-printed-page numbering. The P1 `:target` guard
-is what makes this phase cheap.
+P6 is the last phase. Footnotes were never a phase in the sense the others are —
+nothing waits on them, the site is complete without them, and they want an
+app-side decision this plan does not own — so they belong on the list of work
+that unblocks nothing: [`static-site-backlog.md`](./static-site-backlog.md) C6,
+which carries what P7 knew (per-printed-page numbering, per-`<section>`
+placement, the `:target` groundwork P1 and P2 already paid forward).
+
+D3 is unchanged: footnotes stay deferred, and `entry_renderer.dart` still cites
+it for why a `{n}` reaches no page.
 
 ---
 
@@ -1453,10 +1462,12 @@ is tracked anywhere in the repo** — every row above is run by hand today. What
 the column actually distinguishes is which ones *could* run on a bare checkout,
 which is the useful question until CI exists.
 
-All four no-corpus rows are ready to run unattended the moment there is a
-workflow, and so are the two corpus ones: the deploy workflow decided 2026-07-31
-(hosting doc, "Build & deploy pipeline") checks the corpus out on a GitHub
-Actions runner in order to generate the site, so both can ride along in that job.
+All six rows are ready to run unattended, and **standing one up is backlog C7**
+(moved there 2026-09-04 — it unblocks nothing and had no owner here). What that
+item needs to know, this section already established: the four no-corpus rows
+need a checkout and nothing else, and the two corpus ones ride the deploy
+workflow decided 2026-07-31 (hosting doc, "Build & deploy pipeline"), which
+checks the corpus out on a runner in order to generate the site anyway.
 
 **Both corpus tools became tests on 2026-08-06.** They were kept out of
 `dart test` because each was thought to take about a minute. Measured, the page
@@ -1517,7 +1528,7 @@ and none of its leaves is measured at all.
 The layout-id finding (§P2, post-P2 review pass) is a *class* of bug none of the
 above can reach, and it is worth naming rather than filing as one fixed defect,
 because everything built from here adds more of it: P4's search dialog and
-`?layout=`, P7's footnote anchors.
+`?layout=`, and the footnote anchors of backlog C6.
 
 `page_template.dart` emits classes and ids. `stylesheet.dart` writes selectors
 against them. **Nothing connects the two.** When they disagree, the build is
@@ -1633,18 +1644,11 @@ caught.** A guard that survives its own mutation is decoration.
   reflex of regenerating them without reading the diff — the opposite of a guard.
 
 **Where it runs.** `dart test` from the package root, by hand like everything
-else — there is no CI (§8.1). It needs no corpus, so it is the cheapest thing in
-this section to automate, and it goes into the deploy workflow (hosting doc,
-"Build & deploy pipeline") the moment that lands — **ahead** of the exhaustive
-run rather than beside it: a wiring failure should stop a deploy before 386 MB is
-generated, not after.
-
-⚠️ That job must set its **working directory to `static_site_generator/`**. Two
-paths in the suite are relative to the CWD — `assets/theme_tokens.json` here, and
-`tool/` in `corpus_tools_test.dart`. Both tests fail naming the package root when
-they cannot find their file, though from the repo root you hit an earlier and
-blunter error first: the root pubspec has no `test` dev_dependency, so resolution
-fails before any test runs. Either way the fix is in the workflow, not the tests.
+else — there is no CI (§8.1). Automating it is **backlog C7**, which carries the
+two constraints this file discovered and would otherwise lose: it runs **ahead**
+of the exhaustive corpus run rather than beside it (a wiring failure should stop
+a deploy before 386 MB is generated, not after), and its job must set the
+**working directory to `static_site_generator/`** or two CWD-relative paths fail.
 
 **What it does not cover — the JavaScript seam, open since P4.** The seam this
 file guards is two *Dart* files disagreeing about a string. P4 added a third

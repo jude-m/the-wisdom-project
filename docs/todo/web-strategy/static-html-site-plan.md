@@ -864,5 +864,7 @@ their canon twins — untreated they compete for the same name searches.
 7. **Container TOC depth** — direct children only, or whole subtree? *Lean: direct
    children + `<details>` for the rest.*
 8. **Footnote abbreviations** — fold `assets/data/footnote-abbreviations.json`
-   into footnote rendering now or later? *Lean: later.*
-```
+   into footnote rendering, or not? *Lean: later.* **Owned by
+   [`static-site-backlog.md`](./static-site-backlog.md) C6 since 2026-09-04**,
+   with the rest of footnotes — there is no footnote rendering to fold it into
+   until that item is built.
