@@ -366,9 +366,29 @@ locked (exact-sutta links for no-app recipients, 2026-07-22).
 
 **The mechanism is deferred, decided 2026-08-19**, and the shared half is built.
 Nothing about the choice below has changed; what changed is that it no longer
-blocks anything, because neither mechanism can be exercised until there is a
-deploy with a custom domain on it, and a folded leaf's URL now answers an honest
-`404` rather than a soft `200` (backlog A1). The mapping both answers consume —
+blocks anything.
+
+**It is a post-launch decision, on evidence — restated 2026-09-04.** The
+original reason for deferring was that neither mechanism can be exercised until
+there is a deploy with a custom domain on it. True, but it implies the gate
+closes the moment the apex is attached, and it does not. **The site has never
+been published**, so no folded-leaf URL has ever been linked, shared, saved or
+crawled: there is no ranking to preserve with a 301 and no live link to keep
+alive. Every producer we own already emits the URL the site serves —
+`SitePlan.servingLink` for the app's share button, `…/<chapter>#<key>` for
+search rows — so the only visitor who can reach a folded-leaf URL is one who
+built it from the published grammar. Whether that visitor exists is a question
+the 404 logs answer after launch and nothing answers before it.
+
+Launching with **neither** mechanism is therefore the cleanest start, not a
+compromise: the folded-leaf URLs are in no sitemap and no page links them, so a
+crawler never sees them, nothing is indexed wrongly, and adding redirects later
+costs nothing retroactively. Stubs launched now would instead put
+`FIGURES.foldedLeaves` near-empty forwarding pages in front of a crawler on day
+one. Revisit when the logs show whether anyone asks for these URLs, and which.
+
+A folded leaf's URL answers an honest `404` in the meantime rather than a soft
+`200` (backlog A1). The mapping both answers consume —
 `source,target` for every folded leaf, verified row for row against the built
 pages and their anchors — comes from:
 

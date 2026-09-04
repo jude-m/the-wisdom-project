@@ -1373,13 +1373,20 @@ pairing B1 with B2.
   (`ආසව ගොච්ඡක කුසල දුකතික සදිසං`), or a recitation marker modelled as a node
   (`සන්ථතභාණවාරො`). They are counted apart from the defect total, listed by
   `--misaligned`, and never warned about.
-- **Decision gate — deferred 2026-08-19.** Stub files vs Cloudflare Bulk
-  Redirects for grouped-leaf clean URLs is still open and blocks nothing:
-  neither works until there is a deploy on a custom domain, and a folded leaf's
-  URL now answers an honest `404` in the meantime (backlog A1). The half they
-  share is built — `plan_corpus.dart --redirects` writes `source,target` for
-  every folded leaf, verified row for row against the built pages and their
-  anchors. Still: **ask before emitting the stubs.**
+- **Decision gate — deferred 2026-08-19, and it is a post-launch one
+  (restated 2026-09-04).** Stub files vs Cloudflare Bulk Redirects for
+  grouped-leaf clean URLs is still open and blocks nothing. The reason first
+  written here — neither works until there is a deploy on a custom domain —
+  implies the gate closes when the apex is attached, and it does not: **the site
+  has never been published**, so no folded-leaf URL has been linked, shared or
+  crawled, and every producer we own already emits the serving URL
+  (`SitePlan.servingLink`, and search's `…/<chapter>#<key>`). Launch with
+  neither mechanism — nothing links these URLs and no sitemap lists them, so a
+  crawler never sees them — and decide from the 404 logs. A folded leaf's URL
+  answers an honest `404` in the meantime (backlog A1). The half both
+  mechanisms share is built — `plan_corpus.dart --redirects` writes
+  `source,target` for every folded leaf, verified row for row against the built
+  pages and their anchors. Still: **ask before emitting the stubs.**
 - **Link checker + HTML validator** over `build/` (Node CLIs, D9) — at 16k files
   broken links stop being findable by eye.
 - **Measure before minifying** (D9). Adopt only if the brotli'd win is real *and*
