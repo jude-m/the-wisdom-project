@@ -148,7 +148,7 @@ class SiteGenerator {
       ogCard: ogCard ?? const <int>[],
     );
 
-    // The four values every template needs and none of them can work out: one
+    // The values every template needs and none of them can work out: one
     // record, built once, handed down. See [SiteBuild].
     final build = SiteBuild(
       origin: origin,

@@ -558,7 +558,9 @@ class SitePlan {
   /// escapes the run's — the coarse link could not reach it.
   ///
   /// A [SitePlan] method rather than a [SitePage] one because of the one clause
-  /// that needs grouping: see [_loneChildKeepsRunLink].
+  /// that needs grouping: see [_loneChildKeepsRunLink]. [page] need not be one
+  /// of [pages] — both suites hand-build them — but that clause answers from
+  /// this plan's grouping.
   bool speaksForRun(SitePage page) {
     if (page.kind != PageKind.chapter || page.anchorsRunOnLeaf) return false;
     final target = crossLinkTargetKey(tree, page.nodeKey);

@@ -19,9 +19,8 @@ import 'site_build.dart';
 /// defaulted to the empty string here: an empty `content` attribute is a worse
 /// signal to a crawler than an absent element.
 ///
-/// [build] carries the four values that are the same on every page — the
-/// origin, the generator stamp, the hashed asset URLs and the link resolver.
-/// See [SiteBuild] for why they arrive as one field rather than four.
+/// [build] carries the values that are the same on every page — see
+/// [SiteBuild], and why they arrive as one field rather than separately.
 ///
 /// [canonical] is the page's **root-relative path**; the URL the tag carries is
 /// the origin + that. Relative was the shipping form through P4, because the

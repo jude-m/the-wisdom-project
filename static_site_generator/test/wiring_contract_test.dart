@@ -304,10 +304,8 @@ void main() {
           origin: _origin,
           generatorVersion: 'test',
           assets: _assets,
-          urlFor: (key) => key == 'atta-sp-grp-1'
-              ? '/tipitaka/atta-sp-grp#atta-sp-grp-1'
-              : tipitakaUrl(key),
-          speaksForRun: _plan.speaksForRun,
+          urlFor: _foldedPlan.urlFor,
+          speaksForRun: _foldedPlan.speaksForRun,
         ),
       );
       final html = template.render(_chapterPage,
@@ -881,9 +879,11 @@ final SiteBuild _build = SiteBuild(
   origin: _origin,
   generatorVersion: 'test',
   assets: _assets,
-  // These fixtures build `SitePage`s by hand, with no plan behind them and no
-  // folded leaf in the tree, so the serving URL is the bare one.
-  urlFor: tipitakaUrl,
+  // Nothing folds in [_tree], so every key owns its page and both of these
+  // answer exactly as the bare URL does. Taken from a plan anyway: one
+  // resolver for the suite, and no hand-written second answer to drift from
+  // what [SitePlan] emits.
+  urlFor: _plan.urlFor,
   speaksForRun: _plan.speaksForRun,
 );
 
@@ -894,6 +894,17 @@ final SitePlan _plan = SitePlan.build(
   tree: _tree,
   rootKeys: _tree.rootKeys,
   foldedLeafKeys: const {},
+  textBearingContainerKeys: const {},
+);
+
+/// The same tree with the vaṇṇanā folded, so `urlFor` answers a fragment for
+/// it. A real plan rather than a hand-written `urlFor`: both plan-derived
+/// functions then describe one world, and the URL under test is the one
+/// [SitePlan] actually emits.
+final SitePlan _foldedPlan = SitePlan.build(
+  tree: _tree,
+  rootKeys: _tree.rootKeys,
+  foldedLeafKeys: const {'atta-sp-grp-1'},
   textBearingContainerKeys: const {},
 );
 

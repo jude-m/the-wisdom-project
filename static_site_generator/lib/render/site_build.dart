@@ -1,8 +1,7 @@
 import 'package:wisdom_shared/wisdom_shared.dart';
 import 'site_assets.dart';
 
-/// The four things every template needs and no template can work out for
-/// itself.
+/// What every template needs and no template can work out for itself.
 ///
 /// ## Why they travel together
 ///

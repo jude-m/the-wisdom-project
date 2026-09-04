@@ -59,8 +59,7 @@ class LandingPage {
   /// dead links on the front page of the dev preview it was built for.
   final List<TipitakaNode> roots;
 
-  /// The origin, the generator stamp, the hashed asset URLs and the link
-  /// resolver — see [SiteBuild].
+  /// The values that are the same on every page — see [SiteBuild].
   ///
   /// Its resolver is the identity here: a root is always a container and so
   /// always owns its own page. Used anyway rather than reaching for
