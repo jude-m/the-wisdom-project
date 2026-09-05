@@ -514,6 +514,72 @@ if ! grep -qF "Sitemap: $BAKED_ORIGIN/sitemap.xml" "$OUT/robots.txt"; then
   exit 1
 fi
 
+# Every check above asks whether one named file is there. This one asks whether
+# the site's own cross-references land: each internal href/src/url()/data-* and
+# each sitemap <loc> against the files on disk, and each #fragment against the
+# ids on the page it points at.
+#
+# The fragments are why it runs here rather than being left to a reviewer. A
+# folded leaf is served as <chapter>#<key>, so a fragment naming nothing is a
+# sutta with no way in — and nothing else notices, because the chapter still
+# renders, the HTML is still valid, and the page still hashes the same. The
+# last moment it costs nothing to find out is before the upload.
+#
+# Skipped on a partial build, which has dead links by design: its breadcrumbs
+# climb to ancestors that were never written, and every canon page links an
+# atta-* twin under a different root entirely, so tool/serve.dart calls those
+# dead links "the common case and not a bug".
+#
+# Whether the build is partial is read off the build, not off the flags. With
+# --skip-build the flags describe a build that did not happen, so --root would
+# skip the check over a tree that may well be complete, and a bare --skip-build
+# would fail it over one that is not. The manifest records an entry per content
+# file the build actually parsed, and assets/text holds the ones there are to
+# parse: both sides are counted here, so neither is a corpus number written
+# down. A release forbids --root and --skip-build, so what ships is always the
+# whole corpus and always checked.
+#
+# --origin is passed rather than left to the checker to read off a canonical.
+# The value is parsed and validated above, and a build that had lost its
+# canonical would otherwise file every absolute URL as somebody else's and
+# quietly check a great deal less than it appears to.
+#
+# ~7s over the full build, no network, so it runs on a dry run too. Needs no
+# package resolution (dart:io only), so the CWD it is called from does not
+# matter the way it does for the test suite.
+if [ ! -f "$OUT/.manifest.json" ]; then
+  echo "error: $OUT/.manifest.json is missing, so a whole-corpus build cannot" >&2
+  echo "       be told from a subtree one. Nothing uploaded." >&2
+  exit 1
+fi
+# Occurrences rather than lines, so the count does not ride on the manifest
+# staying pretty-printed, and a non-zero denominator is required: with nothing
+# to compare against, "partial" is unanswerable, not false.
+BUILT_SOURCES=$(grep -o '"hash"' "$OUT/.manifest.json" | wc -l | tr -d ' ')
+ALL_SOURCES=$(ls assets/text/*.json 2>/dev/null | wc -l | tr -d ' ')
+if [ "$ALL_SOURCES" -eq 0 ]; then
+  echo "error: no content files at assets/text/*.json, so a whole-corpus build" >&2
+  echo "       cannot be told from a subtree one. Nothing uploaded." >&2
+  exit 1
+fi
+
+if [ "$BUILT_SOURCES" -lt "$ALL_SOURCES" ]; then
+  echo "Checking links... skipped: partial build, $BUILT_SOURCES of" \
+       "$ALL_SOURCES content files."
+  echo "  A subtree's breadcrumbs and commentary links point outside it, so"
+  echo "  dead links are what a partial build is, not a fault in it."
+  echo ""
+else
+  echo "Checking links..."
+  if ! dart run static_site_generator/tool/check_links.dart \
+      --build "$OUT" --origin "$BAKED_ORIGIN"; then
+    echo "error: the build's own links do not resolve (report above)." >&2
+    echo "       Nothing uploaded." >&2
+    exit 1
+  fi
+  echo ""
+fi
+
 # --- wrangler + account check -----------------------------------------------
 # Skipped entirely on a dry run: --dry-run means build and check, so it should
 # keep working with no network and no auth, the way it did before this section

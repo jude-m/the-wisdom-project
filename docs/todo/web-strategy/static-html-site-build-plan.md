@@ -1387,8 +1387,83 @@ pairing B1 with B2.
   mechanisms share is built — `plan_corpus.dart --redirects` writes
   `source,target` for every folded leaf, verified row for row against the built
   pages and their anchors. Still: **ask before emitting the stubs.**
-- **Link checker + HTML validator** over `build/` (Node CLIs, D9) — at 16k files
-  broken links stop being findable by eye.
+- ✅ **Link checker — `tool/check_links.dart`, 2026-09-04. Dart, not a Node
+  CLI**, and the measurement is why: over the full build the only absolute URL
+  on a page is that page's own canonical, so there is **no external link
+  anywhere on the site**. A crawler would have spent an npm dependency and a
+  local server to fetch nothing. D9 permits Node over finished bytes; it does
+  not oblige it.
+
+  What it checks instead is the half a generic checker skips by default:
+  **every `#fragment` names an `id` on the page it points at.** That is the one
+  that can be wrong here — a folded leaf is served as `<chapter>#<key>`, so a
+  fragment naming nothing is a sutta with no way in, and it fails *silently*
+  because the chapter still renders. Invisible to every other signal: valid
+  HTML, identical hash, unchanged entry conservation, and the link resolves to
+  a real file.
+
+  Full build, 2026-09-05: **215,038 references and 7,679 fragments, all
+  resolving**, in ~7s — 1,008 of the fragments are `#via_` commentary doors.
+  The fragment count was cross-checked against an independent `grep` of the
+  build and matches exactly. Verified by mutation rather than by going green:
+  nine breakages (dead target, missing id, broken relative font `url()` in the
+  stylesheet, absent `og:image`, a `..` climbing out of `build/`, …) — **9 of
+  9 caught**, with `mailto:`/`tel:`/external hosts/escaped queries raising
+  nothing. Not wired into `dart test`: the corpus tools need `assets/`, which
+  is always there; this needs a full `build/`, which is gitignored.
+
+  **Hardened after review, 2026-09-05.** The first cut worked on exactly the
+  invocation the deploy used and was wrong on most others. It resolved its
+  default `build/` against the working directory, so the invocation in its own
+  doc comment scanned Flutter's `build/` instead — `Platform.script` now, as in
+  `bin/generate.dart` and `tool/serve.dart`. It took `--build <dir>` but
+  ignored `--build=<dir>`, printing `PASS` over the default tree; both forms
+  parse now, and an unrecognised flag is refused rather than read as "nothing
+  was passed". Three channels went unread: URL-shaped `data-*` attributes —
+  the site's one deliberate route for a URL reaching JavaScript, and how
+  `search-index.json` is named on every page — plus `sitemap.xml` `<loc>`,
+  which is the only file that invites a crawler to a URL. That is the whole
+  jump from 184,181 references to 215,038. Resolution moved from `existsSync`
+  to the scanned file set, so it is **case-exact**: APFS is case-insensitive
+  and Pages is not, and `/SUB/page` was passing here while 404ing in
+  production. Duplicate `id`s are reported now — invisible to the fragment
+  check, since a duplicated anchor still resolves, but on a grouped chapter the
+  id is what `:has(:target)` keys the single-view off, and §7 records the
+  duplicated `L-*` radio sets as a real bug once already; the corpus has none.
+  A missing origin is fatal instead of silently reclassifying every absolute
+  URL as external, and `deploy.sh` passes the `$BAKED_ORIGIN` it has already
+  validated rather than letting the tool guess. Finally a floor: zero links or
+  zero fragments now *fails*, because every other condition here passes by
+  finding nothing, so a pattern that stops matching would go green having
+  checked nothing.
+
+  Three residuals, same review, fixed the same day. Duplicate ids were keyed on
+  the bare id where the fragment check keys on `file#fragment`, so two pages
+  each declaring `#dup` twice reported as one offender and the count read 1 for
+  two separate defects; the key is `file#id` now. A **trailing slash on
+  `--origin`** degraded a run exactly the way a null origin does — `https://h/`
+  never equals the `scheme://authority` the comparison is built from, so the
+  site's own host went on the external pile — except that it still printed
+  PASS over the whole corpus, which is worse than the case that had just been
+  made fatal; the flag is normalised through `Uri.parse` now, and an origin
+  with no scheme is refused rather than quietly becoming the same trap.
+
+  The deploy gate is **skipped on a partial build, decided by reading the
+  build** rather than the flags. Under `--skip-build` the flags describe a
+  build that did not happen, so keying on `--root` skipped the check over a
+  tree that was in fact complete, while a bare `--skip-build` over a subtree
+  failed it with "Nothing uploaded". `.manifest.json` records an entry per
+  content file the build actually parsed and `assets/text` holds the ones there
+  are to parse, so `deploy.sh` counts both and compares — no corpus number is
+  written down on either side. A partial build is skipped because dead links
+  are what it *is*: breadcrumbs climb to ancestors never written, and every
+  canon page links an `atta-*` twin under a different root, which
+  `tool/serve.dart` already calls "the common case and not a bug". A release
+  forbids `--root` and `--skip-build` both, so what ships is always the whole
+  corpus and always checked.
+- **HTML validator** over `build/` — still open, and genuinely a Node/Java CLI
+  job (`vnu`): validating markup needs a real parser, which is the one thing
+  worth leaving the toolchain for.
 - **Measure before minifying** (D9). Adopt only if the brotli'd win is real *and*
   the build-twice diff stays empty. Default: don't.
 - **The output of this phase is never committed** — ~340 MB of HTML, produced by CI
@@ -1505,6 +1580,7 @@ that matter are corpus-wide invariants, not examples:
 | Tool | Reports |
 |---|---|
 | `tool/plan_corpus.dart --check` | the four integrity questions the frozen snapshot can fail, plus the derivation identity — which, once those pass, can only catch a subtree no root can reach. Exit 1 on any. Tree-only, ~1 s. Run by `test/corpus_tools_test.dart` |
+| `tool/check_links.dart` | every internal `href`/`src`/`url()`/`data-*` and every sitemap `<loc>` resolves, every `#fragment` names an `id` on its target page, and no page declares an `id` twice. Exit 1 on any. ~7 s, but needs a full `build/`, so no test runs it |
 | `tool/plan_corpus.dart` | the same, plus the page budget owned by [`reading-units-and-grouping.md`](./reading-units-and-grouping.md), the Impact derivation as a self-consistency check, the ten worked subtrees that doc argues about, and what the rule would now say about newly synced content |
 | the `an-1` build | 581 source entries → 581 rendered elements (nothing dropped or duplicated), and a build-twice diff that is empty |
 
