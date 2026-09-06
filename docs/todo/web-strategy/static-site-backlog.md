@@ -753,6 +753,37 @@ That pipeline is not built either, and this item does not wait for it: the four
 no-corpus rows are a workflow that needs a checkout and `dart test`, and they
 are the half that catches the silent failures.
 
+## C8. Two pairs of TOC pages print the same two rows
+
+Found 2026-09-06 while splitting `ContentSlicer` for
+`reading-units-and-grouping.md` B1. Where two nodes sit on the same coordinate
+they own the same slice, and both are containers, so both TOC pages render it as
+their preamble:
+
+```
+/tipitaka/sp        සුත්තන්තපිටකෙ | දීඝනිකායො
+/tipitaka/dn        සුත්තන්තපිටකෙ | දීඝනිකායො
+/tipitaka/atta-sp   නමො තස්ස … | දීඝනිකායෙ
+/tipitaka/atta-dn   නමො තස්ස … | දීඝනිකායෙ
+```
+
+Two rows, on two pairs of pages, and those are the only shared coordinates in
+the corpus. `ContentSlicer` claimed in a comment that the outer node got an
+*empty* slice; it never did, and the comment is gone as of the split.
+
+**Small, and not nothing.** It is the one place the site breaks its own "the
+same text never appears in two files" rule, and the pages are two of the seven
+roots — the highest-traffic navigation in the site, and the ones an LLM crawler
+reaches first. A duplicate two-line heading block will not earn a duplicate-content
+penalty on its own, but it is the kind of thing that is cheaper to fix than to
+keep explaining.
+
+**The fix is a rule, not a patch:** of two nodes tied on a coordinate, only the
+deeper one renders the preamble — which is the tie-break `SliceIndex.keyAt`
+already makes for rows. `SitePage.hasPreamble` is `!node.isLeaf` today and would
+gain that second clause. Verify by re-diffing a full build: exactly two files
+should change.
+
 ---
 
 # Order to do them in
@@ -796,8 +827,10 @@ wants to build it. Ranking it against a font preload would only make that
 comparison look real.
 
 No action: **B3** (keep the provenance), **B4** (no fix exists), **B5**
-(recorded only), **B6** (needs a Worker). **C4** and **C5** are hygiene — do them
-when touching the code they cover, not as a campaign.
+(recorded only), **B6** (needs a Worker). **C4**, **C5** and **C8** are hygiene —
+do them when touching the code they cover, not as a campaign. C8 in particular
+should ride along with the next change to `SitePage`, since its whole diff is one
+clause on `hasPreamble`.
 
 The build stays ~417 MB after all of it (425 less B2's ~8 MB; B1 is ~40 KB and
 does not show), because **the corpus is the corpus** — **365 MB of the 394 MB

@@ -13,7 +13,7 @@
 > | folded leaves (→ stubs) | 1,603 |
 > | sutta pages under 1,500 chars | 3,707 |
 >
-> **Status:** IN BUILD. The site half is done bar the first deploy; the app's reader rework (Part 4) is no longer deferred — its trigger was met 2026-09-06 and B1 is the next commit.
+> **Status:** IN BUILD. The site half is done bar the first deploy; the app's reader rework (Part 4) is no longer deferred — its trigger was met 2026-09-06, B1 shipped the same day, and **B2 is the next commit, on a new branch** (see Part 4, "Branches").
 >
 > | stage | what | state |
 > |---|---|---|
@@ -25,6 +25,11 @@
 > | **S6** | the sekhiya is grouped outright — `LeafPolicy.grouped`, `keyPolicies` (Part 1, "One section is grouped outright") | **shipped 2026-08-19** |
 > | **S7** | an introduction has a size, and a container never offers "next" — `minIntroductionChars`, the TOC pager, `--write-upstream` (Part 1, "A container that opens with an introduction"; B5) | **shipped 2026-08-20** |
 > | **S8** | **the seam** — `SitePlan` into `wisdom_shared`, the app decoding through the shared tree, and links carrying the page that serves them (Part 4 B1, B5's app share, and the codec) | **shipped 2026-08-23** |
+> | **S9** | the slicer's coordinate half into `wisdom_shared`, answering both directions — `slice_index.dart`, `ContentSlicer` delegating to it (Part 4 B1, finishing it) | **shipped 2026-09-06** |
+>
+> **S9 verified 2026-09-06.** A whole-corpus build is **byte-for-byte identical** to the same build before the split — 10,303 files, `diff -r` empty — which is the whole claim B1 makes. `--check` green, 34 generator tests pass, `flutter analyze lib` clean. The new direction, *row → key*, the generator never calls and the build therefore cannot prove, so it was checked against `ContentSlicer` directly: **237,631 rows across all 285 files, 0 disagreements**, with both documented edges exercised — 232 rows above their file's first coordinate resolving to that first node, and the 2 shared coordinates resolving to the deeper node by name (`dn`, `atta-dn`).
+>
+> **Two things changed against B1 as written.** The shared half is **coordinates only and reads no text at all**: the boundary between two nodes *is* the next node's coordinate, so the index builds from `tree.json` alone — which is what makes the whole-corpus figure in B1's third bullet possible, and it is the reason `ContentSlicer`'s signature and every one of its call sites are unchanged. And the plan's *"`sp` and `atta-sp` are the corpus's only pair"* is wrong on the facts: there are **two** pairs, `sp`/`dn` in `dn-1` and `atta-sp`/`atta-dn` in `atta-dn-1`, each a pitaka root and a nikāya root at (0,0). The rule it states — resolve to the deeper one — is right, and is now tie-broken on the parent chain rather than on map order.
 >
 > **S1 verified 2026-08-17.** A third independent implementation of the rule reproduced every figure in this document on its first run: 10,298 real pages (7,687 / 1,221 = 615 + 606 / 1,389), 6,058 folded, 16,356 with stubs, 738 thin of which 340 promoted, biggest chapter 103,153 chars on `atta-mn-1-1-4` and exactly one over 100k, all ten subtree rows, and the Impact derivation closing on both moving rows. `sn-2-1-10-3` carries the seven sections listed below. The index-0 invariant holds at 615 containers with none violating it. **Four things changed against the plan as written**, all deletions: `GroupingVerdict`/`GroupingReason` are gone rather than shrunk (nothing per-container survives to describe); `--policy-diff` is not built (the snapshot's git diff is that review, done once); the review CSV is retired (same reason); and the leaf→URL map is `SitePlan.urlFor` rather than a `Map` threaded through three call sites. `grouping_classifier.dart` → `grouping_planner.dart`, `tool/classify_corpus.dart` → `tool/plan_corpus.dart`.
 >
@@ -672,9 +677,50 @@ moved **2026-08-21**, and what is left of P6 is the `vnu` HTML validator and
 the first deploy — neither of which can move a URL. So the wait is over, and
 Part 4 is a work order rather than a deferral.
 
-**Order.** B1 first and alone: nothing else can be built until a unit has an
-end. Then B2, which is where the reader's shape actually changes. B3, B4 and B6
-follow in any order, and B4's row → key lookup falls out of B1 for free.
+**Order.** ✅ B1 first and alone (shipped 2026-09-06): nothing else can be built
+until a unit has an end. Then **B2**, which is where the reader's shape actually
+changes. B3 and B4 follow it in any order, and B4's row → key lookup fell out of
+B1 for free.
+
+```
+B1 ──► B2 ──► B3          B6  (independent — any time)
+        │
+        └───► B4
+```
+
+**There are two hard prerequisites, not one.** B2 is the second: B3's prev/next
+and B4's search landing both hand back a *page unit*, and nothing can open one
+until the tab is keyed by a page rather than by a coordinate. Built before B2,
+each would need its own throwaway page → `(file, page, entry)` shim.
+**B6 has no prerequisite at all** — it is two `double` constants in the research
+and dictionary sheets, and nothing there knows what a sutta is. It sits in Part
+4 only because it is app-side reading polish.
+
+**B5's first bullet is not a step of its own** — the `StorageKeys.openTabs`
+`_v2` bump must land *inside* B2's commit, because B2 is what changes what a
+saved tab's fields mean.
+
+## Branches
+
+`feat/static-site` is `main` + 60 commits, pushed and unmerged, and it carries
+the whole shared seam. The app pulls `wisdom_shared` by **path**, so whichever
+branch holds a shared change holds it for the generator and the app at the same
+instant: keeping the two surfaces in sync is structural, not something a branch
+strategy has to arrange. Split by what a commit *touches*:
+
+| | branch | touches |
+|---|---|---|
+| **B1** ✅ | `feat/static-site` | `packages/wisdom_shared/`, `static_site_generator/` — no file under `lib/` |
+| **B2–B4, B6** | a new branch cut from `feat/static-site` | `lib/` |
+
+B1 belonged on the static-site branch because it is the same shape as the S8
+commits already there. B2 onward gets its own branch because that is where the
+reader changes, where saved tabs break, and where the integration tests get
+disturbed — and because `feat/static-site` is done bar the first deploy and must
+not be held open behind an app rework. The app branch being a *descendant* is
+what keeps `wisdom_shared` single-copy. Merge order is free: static-site landing
+first leaves main with the site's grouping and the app's old reader, which is
+exactly today's state.
 
 **The seam does not wait, and shipped 2026-08-23 (S8).** Its whole purpose is that the app *follows* the site rather than re-deriving it, so building it early is what stopped the two drifting while the reader rework was still queued — and it carried two live fixes with it: the app had never inherited the coordinate corrections, and every link it copied for a folded leaf named a URL the site has no file for. What shipped then is B1's `SitePlan` move, B5's app-side migration, and the link codec; what it deliberately left alone was everything that changes what a reader sees — which is what the rest of Part 4 now picks up. Verification is `docs/todo/web-strategy/testing-the-app-site-seam.md`.
 
@@ -696,9 +742,11 @@ Assessed 2026-08-17, because a rule this much simpler on the site could still ha
 
 - ✅ **S8 — `SitePlan` / `PageKind` moved to `wisdom_shared`** (`src/pages/site_plan.dart`). It needed only `TipitakaTree` + the snapshot lookup, so the move was mechanical and an `an-1` build stayed byte-identical across it. Three things changed while it moved: the two frozen sets became **defaulted** parameters, so the app cannot plan a site other than the one that ships while the planners can still pass freshly measured sets; `_servingUrl` became `_owningPage`, one map answering both surfaces' questions; and it gained the two methods the app needs — `pageOf` (which page serves a key) and `servingLink` (the same link addressed the way the site serves it). The app reaches it through `NavigationTreeRepository.loadSitePlan` and `sitePlanProvider`, which is the one place it may ask.
 - ✅ **What the seam retains — measured 2026-09-06, and it is almost nothing.** Whole corpus, desktop JIT: tree decode 33 ms, `SitePlan.build` 5–20 ms, and the plan adds **no measurable MB** on top of the tree's 13 MB, because it holds references to the same nodes rather than copies. So the "three views of one tree" cost is the tree, which the app already pays for; an AOT run on a slow phone is some multiple of a few tens of milliseconds and still invisible beside the JSON decode beside it. Nothing here argues for building the plan lazily. What remains a real Phase B question is collapsing `TipitakaTreeNode` into `TipitakaNode` plus display helpers — a third tree the app keeps for display alone.
-- **Split `ContentSlicer`** (`static_site_generator/lib/domain/content_slicer.dart`) into a shared coordinate half — entry-counts-per-page + the file's nodes → `(startPage,startEntry) → (endPage,endEntry)` — and a generator-side half that materialises `DocRow`s. The app maps the same range onto its `BJTDocument`. The slicer serves bounded rendering only; grouping verdicts are compiled in via the snapshot.
+- ✅ **S9 — `ContentSlicer` split** (`static_site_generator/lib/domain/content_slicer.dart`) into a shared coordinate half, `SliceIndex` (`src/slices/slice_index.dart`), and a generator-side half that materialises `DocRow`s. The app maps the same range onto its `BJTDocument`. The slicer serves bounded rendering only; grouping verdicts are compiled in via the snapshot.
 
-  **The shared half must answer both directions.** The site only ever asks *key → range*. The app also needs *row → key*, in three places: landing on an FTS hit (B4), `?e=<page>.<entry>` deep links, and following the section a reader has scrolled into so the tab label and breadcrumb stop lying (the defect this document opens with). It is the same sorted-boundary array read the other way — a binary search over at most a few hundred nodes, **measured at ~14 ns**, so there is no argument for keeping it site-side only.
+  **It reads no text.** The plan expected the shared half to need entry-counts-per-page; it does not. A node's slice ends where the next node's coordinate begins, so the index is built from `tree.json` alone and `SliceIndex.forTree` covers the whole corpus without opening a content file. Only the *last* node in a file has no next coordinate — `SliceRange.end` is null there, and the caller holding the text says where the file ends. That is also why the split changed no call site: `ContentSlicer.forFile` keeps its signature, keeps the "coordinate does not exist in this file" refusal, and delegates the boundaries.
+
+  **The shared half answers both directions.** The site only ever asks *key → range* (`rangeFor`). The app also needs *row → key* (`keyAt`), in three places: landing on an FTS hit (B4), `?e=<page>.<entry>` deep links, and following the section a reader has scrolled into so the tab label and breadcrumb stop lying (the defect this document opens with). It is the same sorted-boundary array read the other way — a binary search over at most a few hundred nodes, **measured at ~14 ns**. Both of B4's edges are written into it and verified: a row above the file's first coordinate belongs to that first node, and a coordinate two nodes share resolves to the deeper one, tie-broken on the parent chain (the shallower node is another tied node's parent).
 - **Slice ranges need no per-file cache.** Building the boundary index for *all* 285 content files at once measures 1.4–3.4 ms, so the app can hold the whole thing and skip `SlicerCache`'s one-file-at-a-time discipline, which exists because the generator holds parsed *rows*, not because coordinates are expensive.
 
 ## B2. Reader renders one page unit
@@ -728,7 +776,7 @@ content file, since the file id is derived rather than carried.
 - Add "next sutta" beside `navigateToPreviousSuttaProvider` (`lib/presentation/providers/previous_sutta_provider.dart`); both read `SitePlan.previousOf`/`nextOf`, so a chapter is one stop and crossing a vagga lands on a sutta, not a TOC — identical to the site.
 
   **This deletes `previousReadableNodeProvider`** (`navigation_tree_provider.dart:151`), a depth-first walk of the whole tree, and fixes a live bug with it: it keys on `isReadableContent`, which is `contentFileId != null` — true for **every** node in the tree, roots included — so today "previous" can land the reader on සුත්තපිටක. `readablePages` is the predicate that was always meant.
-- Tree-node tap (`tree_navigator_widget.dart:193`) and `openTabFromNodeKeyProvider` (`tab_provider.dart:450`) route through the page-unit resolver instead of `node.contentFileId` directly.
+- Tree-node tap (`widgets/navigation/tree_navigator_widget.dart`) and `openTabFromNodeKeyProvider` (`tab_provider.dart:~434`) route through the page-unit resolver instead of `node.contentFileId` directly.
 - When the neighbouring unit lives in another content file, resolve it on tap (its file loads anyway); the card label comes from the tree, which needs no verdict.
 
 ## B4. Landing from search and deep links
@@ -769,11 +817,14 @@ the physical row and runs past the boundary.
 **Regenerating the database does not fix this** — it would reproduce the same
 mismatches, because the builder reads `assets/data/tree.json` raw. The fix that
 holds is to stop asking the stored column: derive the unit from the row through
-the shared slicer, which the app needs anyway (B1) and which costs ~14 ns. Two
-edges it must define — a row above the file's first coordinate belongs to that
-first node (232 rows across 105 files, all book front matter, which the site
-renders nowhere), and a coordinate shared by two nodes resolves to the deeper
-one (`sp` and `atta-sp` are the corpus's only pair).
+the shared slicer, which the app needs anyway (B1) and which costs ~14 ns.
+✅ **That lookup is `SliceIndex.keyAt`, built and verified at S9**, both edges
+included — a row above the file's first coordinate belongs to that first node
+(232 rows across 105 files, all book front matter, which the site renders
+nowhere), and a coordinate shared by two nodes resolves to the deeper one. The
+shared coordinates are **two** pairs, not one: `sp`/`dn` in `dn-1` and
+`atta-sp`/`atta-dn` in `atta-dn-1`, each a pitaka root sitting on its nikāya
+root at (0,0). B4's remaining work is the app calling it.
 
 **Keep the `nodeKey` column.** Once the unit comes from the row, ask what still
 reads it, because that is the whole of what a stale column can cost:
@@ -823,6 +874,8 @@ of a generated `const` is the failure this document exists to prevent.
 - **Verdicts are frozen** — a resync may change what pages *say*, never which pages *exist*. Only a deliberate snapshot edit, or genuinely new content, moves URLs.
 - **The BJT hierarchy survives intact.** The rule here changes how many files the tree is spread across, never the tree. Breadcrumbs and TOC lists read `tree.ancestorsOf` / `tree.childrenOf` and are unaffected by any of it.
 - **The same text never appears in two files.** A folded leaf gets a `#fragment` inside its chapter and a stub or redirect at its old URL — never a second copy.
+
+  **One known exception, found at S9 and left alone.** Where two nodes share a coordinate they share a slice, so both TOC pages print it: `/tipitaka/sp` and `/tipitaka/dn` each open with `සුත්තන්තපිටකෙ | දීඝනිකායො`, and `/tipitaka/atta-sp` and `/tipitaka/atta-dn` with `නමො තස්ස … | දීඝනිකායෙ`. Two rows, on two pairs of pages, and a pitaka TOC naming the nikāya below it is not wrong to read — but it *is* the same rows twice, and `ContentSlicer` claimed in a comment that the outer node got an empty slice, which was never true. Recorded rather than repaired: the fix is a rule about which of two tied nodes may render a preamble, and it belongs with the site, not in the middle of the app's reader rework.
 - **No page carries a leaf's text beside a link list.** That is what keeps a chapter's canonical URL unambiguous and `PageKind` a real distinction. It is *not* the stronger "a TOC page is pure links", which was never true: a container has always rendered its own preamble above its links, and on 65 of them that preamble is the book's introduction to the chapter.
 - **A chapter is always contiguous.** It is read by scrolling, so a page that skipped a sutta inside its own range would drop it from the reading order silently.
 - **A container groups only if every child is a leaf and all of them share one content file.** The first keeps a leaf's text off a link list; the second is physical — a chapter page cannot splice two source files. Both are part of the rule, not tidiness, and every figure in this document assumes them.

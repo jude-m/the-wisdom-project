@@ -14,6 +14,7 @@ export 'src/links/tipitaka_link.dart';
 export 'src/pages/site_plan.dart';
 export 'src/refs/suttacentral_ref_resolver.dart';
 export 'src/scope/scope_filter_sql.dart';
+export 'src/slices/slice_index.dart';
 export 'src/scope/scope_patterns.dart';
 export 'src/text/content_markers.dart';
 export 'src/text/pali_conjuncts.dart';
