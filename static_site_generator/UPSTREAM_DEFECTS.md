@@ -3,11 +3,16 @@
 
 # Upstream defects
 
-**§1–§3 are one defect class and §4 is another.** §1–§3 are about *entry
-types*: containers whose introduction is one printed line, and what that same
-line is typed as elsewhere. §4 is about *keys*: commentary nodes filed under
-the wrong sutta's number, which is the one defect here a reader meets as wrong
-text rather than as a page that reads a little differently.
+**Three classes.** §1–§3 are about *entry types*: containers whose introduction
+is one printed line, and what that same line is typed as elsewhere. §4 is about
+*keys*: commentary nodes filed under the wrong sutta's number. §5 is about
+*coordinates*: leaves whose start position names a row their text does not
+begin on.
+
+§4 and §5 are the two a reader meets as **wrong text** rather than as a page
+that reads a little differently, and they are the two worth sending first. §5
+is also the cheapest to act on: every row of it is an off-by-one against the
+printed book, checkable without knowing anything about how we render.
 
 Every container in §1 opens with body text too short to be the book's introduction
 to the chapter — one printed line, typically a formula, an announcement or a
@@ -642,4 +647,146 @@ a skip whose two sides are worded differently does not appear.
 | `atta-an-2-1-1-7` | සුක්කසුත්තං | `an-2-1-1-7` — කණ්හසුත්තං | `an-2-1-1-8` |
 | `atta-an-2-1-1-8` | චරියාසුත්තං | `an-2-1-1-8` — සුක්කසුත්තං | `an-2-1-1-9` |
 | `atta-an-2-1-1-9` | වස්සූපනායිකාසුත්තං | `an-2-1-1-9` — චරියාසුත්තං | `an-2-1-1-10` |
+
+
+## 5. Coordinates that point at the wrong row
+
+A leaf's coordinate in `tree.json` is the row its text **begins** on, and every
+slice in the corpus is cut from one coordinate to the next. Nothing records
+where a section *ends* — an end is simply the next beginning — so **one wrong
+coordinate spoils two sections**: the one that starts in the wrong place, and
+the one above it that now runs on into it.
+
+For the leaves below the coordinate names a different row, in one of three
+shapes: a section name BJT prints as a *colophon* after the text it names and
+upstream read as an opening line; a coordinate sitting on the body above the
+number that should have opened the leaf; and a `භාණවාරං` recitation marker
+closing the division above.
+
+**88 leaves, in 4 files**, listed below in reading order.
+
+**The reader gets one section's title over another section's text.** It is a
+page that is wrong without looking wrong, which is why it survived every count,
+link check and byte-diff before a detector went looking for it.
+
+We correct these on read — `correctedTreeCoordinates` in `wisdom_shared`,
+derived by `plan_corpus.dart --write-alignment` and frozen — so our own
+surfaces are right today. **That is a patch on our side, not a fix.** Anything
+reading `tree.json` directly still has the defect, and we have one: the search
+database built by `tools/bjt-fts-populate.js` attributes each indexed row to a
+section using the uncorrected coordinates, so a hit in these ranges is filed
+under the neighbouring section. Correcting it upstream is what makes every
+consumer right at once, ours included.
+
+`from` is what `tree.json` ships today; `to` is where the text actually starts.
+The Pali line printed at each is given so a row can be checked against the book
+without loading anything.
+
+### `assets/text/ap-vbh-17.json`
+
+| leaf | from | printed there | to | printed there |
+|---|---|---|---|---|
+| `ap-vbh-18-2` | 41, 2 | 1020. කති ඛන්ධා: කති ආයතනානි: කති ධාතුයො: කති සච්චානි: කති ඉන්ද්රියානි: කති හෙතු: කති ආහාරා: කති ඵස්සා: කති වෙදනා: කති සඤ්ඤා: කති චෙතනා: කති චිත්තානි: | 42, 6 | 2. |
+| `ap-vbh-18-3` | 42, 7 | 1034. කාමධාතුයා කති ඛන්ධා: කති ආයතනානි: කති ධාතුයො: කති සච්චානි: කති ඉන්ද්රියානි: කති හෙතූ: කති ආහාරා: කති ඵස්සා: කති වෙදනා: කති සඤ්ඤා: කති චෙතනා: කති චිත්තානි: | 46, 4 | 3. |
+| `ap-vbh-18-4` | 46, 5 | 1038. පඤ්චන්නං ඛන්ධානං කති කාමධාතු පරියාපන්නා: කති න කාමධාතුපරියාපන්නා: -පෙ- සත්තන්නං චිත්තානං කති කාමධාතු පරියාපන්නා: කති න කාමධාතුපරියාපන්නා: | 48, 10 | 4. |
+| `ap-vbh-18-5` | 48, 11 | 1042. කාමධාතුයා උප්පත්තික්ඛණෙ කතිඛන්ධා පාතුභවන්ති -පෙ- කති චිත්තානි පාතුභවන්ති: | 54, 10 | 5. |
+| `ap-vbh-18-6` | 54, 11 | 1065. කාමාවචරා ධම්මා, න කාමාවචරා ධම්මා, රූපාවචරා ධම්මා, න රූපාවචරා ධම්මා, අරූපාවචරා ධම්මා, න අරූපාවචරා ධම්මා, පරියාපන්නා ධම්මා, අපරියාපන්නා ධම්මා. | 55, 7 | 6. |
+| `ap-vbh-18-7` | 55, 8 | 1074. දෙවාති තයො දෙවා: සම්මුති දෙවා, උප්පත්ති දෙවා, විසුද්ධි දෙවා. සම්මුතිදෙවා නාම රාජානො, දෙවියො, කුමාරා. උප්පත්තිදෙවා නාම චාතුම්මහාරාජිකෙ දෙවෙ උපාදාය තදුපරි දෙවා. විසුද්ධිදෙවා නාම අරහන්තො වුච්චන්ති. | 58, 14 | 7. |
+| `ap-vbh-18-8` | 58, 15 | 1090. පඤ්චන්නං ඛන්ධානං කති අභිඤ්ඤෙය්යා, කති පරිඤ්ඤෙය්යා. කති පහාතබ්බා, කති භාවෙතබ්බා, කති සච්ඡිකාතබ්බා, කති න පහාතබ්බා, න භාවෙතබ්බා, න සච්ඡිකාතබ්බා -පෙ- සත්තන්නං චිත්තානං කති අභිඤ්ඤෙය්යා, කති පරිඤ්ඤෙය්යා, කති පහාතබ්බා, කති භාවෙතබ්බා, කති සච්ඡිකාතබ්බා, කති න පහාතබ්බා, න භාවෙතබ්බා, න සච්ඡිකාතබ්බා: | 60, 2 | 8. |
+| `ap-vbh-18-9` | 60, 3 | 1101. පඤ්චන්නං ඛන්ධානං කති සාරම්මණා, කති අනාරම්මණා -පෙ- සත්තන්නං චිත්තානං කති සාරම්මණා, කති අනාරම්මණා: | 61, 5 | 9. |
+| `ap-vbh-18-10` | 61, 6 | 1105. පඤ්චන්නං ඛන්ධානං කති දිට්ඨා, කති සුතා, කති මුතා, කති විඤ්ඤාතා, කති න දිට්ඨා, න සුතා, න මුතා, න විඤ්ඤාතා, -පෙ- සත්තන්නං චිත්තානං කති දිට්ඨා, කති සුතා, කති මුතා, කති විඤ්ඤාතා, කති න දිට්ඨා, න සුතා, න මුතා, න විඤ්ඤාතා: | 62, 0 | 10. |
+
+### `assets/text/kn-pv.json`
+
+| leaf | from | printed there | to | printed there |
+|---|---|---|---|---|
+| `kn-pv-2-9` | 25, 8 | භාණවාරං පඨමං. | 25, 9 | 2. 9. |
+| `kn-pv-3-4` | 42, 4 | භාණවාරං දුතියං. | 42, 5 | 3. 4. |
+| `kn-pv-4-3` | 65, 9 | භාණවාරං තතියං. | 66, 0 | 4. 3. |
+
+### `assets/text/kn-vv.json`
+
+| leaf | from | printed there | to | printed there |
+|---|---|---|---|---|
+| `kn-vv-4-7` | 50, 7 | භාණවාරං දුතියං. | 50, 8 | 4. 7. |
+
+### `assets/text/vp-pct-1-2.json`
+
+| leaf | from | printed there | to | printed there |
+|---|---|---|---|---|
+| `vp-pct-1-3-1-1` | 12, 10 | පඨමසික්ඛාපදං. | 12, 4 | 8. 1. 1. |
+| `vp-pct-1-3-1-2` | 13, 5 | දුතියසික්ඛාපදං. | 13, 0 | 8. 1. 2. |
+| `vp-pct-1-3-1-3` | 13, 11 | තතියසික්ඛාපදං. | 13, 6 | 8. 1. 3. |
+| `vp-pct-1-3-1-4` | 13, 17 | චතුත්ථසික්ඛාපදං. | 13, 12 | 8. 1. 4. |
+| `vp-pct-1-3-1-5` | 14, 5 | පඤ්චම සික්ඛාපදං. | 14, 0 | 8. 1. 5. |
+| `vp-pct-1-3-1-6` | 14, 11 | ඡට්ඨ සික්ඛාපදං. | 14, 6 | 8. 1. 6. |
+| `vp-pct-1-3-1-7` | 14, 17 | සත්තම සික්ඛාපදං. | 14, 12 | 8. 1. 7. |
+| `vp-pct-1-3-1-8` | 15, 5 | අට්ඨමසික්ඛාපදං. | 15, 0 | 8. 1. 8. |
+| `vp-pct-1-3-1-9` | 15, 11 | නවමසික්ඛාපදං. | 15, 6 | 8. 1. 9. |
+| `vp-pct-1-3-1-10` | 15, 17 | දසමසික්ඛාපදං. | 15, 12 | 8. 1. 10. |
+| `vp-pct-1-3-2-1` | 16, 6 | පඨම සික්ඛාපදං. | 16, 1 | 8. 2. 1. |
+| `vp-pct-1-3-2-2` | 16, 12 | දුතිය සික්ඛාපදං. | 16, 7 | 8. 2. 2. |
+| `vp-pct-1-3-2-3` | 16, 18 | තතිය සික්ඛාපදං. | 16, 13 | 8. 2. 3. |
+| `vp-pct-1-3-2-4` | 17, 5 | චතුත්ථ සික්ඛාපදං. | 17, 0 | 8. 2. 4. |
+| `vp-pct-1-3-2-5` | 17, 11 | පඤ්චම සික්ඛාපදං. | 17, 6 | 8. 2. 5. |
+| `vp-pct-1-3-2-6` | 17, 17 | ඡට්ඨ සික්ඛාපදං. | 17, 12 | 8. 2. 6. |
+| `vp-pct-1-3-2-7` | 18, 5 | සත්තමසික්ඛාපදං. | 18, 0 | 8. 2. 7. |
+| `vp-pct-1-3-2-8` | 18, 11 | අට්ඨමසික්ඛාපදං. | 18, 6 | 8. 2. 8. |
+| `vp-pct-1-3-2-9` | 18, 17 | නවමසික්ඛාපදං. | 18, 12 | 8. 2. 9. |
+| `vp-pct-1-3-2-10` | 19, 5 | දසම සික්ඛාපදං. | 19, 0 | 8. 2. 10. |
+| `vp-pct-1-3-3-1` | 20, 6 | පඨමසික්ඛාපදං. | 20, 1 | 8. 3. 1. |
+| `vp-pct-1-3-3-2` | 20, 12 | දුතියසික්ඛාපදං. | 20, 7 | 8. 3. 2. |
+| `vp-pct-1-3-3-3` | 20, 18 | තතියසික්ඛාපදං. | 20, 13 | 8. 3. 3. |
+| `vp-pct-1-3-3-4` | 21, 5 | චතුත්ථ සික්ඛාපදං. | 21, 0 | 8. 3. 4. |
+| `vp-pct-1-3-3-5` | 21, 11 | පඤ්චම සික්ඛාපදං. | 21, 6 | 8. 3. 5. |
+| `vp-pct-1-3-3-6` | 21, 17 | ඡට්ඨ සික්ඛාපදං. | 21, 12 | 8. 3. 6. |
+| `vp-pct-1-3-3-7` | 22, 5 | සත්තමසික්ඛාපදං. | 22, 0 | 8. 3. 7. |
+| `vp-pct-1-3-3-8` | 22, 11 | අට්ඨමසික්ඛාපදං. | 22, 6 | 8. 3. 8. |
+| `vp-pct-1-3-3-9` | 22, 17 | නවමසික්ඛාපදං. | 22, 12 | 8. 3. 9. |
+| `vp-pct-1-3-3-10` | 23, 5 | දසම සික්ඛාපදං. | 23, 0 | 8. 3. 10. |
+| `vp-pct-1-3-4-1` | 24, 6 | පඨමසික්ඛාපදං. | 24, 1 | 8. 4. 1. |
+| `vp-pct-1-3-4-2` | 24, 12 | දුතියසික්ඛාපදං. | 24, 7 | 8. 4. 2. |
+| `vp-pct-1-3-4-3` | 24, 18 | තතියසික්ඛාපදං. | 24, 13 | 8. 4. 3. |
+| `vp-pct-1-3-4-4` | 25, 5 | චතුත්ථසික්ඛාපදං. | 25, 0 | 8. 4. 4. |
+| `vp-pct-1-3-4-5` | 25, 11 | පඤ්චමසික්ඛාපදං. | 25, 6 | 8. 4. 5. |
+| `vp-pct-1-3-4-6` | 25, 17 | ඡට්ඨසික්ඛාපදං. | 25, 12 | 8. 4. 6. |
+| `vp-pct-1-3-4-7` | 27, 2 | සත්තමසික්ඛාපදං. | 26, 0 | 8. 4. 7. |
+| `vp-pct-1-3-4-8` | 27, 8 | අට්ඨමසික්ඛාපදං. | 27, 3 | 8. 4. 8. |
+| `vp-pct-1-3-4-9` | 27, 14 | නවමසික්ඛාපදං. | 27, 9 | 8. 4. 9. |
+| `vp-pct-1-3-4-10` | 28, 5 | දසමසික්ඛාපදං. | 28, 0 | 8. 4. 10. |
+| `vp-pct-1-3-5-1` | 29, 6 | පඨමසික්ඛාපදං. | 29, 1 | 8. 5. 1. |
+| `vp-pct-1-3-5-2` | 29, 12 | දුතියසික්ඛාපදං. | 29, 7 | 8. 5. 2. |
+| `vp-pct-1-3-5-3` | 29, 18 | තතියසික්ඛාපදං. | 29, 13 | 8. 5. 3. |
+| `vp-pct-1-3-5-4` | 30, 5 | චතුත්ථසික්ඛාපදං. | 30, 0 | 8. 5. 4. |
+| `vp-pct-1-3-5-5` | 30, 11 | පඤ්චමසික්ඛාපදං. | 30, 6 | 8. 5. 5. |
+| `vp-pct-1-3-5-6` | 30, 17 | ඡට්ඨසික්ඛාපදං. | 30, 12 | 8. 5. 6. |
+| `vp-pct-1-3-5-7` | 31, 5 | සත්තමසික්ඛාපදං. | 31, 0 | 8. 5. 7. |
+| `vp-pct-1-3-5-8` | 31, 11 | අට්ඨමසික්ඛාපදං. | 31, 6 | 8. 5. 8. |
+| `vp-pct-1-3-5-9` | 31, 17 | නවමසික්ඛාපදං. | 31, 12 | 8. 5. 9. |
+| `vp-pct-1-3-5-10` | 32, 5 | දසමසික්ඛාපදං. | 32, 0 | 8. 5. 10. |
+| `vp-pct-1-3-6-1` | 33, 6 | පඨමසික්ඛාපදං. | 33, 1 | 8. 6. 1. |
+| `vp-pct-1-3-6-2` | 33, 12 | දුතියසික්ඛාපදං. | 33, 7 | 8. 6. 2. |
+| `vp-pct-1-3-6-3` | 34, 5 | තතියසික්ඛාපදං. | 34, 0 | 8. 6. 3. |
+| `vp-pct-1-3-6-4` | 34, 11 | චතුත්ථසික්ඛාපදං. | 34, 6 | 8. 6. 4. |
+| `vp-pct-1-3-6-5` | 35, 6 | පඤ්චමසික්ඛාපදං. | 35, 0 | 8. 6. 5. |
+| `vp-pct-1-3-6-6` | 36, 4 | ඡට්ඨසික්ඛාපදං. | 35, 7 | 8. 6. 6. |
+| `vp-pct-1-3-6-7` | 37, 7 | සත්තමසික්ඛාපදං. | 36, 5 | 8. 6. 7. |
+| `vp-pct-1-3-6-8` | 37, 14 | අට්ඨමසික්ඛාපදං. | 37, 8 | 8. 6. 8. |
+| `vp-pct-1-3-6-9` | 38, 6 | නවමසික්ඛාපදං. | 38, 0 | 8. 6. 9. |
+| `vp-pct-1-3-6-10` | 38, 13 | දසමසික්ඛාපදං. | 38, 7 | 8. 6. 10. |
+| `vp-pct-1-3-7-1` | 39, 6 | පඨමසික්ඛාපදං. | 39, 1 | 8. 7. 1. |
+| `vp-pct-1-3-7-2` | 39, 12 | දුතියසික්ඛාපදං. | 39, 7 | 8. 7. 2. |
+| `vp-pct-1-3-7-3` | 39, 19 | තතියසික්ඛාපදං. | 39, 13 | 8. 7. 3. |
+| `vp-pct-1-3-7-4` | 40, 5 | චතුත්ථසික්ඛාපදං. | 40, 0 | 8. 7. 4. |
+| `vp-pct-1-3-7-5` | 40, 11 | පඤ්චමසික්ඛාපදං. | 40, 6 | 8. 7. 5. |
+| `vp-pct-1-3-7-6` | 40, 18 | ඡට්ඨසික්ඛාපදං. | 40, 12 | 8. 7. 6. |
+| `vp-pct-1-3-7-7` | 41, 6 | සත්තමසික්ඛාපදං. | 41, 0 | 8. 7. 7. |
+| `vp-pct-1-3-7-8` | 41, 12 | අට්ඨමසික්ඛාපදං. | 41, 7 | 8. 7. 8. |
+| `vp-pct-1-3-7-9` | 42, 10 | නවමසික්ඛාපදං. | 41, 13 | 8. 7. 9. |
+| `vp-pct-1-3-7-10` | 43, 5 | දසමසික්ඛාපදං. | 43, 0 | 8. 7. 10. |
+| `vp-pct-1-3-7-11` | 43, 11 | එකාදසමසික්ඛාපදං. | 43, 6 | 8. 7. 11. |
+| `vp-pct-1-3-7-12` | 43, 17 | ද්වාදසමසික්ඛාපදං. | 43, 12 | 8. 7. 12. |
+| `vp-pct-1-3-7-13` | 44, 5 | තෙරසමසික්ඛාපදං. | 44, 0 | 8. 7. 13. |
+| `vp-pct-1-3-7-14` | 44, 11 | චුද්දසමසික්ඛාපදං. | 44, 6 | 8. 7. 14. |
+| `vp-pct-1-3-7-15` | 45, 7 | පණ්ණරසමසික්ඛාපදං. | 44, 12 | 8. 7. 15. |
 

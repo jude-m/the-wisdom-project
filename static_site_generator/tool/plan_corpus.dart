@@ -1140,6 +1140,19 @@ typedef _FormulaContainer = ({
   List<_PreambleCell> cells,
 });
 
+/// One leaf whose `tree.json` coordinate names a row its text does not begin
+/// on, with the line printed at each end so upstream can check it against the
+/// book. [from] is read from the *raw* tree — the corrected one no longer
+/// holds it.
+typedef _CoordinateDefect = ({
+  String nodeKey,
+  String fileId,
+  ({int page, int entry}) from,
+  ({int page, int entry}) to,
+  String fromText,
+  String toText,
+});
+
 /// Rewrites `UPSTREAM_DEFECTS.md` — the containers whose "introduction" is one
 /// printed line, and what those same lines are typed elsewhere in the corpus.
 ///
@@ -1227,8 +1240,49 @@ void _writeUpstreamReport(
     }
   }
 
+  // Pass 3: §5. The corrections are already frozen, so this reads the answer
+  // rather than re-deriving it — `--write-alignment` owns the rule, and a
+  // report that ran it a second way could disagree with the map it describes.
+  // The raw tree supplies the coordinate upstream ships; row text comes from
+  // the same cache, which cuts no slices to answer.
+  final rawTree = reader.readTree(raw: true);
+  final defectKeysByFile = <String, List<String>>{};
+  for (final nodeKey in correctedTreeCoordinates.keys) {
+    final fileId = rawTree[nodeKey]?.contentFileId;
+    if (fileId == null) continue;
+    (defectKeysByFile[fileId] ??= <String>[]).add(nodeKey);
+  }
+  final defects = <_CoordinateDefect>[];
+  for (final fileId in defectKeysByFile.keys.toList()..sort()) {
+    final rowAt = {
+      for (final row in cache.forFile(fileId).rows)
+        (page: row.pageIndex, entry: row.entryIndex): row,
+    };
+    final keys = defectKeysByFile[fileId]!
+      ..sort((a, b) {
+        final x = correctedTreeCoordinates[a]!;
+        final y = correctedTreeCoordinates[b]!;
+        return x.page != y.page
+            ? x.page.compareTo(y.page)
+            : x.entry.compareTo(y.entry);
+      });
+    for (final nodeKey in keys) {
+      final node = rawTree[nodeKey]!;
+      final from = (page: node.entryPageIndex, entry: node.entryIndexInPage);
+      final to = correctedTreeCoordinates[nodeKey]!;
+      defects.add((
+        nodeKey: nodeKey,
+        fileId: fileId,
+        from: from,
+        to: to,
+        fromText: rowAt[from]?.pali?.text ?? '',
+        toText: rowAt[to]?.pali?.text ?? '',
+      ));
+    }
+  }
+
   File(path).writeAsStringSync(
-    _renderUpstreamReport(tree, ordered, formulas, typedAs, chars),
+    _renderUpstreamReport(tree, ordered, formulas, typedAs, chars, defects),
   );
 
   final inconsistent = typedAs.values.where((c) => c.length > 1).length;
@@ -1241,6 +1295,9 @@ void _writeUpstreamReport(
   stdout.writeln('typed two ways        $inconsistent   '
       '(verbatim matches only — §3 is where a formula that varies by a word '
       'shows up)');
+  stdout.writeln('wrong coordinates     ${defects.length}   '
+      '(§5, in ${defectKeysByFile.length} files — corrected on read, still '
+      'wrong for anything reading tree.json directly)');
 }
 
 String _renderUpstreamReport(
@@ -1249,6 +1306,7 @@ String _renderUpstreamReport(
   Map<String, _FormulaContainer> formulas,
   Map<String, Map<String, int>> typedAs,
   Map<String, int> chars,
+  List<_CoordinateDefect> defects,
 ) {
   // Newlines and pipes both end a markdown table cell early, and the corpus is
   // vendored: a `gatha` carries the first today and upstream may add the second
@@ -1262,11 +1320,16 @@ String _renderUpstreamReport(
 
 # Upstream defects
 
-**§1–§3 are one defect class and §4 is another.** §1–§3 are about *entry
-types*: containers whose introduction is one printed line, and what that same
-line is typed as elsewhere. §4 is about *keys*: commentary nodes filed under
-the wrong sutta's number, which is the one defect here a reader meets as wrong
-text rather than as a page that reads a little differently.
+**Three classes.** §1–§3 are about *entry types*: containers whose introduction
+is one printed line, and what that same line is typed as elsewhere. §4 is about
+*keys*: commentary nodes filed under the wrong sutta's number. §5 is about
+*coordinates*: leaves whose start position names a row their text does not
+begin on.
+
+§4 and §5 are the two a reader meets as **wrong text** rather than as a page
+that reads a little differently, and they are the two worth sending first. §5
+is also the cheapest to act on: every row of it is an off-by-one against the
+printed book, checkable without knowing anything about how we render.
 
 Every container in §1 opens with body text too short to be the book's introduction
 to the chapter — one printed line, typically a formula, an announcement or a
@@ -1465,6 +1528,59 @@ a skip whose two sides are worded differently does not appear.
       ? 'None: every commentary node whose title repeats a canon sutta name '
           'sits at that sutta\'s own index.\n'
       : driftOut.toString());
+
+  final files = {for (final defect in defects) defect.fileId};
+  out.write('''
+
+## 5. Coordinates that point at the wrong row
+
+A leaf's coordinate in `tree.json` is the row its text **begins** on, and every
+slice in the corpus is cut from one coordinate to the next. Nothing records
+where a section *ends* — an end is simply the next beginning — so **one wrong
+coordinate spoils two sections**: the one that starts in the wrong place, and
+the one above it that now runs on into it.
+
+For the leaves below the coordinate names a different row, in one of three
+shapes: a section name BJT prints as a *colophon* after the text it names and
+upstream read as an opening line; a coordinate sitting on the body above the
+number that should have opened the leaf; and a `භාණවාරං` recitation marker
+closing the division above.
+
+**${formatCount(defects.length)} leaves, in ${formatCount(files.length)} files**, listed below in reading order.
+
+**The reader gets one section's title over another section's text.** It is a
+page that is wrong without looking wrong, which is why it survived every count,
+link check and byte-diff before a detector went looking for it.
+
+We correct these on read — `correctedTreeCoordinates` in `wisdom_shared`,
+derived by `plan_corpus.dart --write-alignment` and frozen — so our own
+surfaces are right today. **That is a patch on our side, not a fix.** Anything
+reading `tree.json` directly still has the defect, and we have one: the search
+database built by `tools/bjt-fts-populate.js` attributes each indexed row to a
+section using the uncorrected coordinates, so a hit in these ranges is filed
+under the neighbouring section. Correcting it upstream is what makes every
+consumer right at once, ours included.
+
+`from` is what `tree.json` ships today; `to` is where the text actually starts.
+The Pali line printed at each is given so a row can be checked against the book
+without loading anything.
+
+''');
+  for (final fileId in files.toList()..sort()) {
+    out
+      ..writeln('### `assets/text/$fileId.json`')
+      ..writeln('')
+      ..writeln('| leaf | from | printed there | to | printed there |')
+      ..writeln('|---|---|---|---|---|');
+    for (final defect in defects.where((d) => d.fileId == fileId)) {
+      out.writeln('| `${defect.nodeKey}` '
+          '| ${defect.from.page}, ${defect.from.entry} '
+          '| ${cell(defect.fromText)} '
+          '| ${defect.to.page}, ${defect.to.entry} '
+          '| ${cell(defect.toText)} |');
+    }
+    out.writeln('');
+  }
 
   return out.toString();
 }
