@@ -33,9 +33,9 @@ class SliceRange {
   final SliceCoordinate start;
 
   /// Where the next node begins, or null when this node runs to the end of the
-  /// file. Only a file's last node ends that way, and only the caller holding
-  /// the text knows where the end is — the generator's parsed rows, the app's
-  /// `BJTDocument`.
+  /// file. It is the file's last *coordinate* that ends that way, so two nodes
+  /// sharing it both do. Only the caller holding the text knows where the end
+  /// is — the generator's parsed rows, the app's `BJTDocument`.
   final SliceCoordinate? end;
 
   const SliceRange({required this.nodeKey, required this.start, this.end});
@@ -79,9 +79,6 @@ class SliceIndex {
   /// The `assets/text/<id>.json` this index describes.
   final String fileId;
 
-  /// Every node whose text lives in this file, in reading order.
-  final List<TipitakaNode> nodes;
-
   /// Distinct node coordinates, ascending. These are the slice boundaries.
   final List<SliceCoordinate> _boundaries;
 
@@ -90,9 +87,8 @@ class SliceIndex {
 
   final Map<String, SliceCoordinate> _startOf;
 
-  const SliceIndex._(
+  SliceIndex._(
     this.fileId,
-    this.nodes,
     this._boundaries,
     this._ownerOf,
     this._startOf,
@@ -118,6 +114,13 @@ class SliceIndex {
     // range, which is what the site has always rendered, but a row can only
     // belong to one of them, so the deepest wins: the shallower one is another
     // of the tied nodes' parent, which is all the test needs to know.
+    //
+    // Two corners neither the corpus nor the rule reaches. `deepest` cannot
+    // come back empty — that would need every tied node to be another's parent,
+    // a cycle in a finite tree — so the fallback is belt and braces against a
+    // malformed one rather than a case. And if it ever holds more than one,
+    // two independent subtrees tied on a coordinate, the last in document
+    // order wins for want of anything better to say.
     void closeRun() {
       final parents = {for (final node in sharing) node.parentNodeKey};
       final deepest =
@@ -156,7 +159,6 @@ class SliceIndex {
 
     return SliceIndex._(
       fileId,
-      List.unmodifiable(nodesInFile),
       List.unmodifiable(boundaries),
       List.unmodifiable(ownerOf),
       Map.unmodifiable(startOf),

@@ -27,7 +27,7 @@
 > | **S8** | **the seam** — `SitePlan` into `wisdom_shared`, the app decoding through the shared tree, and links carrying the page that serves them (Part 4 B1, B5's app share, and the codec) | **shipped 2026-08-23** |
 > | **S9** | the slicer's coordinate half into `wisdom_shared`, answering both directions — `slice_index.dart`, `ContentSlicer` delegating to it (Part 4 B1, finishing it) | **shipped 2026-09-06** |
 >
-> **S9 verified 2026-09-06.** A whole-corpus build is **byte-for-byte identical** to the same build before the split — 10,303 files, `diff -r` empty — which is the whole claim B1 makes. `--check` green, 34 generator tests pass, `flutter analyze lib` clean. The new direction, *row → key*, the generator never calls and the build therefore cannot prove, so it was checked against `ContentSlicer` directly: **237,631 rows across all 285 files, 0 disagreements**, with both documented edges exercised — 232 rows above their file's first coordinate resolving to that first node, and the 2 shared coordinates resolving to the deeper node by name (`dn`, `atta-dn`).
+> **S9 verified 2026-09-06.** A whole-corpus build is **byte-for-byte identical** to the same build before the split — 10,303 files, `diff -r` empty — which is the whole claim B1 makes. `--check` green, 34 generator tests pass, `flutter analyze lib` clean. The new direction, *row → key*, the generator never calls and the build therefore cannot prove, so it was checked against `ContentSlicer` directly: **237,631 rows across all 285 files, 0 disagreements**, with both documented edges exercised — 232 rows above their file's first coordinate resolving to that first node, and the 2 shared coordinates resolving to the deeper node by name (`dn`, `atta-dn`). That run was a throwaway script; the standing cover is `packages/wisdom_shared/test/slices/slice_index_test.dart`, which is mutation-tested — seven breakages of the rule, including both readings that stop treating containers as boundaries, and every one fails the suite.
 >
 > **Two things changed against B1 as written.** The shared half is **coordinates only and reads no text at all**: the boundary between two nodes *is* the next node's coordinate, so the index builds from `tree.json` alone — which is what makes the whole-corpus figure in B1's third bullet possible, and it is the reason `ContentSlicer`'s signature and every one of its call sites are unchanged. And the plan's *"`sp` and `atta-sp` are the corpus's only pair"* is wrong on the facts: there are **two** pairs, `sp`/`dn` in `dn-1` and `atta-sp`/`atta-dn` in `atta-dn-1`, each a pitaka root and a nikāya root at (0,0). The rule it states — resolve to the deeper one — is right, and is now tie-broken on the parent chain rather than on map order.
 >
@@ -770,6 +770,17 @@ content file, since the file id is derived rather than carried.
   **It is a deletion, not a ceiling.** The panes are already `ListView.builder` (`single_column_pane.dart:69`, `stacked_pane.dart:69`), so the manual `pageEnd` cursor is a *second* lazy layer over Flutter's own, and it exists for exactly one reason: the end of a unit was unknown, so the reader could not be handed a finite list. Once the end is known that reason is gone, and units stay lazy for free — `FIGURES.longestLeafChars` is what `ListView.builder` is for. The two layers fighting each other is also where the ugly code is: `_loadMorePagesIfNeeded` is nudged so the native list builds one more item (`multi_pane_reader_widget.dart:378-390`), and the restore path works around an extent the native list underestimates (`:433`, `:530`). Those go with it, so this is net-negative and the reader gets *faster*, not slower.
 - `chapter` → the run's leaves with anchors; tapping a folded leaf opens the chapter scrolled to it (the app equivalent of `#fragment`). A chapter may start mid-vagga, so the app resolves a leaf to its **owning page**, which is not always its parent — the same `foldedLeafKeys` walk the site uses (Part 2 A1), never `node.parentNodeKey`.
 - `toc` → **container preamble + child links** — the heading block shown above, then the list. 258 of 285 files carry preamble entries; rendering links only would delete that text from the app.
+
+**Two small things to fold in while this is open**, both left from S9's review
+because neither has a caller yet and B2 gives both one:
+
+- `SliceRange` has no `==`/`hashCode`. B2 derives a tab's bounds from one and
+  will compare two of them — a `copyWith` that changed nothing must not look
+  like a move. Add the pair when the first comparison is written, not before.
+- `ContentSlicer.nodesByFile` is a one-line alias for `SliceIndex.nodesByFile`,
+  kept at S9 so no call site had to change. It is a second name for one static,
+  and the app is about to become a caller from the other side of the seam.
+  Point the generator's five call sites at the shared name and delete it.
 
 ## B3. Navigation
 

@@ -20,11 +20,13 @@ class ContentSlicer {
   /// Where each node starts and stops, in coordinates.
   final SliceIndex index;
 
-  /// Row index of every coordinate in the file — how a coordinate range becomes
-  /// a `sublist`.
-  final Map<SliceCoordinate, int> _rowAt;
+  /// First row of each printed page, plus a closing entry holding [rows].length
+  /// — how a coordinate becomes a `sublist` bound. Rows are appended page by
+  /// page and entry by entry, so a coordinate's row is just its page's start
+  /// plus its entry index; nothing per-row needs storing.
+  final List<int> _pageStart;
 
-  ContentSlicer._(this.rows, this.index, this._rowAt);
+  ContentSlicer._(this.rows, this.index, this._pageStart);
 
   /// Builds a slicer for [file] from every tree node whose text lives in it.
   ///
@@ -33,12 +35,12 @@ class ContentSlicer {
   factory ContentSlicer.forFile(
       ContentFile file, List<TipitakaNode> nodesInFile) {
     final rows = <DocRow>[];
-    final rowAt = <SliceCoordinate, int>{};
+    final pageStart = <int>[];
 
     for (var pageIndex = 0; pageIndex < file.pages.length; pageIndex++) {
       final page = file.pages[pageIndex];
+      pageStart.add(rows.length);
       for (var entryIndex = 0; entryIndex < page.entryCount; entryIndex++) {
-        rowAt[SliceCoordinate(pageIndex, entryIndex)] = rows.length;
         rows.add(DocRow(
           pageIndex: pageIndex,
           pageNum: page.pageNum,
@@ -48,16 +50,25 @@ class ContentSlicer {
         ));
       }
     }
+    pageStart.add(rows.length);
 
+    // Eagerly, before any slice is asked for. An entry index past its page's
+    // end still arithmetics into a real row — the next page's first — so an
+    // unchecked coordinate would not crash, it would quietly serve the wrong
+    // text. Every node is checked even though only some are sliced.
     for (final node in nodesInFile) {
-      final at = SliceCoordinate(node.entryPageIndex, node.entryIndexInPage);
-      if (!rowAt.containsKey(at)) {
+      final page = node.entryPageIndex;
+      final entry = node.entryIndexInPage;
+      if (page < 0 ||
+          page >= file.pages.length ||
+          entry < 0 ||
+          entry >= file.pages[page].entryCount) {
         // Cannot fire on the vendored corpus (verified across every node).
         // Throws because dropping the node would quietly delete a sutta.
         throw StateError(
-          'Node "${node.nodeKey}" points at page ${node.entryPageIndex}, '
-          'entry ${node.entryIndexInPage} of ${file.fileId}, which does not '
-          'exist (file has ${file.pages.length} pages).',
+          'Node "${node.nodeKey}" points at page $page, entry $entry of '
+          '${file.fileId}, which does not exist (file has '
+          '${file.pages.length} pages).',
         );
       }
     }
@@ -65,21 +76,23 @@ class ContentSlicer {
     return ContentSlicer._(
       rows,
       SliceIndex.forFile(file.fileId, nodesInFile),
-      rowAt,
+      pageStart,
     );
   }
 
   /// The rows owned by [nodeKey].
   NodeSlice sliceFor(String nodeKey) {
     final range = index.rangeFor(nodeKey);
-    final start = _rowAt[range.start]!;
-    final end = range.end == null ? rows.length : _rowAt[range.end]!;
+    final end = range.end;
+    final start = _rowAt(range.start);
     return NodeSlice(
       nodeKey: nodeKey,
-      rows: rows.sublist(start, end),
+      rows: rows.sublist(start, end == null ? rows.length : _rowAt(end)),
       startIndex: start,
     );
   }
+
+  int _rowAt(SliceCoordinate at) => _pageStart[at.pageIndex] + at.entryIndex;
 
   /// See [SliceIndex.nodesByFile] — kept here as the name the generator's
   /// callers already use.
