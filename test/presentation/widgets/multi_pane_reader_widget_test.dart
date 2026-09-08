@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:the_wisdom_project/domain/entities/failure.dart';
-import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/reader/multi_pane_reader_widget.dart';
 
 import '../../helpers/mocks.mocks.dart';
@@ -23,13 +24,11 @@ void main() {
   group('Empty state', () {
     testWidgets('should show placeholder when no content selected',
         (tester) async {
-      // ACT - No content file ID set (no active tab)
+      // ACT - No tab open, so the active unit resolves to null
       await tester.pumpApp(
         const MultiPaneReaderWidget(),
         overrides: [
           TestProviderOverrides.bjtDocumentRepository(mockRepository),
-          // Override the derived provider to return null (no active tab)
-          activeContentFileIdProvider.overrideWith((ref) => null),
         ],
       );
       await tester.pump();
@@ -66,8 +65,7 @@ void main() {
         const MultiPaneReaderWidget(),
         overrides: [
           TestProviderOverrides.bjtDocumentRepository(mockRepository),
-          // Override derived provider to simulate active tab with content
-          activeContentFileIdProvider.overrideWith((ref) => 'dn-1'),
+          ..._readingDn1(),
         ],
       );
       await tester.pumpAndSettle();
@@ -96,8 +94,7 @@ void main() {
         const MultiPaneReaderWidget(),
         overrides: [
           TestProviderOverrides.bjtDocumentRepository(mockRepository),
-          // Override derived provider to simulate active tab with content
-          activeContentFileIdProvider.overrideWith((ref) => 'dn-1'),
+          ..._readingDn1(),
         ],
       );
 
@@ -121,8 +118,7 @@ void main() {
         const MultiPaneReaderWidget(),
         overrides: [
           TestProviderOverrides.bjtDocumentRepository(mockRepository),
-          // Override derived provider to simulate active tab with content
-          activeContentFileIdProvider.overrideWith((ref) => 'dn-1'),
+          ..._readingDn1(),
         ],
       );
       await tester.pumpAndSettle();
@@ -135,3 +131,11 @@ void main() {
     });
   });
 }
+
+/// The reader as a real tab leaves it: a unit resolved for `dn-1`, and the
+/// file it names.
+List<Override> _readingDn1() => [
+      activeReaderUnitProvider
+          .overrideWith((ref) => AsyncValue.data(TestData.readerUnit('dn-1'))),
+      activeContentFileIdProvider.overrideWith((ref) => 'dn-1'),
+    ];

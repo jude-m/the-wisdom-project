@@ -20,14 +20,10 @@ void main() {
   // `paliName` and `sinhalaName` to `label` so the displayed text equals
   // `label` regardless of the Content Language — these tests are about
   // rendering/scrolling, not language resolution.
-  ReaderTab createTab({
-    required String label,
-    String? contentFileId,
-  }) {
+  ReaderTab createTab({required String label}) {
     return ReaderTab(
       label: label,
       fullName: 'Full name of $label',
-      contentFileId: contentFileId,
       nodeKey: 'node-$label',
       paliName: label,
       sinhalaName: label,
@@ -55,8 +51,8 @@ void main() {
   group('Tab display', () {
     testWidgets('should render tabs when they exist', (tester) async {
       // ARRANGE
-      final tab1 = createTab(label: 'Sutta 1', contentFileId: 'dn-1');
-      final tab2 = createTab(label: 'Sutta 2', contentFileId: 'dn-2');
+      final tab1 = createTab(label: 'Sutta 1');
+      final tab2 = createTab(label: 'Sutta 2');
 
       // ACT
       await tester.pumpApp(
@@ -82,8 +78,8 @@ void main() {
       // ARRANGE - Two tabs rendered in the tab bar.
       // The tab bar always shows the document/sutta icon (contentIcon is
       // invoked without hasChildren, so every tab uses description_sharp).
-      final tab1 = createTab(label: 'With Content', contentFileId: 'dn-1');
-      final tab2 = createTab(label: 'Folder Tab', contentFileId: null);
+      final tab1 = createTab(label: 'With Content');
+      final tab2 = createTab(label: 'Folder Tab');
 
       // ACT
       await tester.pumpApp(
@@ -114,7 +110,6 @@ void main() {
     ReaderTab bilingualTab() => const ReaderTab(
           label: 'fallback-label',
           fullName: 'Dhamma / Sinhala name',
-          contentFileId: 'dn-1',
           nodeKey: 'node-bilingual',
           paliName: 'ධම්ම',
           sinhalaName: 'දම් නම',
@@ -173,8 +168,8 @@ void main() {
   group('Active tab styling', () {
     testWidgets('should highlight active tab', (tester) async {
       // ARRANGE
-      final tab1 = createTab(label: 'Tab 1', contentFileId: 'dn-1');
-      final tab2 = createTab(label: 'Tab 2', contentFileId: 'dn-2');
+      final tab1 = createTab(label: 'Tab 1');
+      final tab2 = createTab(label: 'Tab 2');
 
       // ACT
       await tester.pumpApp(
@@ -204,7 +199,7 @@ void main() {
     testWidgets('should render tab structure with close button and tooltip',
         (tester) async {
       // ARRANGE
-      final tab = createTab(label: 'Tab', contentFileId: 'dn-1');
+      final tab = createTab(label: 'Tab');
 
       // ACT
       await tester.pumpApp(
@@ -249,8 +244,8 @@ void main() {
     testWidgets('should not show chevrons when all tabs fit on screen',
         (tester) async {
       // ARRANGE - Just 2 tabs that will fit
-      final tab1 = createTab(label: 'Tab 1', contentFileId: 'dn-1');
-      final tab2 = createTab(label: 'Tab 2', contentFileId: 'dn-2');
+      final tab1 = createTab(label: 'Tab 1');
+      final tab2 = createTab(label: 'Tab 2');
 
       // ACT
       await tester.pumpApp(
@@ -277,7 +272,7 @@ void main() {
       // ARRANGE - Many tabs that will overflow
       final tabs = List.generate(
         10,
-        (i) => createTab(label: 'Tab Number $i', contentFileId: 'file-$i'),
+        (i) => createTab(label: 'Tab Number $i'),
       );
 
       // ACT
@@ -307,7 +302,7 @@ void main() {
       // ARRANGE - Many tabs that will overflow
       final tabs = List.generate(
         10,
-        (i) => createTab(label: 'Tab Number $i', contentFileId: 'file-$i'),
+        (i) => createTab(label: 'Tab Number $i'),
       );
 
       // ACT
@@ -342,7 +337,7 @@ void main() {
       // ARRANGE - Many tabs that will overflow
       final tabs = List.generate(
         10,
-        (i) => createTab(label: 'Tab Number $i', contentFileId: 'file-$i'),
+        (i) => createTab(label: 'Tab Number $i'),
       );
 
       // ACT
@@ -386,7 +381,7 @@ void main() {
       // ARRANGE - Create many tabs that won't all fit on screen
       final tabs = List.generate(
         10,
-        (i) => createTab(label: 'Tab Number $i', contentFileId: 'file-$i'),
+        (i) => createTab(label: 'Tab Number $i'),
       );
 
       // ACT

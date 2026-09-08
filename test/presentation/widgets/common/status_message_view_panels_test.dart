@@ -37,13 +37,13 @@ import 'package:the_wisdom_project/presentation/providers/document_provider.dart
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
-import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/dictionary/dictionary_bottom_sheet.dart';
 import 'package:the_wisdom_project/presentation/widgets/reader/multi_pane_reader_widget.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
 import 'package:the_wisdom_project/presentation/widgets/navigation/tree_navigator_widget.dart';
 
 import '../../../helpers/pump_app.dart';
+import '../../../helpers/test_data.dart';
 
 // ===========================================================================
 // Test infrastructure
@@ -443,6 +443,11 @@ void main() {
         const MultiPaneReaderWidget(),
         overrides: [
           activeContentFileIdProvider.overrideWith((ref) => 'stub'),
+          // A unit, so the reader is past the "select a sutta" hint — the
+          // document it names is what comes up empty.
+          activeReaderUnitProvider.overrideWith(
+            (ref) => AsyncValue.data(TestData.readerUnit('stub')),
+          ),
           currentBJTDocumentProvider.overrideWith(
             (ref) => AsyncValue<BJTDocument?>.data(_emptyDocument()),
           ),

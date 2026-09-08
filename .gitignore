@@ -54,8 +54,8 @@ app.*.map.json
 ios/Podfile.lock
 macos/Podfile.lock
 
-# Test helpers (generated)
-test/helpers/
+# Test helpers — only the Mockito output is generated (build_runner)
+test/helpers/mocks.mocks.dart
 
 # Node.js (tools folder)
 node_modules/

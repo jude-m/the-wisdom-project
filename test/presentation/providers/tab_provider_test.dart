@@ -8,6 +8,7 @@ import 'package:the_wisdom_project/presentation/providers/navigation_tree_provid
 import 'package:the_wisdom_project/presentation/providers/tab_lifecycle_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
+import 'package:wisdom_shared/wisdom_shared.dart' show TipitakaTree;
 
 import '../../helpers/pump_app.dart';
 
@@ -28,7 +29,7 @@ void main() {
       final notifier = container.read(tabsProvider.notifier);
 
       // ACT
-      final tab = _createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1');
+      final tab = _createTestReaderTab(nodeKey: 'dn-1');
       final index = notifier.addTab(tab);
 
       // ASSERT
@@ -42,8 +43,8 @@ void main() {
       final notifier = container.read(tabsProvider.notifier);
 
       // ACT
-      final tab1 = _createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1');
-      final tab2 = _createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1');
+      final tab1 = _createTestReaderTab(nodeKey: 'dn-1');
+      final tab2 = _createTestReaderTab(nodeKey: 'mn-1');
       final index1 = notifier.addTab(tab1);
       final index2 = notifier.addTab(tab2);
 
@@ -57,9 +58,9 @@ void main() {
       // ARRANGE
       final notifier = container.read(tabsProvider.notifier);
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
 
       // ACT
       notifier.removeTab(0);
@@ -68,51 +69,47 @@ void main() {
       expect(container.read(tabsProvider).length, equals(1));
       expect(container.read(tabsProvider)[0].nodeKey, equals('mn-1'));
     });
-
-    test('updateTabPage should update pageIndex of specified tab', () {
-      // ARRANGE
-      final notifier = container.read(tabsProvider.notifier);
-      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1', pageIndex: 0));
-
-      // ACT
-      notifier.updateTabPage(0, 5);
-
-      // ASSERT
-      expect(container.read(tabsProvider)[0].pageIndex, equals(5));
-    });
   });
 
   group('openTabFromSearchResultProvider -', () {
     late ProviderContainer container;
 
     setUp(() {
-      container = createTestContainer();
+      // Opening a tab from a hit asks the resolver which node owns the matched
+      // row. An empty tree answers nothing, so these tests exercise the
+      // fallback — the hit's own node key — without an asset. Which node a row
+      // belongs to is `reader_unit_test.dart`'s question.
+      container = createTestContainer(overrides: [
+        sharedTreeProvider
+            .overrideWith((ref) async => TipitakaTree.fromJson(const {})),
+      ]);
     });
 
     tearDown(() {
       container.dispose();
     });
 
-    test('should create a new tab from search result', () {
+    test('should create a new tab from search result', () async {
       // ARRANGE
       final result = _createTestSearchResult(
         nodeKey: 'dn-1',
         contentFileId: 'dn-1',
         pageIndex: 3,
+        entryIndex: 2,
       );
 
       // ACT
-      container.read(openTabFromSearchResultProvider)(result);
+      await container.read(openTabFromSearchResultProvider)(result);
 
-      // ASSERT
+      // ASSERT - the tab is the node; the matched row is only where to scroll
       final tabs = container.read(tabsProvider);
       expect(tabs.length, equals(1));
       expect(tabs[0].nodeKey, equals('dn-1'));
-      expect(tabs[0].contentFileId, equals('dn-1'));
-      expect(tabs[0].pageIndex, equals(3));
+      expect(tabs[0].landingPageIndex, equals(3));
+      expect(tabs[0].landingEntryIndex, equals(2));
     });
 
-    test('should set active tab index to new tab', () {
+    test('should set active tab index to new tab', () async {
       // ARRANGE
       final result = _createTestSearchResult(
         nodeKey: 'dn-1',
@@ -120,13 +117,13 @@ void main() {
       );
 
       // ACT
-      container.read(openTabFromSearchResultProvider)(result);
+      await container.read(openTabFromSearchResultProvider)(result);
 
       // ASSERT
       expect(container.read(activeTabIndexProvider), equals(0));
     });
 
-    test('should derive activeContentFileIdProvider from tab', () {
+    test('should derive the active node key from the tab', () async {
       // ARRANGE
       final result = _createTestSearchResult(
         nodeKey: 'mn-1',
@@ -134,49 +131,13 @@ void main() {
       );
 
       // ACT
-      container.read(openTabFromSearchResultProvider)(result);
-
-      // ASSERT - contentFileId is now derived from the active tab
-      expect(container.read(activeContentFileIdProvider), equals('mn-1'));
-    });
-
-    test('should derive activePageIndexProvider from tab', () {
-      // ARRANGE
-      final result = _createTestSearchResult(
-        nodeKey: 'dn-1',
-        contentFileId: 'dn-1',
-        pageIndex: 7,
-      );
-
-      // ACT
-      container.read(openTabFromSearchResultProvider)(result);
-
-      // ASSERT - pageIndex is now derived from the active tab
-      expect(container.read(activePageIndexProvider), equals(7));
-    });
-
-    test(
-        'should set pagination state via derived providers (activePageStartProvider/activePageEndProvider)',
-        () {
-      // ARRANGE
-      final result = _createTestSearchResult(
-        nodeKey: 'dn-1',
-        contentFileId: 'dn-1',
-        pageIndex: 5,
-      );
-
-      // ACT
-      container.read(openTabFromSearchResultProvider)(result);
+      await container.read(openTabFromSearchResultProvider)(result);
 
       // ASSERT
-      // pageStart should be set to pageIndex (5)
-      // pageEnd should be pageIndex + 1 (6) based on ReaderTab.fromNode logic
-      // These are now derived from the active tab, not global StateProviders
-      expect(container.read(activePageStartProvider), equals(5));
-      expect(container.read(activePageEndProvider), equals(6));
+      expect(container.read(activeNodeKeyProvider), equals('mn-1'));
     });
 
-    test('should add multiple tabs from multiple search results', () {
+    test('should add multiple tabs from multiple search results', () async {
       // ARRANGE
       final result1 = _createTestSearchResult(
         nodeKey: 'dn-1',
@@ -188,18 +149,18 @@ void main() {
       );
 
       // ACT
-      container.read(openTabFromSearchResultProvider)(result1);
-      container.read(openTabFromSearchResultProvider)(result2);
+      await container.read(openTabFromSearchResultProvider)(result1);
+      await container.read(openTabFromSearchResultProvider)(result2);
 
       // ASSERT
       final tabs = container.read(tabsProvider);
       expect(tabs.length, equals(2));
       expect(container.read(activeTabIndexProvider),
           equals(1)); // Second tab active
-      expect(container.read(activeContentFileIdProvider), equals('mn-1'));
+      expect(container.read(activeNodeKeyProvider), equals('mn-1'));
     });
 
-    test('should handle search result with title category', () {
+    test('should handle search result with title category', () async {
       // ARRANGE
       final result = _createTestSearchResult(
         nodeKey: 'dn-1',
@@ -209,14 +170,14 @@ void main() {
       );
 
       // ACT
-      container.read(openTabFromSearchResultProvider)(result);
+      await container.read(openTabFromSearchResultProvider)(result);
 
       // ASSERT
       final tabs = container.read(tabsProvider);
       expect(tabs[0].paliName, equals('Brahmajālasutta'));
     });
 
-    test('should handle search result with content category', () {
+    test('should handle search result with content category', () async {
       // ARRANGE
       final result = _createTestSearchResult(
         nodeKey: 'mn-1',
@@ -228,12 +189,13 @@ void main() {
       );
 
       // ACT
-      container.read(openTabFromSearchResultProvider)(result);
+      await container.read(openTabFromSearchResultProvider)(result);
 
       // ASSERT
       final tabs = container.read(tabsProvider);
-      expect(tabs[0].contentFileId, equals('mn-1'));
-      expect(tabs[0].pageIndex, equals(10));
+      expect(tabs[0].nodeKey, equals('mn-1'));
+      expect(tabs[0].landingPageIndex, equals(10));
+      expect(tabs[0].landingEntryIndex, equals(3));
     });
   });
 
@@ -244,16 +206,8 @@ void main() {
       container = createTestContainer();
       // Add some initial tabs
       final notifier = container.read(tabsProvider.notifier);
-      notifier.addTab(_createTestReaderTab(
-        nodeKey: 'dn-1',
-        contentFileId: 'dn-1',
-        pageIndex: 0,
-      ));
-      notifier.addTab(_createTestReaderTab(
-        nodeKey: 'mn-1',
-        contentFileId: 'mn-1',
-        pageIndex: 5,
-      ));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'mn-1'));
     });
 
     tearDown(() {
@@ -272,24 +226,8 @@ void main() {
       // ACT
       container.read(switchTabProvider)(1);
 
-      // ASSERT - content state is now derived from the active tab
-      expect(container.read(activeContentFileIdProvider), equals('mn-1'));
-      expect(container.read(activePageIndexProvider), equals(5));
-    });
-
-    test('should derive pagination state from tab via active*Provider', () {
-      // ARRANGE - Update the tab's page state
-      final tabs = container.read(tabsProvider);
-      final updatedTab = tabs[1].copyWith(pageStart: 3, pageEnd: 8);
-      container.read(tabsProvider.notifier).updateTab(1, updatedTab);
-
-      // ACT
-      container.read(switchTabProvider)(1);
-
-      // ASSERT
-      // Pagination is now derived from the active tab, not restored to global providers
-      expect(container.read(activePageStartProvider), equals(3));
-      expect(container.read(activePageEndProvider), equals(8));
+      // ASSERT - everything the reader shows hangs off this one key
+      expect(container.read(activeNodeKeyProvider), equals('mn-1'));
     });
   });
 
@@ -308,11 +246,11 @@ void main() {
       // ARRANGE - Add 3 tabs and make the last one active
       final notifier = container.read(tabsProvider.notifier);
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'sn-1'));
 
       // Set the last tab (index 2) as active
       container.read(activeTabIndexProvider.notifier).state = 2;
@@ -324,7 +262,7 @@ void main() {
       // ASSERT - Should select previous tab (index 1)
       expect(container.read(activeTabIndexProvider), equals(1));
       expect(container.read(tabsProvider).length, equals(2));
-      expect(container.read(activeContentFileIdProvider), equals('mn-1'));
+      expect(container.read(activeNodeKeyProvider), equals('mn-1'));
     });
 
     test('closing active tab when it is the first tab should select next tab',
@@ -332,9 +270,9 @@ void main() {
       // ARRANGE - Add 2 tabs and make the first one active
       final notifier = container.read(tabsProvider.notifier);
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
 
       container.read(activeTabIndexProvider.notifier).state = 0;
 
@@ -344,14 +282,14 @@ void main() {
       // ASSERT - Should select the next tab (which is now at index 0)
       expect(container.read(activeTabIndexProvider), equals(0));
       expect(container.read(tabsProvider).length, equals(1));
-      expect(container.read(activeContentFileIdProvider), equals('mn-1'));
+      expect(container.read(activeNodeKeyProvider), equals('mn-1'));
     });
 
     test('closing the only tab should set activeTabIndex to -1', () {
       // ARRANGE - Add only 1 tab and make it active
       final notifier = container.read(tabsProvider.notifier);
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       container.read(activeTabIndexProvider.notifier).state = 0;
 
       // ACT - Close the only tab
@@ -360,7 +298,7 @@ void main() {
       // ASSERT - activeTabIndex should be -1 (no tabs)
       expect(container.read(activeTabIndexProvider), equals(-1));
       expect(container.read(tabsProvider), isEmpty);
-      expect(container.read(activeContentFileIdProvider), isNull);
+      expect(container.read(activeNodeKeyProvider), isNull);
     });
 
     test('closing tab before active should adjust activeTabIndex correctly',
@@ -368,11 +306,11 @@ void main() {
       // ARRANGE - Add 3 tabs and make the last one (index 2) active
       final notifier = container.read(tabsProvider.notifier);
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'sn-1'));
 
       container.read(activeTabIndexProvider.notifier).state = 2;
 
@@ -383,18 +321,18 @@ void main() {
       expect(container.read(activeTabIndexProvider), equals(1));
       expect(container.read(tabsProvider).length, equals(2));
       // The active tab content should still be sn-1
-      expect(container.read(activeContentFileIdProvider), equals('sn-1'));
+      expect(container.read(activeNodeKeyProvider), equals('sn-1'));
     });
 
     test('closing tab after active should not change activeTabIndex', () {
       // ARRANGE - Add 3 tabs and make the first one (index 0) active
       final notifier = container.read(tabsProvider.notifier);
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'sn-1'));
 
       container.read(activeTabIndexProvider.notifier).state = 0;
 
@@ -404,7 +342,7 @@ void main() {
       // ASSERT - Active tab index should remain 0
       expect(container.read(activeTabIndexProvider), equals(0));
       expect(container.read(tabsProvider).length, equals(2));
-      expect(container.read(activeContentFileIdProvider), equals('dn-1'));
+      expect(container.read(activeNodeKeyProvider), equals('dn-1'));
     });
 
     test('scroll positions should be shifted correctly after close', () {
@@ -413,11 +351,11 @@ void main() {
       // a tab shifts surrounding offsets naturally as the list collapses.
       final notifier = container.read(tabsProvider.notifier);
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'sn-1'));
 
       notifier.updateTabScrollOffset(0, 100.0);
       notifier.updateTabScrollOffset(1, 200.0);
@@ -440,7 +378,7 @@ void main() {
       // ARRANGE - Add 1 tab and set a selected node
       final notifier = container.read(tabsProvider.notifier);
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       container.read(activeTabIndexProvider.notifier).state = 0;
       container.read(selectedNodeProvider.notifier).state = 'dn-1';
 
@@ -455,7 +393,7 @@ void main() {
       // ARRANGE - Add 1 tab and expand some nodes
       final notifier = container.read(tabsProvider.notifier);
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       container.read(activeTabIndexProvider.notifier).state = 0;
       container.read(expandedNodesProvider.notifier).state = {
         TipitakaNodeKeys.dighaNikaya,
@@ -477,7 +415,7 @@ void main() {
       // is empty rather than checking a separate map.
       final notifier = container.read(tabsProvider.notifier);
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       container.read(activeTabIndexProvider.notifier).state = 0;
       notifier.updateTabScrollOffset(0, 500.0);
 
@@ -492,13 +430,13 @@ void main() {
       // ARRANGE - Add 4 tabs with scroll positions
       final notifier = container.read(tabsProvider.notifier);
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'sn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'an-1', contentFileId: 'an-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'an-1'));
 
       notifier.updateTabScrollOffset(0, 100.0);
       notifier.updateTabScrollOffset(1, 200.0);
@@ -523,11 +461,11 @@ void main() {
       // ARRANGE - Add 3 tabs, make middle one active
       final notifier = container.read(tabsProvider.notifier);
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'sn-1'));
 
       notifier.updateTabScrollOffset(0, 100.0);
       notifier.updateTabScrollOffset(1, 200.0);
@@ -542,7 +480,7 @@ void main() {
       // Active index should be 0 (previous tab)
       expect(container.read(activeTabIndexProvider), equals(0));
       // Content should be from the first tab
-      expect(container.read(activeContentFileIdProvider), equals('dn-1'));
+      expect(container.read(activeNodeKeyProvider), equals('dn-1'));
       // Scroll positions ride on the surviving tabs
       final tabs = container.read(tabsProvider);
       expect(tabs[0].scrollOffset, equals(100.0));
@@ -557,11 +495,11 @@ void main() {
       // ARRANGE - Add 3 tabs with search state
       final notifier = container.read(tabsProvider.notifier);
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1', contentFileId: 'mn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'sn-1', contentFileId: 'sn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'sn-1'));
 
       // Open search on each tab
       final searchNotifier =
@@ -592,7 +530,7 @@ void main() {
       // ARRANGE - Add 1 tab with search state
       final notifier = container.read(tabsProvider.notifier);
       notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1', contentFileId: 'dn-1'));
+          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       container.read(activeTabIndexProvider.notifier).state = 0;
       container.read(inPageSearchStatesProvider.notifier).openSearch();
 
@@ -608,17 +546,11 @@ void main() {
 
 // Helper function to create test ReaderTab
 
-ReaderTab _createTestReaderTab({
-  required String nodeKey,
-  String? contentFileId,
-  int pageIndex = 0,
-}) {
+ReaderTab _createTestReaderTab({required String nodeKey}) {
   return ReaderTab.fromNode(
     nodeKey: nodeKey,
     paliName: 'Test Pali Name',
     sinhalaName: 'Test Sinhala Name',
-    contentFileId: contentFileId,
-    pageIndex: pageIndex,
   );
 }
 

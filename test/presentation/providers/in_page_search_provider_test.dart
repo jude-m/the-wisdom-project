@@ -22,7 +22,6 @@ void main() {
               nodeKey: 'node-$i',
               paliName: 'Tab $i',
               sinhalaName: 'Tab $i',
-              contentFileId: 'file-$i',
             ),
           );
     }
@@ -281,7 +280,6 @@ ProviderContainer _createContainerWithMatches(
             nodeKey: 'test-node',
             paliName: 'Test',
             sinhalaName: 'Test',
-            contentFileId: 'test-file',
           ),
         );
         return notifier;

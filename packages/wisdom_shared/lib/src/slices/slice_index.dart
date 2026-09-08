@@ -27,8 +27,16 @@ class SliceCoordinate implements Comparable<SliceCoordinate> {
   String toString() => '($pageIndex,$entryIndex)';
 }
 
-/// The span one node owns: [start] inclusive, [end] exclusive.
+/// A half-open span of one content file: [start] inclusive, [end] exclusive.
+///
+/// [SliceIndex.rangeFor] returns the span one node owns. A caller may widen
+/// that — the app's reader unit runs a container to its last descendant — so
+/// this promises a span, not ownership.
 class SliceRange {
+  /// The node the span was resolved for, and only that: it labels [toString]
+  /// and separates two spans in [==]. A widened range keeps the key it was
+  /// asked about, not the key its [end] came from, so nothing may read this to
+  /// find text.
   final String nodeKey;
   final SliceCoordinate start;
 
