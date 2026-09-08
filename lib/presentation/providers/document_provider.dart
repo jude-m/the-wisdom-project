@@ -4,8 +4,11 @@ import '../../data/datasources/bjt_document_local_datasource.dart';
 import '../../data/repositories/bjt_document_repository_impl.dart';
 import '../../domain/entities/bjt/bjt_document.dart';
 import '../../domain/entities/content/text_layer.dart';
+import '../../domain/entities/reader/document_slice.dart';
+import '../../domain/entities/reader/reader_unit.dart';
 import '../../domain/repositories/bjt_document_repository.dart';
 import '../../domain/usecases/load_bjt_document_usecase.dart';
+import 'reader_unit_provider.dart';
 import 'tab_provider.dart';
 
 // Datasource provider
@@ -44,13 +47,35 @@ final bjtDocumentProvider =
 
 // ============================================================================
 // CONTENT STATE
-// Content file ID and page index are derived from the active tab in tab_provider.dart:
-// - activeContentFileIdProvider
-// - activePageIndexProvider
-// This eliminates state duplication and ensures consistency.
+// Everything the reader shows is derived from the active tab's node key:
+//   activeNodeKeyProvider → activeReaderUnitProvider → the file and the span
+//     → currentBJTDocumentProvider → activeDocumentSliceProvider
+// The tab stores no coordinates, so nothing here can disagree with the
+// resolver about where a unit starts or stops.
 // ============================================================================
 
-// Current BJT document provider (uses activeContentFileIdProvider from tab state)
+/// The bounded unit the active tab is reading.
+///
+/// Async because the resolver is: the reader shows its loading state until the
+/// tree is up, the same way it already waited on the content file. Null inside
+/// the data case means "this tab has no unit" — no tab open, or a key the tree
+/// has never heard of.
+final activeReaderUnitProvider = Provider<AsyncValue<ReaderUnit?>>((ref) {
+  final nodeKey = ref.watch(activeNodeKeyProvider);
+  // Answered without the resolver, so a session with no tab open never builds
+  // it and the "select a sutta" hint is not held behind a spinner.
+  if (nodeKey == null) return const AsyncValue.data(null);
+  return ref
+      .watch(readerUnitResolverProvider)
+      .whenData((resolver) => resolver.unitFor(nodeKey));
+});
+
+/// The content file the active tab's unit lives in — derived, never stored.
+final activeContentFileIdProvider = Provider<String?>((ref) {
+  return ref.watch(activeReaderUnitProvider).valueOrNull?.contentFileId;
+});
+
+// Current BJT document provider (uses activeContentFileIdProvider above)
 final currentBJTDocumentProvider = Provider<AsyncValue<BJTDocument?>>((ref) {
   final fileId = ref.watch(activeContentFileIdProvider);
 
@@ -62,30 +87,37 @@ final currentBJTDocumentProvider = Provider<AsyncValue<BJTDocument?>>((ref) {
   return ref.watch(bjtDocumentProvider(fileId));
 });
 
+/// The unit's span cut out of the loaded document — the pages the panes build.
+///
+/// This is the whole of what replaced `pageStart`/`pageEnd`: the reader is
+/// handed a finite list once, and `ListView.builder` keeps it lazy for free.
+/// Null while either half is still loading, or when the tab has no unit.
+final activeDocumentSliceProvider = Provider<DocumentSlice?>((ref) {
+  final unit = ref.watch(activeReaderUnitProvider).valueOrNull;
+  final document = ref.watch(currentBJTDocumentProvider).valueOrNull;
+  if (unit == null || document == null) return null;
+  return DocumentSlice.of(document, unit.range);
+});
+
+/// Where the active tab should land when its content first renders.
+///
+/// The row a search hit or a `?e=` link named; null otherwise, and the unit
+/// opens at its own top. Only consulted while the tab's own `scrollOffset` is
+/// still 0: once the reader has moved, where they left off outranks where they
+/// arrived.
+final activeLandingEntryProvider = Provider<(int, int)?>((ref) {
+  final activeIndex = ref.watch(activeTabIndexProvider);
+  final tabs = ref.watch(tabsProvider);
+  if (activeIndex < 0 || activeIndex >= tabs.length) return null;
+
+  final page = tabs[activeIndex].landingPageIndex;
+  final entry = tabs[activeIndex].landingEntryIndex;
+  return page != null && entry != null ? (page, entry) : null;
+});
+
 // Note: Reader layout is now per-tab, stored in ReaderTab.layout
 // Access via activeReaderLayoutProvider in tab_provider.dart
 // Update via updateActiveTabLayoutProvider in tab_provider.dart
-
-// Provider to load more pages
-// Updates only the active tab's pageEnd; widgets react via activePageEndProvider
-final loadMorePagesProvider = Provider<void Function(int)>((ref) {
-  return (int additionalPages) {
-    final activeTabIndex = ref.read(activeTabIndexProvider);
-    final tabs = ref.read(tabsProvider);
-    if (activeTabIndex < 0 || activeTabIndex >= tabs.length) return;
-
-    final currentTab = tabs[activeTabIndex];
-    final contentAsync = ref.read(currentBJTDocumentProvider);
-    contentAsync.whenData((document) {
-      if (document != null) {
-        final newEnd =
-            (currentTab.pageEnd + additionalPages).clamp(0, document.pageCount);
-        final updatedTab = currentTab.copyWith(pageEnd: newEnd);
-        ref.read(tabsProvider.notifier).updateTab(activeTabIndex, updatedTab);
-      }
-    });
-  };
-});
 
 // ============================================================================
 // TextLayer Providers (Multi-Edition Foundation)

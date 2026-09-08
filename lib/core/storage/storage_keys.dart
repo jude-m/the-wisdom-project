@@ -7,7 +7,12 @@ class StorageKeys {
   const StorageKeys._();
 
   /// JSON list of [ReaderTab] objects currently open in the reader.
-  static const openTabs = 'open_tabs_v1';
+  ///
+  /// `_v2` because a tab stopped being a cursor into a content file and became
+  /// a node: the old `contentFileId`/`pageStart`/`pageEnd`/`entryStart` fields
+  /// have no meaning under the new one, and a saved `_v1` tab would decode into
+  /// a tab pointing at nothing rather than fail loudly.
+  static const openTabs = 'open_tabs_v2';
 
   /// Int — the index of the active tab when the app last saved state.
   /// `-1` means "no tab focused".

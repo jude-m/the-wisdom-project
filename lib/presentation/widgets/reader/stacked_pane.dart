@@ -5,6 +5,7 @@ import '../../../core/theme/app_fonts.dart';
 import '../../../core/theme/text_entry_theme.dart';
 import '../../../domain/entities/bjt/bjt_page.dart';
 import '../../../domain/entities/content/entry_type.dart';
+import '../../../domain/entities/reader/document_slice.dart';
 import '../../models/in_page_search_state.dart';
 import 'entry_key_registry.dart';
 import 'reader_entry_builder.dart';
@@ -22,9 +23,7 @@ class StackedPane extends StatelessWidget {
   const StackedPane({
     super.key,
     required this.scrollController,
-    required this.pages,
-    required this.entryStart,
-    required this.absolutePageStart,
+    required this.slice,
     required this.searchState,
     required this.entryKeyRegistry,
     required this.onTapEmpty,
@@ -34,9 +33,11 @@ class StackedPane extends StatelessWidget {
   });
 
   final ScrollController scrollController;
-  final List<BJTPage> pages;
-  final int entryStart;
-  final int absolutePageStart;
+
+  /// The bounded unit to render — its pages, and where it starts and stops
+  /// inside the first and last of them.
+  final DocumentSlice slice;
+
   final InPageSearchState searchState;
 
   /// Registry for entry-level GlobalKeys. Used for layout-switch scroll
@@ -70,16 +71,18 @@ class StackedPane extends StatelessWidget {
             controller: scrollController,
             padding:
                 context.textEntryTheme.readingPadding(constraints.maxWidth),
-            itemCount: pages.length + 1, // +1 for top spacer
+            itemCount: slice.pages.length + 1, // +1 for top spacer
             itemBuilder: (context, index) {
               if (index == 0) {
                 return const SizedBox(
                     height: PaneWidthConstants.readerActionButtonGroupHeight);
               }
               final pageIndex = index - 1;
-              final absolutePageIndex = absolutePageStart + pageIndex;
-              final page = pages[pageIndex];
-              final actualEntryStart = pageIndex == 0 ? entryStart : 0;
+              final absolutePageIndex = slice.absolutePageStart + pageIndex;
+              final page = slice.pages[pageIndex];
+              // The unit may begin and end mid-page, so both ends are trimmed.
+              final (entryStart, entryEnd) =
+                  slice.entriesOn(pageIndex, page.paliSection.entries.length);
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -87,7 +90,7 @@ class StackedPane extends StatelessWidget {
                   ReaderEntryBuilder.buildPageNumber(context, page.pageNumber),
                   const SizedBox(height: AppFonts.pageNumberGapPx),
                   ..._buildStackedEntries(
-                      context, page, absolutePageIndex, actualEntryStart),
+                      context, page, absolutePageIndex, entryStart, entryEnd),
                   const SizedBox(height: AppFonts.pageGapPx),
                 ],
               );
@@ -108,14 +111,14 @@ class StackedPane extends StatelessWidget {
     BJTPage page,
     int absolutePageIndex,
     int startEntry,
+    int endEntry,
   ) {
     final widgets = <Widget>[];
     final currentMatch = searchState.currentMatch;
     final effectiveQuery = searchState.effectiveQuery;
     final hasQuery = searchState.hasActiveQuery;
-    final entryCount = page.paliSection.entries.length - startEntry;
 
-    for (var i = 0; i < entryCount; i++) {
+    for (var i = 0; i < endEntry - startEntry; i++) {
       final entryIndex = i + startEntry;
       final paliEntry = page.paliSection.entries[entryIndex];
       final sinhalaEntry = entryIndex < page.sinhalaSection.entries.length

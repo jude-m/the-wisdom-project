@@ -7,15 +7,19 @@ import 'reader_pane.dart';
 part 'reader_tab.freezed.dart';
 part 'reader_tab.g.dart';
 
-/// Represents a single tab in the reader interface
-/// Holds reference to the content being viewed and navigation state
+/// Represents a single tab in the reader interface.
+///
+/// **A tab is a node, not a cursor into a file.** [nodeKey] is the whole of
+/// what it reads; the content file, where the unit starts and where it ends
+/// are all *derived* from it through `ReaderUnitResolver`. Nothing here may
+/// reconstruct that locally.
 ///
 /// **Persistence warning**: this entity is serialized to disk via
 /// [toJson]/[fromJson] (see `TabsNotifier`). Adding a non-nullable field
 /// without a `@Default(...)` will cause `_$ReaderTabFromJson` to throw on
 /// every previously-saved tab, and `TabsNotifier._loadTabs` will silently
 /// wipe the user's tab list as a result. Either give new fields a default,
-/// or bump `StorageKeys.openTabs` to `_v2` so the old data is ignored
+/// or bump `StorageKeys.openTabs` to a new version so the old data is ignored
 /// instead of misread.
 @freezed
 class ReaderTab with _$ReaderTab {
@@ -32,24 +36,18 @@ class ReaderTab with _$ReaderTab {
     /// Full name for tooltip or expanded view
     required String fullName,
 
-    /// ID of the content file currently loaded in this tab
-    String? contentFileId,
-
-    /// Current page index within the content file
-    @Default(0) int pageIndex,
-
-    /// Start of loaded page range (for pagination)
-    @Default(0) int pageStart,
-
-    /// End of loaded page range (for pagination, exclusive)
-    @Default(1) int pageEnd,
-
-    /// Entry index to start from on the first visible page
-    /// This allows opening a sutta mid-page without showing earlier entries
-    @Default(0) int entryStart,
-
-    /// Reference to the tree node key for navigation sync
+    /// The node this tab reads. Its subtree is the unit. Null only for a tab
+    /// with no content.
     String? nodeKey,
+
+    /// A landing position inside the unit — the row an FTS hit or a
+    /// `?e=<page>.<entry>` link named, as a document coordinate.
+    ///
+    /// **Scroll position only.** The unit always comes from [nodeKey]; this
+    /// says where inside it to stop, and the reader clears it the moment it
+    /// lands. Null for every other way a tab opens.
+    int? landingPageIndex,
+    int? landingEntryIndex,
 
     /// Pali name of the node for reference
     String? paliName,
@@ -85,35 +83,29 @@ class ReaderTab with _$ReaderTab {
   factory ReaderTab.fromJson(Map<String, dynamic> json) =>
       _$ReaderTabFromJson(json);
 
-  /// Creates a tab from a tree node
+  /// Creates a tab reading [nodeKey]'s unit.
+  ///
+  /// [landingPageIndex]/[landingEntryIndex] only say where to stop scrolling
+  /// inside that unit; they never widen or move it.
   factory ReaderTab.fromNode({
     required String nodeKey,
     required String paliName,
     required String sinhalaName,
-    String? contentFileId,
-    int pageIndex = 0,
-    int entryStart = 0,
+    int? landingPageIndex,
+    int? landingEntryIndex,
     ReaderLayout layout = ReaderLayout.paliOnly,
   }) {
-    final label = truncateGraphemes(paliName, 20);
-
     return ReaderTab(
-      label: label,
+      label: truncateGraphemes(paliName, 20),
       fullName: '$paliName / $sinhalaName',
-      contentFileId: contentFileId,
-      pageIndex: pageIndex,
-      pageStart: pageIndex, // Initialize pagination to entry page
-      pageEnd: pageIndex + 1, // Load only the entry page initially
-      entryStart: entryStart, // Entry to start from on first page
       nodeKey: nodeKey,
+      landingPageIndex: landingPageIndex,
+      landingEntryIndex: landingEntryIndex,
       paliName: paliName,
       sinhalaName: sinhalaName,
       layout: layout,
     );
   }
-
-  /// Returns true if this tab has content to display
-  bool get hasContent => contentFileId != null && contentFileId!.isNotEmpty;
 
   /// Checks if this tab's node is a commentary (atthakatha)
   bool get isCommentary =>
@@ -122,5 +114,4 @@ class ReaderTab with _$ReaderTab {
   /// Checks if this tab's node is a treatise (e.g. Visuddhimagga)
   bool get isTreatise =>
       nodeKey != null && nodeKey!.startsWith(TipitakaNodeKeys.treatises);
-
 }

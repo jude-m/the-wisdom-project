@@ -73,16 +73,14 @@ final openTipitakaLinkProvider =
       return false; // Tree failed to load — nothing to open into.
     }
 
-    // A page override without an entry means "start of that page" — never
-    // fall back to the node's own entry, which pairs with the node's page.
-    final entryStart =
-        link.pageIndex != null ? (link.entryIndex ?? 0) : null;
-
     final newIndex = ref.read(openTabFromNodeKeyProvider)(
       await _resolveTarget(ref, link),
       isPortraitMode: isPortraitMode,
+      // Passed through untouched. What a page without an entry means is
+      // `openTabFromNodeKeyProvider`'s rule to state, and it already states
+      // it — a second copy here is only somewhere for the two to drift apart.
       pageIndex: link.pageIndex,
-      entryStart: entryStart,
+      entryStart: link.entryIndex,
     );
     if (newIndex == -1) return false;
 

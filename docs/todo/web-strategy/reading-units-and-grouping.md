@@ -13,7 +13,7 @@
 > | folded leaves (→ stubs) | 1,603 |
 > | sutta pages under 1,500 chars | 3,707 |
 >
-> **Status:** IN BUILD. The site half is done bar the first deploy; the app's reader rework (Part 4) is no longer deferred — its trigger was met 2026-09-06, B1 shipped the same day, and **B2 is the next commit, on a new branch** (see Part 4, "Branches").
+> **Status:** IN BUILD. The site half is done bar the first deploy. The app's reader rework (Part 4) is under way: B1 shipped 2026-09-06 and **B2 committed 2026-09-08 on `feat/reader-page-units` — with one thing outstanding, the test files it breaks.** It also did not land as planned: the app takes the site's *boundedness* and rejects its *grouping*; a unit is the node you tapped, bounded by its own subtree. See Part 4, "The app does not adopt the grouping".
 >
 > | stage | what | state |
 > |---|---|---|
@@ -26,6 +26,7 @@
 > | **S7** | an introduction has a size, and a container never offers "next" — `minIntroductionChars`, the TOC pager, `--write-upstream` (Part 1, "A container that opens with an introduction"; B5) | **shipped 2026-08-20** |
 > | **S8** | **the seam** — `SitePlan` into `wisdom_shared`, the app decoding through the shared tree, and links carrying the page that serves them (Part 4 B1, B5's app share, and the codec) | **shipped 2026-08-23** |
 > | **S9** | the slicer's coordinate half into `wisdom_shared`, answering both directions — `slice_index.dart`, `ContentSlicer` delegating to it (Part 4 B1, finishing it) | **shipped 2026-09-06** |
+> | **S10** | the app's reader becomes bounded, on its own subtree rule — `ReaderUnit`, `DocumentSlice`, `ReaderUnitResolver`, the pagination deleted (Part 4 B2–B4) | **committed 2026-09-08** — analysis clean and the corpus invariants pass; the tests it breaks are the one thing left |
 >
 > **S9 verified 2026-09-06.** A whole-corpus build is **byte-for-byte identical** to the same build before the split — 10,303 files, `diff -r` empty — which is the whole claim B1 makes. `--check` green, 34 generator tests pass, `flutter analyze lib` clean. The new direction, *row → key*, the generator never calls and the build therefore cannot prove, so it was checked against `ContentSlicer` directly: **237,631 rows across all 285 files, 0 disagreements**, with both documented edges exercised — 232 rows above their file's first coordinate resolving to that first node, and the 2 shared coordinates resolving to the deeper node by name (`dn`, `atta-dn`). That run was a throwaway script; the standing cover is `packages/wisdom_shared/test/slices/slice_index_test.dart`, which is mutation-tested — seven breakages of the rule, including both readings that stop treating containers as boundaries, and every one fails the suite.
 >
@@ -55,13 +56,15 @@
 
 **What is a "document"?** The app and the static site disagree.
 
-- **App:** the unit is the *content file*. `ReaderTab` = `(contentFileId, pageStart, pageEnd, entryStart)`; opening any node jumps to its coordinate and paginates forward one printed page at a time to the end of the file (`lib/presentation/widgets/reader/multi_pane_reader_widget.dart:170`). Three consequences:
-  - Every one of the 16,355 tree nodes has a `contentFileId` — including `sp` (සුත්තපිටක → `dn-1`) — so a folder or root tap dumps raw text. The reader has no TOC concept at all.
-  - Only `navigateToPreviousSuttaProvider` exists. **There is no "next".**
-  - Tab label and breadcrumb never update while scrolling (`_onScroll` touches only `pageStart/entryStart/scrollOffset`), so scrolling from Mūlapariyāya into Sabbāsava leaves the app claiming you are still in Mūlapariyāya.
+- **App, until S10:** the unit was the *content file*. `ReaderTab` was `(contentFileId, pageStart, pageEnd, entryStart)`; opening any node jumped to its coordinate and paginated forward one printed page at a time to the end of the file. Three consequences:
+  - Every one of the 16,355 tree nodes has a `contentFileId` — including `sp` (සුත්තපිටක → `dn-1`) — so a folder or root tap dumped raw text that ran on past what was tapped. **Fixed by B2**: the unit now stops at the end of the tapped node's subtree.
+  - Only `navigateToPreviousSuttaProvider` exists. **There is still no "next"** — B3 leaves the wiring to a second button.
+  - Tab label and breadcrumb never update while scrolling, so scrolling from Mūlapariyāya into Sabbāsava leaves the app claiming you are still in Mūlapariyāya. **Still open**, and much smaller now that a unit is bounded: `SliceIndex.keyAt` answers it (B1), nothing calls it for this yet.
 - **Static site:** the unit is the *page* — `sutta` (own file) · `chapter` (a contiguous run of short leaves, at the vagga's URL or at its first leaf's) · `toc` (container: preamble + links), prev/next walking readable pages only. A page is readable when it carries text, **not** when it is a non-TOC (see "A container that opens with an introduction").
 
-**Decisions (2026-07-29):** the app adopts the site's bounded model at **strict parity**; grouped vaggas open in the app as a **chapter scrolled to the anchor**; the app rework is **deferred** until site review settles the vagga grouping; and **no new static/asset files may be added on the app side** — the shared truth is code, not a bundled data file.
+**Decisions (2026-07-29, revised 2026-09-07):** the app adopts the site's **bounded** model — a unit has an end — but **not its grouping**; the app rework waited on site review settling the vagga grouping, and no longer does; and **no new static/asset files may be added on the app side** — the shared truth is code, not a bundled data file.
+
+The two clauses struck on 2026-09-07 were *strict parity* and *grouped vaggas open as a chapter scrolled to the anchor*. Both were built and reverted before commit: under them a container renders only its preamble and a list of links, which emptied 1,106 vaggas of their text. The reasoning is in Part 4, "The app does not adopt the grouping".
 
 **Decisions (2026-08-17, the settle):** mid-vagga chapters are **blessed** against the "BJT structure is never compromised" rule — the navigable hierarchy stays tree-driven and untouched, only file boundaries are synthetic; the **6,058 folded leaves are accepted** as the price of cutting thin pages 3,707 → 738, with the stub-vs-Bulk-Redirects mechanism still open at the P5 gate; the commentary carve-out is **four prefixes** (`atta-kn-dhp` joins); **six canon books are promoted** because in them the leaf *is* a complete named work (`kn-khp`, `kn-snp`, `kn-ud`, `kn-iti`, `kn-thag`, `kn-thig` — see "Six books are promoted outright"); and the rule's **two structural preconditions are stated rather than implied** (see Part 1's rule, and "Constraints this plan respects").
 
@@ -543,7 +546,7 @@ The first line works because of an invariant the rule guarantees by construction
 
 Lone-child containers need no separate entry: their single leaf is folded, so they fall out of the first line of the reconstruction like any fully-short vagga.
 
-Generated *code*, not an asset: strict parity means the app must read the same snapshot, the app may gain no new bundled file, and a `const` compiles into both surfaces from one place. **Absent key = owns a page**, which makes new content self-handling and errs in the safe direction — a wrong explode costs thin pages, a wrong fold hides a named text behind a fragment. Folding a *new* micro-run later is a deliberate snapshot edit, never an obligation.
+Generated *code*, not an asset: the app must read the same snapshot to address a link the way the site serves it (S10 narrowed this from the whole reader to the link codec, but did not remove it), the app may gain no new bundled file, and a `const` compiles into both surfaces from one place. **Absent key = owns a page**, which makes new content self-handling and errs in the safe direction — a wrong explode costs thin pages, a wrong fold hides a named text behind a fragment. Folding a *new* micro-run later is a deliberate snapshot edit, never an obligation.
 
 **Regeneration is the supported way to move a line.** The snapshot is always re-derivable from the rule: change the constants, rerun `--write-snapshot`, and the git diff of `grouping_snapshot.dart` *is* the impact review — every key added or removed is one sutta whose URL changes. Freezing removes the *accidental* path to a structure change (resync drift), not the deliberate one; a regenerate ships with the rebuilt site in a single commit, and the with-stubs total (16,356) never moves regardless of where the lines land.
 
@@ -689,9 +692,9 @@ B1 ──► B2 ──► B3          B6  (independent — any time)
 ```
 
 **There are two hard prerequisites, not one.** B2 is the second: B3's prev/next
-and B4's search landing both hand back a *page unit*, and nothing can open one
-until the tab is keyed by a page rather than by a coordinate. Built before B2,
-each would need its own throwaway page → `(file, page, entry)` shim.
+and B4's search landing both hand back a *unit*, and nothing can open one until
+the tab is keyed by a node rather than by a coordinate. Built before B2, each
+would need its own throwaway node → `(file, page, entry)` shim.
 **B6 has no prerequisite at all** — it is two `double` constants in the research
 and dictionary sheets, and nothing there knows what a sutta is. It sits in Part
 4 only because it is app-side reading polish.
@@ -711,7 +714,8 @@ strategy has to arrange. Split by what a commit *touches*:
 | | branch | touches |
 |---|---|---|
 | **B1** ✅ | `feat/static-site` | `packages/wisdom_shared/`, `static_site_generator/` — no file under `lib/` |
-| **B2–B4, B6** | a new branch cut from `feat/static-site` | `lib/` |
+| **B2–B4** ✅ | `feat/reader-page-units`, cut from `feat/static-site` | `lib/`, plus S9's leftover rename in `wisdom_shared`/`static_site_generator` |
+| **B6** | same branch or later | `lib/` |
 
 B1 belonged on the static-site branch because it is the same shape as the S8
 commits already there. B2 onward gets its own branch because that is where the
@@ -724,19 +728,70 @@ exactly today's state.
 
 **The seam does not wait, and shipped 2026-08-23 (S8).** Its whole purpose is that the app *follows* the site rather than re-deriving it, so building it early is what stopped the two drifting while the reader rework was still queued — and it carried two live fixes with it: the app had never inherited the coordinate corrections, and every link it copied for a folded leaf named a URL the site has no file for. What shipped then is B1's `SitePlan` move, B5's app-side migration, and the link codec; what it deliberately left alone was everything that changes what a reader sees — which is what the rest of Part 4 now picks up. Verification is `docs/todo/web-strategy/testing-the-app-site-seam.md`.
 
-## What the split rule costs the app, and what it saves
+## The app does not adopt the grouping — decided 2026-09-07
 
-Assessed 2026-08-17, because a rule this much simpler on the site could still have been harder on the app. It is not — with one specific exception.
+A first cut of B2 keyed the tab by `SitePage` and resolved it through
+`SitePlan.pageOf`, so the app read `foldedLeafKeys` exactly as the site does.
+It was built, and reverted before it was committed, because it traded a real
+loss for a benefit the app does not collect.
 
-**Simpler in the way that matters.** The app runs no classifier, measures no text, and gains no bundled file: one frozen `const Set<String>` and the reconstruction walk of Part 2 A1, which rebuilds all 8,908 readable pages from the set alone. Note what that buys beyond convenience — the two preconditions in Part 1 are properties of the *snapshot generator*, so even a wrong reading of them can produce only a wrong build, never a site and an app that disagree. Freezing converts every future ambiguity into the same class of failure.
+**What it gained is worth keeping, and is separable.** The reader stopped
+running to the end of the content file. A tapped sutta *ends*. That comes
+entirely from a unit having a `SliceRange`, and nothing in it needs the site's
+grouping.
 
-**The one real cost: a folded leaf's owning page is no longer its parent.** Today's 146 grouped vaggas are all whole-vagga chapters, so `node.parentNodeKey` answers correctly every time. Under the split rule 606 chapters anchor on a *sibling leaf*, so that shortcut is wrong for roughly half the folded leaves and wrong silently — it resolves to a container that exists. Every entry point must go through one shared resolver: deep links, RAG citations, search results, tree taps, prev/next, `?e=`, restored tabs. B2–B4 below each touch it; make it one named function so they cannot each grow their own.
+**What it cost.** A container's own slice is only its preamble — the rows
+between its coordinate and its first child's — so under `PageKind.toc` every
+container rendered a heading and a list of links. Measured on the shipped tree:
+**1,106 containers that hold suttas** became link lists, and many of those lists
+carry no information. `an-1-10` අජ්ඣත්තිකවග්ගො listed 25 children labelled
+`1. 10. 1`, `1. 10. 2`, `1. 10. 3` … Tapping a vagga and reading it is the
+behaviour the app has always had, and it is worth more than parity.
 
-**Scale, not just shape.** 6,058 folded keys against 1,603 today means ~4× more nodeKeys that do not resolve to themselves, and some of those surfaces are already live: **6 of the 20 SN 15 keys in `assets/data/sc-to-bjt.json`** — the deployed RAG citation seed — fold under this rule. They resolve correctly through the resolver and incorrectly through anything else.
+**Why the site is right to group and the app is right not to.** Grouping exists
+so no URL serves text another URL already serves — a duplicate-content and
+crawl-budget rule. The app has no crawler, no canonical URL, and no page that
+competes with another for a query. It pays the cost of the rule and collects
+none of its benefit.
 
-**Bundle cost is real but small.** 6,058 keys is ~105 KB of Dart source compiled into both surfaces, including `main.dart.js`. Acceptable; if it ever isn't, one `const String` split on first use is far smaller than 6,058 literals and needs no change to the seam.
+**The rule the app uses instead: the unit is the node you tapped, bounded by its
+own subtree.**
 
-**Thin pages are not the app's problem.** The 738 sub-1,500 pages are an SEO metric. In the app a 76-sutta peyyāla chapter is a *better* reading unit than 76 tabs, and the `kn-thag` / `kn-thig` promotion improves per-poem navigation. Nothing in Part 4 argues for a smaller promotion list.
+| tapped | unit |
+|---|---|
+| a leaf | its own slice — it ends |
+| a container | its preamble plus every descendant's text, stopping where the first node *outside* the subtree begins |
+| a container whose subtree crosses content files | the same, bounded to its own file |
+
+The third row is the pre-existing behaviour, not a concession: `ReaderTab.fromNode`
+already set `pageStart: node.entryPageIndex` and `loadMorePages` already clamped
+to `document.pageCount`, so the reader was never able to span two files. It
+applies to **101 of 2,004 containers**, all at book level and above (`sp`, `an`,
+`kn`, `atta-sp`, `ap-pat`, `anya-vm` …), whose children are books and nipātas
+with real names — so the one place the unit stops early is the one place a link
+list would have been useful anyway. Tapping අඞ්ගුත්තරනිකායො renders `an-1` and
+ends; it cannot run into KN, because **no content file crosses a book boundary**
+(the seven that appear to are a pitaka root sharing a file with its own first
+child, e.g. `dn-1` holding both `sp` and `dn`).
+
+**Cost of the divergence.** Almost none, and it is mostly deletion. The app
+stops reading `foldedLeafKeys` for reading, so `ReaderTab` keeps its plain
+`nodeKey`, `openTabFromNodeKeyProvider` stays synchronous, and six call sites
+that the page-keyed cut had turned `async` revert untouched. `SitePlan` stays
+loaded for the **link codec** — `servingLink` still addresses a copied link the
+way the site serves it, so a link shared out of the app and a link copied off
+the site are the same string. The two surfaces still agree on where a unit
+*ends*; they disagree only about what gets its own address.
+
+**Sizing, measured on the shipped tree.** Container units are median 8 printed
+pages, p90 44, max 253 — no larger than today's run-to-end-of-file, and lazy for
+free under `ListView.builder`. Every one of the `FIGURES.treeNodes` nodes resolves to a unit,
+none is empty, none contains text from outside its own subtree, and none drops a
+descendant that lives in its file.
+
+**Thin pages are not the app's problem** — that remains true, and now trivially:
+a short sutta opens alone and gives a short page, which is honest, and its vagga
+is one breadcrumb tap away.
 
 ## B1. Share the remaining logic
 
@@ -749,52 +804,117 @@ Assessed 2026-08-17, because a rule this much simpler on the site could still ha
   **The shared half answers both directions.** The site only ever asks *key → range* (`rangeFor`). The app also needs *row → key* (`keyAt`), in three places: landing on an FTS hit (B4), `?e=<page>.<entry>` deep links, and following the section a reader has scrolled into so the tab label and breadcrumb stop lying (the defect this document opens with). It is the same sorted-boundary array read the other way — a binary search over at most a few hundred nodes, **measured at ~14 ns**. Both of B4's edges are written into it and verified: a row above the file's first coordinate belongs to that first node, and a coordinate two nodes share resolves to the deeper one, tie-broken on the parent chain (the shallower node is another tied node's parent).
 - **Slice ranges need no per-file cache.** Building the boundary index for *all* 285 content files at once measures 1.4–3.4 ms, so the app can hold the whole thing and skip `SlicerCache`'s one-file-at-a-time discipline, which exists because the generator holds parsed *rows*, not because coordinates are expensive.
 
-## B2. Reader renders one page unit
+## B2. Reader renders one bounded unit ✅ *committed 2026-09-08, tests pending*
 
-**The tab's identity becomes the page unit, not a coordinate.** `ReaderTab` is
-`(contentFileId, pageIndex, pageStart, pageEnd, entryStart)` today, with
-`nodeKey` a passenger for "navigation sync" — which is why
-`navigateToPreviousSuttaProvider` has to rebuild the whole tab and re-thread
-`layout` and `splitRatio` by hand. Invert it: persist **`pageKey`** (the
-`SitePage`'s key, which is also the site's URL) and **`focusKey`** (which leaf
-inside it to land on, the app's `#fragment`), and *derive* `contentFileId` and
-the slice bounds from `SitePlan.pageOf` + the shared slicer. Five persisted
-coordinate fields collapse to two identity fields, and B3's prev/next becomes a
-`copyWith` of one of them — including when the neighbour lives in another
+**The tab's identity becomes the node, not a coordinate.** `ReaderTab` was
+`(contentFileId, pageIndex, pageStart, pageEnd, entryStart)` with `nodeKey` a
+passenger for "navigation sync" — which is why `navigateToPreviousSuttaProvider`
+had to rebuild the whole tab and re-thread `layout` and `splitRatio` by hand.
+Inverted: `nodeKey` is now the whole of a tab's identity, and `contentFileId`
+and the slice bounds are *derived* from it. Five persisted coordinate fields
+collapse to one identity field plus two optional landing coordinates, and B3's
+prev/next is a `copyWith` — including when the neighbour lives in another
 content file, since the file id is derived rather than carried.
 
-`multi_pane_reader_widget.dart` + `document_provider.dart`:
-- Provider resolving `nodeKey → SitePage` (kind + owning page key) from the shared `SitePlan`.
-- `sutta` → render the bounded slice; **delete the run-to-end-of-file pagination** — `loadMorePagesProvider` (`document_provider.dart:71`), `_loadMorePagesIfNeeded` and its seven call sites, and `pageStart`/`pageEnd` as persisted fields. Printed page numbers stay.
+`landingPageIndex`/`landingEntryIndex` are **scroll position only**: an FTS hit
+or a `?e=<page>.<entry>` link says where inside the unit to stop, never which
+unit opens. The reader clears them the moment it lands
+(`TabsNotifier.clearTabLanding`). `scrollOffset` cannot stand in for that —
+scrolling back to the beginning saves an offset of 0, and 0 is exactly what
+makes a landing apply, so the tab would snap back to the hit on every
+re-activation and again after a restart.
 
-  **It is a deletion, not a ceiling.** The panes are already `ListView.builder` (`single_column_pane.dart:69`, `stacked_pane.dart:69`), so the manual `pageEnd` cursor is a *second* lazy layer over Flutter's own, and it exists for exactly one reason: the end of a unit was unknown, so the reader could not be handed a finite list. Once the end is known that reason is gone, and units stay lazy for free — `FIGURES.longestLeafChars` is what `ListView.builder` is for. The two layers fighting each other is also where the ugly code is: `_loadMorePagesIfNeeded` is nudged so the native list builds one more item (`multi_pane_reader_widget.dart:378-390`), and the restore path works around an extent the native list underestimates (`:433`, `:530`). Those go with it, so this is net-negative and the reader gets *faster*, not slower.
-- `chapter` → the run's leaves with anchors; tapping a folded leaf opens the chapter scrolled to it (the app equivalent of `#fragment`). A chapter may start mid-vagga, so the app resolves a leaf to its **owning page**, which is not always its parent — the same `foldedLeafKeys` walk the site uses (Part 2 A1), never `node.parentNodeKey`.
-- `toc` → **container preamble + child links** — the heading block shown above, then the list. 258 of 285 files carry preamble entries; rendering links only would delete that text from the app.
+**New — `lib/domain/entities/reader/`:**
+- `ReaderUnit` — the node, its content file, and the `SliceRange` it owns. By
+  value, because it is rebuilt on every tab touch and handed to a `Provider`; an
+  unequal-but-identical unit would re-scroll the reader.
+- `ReaderUnitResolver` — the one place the app answers "what does tapping this
+  show". Holds a `SliceIndex` per file plus one reading-order walk of the tree,
+  reads no text, and is built from `TipitakaTree` alone. `_subtreeEnd` returns
+  both the last node of the subtree in the unit's file (which bounds the unit)
+  and the last *leaf* among them (which is where B3 steps off from) — they
+  differ only on the 101 multi-file containers.
+- `DocumentSlice` — that range laid over a loaded `BJTDocument`. The app's half
+  of `ContentSlicer`, mapped onto `BJTPage`s instead of flattened rows. It
+  exists because a unit can begin *and end* mid-page, which is the one thing the
+  panes' old "skip some entries on the first page" could not express.
 
-**Two small things to fold in while this is open**, both left from S9's review
-because neither has a caller yet and B2 gives both one:
+**The one assumption it makes is checked, not assumed.** `_subtreeEnd` picks
+the last node in *reading* order; `rangeFor` then answers with a
+*coordinate*-ordered boundary. Those name the same node only while reading
+order inside a content file never goes backwards — and nothing enforced that:
+`SliceIndex.nodesByFile` sorts by coordinate before `forFile` sees the list, so
+its own "out of reading order" throw cannot fire on a real build. The generator
+does not share the assumption — `sitegen` slices a chapter one sutta at a time,
+so a tree out of order would misorder rows rather than lose them — which is why
+this is a new **section 4 of `verify_corpus_invariants.dart`** rather than
+something a build already catches. It walks `roots`/`childrenOf`, the
+resolver's own order and not `allNodes`, and passes on the shipped tree: no
+step backwards, and exactly the two legal shared coordinates that B4's table
+predicts. Re-run it at every upstream re-sync — that is the only thing that can
+break it.
 
-- `SliceRange` has no `==`/`hashCode`. B2 derives a tab's bounds from one and
-  will compare two of them — a `copyWith` that changed nothing must not look
-  like a move. Add the pair when the first comparison is written, not before.
-- `ContentSlicer.nodesByFile` is a one-line alias for `SliceIndex.nodesByFile`,
-  kept at S9 so no call site had to change. It is a second name for one static,
-  and the app is about to become a caller from the other side of the seam.
-  Point the generator's five call sites at the shared name and delete it.
+**Deleted — the run-to-end-of-file pagination.** `loadMorePagesProvider`,
+`_loadMorePagesIfNeeded` and its seven call sites, `updateActiveTabPagination`,
+`updateActiveTabPageIndex`, `TabsNotifier.updateTabPage`, and the
+`activePageIndex`/`Start`/`End`/`EntryStart` providers.
+
+**It is a deletion, not a ceiling.** The panes are already `ListView.builder`, so
+the manual `pageEnd` cursor was a *second* lazy layer over Flutter's own, and it
+existed for exactly one reason: the end of a unit was unknown, so the reader
+could not be handed a finite list. Once the end is known that reason is gone.
+The two layers fighting each other is also where the ugly code was —
+`_loadMorePagesIfNeeded` nudged so the native list built one more item, and a
+restore path working around an extent the native list underestimates. Both go
+with it, so this is net-negative and the reader gets *faster*. Two consequences
+fell out: the layout-switch listener keeps the reading position with
+`_ensureEntryVisible(topEntry)` instead of resetting pagination, and
+`isAfterSuttaBeginning` collapses to `_isScrolledDown` because a unit always
+renders from its own first row.
+
+**In-page search became unit-scoped**, which is a simplification rather than
+extra work: it now searches the same `DocumentSlice` the panes build from, and
+`_computeSuttaBounds`/`_findNodeWithParent`/`_SuttaBounds` are gone. What they
+did was walk the tree for the next *sibling* with the same content file — a
+second, independent reading of the slicing rule, wrong for roughly a tenth of
+the corpus's leaves and giving a container the whole file.
+
+**Two small things folded in**, both left from S9's review because neither had a
+caller until now:
+- `SliceRange` gained `==`/`hashCode`/`toString`. `ReaderUnit`'s equality needs
+  it: a resolve that landed on the same span must not look like a move.
+- `ContentSlicer.nodesByFile`, a one-line alias for `SliceIndex.nodesByFile`,
+  is deleted and the generator's five call sites point at the shared name.
 
 ## B3. Navigation
 
-- Add "next sutta" beside `navigateToPreviousSuttaProvider` (`lib/presentation/providers/previous_sutta_provider.dart`); both read `SitePlan.previousOf`/`nextOf`, so a chapter is one stop and crossing a vagga lands on a sutta, not a TOC — identical to the site.
+- ✅ **Prev walks leaves, not readable pages.** `neighbourLeafProvider`
+  (`lib/presentation/providers/reader_unit_provider.dart`) answers
+  `ReaderUnitResolver.leafBefore`/`leafAfter`: the sutta before the unit's first
+  leaf, and the sutta after the last leaf it actually *rendered*. Leaving a
+  container steps over the whole subtree, so a vagga is one stop rather than as
+  many as it holds, and stepping off the rendered leaf is what makes `an`'s next
+  the first sutta of දුකනිපාතො rather than whatever follows AN.
 
-  **This deletes `previousReadableNodeProvider`** (`navigation_tree_provider.dart:151`), a depth-first walk of the whole tree, and fixes a live bug with it: it keys on `isReadableContent`, which is `contentFileId != null` — true for **every** node in the tree, roots included — so today "previous" can land the reader on සුත්තපිටක. `readablePages` is the predicate that was always meant.
-- Tree-node tap (`widgets/navigation/tree_navigator_widget.dart`) and `openTabFromNodeKeyProvider` (`tab_provider.dart:~434`) route through the page-unit resolver instead of `node.contentFileId` directly.
-- When the neighbouring unit lives in another content file, resolve it on tap (its file loads anyway); the card label comes from the tree, which needs no verdict.
+  Not `SitePlan.previousOf`/`nextOf`: those walk the site's readable *pages*,
+  and the app's units are not those pages.
+
+  **This deletes `previousReadableNodeProvider`**, a depth-first walk of the
+  whole tree, and fixes a live bug with it: it keyed on `isReadableContent`,
+  which is `contentFileId != null` — true for **every** node in the tree, roots
+  included — so "previous" could land the reader on සුත්තපිටක.
+- **Next is not built.** The reader has no Next button today. `leafAfter` is
+  written and verified, so adding one is wiring a second `IconButton` to the
+  same provider with `ReaderStep.next`.
+- ✅ Tree-node tap and `openTabFromNodeKeyProvider` need no resolver hop at all —
+  the unit is the node they already have, so both stayed synchronous.
 
 ## B4. Landing from search and deep links
 
-- `openTabFromSearchResultProvider` (`tab_provider.dart:~400`) — resolve the owning page unit **from the row the hit is on**, not from the `nodeKey` the result carries, then scroll to `(pageIndex, entryIndex)`. A hit inside a preamble correctly lands on the container's TOC page.
-- `?e=<page>.<entry>` becomes scroll-position-only: the unit comes from the coordinate, the same way.
-- In-page search becomes naturally unit-scoped — a simplification, not extra work. It deletes the range-expansion in `multi_pane_reader_widget.dart:338-360` and `:418-435`, which grows the loaded page range until a match comes into it; inside a bounded unit every match is already in range.
+- ✅ `openTabFromSearchResultProvider` — the unit comes **from the row the hit is on** (`ReaderUnitResolver.keyAt`), not from the `nodeKey` the result carries, and the hit's coordinate becomes the tab's landing row. A hit inside a preamble correctly lands on the container's own unit. This is the one producer in `tab_provider.dart` that needs the resolver, and so the only one that is async; it now returns the new tab index, because `reader_screen.dart` sets the FTS highlight for that tab and a synchronous `activeTabIndexProvider` read after the call named the tab the user came *from*.
+- ✅ `?e=<page>.<entry>` is scroll-position-only: `openTabFromNodeKeyProvider` passes it through as `landingPageIndex`/`landingEntryIndex` and the unit still comes from the node key.
+- ✅ In-page search is unit-scoped — see B2. It also deletes the range-expansion that grew the loaded page range until a match came into it; inside a bounded unit every match is already in range.
+- **What is left of B4: the title in the search *results list*.** `searchResultLabels` (`lib/presentation/utils/search_result_labels.dart:63`) still reads the stored `nodeKey` column through `nodeByKeyProvider`, so the 244 rows below show the neighbouring sutta's name — even though the tab that opens from them now carries the right one. Derive the label from the row the same way the opener does; it reuses `keyAt`, needs no pipeline change, and leaves the stored column feeding nothing but scope, where being wrong costs nothing.
 
 ### Why the row and not the `nodeKey` — measured 2026-09-06
 
@@ -817,9 +937,9 @@ the whole disagreement is `correctedTreeCoordinates`, which that builder has
 never heard of: the distinct wrong pairs number exactly
 `FIGURES.correctedCoordinates`, and no more.
 
-Of the 649 rows, **405 land on the same page unit anyway** — the
+Of the 649 rows, **405 land on the same unit anyway** — the
 `vp-pct-1-3-*` sekhiya, grouped outright, so wrong leaf but the same chapter
-file. **244 land on a different page unit**: 240 in `ap-vbh-18-*`, 4 in
+file. **244 land on a different unit**: 240 in `ap-vbh-18-*`, 4 in
 `kn-pv`/`kn-vv`. Every one of the 13 wrong pairs is an adjacent sibling that
 owns its own page, so the failure is *search finds a line, then opens a page
 without that line on it*. Invisible today only because the reader scrolls to
@@ -864,7 +984,7 @@ of a generated `const` is the failure this document exists to prevent.
 
 ## B5. Persistence and known data hazards
 
-- `ReaderTab`'s coordinate fields are replaced by `pageKey`/`focusKey` (B2). Per the warning at `lib/presentation/models/reader_tab.dart:11-19`, bump `StorageKeys.openTabs` to `_v2` rather than misread saved tabs. Nothing has shipped, so this protects development devices only — which is reason enough for a one-line change.
+- ✅ `ReaderTab`'s five coordinate fields are replaced by `nodeKey` plus the two optional landing coordinates (B2). Per the warning at the top of `lib/presentation/models/reader_tab.dart`, `StorageKeys.openTabs` is bumped to `open_tabs_v2` rather than misread saved tabs — a `_v1` tab would decode into a tab pointing at nothing rather than fail loudly. Nothing has shipped, so this protects development devices only.
 - **Trailing-colophon slices — FIXED 2026-08-19, and the app inherits the fix.** BJT prints some section names *after* the text they name, and upstream took that closing line for the opening one, so a bounded slice opened with the wrong title and ran through the next unit's body. Continuous scroll hides this today; bounded units would have exposed it in the app exactly as on the site. The correction is `correctedTreeCoordinates` in **`wisdom_shared`** (`src/tree/tree_coordinate_corrections.dart`, `FIGURES.correctedCoordinates` leaves), applied inside `TipitakaTree.fromJson` — so the app gets it the moment it decodes the tree through `wisdom_shared` instead of its own `TreeLocalDataSourceImpl`. **That migration is the app's whole share of this item**; there is no second rule to write. ✅ **S8 — done 2026-08-23**: `TreeLocalDataSourceImpl` now decodes through `TipitakaTree.fromJson` and maps the result onto the app entity, deleting its copy of the comparator. Measured across the whole asset before and after: sibling order identical for every parent, `FIGURES.correctedCoordinates` leaves move and nothing else does, and no container moves at all. Saved tabs are unaffected — they restore from their stored coordinates, so the `_v2` bump stays with B2's change of meaning. The detector (`static_site_generator/lib/domain/slice_alignment.dart`) stays, asked of the *corrected* tree: `FIGURES.trailingColophonLeaves` is 0 and a re-sync that puts it back is the signal to re-run `plan_corpus.dart --write-alignment`. The `FIGURES.strayDividerLeaves` were fixed by the same map under a second rule — a `භාණවාරං` marker closing the division above, one row out rather than one unit, so the leaf moves onto its own number and the marker falls to the foot of the leaf it actually closes. What is left is `FIGURES.headingOnlyLeaves`, which are **not** a defect: each leaf's name matches the heading it opens on and the next node's name matches the heading below, so the rows underneath belong to a correctly-named sibling and moving one would recreate the bug. Different again from the `ap-pat*` row misalignment below.
 
   ✅ **Reported upstream 2026-09-06 — it was a private patch until then.** The map fixes our two surfaces and tells tipitaka.lk nothing, so every other consumer of `tree.json` still has the defect, and we have one ourselves: the search database (B4). `plan_corpus.dart --write-upstream` now emits **§5 of `UPSTREAM_DEFECTS.md`** — every corrected leaf with the coordinate upstream ships, the coordinate the text actually starts at, and the Pali line printed at each, so a row can be checked against the book without loading anything. `FIGURES.correctedCoordinates` leaves in 4 files. It is the cheapest section of that report to act on and the most severe: an off-by-one against the printed page, where §1–§3 ask upstream to re-type a line. If they take it, the map shrinks toward nothing and the JavaScript/Dart split in B4 stops mattering at all.
@@ -875,7 +995,19 @@ of a generated `const` is the failure this document exists to prevent.
 
 `researchContentMaxWidth` (760 — `research_chat_view.dart`, `citation_source_sheet.dart`) and `dictionarySheetMaxWidth` (800 — `dictionary_bottom_sheet.dart`) are still pixels while the reader panes have moved to an em measure that tracks the 0.7x–1.5x font scale. A large-type reader therefore gets bigger words in the same 760/800px: answers and dictionary entries never widen with their text.
 
-**Verify Part 4:** `flutter run -d macos`. Tap සුත්තපිටක → TOC, not DN-1 text. Tap `an` → the three-line title block + nipāta links. Tap Mūlapariyāya → text ends at the sutta boundary with prev/next; title and breadcrumb correct at every scroll position. Tap a leaf inside a grouped `an-1` vagga → chapter opens scrolled to it, vagga heading + *namo tassa* at the top. Open an FTS result matching mid-sutta, and one matching inside a preamble. Open `sammaditthi://tipitaka/<key>?e=<p>.<e>` for a grouped and an exploded leaf. Cross-check ~20 suttas against the generated HTML — same text, same boundaries, same prev/next targets. Per project convention, no tests unless asked.
+**Verify Part 4:** `flutter run -d macos`.
+
+1. Tap any sutta — the text stops at its end and nothing more loads on scroll.
+2. Tap `an-1-10` අජ්ඣත්තිකවග්ගො — title block, then all 25 suttas, ending exactly where vagga 11 begins. This is the case the pivot exists to fix.
+3. Tap අඞ්ගුත්තරනිකායො — the Ekaka-nipāta, ending at the end of `an-1`. It must not continue into දුකනිපාතො or KN.
+4. In-page search inside a vagga — the count covers that vagga and nothing outside it.
+5. Prev from `an-1-10` lands on the last sutta of vagga 9, not on vagga 9's title. Prev from a sutta lands on the sutta before it.
+6. Open an FTS result — the tab is named after the sutta the matched row actually belongs to, and the view lands on that row inside the full unit.
+7. `sammaditthi://tipitaka/<key>?e=<p>.<e>` opens the unit and lands on the row.
+8. Switch layout mid-unit — the top-visible entry stays put.
+9. Restart — tabs restore, and old `_v1` tabs are dropped, which is intended.
+
+Per project convention, no tests unless asked. The removed `ReaderTab` fields are referenced by ~12 test files, which will not compile until they are updated.
 
 ---
 
@@ -884,7 +1016,7 @@ of a generated `const` is the failure this document exists to prevent.
 - **No new static/asset files on the app side** — the shared truth is generated Dart in `wisdom_shared`; the CSV under `docs/` stays human-only, parsed by nothing.
 - **Verdicts are frozen** — a resync may change what pages *say*, never which pages *exist*. Only a deliberate snapshot edit, or genuinely new content, moves URLs.
 - **The BJT hierarchy survives intact.** The rule here changes how many files the tree is spread across, never the tree. Breadcrumbs and TOC lists read `tree.ancestorsOf` / `tree.childrenOf` and are unaffected by any of it.
-- **The same text never appears in two files.** A folded leaf gets a `#fragment` inside its chapter and a stub or redirect at its old URL — never a second copy.
+- **The same text never appears in two files — on the site.** A folded leaf gets a `#fragment` inside its chapter and a stub or redirect at its old URL, never a second copy. **The app is deliberately outside this constraint**: its unit is the node tapped, so a sutta's text renders both on its own and inside its vagga's unit. That is a duplicate-content rule, and the app has no crawler to keep honest — see *The app does not adopt the grouping*.
 
   **One known exception, found at S9 and left alone.** Where two nodes share a coordinate they share a slice, so both TOC pages print it: `/tipitaka/sp` and `/tipitaka/dn` each open with `සුත්තන්තපිටකෙ | දීඝනිකායො`, and `/tipitaka/atta-sp` and `/tipitaka/atta-dn` with `නමො තස්ස … | දීඝනිකායෙ`. Two rows, on two pairs of pages, and a pitaka TOC naming the nikāya below it is not wrong to read — but it *is* the same rows twice, and `ContentSlicer` claimed in a comment that the outer node got an empty slice, which was never true. Recorded rather than repaired: the fix is a rule about which of two tied nodes may render a preamble, and it belongs with the site, not in the middle of the app's reader rework.
 - **No page carries a leaf's text beside a link list.** That is what keeps a chapter's canonical URL unambiguous and `PageKind` a real distinction. It is *not* the stronger "a TOC page is pure links", which was never true: a container has always rendered its own preamble above its links, and on 65 of them that preamble is the book's introduction to the chapter.

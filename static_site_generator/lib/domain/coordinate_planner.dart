@@ -186,7 +186,7 @@ class CoordinatePlanner {
 
     final out = <CoordinateCorrection>[];
     final visited = <String>{};
-    ContentSlicer.nodesByFile(tree).forEach((fileId, nodes) {
+    SliceIndex.nodesByFile(tree).forEach((fileId, nodes) {
       final slicer = slicerFor(fileId);
       for (final node in nodes) {
         // One walk, every rule, so the file stays in reading order however

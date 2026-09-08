@@ -5,12 +5,14 @@ import '../../core/constants/constants.dart';
 import '../../core/storage/key_value_store.dart';
 import '../../core/storage/key_value_store_provider.dart';
 import '../../core/storage/storage_keys.dart';
+import '../../domain/entities/reader/reader_unit.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../models/reader_layout.dart';
 import '../models/reader_tab.dart';
 import 'last_reader_layout_provider.dart';
 import 'navigation_tree_provider.dart';
 import 'navigator_sync_provider.dart';
+import 'reader_unit_provider.dart';
 
 /// State notifier for managing the list of reader tabs.
 ///
@@ -95,14 +97,6 @@ class TabsNotifier extends StateNotifier<List<ReaderTab>> {
     }
   }
 
-  /// Updates the page index of a tab
-  void updateTabPage(int tabIndex, int pageIndex) {
-    if (tabIndex >= 0 && tabIndex < state.length) {
-      final updatedTab = state[tabIndex].copyWith(pageIndex: pageIndex);
-      updateTab(tabIndex, updatedTab);
-    }
-  }
-
   /// Updates only the scroll offset for a tab.
   /// No-op if the offset hasn't changed (avoids spamming the debounce timer
   /// from `_onScroll` ticks that didn't actually move).
@@ -111,6 +105,23 @@ class TabsNotifier extends StateNotifier<List<ReaderTab>> {
     if (state[tabIndex].scrollOffset == offset) return;
     final updatedTab = state[tabIndex].copyWith(scrollOffset: offset);
     updateTab(tabIndex, updatedTab);
+  }
+
+  /// Drops the tab's landing row, which is a one-shot.
+  ///
+  /// The reader calls this the moment it applies the landing. [scrollOffset]
+  /// cannot stand in for it: scrolling back to the beginning saves an offset
+  /// of 0, and 0 is exactly what makes a landing apply — so without this the
+  /// tab would snap back to the search hit on every re-activation, and again
+  /// after a restart.
+  void clearTabLanding(int tabIndex) {
+    if (tabIndex < 0 || tabIndex >= state.length) return;
+    final tab = state[tabIndex];
+    if (tab.landingPageIndex == null && tab.landingEntryIndex == null) return;
+    updateTab(
+      tabIndex,
+      tab.copyWith(landingPageIndex: null, landingEntryIndex: null),
+    );
   }
 
   /// Clears all tabs
@@ -196,21 +207,11 @@ final activeTabIndexPersistenceProvider = Provider<void>((ref) {
 // watching these providers will automatically rebuild.
 // ============================================================================
 
-/// Derived provider for active tab's content file ID
-/// Returns null if no tab is selected or tab has no content
-final activeContentFileIdProvider = Provider<String?>((ref) {
-  final activeIndex = ref.watch(activeTabIndexProvider);
-  final tabs = ref.watch(tabsProvider);
-  if (activeIndex >= 0 && activeIndex < tabs.length) {
-    return tabs[activeIndex].contentFileId;
-  }
-  return null;
-});
-
-/// Derived provider for active tab's node key
-/// Returns null if no tab is selected or tab has no nodeKey
-/// Use this when you need the specific node (e.g., 'mn-2-3-6' for a sutta)
-/// rather than the content file (e.g., 'mn-2-3' shared by multiple suttas)
+/// Derived provider for the active tab's node key.
+///
+/// The tab's whole identity: `activeReaderUnitProvider` turns it into the
+/// content file and the row span the reader renders.
+/// Returns null if no tab is selected or the tab has no node.
 final activeNodeKeyProvider = Provider<String?>((ref) {
   final activeIndex = ref.watch(activeTabIndexProvider);
   final tabs = ref.watch(tabsProvider);
@@ -218,50 +219,6 @@ final activeNodeKeyProvider = Provider<String?>((ref) {
     return tabs[activeIndex].nodeKey;
   }
   return null;
-});
-
-/// Derived provider for active tab's page index
-/// Returns 0 if no tab is selected
-final activePageIndexProvider = Provider<int>((ref) {
-  final activeIndex = ref.watch(activeTabIndexProvider);
-  final tabs = ref.watch(tabsProvider);
-  if (activeIndex >= 0 && activeIndex < tabs.length) {
-    return tabs[activeIndex].pageIndex;
-  }
-  return 0;
-});
-
-/// Derived provider for active tab's pageStart
-/// Returns 0 if no tab is selected
-final activePageStartProvider = Provider<int>((ref) {
-  final activeIndex = ref.watch(activeTabIndexProvider);
-  final tabs = ref.watch(tabsProvider);
-  if (activeIndex >= 0 && activeIndex < tabs.length) {
-    return tabs[activeIndex].pageStart;
-  }
-  return 0;
-});
-
-/// Derived provider for active tab's pageEnd
-/// Returns 1 if no tab is selected (default single page)
-final activePageEndProvider = Provider<int>((ref) {
-  final activeIndex = ref.watch(activeTabIndexProvider);
-  final tabs = ref.watch(tabsProvider);
-  if (activeIndex >= 0 && activeIndex < tabs.length) {
-    return tabs[activeIndex].pageEnd;
-  }
-  return 1;
-});
-
-/// Derived provider for active tab's entryStart
-/// Returns 0 if no tab is selected
-final activeEntryStartProvider = Provider<int>((ref) {
-  final activeIndex = ref.watch(activeTabIndexProvider);
-  final tabs = ref.watch(tabsProvider);
-  if (activeIndex >= 0 && activeIndex < tabs.length) {
-    return tabs[activeIndex].entryStart;
-  }
-  return 0;
 });
 
 /// Derived provider for active tab's reader layout mode
@@ -273,35 +230,6 @@ final activeReaderLayoutProvider = Provider<ReaderLayout>((ref) {
     return tabs[activeIndex].layout;
   }
   return ReaderLayout.paliOnly;
-});
-
-/// Provider to update pagination state for the active tab
-/// Used when loading more pages during scrolling
-final updateActiveTabPaginationProvider =
-    Provider<void Function({int? pageStart, int? pageEnd, int? entryStart})>(
-        (ref) {
-  return ({int? pageStart, int? pageEnd, int? entryStart}) {
-    final activeIndex = ref.read(activeTabIndexProvider);
-    final tabs = ref.read(tabsProvider);
-    if (activeIndex >= 0 && activeIndex < tabs.length) {
-      final currentTab = tabs[activeIndex];
-      final updatedTab = currentTab.copyWith(
-        pageStart: pageStart ?? currentTab.pageStart,
-        pageEnd: pageEnd ?? currentTab.pageEnd,
-        entryStart: entryStart ?? currentTab.entryStart,
-      );
-      ref.read(tabsProvider.notifier).updateTab(activeIndex, updatedTab);
-    }
-  };
-});
-
-/// Provider to update the page index of the active tab
-/// Used for next/previous page navigation
-final updateActiveTabPageIndexProvider = Provider<void Function(int)>((ref) {
-  return (int pageIndex) {
-    final activeIndex = ref.read(activeTabIndexProvider);
-    ref.read(tabsProvider.notifier).updateTabPage(activeIndex, pageIndex);
-  };
 });
 
 /// Provider to update the reader layout of the active tab
@@ -360,10 +288,8 @@ final updateActiveTabSplitRatioProvider = Provider<void Function(double)>((ref) 
 });
 
 /// Provider to handle tab switching
-/// Content and pagination state are derived automatically from the active tab via:
-/// - activeContentFileIdProvider
-/// - activePageIndexProvider
-/// - activePageStartProvider, activePageEndProvider, activeEntryStartProvider
+/// Content state is derived automatically from the active tab via
+/// [activeNodeKeyProvider] → `activeReaderUnitProvider`.
 final switchTabProvider = Provider<void Function(int)>((ref) {
   return (int newTabIndex) {
     // Just update the active tab index - all content state is derived automatically
@@ -374,61 +300,62 @@ final switchTabProvider = Provider<void Function(int)>((ref) {
   };
 });
 
-/// Provider to open a new tab from a search result
-/// Centralizes the tab creation and navigation logic used across search widgets
-/// All state (contentFileId, pageIndex, pagination, layout) is derived from the tab entity
+/// Provider to open a new tab from a search result.
+///
+/// **The unit comes from the row the hit is on, not from the result's stored
+/// `nodeKey`.** `bjt-fts.db` implements the slicing rule against the *raw*
+/// tree, so for the corrected coordinates its column names an adjacent
+/// sibling — 244 rows corpus-wide open a unit the matched line is not in.
+/// `ReaderUnitResolver.keyAt` derives the owner from the coordinate instead,
+/// which also gives the tab and the breadcrumb the right sutta's name. It is
+/// the one producer here that needs the resolver, and so the one that is
+/// async.
+///
+/// Returns the new tab's index, or -1 if nothing opened. Callers must **await**
+/// it before touching [activeTabIndexProvider] — reading that synchronously
+/// after the call lands on the tab the user came from, which is where the FTS
+/// highlight would then be set.
 final openTabFromSearchResultProvider =
-    Provider<void Function(SearchResult, {bool isPortraitMode})>((ref) {
-  return (SearchResult result, {bool isPortraitMode = false}) {
+    Provider<Future<int> Function(SearchResult, {bool isPortraitMode})>((ref) {
+  return (SearchResult result, {bool isPortraitMode = false}) async {
     // Seed the new tab's layout from the user's last selection, falling back to
     // the orientation default (see [resolveSeedLayout]). We no longer pick a
     // single-language mode based on result.language — both orientation defaults
     // show the matched language alongside its translation.
     final layout = resolveSeedLayout(ref, isPortraitMode: isPortraitMode);
 
-    // Snap entryStart to sutta beginning if the FTS match is near the start.
-    // This prevents showing a misleading "Scroll to beginning" button when
-    // the match is only 1-2 entries after the sutta's true start (e.g., the
-    // sutta number row "1. 2. 9." is skipped).
-    int entryStart = result.entryIndex;
-    final node = ref.read(nodeByKeyProvider(result.nodeKey));
-    if (node != null &&
-        result.pageIndex == node.entryPageIndex &&
-        result.entryIndex - node.entryIndexInPage <= 2) {
-      entryStart = node.entryIndexInPage;
-    }
-
-    // Create a new tab for the search result with entryStart for proper positioning
-    // This ensures the sutta title appears at the top, not content from a previous
-    // sutta that happens to share the same page
-    final newTab = ReaderTab.fromNode(
-      nodeKey: result.nodeKey,
-      // Seed both names from the tree node so the tab label can follow the
-      // Content Language setting (just like tree-opened tabs). Fall back to
-      // the result's matched title only when the node isn't in the tree.
-      paliName: (node != null && node.paliName.isNotEmpty)
-          ? node.paliName
-          : result.title,
-      sinhalaName: (node != null && node.sinhalaName.isNotEmpty)
-          ? node.sinhalaName
-          : result.title,
-      contentFileId: result.contentFileId,
-      pageIndex: result.pageIndex,
-      entryStart: entryStart,
-      layout: layout,
+    final resolver = await _resolver(ref);
+    final hitKey = resolver?.keyAt(
+          result.contentFileId,
+          result.pageIndex,
+          result.entryIndex,
+        ) ??
+        result.nodeKey;
+    final node = ref.read(nodeByKeyProvider(hitKey));
+    final newIndex = _openTab(
+      ref,
+      ReaderTab.fromNode(
+        nodeKey: hitKey,
+        // Seed both names from the tree node so the tab label can follow the
+        // Content Language setting (just like tree-opened tabs). Fall back to
+        // the result's matched title only when the node isn't in the tree.
+        paliName: (node != null && node.paliName.isNotEmpty)
+            ? node.paliName
+            : result.title,
+        sinhalaName: (node != null && node.sinhalaName.isNotEmpty)
+            ? node.sinhalaName
+            : result.title,
+        // Land on the matched row, not on the sutta's first line — the whole
+        // unit renders either way, so this is scroll position and nothing more.
+        landingPageIndex: result.pageIndex,
+        landingEntryIndex: result.entryIndex,
+        layout: layout,
+      ),
     );
-
-    // Add tab and make it active
-    // Content and pagination state are derived automatically from the tab via:
-    // - activeContentFileIdProvider
-    // - activePageIndexProvider
-    // - activePageStartProvider, activePageEndProvider, activeEntryStartProvider
-    // - activeReaderLayoutProvider
-    final newIndex = ref.read(tabsProvider.notifier).addTab(newTab);
-    ref.read(activeTabIndexProvider.notifier).state = newIndex;
 
     // Sync navigator to the new active tab
     ref.read(syncNavigatorToActiveTabProvider)();
+    return newIndex;
   };
 });
 
@@ -438,11 +365,11 @@ final openTabFromSearchResultProvider =
 /// breadcrumb widget and deep links. Callers pass [isPortraitMode] (derived
 /// from BuildContext) since providers can't access context.
 ///
-/// [pageIndex]/[entryStart] optionally override the node's own start
-/// coordinates — used by deep links carrying an entry-level position
-/// (`?e=<page>.<entry>`). Ignored for non-readable (container) nodes.
+/// [pageIndex]/[entryStart] optionally name a landing row inside the unit —
+/// used by deep links carrying an entry-level position (`?e=<page>.<entry>`).
+/// They never decide *which* unit opens; that is always [nodeKey]'s own.
 ///
-/// Returns the new tab index, or -1 if the node was not found.
+/// Returns the new tab index, or -1 if the node is not in the tree.
 ///
 /// **Side effects NOT included** (caller-specific):
 /// - Tree navigator: calls `selectNodeProvider` before, closes nav on mobile after
@@ -459,19 +386,37 @@ final openTabFromNodeKeyProvider = Provider<
     // default (see [resolveSeedLayout]).
     final layout = resolveSeedLayout(ref, isPortraitMode: isPortraitMode);
 
-    final newTab = ReaderTab.fromNode(
-      nodeKey: node.nodeKey,
-      paliName: node.paliName,
-      sinhalaName: node.sinhalaName,
-      contentFileId: node.isReadableContent ? node.contentFileId : null,
-      pageIndex: node.isReadableContent ? (pageIndex ?? node.entryPageIndex) : 0,
-      entryStart:
-          node.isReadableContent ? (entryStart ?? node.entryIndexInPage) : 0,
-      layout: layout,
+    return _openTab(
+      ref,
+      ReaderTab.fromNode(
+        nodeKey: nodeKey,
+        paliName: node.paliName,
+        sinhalaName: node.sinhalaName,
+        landingPageIndex: pageIndex,
+        // A page override with no entry means "start of that page" — never
+        // the node's own entry, which pairs with the node's page.
+        landingEntryIndex: pageIndex == null ? null : (entryStart ?? 0),
+        layout: layout,
+      ),
     );
-
-    final newIndex = ref.read(tabsProvider.notifier).addTab(newTab);
-    ref.read(activeTabIndexProvider.notifier).state = newIndex;
-    return newIndex;
   };
 });
+
+/// The unit resolver, or null when it will not load.
+///
+/// Answers "no tab" rather than throwing: opening a tab must not become the one
+/// place a tree problem surfaces as a crash.
+Future<ReaderUnitResolver?> _resolver(Ref ref) async {
+  try {
+    return await ref.read(readerUnitResolverProvider.future);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Appends [tab] and focuses it. The last two lines of every producer.
+int _openTab(Ref ref, ReaderTab tab) {
+  final newIndex = ref.read(tabsProvider.notifier).addTab(tab);
+  ref.read(activeTabIndexProvider.notifier).state = newIndex;
+  return newIndex;
+}

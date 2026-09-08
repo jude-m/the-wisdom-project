@@ -5,8 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
 import '../../models/reader_layout.dart';
 import '../../models/in_page_search_state.dart';
-import '../../../domain/entities/bjt/bjt_page.dart';
 import '../../../domain/entities/navigation/tipitaka_tree_node.dart';
+import '../../../domain/entities/reader/document_slice.dart';
+import '../../../domain/entities/reader/reader_unit.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/dictionary_provider.dart'
     show
@@ -18,16 +19,12 @@ import '../../providers/tab_provider.dart'
     show
         activeTabIndexProvider,
         tabsProvider,
-        activePageStartProvider,
-        activePageEndProvider,
-        activeEntryStartProvider,
         activeReaderLayoutProvider,
-        activeNodeKeyProvider,
-        updateActiveTabPaginationProvider;
+        activeNodeKeyProvider;
 import '../../providers/previous_sutta_provider.dart'
     show navigateToPreviousSuttaProvider;
-import '../../providers/navigation_tree_provider.dart'
-    show nodeByKeyProvider, previousReadableNodeProvider;
+import '../../providers/reader_unit_provider.dart'
+    show ReaderStep, neighbourLeafProvider;
 import '../../providers/fts_highlight_provider.dart';
 import '../../providers/reader_scroll_provider.dart';
 import 'entry_key_registry.dart';
@@ -81,16 +78,15 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   bool _suppressScrollSave = false;
 
   // Bound on restoration retries — see [_restoreScrollPositionImmediate].
-  // 30 frames ≈ 500ms at 60fps; plenty of time for a few more pages to
-  // lay out without spinning indefinitely on a saved offset that can
-  // genuinely no longer be reached (content shrunk, etc.).
+  // 30 frames ≈ 500ms at 60fps; plenty of time for the list to lay out
+  // without spinning indefinitely on a saved offset that can genuinely no
+  // longer be reached (content shrunk, etc.).
   static const _restoreMaxRetries = 30;
 
-  // Bound on scroll-to-match retries — see [_ensureMatchVisibleWithRetry].
+  // Bound on scroll-to-entry retries — see [_ensureEntryVisible].
   // ~10 frames is enough for ListView.builder to lazy-build the page
-  // containing the match after pagination expansion, without spinning
-  // forever if the entry is genuinely unreachable.
-  static const _matchScrollMaxRetries = 10;
+  // holding the target, without spinning forever if it is unreachable.
+  static const _entryScrollMaxRetries = 10;
 
   // Emblem shown in the first-run "select a sutta" hint.
   static const _selectSuttaEmblemAsset = 'assets/icons/app_logo.png';
@@ -98,11 +94,10 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   @override
   void initState() {
     super.initState();
-    // Add scroll listener for automatic page loading
     _scrollController.addListener(_onScroll);
   }
 
-  /// Scroll listener for infinite scroll and scroll-position tracking.
+  /// Scroll listener for scroll-position tracking.
   void _onScroll() {
     if (_scrollController.hasClients) {
       final currentScroll = _scrollController.position.pixels;
@@ -119,12 +114,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
 
       // Keep the app bar's "scrolled under" tint in sync with this scroll.
       _syncScrolledUnder();
-
-      // Infinite scroll: load next page when user scrolls near bottom (within 200px)
-      final delta = _scrollController.position.maxScrollExtent - currentScroll;
-      if (delta < 200) {
-        _loadMorePagesIfNeeded();
-      }
 
       // Debounced persist of scroll position into the active tab. Without
       // this, a reload while parked in a tab (no tab switch) would lose
@@ -161,44 +150,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     }
   }
 
-  /// Loads more pages if available.
-  ///
-  /// Documents are loaded page-by-page to save memory. This method handles two scenarios:
-  /// 1. Infinite scroll: Called without [scheduleNextCheck] when user scrolls near bottom
-  /// 2. Initial fill: Called with [scheduleNextCheck]=true to keep loading until
-  ///    content fills the screen (solves "can't scroll to load more" problem)
-  void _loadMorePagesIfNeeded({bool scheduleNextCheck = false}) {
-    // Step 1: Get the current document (async state)
-    final contentAsync = ref.read(currentBJTDocumentProvider);
-
-    // Step 2: Only proceed if we have actual data (not loading/error)
-    contentAsync.whenData((content) {
-      // Step 3: Only proceed if document exists
-      if (content != null) {
-        // Step 4: Get current last page number being shown
-        final currentEnd = ref.read(activePageEndProvider);
-
-        // Step 5: Check if there are more pages to load
-        if (currentEnd < content.pageCount) {
-          // Step 6: Load one more page
-          ref.read(loadMorePagesProvider)(1);
-
-          // Step 7: If asked to keep checking (initial fill mode), schedule another check
-          if (scheduleNextCheck && _scrollController.hasClients) {
-            // Step 8: Wait for Flutter to rebuild the UI with new content
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              // Step 9: If content STILL doesn't fill the screen, load more (recursive)
-              if (_scrollController.hasClients &&
-                  _scrollController.position.maxScrollExtent <= 0) {
-                _loadMorePagesIfNeeded(scheduleNextCheck: true);
-              }
-            });
-          }
-        }
-      }
-    });
-  }
-
   @override
   void dispose() {
     _scrollSaveDebounce?.cancel();
@@ -220,56 +171,30 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     }
   }
 
-  /// Scrolls to the beginning of the current sutta.
-  /// Behaves the same as loading from the navigation tree.
+  /// Scrolls to the beginning of the current unit.
+  ///
+  /// A plain jump now: the unit's first row is the first thing rendered, so
+  /// there is no pagination to rewind — which is what it used to be doing.
   void _scrollToBeginning() {
-    final nodeKey = ref.read(activeNodeKeyProvider);
-    if (nodeKey == null) return;
-
-    final node = ref.read(nodeByKeyProvider(nodeKey));
-    if (node == null) return;
-
     // Reset scroll-tracking state so the button transitions correctly
     // (from scroll-to-top to skip-previous once we're at the beginning).
     setState(() => _isScrolledDown = false);
-
-    // Reset pagination to the sutta's beginning
-    ref.read(updateActiveTabPaginationProvider)(
-      pageStart: node.entryPageIndex,
-      pageEnd: node.entryPageIndex + 1,
-      entryStart: node.entryIndexInPage,
-    );
-
-    // Reset scroll to top - same as loading from navigator
     if (_scrollController.hasClients) {
       _scrollController.jumpTo(0);
     }
-
-    // After resetting pagination, ensure enough pages are loaded to fill the screen.
-    // This is necessary because the single page might not have enough content to
-    // enable scrolling (e.g., if the sutta starts near the end of a page).
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadMorePagesIfNeeded(scheduleNextCheck: true);
-    });
   }
 
-
-  /// Navigates to the previous sutta in tree order.
+  /// Navigates to the previous sutta.
   /// Delegates business logic to [navigateToPreviousSuttaProvider] and
-  /// handles widget-specific concerns (scroll position, page loading).
+  /// handles the widget-specific concern (scroll position).
   void _navigateToPreviousSutta(TipitakaTreeNode previousNode) {
-    // Delegate business logic to provider
     ref.read(navigateToPreviousSuttaProvider)(previousNode);
 
-    // Jump to top — handles same-contentFileId case where doc won't reload
+    // Jump to top — handles the same-file case, where the document does not
+    // reload and nothing else would move the viewport.
     if (_scrollController.hasClients) {
       _scrollController.jumpTo(0);
     }
-
-    // Ensure enough pages are loaded to fill the screen
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadMorePagesIfNeeded(scheduleNextCheck: true);
-    });
   }
 
   /// Restores scroll position immediately (no extra frame delay).
@@ -277,15 +202,41 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   /// content has already been rebuilt — avoids the double-postFrameCallback
   /// that caused a visible glitch (title flash) when switching tabs.
   ///
-  /// On cold-load (e.g. browser reload) the document for the active tab
-  /// arrives before ListView.builder has laid out enough pages, so
-  /// `maxScrollExtent` is initially smaller than the saved offset. In
-  /// that case we keep nudging more pages to load and re-jump on
-  /// subsequent frames until we either reach the saved offset or run
-  /// out of retries. Throughout, [_suppressScrollSave] is held high so
-  /// the jumpTo's own scroll notification can't trigger an auto-save
-  /// that would overwrite the on-disk offset with a clamped one.
+  /// A tab that has never been scrolled lands on what it was opened *for*
+  /// instead: the row a search hit or a `?e=` link named. That landing is
+  /// consumed here — see [TabsNotifier.clearTabLanding] — so coming back to
+  /// the tab later resumes where reading stopped rather than snapping to the
+  /// hit again.
+  ///
+  /// On cold-load the document arrives before [ListView.builder] has laid out
+  /// enough of the unit, so `maxScrollExtent` is initially smaller than the
+  /// saved offset. In that case we re-jump on subsequent frames until we
+  /// either reach the saved offset or run out of retries. Throughout,
+  /// [_suppressScrollSave] is held high so the jumpTo's own scroll
+  /// notification can't trigger an auto-save that would overwrite the
+  /// on-disk offset with a clamped one.
   void _restoreScrollPositionImmediate() {
+    final activeTabIndex = ref.read(activeTabIndexProvider);
+    final tabs = ref.read(tabsProvider);
+    if (activeTabIndex < 0 || activeTabIndex >= tabs.length) return;
+
+    if (tabs[activeTabIndex].scrollOffset == 0) {
+      final landing = ref.read(activeLandingEntryProvider);
+      if (landing != null) {
+        _ensureEntryVisible(
+          landing.$1,
+          landing.$2,
+          retriesLeft: _entryScrollMaxRetries,
+          alignment: 0.0,
+          animate: false,
+        );
+        // Spend it. The coordinates above are already captured as arguments,
+        // so the retry chain is unaffected by clearing them here.
+        ref.read(tabsProvider.notifier).clearTabLanding(activeTabIndex);
+        _syncScrolledUnder();
+        return;
+      }
+    }
     _restoreScrollWithRetry(retriesLeft: _restoreMaxRetries);
   }
 
@@ -313,12 +264,11 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       if (mounted) _suppressScrollSave = false;
     });
 
-    // Saved offset still beyond what's laid out → trigger another page
-    // load and try again on the next frame. Bounded by retriesLeft so
-    // a saved offset that can genuinely no longer be reached (e.g. the
-    // sutta got shorter) eventually settles instead of spinning.
+    // Saved offset still beyond what's laid out → try again on the next
+    // frame, by which point the jump above has built more of the list.
+    // Bounded by retriesLeft so a saved offset that can genuinely no longer
+    // be reached (e.g. the unit got shorter) eventually settles.
     if (saved > maxExtent && retriesLeft > 0) {
-      _loadMorePagesIfNeeded();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _restoreScrollWithRetry(retriesLeft: retriesLeft - 1);
       });
@@ -327,87 +277,47 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
 
   /// Scrolls to the current in-page search match.
   ///
-  /// If the match is on a page outside the loaded range, expands pagination
-  /// first. Then resolves the match entry via [_entryKeyRegistry] (the same
-  /// stable per-`(pageIndex, entryIndex)` GlobalKey used for layout-switch
-  /// scroll sync) and scrolls it into view with [Scrollable.ensureVisible].
+  /// Every match is inside the rendered unit — that is what bounding the unit
+  /// bought — so there is no range to expand first, only an entry to reveal.
   void _scrollToCurrentMatch(InPageSearchState searchState) {
     final currentMatch = searchState.currentMatch;
     if (currentMatch == null) return;
-
-    final pageStart = ref.read(activePageStartProvider);
-    final pageEnd = ref.read(activePageEndProvider);
-
-    // Check if the match page is within the loaded range
-    if (currentMatch.pageIndex < pageStart ||
-        currentMatch.pageIndex >= pageEnd) {
-      // Expand pagination to include the match page
-      final newPageStart =
-          currentMatch.pageIndex < pageStart ? currentMatch.pageIndex : pageStart;
-      final newPageEnd =
-          currentMatch.pageIndex >= pageEnd ? currentMatch.pageIndex + 1 : pageEnd;
-      // Clamp entryStart to the sutta boundary so backward expansion doesn't
-      // pull in trailing entries of the previous sutta on the start page.
-      // Off the start page, 0 is correct (we're entirely inside this sutta).
-      final nodeKey = ref.read(activeNodeKeyProvider);
-      final node = nodeKey != null ? ref.read(nodeByKeyProvider(nodeKey)) : null;
-      final newEntryStart = (node != null && newPageStart == node.entryPageIndex)
-          ? node.entryIndexInPage
-          : 0;
-      ref.read(updateActiveTabPaginationProvider)(
-        pageStart: newPageStart,
-        pageEnd: newPageEnd,
-        entryStart: newEntryStart,
-      );
-    }
-
-    // Scroll to the match after the frame rebuilds with the new content.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _ensureMatchVisibleWithRetry(
-        currentMatch,
-        retriesLeft: _matchScrollMaxRetries,
-      );
-    });
+    _ensureEntryVisible(
+      currentMatch.pageIndex,
+      currentMatch.entryIndex,
+      retriesLeft: _entryScrollMaxRetries,
+    );
   }
 
-  /// Attempts to scroll the given match into view, retrying on subsequent
-  /// frames if the entry's GlobalKey isn't yet mounted.
+  /// Reveals the entry at `(pageIndex, entryIndex)`, retrying on subsequent
+  /// frames while its GlobalKey is unmounted.
   ///
-  /// Two distinct reasons the key may be unmounted:
-  ///   (a) match.pageIndex >= pageEnd — pagination hasn't grown far enough.
-  ///       Nudge [_loadMorePagesIfNeeded] so ListView gets one more item.
-  ///   (b) match.pageIndex in [pageStart, pageEnd) — the page IS in the
-  ///       item list but [ListView.builder] hasn't lazy-built it because
-  ///       it's outside the default cacheExtent (~250px). Growing pageEnd
-  ///       is useless here — the page is already in range. Instead, step
-  ///       the controller by one viewport toward the target so the next
-  ///       frame's cacheExtent covers the next slab and ListView builds
-  ///       it. Direction comes from [EntryKeyRegistry.findTopVisibleEntry].
+  /// The page is always inside the rendered unit, so the only reason the key
+  /// is missing is that [ListView.builder] has not lazy-built it: it sits
+  /// outside the default cacheExtent (~250px). Growing anything is useless
+  /// there — the page is already in the item list — so we step the controller
+  /// by one viewport toward the target and let the next frame's cacheExtent
+  /// cover the slab. Direction comes from [EntryKeyRegistry.findTopVisibleEntry].
   ///
-  /// Case (b) is what bites after a layout switch: the listener resets
-  /// pagination to a narrow range around the top-visible entry, jumps
-  /// scroll to 0, and the first scroll-to-match expands pageStart
-  /// backward — leaving a wide range with the user parked at the top.
-  /// Subsequent matches several pages down fall outside cacheExtent.
-  ///
-  /// Bounded by [_matchScrollMaxRetries] so an unreachable match settles
+  /// Bounded by [_entryScrollMaxRetries] so an unreachable target settles
   /// instead of spinning forever.
-  void _ensureMatchVisibleWithRetry(
-    InPageMatch match, {
+  void _ensureEntryVisible(
+    int pageIndex,
+    int entryIndex, {
     required int retriesLeft,
+    double alignment = 0.3,
+    bool animate = true,
   }) {
     if (!mounted) return;
 
-    final key = _entryKeyRegistry.keyFor(match.pageIndex, match.entryIndex);
+    final key = _entryKeyRegistry.keyFor(pageIndex, entryIndex);
     final keyContext = key.currentContext;
     final renderObject = keyContext?.findRenderObject();
-    final isReady = renderObject != null && renderObject.attached;
-
-    if (isReady) {
+    if (renderObject != null && renderObject.attached) {
       Scrollable.ensureVisible(
         keyContext!,
-        alignment: 0.3, // Position match 30% from the top
-        duration: const Duration(milliseconds: 300),
+        alignment: alignment,
+        duration: animate ? const Duration(milliseconds: 300) : Duration.zero,
         curve: Curves.easeInOut,
       );
       return;
@@ -415,35 +325,33 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
 
     if (retriesLeft <= 0) return;
 
-    final pageEnd = ref.read(activePageEndProvider);
-    if (match.pageIndex >= pageEnd) {
-      // Case (a): pagination needs to grow forward.
-      _loadMorePagesIfNeeded();
-    } else {
-      // Case (b): page in range but unbuilt — push the viewport toward it.
-      _stepViewportToward(match);
-    }
-
+    _stepViewportToward(pageIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _ensureMatchVisibleWithRetry(match, retriesLeft: retriesLeft - 1);
+      _ensureEntryVisible(
+        pageIndex,
+        entryIndex,
+        retriesLeft: retriesLeft - 1,
+        alignment: alignment,
+        animate: animate,
+      );
     });
   }
 
-  /// Steps the scroll controller by one viewport toward [match] so the next
-  /// frame's [ListView.builder] cacheExtent covers the slab containing the
-  /// match. Direction is inferred from the currently top-visible entry; when
-  /// the registry has nothing mounted yet (transitional frame), defaults to
-  /// forward — the dominant case after openSearch.
+  /// Steps the scroll controller by one viewport toward the page holding the
+  /// target so the next frame's [ListView.builder] cacheExtent covers the
+  /// slab containing it. Direction is inferred from the currently top-visible
+  /// entry; when the registry has nothing mounted yet (transitional frame),
+  /// defaults to forward.
   ///
   /// Suppresses the debounced scroll-position auto-save: the intermediate
   /// clamped offsets aren't user-meaningful and shouldn't overwrite disk.
   /// Mirrors the suppression pattern in [_restoreScrollWithRetry].
-  void _stepViewportToward(InPageMatch match) {
+  void _stepViewportToward(int pageIndex) {
     if (!_scrollController.hasClients) return;
 
     final pos = _scrollController.position;
     final topEntry = _entryKeyRegistry.findTopVisibleEntry(_scrollController);
-    final scrollingDown = topEntry == null || match.pageIndex > topEntry.$1;
+    final scrollingDown = topEntry == null || pageIndex > topEntry.$1;
     final delta =
         scrollingDown ? pos.viewportDimension : -pos.viewportDimension;
     final target = (pos.pixels + delta).clamp(0.0, pos.maxScrollExtent);
@@ -464,8 +372,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       if (previous != null && previous != next) {
         // Suppress the layout listener during tab switches. When tabs have
         // different layout settings, activeReaderLayoutProvider changes as a
-        // side-effect. Without this guard, the layout listener's jumpTo(0)
-        // would override the scroll position restoration below.
+        // side-effect. Without this guard, the layout listener would override
+        // the scroll position restoration below.
         _suppressLayoutListener = true;
 
         // Save scroll position for the previous tab, but ONLY if:
@@ -489,13 +397,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _suppressLayoutListener = false;
             _restoreScrollPositionImmediate();
-            // Only load more pages if content doesn't fill the viewport yet.
-            // Returning to a tab that already has enough content should NOT grow
-            // pageEnd — that causes search results to inflate on every tab switch.
-            if (_scrollController.hasClients &&
-                _scrollController.position.maxScrollExtent <= 0) {
-              _loadMorePagesIfNeeded(scheduleNextCheck: true);
-            }
           });
         } else {
           _suppressLayoutListener = false;
@@ -506,30 +407,25 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       }
     });
 
-    // Listen to content loading state and restore scroll position after content is loaded
-    ref.listen(currentBJTDocumentProvider, (previous, next) {
-      // When content finishes loading (transitions to AsyncData with actual content)
-      next.whenData((content) {
-        if (content != null && previous?.value == null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _restoreScrollPositionImmediate();
-            // Fresh content: Document just loaded (cache miss). Ensure initial
-            // pages fill the screen so user can scroll to load more.
-            _loadMorePagesIfNeeded(scheduleNextCheck: true);
-          });
-        }
-      });
+    // Restore scroll position once the unit's pages are actually on screen.
+    // Watches the slice rather than the document, because the document can
+    // arrive before the page plan does and there is nothing to scroll within
+    // until both are in.
+    ref.listen<DocumentSlice?>(activeDocumentSliceProvider, (previous, next) {
+      if (next != null && previous == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _restoreScrollPositionImmediate();
+        });
+      }
     });
 
-    // Listen to layout changes — sync scroll position by logical entry, not pixels.
-    // Pixel offsets are meaningless across layouts (stacked is ~2x taller than
-    // side-by-side per entry). Instead, capture which entry is at the viewport
-    // top, then reset pagination so the new layout starts from that entry.
-    //
-    // This avoids Scrollable.ensureVisible which clamps to maxScrollExtent —
-    // a value ListView.builder underestimates on fresh layouts. By changing
-    // WHAT content is displayed (pagination reset) rather than WHERE to scroll,
-    // we sidestep all scroll-extent estimation issues.
+    // Listen to layout changes — sync reading position by logical entry, not
+    // pixels. Pixel offsets are meaningless across layouts (stacked is ~2x
+    // taller than side-by-side per entry). Capture which entry is at the
+    // viewport top, then reveal that same entry once the new layout has laid
+    // out. [_ensureEntryVisible] retries across frames, which is what makes
+    // this safe against the extent ListView.builder underestimates on a fresh
+    // layout — the reason this used to reset pagination instead.
     ref.listen<ReaderLayout>(activeReaderLayoutProvider, (previous, next) {
       if (previous != null && previous != next && !_suppressLayoutListener) {
         // Capture top-visible entry from the OLD layout (still mounted)
@@ -537,16 +433,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
             _entryKeyRegistry.findTopVisibleEntry(_scrollController);
         // Clear stale keys from old layout before rebuild
         _entryKeyRegistry.clear();
-        if (topEntry != null) {
-          // Reset pagination to start from the target entry.
-          // The rebuild in this same frame renders the new layout starting
-          // at this entry — no scrolling needed.
-          ref.read(updateActiveTabPaginationProvider)(
-            pageStart: topEntry.$1,
-            pageEnd: topEntry.$1 + 1,
-            entryStart: topEntry.$2,
-          );
-        }
 
         // Match set is layout-scoped — refresh against the new layout.
         // Also covered by the suppression guard above: tab switches skip
@@ -555,12 +441,18 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
             .read(inPageSearchStatesProvider.notifier)
             .recomputeActiveTabMatches();
 
-        // After rebuild, ensure scroll is at 0 and fill screen with pages
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients) {
-            _scrollController.jumpTo(0);
+          if (topEntry == null) {
+            if (_scrollController.hasClients) _scrollController.jumpTo(0);
+            return;
           }
-          _loadMorePagesIfNeeded(scheduleNextCheck: true);
+          _ensureEntryVisible(
+            topEntry.$1,
+            topEntry.$2,
+            retriesLeft: _entryScrollMaxRetries,
+            alignment: 0.0,
+            animate: false,
+          );
         });
       }
     });
@@ -574,42 +466,36 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       }
     });
 
+    // The unit resolves before its text does, so both are watched: the unit
+    // says which file and which rows, the document supplies them.
+    final unitAsync = ref.watch(activeReaderUnitProvider);
     final contentAsync = ref.watch(currentBJTDocumentProvider);
+    final slice = ref.watch(activeDocumentSliceProvider);
     // Watch per-tab reader layout (each tab remembers its own setting)
     final readerLayout = ref.watch(activeReaderLayoutProvider);
     // Watch selected word to conditionally mount the dictionary sheet
     final selectedWord = ref.watch(selectedDictionaryWordProvider);
-    // Watch pagination state to determine if scroll up buttons should show
-    final pageStart = ref.watch(activePageStartProvider);
-    final entryStart = ref.watch(activeEntryStartProvider);
 
     // Watch in-page search state for the active tab
     final searchState = ref.watch(activeInPageSearchStateProvider);
 
-    // Determine if we're past the sutta's beginning (to show scroll up buttons)
+    // Watch the sutta on the other side of this unit, for backward navigation.
     final nodeKey = ref.watch(activeNodeKeyProvider);
-    final node = nodeKey != null ? ref.watch(nodeByKeyProvider(nodeKey)) : null;
-    final isAfterSuttaBeginning = node != null &&
-        (pageStart > node.entryPageIndex ||
-            (pageStart == node.entryPageIndex &&
-                entryStart > node.entryIndexInPage));
-
-    // Watch the previous readable node in tree order for backward navigation
-    final previousNode = nodeKey != null
-        ? ref.watch(previousReadableNodeProvider(nodeKey))
-        : null;
+    final previousNode = nodeKey == null
+        ? null
+        : ref.watch(neighbourLeafProvider((nodeKey, ReaderStep.previous)));
 
     // Visibility flags for the two action button modes.
     // Computed once here so IgnorePointer, AnimatedOpacity, and AnimatedSlide
     // all reference the same boolean — avoids duplication and drift.
-    final hasContent = contentAsync.valueOrNull != null;
-    final showMode1 = hasContent &&
-        !searchState.isVisible &&
-        !_isScrolledDown &&
-        !isAfterSuttaBeginning;
-    final showMode2 = hasContent &&
-        !searchState.isVisible &&
-        (_isScrolledDown || isAfterSuttaBeginning);
+    //
+    // The unit always renders from its own first row, so "past the beginning"
+    // is now exactly "scrolled down" — including after a search hit, which
+    // scrolls into the unit rather than starting partway through it.
+    final hasContent = slice != null && !slice.isEmpty;
+    final showMode1 =
+        hasContent && !searchState.isVisible && !_isScrolledDown;
+    final showMode2 = hasContent && !searchState.isVisible && _isScrolledDown;
 
     return Stack(
       children: [
@@ -617,68 +503,13 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
         Column(
           children: [
             Expanded(
-              child: contentAsync.when(
-                data: (content) {
-                  if (content == null) {
-                    return StatusMessageView(
-                      variant: StatusVariant.info,
-                      imageAsset: _selectSuttaEmblemAsset,
-                      imageSize: 100,
-                      title: AppLocalizations.of(context).statusSelectSuttaToRead,
-                    );
-                  }
-
-                  // Get page end from derived provider (pageStart already watched above)
-                  final pageEnd = ref.watch(activePageEndProvider);
-
-                  // Show only the loaded page slice
-                  final pagesToShow = content.pages.sublist(
-                    pageStart.clamp(0, content.pageCount),
-                    pageEnd.clamp(0, content.pageCount),
-                  );
-
-                  if (pagesToShow.isEmpty) {
-                    return StatusMessageView(
-                      variant: StatusVariant.empty,
-                      // The user didn't search — search_off is wrong here.
-                      // menu_book_outlined matches the reader's vocabulary
-                      // (also used for the "select a sutta" info hint).
-                      iconOverride: Icons.menu_book_outlined,
-                      title: AppLocalizations.of(context).statusNoContentToDisplay,
-                    );
-                  }
-
-                  // Build the layout based on reader layout mode
-                  // (entryStart already watched above for isAfterSuttaBeginning check)
-                  return _buildContentLayout(
-                    context,
-                    pagesToShow,
-                    readerLayout,
-                    entryStart,
-                    searchState,
-                    pageStart,
-                  );
-                },
-                loading: () =>
-                    const StatusMessageView(variant: StatusVariant.loading),
-                error: (error, stack) {
-                  // No Retry / no widget-level logging:
-                  //   - BJTDataSource logs the raw error + stack trace at
-                  //     the catch site, so DevTools shows the real cause.
-                  //   - On web the user can refresh; on mobile the JSON is
-                  //     bundled in the app, so retry can't fix it.
-                  final variant = statusVariantForError(error);
-                  final l10n = AppLocalizations.of(context);
-                  return StatusMessageView(
-                    variant: variant,
-                    title: variant == StatusVariant.offline
-                        ? l10n.statusOfflineTitle
-                        : l10n.errorLoadingContent,
-                    description: variant == StatusVariant.offline
-                        ? l10n.statusOfflineDescription
-                        : l10n.statusErrorDescription,
-                  );
-                },
+              child: _buildBody(
+                context,
+                unitAsync: unitAsync,
+                contentAsync: contentAsync,
+                slice: slice,
+                readerLayout: readerLayout,
+                searchState: searchState,
               ),
             ),
           ],
@@ -713,7 +544,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
               ),
             ),
           ),
-        // Mode 1: Floating pills at top-right when at sutta beginning.
+        // Mode 1: Floating pills at top-right when at the unit's beginning.
         // Layout selector pill + action button pill in a row.
         // IgnorePointer disables taps on the invisible widget.
         if (hasContent)
@@ -756,7 +587,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
               ),
             ),
           ),
-        // Mode 2: Expandable FAB at bottom-right (scrolled down or FTS mid-sutta)
+        // Mode 2: Expandable FAB at bottom-right (scrolled down)
         // Contains layout selector + action buttons when expanded.
         if (hasContent)
           Positioned(
@@ -798,6 +629,66 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     );
   }
 
+  /// The reader's content area, across the states its two inputs can be in.
+  ///
+  /// Errors are reported from whichever half failed, and loading covers both:
+  /// a unit with no text yet looks the same to a reader as text with no unit.
+  Widget _buildBody(
+    BuildContext context, {
+    required AsyncValue<ReaderUnit?> unitAsync,
+    required AsyncValue<Object?> contentAsync,
+    required DocumentSlice? slice,
+    required ReaderLayout readerLayout,
+    required InPageSearchState searchState,
+  }) {
+    final failure = unitAsync.error ?? contentAsync.error;
+    if (failure != null) {
+      // No Retry / no widget-level logging:
+      //   - BJTDataSource logs the raw error + stack trace at the catch site,
+      //     so DevTools shows the real cause.
+      //   - On web the user can refresh; on mobile the JSON is bundled in the
+      //     app, so retry can't fix it.
+      final variant = statusVariantForError(failure);
+      final l10n = AppLocalizations.of(context);
+      return StatusMessageView(
+        variant: variant,
+        title: variant == StatusVariant.offline
+            ? l10n.statusOfflineTitle
+            : l10n.errorLoadingContent,
+        description: variant == StatusVariant.offline
+            ? l10n.statusOfflineDescription
+            : l10n.statusErrorDescription,
+      );
+    }
+
+    // No tab, or a tab with no unit — the first-run hint.
+    if (unitAsync.hasValue && unitAsync.value == null) {
+      return StatusMessageView(
+        variant: StatusVariant.info,
+        imageAsset: _selectSuttaEmblemAsset,
+        imageSize: 100,
+        title: AppLocalizations.of(context).statusSelectSuttaToRead,
+      );
+    }
+
+    if (slice == null) {
+      return const StatusMessageView(variant: StatusVariant.loading);
+    }
+
+    if (slice.isEmpty) {
+      return StatusMessageView(
+        variant: StatusVariant.empty,
+        // The user didn't search — search_off is wrong here.
+        // menu_book_outlined matches the reader's vocabulary
+        // (also used for the "select a sutta" info hint).
+        iconOverride: Icons.menu_book_outlined,
+        title: AppLocalizations.of(context).statusNoContentToDisplay,
+      );
+    }
+
+    return _buildContentLayout(context, slice, readerLayout, searchState);
+  }
+
   /// Clears all highlights and bottom sheet when tapping empty space.
   void _clearAllHighlights() {
     // Clear text selection if active
@@ -829,19 +720,15 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   /// Delegates to the appropriate pane widget based on reader layout.
   Widget _buildContentLayout(
     BuildContext context,
-    List<BJTPage> pages,
+    DocumentSlice slice,
     ReaderLayout readerLayout,
-    int entryStart,
     InPageSearchState searchState,
-    int absolutePageStart,
   ) {
     switch (readerLayout) {
       case ReaderLayout.paliOnly:
         return SingleColumnPane(
           scrollController: _scrollController,
-          pages: pages,
-          entryStart: entryStart,
-          absolutePageStart: absolutePageStart,
+          slice: slice,
           searchState: searchState,
           languageCode: 'pi',
           enableDictionaryLookup: true,
@@ -854,9 +741,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       case ReaderLayout.sinhalaOnly:
         return SingleColumnPane(
           scrollController: _scrollController,
-          pages: pages,
-          entryStart: entryStart,
-          absolutePageStart: absolutePageStart,
+          slice: slice,
           searchState: searchState,
           languageCode: 'si',
           enableDictionaryLookup: false,
@@ -869,9 +754,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       case ReaderLayout.sideBySide:
         return DualColumnPane(
           scrollController: _scrollController,
-          pages: pages,
-          entryStart: entryStart,
-          absolutePageStart: absolutePageStart,
+          slice: slice,
           searchState: searchState,
           entryKeyRegistry: _entryKeyRegistry,
           onTapEmpty: _clearAllHighlights,
@@ -882,9 +765,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       case ReaderLayout.stacked:
         return StackedPane(
           scrollController: _scrollController,
-          pages: pages,
-          entryStart: entryStart,
-          absolutePageStart: absolutePageStart,
+          slice: slice,
           searchState: searchState,
           entryKeyRegistry: _entryKeyRegistry,
           onTapEmpty: _clearAllHighlights,

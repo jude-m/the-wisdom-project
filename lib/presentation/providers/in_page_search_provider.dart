@@ -4,12 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/search_match_finder.dart';
 import '../../core/utils/search_query_utils.dart';
-import '../../domain/entities/bjt/bjt_document.dart';
-import '../../domain/entities/navigation/tipitaka_tree_node.dart';
+import '../../domain/entities/content/entry.dart';
+import '../../domain/entities/reader/document_slice.dart';
 import '../models/reader_layout.dart';
 import '../models/in_page_search_state.dart';
 import 'document_provider.dart';
-import 'navigation_tree_provider.dart';
+import 'reader_unit_provider.dart';
 import 'tab_provider.dart';
 
 /// Manages in-page search state for all tabs.
@@ -109,15 +109,12 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
     // switches tabs before it fires.
     final tabs = _ref.read(tabsProvider);
     if (tabIndex >= tabs.length) return;
-    final contentFileId = tabs[tabIndex].contentFileId;
-    final layout = tabs[tabIndex].layout;
     final nodeKey = tabs[tabIndex].nodeKey;
+    final layout = tabs[tabIndex].layout;
 
     // Debounce the expensive match computation
     _debounceTimers[tabIndex] = Timer(const Duration(milliseconds: 300), () {
-      _computeAndSetMatches(
-        tabIndex, effectiveQuery, contentFileId, layout, nodeKey,
-      );
+      _computeAndSetMatches(tabIndex, effectiveQuery, nodeKey, layout);
     });
   }
 
@@ -144,9 +141,8 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
   /// Layout switches re-scope which entries are searchable
   /// (Pali ↔ Sinhala ↔ both), so any cached match set goes stale.
   /// While the bar is visible, refresh it. While closed, drop the stale set —
-  /// recomputing silently both wastes work the user can't see and risks
-  /// leaving matches misaligned with the layout-switch pagination reset.
-  /// [openSearch] computes fresh on reopen.
+  /// recomputing silently wastes work the user can't see. [openSearch]
+  /// computes fresh on reopen.
   void recomputeActiveTabMatches() {
     final tabIndex = _ref.read(activeTabIndexProvider);
     if (tabIndex < 0) return;
@@ -172,9 +168,8 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
     _computeAndSetMatches(
       tabIndex,
       tabState.effectiveQuery,
-      tab.contentFileId,
-      tab.layout,
       tab.nodeKey,
+      tab.layout,
     );
   }
 
@@ -262,11 +257,17 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
   String _computeEffectiveQuery(String rawQuery) =>
       computeEffectiveQuery(rawQuery);
 
-  /// Searches the sutta's pages for matches (scoped by navigation tree bounds).
+  /// Searches the tab's unit for matches.
   ///
-  /// Uses tab-specific [contentFileId], [layout], and [nodeKey] (captured
-  /// at call time) to avoid reading stale state if the active tab changed
-  /// during debounce.
+  /// Uses the tab's own [nodeKey] and [layout] (captured at call time) so a
+  /// tab switch during the debounce cannot make this answer for the wrong tab.
+  ///
+  /// **Scoped to the rendered unit, and to nothing else.** The bounds are the
+  /// same [DocumentSlice] the panes build from, so every match is on screen
+  /// somewhere and the scroll-to-match never has to widen anything. What this
+  /// replaces walked the tree for the next *sibling* with the same content
+  /// file — a second reading of the slicing rule, wrong for roughly a tenth of
+  /// the corpus's leaves, and giving a container the whole file.
   ///
   /// Note: Match counts are computed against `entry.plainText`. The
   /// `TextEntryWidget` computes highlight ranges against `_displayText`
@@ -276,27 +277,26 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
   void _computeAndSetMatches(
     int tabIndex,
     String effectiveQuery,
-    String? contentFileId,
-    ReaderLayout layout,
     String? nodeKey,
+    ReaderLayout layout,
   ) {
     if (!mounted) return;
-    if (contentFileId == null || contentFileId.isEmpty) return;
+    if (nodeKey == null || nodeKey.isEmpty) return;
+
+    final unit =
+        _ref.read(readerUnitResolverProvider).valueOrNull?.unitFor(nodeKey);
+    if (unit == null) return;
 
     // Read the specific tab's document (not the active tab's)
-    final contentAsync = _ref.read(bjtDocumentProvider(contentFileId));
+    final contentAsync = _ref.read(bjtDocumentProvider(unit.contentFileId));
 
     contentAsync.whenData((document) {
       if (!mounted) return;
 
-      // Compute sutta boundaries from the navigation tree so we only
-      // search entries belonging to this sutta, not the entire document.
-      final bounds = _computeSuttaBounds(
-        nodeKey, contentFileId, document.pageCount,
-      );
-
       final matches = _findAllMatches(
-        document, effectiveQuery, layout, bounds,
+        DocumentSlice.of(document, unit.range),
+        effectiveQuery,
+        layout,
       );
 
       _setTabState(
@@ -309,15 +309,11 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
     });
   }
 
-  /// Scans pages within [bounds] for the query, respecting reader layout.
-  ///
-  /// Only searches entries that belong to the current sutta (bounded by the
-  /// next sibling's start position in the navigation tree).
+  /// Scans [slice] for the query, respecting reader layout.
   List<InPageMatch> _findAllMatches(
-    BJTDocument document,
+    DocumentSlice slice,
     String effectiveQuery,
     ReaderLayout layout,
-    _SuttaBounds bounds,
   ) {
     final matches = <InPageMatch>[];
     final finder = SearchMatchFinder(
@@ -326,186 +322,33 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
       isExactMatch: true,
     );
 
-    for (var pageIndex = bounds.startPage;
-        pageIndex < document.pages.length;
-        pageIndex++) {
-      // Stop if we've passed the sutta's end boundary.
-      // endEntry == 0 means the next sutta starts at the beginning of endPage,
-      // so endPage itself is fully excluded.
-      if (pageIndex > bounds.endPage ||
-          (pageIndex == bounds.endPage && bounds.endEntry == 0)) {
-        break;
+    void scan(int localPage, List<Entry> entries, String languageCode) {
+      final (first, last) = slice.entriesOn(localPage, entries.length);
+      for (var entryIndex = first; entryIndex < last; entryIndex++) {
+        final ranges = finder.findMatchRanges(entries[entryIndex].plainText);
+        for (var matchIdx = 0; matchIdx < ranges.length; matchIdx++) {
+          matches.add(InPageMatch(
+            pageIndex: slice.absolutePageStart + localPage,
+            entryIndex: entryIndex,
+            languageCode: languageCode,
+            matchIndexInEntry: matchIdx,
+          ));
+        }
       }
+    }
 
-      final page = document.pages[pageIndex];
-
-      // Search Pali entries if layout includes Pali
+    for (var localPage = 0; localPage < slice.pages.length; localPage++) {
+      final page = slice.pages[localPage];
       if (layout != ReaderLayout.sinhalaOnly) {
-        final paliEntries = page.paliSection.entries;
-        final firstEntry =
-            (pageIndex == bounds.startPage) ? bounds.startEntry : 0;
-        final lastEntry =
-            (pageIndex == bounds.endPage) ? bounds.endEntry : paliEntries.length;
-
-        for (var entryIndex = firstEntry;
-            entryIndex < lastEntry;
-            entryIndex++) {
-          final ranges =
-              finder.findMatchRanges(paliEntries[entryIndex].plainText);
-          for (var matchIdx = 0; matchIdx < ranges.length; matchIdx++) {
-            matches.add(InPageMatch(
-              pageIndex: pageIndex,
-              entryIndex: entryIndex,
-              languageCode: 'pi',
-              matchIndexInEntry: matchIdx,
-            ));
-          }
-        }
+        scan(localPage, page.paliSection.entries, 'pi');
       }
-
-      // Search Sinhala entries if layout includes Sinhala
       if (layout != ReaderLayout.paliOnly) {
-        final sinhalaEntries = page.sinhalaSection.entries;
-        final firstEntry =
-            (pageIndex == bounds.startPage) ? bounds.startEntry : 0;
-        final lastEntry = (pageIndex == bounds.endPage)
-            ? bounds.endEntry
-            : sinhalaEntries.length;
-
-        for (var entryIndex = firstEntry;
-            entryIndex < lastEntry;
-            entryIndex++) {
-          final ranges =
-              finder.findMatchRanges(sinhalaEntries[entryIndex].plainText);
-          for (var matchIdx = 0; matchIdx < ranges.length; matchIdx++) {
-            matches.add(InPageMatch(
-              pageIndex: pageIndex,
-              entryIndex: entryIndex,
-              languageCode: 'si',
-              matchIndexInEntry: matchIdx,
-            ));
-          }
-        }
+        scan(localPage, page.sinhalaSection.entries, 'si');
       }
     }
 
     return matches;
   }
-
-  // ===========================================================================
-  // Sutta boundary helpers
-  // ===========================================================================
-
-  /// Computes the page/entry boundaries for a sutta within its document.
-  ///
-  /// Uses the navigation tree to find where this sutta starts and where
-  /// the next sibling sutta (with the same [contentFileId]) begins.
-  /// The end boundary is exclusive (the next sutta's start position).
-  ///
-  /// Falls back to the entire document if the node can't be found.
-  _SuttaBounds _computeSuttaBounds(
-    String? nodeKey,
-    String contentFileId,
-    int totalPages,
-  ) {
-    final fullDocument = _SuttaBounds(
-      startPage: 0,
-      startEntry: 0,
-      endPage: totalPages,
-      endEntry: 0,
-    );
-
-    if (nodeKey == null || nodeKey.isEmpty) return fullDocument;
-
-    final treeAsync = _ref.read(navigationTreeProvider);
-
-    return treeAsync.when(
-      data: (rootNodes) {
-        // Single traversal: find both the node and its parent in one pass
-        final result = _findNodeWithParent(rootNodes, nodeKey);
-        if (result == null) return fullDocument;
-
-        final (node, parent) = result;
-        final startPage = node.entryPageIndex;
-        final startEntry = node.entryIndexInPage;
-
-        // No parent → can't determine siblings, search to end of document
-        if (parent == null) {
-          return _SuttaBounds(
-            startPage: startPage,
-            startEntry: startEntry,
-            endPage: totalPages,
-            endEntry: 0,
-          );
-        }
-
-        // Find the next sibling with the same contentFileId.
-        // Its start position marks the end of the current sutta.
-        final siblings = parent.childNodes;
-        bool foundCurrent = false;
-        for (final sibling in siblings) {
-          if (foundCurrent && sibling.contentFileId == contentFileId) {
-            return _SuttaBounds(
-              startPage: startPage,
-              startEntry: startEntry,
-              endPage: sibling.entryPageIndex,
-              endEntry: sibling.entryIndexInPage,
-            );
-          }
-          if (sibling.nodeKey == nodeKey) {
-            foundCurrent = true;
-          }
-        }
-
-        // No next sibling with same contentFileId → sutta extends to end
-        return _SuttaBounds(
-          startPage: startPage,
-          startEntry: startEntry,
-          endPage: totalPages,
-          endEntry: 0,
-        );
-      },
-      loading: () => fullDocument,
-      error: (_, __) => fullDocument,
-    );
-  }
-
-  /// Recursively finds a node and its parent in a single tree traversal.
-  ///
-  /// Returns (node, parent) where parent is null for root-level nodes.
-  /// This avoids the duplicate traversal of finding the node first and
-  /// then searching again for its parent.
-  (TipitakaTreeNode, TipitakaTreeNode?)? _findNodeWithParent(
-    List<TipitakaTreeNode> nodes,
-    String key, [
-    TipitakaTreeNode? parent,
-  ]) {
-    for (final node in nodes) {
-      if (node.nodeKey == key) return (node, parent);
-      final found = _findNodeWithParent(node.childNodes, key, node);
-      if (found != null) return found;
-    }
-    return null;
-  }
-}
-
-/// Inclusive start / exclusive end boundaries for a sutta within a document.
-///
-/// [endPage]/[endEntry] mark where the NEXT sutta begins:
-/// - If endEntry == 0, entries on endPage belong to the next sutta.
-/// - If endEntry > 0, entries 0..endEntry-1 on endPage belong to this sutta.
-class _SuttaBounds {
-  final int startPage;
-  final int startEntry;
-  final int endPage;
-  final int endEntry;
-
-  const _SuttaBounds({
-    required this.startPage,
-    required this.startEntry,
-    required this.endPage,
-    required this.endEntry,
-  });
 }
 
 /// Provider for the in-page search state map (tab index -> search state).

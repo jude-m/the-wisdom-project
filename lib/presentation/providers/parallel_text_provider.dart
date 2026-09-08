@@ -81,9 +81,6 @@ final openParallelTextProvider =
       nodeKey: targetNode.nodeKey,
       paliName: targetNode.paliName,
       sinhalaName: targetNode.sinhalaName,
-      contentFileId: targetNode.contentFileId,
-      pageIndex: targetNode.entryPageIndex,
-      entryStart: targetNode.entryIndexInPage,
       layout: layout,
     );
 

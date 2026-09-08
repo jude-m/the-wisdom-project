@@ -31,6 +31,11 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 /// writes is read back with `resolveTarget` — the app's own resolver, now in
 /// `wisdom_shared` where a build step can reach it — and required to name the
 /// node it was written for.
+///
+/// Section 4 has no oracle either, and guards the corpus rather than the code:
+/// reading order and coordinate order must agree inside every content file, or
+/// the app's reader silently shows a short unit. Re-run it at every upstream
+/// re-sync; that is the only thing that can break it.
 void main(List<String> args) {
   final assetsFlag = _valueOf(args, '--assets');
   final reader = assetsFlag == null
@@ -44,11 +49,14 @@ void main(List<String> args) {
   final treeOk = _verifyTree(reader);
   stdout.writeln('');
   final linksOk = _verifyLinks(reader);
+  stdout.writeln('');
+  final orderOk = _verifyReadingOrder(reader);
 
   stdout.writeln('');
-  if (markersOk && treeOk && linksOk) {
+  if (markersOk && treeOk && linksOk && orderOk) {
     stdout.writeln('PASS — extraction identical to the app original (1, 2), '
-        'and every URL reads back as its own page (3).');
+        'every URL reads back as its own page (3), and reading order never '
+        'steps backwards inside a content file (4).');
   } else {
     stdout.writeln('FAIL — see divergences above.');
     exitCode = 1;
@@ -415,6 +423,85 @@ bool _verifyLinks(CorpusReader reader) {
       doorFails == 0 &&
       unplanned == 0 &&
       unprinted == 0;
+}
+
+// ---------------------------------------------------------------------------
+// 4. Reading order never steps backwards inside a content file
+// ---------------------------------------------------------------------------
+
+/// The one invariant the app's reader takes a **single** range across.
+///
+/// `ReaderUnitResolver.unitFor` bounds a unit by the last node of the tapped
+/// subtree in *reading* order, then asks `SliceIndex.rangeFor` for that node's
+/// end — a *coordinate*-ordered boundary. Those name the same node only while
+/// reading order inside a file never goes backwards. A subtree is a contiguous
+/// run of this walk, so asking the question once per file answers it for every
+/// subtree in that file.
+///
+/// **The generator does not lean on this**, which is why the check lives here
+/// rather than falling out of a build: `sitegen` slices a chapter page one
+/// sutta at a time, so a tree out of order would misorder rows rather than
+/// lose them. The app takes first-start to last-end as one range, where a
+/// violation is silent — the unit is simply short, with no error and nothing
+/// missing but text.
+///
+/// **Walks `roots`/`childrenOf`, and must keep doing so.** That is the order
+/// the resolver walks, and it is not `allNodes` — siblings are sorted by the
+/// trailing number of their key, JSON order is not. Routing this through
+/// `SliceIndex.nodesByFile` instead would sort by coordinate first and hide
+/// exactly what it looks for, which is also why `SliceIndex.forFile`'s own
+/// "out of reading order" throw cannot fire on a real build.
+///
+/// Ties are legal: a pitaka root printed on its nikāya root's heading block
+/// shares that root's coordinate. Only a step backwards fails.
+bool _verifyReadingOrder(CorpusReader reader) {
+  final tree = reader.readTree();
+
+  final lastIn = <String, ({String nodeKey, SliceCoordinate at})>{};
+  var nodes = 0;
+  var ties = 0;
+  var backwards = 0;
+  final samples = <String>[];
+
+  void visit(TipitakaNode node) {
+    final fileId = node.contentFileId;
+    if (fileId != null) {
+      nodes++;
+      final at = SliceCoordinate(node.entryPageIndex, node.entryIndexInPage);
+      final previous = lastIn[fileId];
+      final order = previous == null ? 1 : at.compareTo(previous.at);
+      if (order < 0) {
+        backwards++;
+        _sample(
+          samples,
+          '$fileId  ${node.nodeKey} at $at follows '
+          '${previous!.nodeKey} at ${previous.at}',
+        );
+      } else if (order == 0) {
+        ties++;
+      }
+      lastIn[fileId] = (nodeKey: node.nodeKey, at: at);
+    }
+    for (final child in tree.childrenOf(node.nodeKey)) {
+      visit(child);
+    }
+  }
+
+  for (final root in tree.roots) {
+    visit(root);
+  }
+
+  stdout.writeln('READING ORDER');
+  stdout.writeln('  content files         ${lastIn.length}');
+  stdout.writeln('  nodes with text       $nodes');
+  stdout.writeln('  shared coordinates    $ties '
+      '(legal — a root printed on its first child\'s heading block)');
+  stdout.writeln('  steps backwards       $backwards');
+  for (final sample in samples) {
+    stdout.writeln('  ! $sample');
+  }
+
+  return backwards == 0;
 }
 
 // ---------------------------------------------------------------------------

@@ -31,7 +31,7 @@ class ContentSlicer {
   /// Builds a slicer for [file] from every tree node whose text lives in it.
   ///
   /// [nodesInFile] must be *all* of them, containers included, in the order
-  /// [nodesByFile] produces.
+  /// [SliceIndex.nodesByFile] produces.
   factory ContentSlicer.forFile(
       ContentFile file, List<TipitakaNode> nodesInFile) {
     final rows = <DocRow>[];
@@ -93,11 +93,6 @@ class ContentSlicer {
   }
 
   int _rowAt(SliceCoordinate at) => _pageStart[at.pageIndex] + at.entryIndex;
-
-  /// See [SliceIndex.nodesByFile] — kept here as the name the generator's
-  /// callers already use.
-  static Map<String, List<TipitakaNode>> nodesByFile(TipitakaTree tree) =>
-      SliceIndex.nodesByFile(tree);
 
   /// Every **container** that has a content file, grouped by that file.
   ///

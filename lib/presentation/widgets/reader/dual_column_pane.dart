@@ -7,7 +7,7 @@ import '../../../core/constants/constants.dart';
 import '../../../core/theme/app_fonts.dart';
 import '../../../core/theme/text_entry_theme.dart';
 import '../../../core/utils/responsive_utils.dart';
-import '../../../domain/entities/bjt/bjt_page.dart';
+import '../../../domain/entities/reader/document_slice.dart';
 import '../../models/in_page_search_state.dart';
 import '../../providers/tab_provider.dart'
     show activeSplitRatioProvider, updateActiveTabSplitRatioProvider;
@@ -25,9 +25,7 @@ class DualColumnPane extends ConsumerStatefulWidget {
   const DualColumnPane({
     super.key,
     required this.scrollController,
-    required this.pages,
-    required this.entryStart,
-    required this.absolutePageStart,
+    required this.slice,
     required this.searchState,
     required this.entryKeyRegistry,
     required this.onTapEmpty,
@@ -37,9 +35,11 @@ class DualColumnPane extends ConsumerStatefulWidget {
   });
 
   final ScrollController scrollController;
-  final List<BJTPage> pages;
-  final int entryStart;
-  final int absolutePageStart;
+
+  /// The bounded unit to render — its pages, and where it starts and stops
+  /// inside the first and last of them.
+  final DocumentSlice slice;
+
   final InPageSearchState searchState;
 
   /// Registry for entry-level GlobalKeys. Used for layout-switch scroll
@@ -70,20 +70,19 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
     super.didUpdateWidget(old);
     // Drop heights for entries no longer in the page slice; persisted
     // entries keep theirs to avoid re-measure churn.
-    if (!identical(old.pages, widget.pages) ||
-        old.absolutePageStart != widget.absolutePageStart ||
-        old.entryStart != widget.entryStart) {
+    if (!identical(old.slice, widget.slice)) {
       _heightSync.prune(_liveIdSet());
     }
   }
 
   Set<(int, int)> _liveIdSet() {
     final live = <(int, int)>{};
-    for (var p = 0; p < widget.pages.length; p++) {
-      final absPage = widget.absolutePageStart + p;
-      final start = p == 0 ? widget.entryStart : 0;
-      final entryCount = widget.pages[p].paliSection.entries.length;
-      for (var e = start; e < entryCount; e++) {
+    final slice = widget.slice;
+    for (var p = 0; p < slice.pages.length; p++) {
+      final absPage = slice.absolutePageStart + p;
+      final (start, end) =
+          slice.entriesOn(p, slice.pages[p].paliSection.entries.length);
+      for (var e = start; e < end; e++) {
         live.add((absPage, e));
       }
     }
@@ -201,9 +200,8 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
     BuildContext context, {
     required bool isLeft,
   }) {
-    final pages = widget.pages;
-    final entryStart = widget.entryStart;
-    final absolutePageStart = widget.absolutePageStart;
+    final slice = widget.slice;
+    final pages = slice.pages;
     final searchState = widget.searchState;
     final currentMatch = searchState.currentMatch;
     final effectiveQuery = searchState.effectiveQuery;
@@ -213,15 +211,16 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
 
     for (var pageIndex = 0; pageIndex < pages.length; pageIndex++) {
       final page = pages[pageIndex];
-      final absolutePageIndex = absolutePageStart + pageIndex;
-      final startEntry = pageIndex == 0 ? entryStart : 0;
+      final absolutePageIndex = slice.absolutePageStart + pageIndex;
+      // The unit may begin and end mid-page, so both ends are trimmed.
+      final (startEntry, endEntry) =
+          slice.entriesOn(pageIndex, page.paliSection.entries.length);
 
       // Page number row — same on both sides, no sync needed.
       widgets.add(ReaderEntryBuilder.buildPageNumber(context, page.pageNumber));
       widgets.add(const SizedBox(height: AppFonts.pageNumberGapPx));
 
-      final entryCount = page.paliSection.entries.length - startEntry;
-      for (var i = 0; i < entryCount; i++) {
+      for (var i = 0; i < endEntry - startEntry; i++) {
         final entryIndex = i + startEntry;
         final paliEntry = page.paliSection.entries[entryIndex];
         final sinhalaEntry = entryIndex < page.sinhalaSection.entries.length

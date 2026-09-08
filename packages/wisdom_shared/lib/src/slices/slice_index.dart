@@ -39,6 +39,22 @@ class SliceRange {
   final SliceCoordinate? end;
 
   const SliceRange({required this.nodeKey, required this.start, this.end});
+
+  /// By value, because the app derives a reader tab's bounds from one and
+  /// compares two: a rebuild that resolved to the same span must not look like
+  /// a move, or the reader would re-scroll to the top on every tab touch.
+  @override
+  bool operator ==(Object other) =>
+      other is SliceRange &&
+      other.nodeKey == nodeKey &&
+      other.start == start &&
+      other.end == end;
+
+  @override
+  int get hashCode => Object.hash(nodeKey, start, end);
+
+  @override
+  String toString() => 'SliceRange($nodeKey, $start..${end ?? 'eof'})';
 }
 
 /// Where each node's text starts and stops inside one content file.

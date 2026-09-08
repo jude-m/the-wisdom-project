@@ -26,24 +26,18 @@ mixin _$ReaderTab {
   /// Full name for tooltip or expanded view
   String get fullName => throw _privateConstructorUsedError;
 
-  /// ID of the content file currently loaded in this tab
-  String? get contentFileId => throw _privateConstructorUsedError;
-
-  /// Current page index within the content file
-  int get pageIndex => throw _privateConstructorUsedError;
-
-  /// Start of loaded page range (for pagination)
-  int get pageStart => throw _privateConstructorUsedError;
-
-  /// End of loaded page range (for pagination, exclusive)
-  int get pageEnd => throw _privateConstructorUsedError;
-
-  /// Entry index to start from on the first visible page
-  /// This allows opening a sutta mid-page without showing earlier entries
-  int get entryStart => throw _privateConstructorUsedError;
-
-  /// Reference to the tree node key for navigation sync
+  /// The node this tab reads. Its subtree is the unit. Null only for a tab
+  /// with no content.
   String? get nodeKey => throw _privateConstructorUsedError;
+
+  /// A landing position inside the unit — the row an FTS hit or a
+  /// `?e=<page>.<entry>` link named, as a document coordinate.
+  ///
+  /// **Scroll position only.** The unit always comes from [nodeKey]; this
+  /// says where inside it to stop, and is consumed once the tab has its own
+  /// [scrollOffset]. Null for every other way a tab opens.
+  int? get landingPageIndex => throw _privateConstructorUsedError;
+  int? get landingEntryIndex => throw _privateConstructorUsedError;
 
   /// Pali name of the node for reference
   String? get paliName => throw _privateConstructorUsedError;
@@ -92,12 +86,9 @@ abstract class $ReaderTabCopyWith<$Res> {
   $Res call(
       {String label,
       String fullName,
-      String? contentFileId,
-      int pageIndex,
-      int pageStart,
-      int pageEnd,
-      int entryStart,
       String? nodeKey,
+      int? landingPageIndex,
+      int? landingEntryIndex,
       String? paliName,
       String? sinhalaName,
       String? textId,
@@ -124,12 +115,9 @@ class _$ReaderTabCopyWithImpl<$Res, $Val extends ReaderTab>
   $Res call({
     Object? label = null,
     Object? fullName = null,
-    Object? contentFileId = freezed,
-    Object? pageIndex = null,
-    Object? pageStart = null,
-    Object? pageEnd = null,
-    Object? entryStart = null,
     Object? nodeKey = freezed,
+    Object? landingPageIndex = freezed,
+    Object? landingEntryIndex = freezed,
     Object? paliName = freezed,
     Object? sinhalaName = freezed,
     Object? textId = freezed,
@@ -147,30 +135,18 @@ class _$ReaderTabCopyWithImpl<$Res, $Val extends ReaderTab>
           ? _value.fullName
           : fullName // ignore: cast_nullable_to_non_nullable
               as String,
-      contentFileId: freezed == contentFileId
-          ? _value.contentFileId
-          : contentFileId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      pageIndex: null == pageIndex
-          ? _value.pageIndex
-          : pageIndex // ignore: cast_nullable_to_non_nullable
-              as int,
-      pageStart: null == pageStart
-          ? _value.pageStart
-          : pageStart // ignore: cast_nullable_to_non_nullable
-              as int,
-      pageEnd: null == pageEnd
-          ? _value.pageEnd
-          : pageEnd // ignore: cast_nullable_to_non_nullable
-              as int,
-      entryStart: null == entryStart
-          ? _value.entryStart
-          : entryStart // ignore: cast_nullable_to_non_nullable
-              as int,
       nodeKey: freezed == nodeKey
           ? _value.nodeKey
           : nodeKey // ignore: cast_nullable_to_non_nullable
               as String?,
+      landingPageIndex: freezed == landingPageIndex
+          ? _value.landingPageIndex
+          : landingPageIndex // ignore: cast_nullable_to_non_nullable
+              as int?,
+      landingEntryIndex: freezed == landingEntryIndex
+          ? _value.landingEntryIndex
+          : landingEntryIndex // ignore: cast_nullable_to_non_nullable
+              as int?,
       paliName: freezed == paliName
           ? _value.paliName
           : paliName // ignore: cast_nullable_to_non_nullable
@@ -214,12 +190,9 @@ abstract class _$$ReaderTabImplCopyWith<$Res>
   $Res call(
       {String label,
       String fullName,
-      String? contentFileId,
-      int pageIndex,
-      int pageStart,
-      int pageEnd,
-      int entryStart,
       String? nodeKey,
+      int? landingPageIndex,
+      int? landingEntryIndex,
       String? paliName,
       String? sinhalaName,
       String? textId,
@@ -244,12 +217,9 @@ class __$$ReaderTabImplCopyWithImpl<$Res>
   $Res call({
     Object? label = null,
     Object? fullName = null,
-    Object? contentFileId = freezed,
-    Object? pageIndex = null,
-    Object? pageStart = null,
-    Object? pageEnd = null,
-    Object? entryStart = null,
     Object? nodeKey = freezed,
+    Object? landingPageIndex = freezed,
+    Object? landingEntryIndex = freezed,
     Object? paliName = freezed,
     Object? sinhalaName = freezed,
     Object? textId = freezed,
@@ -267,30 +237,18 @@ class __$$ReaderTabImplCopyWithImpl<$Res>
           ? _value.fullName
           : fullName // ignore: cast_nullable_to_non_nullable
               as String,
-      contentFileId: freezed == contentFileId
-          ? _value.contentFileId
-          : contentFileId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      pageIndex: null == pageIndex
-          ? _value.pageIndex
-          : pageIndex // ignore: cast_nullable_to_non_nullable
-              as int,
-      pageStart: null == pageStart
-          ? _value.pageStart
-          : pageStart // ignore: cast_nullable_to_non_nullable
-              as int,
-      pageEnd: null == pageEnd
-          ? _value.pageEnd
-          : pageEnd // ignore: cast_nullable_to_non_nullable
-              as int,
-      entryStart: null == entryStart
-          ? _value.entryStart
-          : entryStart // ignore: cast_nullable_to_non_nullable
-              as int,
       nodeKey: freezed == nodeKey
           ? _value.nodeKey
           : nodeKey // ignore: cast_nullable_to_non_nullable
               as String?,
+      landingPageIndex: freezed == landingPageIndex
+          ? _value.landingPageIndex
+          : landingPageIndex // ignore: cast_nullable_to_non_nullable
+              as int?,
+      landingEntryIndex: freezed == landingEntryIndex
+          ? _value.landingEntryIndex
+          : landingEntryIndex // ignore: cast_nullable_to_non_nullable
+              as int?,
       paliName: freezed == paliName
           ? _value.paliName
           : paliName // ignore: cast_nullable_to_non_nullable
@@ -329,12 +287,9 @@ class _$ReaderTabImpl extends _ReaderTab {
   const _$ReaderTabImpl(
       {required this.label,
       required this.fullName,
-      this.contentFileId,
-      this.pageIndex = 0,
-      this.pageStart = 0,
-      this.pageEnd = 1,
-      this.entryStart = 0,
       this.nodeKey,
+      this.landingPageIndex,
+      this.landingEntryIndex,
       this.paliName,
       this.sinhalaName,
       this.textId,
@@ -358,34 +313,21 @@ class _$ReaderTabImpl extends _ReaderTab {
   @override
   final String fullName;
 
-  /// ID of the content file currently loaded in this tab
-  @override
-  final String? contentFileId;
-
-  /// Current page index within the content file
-  @override
-  @JsonKey()
-  final int pageIndex;
-
-  /// Start of loaded page range (for pagination)
-  @override
-  @JsonKey()
-  final int pageStart;
-
-  /// End of loaded page range (for pagination, exclusive)
-  @override
-  @JsonKey()
-  final int pageEnd;
-
-  /// Entry index to start from on the first visible page
-  /// This allows opening a sutta mid-page without showing earlier entries
-  @override
-  @JsonKey()
-  final int entryStart;
-
-  /// Reference to the tree node key for navigation sync
+  /// The node this tab reads. Its subtree is the unit. Null only for a tab
+  /// with no content.
   @override
   final String? nodeKey;
+
+  /// A landing position inside the unit — the row an FTS hit or a
+  /// `?e=<page>.<entry>` link named, as a document coordinate.
+  ///
+  /// **Scroll position only.** The unit always comes from [nodeKey]; this
+  /// says where inside it to stop, and is consumed once the tab has its own
+  /// [scrollOffset]. Null for every other way a tab opens.
+  @override
+  final int? landingPageIndex;
+  @override
+  final int? landingEntryIndex;
 
   /// Pali name of the node for reference
   @override
@@ -439,7 +381,7 @@ class _$ReaderTabImpl extends _ReaderTab {
 
   @override
   String toString() {
-    return 'ReaderTab(label: $label, fullName: $fullName, contentFileId: $contentFileId, pageIndex: $pageIndex, pageStart: $pageStart, pageEnd: $pageEnd, entryStart: $entryStart, nodeKey: $nodeKey, paliName: $paliName, sinhalaName: $sinhalaName, textId: $textId, panes: $panes, layout: $layout, splitRatio: $splitRatio, scrollOffset: $scrollOffset)';
+    return 'ReaderTab(label: $label, fullName: $fullName, nodeKey: $nodeKey, landingPageIndex: $landingPageIndex, landingEntryIndex: $landingEntryIndex, paliName: $paliName, sinhalaName: $sinhalaName, textId: $textId, panes: $panes, layout: $layout, splitRatio: $splitRatio, scrollOffset: $scrollOffset)';
   }
 
   @override
@@ -450,16 +392,11 @@ class _$ReaderTabImpl extends _ReaderTab {
             (identical(other.label, label) || other.label == label) &&
             (identical(other.fullName, fullName) ||
                 other.fullName == fullName) &&
-            (identical(other.contentFileId, contentFileId) ||
-                other.contentFileId == contentFileId) &&
-            (identical(other.pageIndex, pageIndex) ||
-                other.pageIndex == pageIndex) &&
-            (identical(other.pageStart, pageStart) ||
-                other.pageStart == pageStart) &&
-            (identical(other.pageEnd, pageEnd) || other.pageEnd == pageEnd) &&
-            (identical(other.entryStart, entryStart) ||
-                other.entryStart == entryStart) &&
             (identical(other.nodeKey, nodeKey) || other.nodeKey == nodeKey) &&
+            (identical(other.landingPageIndex, landingPageIndex) ||
+                other.landingPageIndex == landingPageIndex) &&
+            (identical(other.landingEntryIndex, landingEntryIndex) ||
+                other.landingEntryIndex == landingEntryIndex) &&
             (identical(other.paliName, paliName) ||
                 other.paliName == paliName) &&
             (identical(other.sinhalaName, sinhalaName) ||
@@ -479,12 +416,9 @@ class _$ReaderTabImpl extends _ReaderTab {
       runtimeType,
       label,
       fullName,
-      contentFileId,
-      pageIndex,
-      pageStart,
-      pageEnd,
-      entryStart,
       nodeKey,
+      landingPageIndex,
+      landingEntryIndex,
       paliName,
       sinhalaName,
       textId,
@@ -513,12 +447,9 @@ abstract class _ReaderTab extends ReaderTab {
   const factory _ReaderTab(
       {required final String label,
       required final String fullName,
-      final String? contentFileId,
-      final int pageIndex,
-      final int pageStart,
-      final int pageEnd,
-      final int entryStart,
       final String? nodeKey,
+      final int? landingPageIndex,
+      final int? landingEntryIndex,
       final String? paliName,
       final String? sinhalaName,
       final String? textId,
@@ -539,30 +470,21 @@ abstract class _ReaderTab extends ReaderTab {
   @override
   String get fullName;
 
-  /// ID of the content file currently loaded in this tab
-  @override
-  String? get contentFileId;
-
-  /// Current page index within the content file
-  @override
-  int get pageIndex;
-
-  /// Start of loaded page range (for pagination)
-  @override
-  int get pageStart;
-
-  /// End of loaded page range (for pagination, exclusive)
-  @override
-  int get pageEnd;
-
-  /// Entry index to start from on the first visible page
-  /// This allows opening a sutta mid-page without showing earlier entries
-  @override
-  int get entryStart;
-
-  /// Reference to the tree node key for navigation sync
+  /// The node this tab reads. Its subtree is the unit. Null only for a tab
+  /// with no content.
   @override
   String? get nodeKey;
+
+  /// A landing position inside the unit — the row an FTS hit or a
+  /// `?e=<page>.<entry>` link named, as a document coordinate.
+  ///
+  /// **Scroll position only.** The unit always comes from [nodeKey]; this
+  /// says where inside it to stop, and is consumed once the tab has its own
+  /// [scrollOffset]. Null for every other way a tab opens.
+  @override
+  int? get landingPageIndex;
+  @override
+  int? get landingEntryIndex;
 
   /// Pali name of the node for reference
   @override

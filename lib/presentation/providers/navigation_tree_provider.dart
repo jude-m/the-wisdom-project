@@ -145,41 +145,6 @@ final nodeByKeyProvider =
   return ref.watch(nodeIndexProvider)[nodeKey];
 });
 
-/// Provider that finds the previous readable node in tree order before [nodeKey].
-/// Walks the tree depth-first. Returns null if [nodeKey] is the very first
-/// readable node (i.e., there's nothing before it).
-final previousReadableNodeProvider =
-    Provider.autoDispose.family<TipitakaTreeNode?, String>((ref, nodeKey) {
-  final treeAsync = ref.watch(navigationTreeProvider);
-  return treeAsync.when(
-    data: (rootNodes) {
-      TipitakaTreeNode? prev;
-      bool found = false;
-
-      void dfs(TipitakaTreeNode node) {
-        if (found) return;
-        if (node.nodeKey == nodeKey) {
-          found = true;
-          return;
-        }
-        if (node.isReadableContent) prev = node;
-        for (final child in node.childNodes) {
-          if (found) return;
-          dfs(child);
-        }
-      }
-
-      for (final root in rootNodes) {
-        if (found) break;
-        dfs(root);
-      }
-      return found ? prev : null;
-    },
-    loading: () => null,
-    error: (_, __) => null,
-  );
-});
-
 /// Returns the list of node keys from root to [nodeKey] by walking up
 /// the parent chain via `parentNodeKey`.
 ///

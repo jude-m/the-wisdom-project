@@ -3,7 +3,7 @@ import 'package:flutter/rendering.dart' show SelectedContent;
 import '../../../core/constants/constants.dart';
 import '../../../core/theme/app_fonts.dart';
 import '../../../core/theme/text_entry_theme.dart';
-import '../../../domain/entities/bjt/bjt_page.dart';
+import '../../../domain/entities/reader/document_slice.dart';
 import '../../models/in_page_search_state.dart';
 import 'entry_key_registry.dart';
 import 'reader_entry_builder.dart';
@@ -17,9 +17,7 @@ class SingleColumnPane extends StatelessWidget {
   const SingleColumnPane({
     super.key,
     required this.scrollController,
-    required this.pages,
-    required this.entryStart,
-    required this.absolutePageStart,
+    required this.slice,
     required this.searchState,
     required this.languageCode,
     required this.enableDictionaryLookup,
@@ -31,9 +29,11 @@ class SingleColumnPane extends StatelessWidget {
   });
 
   final ScrollController scrollController;
-  final List<BJTPage> pages;
-  final int entryStart;
-  final int absolutePageStart;
+
+  /// The bounded unit to render — its pages, and where it starts and stops
+  /// inside the first and last of them.
+  final DocumentSlice slice;
+
   final InPageSearchState searchState;
 
   /// 'pi' for Pali or 'si' for Sinhala.
@@ -70,7 +70,7 @@ class SingleColumnPane extends StatelessWidget {
             controller: scrollController,
             padding:
                 context.textEntryTheme.readingPadding(constraints.maxWidth),
-            itemCount: pages.length + 1, // +1 for top spacer
+            itemCount: slice.pages.length + 1, // +1 for top spacer
             itemBuilder: (context, index) {
               // First item is a spacer so content doesn't hide behind button group
               if (index == 0) {
@@ -79,13 +79,15 @@ class SingleColumnPane extends StatelessWidget {
               }
               // Adjust index for pages (index-1 since spacer is at 0)
               final pageIndex = index - 1;
-              final absolutePageIndex = absolutePageStart + pageIndex;
-              final page = pages[pageIndex];
-              // On first page, skip entries before entryStart
-              final actualEntryStart = pageIndex == 0 ? entryStart : 0;
+              final absolutePageIndex = slice.absolutePageStart + pageIndex;
+              final page = slice.pages[pageIndex];
               final section =
                   languageCode == 'pi' ? page.paliSection : page.sinhalaSection;
-              final entries = section.entries.skip(actualEntryStart).toList();
+              // The unit may begin and end mid-page, so both ends are trimmed.
+              final (actualEntryStart, entryEnd) =
+                  slice.entriesOn(pageIndex, section.entries.length);
+              final entries =
+                  section.entries.sublist(actualEntryStart, entryEnd);
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

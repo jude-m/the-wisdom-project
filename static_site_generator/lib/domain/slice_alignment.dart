@@ -215,7 +215,7 @@ class SliceAlignment {
   /// Every misaligned slice, keyed by the leaf that owns it.
   ///
   /// Grouped by content file and in tree order within each — the order
-  /// [ContentSlicer.nodesByFile] hands back, which visits each file once and
+  /// [SliceIndex.nodesByFile] hands back, which visits each file once and
   /// keeps a book's findings contiguous. Deterministic, so a report built from
   /// it can be diffed run to run.
   Map<String, SliceMisalignment> misalignedSlices() {
@@ -227,7 +227,7 @@ class SliceAlignment {
     PreamblePlanner.assertTypesPartitioned();
 
     final found = <String, SliceMisalignment>{};
-    ContentSlicer.nodesByFile(tree).forEach((fileId, nodes) {
+    SliceIndex.nodesByFile(tree).forEach((fileId, nodes) {
       final slicer = slicerFor(fileId);
       for (final node in nodes) {
         if (!node.isLeaf) continue;

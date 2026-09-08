@@ -32,17 +32,23 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   // overlayStackProvider). See lib/presentation/keyboard/ for the full
   // shortcut architecture.
 
-  void _handleSearchResultTap(SearchResult result) {
-    // Create and activate tab first — this sets activeTabIndexProvider
+  Future<void> _handleSearchResultTap(SearchResult result) async {
+    // Both read BuildContext, so both are answered before the await below.
     final isPortraitMode = ResponsiveUtils.shouldDefaultToSingleColumn(context);
-    ref.read(openTabFromSearchResultProvider)(result,
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    // Create and activate tab first — this sets activeTabIndexProvider.
+    // Awaited for its index rather than re-reading that provider: the opener
+    // resolves the hit's unit first, so a synchronous read here would still
+    // name the tab the user came from.
+    final tabIndex = await ref.read(openTabFromSearchResultProvider)(result,
         isPortraitMode: isPortraitMode);
+    if (!mounted) return;
 
     // Set per-tab FTS highlight for the newly created tab.
     // Non-FTS tabs (Title, Definition) simply won't have a map entry,
     // so they won't show highlights — no explicit clearing needed.
-    if (result.resultType == SearchResultType.fullText) {
-      final tabIndex = ref.read(activeTabIndexProvider);
+    if (tabIndex >= 0 && result.resultType == SearchResultType.fullText) {
       final searchState = ref.read(searchStateProvider);
       ref.read(ftsHighlightProvider.notifier).setForTab(
             tabIndex,
@@ -58,7 +64,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     ref.read(searchStateProvider.notifier).saveRecentSearchAndDismiss();
 
     // Close navigator on mobile so user can see the content
-    if (ResponsiveUtils.isMobile(context)) {
+    if (isMobile) {
       ref.read(navigatorVisibleProvider.notifier).state = false;
     }
   }

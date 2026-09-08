@@ -33,7 +33,7 @@ class SlicerCache {
   ContentSlicer? _slicer;
 
   /// Which tree nodes belong to which content file — built once, on first use.
-  /// See [ContentSlicer.nodesByFile] for why this is not computed per call.
+  /// See [SliceIndex.nodesByFile] for why this is not computed per call.
   Map<String, List<TipitakaNode>>? _nodesByFile;
 
   /// Files parsed so far — a re-parse of the same file counts again, so a number
@@ -47,7 +47,7 @@ class SlicerCache {
 
   ContentSlicer forFile(String fileId) {
     if (_fileId == fileId && _slicer != null) return _slicer!;
-    final nodes = (_nodesByFile ??= ContentSlicer.nodesByFile(tree))[fileId];
+    final nodes = (_nodesByFile ??= SliceIndex.nodesByFile(tree))[fileId];
     if (nodes == null) {
       throw StateError('No tree node has its text in "$fileId".');
     }

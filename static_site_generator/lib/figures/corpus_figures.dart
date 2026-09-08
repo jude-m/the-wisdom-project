@@ -122,7 +122,7 @@ List<FigureGroup> computeCorpusFigures({
   PreamblePlanner.assertTypesPartitioned();
 
   // ── the corpus pass ───────────────────────────────────────────────────────
-  final nodesByFile = ContentSlicer.nodesByFile(tree);
+  final nodesByFile = SliceIndex.nodesByFile(tree);
   final charsOf = <String, int>{};
   final nodesWithPali = <String>{};
   final nodesWithSinhala = <String>{};

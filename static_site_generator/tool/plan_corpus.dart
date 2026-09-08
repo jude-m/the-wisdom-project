@@ -1226,7 +1226,7 @@ void _writeUpstreamReport(
         if (PreamblePlanner.runningTextTypes.contains(cell.type)) cell.text,
   };
   final typedAs = {for (final text in wanted) text: <String, int>{}};
-  for (final fileId in ContentSlicer.nodesByFile(tree).keys) {
+  for (final fileId in SliceIndex.nodesByFile(tree).keys) {
     final file = reader.readContentFile(fileId);
     for (final page in file.pages) {
       for (var i = 0; i < page.entryCount; i++) {

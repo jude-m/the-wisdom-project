@@ -6,10 +6,14 @@ import 'in_page_search_provider.dart';
 import 'navigator_sync_provider.dart';
 import 'tab_provider.dart';
 
-/// Provider to navigate the active tab to the previous sutta in tree order.
+/// Provider to navigate the active tab to a neighbouring sutta.
 ///
 /// Updates the tab in-place using [ReaderTab.fromNode], preserving the user's
 /// column mode and split ratio preferences from the current tab.
+///
+/// Which node is the neighbour is `neighbourLeafProvider`'s answer, not this
+/// one's: leaving a container unit steps to the sutta on the other side of the
+/// whole subtree, so a vagga is one stop rather than as many as it holds.
 ///
 /// Extracted to a separate file (like [syncNavigatorToActiveTabProvider]) to
 /// avoid circular imports between tab_provider, fts_highlight_provider, and
@@ -29,15 +33,12 @@ final navigateToPreviousSuttaProvider =
 
     // Build from the canonical factory, then preserve the user's display
     // preferences (layout, splitRatio) from the current tab.
-    // ReaderTab.fromNode produces scrollOffset:0 by default, so the new
-    // sutta naturally starts at the top.
+    // ReaderTab.fromNode produces scrollOffset:0 and no landing row, so the
+    // new sutta starts at its own top.
     final baseTab = ReaderTab.fromNode(
       nodeKey: previousNode.nodeKey,
       paliName: previousNode.paliName,
       sinhalaName: previousNode.sinhalaName,
-      contentFileId: previousNode.contentFileId,
-      pageIndex: previousNode.entryPageIndex,
-      entryStart: previousNode.entryIndexInPage,
       layout: currentTab.layout,
     );
     final updatedTab = baseTab.copyWith(splitRatio: currentTab.splitRatio);
