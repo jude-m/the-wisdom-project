@@ -77,16 +77,22 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   // overwrite the genuinely saved offset on disk.
   bool _suppressScrollSave = false;
 
-  // Bound on restoration retries — see [_restoreScrollPositionImmediate].
-  // 30 frames ≈ 500ms at 60fps; plenty of time for the list to lay out
-  // without spinning indefinitely on a saved offset that can genuinely no
-  // longer be reached (content shrunk, etc.).
+  // Bound on *stalled* restoration retries — see [_restoreScrollWithRetry].
+  // Frames that grow the scroll extent are progress and cost nothing; this
+  // only limits how long we keep re-jumping at an offset nothing is moving
+  // toward (content shrunk, etc.).
   static const _restoreMaxRetries = 30;
 
   // Bound on scroll-to-entry retries — see [_ensureEntryVisible].
   // ~10 frames is enough for ListView.builder to lazy-build the page
   // holding the target, without spinning forever if it is unreachable.
   static const _entryScrollMaxRetries = 10;
+
+  // The entry [_ensureEntryVisible] is currently reaching for, or null.
+  // Only [DualColumnPane] reads it — it builds a window of the unit rather
+  // than a lazy list, so it has to be told which page to open far enough to
+  // include. See that class's doc.
+  (int, int)? _revealTarget;
 
   // Emblem shown in the first-run "select a sutta" hint.
   static const _selectSuttaEmblemAsset = 'assets/icons/app_logo.png';
@@ -208,10 +214,11 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   /// the tab later resumes where reading stopped rather than snapping to the
   /// hit again.
   ///
-  /// On cold-load the document arrives before [ListView.builder] has laid out
-  /// enough of the unit, so `maxScrollExtent` is initially smaller than the
-  /// saved offset. In that case we re-jump on subsequent frames until we
-  /// either reach the saved offset or run out of retries. Throughout,
+  /// On cold-load the document arrives before the pane has laid out enough of
+  /// the unit — lazily in the one-column layouts, a window at a time in
+  /// side-by-side — so `maxScrollExtent` is initially smaller than the saved
+  /// offset. In that case we re-jump on subsequent frames until we either
+  /// reach the saved offset or run out of retries. Throughout,
   /// [_suppressScrollSave] is held high so the jumpTo's own scroll
   /// notification can't trigger an auto-save that would overwrite the
   /// on-disk offset with a clamped one.
@@ -240,7 +247,19 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     _restoreScrollWithRetry(retriesLeft: _restoreMaxRetries);
   }
 
-  void _restoreScrollWithRetry({required int retriesLeft}) {
+  /// Re-jumps toward the saved offset across frames until it is reachable.
+  ///
+  /// [retriesLeft] is spent only on frames that made no progress: in
+  /// side-by-side each clamped jump grows the pane's window one step, so the
+  /// extent climbs a frame at a time and charging those frames would cap the
+  /// restore at whatever 30 growths reach. Charging every *non-increase* is
+  /// what bounds this — not a rising extent, which only side-by-side has: the
+  /// lazy layouts estimate theirs from the average of the children laid out so
+  /// far, and it falls when a jump realises shorter ones.
+  void _restoreScrollWithRetry({
+    required int retriesLeft,
+    double? lastMaxExtent,
+  }) {
     if (!mounted) return;
     final activeTabIndex = ref.read(activeTabIndexProvider);
     final tabs = ref.read(tabsProvider);
@@ -269,8 +288,12 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     // Bounded by retriesLeft so a saved offset that can genuinely no longer
     // be reached (e.g. the unit got shorter) eventually settles.
     if (saved > maxExtent && retriesLeft > 0) {
+      final progressed = lastMaxExtent == null || maxExtent > lastMaxExtent;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _restoreScrollWithRetry(retriesLeft: retriesLeft - 1);
+        _restoreScrollWithRetry(
+          retriesLeft: progressed ? retriesLeft : retriesLeft - 1,
+          lastMaxExtent: maxExtent,
+        );
       });
     }
   }
@@ -309,6 +332,12 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     bool animate = true,
   }) {
     if (!mounted) return;
+
+    // Publish it before looking the key up: on the first attempt the window
+    // pane may not have built that page yet, and this is what makes it.
+    if (_revealTarget != (pageIndex, entryIndex)) {
+      setState(() => _revealTarget = (pageIndex, entryIndex));
+    }
 
     final key = _entryKeyRegistry.keyFor(pageIndex, entryIndex);
     final keyContext = key.currentContext;
@@ -756,6 +785,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
           scrollController: _scrollController,
           slice: slice,
           searchState: searchState,
+          revealTarget: _revealTarget,
           entryKeyRegistry: _entryKeyRegistry,
           onTapEmpty: _clearAllHighlights,
           onWordTap: _handleWordTap,

@@ -21,12 +21,26 @@ import 'reader_entry_builder.dart';
 /// the column it started in. Pair alignment is restored by
 /// [_PairHeightSync]: each side reports its rendered height; the shorter
 /// side pads to match.
+///
+/// **The one pane Flutter cannot make lazy for us.** Per-column selection
+/// forces two independent [Column]s inside one scroll view, and there is no
+/// lazy Column — so this builds a growing prefix of the slice ([_renderedPages])
+/// instead of all of it. Without that, tapping a container in side-by-side
+/// builds its whole subtree at once: `ap-pat` is 497 pages and ~4,000 entry
+/// pairs, each an [_AlignedEntry] carrying a GlobalKey, a ValueNotifier and a
+/// post-frame measure.
+///
+/// [SliverCrossAxisGroup] is the primitive that would make this properly lazy
+/// — two SliverLists sharing one scroll offset — but [SelectionArea] is a box
+/// widget and cannot wrap an individual sliver, so it would cost the
+/// per-column selection boundary. Not worth that trade for a window.
 class DualColumnPane extends ConsumerStatefulWidget {
   const DualColumnPane({
     super.key,
     required this.scrollController,
     required this.slice,
     required this.searchState,
+    required this.revealTarget,
     required this.entryKeyRegistry,
     required this.onTapEmpty,
     this.onWordTap,
@@ -41,6 +55,16 @@ class DualColumnPane extends ConsumerStatefulWidget {
   final DocumentSlice slice;
 
   final InPageSearchState searchState;
+
+  /// The `(absolutePageIndex, entryIndex)` the reader is currently trying to
+  /// reveal, or null.
+  ///
+  /// The window has to be told: a landing row, a search match and a
+  /// layout-switch sync all reach for an entry's GlobalKey, and that key only
+  /// exists once its page is built. The lazy panes need none of this — every
+  /// page is already an item in their `ListView`, so stepping the viewport
+  /// reaches it. Here there is nothing to step toward.
+  final (int, int)? revealTarget;
 
   /// Registry for entry-level GlobalKeys. Used for layout-switch scroll
   /// sync AND in-page-search scroll-to-match. The registry key wraps the
@@ -59,26 +83,51 @@ class DualColumnPane extends ConsumerStatefulWidget {
 class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
   late final _PairHeightSync _heightSync;
 
+  /// Budget for the opening window, and for each growth step, counted in entry
+  /// pairs rather than pages: pages carry anywhere from one entry to dozens,
+  /// and the entry is what costs.
+  static const _initialEntryBudget = 60;
+  static const _growthEntryBudget = 40;
+
+  /// Grow once the viewport comes within this of the end of what is built.
+  static const _growthTriggerPx = 400.0;
+
+  /// How many of `widget.slice.pages` are built, counting from the first.
+  /// Only ever grows for a given slice; a new slice starts over.
+  int _renderedPages = 0;
+
   @override
   void initState() {
     super.initState();
     _heightSync = _PairHeightSync();
+    _renderedPages = _pagesCovering(0, _initialEntryBudget);
+    _extendToReveal();
+    widget.scrollController.addListener(_onScroll);
   }
 
   @override
   void didUpdateWidget(DualColumnPane old) {
     super.didUpdateWidget(old);
-    // Drop heights for entries no longer in the page slice; persisted
-    // entries keep theirs to avoid re-measure churn.
+    if (!identical(old.scrollController, widget.scrollController)) {
+      old.scrollController.removeListener(_onScroll);
+      widget.scrollController.addListener(_onScroll);
+    }
     if (!identical(old.slice, widget.slice)) {
+      // A new unit opens at its own window, then heights are dropped for
+      // entries no longer rendered; persisted entries keep theirs to avoid
+      // re-measure churn.
+      _renderedPages = _pagesCovering(0, _initialEntryBudget);
       _heightSync.prune(_liveIdSet());
     }
+    _extendToReveal();
+    // Both assignments above land before the build that follows, so neither
+    // needs a setState.
   }
 
   Set<(int, int)> _liveIdSet() {
     final live = <(int, int)>{};
     final slice = widget.slice;
-    for (var p = 0; p < slice.pages.length; p++) {
+    for (var p = 0; p < _renderedPages; p++) {
       final absPage = slice.absolutePageStart + p;
       final (start, end) =
           slice.entriesOn(p, slice.pages[p].paliSection.entries.length);
@@ -89,8 +138,67 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
     return live;
   }
 
+  /// How many pages from [fromPage] it takes to cover [entryBudget] entries.
+  /// Zero only when [fromPage] is already past the end.
+  int _pagesCovering(int fromPage, int entryBudget) {
+    final slice = widget.slice;
+    var pages = 0;
+    var entries = 0;
+    while (fromPage + pages < slice.pages.length && entries < entryBudget) {
+      final local = fromPage + pages;
+      final (start, end) = slice.entriesOn(
+          local, slice.pages[local].paliSection.entries.length);
+      entries += end - start;
+      pages++;
+    }
+    return pages;
+  }
+
+  void _grow() {
+    final added = _pagesCovering(_renderedPages, _growthEntryBudget);
+    if (added == 0) return;
+    setState(() => _renderedPages += added);
+  }
+
+  void _onScroll() {
+    if (_renderedPages >= widget.slice.pages.length) return;
+    if (!widget.scrollController.hasClients) return;
+    final position = widget.scrollController.position;
+    if (position.maxScrollExtent - position.pixels > _growthTriggerPx) return;
+    _grow();
+  }
+
+  /// The opening window is sized in entries, so on a tall viewport it can
+  /// still come up short — and then there is nothing to scroll and [_onScroll]
+  /// never fires. Grow until the content overflows or the unit runs out.
+  void _fillViewport() {
+    if (!mounted) return;
+    if (_renderedPages >= widget.slice.pages.length) return;
+    if (!widget.scrollController.hasClients) return;
+    if (widget.scrollController.position.maxScrollExtent > 0) return;
+    _grow();
+  }
+
+  /// Opens the window far enough to hold [DualColumnPane.revealTarget].
+  ///
+  /// This is the same cost the pagination it replaced paid — that expanded
+  /// `pageEnd` to the target page and built just as much. A target outside
+  /// this slice is ignored rather than coordinated away: the reader's last
+  /// reveal outlives the unit it was aimed at, and a stale one must not drag
+  /// the new unit's window open.
+  void _extendToReveal() {
+    final target = widget.revealTarget;
+    if (target == null) return;
+    final localPage = target.$1 - widget.slice.absolutePageStart;
+    if (localPage < _renderedPages || localPage >= widget.slice.pages.length) {
+      return;
+    }
+    _renderedPages = localPage + 1;
+  }
+
   @override
   void dispose() {
+    widget.scrollController.removeListener(_onScroll);
     _heightSync.dispose();
     super.dispose();
   }
@@ -98,6 +206,10 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
   @override
   Widget build(BuildContext context) {
     final isTabletOrDesktop = ResponsiveUtils.isTabletOrDesktop(context);
+
+    if (_renderedPages < widget.slice.pages.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fillViewport());
+    }
 
     // Build sides ONCE per parent build. These references are captured by
     // the inner Consumer's closure — across drag frames the Consumer hands
@@ -209,7 +321,8 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
 
     final widgets = <Widget>[];
 
-    for (var pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+    // Bounded by the window, not `pages.length` — see the class doc.
+    for (var pageIndex = 0; pageIndex < _renderedPages; pageIndex++) {
       final page = pages[pageIndex];
       final absolutePageIndex = slice.absolutePageStart + pageIndex;
       // The unit may begin and end mid-page, so both ends are trimmed.
