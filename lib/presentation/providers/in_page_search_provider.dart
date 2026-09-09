@@ -104,9 +104,10 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
       ),
     );
 
-    // Capture the tab's content file ID, column mode, and node key at call
-    // time, so the debounce callback uses the correct values even if the user
-    // switches tabs before it fires.
+    // Capture the tab's node key and layout at call time, so the debounce
+    // callback uses the correct values even if the user switches tabs before it
+    // fires. The content file is not captured — it is derived from the node's
+    // unit inside [_computeAndSetMatches].
     final tabs = _ref.read(tabsProvider);
     if (tabIndex >= tabs.length) return;
     final nodeKey = tabs[tabIndex].nodeKey;
@@ -281,32 +282,46 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
     ReaderLayout layout,
   ) {
     if (!mounted) return;
-    if (nodeKey == null || nodeKey.isEmpty) return;
 
-    final unit =
-        _ref.read(readerUnitResolverProvider).valueOrNull?.unitFor(nodeKey);
-    if (unit == null) return;
+    final unit = (nodeKey == null || nodeKey.isEmpty)
+        ? null
+        : _ref.read(readerUnitResolverProvider).valueOrNull?.unitFor(nodeKey);
 
-    // Read the specific tab's document (not the active tab's)
-    final contentAsync = _ref.read(bjtDocumentProvider(unit.contentFileId));
+    // Read the specific tab's document (not the active tab's). Loading or
+    // errored is as unanswerable as a missing unit, and is why this reads the
+    // value rather than using `whenData` — that quietly did nothing on those
+    // two states and left the old query's matches standing.
+    final document = unit == null
+        ? null
+        : _ref.read(bjtDocumentProvider(unit.contentFileId)).valueOrNull;
 
-    contentAsync.whenData((document) {
-      if (!mounted) return;
+    if (unit == null || document == null) {
+      // The query has already been committed to state, so leaving the previous
+      // one's matches would show a count for text nobody searched for and let
+      // next/prev walk it.
+      _setMatches(tabIndex, const []);
+      return;
+    }
 
-      final matches = _findAllMatches(
+    _setMatches(
+      tabIndex,
+      _findAllMatches(
         DocumentSlice.of(document, unit.range),
         effectiveQuery,
         layout,
-      );
+      ),
+    );
+  }
 
-      _setTabState(
-        tabIndex,
-        _getTabState(tabIndex).copyWith(
-          matches: matches,
-          currentMatchIndex: matches.isNotEmpty ? 0 : -1,
-        ),
-      );
-    });
+  /// Installs a match set, parking the cursor on the first hit or nowhere.
+  void _setMatches(int tabIndex, List<InPageMatch> matches) {
+    _setTabState(
+      tabIndex,
+      _getTabState(tabIndex).copyWith(
+        matches: matches,
+        currentMatchIndex: matches.isNotEmpty ? 0 : -1,
+      ),
+    );
   }
 
   /// Scans [slice] for the query, respecting reader layout.

@@ -40,9 +40,9 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
       ref.read(activeTabIndexProvider.notifier).state = -1;
       ref.read(activeTabIndexProvider.notifier).state = newActiveIndex;
 
-      // Content is derived automatically from the new active tab
-      // No explicit loading needed - activeContentFileIdProvider and
-      // activePageIndexProvider will update based on the new active tab
+      // Content is derived automatically from the new active tab: its
+      // nodeKey feeds activeReaderUnitProvider, which answers with the
+      // content file and the span. No explicit loading needed.
 
       if (newActiveIndex < 0) {
         // No tabs left - reset to initial state
