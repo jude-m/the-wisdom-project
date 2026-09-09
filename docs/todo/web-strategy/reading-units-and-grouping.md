@@ -804,7 +804,7 @@ is one breadcrumb tap away.
   **The shared half answers both directions.** The site only ever asks *key → range* (`rangeFor`). The app also needs *row → key* (`keyAt`), in three places: landing on an FTS hit (B4), `?e=<page>.<entry>` deep links, and following the section a reader has scrolled into so the tab label and breadcrumb stop lying (the defect this document opens with). It is the same sorted-boundary array read the other way — a binary search over at most a few hundred nodes, **measured at ~14 ns**. Both of B4's edges are written into it and verified: a row above the file's first coordinate belongs to that first node, and a coordinate two nodes share resolves to the deeper one, tie-broken on the parent chain (the shallower node is another tied node's parent).
 - **Slice ranges need no per-file cache.** Building the boundary index for *all* 285 content files at once measures 1.4–3.4 ms, so the app can hold the whole thing and skip `SlicerCache`'s one-file-at-a-time discipline, which exists because the generator holds parsed *rows*, not because coordinates are expensive.
 
-## B2. Reader renders one bounded unit ✅ *committed 2026-09-08, tests pending*
+## B2. Reader renders one bounded unit ✅ *shipped 2026-09-08*
 
 **The tab's identity becomes the node, not a coordinate.** `ReaderTab` was
 `(contentFileId, pageIndex, pageStart, pageEnd, entryStart)` with `nodeKey` a
@@ -914,7 +914,9 @@ caller until now:
 - ✅ `openTabFromSearchResultProvider` — the unit comes **from the row the hit is on** (`ReaderUnitResolver.keyAt`), not from the `nodeKey` the result carries, and the hit's coordinate becomes the tab's landing row. A hit inside a preamble correctly lands on the container's own unit. This is the one producer in `tab_provider.dart` that needs the resolver, and so the only one that is async; it now returns the new tab index, because `reader_screen.dart` sets the FTS highlight for that tab and a synchronous `activeTabIndexProvider` read after the call named the tab the user came *from*.
 - ✅ `?e=<page>.<entry>` is scroll-position-only: `openTabFromNodeKeyProvider` passes it through as `landingPageIndex`/`landingEntryIndex` and the unit still comes from the node key.
 - ✅ In-page search is unit-scoped — see B2. It also deletes the range-expansion that grew the loaded page range until a match came into it; inside a bounded unit every match is already in range.
-- **What is left of B4: the title in the search *results list*.** `searchResultLabels` (`lib/presentation/utils/search_result_labels.dart:63`) still reads the stored `nodeKey` column through `nodeByKeyProvider`, so the 244 rows below show the neighbouring sutta's name — even though the tab that opens from them now carries the right one. Derive the label from the row the same way the opener does; it reuses `keyAt`, needs no pipeline change, and leaves the stored column feeding nothing but scope, where being wrong costs nothing.
+- ✅ **The title in the search *results list*.** The plan was to derive the label beside the unit, in `searchResultLabels`. Looking for the second reader found a third: FTS results are **grouped** by the stored key too (`GroupedFTSMatch.fromSearchResults`), so a corrected row was also filed under the neighbouring sutta and expanded under its name. Gating three readers on the same rule is the shape the reader rework has been deleting, so the key is corrected **once**, where every full-text result enters the UI — `fromSearchResults` groups by the row's owner and rewrites each result to the key it is grouped under. Grouping, label and tab then read one field that is simply right, and `searchResultLabels` goes on trusting the key it is handed.
+
+  The rule itself is `SearchResult.unitKey(resolver)` (`lib/domain/entities/search/search_result_unit.dart`), and it says **only a full-text hit is addressed by its row.** That is the half the plan did not anticipate: a title or reference result was built *from* a node and carries that node's own coordinates, so asking the row again is a round trip — identity everywhere except the two tied coordinates, where `keyAt` deliberately answers with the deeper node. `openTabFromSearchResultProvider` was calling `keyAt` unconditionally, so a title search hit on සුත්තන්තපිටක opened and named දීඝනිකායො. It now asks `unitKey`, which is the same call for a full-text hit and the stored key for everything else.
 
 ### Why the row and not the `nodeKey` — measured 2026-09-06
 
@@ -955,7 +957,7 @@ included — a row above the file's first coordinate belongs to that first node
 nowhere), and a coordinate shared by two nodes resolves to the deeper one. The
 shared coordinates are **two** pairs, not one: `sp`/`dn` in `dn-1` and
 `atta-sp`/`atta-dn` in `atta-dn-1`, each a pitaka root sitting on its nikāya
-root at (0,0). B4's remaining work is the app calling it.
+root at (0,0). ✅ The app calls it through `SearchResult.unitKey`.
 
 **Keep the `nodeKey` column.** Once the unit comes from the row, ask what still
 reads it, because that is the whole of what a stale column can cost:
@@ -963,15 +965,23 @@ reads it, because that is the whole of what a stale column can cost:
 | reader | affected |
 |---|---|
 | which page a hit opens | no — it comes from the row now |
-| the result's **title** in the search list (`searchResultLabels` → `nodeByKeyProvider`) | **yes** — the 244 rows show the neighbouring sutta's name |
+| the result's **title** in the search list, and which group it files under | no — both come from the row now, corrected once in `fromSearchResults` |
 | scope filtering (`ScopeFilterService`, in SQL) | no — scope is book-level, so an off-by-one sibling cannot change the answer |
+| **how many suttas Top Results shows** (`_limitToGroups`, `text_search_repository_impl.dart:621`) | **cosmetically, in the corrected band only** — see below |
 
-So one visible symptom outlives the unit fix: **the wrong title in the results
-list.** Two ways to close it — regenerate the database from a corrected
-builder, or derive the label from the row as well, beside the unit. Prefer the
-second: it needs no pipeline change, it reuses the lookup B1 is building
-anyway, and it leaves the stored column feeding nothing but scope, where being
-wrong costs nothing. Neither is a prerequisite for the reader work.
+So one cosmetic symptom outlives the unit fix. The repository trims Top Results
+to three distinct **stored** keys, and the UI then regroups by the corrected
+ones. A correction moves a boundary *into* a stored key's rows, so those hits
+usually **split** across two owners and the tab shows four; where all of them
+move out, two stored keys **merge** and it shows two. Left alone deliberately:
+by then the repository has discarded the fourth group's rows, so the panel
+could cap the count but never restore it, and trimming on the corrected key
+means pushing `SliceIndex` down into the data layer for a band that is the
+sekhiya rules and `ap-vbh-18`.
+
+The alternative was to regenerate the database from a corrected builder;
+deriving from the row was preferred because it needs no pipeline change and
+reuses the lookup B1 built anyway.
 
 **Two implementations of the rule, and it must stay two.** `ContentSlicer`
 (Dart, corrected tree) and `findNodeKeyForEntry` (JavaScript, raw tree) — the
@@ -1007,7 +1017,7 @@ of a generated `const` is the failure this document exists to prevent.
 8. Switch layout mid-unit — the top-visible entry stays put.
 9. Restart — tabs restore, and old `_v1` tabs are dropped, which is intended.
 
-Per project convention, no tests unless asked. The removed `ReaderTab` fields are referenced by ~12 test files, which will not compile until they are updated.
+Per project convention, no tests unless asked. `test/` was brought back to the new `ReaderTab` in a follow-up, along with the helpers it had been missing. **`integration_test/` was not**: 7 files still name the removed coordinate fields and do not compile — `previous_sutta_navigation`, `layout_switch`, `scroll_restoration`, `breadcrumb_navigation`, `in_page_search`, `dictionary_editable_word`, `language_independence`. That is the whole of `flutter analyze`'s 47 issues, and the only thing standing between this branch and a clean tree.
 
 ---
 

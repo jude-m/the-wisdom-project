@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../domain/entities/reader/reader_unit.dart';
 import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/grouped_search_result.dart';
 import '../../../domain/entities/search/search_result_type.dart';
 import '../../../domain/entities/search/search_result.dart';
 import '../../providers/dictionary_provider.dart'
     show selectedDictionaryWordProvider;
+import '../../providers/reader_unit_provider.dart';
 import '../../providers/reference_search_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../utils/search_result_labels.dart';
@@ -38,6 +40,9 @@ class SearchResultsPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final searchState = ref.watch(searchStateProvider);
     final theme = Theme.of(context);
+    // Which sutta each FTS row belongs to — null until the tree loads, and the
+    // stored key stands in until it does.
+    final resolver = ref.watch(readerUnitResolverProvider).valueOrNull;
 
     return Material(
       color: theme.colorScheme.surface,
@@ -73,6 +78,7 @@ class SearchResultsPanel extends ConsumerWidget {
                     searchState.effectiveQueryText,
                     searchState.isPhraseSearch,
                     searchState.isExactMatch,
+                    resolver,
                   )
                 : _buildResultTypeTabContent(
                     context,
@@ -85,6 +91,7 @@ class SearchResultsPanel extends ConsumerWidget {
                         .countByResultType[searchState.selectedResultType],
                     searchState.isPhraseSearch,
                     searchState.isExactMatch,
+                    resolver,
                   ),
           ),
         ],
@@ -102,6 +109,7 @@ class SearchResultsPanel extends ConsumerWidget {
     String effectiveQuery,
     bool isPhraseSearch,
     bool isExactMatch,
+    ReaderUnitResolver? resolver,
   ) {
     // Loading state
     if (isLoading) {
@@ -147,6 +155,7 @@ class SearchResultsPanel extends ConsumerWidget {
                           effectiveQuery,
                           isPhraseSearch,
                           isExactMatch,
+                          resolver,
                         )
                       else if (resultType == SearchResultType.definition)
                         ...categorizedResults
@@ -185,8 +194,10 @@ class SearchResultsPanel extends ConsumerWidget {
     String effectiveQuery,
     bool isPhraseSearch,
     bool isExactMatch,
+    ReaderUnitResolver? resolver,
   ) {
-    final groupedResults = GroupedFTSMatch.fromSearchResults(results);
+    final groupedResults =
+        GroupedFTSMatch.fromSearchResults(results, resolver: resolver);
     return groupedResults
         .map((group) => GroupedFTSTile(
               group: group,
@@ -210,6 +221,7 @@ class SearchResultsPanel extends ConsumerWidget {
     int? totalCount,
     bool isPhraseSearch,
     bool isExactMatch,
+    ReaderUnitResolver? resolver,
   ) {
     return fullResults.when(
       loading: () => const StatusMessageView(variant: StatusVariant.loading),
@@ -256,7 +268,8 @@ class SearchResultsPanel extends ConsumerWidget {
 
         // Use grouped tiles for fullText tab
         if (selectedResultType == SearchResultType.fullText) {
-          final groupedResults = GroupedFTSMatch.fromSearchResults(results);
+          final groupedResults =
+              GroupedFTSMatch.fromSearchResults(results, resolver: resolver);
           return ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: hasMoreResults

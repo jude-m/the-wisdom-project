@@ -7,6 +7,7 @@ import '../../core/storage/key_value_store_provider.dart';
 import '../../core/storage/storage_keys.dart';
 import '../../domain/entities/reader/reader_unit.dart';
 import '../../domain/entities/search/search_result.dart';
+import '../../domain/entities/search/search_result_unit.dart';
 import '../models/reader_layout.dart';
 import '../models/reader_tab.dart';
 import 'last_reader_layout_provider.dart';
@@ -321,12 +322,7 @@ final openTabFromSearchResultProvider =
     final layout = resolveSeedLayout(ref, isPortraitMode: isPortraitMode);
 
     final resolver = await _resolver(ref);
-    final hitKey = resolver?.keyAt(
-          result.contentFileId,
-          result.pageIndex,
-          result.entryIndex,
-        ) ??
-        result.nodeKey;
+    final hitKey = result.unitKey(resolver);
     final node = ref.read(nodeByKeyProvider(hitKey));
     final newIndex = _openTab(
       ref,

@@ -1,6 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../reader/reader_unit.dart';
 import 'search_result.dart';
+import 'search_result_unit.dart';
 
 part 'grouped_fts_match.freezed.dart';
 
@@ -44,21 +46,32 @@ class GroupedFTSMatch with _$GroupedFTSMatch {
   /// All matches including primary
   List<SearchResult> get allMatches => [primaryMatch, ...secondaryMatches];
 
-  /// Groups flat search results by nodeKey (sutta/section identifier).
+  /// Groups flat search results by the sutta each match's *row* belongs to.
   ///
   /// Results within each group are sorted by appearance order in the text
   /// (pageIndex, then entryIndex). The first match becomes primaryMatch,
   /// the rest become secondaryMatches.
-  static List<GroupedFTSMatch> fromSearchResults(List<SearchResult> results) {
+  ///
+  /// [resolver] is what answers which sutta owns a row — see
+  /// [SearchResultUnitKey.unitKey] for why the stored `nodeKey` cannot. Every
+  /// result is rewritten to the key it groups under, so this is the one place
+  /// the correction has to be made: the tiles below label and open the result
+  /// they are handed.
+  static List<GroupedFTSMatch> fromSearchResults(
+    List<SearchResult> results, {
+    ReaderUnitResolver? resolver,
+  }) {
     if (results.isEmpty) return [];
 
-    // Group by nodeKey (sutta/section) instead of contentFileId (file)
-    // This correctly groups matches by their containing sutta, even when
-    // multiple suttas share the same content file
+    // Group by node (sutta/section) instead of contentFileId (file), so
+    // matches group by their containing sutta even when several suttas share
+    // one content file.
     final Map<String, List<SearchResult>> grouped = {};
     for (final result in results) {
-      final key = result.nodeKey;
-      grouped.putIfAbsent(key, () => []).add(result);
+      final key = result.unitKey(resolver);
+      grouped
+          .putIfAbsent(key, () => [])
+          .add(key == result.nodeKey ? result : result.copyWith(nodeKey: key));
     }
 
     // Convert each group to GroupedFTSMatch

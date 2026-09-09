@@ -42,6 +42,10 @@ typedef SearchResultLabels = ({String title, String path});
 /// [SearchResult.nodeKey] and render its names in the chosen language, exactly
 /// like `breadcrumbPathProvider` does.
 ///
+/// That key is trusted, not re-derived: a full-text hit's is corrected against
+/// its own row upstream, in `GroupedFTSMatch.fromSearchResults`, and every
+/// other kind of result was built from the node it names.
+///
 /// Call this from inside a `ConsumerWidget.build`: it uses `ref.watch`, so the
 /// tile re-renders the instant the language changes — even for results already
 /// on screen.
