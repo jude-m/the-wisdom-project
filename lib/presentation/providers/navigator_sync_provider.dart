@@ -4,23 +4,12 @@ import 'tab_provider.dart';
 
 /// Syncs navigator selection to match the currently active tab.
 ///
-/// This provider is extracted to a separate file to avoid circular imports
-/// between navigation_tree_provider.dart and tab_provider.dart.
-/// It acts as a coordinator that depends on both providers.
+/// Extracted to a separate file to avoid a circular import between
+/// navigation_tree_provider.dart and tab_provider.dart — it reads from both.
 final syncNavigatorToActiveTabProvider = Provider<void Function()>((ref) {
   return () {
-    final activeIndex = ref.read(activeTabIndexProvider);
-    final tabs = ref.read(tabsProvider);
-
-    // Edge case: no active tab or invalid index
-    if (activeIndex < 0 || activeIndex >= tabs.length) {
-      return;
-    }
-
-    final activeTab = tabs[activeIndex];
-    final nodeKey = activeTab.nodeKey;
-
-    // Edge case: tab has no nodeKey
+    // Nothing to sync when there is no active tab, or it holds no node.
+    final nodeKey = ref.read(activeTabProvider)?.nodeKey;
     if (nodeKey == null || nodeKey.isEmpty) {
       return;
     }

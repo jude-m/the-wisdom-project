@@ -106,12 +106,9 @@ final activeDocumentSliceProvider = Provider<DocumentSlice?>((ref) {
 /// still 0: once the reader has moved, where they left off outranks where they
 /// arrived.
 final activeLandingEntryProvider = Provider<(int, int)?>((ref) {
-  final activeIndex = ref.watch(activeTabIndexProvider);
-  final tabs = ref.watch(tabsProvider);
-  if (activeIndex < 0 || activeIndex >= tabs.length) return null;
-
-  final page = tabs[activeIndex].landingPageIndex;
-  final entry = tabs[activeIndex].landingEntryIndex;
+  final tab = ref.watch(activeTabProvider);
+  final page = tab?.landingPageIndex;
+  final entry = tab?.landingEntryIndex;
   return page != null && entry != null ? (page, entry) : null;
 });
 

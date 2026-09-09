@@ -207,30 +207,31 @@ final activeTabIndexPersistenceProvider = Provider<void>((ref) {
 // watching these providers will automatically rebuild.
 // ============================================================================
 
+/// The tab the reader is on, or null when there is none.
+///
+/// The one place a `-1` or out-of-range [activeTabIndexProvider] becomes an
+/// absence, so everything derived from the active tab states only its own
+/// default. Sites that must also *write* the tab keep reading the index —
+/// `updateTab` is addressed by position, and a tab plus a separately-read
+/// index is no better than what they already do.
+final activeTabProvider = Provider<ReaderTab?>((ref) {
+  final index = ref.watch(activeTabIndexProvider);
+  final tabs = ref.watch(tabsProvider);
+  return index >= 0 && index < tabs.length ? tabs[index] : null;
+});
+
 /// Derived provider for the active tab's node key.
 ///
 /// The tab's whole identity: `activeReaderUnitProvider` turns it into the
 /// content file and the row span the reader renders.
 /// Returns null if no tab is selected or the tab has no node.
-final activeNodeKeyProvider = Provider<String?>((ref) {
-  final activeIndex = ref.watch(activeTabIndexProvider);
-  final tabs = ref.watch(tabsProvider);
-  if (activeIndex >= 0 && activeIndex < tabs.length) {
-    return tabs[activeIndex].nodeKey;
-  }
-  return null;
-});
+final activeNodeKeyProvider =
+    Provider<String?>((ref) => ref.watch(activeTabProvider)?.nodeKey);
 
 /// Derived provider for active tab's reader layout mode
 /// Returns paliOnly if no tab is selected (default for portrait mode)
-final activeReaderLayoutProvider = Provider<ReaderLayout>((ref) {
-  final activeIndex = ref.watch(activeTabIndexProvider);
-  final tabs = ref.watch(tabsProvider);
-  if (activeIndex >= 0 && activeIndex < tabs.length) {
-    return tabs[activeIndex].layout;
-  }
-  return ReaderLayout.paliOnly;
-});
+final activeReaderLayoutProvider = Provider<ReaderLayout>(
+    (ref) => ref.watch(activeTabProvider)?.layout ?? ReaderLayout.paliOnly);
 
 /// Provider to update the reader layout of the active tab
 /// Used when user changes layout in settings menu
@@ -252,14 +253,9 @@ final updateActiveTabLayoutProvider =
 
 /// Derived provider for active tab's split ratio (for side-by-side layout)
 /// Returns default ratio (0.5) if no tab is selected
-final activeSplitRatioProvider = Provider<double>((ref) {
-  final activeIndex = ref.watch(activeTabIndexProvider);
-  final tabs = ref.watch(tabsProvider);
-  if (activeIndex >= 0 && activeIndex < tabs.length) {
-    return tabs[activeIndex].splitRatio;
-  }
-  return PaneWidthConstants.readerSplitDefault;
-});
+final activeSplitRatioProvider = Provider<double>((ref) =>
+    ref.watch(activeTabProvider)?.splitRatio ??
+    PaneWidthConstants.readerSplitDefault);
 
 /// Provider to update the split ratio of the active tab
 /// Used when user drags the resizable divider in side-by-side layout
