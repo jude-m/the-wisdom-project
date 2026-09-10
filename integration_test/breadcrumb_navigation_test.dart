@@ -7,7 +7,6 @@ import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart
 import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
 import 'package:the_wisdom_project/core/utils/pali_letter_options.dart';
 import 'package:the_wisdom_project/domain/entities/content/content_language.dart';
-import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/content_language_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
@@ -17,6 +16,7 @@ import 'package:the_wisdom_project/presentation/widgets/navigation/tab_bar_widge
 import 'package:the_wisdom_project/presentation/widgets/navigation/tree_navigator_widget.dart';
 import 'package:the_wisdom_project/data/datasources/bjt_document_local_datasource.dart';
 import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
+import 'package:wisdom_shared/wisdom_shared.dart' show SliceCoordinate;
 
 import 'test_overrides.dart';
 
@@ -84,38 +84,6 @@ void main() {
     }
 
     // -----------------------------------------------------------------
-    // Helper: creates a ReaderTab at the node's beginning.
-    // -----------------------------------------------------------------
-    ReaderTab tabAtBeginning(ProviderContainer container, String nodeKey) {
-      final node = container.read(nodeByKeyProvider(nodeKey));
-      if (node == null) {
-        throw StateError('Node "$nodeKey" not found in tree');
-      }
-      return ReaderTab.fromNode(
-        nodeKey: node.nodeKey,
-        paliName: node.paliName,
-        sinhalaName: node.sinhalaName,
-        contentFileId: node.isReadableContent ? node.contentFileId : null,
-        pageIndex: node.isReadableContent ? node.entryPageIndex : 0,
-        entryStart: node.isReadableContent ? node.entryIndexInPage : 0,
-      );
-    }
-
-    // -----------------------------------------------------------------
-    // Helper: opens a tab and waits for content to load.
-    // -----------------------------------------------------------------
-    Future<void> openTab(
-      WidgetTester tester,
-      ProviderContainer container,
-      ReaderTab tab,
-    ) async {
-      container.read(tabsProvider.notifier).addTab(tab);
-      container.read(activeTabIndexProvider.notifier).state =
-          container.read(tabsProvider).length - 1;
-      await pumpForSettle(tester, const Duration(seconds: 2));
-    }
-
-    // -----------------------------------------------------------------
     // Helper: extracts plain text from the breadcrumb RichText widget.
     // Returns empty string if breadcrumb shows SizedBox.shrink.
     // -----------------------------------------------------------------
@@ -154,7 +122,7 @@ void main() {
         final container = await pumpBreadcrumbApp(tester);
 
         // Open බ්රහ්මජාලසුත්තං (dn-1-1) — 4 levels deep
-        final tab = tabAtBeginning(container, 'dn-1-1');
+        final tab = tabFromNode(container, 'dn-1-1');
         await openTab(tester, container, tab);
 
         // ASSERT: Breadcrumb shows root → dn → dn-1 → dn-1-1
@@ -199,7 +167,7 @@ void main() {
       (tester) async {
         final container = await pumpBreadcrumbApp(tester);
 
-        final tab = tabAtBeginning(container, 'dn-1-1');
+        final tab = tabFromNode(container, 'dn-1-1');
         await openTab(tester, container, tab);
 
         // ASSERT: Last span has no TapGestureRecognizer
@@ -220,7 +188,7 @@ void main() {
       (tester) async {
         final container = await pumpBreadcrumbApp(tester);
 
-        final tab = tabAtBeginning(container, 'dn-1-1');
+        final tab = tabFromNode(container, 'dn-1-1');
         await openTab(tester, container, tab);
 
         // ASSERT: First span (root parent) has a TapGestureRecognizer
@@ -240,7 +208,7 @@ void main() {
         final container = await pumpBreadcrumbApp(tester);
 
         // Open leaf sutta
-        final tab = tabAtBeginning(container, 'dn-1-1');
+        final tab = tabFromNode(container, 'dn-1-1');
         await openTab(tester, container, tab);
 
         final tabCountBefore = container.read(tabsProvider).length;
@@ -282,7 +250,7 @@ void main() {
         final container = await pumpBreadcrumbApp(tester);
 
         // Open leaf sutta — breadcrumb shows full 4-level path
-        final tab = tabAtBeginning(container, 'dn-1-1');
+        final tab = tabFromNode(container, 'dn-1-1');
         await openTab(tester, container, tab);
 
         final textBefore = getBreadcrumbText(tester);
@@ -311,7 +279,7 @@ void main() {
       (tester) async {
         final container = await pumpBreadcrumbApp(tester);
 
-        final tab = tabAtBeginning(container, 'dn-1-1');
+        final tab = tabFromNode(container, 'dn-1-1');
         await openTab(tester, container, tab);
 
         // Read the Pali name for verification
@@ -376,36 +344,57 @@ void main() {
         final dnNode = container.read(nodeByKeyProvider('dn'));
         expect(dnNode, isNotNull, reason: 'dn node should exist in tree');
 
-        // Find and tap dn text to open it as a tab
+        // Find and tap dn text to open it as a tab. Asserted rather than
+        // guarded by an `if`: every assertion below depends on the tap having
+        // happened, so a tree that stopped rendering dn would skip the lot and
+        // leave the test passing on nothing.
         final dnText = find.text(dnNode!.sinhalaName);
-        if (dnText.evaluate().isNotEmpty) {
-          await tester.tap(dnText.first);
-          await pumpForSettle(tester, const Duration(seconds: 2));
+        expect(dnText, findsWidgets,
+            reason: 'The tree navigator must be showing dn — there is nothing '
+                'to tap otherwise, and nothing below would be checked');
 
-          // ASSERT: Tab created with correct data
-          final tabs = container.read(tabsProvider);
-          expect(tabs, isNotEmpty, reason: 'Tapping node should create a tab');
+        await tester.tap(dnText.first);
+        await pumpForSettle(tester, const Duration(seconds: 2));
 
-          final createdTab = tabs.last;
-          expect(createdTab.nodeKey, equals('dn'),
-              reason: 'Tab nodeKey should match the tapped node');
+        // ASSERT: Tab created with correct data
+        final tabs = container.read(tabsProvider);
+        expect(tabs, isNotEmpty, reason: 'Tapping node should create a tab');
 
-          // dn has contentFileId (it's readable), verify it was set
-          if (dnNode.isReadableContent) {
-            expect(createdTab.contentFileId, equals(dnNode.contentFileId),
-                reason: 'Readable node tab should have contentFileId');
-            expect(createdTab.pageIndex, equals(dnNode.entryPageIndex),
-                reason: 'Tab pageIndex should match node entryPageIndex');
-          } else {
-            expect(createdTab.contentFileId, isNull,
-                reason: 'Folder node tab should have null contentFileId');
-          }
+        final createdTab = tabs.last;
+        expect(createdTab.nodeKey, equals('dn'),
+            reason: 'Tab nodeKey should match the tapped node');
+        expect(createdTab.landingPageIndex, isNull,
+            reason: 'A tree tap names no row to land on — the unit is '
+                'rendered from its own first row');
 
-          // Breadcrumb should update to show path for dn
-          final text = getBreadcrumbText(tester);
-          expect(text, isNotEmpty,
-              reason: 'Breadcrumb should render for the new tab');
-        }
+        // The content file is not on the tab any more: the tab is the node,
+        // and the file it reads is resolved from that key. So the question
+        // this test asks is now asked of the *derived* provider. dn carries a
+        // file of its own, so this is asserted positively on purpose: a `null`
+        // here would equally be a resolver that never loaded.
+        expect(container.read(activeContentFileIdProvider),
+            equals(dnNode.contentFileId),
+            reason: 'The unit should read the tapped node own file');
+
+        // The file id alone cannot say WHICH unit opened: dn, dn-1, dn-1-1 and
+        // dn-1-2 all read dn-1. The unit's start coordinate can, and it is
+        // what replaced the start-coordinate fields this test used to read off
+        // the tab.
+        final unit = container.read(activeReaderUnitProvider).valueOrNull;
+        expect(unit, isNotNull,
+            reason: 'The tapped node must resolve to a unit');
+        expect(
+          unit!.range.start,
+          SliceCoordinate(dnNode.entryPageIndex, dnNode.entryIndexInPage),
+          reason: 'dn own row is where its unit starts — a unit resolved for '
+              'dn-1, dn-1-1 or dn-1-2 reads the same file from further in, '
+              'and the assertion above would not notice',
+        );
+
+        // Breadcrumb should update to show path for dn
+        final text = getBreadcrumbText(tester);
+        expect(text, isNotEmpty,
+            reason: 'Breadcrumb should render for the new tab');
       },
     );
   });

@@ -4,9 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
-import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/dictionary_provider.dart';
-import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/dictionary/dictionary_bottom_sheet.dart';
@@ -122,36 +120,6 @@ void main() {
       return container;
     }
 
-    ReaderTab tabAtBeginning(ProviderContainer container, String nodeKey) {
-      final node = container.read(nodeByKeyProvider(nodeKey));
-      if (node == null) {
-        throw StateError('Node "$nodeKey" not found in tree');
-      }
-      return ReaderTab(
-        label: node.paliName.length > 20
-            ? '${node.paliName.substring(0, 20)}...'
-            : node.paliName,
-        fullName: '${node.paliName} / ${node.sinhalaName}',
-        contentFileId: node.contentFileId,
-        nodeKey: node.nodeKey,
-        paliName: node.paliName,
-        sinhalaName: node.sinhalaName,
-        pageStart: node.entryPageIndex,
-        pageEnd: node.entryPageIndex + 1,
-        entryStart: node.entryIndexInPage,
-      );
-    }
-
-    Future<void> openTab(
-      WidgetTester tester,
-      ProviderContainer container,
-      ReaderTab tab,
-    ) async {
-      container.read(tabsProvider.notifier).addTab(tab);
-      container.read(activeTabIndexProvider.notifier).state = 0;
-      await pumpForSettle(tester, const Duration(seconds: 2));
-    }
-
     // =================================================================
     // Test 1: Word tap → sheet opens → edit word → results update
     // =================================================================
@@ -161,7 +129,7 @@ void main() {
         final container = await pumpReaderApp(tester);
 
         // Open මූලපරියායසුත්තං (mn-1-1-1)
-        final tab = tabAtBeginning(container, 'mn-1-1-1');
+        final tab = tabFromNode(container, 'mn-1-1-1');
         await openTab(tester, container, tab);
 
         // ASSERT: Tab header shows the node name in the active Content
@@ -239,7 +207,7 @@ void main() {
       (tester) async {
         final container = await pumpReaderApp(tester);
 
-        final tab = tabAtBeginning(container, 'mn-1-1-1');
+        final tab = tabFromNode(container, 'mn-1-1-1');
         await openTab(tester, container, tab);
 
         // Tap a word to open sheet
@@ -308,7 +276,7 @@ void main() {
       (tester) async {
         final container = await pumpReaderApp(tester);
 
-        final tab = tabAtBeginning(container, 'mn-1-1-1');
+        final tab = tabFromNode(container, 'mn-1-1-1');
         await openTab(tester, container, tab);
 
         // Tap a word to open sheet
@@ -382,7 +350,7 @@ void main() {
         final container = await pumpReaderApp(tester);
 
         // Open මූලපරියායසුත්තං (mn-1-1-1)
-        final tab = tabAtBeginning(container, 'mn-1-1-1');
+        final tab = tabFromNode(container, 'mn-1-1-1');
         await openTab(tester, container, tab);
 
         // STEP 1: Tap "භගවා" in the Pali text to open dictionary sheet

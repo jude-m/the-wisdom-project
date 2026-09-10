@@ -886,10 +886,11 @@ caller until now:
 - `ContentSlicer.nodesByFile`, a one-line alias for `SliceIndex.nodesByFile`,
   is deleted and the generator's five call sites point at the shared name.
 
-### Debt: seven integration files still name the old tab fields
+### The seven integration files, carried across ✅ *2026-09-10*
 
 The inversion above renamed what a tab carries, and seven `integration_test/`
-files were not carried across. They do not compile, so they cannot run.
+files were left naming the old fields — 47 analyzer errors, so they could not
+run at all. All seven compile and pass now, run one file at a time on macOS.
 
 | old | new |
 | --- | --- |
@@ -910,10 +911,35 @@ The three `active*` providers collapsed into one — `activeReaderUnitProvider`
 hands back the whole unit, so a test that read a scalar now reads a field off
 its `range`.
 
-Files, with their share of the 47 analyzer errors:
-`previous_sutta_navigation` (15), `layout_switch` (8),
-`breadcrumb_navigation` (6), `scroll_restoration` (6), `in_page_search` (5),
-`dictionary_editable_word` (4), `language_independence` (3).
+**A rename can leave an assertion standing but empty**, and that is the part
+of this port worth remembering: fifteen assertions came through it still
+compiling, still passing, and no longer testing anything. Two review passes
+took them out. The shapes, all cheap to reintroduce:
+
+- an assertion nested inside `if (finder.evaluate().isNotEmpty)` — the tree
+  stops rendering the thing, the block is skipped, the test goes green having
+  checked nothing;
+- a bare `find.byIcon` on the reader FAB — **both** modes are always in the
+  tree, gated by `IgnorePointer` and opacity, so only `.hitTestable()` says
+  which one is live;
+- an offset compared across two layouts, when a sinhalaOnly entry runs about
+  twice the height of a paliOnly one;
+- a fixture where the rule under test and the rule it must never be give the
+  same answer — `entryIndexInPage: 0` against "a page with no entry means the
+  top of that page";
+- a provider whose `null` has more than one cause: `neighbourLeafProvider`
+  answers `null` for "nothing before it", "resolver not loaded" and "key not in
+  the tree" alike, so a positive control has to rule the others out first;
+- an identity swapped for a proxy — `activeContentFileIdProvider == 'dn-1'`
+  holds for dn, dn-1, dn-1-1 and dn-1-2 alike; `unit.range.start` is what
+  separates them;
+- a pair of tabs moved onto keys that share a content file, which retires the
+  cross-file reload the test was written for without touching a single
+  assertion.
+
+**`tabFromNode` and `openTab` live in `test_overrides.dart`.** Six files kept
+their own copy, so `ReaderTab.fromNode`'s signature cost six edits; it costs
+one now. Do not re-add a local copy.
 
 `search_tab_highlight` was the eighth and is fixed. It keeps a hand-copy of
 `ReaderScreen._handleSearchResultTap`, and the copy still read
@@ -1065,7 +1091,7 @@ of a generated `const` is the failure this document exists to prevent.
 8. Switch layout mid-unit — the top-visible entry stays put.
 9. Restart — tabs restore, and old `_v1` tabs are dropped, which is intended.
 
-Per project convention, no tests unless asked. `test/` was brought back to the new `ReaderTab` in a follow-up, along with the helpers it had been missing. **`integration_test/` was not** — the seven files, the rename table they need, and what was deliberately left undone are all in [Debt: seven integration files still name the old tab fields](#debt-seven-integration-files-still-name-the-old-tab-fields) above. It is the whole of `flutter analyze`'s output, and the only thing standing between this branch and a clean tree.
+Per project convention, no tests unless asked. Both suites were brought back to the new `ReaderTab` in follow-ups — `test/` first, with the helpers it had been missing, then the seven `integration_test/` files. `flutter analyze` is clean. The rename table those files needed, what the review of them found, and what was deliberately left undone are all in [The seven integration files, carried across](#the-seven-integration-files-carried-across--2026-09-10) above.
 
 ---
 

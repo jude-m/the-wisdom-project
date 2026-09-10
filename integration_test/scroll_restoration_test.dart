@@ -68,23 +68,29 @@ void main() {
           tester.element(find.byType(MaterialApp)),
         );
 
-        // Create two tabs with real content file IDs
+        // Two tabs on real node keys — a tab is a node now, and a key the
+        // tree does not hold resolves to no unit and renders nothing to
+        // scroll.
+        //
+        // The two deliberately live in DIFFERENT content files: dn-1-1 reads
+        // dn-1, dn-1-11 reads dn-1-11. Switching between two suttas of one
+        // file never reloads the document, so a restore that only works while
+        // the text stays put would pass — the reload is half of what this
+        // covers.
         const tabA = ReaderTab(
           label: 'DN 1',
           fullName: 'Brahmajāla Sutta',
-          contentFileId: 'dn-1',
-          nodeKey: 'node-dn-1',
+          nodeKey: 'dn-1-1',
           paliName: 'Brahmajāla Sutta',
           sinhalaName: 'බ්‍රහ්මජාල සූත්‍රය',
         );
 
         const tabB = ReaderTab(
-          label: 'DN 2',
-          fullName: 'Sāmaññaphala Sutta',
-          contentFileId: 'dn-2',
-          nodeKey: 'node-dn-2',
-          paliName: 'Sāmaññaphala Sutta',
-          sinhalaName: 'සාමඤ්ඤඵල සූත්‍රය',
+          label: 'DN 11',
+          fullName: 'Kevaṭṭa Sutta',
+          nodeKey: 'dn-1-11',
+          paliName: 'Kevaṭṭa Sutta',
+          sinhalaName: 'කේවට්ට සූත්‍රය',
         );
 
         // Add both tabs and activate Tab A
@@ -94,6 +100,9 @@ void main() {
         container.read(activeTabIndexProvider.notifier).state = 0;
 
         await pumpForSettle(tester, const Duration(seconds: 2));
+
+        expect(container.read(activeContentFileIdProvider), 'dn-1',
+            reason: 'Tab A reads the dn-1 file');
 
         // STEP 1: Scroll Tab A to 300 using the controller
         // SingleColumnPane uses ListView.builder (vertical); TabBarWidget uses horizontal ListView
@@ -124,6 +133,9 @@ void main() {
         // Verify Tab B is now active
         expect(container.read(activeTabIndexProvider), 1,
             reason: 'Tab B should now be active');
+        expect(container.read(activeContentFileIdProvider), 'dn-1-11',
+            reason: 'Tab B reads a different file, so switching to it reloads '
+                'the document — the path a same-file pair would skip');
 
         // STEP 3: Scroll Tab B to 600
         final scrollableB = find.byWidgetPredicate(
@@ -203,8 +215,7 @@ void main() {
         const tabA = ReaderTab(
           label: 'Tab A',
           fullName: 'Tab A Full',
-          contentFileId: 'dn-1',
-          nodeKey: 'node-a',
+          nodeKey: 'dn-1-1',
           paliName: 'Tab A',
           sinhalaName: 'Tab A',
         );
@@ -212,8 +223,7 @@ void main() {
         const tabB = ReaderTab(
           label: 'Tab B',
           fullName: 'Tab B Full',
-          contentFileId: 'dn-2',
-          nodeKey: 'node-b',
+          nodeKey: 'dn-1-2',
           paliName: 'Tab B',
           sinhalaName: 'Tab B',
         );
@@ -307,8 +317,7 @@ void main() {
         const tab = ReaderTab(
           label: 'New Tab',
           fullName: 'New Tab Full',
-          contentFileId: 'dn-1',
-          nodeKey: 'node-new',
+          nodeKey: 'dn-1-1',
           paliName: 'New Tab',
           sinhalaName: 'New Tab',
         );
@@ -361,8 +370,7 @@ void main() {
         const tab = ReaderTab(
           label: 'Tab to Close',
           fullName: 'Tab to Close Full',
-          contentFileId: 'dn-1',
-          nodeKey: 'node-close',
+          nodeKey: 'dn-1-1',
           paliName: 'Tab to Close',
           sinhalaName: 'Tab to Close',
         );

@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import 'package:the_wisdom_project/data/datasources/bjt_document_local_datasource.dart';
 import 'package:the_wisdom_project/presentation/models/in_page_search_state.dart';
-import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/in_page_search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
@@ -59,32 +58,6 @@ void main() {
       await pumpForSettle(tester);
 
       return container;
-    }
-
-    /// Creates a [ReaderTab] from a real navigation tree node.
-    ReaderTab tabFromNode(ProviderContainer container, String nodeKey) {
-      final node = container.read(nodeByKeyProvider(nodeKey));
-      if (node == null) throw StateError('Node "$nodeKey" not found in tree');
-      return ReaderTab.fromNode(
-        nodeKey: node.nodeKey,
-        paliName: node.paliName,
-        sinhalaName: node.sinhalaName,
-        contentFileId: node.isReadableContent ? node.contentFileId : null,
-        pageIndex: node.isReadableContent ? node.entryPageIndex : 0,
-        entryStart: node.isReadableContent ? node.entryIndexInPage : 0,
-      );
-    }
-
-    /// Adds a tab and activates it, waiting for document content to load.
-    Future<void> openTab(
-      WidgetTester tester,
-      ProviderContainer container,
-      ReaderTab tab,
-    ) async {
-      container.read(tabsProvider.notifier).addTab(tab);
-      container.read(activeTabIndexProvider.notifier).state =
-          container.read(tabsProvider).length - 1;
-      await pumpForSettle(tester, const Duration(seconds: 2));
     }
 
     /// Opens the in-page search bar.
@@ -303,17 +276,18 @@ void main() {
         await enterSearchQuery(tester, 'එවං');
 
         final matchCount = readSearchState(container, 0).matchCount;
-        expect(matchCount, greaterThan(3),
-            reason: 'Need several matches to test scroll-to-match');
+        expect(matchCount, greaterThan(4),
+            reason: 'Need several matches to test scroll-to-match — and the '
+                'wrap assertion at the end needs the last match to lie past '
+                'the 4th, which is as far as the forward steps below go');
 
-        // Record initial scroll position and loaded page range
+        // Record initial scroll position
         final scrollable = find.byWidgetPredicate(
           (w) => w is ListView && w.scrollDirection == Axis.vertical,
         );
         final controller =
             tester.widget<ListView>(scrollable).controller!;
         final offsetAtStart = controller.offset;
-        final pageEndAtStart = container.read(activePageEndProvider);
 
         // Step through a few matches forward — verify index tracks correctly
         // AND that the viewport actually scrolls down to follow each match.
@@ -366,33 +340,27 @@ void main() {
         expect(readSearchState(container, 0).currentMatchIndex, matchCount - 1,
             reason: 'Previous from 0 should wrap to last match');
 
-        // The last match is far from the beginning of the sutta, so wrapping
-        // to it must exercise the full chain:
-        //   1) pagination expands to load the page containing the match, AND
-        //   2) the post-frame ensureVisible (with bounded retry) scrolls the
-        //      viewport to that newly-built entry.
+        // The last match sits near the end of the sutta, far below anything
+        // the ListView has built. There is no pagination to expand any more —
+        // the whole unit is the list, and the entry holding the match is
+        // simply not laid out yet — so the bounded retry inside
+        // _scrollToCurrentMatch is the entire mechanism this asserts on.
         //
-        // The previous version of this assertion was an OR — pagination
-        // expansion alone satisfied it, which silently let the real scroll
-        // step (#2) regress. We now assert BOTH halves of the chain.
-        final pageEndAtLast = container.read(activePageEndProvider);
-        expect(
-          pageEndAtLast, greaterThan(pageEndAtStart),
-          reason: 'Wrapping to last match must expand pagination to include '
-              'the match page — pageEnd: $pageEndAtStart → $pageEndAtLast',
-        );
-
-        // Give the bounded retry inside _scrollToCurrentMatch time to wait
-        // for the ListView.builder to lazy-build the target entry, then
+        // Give it time to wait for ListView.builder to build the target, then
         // run Scrollable.ensureVisible.
         await pumpForSettle(tester, const Duration(seconds: 1));
 
+        // Measured against the furthest point the *stepwise* walk reached,
+        // not against the start: the last match lies past every match those
+        // three taps visited, so beating `offsetAtStart` is satisfied by any
+        // small forward nudge and proves nothing about reaching the end.
         final offsetAtLast = controller.offset;
         expect(
-          offsetAtLast, greaterThan(offsetAtStart),
-          reason: 'After pagination expands, the viewport must actually '
-              'scroll to the last match — offset: $offsetAtStart → '
-              '$offsetAtLast',
+          offsetAtLast, greaterThan(offsetAfterForward),
+          reason: 'Wrapping to the last match must scroll the viewport past '
+              'everything stepping forward reached — offset: '
+              '$offsetAfterForward (match 4) → $offsetAtLast (match '
+              '$matchCount)',
         );
 
         // Match counter should show the last position

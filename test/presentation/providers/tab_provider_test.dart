@@ -11,6 +11,7 @@ import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:wisdom_shared/wisdom_shared.dart' show TipitakaTree;
 
 import '../../helpers/pump_app.dart';
+import '../../helpers/test_data.dart';
 
 void main() {
   group('TabsNotifier -', () {
@@ -196,6 +197,88 @@ void main() {
       expect(tabs[0].nodeKey, equals('mn-1'));
       expect(tabs[0].landingPageIndex, equals(10));
       expect(tabs[0].landingEntryIndex, equals(3));
+    });
+  });
+
+  group('openTabFromNodeKeyProvider -', () {
+    late ProviderContainer container;
+
+    // The node's own entry is deliberately not 0. The rule under test — an
+    // absent entry means the top of the named page — and the rule it must
+    // never be — fall back to the node's own entry — give the same answer for
+    // a node whose entry is already 0, so that fixture would pin neither.
+    final node = TestData.leafNodeWithContent.copyWith(entryIndexInPage: 7);
+
+    setUp(() async {
+      container = createTestContainer(overrides: [
+        navigationTreeProvider.overrideWith((ref) async => [node]),
+      ]);
+      // nodeByKeyProvider reads the index synchronously, so the tree has to be
+      // in before the provider under test is called.
+      await container.read(navigationTreeProvider.future);
+    });
+
+    tearDown(() {
+      container.dispose();
+    });
+
+    test('a page with no entry lands on the top of that page', () {
+      // The `?e=<page>` form of a deep link. `deep_link_provider` hands the
+      // URL's coordinates over untouched — an absent entry stays absent — so
+      // what an absent one *means* is decided here, and it is the top of the
+      // named page rather than the node's own entry, which pairs with the
+      // node's own page.
+      container.read(openTabFromNodeKeyProvider)(node.nodeKey, pageIndex: 3);
+
+      final tab = container.read(tabsProvider).single;
+      expect(tab.landingPageIndex, 3);
+      expect(tab.landingEntryIndex, 0,
+          reason: 'The top of the named page — not the node own entry, '
+              '${node.entryIndexInPage}, which belongs to the node own page');
+    });
+
+    test('no page override leaves the tab with no landing at all', () {
+      // A tree tap or a bare `/tipitaka/<key>` link. The unit renders from its
+      // own first row, so there is nothing to scroll to and nothing to spend.
+      container.read(openTabFromNodeKeyProvider)(node.nodeKey);
+
+      final tab = container.read(tabsProvider).single;
+      expect(tab.landingPageIndex, isNull);
+      expect(tab.landingEntryIndex, isNull);
+    });
+
+    test('an entry override is kept as given', () {
+      container.read(openTabFromNodeKeyProvider)(
+        node.nodeKey,
+        pageIndex: 3,
+        entryStart: 2,
+      );
+
+      final tab = container.read(tabsProvider).single;
+      expect(tab.landingPageIndex, 3);
+      expect(tab.landingEntryIndex, 2);
+    });
+
+    test('an entry without a page is discarded, not kept', () {
+      // The fourth combination, and the one production drops on the floor: a
+      // coordinate is a pair, and an entry with no page names no row. Nothing
+      // sends this today — `deep_link_provider` only passes an entry when it
+      // parsed a page alongside it — so this pins the discard as deliberate.
+      // Were the entry kept, the tab would land on that row of whatever page
+      // the unit happened to start on.
+      container.read(openTabFromNodeKeyProvider)(node.nodeKey, entryStart: 2);
+
+      final tab = container.read(tabsProvider).single;
+      expect(tab.landingPageIndex, isNull);
+      expect(tab.landingEntryIndex, isNull,
+          reason: 'Half a coordinate is not a landing');
+    });
+
+    test('a key the tree does not hold opens nothing', () {
+      final index = container.read(openTabFromNodeKeyProvider)('no-such-node');
+
+      expect(index, -1);
+      expect(container.read(tabsProvider), isEmpty);
     });
   });
 

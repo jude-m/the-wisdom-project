@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +7,6 @@ import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart
 import 'package:the_wisdom_project/data/datasources/bjt_document_local_datasource.dart';
 import 'package:the_wisdom_project/presentation/models/in_page_search_state.dart';
 import 'package:the_wisdom_project/presentation/models/reader_layout.dart';
-import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/in_page_search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/last_reader_layout_provider.dart';
@@ -22,9 +22,8 @@ void main() {
 
   group('Layout Switch Integration Tests', () {
     // ---------------------------------------------------------------
-    // Shared helpers (kept in-file to match the pattern of
-    // in_page_search_test.dart and scroll_restoration_test.dart — no
-    // shared helper module yet).
+    // Local helpers. Opening a tab is a shared one now — `tabFromNode`
+    // and `openTab` live in test_overrides.dart.
     // ---------------------------------------------------------------
 
     Future<ProviderContainer> pumpReaderApp(WidgetTester tester) async {
@@ -62,28 +61,39 @@ void main() {
       return container;
     }
 
-    ReaderTab tabFromNode(ProviderContainer container, String nodeKey) {
-      final node = container.read(nodeByKeyProvider(nodeKey));
-      if (node == null) throw StateError('Node "$nodeKey" not found in tree');
-      return ReaderTab.fromNode(
-        nodeKey: node.nodeKey,
-        paliName: node.paliName,
-        sinhalaName: node.sinhalaName,
-        contentFileId: node.isReadableContent ? node.contentFileId : null,
-        pageIndex: node.isReadableContent ? node.entryPageIndex : 0,
-        entryStart: node.isReadableContent ? node.entryIndexInPage : 0,
-      );
-    }
-
-    Future<void> openTab(
+    // The `(page, entry)` of the entry nearest the top of the reader's
+    // viewport, or null when nothing is mounted.
+    //
+    // Read off the same GlobalKeys the reader registers for every entry
+    // ([EntryKeyRegistry.keyFor], whose debugLabel is `entry_<page>_<entry>`),
+    // by the same rule production uses to pick one: nearest reveal offset,
+    // ties going to the entry below the top rather than the one scrolled past.
+    // An offset only says that *something* moved; this says which entry the
+    // switch put there, which is the thing the listener has to preserve.
+    (int, int)? topVisibleEntry(
       WidgetTester tester,
-      ProviderContainer container,
-      ReaderTab tab,
-    ) async {
-      container.read(tabsProvider.notifier).addTab(tab);
-      container.read(activeTabIndexProvider.notifier).state =
-          container.read(tabsProvider).length - 1;
-      await pumpForSettle(tester, const Duration(seconds: 2));
+      ScrollController controller,
+    ) {
+      if (!controller.hasClients) return null;
+      final label = RegExp(r'entry_(\d+)_(\d+)');
+      (int, int)? best;
+      var smallest = double.infinity;
+      for (final element in find.byType(KeyedSubtree).evaluate()) {
+        final match = label.firstMatch('${element.widget.key}');
+        if (match == null) continue;
+        final renderObject = element.renderObject;
+        if (renderObject == null || !renderObject.attached) continue;
+        final viewport = RenderAbstractViewport.maybeOf(renderObject);
+        if (viewport == null) continue;
+        final diff = controller.offset -
+            viewport.getOffsetToReveal(renderObject, 0.0).offset;
+        final dist = diff >= 0 ? diff + 0.5 : -diff;
+        if (dist < smallest) {
+          smallest = dist;
+          best = (int.parse(match.group(1)!), int.parse(match.group(2)!));
+        }
+      }
+      return best;
     }
 
     // Reads the per-tab in-page search state from the provider.
@@ -96,28 +106,42 @@ void main() {
     }
 
     // ---------------------------------------------------------------
-    // Test: top-visible entry survives a full layout cycle AND updates
-    // when the user re-scrolls mid-cycle.
+    // Test: the top-visible entry survives a full layout cycle AND is
+    // re-read when the user scrolls mid-cycle.
     //
-    // Covers the feature shipped in `6d70ff6` ("sync scroll position by
-    // logical entry across layout switches") which had zero test coverage.
     // The listener under test lives in `multi_pane_reader_widget.dart` at
     // the `ref.listen<ReaderLayout>(activeReaderLayoutProvider, ...)`
     // block. It runs `findTopVisibleEntry` against `EntryKeyRegistry`,
-    // calls `updateActiveTabPaginationProvider` so the new layout starts
-    // from that entry, then resets the scroll to 0.
+    // then reveals that same entry once the new layout has laid out.
+    //
+    // It used to write the captured entry into the tab's pagination and
+    // reset the scroll to 0, which is what the old version of this test
+    // read back. A unit has no pagination now — the whole of it is the
+    // list — so the reveal *is* the mechanism, and the scroll offset is
+    // where it can be seen.
+    //
+    // Every assertion is relative, because no absolute pixel is meaningful
+    // here: what a layout puts *above* the first entry (the sutta's title
+    // block) differs per layout, so even a switch made at the very top
+    // settles at a small non-zero offset — the first entry pulled to the
+    // top, with the title scrolled off above it. That offset is the
+    // reference the rest of the test compares against.
+    //
+    // Each phase checks two things, because neither is enough alone: WHICH
+    // entry ended up at the top (the identity the listener carries across the
+    // switch) and WHERE the viewport sits (that the entry was really revealed
+    // and not merely mounted somewhere off screen).
     //
     // Story this test tells:
-    //   1. Scroll in sideBySide → capture position A.
-    //   2. Cycle sideBySide → stacked → sinhalaOnly with NO further
-    //      scrolling. Position A must survive each switch.
-    //   3. Scroll again inside sinhalaOnly → capture a new position B.
-    //   4. Cycle sinhalaOnly → paliOnly → sideBySide. Position B must
-    //      survive these.
-    //
-    // The mid-cycle re-scroll + posB != posA assertion is the real
-    // value-add: it catches a bug class where the captured entry gets
-    // frozen on first capture and never updates on subsequent switches.
+    //   1. Switch at the top → the top-of-unit reference offset.
+    //   2. Scroll → switch. The same entry must be at the top again, and the
+    //      offset must land well below the reference — that entry is pages
+    //      into the unit however the new layout spaces it.
+    //   3. Cycle on with NO further scrolling. Still that entry.
+    //   4. Scroll back to the top, then switch. The unit's first entry again,
+    //      back at the reference offset — which is what proves the listener
+    //      re-reads the viewport on every switch rather than freezing on its
+    //      first capture.
     //
     // Driving switches through `updateActiveTabLayoutProvider` keeps the
     // test independent of `ReaderLayoutPill` UI — the pill ultimately
@@ -147,42 +171,51 @@ void main() {
           reason: 'New tab should default to paliOnly',
         );
 
-        // Document-start baseline. Compared against later to prove a
-        // mid-document entry was actually captured (not just (0, 0) again).
-        final tabsBefore = container.read(tabsProvider);
-        final pageStartBefore = tabsBefore[0].pageStart;
-        final entryStartBefore = tabsBefore[0].entryStart;
+        // Waits for the reveal to come to rest instead of pumping a fixed
+        // number of settles. `_ensureEntryVisible` retries across frames
+        // (bounded at 10) and `pumpForSettle` swallows its own timeout, so a
+        // count cannot tell "the reveal landed" from "it is still moving" —
+        // and the difference between those is a half-scrolled offset that the
+        // assertions below would read back as the answer. An offset that
+        // survives a whole settle unchanged is the finished signal; one that
+        // never does fails here, with the number in the message.
+        Future<void> settleUntilStill() async {
+          for (var attempt = 0; attempt < 12; attempt++) {
+            final before = controller.offset;
+            await pumpForSettle(tester, const Duration(seconds: 1));
+            if (controller.offset == before) return;
+          }
+          fail('The reveal never came to rest: the offset was still moving '
+              'after 12 settles, last at ${controller.offset}');
+        }
 
-        // Helper — drive the layout provider, settle, then read back the
-        // resulting state. Returns a record so each assertion can quote
-        // the actual values in its `reason:` string for clean failures.
-        Future<
-                ({
-                  int pageStart,
-                  int entryStart,
-                  double offset,
-                  ReaderLayout layout,
-                })>
+        // Helper — drive the layout provider, wait for the reveal, then read
+        // back the resulting state. Returns a record so each assertion can
+        // quote the actual values in its `reason:` string for clean failures.
+        Future<({double offset, ReaderLayout layout, (int, int)? top})>
             switchTo(ReaderLayout layout) async {
           container.read(updateActiveTabLayoutProvider)(layout);
-          await pumpForSettle(tester, const Duration(seconds: 1));
-          final t = container.read(tabsProvider)[0];
+          await settleUntilStill();
           return (
-            pageStart: t.pageStart,
-            entryStart: t.entryStart,
             offset: controller.offset,
-            layout: t.layout,
+            layout: container.read(tabsProvider)[0].layout,
+            top: topVisibleEntry(tester, controller),
           );
         }
 
-        // ---- PHASE 1: capture position A ----
+        // ---- PHASE 1: the top-of-unit reference ----
 
-        // paliOnly → sideBySide. No scroll yet, so this captures the
-        // document-start entry. Mostly a warm-up switch — the meaningful
-        // capture happens after the scroll below.
-        final warmup = await switchTo(ReaderLayout.sideBySide);
-        expect(warmup.layout, ReaderLayout.sideBySide);
-        expect(warmup.offset, 0.0, reason: 'Layout switch must jumpTo(0)');
+        // paliOnly → sideBySide with no scrolling. The top-visible entry is
+        // the unit's first, so this is what "a switch made at the top"
+        // settles at — near zero, but not necessarily zero.
+        final atTop = await switchTo(ReaderLayout.sideBySide);
+        expect(atTop.layout, ReaderLayout.sideBySide);
+        expect(atTop.top, isNotNull,
+            reason: 'The reader must have keyed entries mounted for any of '
+                'this to be measurable — a null top entry means nothing was '
+                'found to compare, not that the switch behaved');
+
+        // ---- PHASE 2: a scrolled position is carried across ----
 
         // Scroll inside sideBySide so the top-visible entry is no longer
         // the sutta's first entry. Pixel target is intentionally generous
@@ -193,109 +226,102 @@ void main() {
         controller.jumpTo(1200);
         await pumpForSettle(tester, const Duration(seconds: 1));
 
-        // sideBySide → stacked. Listener captures sideBySide's top entry
-        // at offset=600 and writes it into pagination. That captured
-        // entry is **position A** — we'll propagate it through the next
-        // switch without scrolling again.
-        final posA = await switchTo(ReaderLayout.stacked);
-        expect(posA.layout, ReaderLayout.stacked);
-        expect(posA.offset, 0.0, reason: 'Layout switch must jumpTo(0)');
-        expect(
-          posA.pageStart != pageStartBefore ||
-              posA.entryStart != entryStartBefore,
-          isTrue,
-          reason: 'After scrolling and switching, pagination should have '
-              'moved off the document start — baseline: '
-              '($pageStartBefore, $entryStartBefore), '
-              'posA: (${posA.pageStart}, ${posA.entryStart})',
-        );
-
-        // ---- PHASE 2: position A must survive a no-scroll switch ----
-
-        // stacked → sinhalaOnly with NO re-scroll. The top entry of
-        // stacked at offset=0 is the posA entry (placed there by the
-        // previous switch), so the listener should capture posA again
-        // and propagate it unchanged.
-        final posASurvived = await switchTo(ReaderLayout.sinhalaOnly);
-        expect(posASurvived.layout, ReaderLayout.sinhalaOnly);
-        expect(posASurvived.offset, 0.0,
-            reason: 'Layout switch must jumpTo(0)');
-        expect(
-          posASurvived.pageStart, posA.pageStart,
-          reason: 'pageStart must survive stacked → sinhalaOnly with no '
-              're-scroll — expected ${posA.pageStart}, got '
-              '${posASurvived.pageStart}',
-        );
-        expect(
-          posASurvived.entryStart, posA.entryStart,
-          reason: 'entryStart must survive stacked → sinhalaOnly with no '
-              're-scroll — expected ${posA.entryStart}, got '
-              '${posASurvived.entryStart}',
-        );
-
-        // ---- PHASE 3: re-scroll mid-cycle, capture position B ----
-
-        // Scroll again inside sinhalaOnly. Sinhala entries can be ~1000px
-        // tall for long translated passages; using 1200 guarantees we
-        // cross at least one entry boundary so posB ≠ posA holds even
-        // when the current top entry is a long one.
-        controller.jumpTo(1200);
-        await pumpForSettle(tester, const Duration(seconds: 1));
-
-        // Precondition guard for Phase 3's load-bearing assertion below.
-        // `ScrollController.jumpTo` silently clamps to `maxScrollExtent` —
-        // if the loaded ListView is shorter than 1200px, the jump goes
-        // nowhere, posB stays equal to posA, and `posB != posA` fails
-        // with a message blaming the layout listener (which is innocent).
-        // Phase 1's analogous jump doesn't need this guard because its
-        // downstream assertion already names the scroll in its reason
-        // string; Phase 3's downstream assertion blames the listener.
+        // Precondition guard for the assertion below. `jumpTo` silently
+        // clamps to `maxScrollExtent` — if the laid-out list is shorter
+        // than 1200px the jump goes nowhere, the top entry is still the
+        // first one, and the next expectation would fail blaming the
+        // listener, which is innocent.
         expect(
           controller.offset, greaterThan(0),
-          reason: 'jumpTo(1200) must produce a non-zero offset before '
-              'Phase 3 can prove posB ≠ posA — if offset is 0, the '
-              'loaded ListView is shorter than 1200px and the test '
-              'setup, not the layout listener, is the real problem',
+          reason: 'jumpTo(1200) must produce a non-zero offset before a '
+              'moved-off-the-top entry can be proved to survive — if the '
+              'offset is 0 the laid-out list is shorter than 1200px and '
+              'the test setup, not the layout listener, is the problem',
         );
 
-        // sinhalaOnly → paliOnly. Listener captures sinhalaOnly's NEW top
-        // entry → posB. This switch is the load-bearing one: posB must
-        // differ from posA, proving the listener re-reads the viewport on
-        // every switch instead of freezing on the first capture.
-        final posB = await switchTo(ReaderLayout.paliOnly);
-        expect(posB.layout, ReaderLayout.paliOnly);
-        expect(posB.offset, 0.0, reason: 'Layout switch must jumpTo(0)');
-        expect(
-          posB.pageStart != posA.pageStart ||
-              posB.entryStart != posA.entryStart,
-          isTrue,
-          reason: 'After re-scrolling mid-cycle, the captured entry must '
-              'differ from posA — proves the listener re-reads viewport '
-              'state on every switch instead of caching the first capture. '
-              'posA: (${posA.pageStart}, ${posA.entryStart}), '
-              'posB: (${posB.pageStart}, ${posB.entryStart})',
-        );
+        // The entry the reader is now looking at. Phases 2 and 3 are about
+        // *this* entry coming back, not about the viewport merely ending up
+        // somewhere below the top.
+        final scrolledTo = topVisibleEntry(tester, controller);
+        expect(scrolledTo, isNotNull,
+            reason: 'A scrolled viewport must still have a top entry');
+        expect(scrolledTo, isNot(atTop.top),
+            reason: 'jumpTo(1200) has to cross an entry boundary — if the top '
+                'entry is still the unit\'s first one there is no reading '
+                'position to lose and phases 2-3 prove nothing');
 
-        // ---- PHASE 4: position B must survive a no-scroll switch ----
-
-        // paliOnly → sideBySide with NO re-scroll. Same property as
-        // phase 2, but for posB — closes the full cycle through all
-        // four layouts.
-        final posBSurvived = await switchTo(ReaderLayout.sideBySide);
-        expect(posBSurvived.layout, ReaderLayout.sideBySide);
-        expect(posBSurvived.offset, 0.0,
-            reason: 'Layout switch must jumpTo(0)');
+        // sideBySide → stacked. The listener captures sideBySide's top
+        // entry and reveals it in stacked, where it lands at a different
+        // pixel offset — but never at the top, because entries precede it.
+        final posA = await switchTo(ReaderLayout.stacked);
+        expect(posA.layout, ReaderLayout.stacked);
         expect(
-          posBSurvived.pageStart, posB.pageStart,
-          reason: 'pageStart must survive paliOnly → sideBySide with no '
-              're-scroll — expected ${posB.pageStart}, got '
-              '${posBSurvived.pageStart}',
+          posA.offset, greaterThan(atTop.offset),
+          reason: 'The entry at the top of sideBySide is pages into the '
+              'unit, so revealing it in stacked must leave the viewport '
+              'well below where a top-of-unit switch lands — offset '
+              '${posA.offset} vs reference ${atTop.offset}. Falling back '
+              'to the reference is the old behaviour: the switch reset to '
+              'the top and lost the reading position',
         );
         expect(
-          posBSurvived.entryStart, posB.entryStart,
-          reason: 'entryStart must survive paliOnly → sideBySide with no '
-              're-scroll — expected ${posB.entryStart}, got '
-              '${posBSurvived.entryStart}',
+          posA.top, scrolledTo,
+          reason: 'The entry at the top of sideBySide must be the entry at '
+              'the top of stacked. Revealing the WRONG entry also leaves the '
+              'viewport below the reference, so the offset above cannot tell '
+              'the two apart — expected $scrolledTo, got ${posA.top}',
+        );
+
+        // ---- PHASE 3: it survives a switch with no re-scroll ----
+
+        // stacked → sinhalaOnly, nothing touched in between. The top entry
+        // of stacked is the one phase 2 put there, so it is captured again
+        // and revealed again.
+        final posASurvived = await switchTo(ReaderLayout.sinhalaOnly);
+        expect(posASurvived.layout, ReaderLayout.sinhalaOnly);
+        expect(
+          posASurvived.offset, greaterThan(atTop.offset),
+          reason: 'stacked → sinhalaOnly with no re-scroll must keep the '
+              'reading position — offset ${posASurvived.offset} vs '
+              'reference ${atTop.offset}',
+        );
+        expect(
+          posASurvived.top, scrolledTo,
+          reason: 'Still the same entry two layouts on — expected '
+              '$scrolledTo, got ${posASurvived.top}',
+        );
+
+        // ---- PHASE 4: the viewport is re-read, not remembered ----
+
+        // Scroll back to the very top inside sinhalaOnly. The next switch
+        // must now capture the unit's *first* entry — a listener that
+        // cached its first capture would still be holding phase 2's.
+        controller.jumpTo(0);
+        await pumpForSettle(tester, const Duration(seconds: 1));
+
+        // Deliberately back into sideBySide, the layout phase 1 measured.
+        // Comparing across layouts would not settle anything here: entry
+        // heights differ per layout (sinhalaOnly runs about twice as tall),
+        // so a listener frozen on phase 2's capture could still land at a
+        // smaller number in a shorter layout and pass a `lessThan`. Revealing
+        // the same entry in the same layout is a fixed offset, so this
+        // compares like with like.
+        final posB = await switchTo(ReaderLayout.sideBySide);
+        expect(posB.layout, ReaderLayout.sideBySide);
+        expect(
+          posB.offset, closeTo(atTop.offset, 1.0),
+          reason: 'After scrolling back to the top, the switch must come back '
+              'up with it: revealing the unit\'s first entry in sideBySide is '
+              'where phase 1 landed, ${atTop.offset}. An offset of '
+              '${posB.offset} means the listener reused an earlier capture '
+              '(phase 2 left it at ${posASurvived.offset}) instead of '
+              're-reading the viewport',
+        );
+        expect(
+          posB.top, atTop.top,
+          reason: 'And it must be the unit\'s first entry that came back '
+              '(${atTop.top}), not the one phase 2 left at the top '
+              '($scrolledTo)',
         );
       },
     );
@@ -437,15 +463,14 @@ void main() {
     //
     //   1. Search "සීල" in sideBySide → 10 matches across dn-1-1.
     //   2. Navigate to the 5th match (mid-sutta).
-    //   3. Close search, switch to stacked. The layout listener resets
-    //      pagination to a narrow range around the captured top entry
-    //      and jumpTo(0). Recompute drops matches (search hidden).
+    //   3. Close search, switch to stacked. The layout listener captures
+    //      the top-visible entry and reveals it again once stacked has
+    //      laid out. Recompute drops matches (search hidden).
     //   4. Reopen search. `openSearch` recomputes, currentMatchIndex
-    //      = 0, the search-state listener auto-scrolls to match[0] —
-    //      which expands pageStart *backward* to page 2, leaving a
-    //      wide loaded range with scroll parked at the top.
-    //   5. Step forward through matches. Matches several pages down
-    //      sit in [pageStart, pageEnd) but *outside* ListView.builder's
+    //      = 0, and the search-state listener scrolls back to match[0]
+    //      near the top of the unit.
+    //   5. Step forward through matches. Matches several pages down are
+    //      inside the rendered unit but *outside* ListView.builder's
     //      default ~250px cacheExtent → keys aren't mounted →
     //      ensureVisible silently fails after bounded retries → scroll
     //      stops at the cula-sila entry while currentMatchIndex keeps
@@ -522,9 +547,9 @@ void main() {
         container.read(inPageSearchStatesProvider.notifier).closeSearch();
         await pumpForSettle(tester);
 
-        // Switch to stacked. Listener captures top entry → narrow
-        // pagination reset → jumpTo(0) → load forward to fill viewport.
-        // Matches dropped (search hidden).
+        // Switch to stacked. Listener captures the top entry and reveals
+        // it again once the new layout has laid out. Matches dropped
+        // (search hidden).
         container
             .read(updateActiveTabLayoutProvider)(ReaderLayout.stacked);
         await pumpForSettle(tester, const Duration(seconds: 1));
@@ -537,8 +562,8 @@ void main() {
 
         // Reopen search. openSearch sees retained query + empty matches
         // → recomputes against stacked → currentMatchIndex = 0 → search
-        // state listener fires _scrollToCurrentMatch on match[0], which
-        // expands pageStart backward to page 2 and rebuilds.
+        // state listener fires _scrollToCurrentMatch, which reveals
+        // match[0] back near the top of the unit.
         container.read(inPageSearchStatesProvider.notifier).openSearch();
         await pumpForSettle(tester, const Duration(seconds: 2));
 
@@ -557,25 +582,19 @@ void main() {
         final scrollable = find.byWidgetPredicate(
           (w) => w is ListView && w.scrollDirection == Axis.vertical,
         );
+        expect(scrollable, findsOneWidget,
+            reason: 'The reader pane must expose exactly one vertical '
+                'ListView — reading a controller off a finder that matched '
+                'nothing throws a StateError with nothing to read');
         final controller = tester.widget<ListView>(scrollable).controller!;
         final offsetAtFirstMatch = controller.offset;
         final viewport = controller.position.viewportDimension;
-        final pageEndAfterFirst = container.read(activePageEndProvider);
 
-        // Precondition guard for the load-bearing assertion below.
-        // Case (b) ONLY exercises if match[5]'s page sits inside
-        // [pageStart, pageEnd). match[5] is on page 6 (see
-        // _findAllMatches output for "සීල" in dn-1-1). If pageEnd <= 6,
-        // stepping triggers case (a) — pagination expansion — instead,
-        // and the test would pass without proving the case (b) fix.
-        expect(
-          pageEndAfterFirst, greaterThan(6),
-          reason: 'Test invariant: pageEnd ($pageEndAfterFirst) must '
-              'cover match[5]\'s page (6) so the next-taps below '
-              'exercise case (b) [in-range but unbuilt] rather than '
-              'case (a) [past pageEnd]. If this fails, the viewport '
-              'in the test is too small — adjust setup, not assertion.',
-        );
+        // The precondition this used to guard went out with pagination: a
+        // match could once sit past the loaded page range, so the test had
+        // to prove it was stepping toward an entry that was in range but
+        // unbuilt rather than one the reader had not paginated to yet. The
+        // whole unit is now the list, so unbuilt is the only case there is.
 
         // Step forward 5 times — reaches match[5] (page 6 entry 4 si,
         // "මජ්ඣිමසීලය"). This is several pages below match[0]'s position
@@ -600,7 +619,7 @@ void main() {
               'must advance by more than one viewport height '
               '($viewport px). Got delta $delta '
               '($offsetAtFirstMatch → $offsetAfterAdvance). '
-              'A small delta means _ensureMatchVisibleWithRetry gave up '
+              'A small delta means _ensureEntryVisible gave up '
               'before pushing ListView to build the match\'s page — '
               'the case (b) bug.',
         );

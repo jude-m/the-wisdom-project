@@ -18,6 +18,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:the_wisdom_project/core/storage/key_value_store.dart';
 import 'package:the_wisdom_project/core/storage/key_value_store_provider.dart';
+import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
+import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
+import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 
 class InMemoryKeyValueStore implements KeyValueStore {
   final Map<String, Object> _values = {};
@@ -139,4 +142,33 @@ Future<void> pumpForSettle(
     // would hide genuine failures.
     if (!error.message.contains('pumpAndSettle timed out')) rethrow;
   }
+}
+
+/// A tab reading the unit rooted at [nodeKey].
+///
+/// A tab **is** the node: where the unit starts, where it ends and which file
+/// it lives in are all resolved from the key, so this passes on the names and
+/// nothing else. Shared because six integration files kept their own identical
+/// copy, and every one of them had to be edited whenever
+/// [ReaderTab.fromNode]'s signature moved.
+ReaderTab tabFromNode(ProviderContainer container, String nodeKey) {
+  final node = container.read(nodeByKeyProvider(nodeKey));
+  if (node == null) throw StateError('Node "$nodeKey" not found in tree');
+  return ReaderTab.fromNode(
+    nodeKey: node.nodeKey,
+    paliName: node.paliName,
+    sinhalaName: node.sinhalaName,
+  );
+}
+
+/// Adds [tab], makes it the active one and waits for its text to load.
+Future<void> openTab(
+  WidgetTester tester,
+  ProviderContainer container,
+  ReaderTab tab,
+) async {
+  container.read(tabsProvider.notifier).addTab(tab);
+  container.read(activeTabIndexProvider.notifier).state =
+      container.read(tabsProvider).length - 1;
+  await pumpForSettle(tester, const Duration(seconds: 2));
 }

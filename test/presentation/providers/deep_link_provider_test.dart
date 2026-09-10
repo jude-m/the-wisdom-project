@@ -91,8 +91,13 @@ void main() {
           reason: 'a real node is not the same question as a served node');
     });
 
-    test('a page override with no entry starts at the top of that page',
+    test('a page override with no entry is handed on as exactly that',
         () async {
+      // What "a page and no entry" *means* — the top of that page, never the
+      // node's own entry — is `openTabFromNodeKeyProvider`'s rule, and it is
+      // pinned there. This half is that the link's own coordinates reach it
+      // untouched: an absent entry must stay absent, because a 0 substituted
+      // here is indistinguishable from an entry the URL really named.
       final opened = _Opened();
       final container = _containerFor(opened);
 
@@ -101,8 +106,7 @@ void main() {
       );
 
       expect(opened.pageIndex, 3);
-      expect(opened.entryStart, 0,
-          reason: 'never the node own entry — that one pairs with its own page');
+      expect(opened.entryStart, isNull);
     });
 
     test('an entry override is passed through, and no override stays null',

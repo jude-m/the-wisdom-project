@@ -9,7 +9,6 @@ import 'package:the_wisdom_project/core/localization/app_language.dart';
 import 'package:the_wisdom_project/core/utils/pali_conjunct_transformer.dart';
 import 'package:the_wisdom_project/core/utils/pali_letter_options.dart';
 import 'package:the_wisdom_project/domain/entities/content/content_language.dart';
-import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/app_language_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/content_language_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
@@ -64,18 +63,6 @@ void main() {
       return container;
     }
 
-    ReaderTab tabAtBeginning(ProviderContainer container, String nodeKey) {
-      final node = container.read(nodeByKeyProvider(nodeKey))!;
-      return ReaderTab.fromNode(
-        nodeKey: node.nodeKey,
-        paliName: node.paliName,
-        sinhalaName: node.sinhalaName,
-        contentFileId: node.isReadableContent ? node.contentFileId : null,
-        pageIndex: node.isReadableContent ? node.entryPageIndex : 0,
-        entryStart: node.isReadableContent ? node.entryIndexInPage : 0,
-      );
-    }
-
     String breadcrumbText(WidgetTester tester) {
       final finder = find.descendant(
         of: find.byType(BreadcrumbWidget),
@@ -104,7 +91,7 @@ void main() {
             beautifyPaliText(leaf.paliName, PaliLetterOptions.defaults);
 
         container.read(tabsProvider.notifier).addTab(
-              tabAtBeginning(container, 'dn-1-1'),
+              tabFromNode(container, 'dn-1-1'),
             );
         container.read(activeTabIndexProvider.notifier).state =
             container.read(tabsProvider).length - 1;

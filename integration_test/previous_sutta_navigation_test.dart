@@ -7,6 +7,7 @@ import 'package:the_wisdom_project/presentation/models/reader_tab.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
+import 'package:the_wisdom_project/presentation/providers/reader_unit_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/reader/multi_pane_reader_widget.dart';
 import 'package:the_wisdom_project/presentation/widgets/navigation/tab_bar_widget.dart';
 import 'package:the_wisdom_project/data/datasources/bjt_document_local_datasource.dart';
@@ -15,19 +16,26 @@ import 'test_overrides.dart';
 
 /// Integration tests for the "Scroll to top / Previous sutta" navigation button.
 ///
-/// Tree structure used (DFS order of readable nodes in Digha Nikaya):
-///   sp         → Sutta Pitaka        (fileId: dn-1,    page:[0,0])
-///   dn         → දීඝනිකාය           (fileId: dn-1,    page:[0,0])
-///   dn-1       → සීලක්ඛන්ධවග්ගො     (fileId: dn-1,    page:[0,2])
+/// **The button steps between leaves, not between readable nodes.** A container
+/// is a unit here — tapping සීලක්ඛන්ධවග්ගො renders the whole vagga — so leaving
+/// one is a single stop to the sutta on the other side of it, and no tap can
+/// land the reader on සුත්තපිටක. `neighbourLeafProvider` is the rule.
+///
+/// Leaf order used (the stops, in reading order):
 ///   dn-1-1     → බ්රහ්මජාලසුත්තං     (fileId: dn-1,    page:[0,4])
 ///   dn-1-2     → සාමඤ්ඤඵලසුත්තං     (fileId: dn-1,    page:[40,0])
-///   dn-1-11    → කෙවඩ්ඪසුත්තං       (fileId: dn-1-11, page:[0,0])
-///   ...
-///   dn-1-13    → තෙවිජ්ජසුත්තං      (fileId: dn-1-11, page:[55,0])
 ///   dn-1-3     → අම්බට්ඨසුත්තං      (fileId: dn-1-3,  page:[0,0])
+///   dn-1-4     → සොණදණ්ඩසුත්තං      (fileId: dn-1-3)
+///   ...
+///   dn-1-10    → සුභසුත්තං          (fileId: dn-1-6)
+///   dn-1-11    → කෙවඩ්ඪසුත්තං       (fileId: dn-1-11, page:[0,0])
 ///
-/// First readable node in entire tree:
-///   vp         → විනයපිටක            (fileId: vp-prj,  page:[0,0])
+/// dn-1-1 is the first leaf of the Sutta Pitaka, so the leaf before it is the
+/// last one of the Vinaya — which is why the tests that want a neighbour they
+/// can name start at dn-1-2 or later.
+///
+/// First leaf in the entire tree:
+///   vp-prj-1   → වෙරඤ්ජකණ්ඩො         (fileId: vp-prj), inside vp විනයපිටක
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -72,43 +80,6 @@ void main() {
       return container;
     }
 
-    // ---------------------------------------------------------------
-    // Helper: creates a ReaderTab for the given node at its beginning.
-    // Uses the real node from the tree to set correct pagination.
-    // ---------------------------------------------------------------
-    ReaderTab tabAtBeginning(ProviderContainer container, String nodeKey) {
-      final node = container.read(nodeByKeyProvider(nodeKey));
-      if (node == null) {
-        throw StateError('Node "$nodeKey" not found in tree');
-      }
-      return ReaderTab(
-        label: node.paliName.length > 20
-            ? '${node.paliName.substring(0, 20)}...'
-            : node.paliName,
-        fullName: '${node.paliName} / ${node.sinhalaName}',
-        contentFileId: node.contentFileId,
-        nodeKey: node.nodeKey,
-        paliName: node.paliName,
-        sinhalaName: node.sinhalaName,
-        pageStart: node.entryPageIndex,
-        pageEnd: node.entryPageIndex + 1,
-        entryStart: node.entryIndexInPage,
-      );
-    }
-
-    // ---------------------------------------------------------------
-    // Helper: opens a tab and waits for content to load.
-    // ---------------------------------------------------------------
-    Future<void> openTab(
-      WidgetTester tester,
-      ProviderContainer container,
-      ReaderTab tab,
-    ) async {
-      container.read(tabsProvider.notifier).addTab(tab);
-      container.read(activeTabIndexProvider.notifier).state = 0;
-      await pumpForSettle(tester, const Duration(seconds: 2));
-    }
-
     // =================================================================
     // Test 1: FTS mid-sutta
     // =================================================================
@@ -117,24 +88,35 @@ void main() {
       (tester) async {
         final container = await pumpReaderApp(tester);
 
-        // Open බ්රහ්මජාලසුත්තං mid-sutta (simulating FTS result at page 5)
-        // Real node is at page 0, entry 4 — so pageStart=5 is "after beginning"
-        const tab = ReaderTab(
-          label: 'බ්රහ්මජාලසුත්තං',
-          fullName: 'බ්රහ්මජාලසුත්තං / බ්‍රහ්මජාල සූත්‍රය',
-          contentFileId: 'dn-1',
+        // An FTS hit inside බ්රහ්මජාලසුත්තං. The tab is still the whole
+        // sutta — page 5 entry 3 is only where to stop scrolling, and the
+        // reader spends it on the first frame that can reach the row. So
+        // "mid-sutta" is now a scroll position and nothing else, which is
+        // exactly what the two modes below key off.
+        final tab = ReaderTab.fromNode(
           nodeKey: 'dn-1-1',
           paliName: 'බ්රහ්මජාලසුත්තං',
           sinhalaName: 'බ්‍රහ්මජාල සූත්‍රය',
-          pageStart: 5,
-          pageEnd: 6,
-          entryStart: 3,
+          landingPageIndex: 5,
+          landingEntryIndex: 3,
         );
 
         await openTab(tester, container, tab);
 
-        // Mid-sutta shows the expandable FAB (Mode 2) instead of the pill
-        // (Mode 1). The scroll-to-top icon is inside the collapsed FAB.
+        final scrollable = find.byWidgetPredicate(
+          (w) => w is ListView && w.scrollDirection == Axis.vertical,
+        );
+        expect(scrollable, findsOneWidget,
+            reason: 'The reader must be showing the sutta — without the '
+                'ListView the line below throws an opaque StateError instead '
+                'of saying what went missing');
+        final controller = tester.widget<ListView>(scrollable).controller!;
+        expect(controller.offset, greaterThan(0),
+            reason: 'The landing row is pages into the sutta, so opening '
+                'the tab must have scrolled down to it');
+
+        // Scrolled down shows the expandable FAB (Mode 2) instead of the
+        // pill (Mode 1). The scroll-to-top icon is inside the collapsed FAB.
         // ASSERT: FAB trigger visible, pill icons hidden
         expect(find.byIcon(Icons.more_vert), findsOneWidget,
             reason: 'Mid-sutta should show the expandable FAB trigger');
@@ -153,13 +135,18 @@ void main() {
         await tester.tap(find.byIcon(Icons.vertical_align_top));
         await pumpForSettle(tester, const Duration(seconds: 2));
 
-        // ASSERT: Pagination reset to node's beginning (page 0, entry 4)
-        expect(container.read(activePageStartProvider), 0,
-            reason: 'pageStart should reset to node entryPageIndex');
-        expect(container.read(activeEntryStartProvider), 4,
-            reason: 'entryStart should reset to node entryIndexInPage');
+        // ASSERT: back at the unit's own first row — a plain scroll now,
+        // since the unit was never paginated to begin with.
+        expect(controller.offset, 0.0,
+            reason: 'Scroll-to-top should return to the top of the unit');
         expect(container.read(activeNodeKeyProvider), 'dn-1-1',
             reason: 'nodeKey should remain the same');
+        // `.hitTestable()` matters: Mode 1 is always in the tree, kept out of
+        // reach by IgnorePointer and faded to zero. Without it this passes
+        // whether or not the mode actually came back — see the same finder at
+        // the top of this test, which needs it to prove the opposite.
+        expect(find.byIcon(Icons.skip_previous).hitTestable(), findsOneWidget,
+            reason: 'At the beginning again, Mode 1 comes back');
       },
     );
 
@@ -171,8 +158,9 @@ void main() {
       (tester) async {
         final container = await pumpReaderApp(tester);
 
-        // Open බ්රහ්මජාලසුත්තං at its beginning
-        final tab = tabAtBeginning(container, 'dn-1-1');
+        // Open සාමඤ්ඤඵලසුත්තං at its beginning. The leaf before it is
+        // බ්රහ්මජාලසුත්තං — a sutta, not the vagga holding them both.
+        final tab = tabFromNode(container, 'dn-1-2');
         await openTab(tester, container, tab);
 
         // ASSERT: skip_previous icon visible (previous sutta mode)
@@ -182,24 +170,22 @@ void main() {
             reason: 'At sutta beginning should NOT show scroll-to-top icon');
 
         // ASSERT: Tooltip contains the previous sutta's Pali name
-        // Previous of dn-1-1 is dn-1 (සීලක්ඛන්ධවග්ගො)
         final tooltip = tester.widget<Tooltip>(
           find.ancestor(
             of: find.byIcon(Icons.skip_previous),
             matching: find.byType(Tooltip),
           ),
         );
-        expect(tooltip.message, contains('සීලක්ඛන්ධවග්ගො'),
-            reason:
-                'Tooltip should contain the previous node name (සීලක්ඛන්ධවග්ගො)');
+        expect(tooltip.message, contains('බ්රහ්මජාලසුත්තං'),
+            reason: 'Tooltip should name the previous leaf, not its parent');
 
         // ACT: Tap the button
         await tester.tap(find.byIcon(Icons.skip_previous));
         await pumpForSettle(tester, const Duration(seconds: 2));
 
-        // ASSERT: Now at the previous sutta (dn-1)
-        expect(container.read(activeNodeKeyProvider), 'dn-1',
-            reason: 'Should navigate to previous sutta dn-1');
+        // ASSERT: Now at the previous sutta (dn-1-1)
+        expect(container.read(activeNodeKeyProvider), 'dn-1-1',
+            reason: 'Should navigate to previous sutta dn-1-1');
       },
     );
 
@@ -211,30 +197,32 @@ void main() {
       (tester) async {
         final container = await pumpReaderApp(tester);
 
-        // Start at බ්රහ්මජාලසුත්තං (dn-1-1)
-        final tab = tabAtBeginning(container, 'dn-1-1');
+        // Start at සොණදණ්ඩසුත්තං (dn-1-4). Three taps walk back through the
+        // suttas of the vagga — never up into the vagga itself, which is the
+        // whole difference from the readable-node walk this replaced.
+        final tab = tabFromNode(container, 'dn-1-4');
         await openTab(tester, container, tab);
 
-        // --- First tap: dn-1-1 → dn-1 ---
+        // --- First tap: dn-1-4 → dn-1-3 ---
         expect(find.byIcon(Icons.skip_previous), findsOneWidget);
         await tester.tap(find.byIcon(Icons.skip_previous));
         await pumpForSettle(tester, const Duration(seconds: 2));
-        expect(container.read(activeNodeKeyProvider), 'dn-1',
-            reason: 'First tap: should navigate to dn-1');
+        expect(container.read(activeNodeKeyProvider), 'dn-1-3',
+            reason: 'First tap: should navigate to dn-1-3');
 
-        // --- Second tap: dn-1 → dn ---
+        // --- Second tap: dn-1-3 → dn-1-2, and across a content file ---
         expect(find.byIcon(Icons.skip_previous), findsOneWidget);
         await tester.tap(find.byIcon(Icons.skip_previous));
         await pumpForSettle(tester, const Duration(seconds: 2));
-        expect(container.read(activeNodeKeyProvider), 'dn',
-            reason: 'Second tap: should navigate to dn');
+        expect(container.read(activeNodeKeyProvider), 'dn-1-2',
+            reason: 'Second tap: should navigate to dn-1-2');
 
-        // --- Third tap: dn → sp ---
+        // --- Third tap: dn-1-2 → dn-1-1 ---
         expect(find.byIcon(Icons.skip_previous), findsOneWidget);
         await tester.tap(find.byIcon(Icons.skip_previous));
         await pumpForSettle(tester, const Duration(seconds: 2));
-        expect(container.read(activeNodeKeyProvider), 'sp',
-            reason: 'Third tap: should navigate to sp');
+        expect(container.read(activeNodeKeyProvider), 'dn-1-1',
+            reason: 'Third tap: should navigate to dn-1-1');
       },
     );
 
@@ -248,7 +236,7 @@ void main() {
 
         // Open කෙවඩ්ඪසුත්තං (dn-1-11, fileId: dn-1-11)
         // Its previous node in DFS order is dn-1-10 (fileId: dn-1-6) — different file
-        final tab = tabAtBeginning(container, 'dn-1-11');
+        final tab = tabFromNode(container, 'dn-1-11');
         await openTab(tester, container, tab);
 
         // Verify starting state
@@ -277,14 +265,35 @@ void main() {
         final container = await pumpReaderApp(tester);
 
         // Open the very first readable node in the tree: vp (Vinaya Pitaka)
-        final tab = tabAtBeginning(container, 'vp');
+        final tab = tabFromNode(container, 'vp');
         await openTab(tester, container, tab);
 
-        // Verify that previousReadableNodeProvider returns null
+        // Guard: the assertions below are both "findsNothing", so they
+        // would also pass on a reader showing no text at all.
+        expect(
+          find.byWidgetPredicate(
+            (w) => w is ListView && w.scrollDirection == Axis.vertical,
+          ),
+          findsOneWidget,
+          reason: 'vp must actually render text for a hidden button to mean '
+              'anything',
+        );
+
+        // Guard: the provider answers null for "nothing before it" and for
+        // "the resolver never loaded" alike, so a key that does have a
+        // previous leaf has to separate them first.
+        expect(
+          container.read(neighbourLeafProvider(('dn-1-2', ReaderStep.previous))),
+          isNotNull,
+          reason: 'The leaf walk must be working for vp\'s null to mean '
+              '"first in the corpus" rather than "resolver not loaded"',
+        );
+
+        // Verify that the previous leaf really is absent
         final previousNode =
-            container.read(previousReadableNodeProvider('vp'));
+            container.read(neighbourLeafProvider(('vp', ReaderStep.previous)));
         expect(previousNode, isNull,
-            reason: 'vp is the first readable node — no previous exists');
+            reason: 'vp holds the first leaf in the corpus — nothing before it');
 
         // ASSERT: Neither navigation icon is visible
         expect(find.byIcon(Icons.skip_previous), findsNothing,
@@ -302,13 +311,13 @@ void main() {
       (tester) async {
         final container = await pumpReaderApp(tester);
 
-        // Open බ්රහ්මජාලසුත්තං (dn-1-1)
-        final tab = tabAtBeginning(container, 'dn-1-1');
+        // Open සාමඤ්ඤඵලසුත්තං (dn-1-2)
+        final tab = tabFromNode(container, 'dn-1-2');
         await openTab(tester, container, tab);
 
         // Verify starting tab state
         final tabsBefore = container.read(tabsProvider);
-        expect(tabsBefore[0].paliName, 'බ්රහ්මජාලසුත්තං');
+        expect(tabsBefore[0].paliName, 'සාමඤ්ඤඵලසුත්තං');
 
         // ACT: Navigate to previous
         await tester.tap(find.byIcon(Icons.skip_previous));
@@ -316,14 +325,14 @@ void main() {
 
         // ASSERT: Tab entity updated to the previous node's data
         final tabsAfter = container.read(tabsProvider);
-        expect(tabsAfter[0].nodeKey, 'dn-1',
-            reason: 'Tab nodeKey should update to dn-1');
-        expect(tabsAfter[0].paliName, 'සීලක්ඛන්ධවග්ගො',
-            reason: 'Tab paliName should update to dn-1 pali name');
-        expect(tabsAfter[0].sinhalaName, 'සීලස්කන්‍ධ වර්‍ගය',
-            reason: 'Tab sinhalaName should update to dn-1 sinhala name');
+        expect(tabsAfter[0].nodeKey, 'dn-1-1',
+            reason: 'Tab nodeKey should update to dn-1-1');
+        expect(tabsAfter[0].paliName, 'බ්රහ්මජාලසුත්තං',
+            reason: 'Tab paliName should update to dn-1-1 pali name');
+        expect(tabsAfter[0].sinhalaName, 'බ්‍රහ්මජාල සූත්‍රය',
+            reason: 'Tab sinhalaName should update to dn-1-1 sinhala name');
         expect(tabsAfter[0].fullName,
-            'සීලක්ඛන්ධවග්ගො / සීලස්කන්‍ධ වර්‍ගය',
+            'බ්රහ්මජාලසුත්තං / බ්‍රහ්මජාල සූත්‍රය',
             reason: 'Tab fullName should update');
       },
     );
@@ -336,22 +345,22 @@ void main() {
       (tester) async {
         final container = await pumpReaderApp(tester);
 
-        // Open බ්රහ්මජාලසුත්තං (dn-1-1)
-        final tab = tabAtBeginning(container, 'dn-1-1');
+        // Open සාමඤ්ඤඵලසුත්තං (dn-1-2)
+        final tab = tabFromNode(container, 'dn-1-2');
         await openTab(tester, container, tab);
 
         // ACT: Navigate to previous
         await tester.tap(find.byIcon(Icons.skip_previous));
         await pumpForSettle(tester, const Duration(seconds: 2));
 
-        // ASSERT: Navigator selection updated to dn-1
-        expect(container.read(selectedNodeProvider), 'dn-1',
-            reason: 'Navigator should select the new sutta (dn-1)');
+        // ASSERT: Navigator selection updated to dn-1-1
+        expect(container.read(selectedNodeProvider), 'dn-1-1',
+            reason: 'Navigator should select the new sutta (dn-1-1)');
 
-        // ASSERT: Path to dn-1 should be expanded in the tree
+        // ASSERT: Path to dn-1-1 should be expanded in the tree
         final expanded = container.read(expandedNodesProvider);
-        expect(expanded, contains('dn'),
-            reason: 'Parent node "dn" should be expanded');
+        expect(expanded, contains('dn-1'),
+            reason: 'Parent node "dn-1" should be expanded');
       },
     );
 
@@ -363,25 +372,18 @@ void main() {
       (tester) async {
         final container = await pumpReaderApp(tester);
 
-        // Open බ්රහ්මජාලසුත්තං (dn-1-1) at its beginning with many pages
-        // loaded, so there is enough content to scroll past one viewport.
-        final node = container.read(nodeByKeyProvider('dn-1-1'));
-        final tab = ReaderTab(
-          label: node!.paliName,
-          fullName: '${node.paliName} / ${node.sinhalaName}',
-          contentFileId: node.contentFileId,
-          nodeKey: node.nodeKey,
-          paliName: node.paliName,
-          sinhalaName: node.sinhalaName,
-          pageStart: node.entryPageIndex,
-          pageEnd: node.entryPageIndex + 15, // Load 15 pages for scrolling
-          entryStart: node.entryIndexInPage,
-        );
+        // Open බ්රහ්මජාලසුත්තං (dn-1-1) at its beginning. The unit runs to
+        // the sutta's end, which is far more than the one viewport this
+        // test needs to scroll past.
+        final tab = tabFromNode(container, 'dn-1-1');
 
         await openTab(tester, container, tab);
 
-        // VERIFY: At the beginning, button is skip_previous
-        expect(find.byIcon(Icons.skip_previous), findsOneWidget,
+        // VERIFY: At the beginning, button is skip_previous. `.hitTestable()`
+        // like the two assertions further down — the icon is in the tree in
+        // either mode, so a bare finder would let this test start from an
+        // unproven premise.
+        expect(find.byIcon(Icons.skip_previous).hitTestable(), findsOneWidget,
             reason: 'Initially at sutta beginning → skip-previous icon');
 
         // Get the CONTENT ListView's scroll controller (not the TabBarWidget's
@@ -442,7 +444,10 @@ void main() {
         await pumpForSettle(tester, const Duration(seconds: 2));
 
         // ASSERT: Back at the top, button reverts to skip_previous (Mode 1)
-        expect(find.byIcon(Icons.skip_previous), findsOneWidget,
+        // `.hitTestable()` for the same reason the absence above needs it:
+        // Mode 1 never leaves the tree, so a bare finder passes whether or
+        // not it came back.
+        expect(find.byIcon(Icons.skip_previous).hitTestable(), findsOneWidget,
             reason:
                 'After scrolling back to top → skip-previous icon returns');
       },
