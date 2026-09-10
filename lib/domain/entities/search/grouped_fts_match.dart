@@ -6,36 +6,31 @@ import 'search_result_unit.dart';
 
 part 'grouped_fts_match.freezed.dart';
 
-/// Groups multiple FTS matches from the same content file (sutta/section).
+/// Groups multiple FTS matches by the sutta whose text they fall in.
 ///
 /// Used to reduce visual clutter in search results by showing one primary
 /// match with an option to expand and see additional matches from the same text.
+///
+/// The group carries nothing but the matches — even [nodeKey] is read off the
+/// primary. Everything a tile draws — title, path, edition — comes off the
+/// [SearchResult] it is handed, so there is no second copy here to fall out of
+/// step.
 @freezed
 class GroupedFTSMatch with _$GroupedFTSMatch {
   const GroupedFTSMatch._();
 
   const factory GroupedFTSMatch({
-    /// Content file identifier (e.g., 'dn-1') - the grouping key
-    required String contentFileId,
-
-    /// Tree navigation key
-    required String nodeKey,
-
-    /// Document title
-    required String title,
-
-    /// Navigation path (e.g., "Dīgha Nikāya > Sīlakkhandhavagga")
-    required String subtitle,
-
-    /// Edition this group belongs to (e.g., 'bjt', 'sc')
-    required String editionId,
-
     /// First match shown in collapsed view
     required SearchResult primaryMatch,
 
     /// Additional matches (shown when expanded)
     @Default([]) List<SearchResult> secondaryMatches,
   }) = _GroupedFTSMatch;
+
+  /// The sutta these matches share: the grouping key, and the unit a tap opens.
+  /// Read off the primary rather than stored — [fromSearchResults] rewrites
+  /// every result to the key it groups under, so the two cannot disagree.
+  String get nodeKey => primaryMatch.nodeKey;
 
   /// Whether there are additional matches beyond the primary
   bool get hasSecondaryMatches => secondaryMatches.isNotEmpty;
@@ -93,11 +88,6 @@ class GroupedFTSMatch with _$GroupedFTSMatch {
 
       groupedResults.add(
         GroupedFTSMatch(
-          contentFileId: primaryMatch.contentFileId,
-          nodeKey: primaryMatch.nodeKey,
-          title: primaryMatch.title,
-          subtitle: primaryMatch.subtitle,
-          editionId: primaryMatch.editionId,
           primaryMatch: primaryMatch,
           secondaryMatches: secondaryMatches,
         ),

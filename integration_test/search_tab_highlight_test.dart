@@ -17,7 +17,9 @@ import 'package:integration_test/integration_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
+import 'package:the_wisdom_project/core/utils/responsive_utils.dart';
 import 'package:the_wisdom_project/data/datasources/bjt_document_local_datasource.dart';
+import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/fts_highlight_provider.dart';
@@ -51,13 +53,21 @@ class _SearchTabTestWidgetState extends ConsumerState<_SearchTabTestWidget> {
   /// Replicates ReaderScreen._handleSearchResultTap():
   /// Opens a tab from search result, sets FTS highlight for fullText results,
   /// then saves recent search and dismisses the panel.
-  void _handleSearchResultTap(result) {
+  ///
+  /// The tab index is **awaited**, not read off [activeTabIndexProvider]: the
+  /// opener resolves the hit's unit first, so a synchronous read here still
+  /// names the tab the user came from (-1 with none open).
+  Future<void> _handleSearchResultTap(SearchResult result) async {
+    // Reads BuildContext, so it is answered before the await below.
+    final isPortraitMode = ResponsiveUtils.shouldDefaultToSingleColumn(context);
+
     // Open tab from search result
-    ref.read(openTabFromSearchResultProvider)(result);
+    final tabIndex = await ref.read(openTabFromSearchResultProvider)(result,
+        isPortraitMode: isPortraitMode);
+    if (!mounted) return;
 
     // Set FTS highlight only for full text results
-    if (result.resultType == SearchResultType.fullText) {
-      final tabIndex = ref.read(activeTabIndexProvider);
+    if (tabIndex >= 0 && result.resultType == SearchResultType.fullText) {
       final searchState = ref.read(searchStateProvider);
       ref.read(ftsHighlightProvider.notifier).setForTab(
         tabIndex,

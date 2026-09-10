@@ -16,21 +16,6 @@ final _privateConstructorUsedError = UnsupportedError(
 
 /// @nodoc
 mixin _$GroupedFTSMatch {
-  /// Content file identifier (e.g., 'dn-1') - the grouping key
-  String get contentFileId => throw _privateConstructorUsedError;
-
-  /// Tree navigation key
-  String get nodeKey => throw _privateConstructorUsedError;
-
-  /// Document title
-  String get title => throw _privateConstructorUsedError;
-
-  /// Navigation path (e.g., "Dīgha Nikāya > Sīlakkhandhavagga")
-  String get subtitle => throw _privateConstructorUsedError;
-
-  /// Edition this group belongs to (e.g., 'bjt', 'sc')
-  String get editionId => throw _privateConstructorUsedError;
-
   /// First match shown in collapsed view
   SearchResult get primaryMatch => throw _privateConstructorUsedError;
 
@@ -50,14 +35,7 @@ abstract class $GroupedFTSMatchCopyWith<$Res> {
           GroupedFTSMatch value, $Res Function(GroupedFTSMatch) then) =
       _$GroupedFTSMatchCopyWithImpl<$Res, GroupedFTSMatch>;
   @useResult
-  $Res call(
-      {String contentFileId,
-      String nodeKey,
-      String title,
-      String subtitle,
-      String editionId,
-      SearchResult primaryMatch,
-      List<SearchResult> secondaryMatches});
+  $Res call({SearchResult primaryMatch, List<SearchResult> secondaryMatches});
 
   $SearchResultCopyWith<$Res> get primaryMatch;
 }
@@ -77,35 +55,10 @@ class _$GroupedFTSMatchCopyWithImpl<$Res, $Val extends GroupedFTSMatch>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? contentFileId = null,
-    Object? nodeKey = null,
-    Object? title = null,
-    Object? subtitle = null,
-    Object? editionId = null,
     Object? primaryMatch = null,
     Object? secondaryMatches = null,
   }) {
     return _then(_value.copyWith(
-      contentFileId: null == contentFileId
-          ? _value.contentFileId
-          : contentFileId // ignore: cast_nullable_to_non_nullable
-              as String,
-      nodeKey: null == nodeKey
-          ? _value.nodeKey
-          : nodeKey // ignore: cast_nullable_to_non_nullable
-              as String,
-      title: null == title
-          ? _value.title
-          : title // ignore: cast_nullable_to_non_nullable
-              as String,
-      subtitle: null == subtitle
-          ? _value.subtitle
-          : subtitle // ignore: cast_nullable_to_non_nullable
-              as String,
-      editionId: null == editionId
-          ? _value.editionId
-          : editionId // ignore: cast_nullable_to_non_nullable
-              as String,
       primaryMatch: null == primaryMatch
           ? _value.primaryMatch
           : primaryMatch // ignore: cast_nullable_to_non_nullable
@@ -136,14 +89,7 @@ abstract class _$$GroupedFTSMatchImplCopyWith<$Res>
       __$$GroupedFTSMatchImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call(
-      {String contentFileId,
-      String nodeKey,
-      String title,
-      String subtitle,
-      String editionId,
-      SearchResult primaryMatch,
-      List<SearchResult> secondaryMatches});
+  $Res call({SearchResult primaryMatch, List<SearchResult> secondaryMatches});
 
   @override
   $SearchResultCopyWith<$Res> get primaryMatch;
@@ -162,35 +108,10 @@ class __$$GroupedFTSMatchImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? contentFileId = null,
-    Object? nodeKey = null,
-    Object? title = null,
-    Object? subtitle = null,
-    Object? editionId = null,
     Object? primaryMatch = null,
     Object? secondaryMatches = null,
   }) {
     return _then(_$GroupedFTSMatchImpl(
-      contentFileId: null == contentFileId
-          ? _value.contentFileId
-          : contentFileId // ignore: cast_nullable_to_non_nullable
-              as String,
-      nodeKey: null == nodeKey
-          ? _value.nodeKey
-          : nodeKey // ignore: cast_nullable_to_non_nullable
-              as String,
-      title: null == title
-          ? _value.title
-          : title // ignore: cast_nullable_to_non_nullable
-              as String,
-      subtitle: null == subtitle
-          ? _value.subtitle
-          : subtitle // ignore: cast_nullable_to_non_nullable
-              as String,
-      editionId: null == editionId
-          ? _value.editionId
-          : editionId // ignore: cast_nullable_to_non_nullable
-              as String,
       primaryMatch: null == primaryMatch
           ? _value.primaryMatch
           : primaryMatch // ignore: cast_nullable_to_non_nullable
@@ -207,35 +128,10 @@ class __$$GroupedFTSMatchImplCopyWithImpl<$Res>
 
 class _$GroupedFTSMatchImpl extends _GroupedFTSMatch {
   const _$GroupedFTSMatchImpl(
-      {required this.contentFileId,
-      required this.nodeKey,
-      required this.title,
-      required this.subtitle,
-      required this.editionId,
-      required this.primaryMatch,
+      {required this.primaryMatch,
       final List<SearchResult> secondaryMatches = const []})
       : _secondaryMatches = secondaryMatches,
         super._();
-
-  /// Content file identifier (e.g., 'dn-1') - the grouping key
-  @override
-  final String contentFileId;
-
-  /// Tree navigation key
-  @override
-  final String nodeKey;
-
-  /// Document title
-  @override
-  final String title;
-
-  /// Navigation path (e.g., "Dīgha Nikāya > Sīlakkhandhavagga")
-  @override
-  final String subtitle;
-
-  /// Edition this group belongs to (e.g., 'bjt', 'sc')
-  @override
-  final String editionId;
 
   /// First match shown in collapsed view
   @override
@@ -256,7 +152,7 @@ class _$GroupedFTSMatchImpl extends _GroupedFTSMatch {
 
   @override
   String toString() {
-    return 'GroupedFTSMatch(contentFileId: $contentFileId, nodeKey: $nodeKey, title: $title, subtitle: $subtitle, editionId: $editionId, primaryMatch: $primaryMatch, secondaryMatches: $secondaryMatches)';
+    return 'GroupedFTSMatch(primaryMatch: $primaryMatch, secondaryMatches: $secondaryMatches)';
   }
 
   @override
@@ -264,14 +160,6 @@ class _$GroupedFTSMatchImpl extends _GroupedFTSMatch {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$GroupedFTSMatchImpl &&
-            (identical(other.contentFileId, contentFileId) ||
-                other.contentFileId == contentFileId) &&
-            (identical(other.nodeKey, nodeKey) || other.nodeKey == nodeKey) &&
-            (identical(other.title, title) || other.title == title) &&
-            (identical(other.subtitle, subtitle) ||
-                other.subtitle == subtitle) &&
-            (identical(other.editionId, editionId) ||
-                other.editionId == editionId) &&
             (identical(other.primaryMatch, primaryMatch) ||
                 other.primaryMatch == primaryMatch) &&
             const DeepCollectionEquality()
@@ -279,14 +167,7 @@ class _$GroupedFTSMatchImpl extends _GroupedFTSMatch {
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      contentFileId,
-      nodeKey,
-      title,
-      subtitle,
-      editionId,
-      primaryMatch,
+  int get hashCode => Object.hash(runtimeType, primaryMatch,
       const DeepCollectionEquality().hash(_secondaryMatches));
 
   /// Create a copy of GroupedFTSMatch
@@ -301,34 +182,9 @@ class _$GroupedFTSMatchImpl extends _GroupedFTSMatch {
 
 abstract class _GroupedFTSMatch extends GroupedFTSMatch {
   const factory _GroupedFTSMatch(
-      {required final String contentFileId,
-      required final String nodeKey,
-      required final String title,
-      required final String subtitle,
-      required final String editionId,
-      required final SearchResult primaryMatch,
+      {required final SearchResult primaryMatch,
       final List<SearchResult> secondaryMatches}) = _$GroupedFTSMatchImpl;
   const _GroupedFTSMatch._() : super._();
-
-  /// Content file identifier (e.g., 'dn-1') - the grouping key
-  @override
-  String get contentFileId;
-
-  /// Tree navigation key
-  @override
-  String get nodeKey;
-
-  /// Document title
-  @override
-  String get title;
-
-  /// Navigation path (e.g., "Dīgha Nikāya > Sīlakkhandhavagga")
-  @override
-  String get subtitle;
-
-  /// Edition this group belongs to (e.g., 'bjt', 'sc')
-  @override
-  String get editionId;
 
   /// First match shown in collapsed view
   @override

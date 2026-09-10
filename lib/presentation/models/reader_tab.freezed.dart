@@ -34,8 +34,8 @@ mixin _$ReaderTab {
   /// `?e=<page>.<entry>` link named, as a document coordinate.
   ///
   /// **Scroll position only.** The unit always comes from [nodeKey]; this
-  /// says where inside it to stop, and is consumed once the tab has its own
-  /// [scrollOffset]. Null for every other way a tab opens.
+  /// says where inside it to stop, and the reader clears it the moment it
+  /// lands. Null for every other way a tab opens.
   int? get landingPageIndex => throw _privateConstructorUsedError;
   int? get landingEntryIndex => throw _privateConstructorUsedError;
 
@@ -322,8 +322,8 @@ class _$ReaderTabImpl extends _ReaderTab {
   /// `?e=<page>.<entry>` link named, as a document coordinate.
   ///
   /// **Scroll position only.** The unit always comes from [nodeKey]; this
-  /// says where inside it to stop, and is consumed once the tab has its own
-  /// [scrollOffset]. Null for every other way a tab opens.
+  /// says where inside it to stop, and the reader clears it the moment it
+  /// lands. Null for every other way a tab opens.
   @override
   final int? landingPageIndex;
   @override
@@ -479,8 +479,8 @@ abstract class _ReaderTab extends ReaderTab {
   /// `?e=<page>.<entry>` link named, as a document coordinate.
   ///
   /// **Scroll position only.** The unit always comes from [nodeKey]; this
-  /// says where inside it to stop, and is consumed once the tab has its own
-  /// [scrollOffset]. Null for every other way a tab opens.
+  /// says where inside it to stop, and the reader clears it the moment it
+  /// lands. Null for every other way a tab opens.
   @override
   int? get landingPageIndex;
   @override

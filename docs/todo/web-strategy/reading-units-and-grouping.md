@@ -886,6 +886,54 @@ caller until now:
 - `ContentSlicer.nodesByFile`, a one-line alias for `SliceIndex.nodesByFile`,
   is deleted and the generator's five call sites point at the shared name.
 
+### Debt: seven integration files still name the old tab fields
+
+The inversion above renamed what a tab carries, and seven `integration_test/`
+files were not carried across. They do not compile, so they cannot run.
+
+| old | new |
+| --- | --- |
+| `contentFileId:` / `.contentFileId` | gone — derived from `nodeKey` |
+| `pageStart:` / `.pageStart` / `.pageIndex` | `landingPageIndex` |
+| `entryStart:` / `.entryStart` | `landingEntryIndex` |
+| `pageEnd:` | gone — a unit's end is derived, never stored |
+| `activePageStartProvider` | `activeReaderUnitProvider` → `range.start.pageIndex` |
+| `activeEntryStartProvider` | `activeReaderUnitProvider` → `range.start.entryIndex` |
+| `activePageEndProvider` | `activeReaderUnitProvider` → `range.end?.pageIndex` (null ⇒ runs to end of file) |
+| `previousReadableNodeProvider(key)` | `neighbourLeafProvider((key, ReaderStep.previous))` |
+
+**Not every row is a rename.** `contentFileId` and `pageEnd` are gone outright:
+a test asserting `tab.contentFileId` is asserting the very thing B2 removed — a
+tab no longer carries a file id, or an end. Those assertions need a new
+*subject*: the tab's `nodeKey`, or the unit `ReaderUnitResolver` answers with.
+The three `active*` providers collapsed into one — `activeReaderUnitProvider`
+hands back the whole unit, so a test that read a scalar now reads a field off
+its `range`.
+
+Files, with their share of the 47 analyzer errors:
+`previous_sutta_navigation` (15), `layout_switch` (8),
+`breadcrumb_navigation` (6), `scroll_restoration` (6), `in_page_search` (5),
+`dictionary_editable_word` (4), `language_independence` (3).
+
+`search_tab_highlight` was the eighth and is fixed. It keeps a hand-copy of
+`ReaderScreen._handleSearchResultTap`, and the copy still read
+`activeTabIndexProvider` synchronously after the opener went async — filing the
+FTS highlight under tab −1 while the real tab opened at 0. The copy is the
+hazard, not the drift: production's handler is private to `_ReaderScreenState`,
+so the test cannot call the thing it is testing.
+
+**Two things this pass left undone, both deliberate:**
+
+- **The branches B2 added have no cover.** Every case in
+  `grouped_fts_match_test` calls `fromSearchResults` with no resolver, so both
+  new paths are exercised only in their null form: the `fullText` guard in
+  `SearchResultUnitKey.unitKey`, and the `copyWith(nodeKey:)` rewrite that
+  makes each result carry the key it groups under.
+- **The duplicated handler stays duplicated.** Awaiting the index fixed the
+  symptom; the cause is that `ReaderScreen._handleSearchResultTap` is private,
+  so the harness copies it and the copy is free to rot. Extracting it is a
+  production change, not a test one, which is why it is not in this commit.
+
 ## B3. Navigation
 
 - ✅ **Prev walks leaves, not readable pages.** `neighbourLeafProvider`
@@ -1017,7 +1065,7 @@ of a generated `const` is the failure this document exists to prevent.
 8. Switch layout mid-unit — the top-visible entry stays put.
 9. Restart — tabs restore, and old `_v1` tabs are dropped, which is intended.
 
-Per project convention, no tests unless asked. `test/` was brought back to the new `ReaderTab` in a follow-up, along with the helpers it had been missing. **`integration_test/` was not**: 7 files still name the removed coordinate fields and do not compile — `previous_sutta_navigation`, `layout_switch`, `scroll_restoration`, `breadcrumb_navigation`, `in_page_search`, `dictionary_editable_word`, `language_independence`. That is the whole of `flutter analyze`'s 47 issues, and the only thing standing between this branch and a clean tree.
+Per project convention, no tests unless asked. `test/` was brought back to the new `ReaderTab` in a follow-up, along with the helpers it had been missing. **`integration_test/` was not** — the seven files, the rename table they need, and what was deliberately left undone are all in [Debt: seven integration files still name the old tab fields](#debt-seven-integration-files-still-name-the-old-tab-fields) above. It is the whole of `flutter analyze`'s output, and the only thing standing between this branch and a clean tree.
 
 ---
 

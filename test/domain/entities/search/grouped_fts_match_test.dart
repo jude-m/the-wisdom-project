@@ -233,7 +233,7 @@ void main() {
       });
 
       group('Metadata preservation -', () {
-        test('group preserves metadata from primary match', () {
+        test('group names the sutta; the matches keep their own metadata', () {
           // ARRANGE
           final results = [
             createSearchResult(
@@ -259,12 +259,14 @@ void main() {
           // ACT
           final grouped = GroupedFTSMatch.fromSearchResults(results);
 
-          // ASSERT - group metadata comes from primary match
-          expect(grouped[0].contentFileId, equals('dn-1-file'));
-          expect(grouped[0].title, equals('Brahmajāla Sutta'));
-          expect(grouped[0].subtitle, equals('Dīgha Nikāya'));
-          expect(grouped[0].editionId, equals('bjt'));
+          // ASSERT - the group names the sutta, and nothing else. Title, path
+          // and edition stay on the results, which is where the tiles read
+          // them from.
           expect(grouped[0].nodeKey, equals('dn-1'));
+          expect(grouped[0].primaryMatch.contentFileId, equals('dn-1-file'));
+          expect(grouped[0].primaryMatch.title, equals('Brahmajāla Sutta'));
+          expect(grouped[0].primaryMatch.subtitle, equals('Dīgha Nikāya'));
+          expect(grouped[0].primaryMatch.editionId, equals('bjt'));
         });
       });
     });
