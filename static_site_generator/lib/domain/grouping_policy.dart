@@ -38,7 +38,7 @@ enum LeafPolicy {
 /// constants means three places to look and three places to forget.
 ///
 /// The table is closed. It grows only by a decision recorded in
-/// `docs/todo/web-strategy/reading-units-and-grouping.md`, never by
+/// `docs/decisions/reading-units-and-grouping.md`, never by
 /// measurement, and every entry is argued there. Editing it is a URL change:
 /// re-run `--write-snapshot` and review the diff of `grouping_snapshot.dart`.
 class GroupingPolicy {

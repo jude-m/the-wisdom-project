@@ -80,7 +80,7 @@ class PreamblePlanner {
   /// `GroupingPolicy.shortLineChars`. It moves no URL; all it settles is
   /// whether a container page joins the reading chain. It sits inside a wide
   /// band every value of which gives the same verdict on today's corpus; the
-  /// band is measured in `docs/todo/web-strategy/reading-units-and-grouping.md`
+  /// band is measured in `docs/decisions/reading-units-and-grouping.md`
   /// and what lives here is the choice.
   static const int minIntroductionChars = 200;
 

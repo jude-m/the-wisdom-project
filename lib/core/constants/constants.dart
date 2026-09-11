@@ -64,7 +64,7 @@ class PaneWidthConstants {
   // column, citation peek — measured against `AppTypography.definitionBody`
   // and applied by `AppTypography.proseColumnMaxWidth`. Sinhala prose, not
   // Pali, so it moves independently of 54.5 and never reaches the static site.
-  // Derived in §B6 of docs/todo/web-strategy/reading-units-and-grouping.md.
+  // Derived in §B6 of docs/decisions/reading-units-and-grouping.md.
   static const double proseColumnMeasureEm = 44.0;
 
   // What a prose surface puts between its text and the edge of its column.

@@ -58,7 +58,7 @@
 /// interpolated by the writer rather than typed. Every other one lives in
 /// `static_site_generator/CORPUS_FIGURES.md`.
 ///
-/// See `docs/todo/web-strategy/reading-units-and-grouping.md` — B5.
+/// See `docs/decisions/reading-units-and-grouping.md` — B5.
 const Map<String, ({int page, int entry})> correctedTreeCoordinates = {
   // was (page: 50, entry: 7), now opens on "4. 7."
   'kn-vv-4-7': (page: 50, entry: 8),

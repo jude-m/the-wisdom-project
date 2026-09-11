@@ -17,7 +17,7 @@ problem with separate tooling — see `static-web-hosting.md`.
 
 **Cross-refs.** Release and CI in [`web-release.md`](./web-release.md); hosting,
 topology and the deploy path in `static-web-hosting.md`; the grouping rule in
-`reading-units-and-grouping.md`; **all corpus counts in
+`../../decisions/reading-units-and-grouping.md`; **all corpus counts in
 `static_site_generator/CORPUS_FIGURES.md`**, generated. How the site was built is
 in `docs/done/web/`. Don't restate a decision in two places.
 
@@ -847,6 +847,37 @@ consumer is undecided:
 
 **Trigger: the 404 logs.** Launch with neither, then decide from traffic.
 **Ask before generating stubs** — it changes what the upload contains.
+
+## D4. The 42 one-vagga saṃyuttas
+
+**Moved here 2026-09-11** from `reading-units-and-grouping.md`, which deferred it
+with the trigger *"revisit once the split rule lands"*. The split rule has
+landed, so this is now a decision to take or drop rather than one to wait on.
+
+**42 containers whose only child is another container** — almost all saṃyuttas
+holding exactly one vagga. The saṃyutta TOC page holds one link, to the vagga TOC
+page, which then lists the suttas: two clicks and two files where one would do.
+Worth about 42 pages.
+
+**It breaks the structure, which the lone-child leaf rule does not.** That rule
+removes a *leaf's* file, and a leaf is never anyone's ancestor. These would
+remove a *mid-tree container's* file, and whichever of the pair survives, the
+other stays in `ancestorsOf` for the whole subtree below it with no page to point
+at — roughly 634 leaves carrying a dead breadcrumb segment. That is a change to
+the navigable BJT hierarchy, not a file-count optimisation.
+
+Two complications, both still true:
+
+- **It chains.** 7 of the 42 run deeper (`atta-sn-3-4` → `atta-sn-3-4-1` → one
+  leaf: three pages for one sutta). Collapsing one level exposes the next, so the
+  rule must decide how far to run and what the survivor is called.
+- **`anya` is in the list.** Its only child is the whole Visuddhimagga, so any
+  rule needs a root exemption or a top-level pitaka node disappears.
+
+**It partly solves itself**, which is the argument for dropping it: those 7 deep
+chains each contain a single-leaf container the lone-child rule already removes,
+so the remaining win is under 42 pages. Weighed against dead breadcrumbs on 634
+leaves, the honest default is **don't**.
 
 ---
 

@@ -890,7 +890,7 @@ void _writeAlignmentSnapshot(
 /// interpolated by the writer rather than typed. Every other one lives in
 /// `static_site_generator/CORPUS_FIGURES.md`.
 ///
-/// See `docs/todo/web-strategy/reading-units-and-grouping.md` — B5.
+/// See `docs/decisions/reading-units-and-grouping.md` — B5.
 const Map<String, ({int page, int entry})> correctedTreeCoordinates = {
 ''');
   for (final c in corrections) {
@@ -963,7 +963,7 @@ void _writeSnapshot(
 /// interpolated by the writer rather than typed. Every other one lives in
 /// `static_site_generator/CORPUS_FIGURES.md`.
 ///
-/// See `docs/todo/web-strategy/reading-units-and-grouping.md` — Part 2.
+/// See `docs/decisions/reading-units-and-grouping.md` — Part 2.
 const Set<String> foldedLeafKeys = {
 ''',
       ordered);
@@ -983,7 +983,7 @@ const Set<String> foldedLeafKeys = {
     stdout.writeln('');
     stdout.writeln('That is ${added + removed} URL(s) moving. Review '
         '`git diff` on the snapshot, and update');
-    stdout.writeln('docs/todo/web-strategy/reading-units-and-grouping.md in '
+    stdout.writeln('docs/decisions/reading-units-and-grouping.md in '
         'the same commit.');
   }
 
@@ -1061,7 +1061,7 @@ void _writePreambleSnapshot(String path, List<String> ordered) {
 /// interpolated by the writer rather than typed. Every other one lives in
 /// `static_site_generator/CORPUS_FIGURES.md`.
 ///
-/// See `docs/todo/web-strategy/reading-units-and-grouping.md`.
+/// See `docs/decisions/reading-units-and-grouping.md`.
 const Set<String> textBearingContainerKeys = {
 ''',
       ordered);

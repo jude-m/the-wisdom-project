@@ -38,7 +38,7 @@
 /// interpolated by the writer rather than typed. Every other one lives in
 /// `static_site_generator/CORPUS_FIGURES.md`.
 ///
-/// See `docs/todo/web-strategy/reading-units-and-grouping.md`.
+/// See `docs/decisions/reading-units-and-grouping.md`.
 const Set<String> textBearingContainerKeys = {
   'vp-prj-2-2',
   'vp-prj-2-3',

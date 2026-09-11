@@ -24,7 +24,7 @@
 /// interpolated by the writer rather than typed. Every other one lives in
 /// `static_site_generator/CORPUS_FIGURES.md`.
 ///
-/// See `docs/todo/web-strategy/reading-units-and-grouping.md` — Part 2.
+/// See `docs/decisions/reading-units-and-grouping.md` — Part 2.
 const Set<String> foldedLeafKeys = {
   'vp-prj-2-2-1',
   'vp-prj-2-3-1',

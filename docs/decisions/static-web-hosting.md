@@ -13,7 +13,7 @@
 > | the bar this must clear | [`static-site-constraints.md`](./static-site-constraints.md) |
 > | releasing + CI | [`../todo/web-strategy/web-release.md`](../todo/web-strategy/web-release.md) |
 > | open work on the site | [`../todo/web-strategy/static-site-backlog.md`](../todo/web-strategy/static-site-backlog.md) |
-> | the grouping rule | [`../todo/web-strategy/reading-units-and-grouping.md`](../todo/web-strategy/reading-units-and-grouping.md) |
+> | the grouping rule | [`reading-units-and-grouping.md`](./reading-units-and-grouping.md) |
 > | URL grammar, in-app link receiving | [`../todo/web-strategy/deep-linking-and-shareable-urls.md`](../todo/web-strategy/deep-linking-and-shareable-urls.md) |
 > | backends | [`../todo/serverless-deployment-decision.md`](../todo/serverless-deployment-decision.md) |
 > | how the site was built | `docs/done/web/` (incl. the demoted Jaspr analysis) |

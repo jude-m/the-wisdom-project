@@ -13,7 +13,17 @@
 > | folded leaves (→ stubs) | 1,603 |
 > | sutta pages under 1,500 chars | 3,707 |
 >
-> **Status:** IN BUILD. The site half is done bar the first deploy. The app's reader rework (Part 4) is under way: B1 shipped 2026-09-06, **B2 committed 2026-09-08 on `feat/reader-page-units`**, its test debt cleared 2026-09-10, and **B3 closed the same day when Next was wired**. It also did not land as planned: the app takes the site's *boundedness* and rejects its *grouping*; a unit is the node you tapped, bounded by its own subtree. See Part 4, "The app does not adopt the grouping". **B6 closed 2026-09-11**, giving the dictionary and research columns a prose measure of their own, and with it Part 4 is done.
+> **Status:** ✅ **SETTLED — moved to `docs/decisions/` 2026-09-11.** Both halves
+> are built: the site bar its first deploy (see
+> [`../todo/web-strategy/web-release.md`](../todo/web-strategy/web-release.md)),
+> and the app's reader rework complete through B6. **This doc is now the rule,
+> not a plan** — it is what `grouping_snapshot.dart`, `grouping_policy.dart`,
+> `preamble_planner.dart`, `tree_coordinate_corrections.dart`, `plan_corpus.dart`
+> and `constants.dart` all point at. The two items that were still open went to
+> `docs/todo/web-strategy/static-site-backlog.md` D4 (the 42 saṃyuttas) and
+> `docs/todo/app-reader-backlog.md` R1 (the scrolling tab label).
+>
+> *Historical note on the build:* the site half was done bar the first deploy. The app's reader rework (Part 4) is under way: B1 shipped 2026-09-06, **B2 committed 2026-09-08 on `feat/reader-page-units`**, its test debt cleared 2026-09-10, and **B3 closed the same day when Next was wired**. It also did not land as planned: the app takes the site's *boundedness* and rejects its *grouping*; a unit is the node you tapped, bounded by its own subtree. See Part 4, "The app does not adopt the grouping". **B6 closed 2026-09-11**, giving the dictionary and research columns a prose measure of their own, and with it Part 4 is done.
 >
 > | stage | what | state |
 > |---|---|---|
@@ -59,7 +69,7 @@
 - **App, until S10:** the unit was the *content file*. `ReaderTab` was `(contentFileId, pageStart, pageEnd, entryStart)`; opening any node jumped to its coordinate and paginated forward one printed page at a time to the end of the file. Three consequences:
   - Every one of the 16,355 tree nodes has a `contentFileId` — including `sp` (සුත්තපිටක → `dn-1`) — so a folder or root tap dumped raw text that ran on past what was tapped. **Fixed by B2**: the unit now stops at the end of the tapped node's subtree.
   - Only a *previous* existed, and it walked readable nodes rather than leaves, so it could land the reader on සුත්තපිටක. **Fixed by B2–B3**: one direction-free `navigateToSuttaProvider`, asked which way by `neighbourLeafProvider`, behind a `skip_previous` / `skip_next` pair.
-  - Tab label and breadcrumb never update while scrolling, so scrolling from Mūlapariyāya into Sabbāsava leaves the app claiming you are still in Mūlapariyāya. **Still open**, and much smaller now that a unit is bounded: `SliceIndex.keyAt` answers it (B1), nothing calls it for this yet.
+  - Tab label and breadcrumb never update while scrolling, so scrolling from Mūlapariyāya into Sabbāsava leaves the app claiming you are still in Mūlapariyāya. **Moved out 2026-09-11 to `docs/todo/app-reader-backlog.md` R1** — much smaller now that a unit is bounded: `SliceIndex.keyAt` answers it (B1), nothing calls it for this yet.
 - **Static site:** the unit is the *page* — `sutta` (own file) · `chapter` (a contiguous run of short leaves, at the vagga's URL or at its first leaf's) · `toc` (container: preamble + links), prev/next walking readable pages only. A page is readable when it carries text, **not** when it is a non-TOC (see "A container that opens with an introduction").
 
 **Decisions (2026-07-29, revised 2026-09-07):** the app adopts the site's **bounded** model — a unit has an end — but **not its grouping**; the app rework waited on site review settling the vagga grouping, and no longer does; and **no new static/asset files may be added on the app side** — the shared truth is code, not a bundled data file.
@@ -445,26 +455,12 @@ What falls is drift **severity**. A container-rule flip buries an entire named v
 
 ## Deferred — the 42 one-vagga saṃyuttas
 
-Same wart one level up: **42 containers whose only child is another container.** Almost all are saṃyuttas containing exactly one vagga:
-
-```
-sn-1-5   භික්ඛුනීසංයුත්තං  → sn-1-5-1   භික්ඛුනීවග්ගො   (10 suttas below)
-sn-3-13  ඣානසංයුත්තං      → sn-3-13-1  ඣානවග්ගො       (55 suttas below)
-anya     අන්‍ය             → anya-vm    විසුද්ධිමග්ගො    (183 leaves below)
-```
-
-The saṃyutta TOC page holds one link, to the vagga TOC page, which then lists the suttas. Two clicks and two files where one would do — worth ~42 pages.
-
-**Why it is not in this change — it breaks the structure, which the lone-child rule does not.**
-
-The lone-child rule removes a **leaf's** file, and a leaf is never anyone's ancestor, so nothing links to it in a breadcrumb. These 42 would remove a **mid-tree container's** file. Whichever of the pair survives, the other stays in `ancestorsOf` for the whole subtree below it while no longer having a page to point at: roughly **634 leaves** sit under these 42, and every one of them would carry a dead breadcrumb segment. That is a change to the navigable BJT hierarchy, not a file-count optimisation.
-
-Two further complications:
-
-- **It chains.** 7 of the 42 run deeper (`atta-sn-3-4 ඔක්කන්තිසංයුත්තං → atta-sn-3-4-1 චක්ඛුවග්ගො → 1 leaf` — three pages for one sutta). Collapsing one level exposes the next, so the rule has to decide how far to run and what the survivor is called.
-- **`anya` is in the list.** Its only child is the whole Visuddhimagga (183 leaves). Any rule here needs a root exemption, or a top-level pitaka node disappears.
-
-It also partly solves itself: those 7 deep chains each contain a single-leaf container that the lone-child rule removes anyway, so the remaining win is under 42 pages once the split rule lands. Revisit then, if at all.
+**Moved out 2026-09-11 to `docs/todo/web-strategy/static-site-backlog.md` D4.**
+42 containers whose only child is another container, worth ~42 pages, deferred
+because collapsing a mid-tree container leaves ~634 leaves with a dead breadcrumb
+segment — where the lone-child rule only ever removes a *leaf's* file, and a leaf
+is nobody's ancestor. Its trigger ("revisit once the split rule lands") has
+passed, so it is now a take-or-drop decision rather than a wait.
 
 ---
 

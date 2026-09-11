@@ -4,7 +4,7 @@
 > breadcrumb review, where `TipitakaTree.parentOf` was added to absorb two
 > hand-rolled copies of a parent lookup inside one generator file. That fix was
 > local; this note is the general shape behind it. **No app code changed.**
-> **Related:** `docs/todo/web-strategy/reading-units-and-grouping.md` Part 4
+> **Related:** `docs/decisions/reading-units-and-grouping.md` Part 4
 > (the other place the two surfaces were made to agree by moving code into
 > `wisdom_shared`; absorbed `unified-reading-units-plan.md` on 2026-08-15).
 

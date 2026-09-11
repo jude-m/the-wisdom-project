@@ -6,7 +6,7 @@
 # and uploads are hash-incremental, so after the first deploy only genuinely
 # changed pages transfer (which is what the generator's byte-determinism buys —
 # build plan §11.8). This is the same path the planned GitHub Action takes, just
-# driven by hand (docs/todo/web-strategy/static-web-hosting.md, "Build & deploy
+# driven by hand (docs/decisions/static-web-hosting.md, "Build & deploy
 # pipeline").
 #
 # Usage:
