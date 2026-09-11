@@ -15,12 +15,6 @@ import 'research_error_messages.dart';
 import 'research_mode_selector.dart';
 import 'research_mode_ui.dart';
 
-/// Maximum width of the conversation column — full-bleed text is hard to
-/// read on desktop, so the transcript and the input row are centered like
-/// the familiar chat apps. Shared with the citation peek sheet so it rises
-/// aligned with the answers (PaneWidthConstants.researchContentMaxWidth).
-const _kContentMaxWidth = PaneWidthConstants.researchContentMaxWidth;
-
 /// The conversation itself: transcript, error row, turn-limit banner and
 /// input. The Research section wraps this in its responsive shell (history
 /// panel on desktop, drawer on mobile).
@@ -51,6 +45,11 @@ class _ResearchChatViewState extends ConsumerState<ResearchChatView> {
   // gaps) when deciding whether the question still fits on one line beside
   // them. Measured against this constant — not the live layout — so the
   // single↔two-row decision can't oscillate near the boundary.
+  //
+  // Only the chip's label moves with the font scale, and it is a small part of
+  // the 190, so off-scale this is approximate. The cost of being wrong is a
+  // wrap that comes a keystroke early or late — the real row is
+  // `Expanded(field) + intrinsic controls`, which cannot overflow.
   static const _kControlsReserve = 190.0;
 
   @override
@@ -143,13 +142,19 @@ class _ResearchChatViewState extends ConsumerState<ResearchChatView> {
                   iconOverride: Icons.auto_awesome,
                   title: l10n.researchEmptyState,
                 )
+              // Centered on the prose measure — the same one the citation
+              // peek rises at, so a peek lands aligned with its answer.
               : Center(
                   child: ConstrainedBox(
-                    constraints:
-                        const BoxConstraints(maxWidth: _kContentMaxWidth),
+                    constraints: BoxConstraints(
+                      maxWidth: context.typography.proseColumnMaxWidth,
+                    ),
                     child: ListView.builder(
                       controller: _scrollController,
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: PaneWidthConstants.proseColumnGutter,
+                        vertical: 16,
+                      ),
                       itemCount:
                           state.messages.length + (state.isLoading ? 1 : 0),
                       itemBuilder: (context, index) {
@@ -183,12 +188,11 @@ class _ResearchChatViewState extends ConsumerState<ResearchChatView> {
                             mode: ref.watch(researchModeProvider),
                           )
                         : l10n.researchQuestionNotAnswered,
-                    style: TextStyle(
-                      // The neutral notice isn't an error — don't alarm.
+                    // The neutral notice isn't an error — don't alarm.
+                    style: context.typography.errorMessage.copyWith(
                       color: state.errorType != null
                           ? colors.error
                           : colors.onSurfaceVariant,
-                      fontSize: 12,
                     ),
                   ),
                 ),
@@ -222,7 +226,8 @@ class _ResearchChatViewState extends ConsumerState<ResearchChatView> {
                   Expanded(
                     child: Text(
                       l10n.researchChatLimitReached,
-                      style: TextStyle(color: colors.onSurfaceVariant),
+                      style: context.typography.definitionBody
+                          .copyWith(color: colors.onSurfaceVariant),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -256,8 +261,9 @@ class _ResearchChatViewState extends ConsumerState<ResearchChatView> {
               // question never fights the chip and send button for the row.
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final inputStyle = Theme.of(context).textTheme.bodyLarge ??
-                      DefaultTextStyle.of(context).style;
+                  // The search bar's input style, not Material's bodyLarge:
+                  // same 16px at 1.0x, but this one scales with the slider.
+                  final inputStyle = context.typography.searchInput;
 
                   final textField = TextField(
                     key: _fieldKey,
@@ -367,9 +373,16 @@ class _CenteredBottomRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: _kContentMaxWidth),
+        constraints: BoxConstraints(
+          maxWidth: context.typography.proseColumnMaxWidth,
+        ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          padding: const EdgeInsets.fromLTRB(
+            PaneWidthConstants.proseColumnGutter,
+            4,
+            PaneWidthConstants.proseColumnGutter,
+            12,
+          ),
           child: child,
         ),
       ),
@@ -401,7 +414,7 @@ class _BusyRow extends ConsumerWidget {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           const SizedBox(width: 12),
-          Text(label),
+          Text(label, style: context.typography.definitionBody),
         ],
       ),
     );
@@ -413,6 +426,10 @@ class _BusyRow extends ConsumerWidget {
 /// style), with inline citation chips.
 class _MessageTurn extends StatelessWidget {
   const _MessageTurn({required this.message});
+
+  /// How much of the prose column a question may take — narrower than the
+  /// answer, and 420px at the default scale, which is what it was fixed at.
+  static const _kQuestionShare = 0.65;
 
   final ChatMessage message;
 
@@ -427,12 +444,20 @@ class _MessageTurn extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 8),
           padding: const EdgeInsets.all(12),
-          constraints: const BoxConstraints(maxWidth: 420),
+          constraints: BoxConstraints(
+            maxWidth: context.typography.proseColumnMaxWidth * _kQuestionShare,
+          ),
           decoration: BoxDecoration(
             color: colors.primaryContainer,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: SelectableText(message.content),
+          // The answer's prose style, so a question and the reply under it
+          // are the same size at every scale.
+          child: SelectableText(
+            message.content,
+            style: context.typography.definitionBody
+                .copyWith(color: colors.onPrimaryContainer),
+          ),
         ),
       );
     }

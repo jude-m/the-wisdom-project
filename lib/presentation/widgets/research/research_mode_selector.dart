@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/localization/l10n/app_localizations.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/research/research_mode.dart';
 import '../../providers/research_mode_provider.dart';
 import 'research_mode_ui.dart';
@@ -54,7 +55,10 @@ class ResearchModeSelector extends ConsumerWidget {
           children: [
             Icon(mode.icon, size: 18, color: colors.onSurfaceVariant),
             const SizedBox(width: 6),
-            Text(mode.label(l10n)),
+            // The scope-filter chips' label style — the same token as the
+            // chips this one borrows its fill trick from, and it scales with
+            // the composer it sits in.
+            Text(mode.label(l10n), style: context.typography.chipLabel),
             Icon(Icons.arrow_drop_down, size: 20, color: colors.onSurfaceVariant),
           ],
         ),

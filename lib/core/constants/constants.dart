@@ -26,14 +26,6 @@ class PaneWidthConstants {
   // divider, and each is wrong the moment the widget stops matching.
   static const double dividerWidth = 8.0;
 
-  // Dictionary bottom sheet (for tablets/desktops)
-  static const double dictionarySheetMaxWidth = 800.0;
-
-  // Research chat: the conversation column AND the citation peek sheet share
-  // this width, so the sheet rises centered over the answer it belongs to
-  // rather than spanning the whole app (same idea as the dictionary sheet).
-  static const double researchContentMaxWidth = 760.0;
-
   // Reader split pane (for "both" column mode)
   // Ratio-based (0.0-1.0) for automatic adaptation to window resizing
   static const double readerSplitDefault = 0.5; // 50/50 ratio
@@ -64,7 +56,21 @@ class PaneWidthConstants {
   // `theme_tokens.json` and `stylesheet.dart` multiplies it by the paragraph's
   // own em to reach `.content`'s `max-width`. Change it here and all three
   // surfaces follow on the next dump.
+  //
+  // Sibling: `proseColumnMeasureEm`, below.
   static const double readingColumnMeasureEm = 54.5;
+
+  // The same idea for the UI's prose surfaces — dictionary sheet, research
+  // column, citation peek — measured against `AppTypography.definitionBody`
+  // and applied by `AppTypography.proseColumnMaxWidth`. Sinhala prose, not
+  // Pali, so it moves independently of 54.5 and never reaches the static site.
+  // Derived in §B6 of docs/todo/web-strategy/reading-units-and-grouping.md.
+  static const double proseColumnMeasureEm = 44.0;
+
+  // What a prose surface puts between its text and the edge of its column.
+  // Declared once so the surface's own padding and `proseColumnMaxWidth`,
+  // which adds it back, cannot drift apart.
+  static const double proseColumnGutter = 16.0;
 
   // Height reserved for the floating action button group at the top of the reader.
   // Used as a spacer in the ListView so content doesn't hide behind it.

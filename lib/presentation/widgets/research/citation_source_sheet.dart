@@ -5,6 +5,7 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 
 import '../../../core/constants/constants.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/research/citation.dart';
 import '../../providers/deep_link_provider.dart';
 import '../../providers/document_provider.dart';
@@ -44,8 +45,8 @@ class CitationSourceSheet extends ConsumerStatefulWidget {
       // chat-area navigator (_ChatArea) — so with the column's own max
       // width it lands exactly over the answers. On mobile the screen is
       // narrower than this, so the constraint is inert there.
-      constraints: const BoxConstraints(
-        maxWidth: PaneWidthConstants.researchContentMaxWidth,
+      constraints: BoxConstraints(
+        maxWidth: context.typography.proseColumnMaxWidth,
       ),
       builder: (_) => CitationSourceSheet(citation: citation),
     );
@@ -102,7 +103,13 @@ class _CitationSourceSheetState extends ConsumerState<CitationSourceSheet> {
     final nodeKey = resolver?.nodeKeyForUid(citation.uid);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      // The prose gutter, so the sheet's text sits on the answer's edges.
+      padding: const EdgeInsets.fromLTRB(
+        PaneWidthConstants.proseColumnGutter,
+        8,
+        PaneWidthConstants.proseColumnGutter,
+        20,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -137,8 +144,9 @@ class _CitationSourceSheetState extends ConsumerState<CitationSourceSheet> {
                   citation.title == null
                       ? citation.ref
                       : '${citation.ref} · ${citation.title}',
-                  style: textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  // The sheet's subject, not chrome — the dictionary sheet's
+                  // heading token, which the slider reaches.
+                  style: context.typography.dialogTitle,
                 ),
               ),
               IconButton(
@@ -166,7 +174,10 @@ class _CitationSourceSheetState extends ConsumerState<CitationSourceSheet> {
                     const SizedBox(height: 4),
                     SelectableText.rich(
                       TextSpan(
-                        style: textTheme.bodyMedium?.copyWith(
+                        // Same prose style as the answer this was cited by,
+                        // so both scale with the slider the column is
+                        // measured against.
+                        style: context.typography.definitionBody.copyWith(
                             color: colors.onSurfaceVariant, height: 1.5),
                         children: _boldSpans(citation.snippet!),
                       ),
@@ -198,8 +209,8 @@ class _CitationSourceSheetState extends ConsumerState<CitationSourceSheet> {
             Text(
               l10n.researchCitationNotLinked,
               textAlign: TextAlign.center,
-              style: textTheme.bodySmall
-                  ?.copyWith(color: colors.onSurfaceVariant),
+              style: context.typography.definitionBody
+                  .copyWith(color: colors.onSurfaceVariant),
             ),
         ],
       ),

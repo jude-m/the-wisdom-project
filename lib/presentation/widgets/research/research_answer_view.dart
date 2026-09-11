@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/localization/l10n/app_localizations.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/research/citation.dart';
 import 'citation_source_sheet.dart';
 
@@ -131,8 +132,11 @@ class ResearchAnswerView extends StatelessWidget {
     ({bool bullet, String text}) block,
     Map<String, Citation> citationsByUid,
   ) {
+    // `definitionBody`, not the Material default — the only one of the two
+    // the font slider reaches.
     final textWidget = Text.rich(
       TextSpan(children: _inlineSpans(block.text, citationsByUid)),
+      style: context.typography.definitionBody,
     );
     if (!block.bullet) return textWidget;
 

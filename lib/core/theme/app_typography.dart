@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/constants.dart';
 import 'app_fonts.dart';
 
 /// Theme extension for UI typography styles.
@@ -386,6 +387,21 @@ class AppTypography extends ThemeExtension<AppTypography> {
       ),
     );
   }
+
+  // ============================================
+  // Prose measure
+  // ============================================
+
+  /// The width a prose surface caps its column at — dictionary sheet, research
+  /// conversation, citation peek. [PaneWidthConstants.proseColumnMeasureEm]
+  /// times [definitionBody]'s size plus a gutter each side, so a call site
+  /// constrains the container while the measure describes the text inside it.
+  ///
+  /// The bang follows `TextEntryTheme._paragraphFontSize`: the factory always
+  /// sets a size, and a fallback could only be one that had lost the scale.
+  double get proseColumnMaxWidth =>
+      PaneWidthConstants.proseColumnMeasureEm * definitionBody.fontSize! +
+      PaneWidthConstants.proseColumnGutter * 2;
 
   @override
   ThemeExtension<AppTypography> copyWith({

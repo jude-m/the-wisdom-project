@@ -68,8 +68,8 @@ class DictionaryBottomSheet extends ConsumerWidget {
           if (!isMobile) {
             sheet = Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: PaneWidthConstants.dictionarySheetMaxWidth,
+                constraints: BoxConstraints(
+                  maxWidth: context.typography.proseColumnMaxWidth,
                 ),
                 child: sheet,
               ),
@@ -300,7 +300,14 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
                       ),
                       // Editable word + filter button + close button
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 4, 8),
+                        // Left edge is the list's gutter; the right is the
+                        // close button's own inset, not a gutter.
+                        padding: const EdgeInsets.fromLTRB(
+                          PaneWidthConstants.proseColumnGutter,
+                          12,
+                          4,
+                          8,
+                        ),
                         child: Row(
                           children: [
                             // Word input field
@@ -465,7 +472,10 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
 
     return [
       SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: PaneWidthConstants.proseColumnGutter,
+          vertical: 8,
+        ),
         sliver: SliverList.separated(
           itemCount: entries.length,
           separatorBuilder: (context, index) => const Divider(height: 1),
@@ -491,7 +501,10 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
   Widget _buildResultsFooter(BuildContext context, int displayed, int total) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      padding: const EdgeInsets.symmetric(
+        vertical: 24,
+        horizontal: PaneWidthConstants.proseColumnGutter,
+      ),
       child: Row(
         children: [
           Expanded(

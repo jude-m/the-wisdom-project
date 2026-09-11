@@ -226,7 +226,7 @@ Drive width via `tester.view.physicalSize` (breakpoint: 768 logical px).
 | W-SCR-3 | Narrow AppBar title | Blank chat → section name; with messages → two lines (first question + section subtitle), ellipsized | — | P1 |
 | W-SCR-4 | Narrow + `textScaleFactor` 2.0 with a chat open | No overflow errors (`FlutterError.onError` clean) | **#10** | P1 |
 | W-SCR-5 | Wide: citation sheet open, system back (`tester.binding.handlePopRoute()`) | Sheet closes; Research screen itself stays (nested-navigator back contract, the Android-tablet case) | **#5** | P0 |
-| W-SCR-6 | Wide: sheet layout | Sheet constrained to `researchContentMaxWidth`, centered over the chat column (not full window width) | — | P2 |
+| W-SCR-6 | Wide: sheet layout | Sheet constrained to `AppTypography.proseColumnMaxWidth`, centered over the chat column (not full window width) | — | P2 |
 
 ### 5.6 `ResearchModeSelector` — `test/presentation/widgets/research/research_mode_selector_test.dart`
 

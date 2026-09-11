@@ -13,7 +13,7 @@
 > | folded leaves (→ stubs) | 1,603 |
 > | sutta pages under 1,500 chars | 3,707 |
 >
-> **Status:** IN BUILD. The site half is done bar the first deploy. The app's reader rework (Part 4) is under way: B1 shipped 2026-09-06, **B2 committed 2026-09-08 on `feat/reader-page-units`**, its test debt cleared 2026-09-10, and **B3 closed the same day when Next was wired**. It also did not land as planned: the app takes the site's *boundedness* and rejects its *grouping*; a unit is the node you tapped, bounded by its own subtree. See Part 4, "The app does not adopt the grouping". **What is left of Part 4 is B6**, which shares no code with the reader.
+> **Status:** IN BUILD. The site half is done bar the first deploy. The app's reader rework (Part 4) is under way: B1 shipped 2026-09-06, **B2 committed 2026-09-08 on `feat/reader-page-units`**, its test debt cleared 2026-09-10, and **B3 closed the same day when Next was wired**. It also did not land as planned: the app takes the site's *boundedness* and rejects its *grouping*; a unit is the node you tapped, bounded by its own subtree. See Part 4, "The app does not adopt the grouping". **B6 closed 2026-09-11**, giving the dictionary and research columns a prose measure of their own, and with it Part 4 is done.
 >
 > | stage | what | state |
 > |---|---|---|
@@ -686,7 +686,7 @@ changes. B3 and B4 follow it in any order, and B4's row → key lookup fell out 
 B1 for free.
 
 ```
-B1 ──► B2 ──► B3          B6  (independent — any time)
+B1 ──► B2 ──► B3          B6  (independent — done)
         │
         └───► B4
 ```
@@ -695,9 +695,9 @@ B1 ──► B2 ──► B3          B6  (independent — any time)
 and B4's search landing both hand back a *unit*, and nothing can open one until
 the tab is keyed by a node rather than by a coordinate. Built before B2, each
 would need its own throwaway node → `(file, page, entry)` shim.
-**B6 has no prerequisite at all** — it is two `double` constants in the research
-and dictionary sheets, and nothing there knows what a sutta is. It sits in Part
-4 only because it is app-side reading polish.
+✅ **B6 had no prerequisite at all** (done 2026-09-11) — nothing in the research
+or dictionary sheets knows what a sutta is. It sat in Part 4 only because it is
+app-side reading polish.
 
 **B5's first bullet is not a step of its own** — the `StorageKeys.openTabs`
 `_v2` bump must land *inside* B2's commit, because B2 is what changes what a
@@ -715,7 +715,7 @@ strategy has to arrange. Split by what a commit *touches*:
 |---|---|---|
 | **B1** ✅ | `feat/static-site` | `packages/wisdom_shared/`, `static_site_generator/` — no file under `lib/` |
 | **B2–B4** ✅ | `feat/reader-page-units`, cut from `feat/static-site` | `lib/`, plus S9's leftover rename in `wisdom_shared`/`static_site_generator` |
-| **B6** | same branch or later | `lib/` |
+| **B6** ✅ | `feat/reader-page-units` | `lib/` |
 
 B1 belonged on the static-site branch because it is the same shape as the S8
 commits already there. B2 onward gets its own branch because that is where the
@@ -1078,9 +1078,48 @@ of a generated `const` is the failure this document exists to prevent.
 - **Entry types disagree across files — NEUTRALISED 2026-08-20, and nothing has to be corrected.** The same line is typed one way in one content file and another way in the next: `vp-pct-1-2.json` types the pātimokkha's section formula `paragraph` where `vp-pct.json`, `vp-prj-3.json` and `vp-prj-4.json` type it `centered`, and `[සාවත්ථිනිදානං]` is `unindented` in the large majority of its appearances and `paragraph` in the rest. **Unlike the coordinates above this needs no correction map**, because no rule now turns on the type of a single row — `PreamblePlanner.minIntroductionChars` asks how much text a preamble holds, and one printed line is a formula whichever type it carries. The defect is recorded rather than repaired: `plan_corpus.dart --write-upstream` regenerates `static_site_generator/UPSTREAM_DEFECTS.md`, which lists every container the floor declines, what its lines are typed elsewhere in the corpus, and the same sizes for its siblings — the last being the section that catches a formula whose wording varies, which verbatim matching cannot. That file is the hand-off for a report to tipitaka.lk; if upstream retypes, regenerating shrinks it and nothing else changes.
 - `ap-pat*` row misalignment (1,660 pages, all 7 files) is unchanged by this work.
 
-## B6. Two reading surfaces are still capped in fixed px
+## B6. Two reading surfaces were capped in fixed px — DONE 2026-09-11
 
-`researchContentMaxWidth` (760 — `research_chat_view.dart`, `citation_source_sheet.dart`) and `dictionarySheetMaxWidth` (800 — `dictionary_bottom_sheet.dart`) are still pixels while the reader panes have moved to an em measure that tracks the 0.7x–1.5x font scale. A large-type reader therefore gets bigger words in the same 760/800px: answers and dictionary entries never widen with their text.
+`researchContentMaxWidth` (760 — `research_chat_view.dart`, `citation_source_sheet.dart`) and `dictionarySheetMaxWidth` (800 — `dictionary_bottom_sheet.dart`) were pixels while the reader panes had moved to an em measure tracking the 0.7x–1.5x font scale. A large-type reader got bigger words in the same 760/800px. Both are gone, replaced by **`PaneWidthConstants.proseColumnMeasureEm = 44.0`**, applied by `AppTypography.proseColumnMaxWidth` the way `readingColumnMeasureEm` is applied by `TextEntryTheme.readingPadding`.
+
+**The research half had a second defect, and it is the reason an em measure alone would have been cosmetic there.** `ResearchAnswerView` rendered its prose as `Text.rich` with no style, which falls through to Material's `textTheme.bodyMedium` — and `AppTheme` font-scales only `TextEntryTheme` and `AppTypography`, never `textTheme`, with nothing touching `textScaler` anywhere in `lib/`. So research answers did not grow with the slider **at all**, and an em cap on a fixed-size prose would have been a px cap wearing a different unit. The answer body and the citation peek's English snippet now take `AppTypography.definitionBody`, which exists for exactly this ("any other place that renders longer-form definition prose") and is sized to match `bodyMedium` at 1.0x — so the default scale is unchanged and every other scale now moves.
+
+**A review of that change found it covered half the transcript**, and the rest followed. The question bubble, the busy row, the turn-limit banner and the composer all rendered through un-scaled Material styles, so at 1.5x a large answer sat beside a small question — inside a column measured against a font only half of it used. Bubble, busy row and banner now take `definitionBody` (14px at 1.0x, exactly as `bodyMedium` was); the composer takes `searchInput`, the app's own text-input style, 16px at 1.0x exactly as `bodyLarge` was. The bubble's fixed `maxWidth: 420` is now 0.65 of the prose column — the same 420px at the default scale, and still the narrower of the two at every other. **One deliberate size change:** the error / unanswered-question row was a hand-written `fontSize: 12` and is now `AppTypography.errorMessage`, which is 14 — the only difference visible at 1.0x.
+
+**A second round carried the same rule into the peek sheet and the composer's chip.** The peek is an em-measured column as much as the transcript is, so its "not linked yet" note left `bodySmall` for `definitionBody` (12 → 14, muted), and the `ref · title` heading — the subject of the sheet, not chrome — left `titleMedium` for `AppTypography.dialogTitle`, which is what the dictionary sheet already titles itself with (16 → 20). The `labelSmall`/`labelMedium` around them stay: they are chrome. In the composer, the mode chip's label took `chipLabel`, the token the scope-filter chips it borrows its fill trick from already use (14 → 12, and it now scales with the field beside it). Its menu is deliberately untouched — a popup is not part of the measured column, and converting one of the app's menus would only make it the odd one out. The question bubble also took `onPrimaryContainer`: `definitionBody` carries `onSurface`, which was invisible while the style was Material's default and wrong the moment it was named.
+
+That leaves `_kControlsReserve`'s 190 approximate in one more way — the chip's label now moves with the scale while the send button does not. The cost is a wrap a keystroke early or late; the row is `Expanded(field) + intrinsic controls` and cannot overflow.
+
+### Why 44 and not 54.5 — measured 2026-09-11, shaped over the real corpora
+
+HarfBuzz over the bundled faces, against the actual content each surface carries: the Sinhala dictionaries for prose, `assets/text` for Pali. **The face turns out not to matter** — serif and sans differ by under 1% — so the reader/prose gap is script, not font:
+
+| | em/akṣara | em/word | akṣara/word |
+|---|---|---|---|
+| Pali (reader) | 0.8822 | 4.621 | 5.24 |
+| Sinhala (prose) | 0.7541 | 3.486 | 4.62 |
+| English (prose) | 0.4977 | 3.038 | — |
+
+Pali runs 18% wider per akṣara and its words are longer, so **the same em number does not buy the same line**: at 54.5em the reader carries 62 akṣara where Sinhala prose would carry 72. Sharing one constant would have made the columns proportional, never equal — and that is roughly what the old 760/800 already were, 52.0em and 54.9em at the prose size.
+
+Equalising the *line* instead gives two answers that disagree, because a Pali word is 13% more akṣara than a Sinhala one: 46.6em matches the reader's 62 akṣara, 41.1em matches its 11.8 words. **44 is their midpoint** — 58 akṣara and 12.6 Sinhala words, within 7% of the reader on both counts. English is what the single number costs: 88 characters a line, above the 45–75 band, and accepted deliberately because the app is predominantly Sinhala script and the dictionary's own default sources (BUS, MS) are the Sinhala ones.
+
+**Two sibling constants, and they are not coupled.** They sit adjacent in `PaneWidthConstants` with a parallel comment shape and a parallel accessor, and each names the other — but changing 54.5 does not move 44 and should not. What they share is the method (a measure in em, shaped from the corpus, applied to the surface's own font size); what they do not share is the value, the font size, and the export. Only the reader's reaches `theme_tokens.json`: the static site has neither a dictionary nor a research surface, and its other width, `_navColumnRem = 44`, is a coincidence — a hand-set size for *link rows*, documented there as explicitly not running text.
+
+The review asked for both to move onto `AppTypography` as raw consts, which is the settled convention for theme tokens. Declined, because `readingColumnMeasureEm` cannot follow — `tools/dump_theme_tokens.dart` names it and `TextEntryTheme` applies it — so moving only the prose one would split exactly the pair the adjacency exists to show.
+
+### What moved
+
+Text column 616px at 1.0x (431 at 0.7x, 924 at 1.5x); container 648px for all three surfaces, where research was 760 and the dictionary 800. `proseColumnGutter = 16` is declared once and used twice over — as each surface's horizontal padding and inside `proseColumnMaxWidth` — so the peek sheet now lands on the same left and right edge as the answer beneath it, which its own comment had claimed while sitting 4px off. Inside the dictionary sheet the header row's left edge and the results footer take it as well, so header, list and footer cannot drift apart; the 16 between the footer's dividers and its label stays a literal, because it is a gap and not a gutter.
+
+Two consequences, recorded rather than fixed:
+
+- **The composer wraps to two rows sooner.** `_kControlsReserve` (190px for the mode chip and send button) is fixed px against a column that now scales: the field gets 410px at 1.0x where it had 522, and 225px at 0.7x. The two-row layout is a designed state and takes it, but small-type users meet it much earlier. Making the reserve scale, or flooring the composer, is the fix if it reads badly.
+- **The citation peek's Pali preview reads at ~30em**, since that block renders at the reader's 17.6px inside a column measured for 14px prose. It is a four-entry taste of what "Open in reader" will show, not a reading surface.
+
+### Not B6, found while measuring it
+
+At the reader's single shared measure, **a Sinhala translation block totals 1.141× its Pali original's width** (median 1.111; 10,073 aligned entry pairs across 25 books, 2026-09-11) — the translation says the same thing in more text, which outweighs Pali's denser akṣara. Stacked layout is unaffected: it renders each pair in sequence, so no two blocks ever have to match. **Side-by-side is two independent columns**, not paired rows, so that 14% surplus shows as the Sinhala side drifting steadily lower down a long sutta. The lever already exists — `readerSplitDefault = 0.5` at ~0.467 would put the two back in step on average. Worth knowing before anyone does it: the spread is p10 0.94 to p90 1.40, so a flat ratio aligns the average pair and no particular one.
 
 **Verify Part 4:** `flutter run -d macos`.
 
