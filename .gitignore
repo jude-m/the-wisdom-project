@@ -76,6 +76,15 @@ tools/*.db
 tools/*.csv
 assets/databases/*.db
 
+# Throwaway spikes for steps 2-4 of
+# docs/todo/retiring-dart-server/reduce_mobile_bundle_size.md. They produced the
+# numbers in that doc's "What the measurements said" and have no job after it:
+# delete both (and tools/bjt-content-spike.db, ~180 MB, already ignored above)
+# once step 5 lands, and drop these three lines with them. The parts worth
+# keeping move into tools/bjt-fts-populate.js, not here.
+tools/bjt-content-spike.js
+tools/bench_content_read.dart
+
 # Temporary documents that should be deleted
 TEST_AUDIT_REPORT.md
 
