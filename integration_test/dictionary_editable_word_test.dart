@@ -86,7 +86,7 @@ void main() {
 
   group('Dictionary editable word lookup', () {
     // -----------------------------------------------------------------
-    // Helpers (same pattern as previous_sutta_navigation_test.dart)
+    // Helpers (same pattern as sutta_step_navigation_test.dart)
     // -----------------------------------------------------------------
     Future<ProviderContainer> pumpReaderApp(WidgetTester tester) async {
       await tester.pumpWidget(

@@ -21,8 +21,8 @@ import '../../providers/tab_provider.dart'
         tabsProvider,
         activeReaderLayoutProvider,
         activeNodeKeyProvider;
-import '../../providers/previous_sutta_provider.dart'
-    show navigateToPreviousSuttaProvider;
+import '../../providers/navigate_to_sutta_provider.dart'
+    show navigateToSuttaProvider;
 import '../../providers/reader_unit_provider.dart'
     show ReaderStep, neighbourLeafProvider;
 import '../../providers/fts_highlight_provider.dart';
@@ -190,11 +190,11 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     }
   }
 
-  /// Navigates to the previous sutta.
-  /// Delegates business logic to [navigateToPreviousSuttaProvider] and
+  /// Navigates to a neighbouring sutta.
+  /// Delegates business logic to [navigateToSuttaProvider] and
   /// handles the widget-specific concern (scroll position).
-  void _navigateToPreviousSutta(TipitakaTreeNode previousNode) {
-    ref.read(navigateToPreviousSuttaProvider)(previousNode);
+  void _navigateToSutta(TipitakaTreeNode target) {
+    ref.read(navigateToSuttaProvider)(target);
 
     // Jump to top — handles the same-file case, where the document does not
     // reload and nothing else would move the viewport.
@@ -202,6 +202,18 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       _scrollController.jumpTo(0);
     }
   }
+
+  /// One step slot of the action pill, or null when the corpus ends that way.
+  ///
+  /// Both directions name their destination with the same string: the icon
+  /// says which way, so the tooltip only has to say where.
+  ReaderStepTarget? _stepTarget(BuildContext context, TipitakaTreeNode? leaf) =>
+      leaf == null
+          ? null
+          : (
+              tooltip: AppLocalizations.of(context).goToSutta(leaf.paliName),
+              onTap: () => _navigateToSutta(leaf),
+            );
 
   /// Restores scroll position immediately (no extra frame delay).
   /// Must be called from within an [addPostFrameCallback] where the
@@ -508,11 +520,15 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     // Watch in-page search state for the active tab
     final searchState = ref.watch(activeInPageSearchStateProvider);
 
-    // Watch the sutta on the other side of this unit, for backward navigation.
+    // Watch the sutta on either side of this unit, for step navigation.
+    // Each is null at the corpus edge, and the matching button is then absent.
     final nodeKey = ref.watch(activeNodeKeyProvider);
     final previousNode = nodeKey == null
         ? null
         : ref.watch(neighbourLeafProvider((nodeKey, ReaderStep.previous)));
+    final nextNode = nodeKey == null
+        ? null
+        : ref.watch(neighbourLeafProvider((nodeKey, ReaderStep.next)));
 
     // Visibility flags for the two action button modes.
     // Computed once here so IgnorePointer, AnimatedOpacity, and AnimatedSlide
@@ -583,6 +599,13 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
             // search-bar key note above).
             key: const ValueKey('reader-actions-top'),
             top: 12,
+            // Bounded on both sides, and a Wrap rather than a Row: at four
+            // action buttons the two pills want 376px, which is more than a
+            // 375pt phone has to give. They drop to a second line there and
+            // stay on one anywhere wider, so no control is hidden and nothing
+            // overflows. `alignment: end` keeps both lines against the right
+            // edge, where the Row left them.
+            left: 16,
             right: 16,
             child: IgnorePointer(
               ignoring: !showMode1,
@@ -592,24 +615,18 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
                 // symmetrically with no brief "neither visible" gap.
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOutCubic,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     const ReaderLayoutPill(),
-                    const SizedBox(width: 8),
                     ReaderActionButtonGroup(
                       onSearchTap: () => ref
                           .read(inPageSearchStatesProvider.notifier)
                           .openSearch(),
-                      onScrollTap: previousNode != null
-                          ? () => _navigateToPreviousSutta(previousNode)
-                          : null,
-                      scrollIcon:
-                          previousNode != null ? Icons.skip_previous : null,
-                      scrollTooltip: previousNode != null
-                          ? AppLocalizations.of(context)
-                              .goToPreviousSutta(previousNode.paliName)
-                          : null,
+                      previous: _stepTarget(context, previousNode),
+                      next: _stepTarget(context, nextNode),
                     ),
                   ],
                 ),
@@ -643,8 +660,6 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
                         .read(inPageSearchStatesProvider.notifier)
                         .openSearch(),
                     onScrollTap: _scrollToBeginning,
-                    scrollTooltip:
-                        AppLocalizations.of(context).scrollToBeginning,
                   ),
                 ),
               ),

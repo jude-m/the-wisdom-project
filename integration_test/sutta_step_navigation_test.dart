@@ -14,12 +14,19 @@ import 'package:the_wisdom_project/data/datasources/bjt_document_local_datasourc
 
 import 'test_overrides.dart';
 
-/// Integration tests for the "Scroll to top / Previous sutta" navigation button.
+/// Integration tests for the reader's step navigation — the previous and next
+/// sutta buttons, and the scroll-to-top action that shares their corner.
 ///
-/// **The button steps between leaves, not between readable nodes.** A container
+/// **The buttons step between leaves, not between readable nodes.** A container
 /// is a unit here — tapping සීලක්ඛන්ධවග්ගො renders the whole vagga — so leaving
 /// one is a single stop to the sutta on the other side of it, and no tap can
-/// land the reader on සුත්තපිටක. `neighbourLeafProvider` is the rule.
+/// land the reader on සුත්තපිටක. `neighbourLeafProvider` is the rule, asked
+/// with [ReaderStep.previous] or [ReaderStep.next].
+///
+/// The two directions are not quite each other's mirror, and the last test
+/// here is the asymmetry: previous steps off a unit's *first* leaf, next off
+/// the last leaf it actually **rendered**. On the containers whose subtree
+/// crosses a content file those are different nodes.
 ///
 /// Leaf order used (the stops, in reading order):
 ///   dn-1-1     → බ්රහ්මජාලසුත්තං     (fileId: dn-1,    page:[0,4])
@@ -40,46 +47,46 @@ import 'test_overrides.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  group('Previous Sutta Navigation', () {
-    // ---------------------------------------------------------------
-    // Helper: pumps the test app and returns the ProviderContainer.
-    // Includes localization delegates (needed for tooltip strings)
-    // and the real BJT data source + real navigation tree.
-    // ---------------------------------------------------------------
-    Future<ProviderContainer> pumpReaderApp(WidgetTester tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            bjtDocumentDataSourceProvider.overrideWithValue(
-              BJTDocumentLocalDataSourceImpl(),
-            ),
-            keyValueStoreOverride(),
-          ],
-          child: const MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: Column(
-                children: [
-                  TabBarWidget(),
-                  Expanded(child: MultiPaneReaderWidget()),
-                ],
-              ),
+  // ---------------------------------------------------------------
+  // Helper: pumps the test app and returns the ProviderContainer.
+  // Includes localization delegates (needed for tooltip strings)
+  // and the real BJT data source + real navigation tree.
+  // ---------------------------------------------------------------
+  Future<ProviderContainer> pumpReaderApp(WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          bjtDocumentDataSourceProvider.overrideWithValue(
+            BJTDocumentLocalDataSourceImpl(),
+          ),
+          keyValueStoreOverride(),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Column(
+              children: [
+                TabBarWidget(),
+                Expanded(child: MultiPaneReaderWidget()),
+              ],
             ),
           ),
         ),
-      );
+      ),
+    );
 
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(MaterialApp)),
-      );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    );
 
-      // Wait for the navigation tree to finish loading from assets
-      await container.read(navigationTreeProvider.future);
+    // Wait for the navigation tree to finish loading from assets
+    await container.read(navigationTreeProvider.future);
 
-      return container;
-    }
+    return container;
+  }
 
+  group('Previous Sutta Navigation', () {
     // =================================================================
     // Test 1: FTS mid-sutta
     // =================================================================
@@ -450,6 +457,202 @@ void main() {
         expect(find.byIcon(Icons.skip_previous).hitTestable(), findsOneWidget,
             reason:
                 'After scrolling back to top → skip-previous icon returns');
+      },
+    );
+  });
+
+  group('Next Sutta Navigation', () {
+    // =================================================================
+    // Test 1: At sutta beginning — next sutta button
+    // =================================================================
+    testWidgets(
+      '1. At sutta beginning: shows skip-next icon with next sutta tooltip',
+      (tester) async {
+        final container = await pumpReaderApp(tester);
+
+        // Open බ්රහ්මජාලසුත්තං at its beginning. The leaf after it is
+        // සාමඤ්ඤඵලසුත්තං — a sutta, not the vagga holding them both.
+        final tab = tabFromNode(container, 'dn-1-1');
+        await openTab(tester, container, tab);
+
+        // ASSERT: skip_next icon visible (next sutta available)
+        expect(find.byIcon(Icons.skip_next), findsOneWidget,
+            reason: 'At sutta beginning should show skip-next icon');
+        expect(find.byIcon(Icons.vertical_align_top), findsNothing,
+            reason: 'At sutta beginning should NOT show scroll-to-top icon');
+
+        // ASSERT: Tooltip contains the next sutta's Pali name.
+        // Both directions share one string — the icon says which way — so
+        // this is also what proves the two slots did not swap.
+        final tooltip = tester.widget<Tooltip>(
+          find.ancestor(
+            of: find.byIcon(Icons.skip_next),
+            matching: find.byType(Tooltip),
+          ),
+        );
+        expect(tooltip.message, contains('සාමඤ්ඤඵලසුත්තං'),
+            reason: 'Tooltip should name the next leaf, not its parent');
+
+        // ACT: Tap the button
+        await tester.tap(find.byIcon(Icons.skip_next));
+        await pumpForSettle(tester, const Duration(seconds: 2));
+
+        // ASSERT: Now at the next sutta (dn-1-2)
+        expect(container.read(activeNodeKeyProvider), 'dn-1-2',
+            reason: 'Should navigate to next sutta dn-1-2');
+      },
+    );
+
+    // =================================================================
+    // Test 2: Repeated navigation — multiple sequential taps
+    // =================================================================
+    testWidgets(
+      '2. Repeated navigation: sequential forward navigation through suttas',
+      (tester) async {
+        final container = await pumpReaderApp(tester);
+
+        // Start at බ්රහ්මජාලසුත්තං (dn-1-1). Three taps walk forward through
+        // the suttas of the vagga — never up into the vagga itself.
+        final tab = tabFromNode(container, 'dn-1-1');
+        await openTab(tester, container, tab);
+
+        // --- First tap: dn-1-1 → dn-1-2 ---
+        expect(find.byIcon(Icons.skip_next), findsOneWidget);
+        await tester.tap(find.byIcon(Icons.skip_next));
+        await pumpForSettle(tester, const Duration(seconds: 2));
+        expect(container.read(activeNodeKeyProvider), 'dn-1-2',
+            reason: 'First tap: should navigate to dn-1-2');
+
+        // --- Second tap: dn-1-2 → dn-1-3, and across a content file ---
+        expect(find.byIcon(Icons.skip_next), findsOneWidget);
+        await tester.tap(find.byIcon(Icons.skip_next));
+        await pumpForSettle(tester, const Duration(seconds: 2));
+        expect(container.read(activeNodeKeyProvider), 'dn-1-3',
+            reason: 'Second tap: should navigate to dn-1-3');
+
+        // --- Third tap: dn-1-3 → dn-1-4 ---
+        expect(find.byIcon(Icons.skip_next), findsOneWidget);
+        await tester.tap(find.byIcon(Icons.skip_next));
+        await pumpForSettle(tester, const Duration(seconds: 2));
+        expect(container.read(activeNodeKeyProvider), 'dn-1-4',
+            reason: 'Third tap: should navigate to dn-1-4');
+      },
+    );
+
+    // =================================================================
+    // Test 3: Cross-file navigation
+    // =================================================================
+    testWidgets(
+      '3. Cross-file: navigates to next sutta in a different content file',
+      (tester) async {
+        final container = await pumpReaderApp(tester);
+
+        // Open සුභසුත්තං (dn-1-10, fileId: dn-1-6)
+        // The leaf after it is dn-1-11 (fileId: dn-1-11) — different file
+        final tab = tabFromNode(container, 'dn-1-10');
+        await openTab(tester, container, tab);
+
+        // Verify starting state
+        expect(container.read(activeContentFileIdProvider), 'dn-1-6',
+            reason: 'Should start with contentFileId dn-1-6');
+
+        // ACT: Tap the next sutta button
+        expect(find.byIcon(Icons.skip_next), findsOneWidget);
+        await tester.tap(find.byIcon(Icons.skip_next));
+        await pumpForSettle(tester, const Duration(seconds: 2));
+
+        // ASSERT: Now at dn-1-11, in a different content file (dn-1-11)
+        expect(container.read(activeNodeKeyProvider), 'dn-1-11',
+            reason: 'Should navigate to dn-1-11');
+        expect(container.read(activeContentFileIdProvider), 'dn-1-11',
+            reason: 'Content file should change to dn-1-11 (cross-file)');
+      },
+    );
+
+    // =================================================================
+    // Test 4: Last sutta in tree — button hidden
+    // =================================================================
+    testWidgets(
+      '4. Last sutta in tree: navigation button is hidden',
+      (tester) async {
+        final container = await pumpReaderApp(tester);
+
+        // නිගමනකථා (anya-vm-23-6) is the last leaf in the corpus — the
+        // closing words of the Visuddhimagga, and the end of anya.
+        final tab = tabFromNode(container, 'anya-vm-23-6');
+        await openTab(tester, container, tab);
+
+        // Guard: the assertion below is "findsNothing", so it would also
+        // pass on a reader showing no text at all.
+        expect(
+          find.byWidgetPredicate(
+            (w) => w is ListView && w.scrollDirection == Axis.vertical,
+          ),
+          findsOneWidget,
+          reason: 'anya-vm-23-6 must actually render text for a hidden button '
+              'to mean anything',
+        );
+
+        // Guard: the provider answers null for "nothing after it" and for
+        // "the resolver never loaded" alike, so a key that does have a next
+        // leaf has to separate them first.
+        expect(
+          container.read(neighbourLeafProvider(('dn-1-2', ReaderStep.next))),
+          isNotNull,
+          reason: 'The leaf walk must be working for anya-vm-23-6\'s null to '
+              'mean "last in the corpus" rather than "resolver not loaded"',
+        );
+
+        // Verify that the next leaf really is absent
+        final nextNode = container
+            .read(neighbourLeafProvider(('anya-vm-23-6', ReaderStep.next)));
+        expect(nextNode, isNull,
+            reason: 'anya-vm-23-6 is the last leaf in the corpus — nothing '
+                'after it');
+
+        // ASSERT: the forward button is gone
+        expect(find.byIcon(Icons.skip_next), findsNothing,
+            reason: 'No skip-next at the very last sutta');
+
+        // Positive control: the pill is rendering, and only the forward slot
+        // dropped out of it. Without this the assertion above passes on a
+        // reader with no action buttons at all.
+        expect(find.byIcon(Icons.skip_previous), findsOneWidget,
+            reason: 'The last sutta still has a previous one');
+      },
+    );
+
+    // =================================================================
+    // Test 5: Container units step off the last leaf they RENDERED
+    // =================================================================
+    testWidgets(
+      '5. Container: next steps off the last leaf actually rendered',
+      (tester) async {
+        final container = await pumpReaderApp(tester);
+
+        // සීලක්ඛන්ධවග්ගො (dn-1) is one of the containers whose subtree
+        // crosses a content file: dn-1-1 and dn-1-2 live in dn-1, the rest
+        // in dn-1-3, dn-1-6 and dn-1-11. The unit renders its own file and
+        // stops, so "next" is the leaf after dn-1-2 — not the leaf after the
+        // whole vagga, which would skip eleven suttas the reader never saw.
+        final tab = tabFromNode(container, 'dn-1');
+        await openTab(tester, container, tab);
+
+        expect(container.read(activeContentFileIdProvider), 'dn-1',
+            reason: 'The vagga unit is bounded to its own content file');
+
+        // ACT
+        expect(find.byIcon(Icons.skip_next), findsOneWidget);
+        await tester.tap(find.byIcon(Icons.skip_next));
+        await pumpForSettle(tester, const Duration(seconds: 2));
+
+        // ASSERT: dn-1-3, the leaf after the last one the vagga showed.
+        // This is where the two directions stop being mirrors: previous from
+        // dn-1 steps off its FIRST leaf and leaves the vagga entirely, while
+        // next steps off the last leaf rendered and stays inside it.
+        expect(container.read(activeNodeKeyProvider), 'dn-1-3',
+            reason: 'Next from a multi-file container resumes at the leaf '
+                'after the last one it rendered');
       },
     );
   });

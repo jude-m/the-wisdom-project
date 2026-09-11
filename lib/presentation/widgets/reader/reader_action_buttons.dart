@@ -9,23 +9,29 @@ import '../../utils/content_icons.dart';
 import '../../providers/tab_provider.dart'
     show activeReaderLayoutProvider, updateActiveTabLayoutProvider;
 
+/// Where one of the group's step buttons goes, and what to call it.
+///
+/// The icon is the slot's, not the target's — a direction is a property of
+/// which side of the pill you are on — so a caller supplies only the
+/// destination.
+typedef ReaderStepTarget = ({String tooltip, VoidCallback onTap});
+
 /// Mode 1: Horizontal pill of icon buttons shown at top-right when the user
 /// hasn't scrolled past the first viewport.
 ///
-/// Contains up to 3 buttons (commentary toggle, search, scroll/navigate).
-/// Buttons are conditionally included based on context.
+/// Contains up to 4 buttons (commentary toggle, search, previous, next).
+/// Buttons are conditionally included based on context; a step button is
+/// omitted when there is no leaf that way.
 class ReaderActionButtonGroup extends ConsumerWidget {
   final VoidCallback onSearchTap;
-  final VoidCallback? onScrollTap;
-  final IconData? scrollIcon;
-  final String? scrollTooltip;
+  final ReaderStepTarget? previous;
+  final ReaderStepTarget? next;
 
   const ReaderActionButtonGroup({
     super.key,
     required this.onSearchTap,
-    this.onScrollTap,
-    this.scrollIcon,
-    this.scrollTooltip,
+    this.previous,
+    this.next,
   });
 
   @override
@@ -63,12 +69,18 @@ class ReaderActionButtonGroup extends ConsumerWidget {
               tooltip: l10n.findInPage,
               onTap: onSearchTap,
             ),
-            // Scroll to beginning / Go to previous sutta
-            if (onScrollTap != null)
+            // Step to the sutta on either side of this unit
+            if (previous case final target?)
               _ActionIconButton(
-                icon: scrollIcon ?? Icons.vertical_align_top,
-                tooltip: scrollTooltip ?? l10n.scrollToBeginning,
-                onTap: onScrollTap!,
+                icon: Icons.skip_previous,
+                tooltip: target.tooltip,
+                onTap: target.onTap,
+              ),
+            if (next case final target?)
+              _ActionIconButton(
+                icon: Icons.skip_next,
+                tooltip: target.tooltip,
+                onTap: target.onTap,
               ),
           ],
         ),
@@ -121,14 +133,12 @@ class ReaderLayoutPill extends ConsumerWidget {
 class ReaderExpandableFab extends ConsumerStatefulWidget {
   final VoidCallback onSearchTap;
   final VoidCallback onScrollTap;
-  final String? scrollTooltip;
   final bool visible;
 
   const ReaderExpandableFab({
     super.key,
     required this.onSearchTap,
     required this.onScrollTap,
-    this.scrollTooltip,
     this.visible = true,
   });
 
@@ -230,7 +240,7 @@ class _ReaderExpandableFabState extends ConsumerState<ReaderExpandableFab> {
                       // Scroll to beginning
                       _FabActionItem(
                         icon: Icons.vertical_align_top,
-                        label: widget.scrollTooltip ?? l10n.scrollToBeginning,
+                        label: l10n.scrollToBeginning,
                         onTap: () {
                           _collapse();
                           widget.onScrollTap();

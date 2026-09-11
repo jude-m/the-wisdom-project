@@ -17,11 +17,11 @@ import 'dictionary_filter_flow_test.dart' as dictionary_filter;
 import 'in_page_search_test.dart' as in_page_search;
 import 'language_independence_test.dart' as language_independence;
 import 'layout_switch_test.dart' as layout_switch;
-import 'previous_sutta_navigation_test.dart' as previous_sutta;
 import 'scroll_restoration_test.dart' as scroll_restoration;
 import 'search_flow_integration_test.dart' as search_flow;
 import 'search_language_toggle_test.dart' as search_language_toggle;
 import 'search_tab_highlight_test.dart' as search_tab_highlight;
+import 'sutta_step_navigation_test.dart' as sutta_step;
 
 void main() {
   breadcrumb.main();
@@ -30,9 +30,9 @@ void main() {
   in_page_search.main();
   language_independence.main();
   layout_switch.main();
-  previous_sutta.main();
   scroll_restoration.main();
   search_flow.main();
   search_language_toggle.main();
   search_tab_highlight.main();
+  sutta_step.main();
 }

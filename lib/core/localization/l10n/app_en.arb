@@ -366,9 +366,9 @@
     "description": "Tooltip for button to scroll to the beginning of the sutta when opened mid-document from FTS"
   },
 
-  "goToPreviousSutta": "Go to: {name}",
-  "@goToPreviousSutta": {
-    "description": "Tooltip for button to navigate to the previous sutta in tree order",
+  "goToSutta": "Go to: {name}",
+  "@goToSutta": {
+    "description": "Tooltip for the reader's previous/next buttons — the icon carries the direction, so this only names the sutta being stepped to",
     "placeholders": {
       "name": {
         "type": "String"

@@ -227,7 +227,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get scrollToBeginning => 'ආරම්භයට යන්න';
 
   @override
-  String goToPreviousSutta(String name) {
+  String goToSutta(String name) {
     return 'වෙත යන්න: $name';
   }
 

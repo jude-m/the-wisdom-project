@@ -13,7 +13,7 @@
 > | folded leaves (→ stubs) | 1,603 |
 > | sutta pages under 1,500 chars | 3,707 |
 >
-> **Status:** IN BUILD. The site half is done bar the first deploy. The app's reader rework (Part 4) is under way: B1 shipped 2026-09-06 and **B2 committed 2026-09-08 on `feat/reader-page-units` — with one thing outstanding, the test files it breaks.** It also did not land as planned: the app takes the site's *boundedness* and rejects its *grouping*; a unit is the node you tapped, bounded by its own subtree. See Part 4, "The app does not adopt the grouping".
+> **Status:** IN BUILD. The site half is done bar the first deploy. The app's reader rework (Part 4) is under way: B1 shipped 2026-09-06, **B2 committed 2026-09-08 on `feat/reader-page-units`**, its test debt cleared 2026-09-10, and **B3 closed the same day when Next was wired**. It also did not land as planned: the app takes the site's *boundedness* and rejects its *grouping*; a unit is the node you tapped, bounded by its own subtree. See Part 4, "The app does not adopt the grouping". **What is left of Part 4 is B6**, which shares no code with the reader.
 >
 > | stage | what | state |
 > |---|---|---|
@@ -26,7 +26,7 @@
 > | **S7** | an introduction has a size, and a container never offers "next" — `minIntroductionChars`, the TOC pager, `--write-upstream` (Part 1, "A container that opens with an introduction"; B5) | **shipped 2026-08-20** |
 > | **S8** | **the seam** — `SitePlan` into `wisdom_shared`, the app decoding through the shared tree, and links carrying the page that serves them (Part 4 B1, B5's app share, and the codec) | **shipped 2026-08-23** |
 > | **S9** | the slicer's coordinate half into `wisdom_shared`, answering both directions — `slice_index.dart`, `ContentSlicer` delegating to it (Part 4 B1, finishing it) | **shipped 2026-09-06** |
-> | **S10** | the app's reader becomes bounded, on its own subtree rule — `ReaderUnit`, `DocumentSlice`, `ReaderUnitResolver`, the pagination deleted (Part 4 B2–B4) | **committed 2026-09-08** — analysis clean and the corpus invariants pass; the tests it breaks are the one thing left |
+> | **S10** | the app's reader becomes bounded, on its own subtree rule — `ReaderUnit`, `DocumentSlice`, `ReaderUnitResolver`, the pagination deleted (Part 4 B2–B4) | **shipped 2026-09-10** — committed 2026-09-08, both suites carried across and B3's Next wired two days later; analysis clean and the corpus invariants pass |
 >
 > **S9 verified 2026-09-06.** A whole-corpus build is **byte-for-byte identical** to the same build before the split — 10,303 files, `diff -r` empty — which is the whole claim B1 makes. `--check` green, 34 generator tests pass, `flutter analyze lib` clean. The new direction, *row → key*, the generator never calls and the build therefore cannot prove, so it was checked against `ContentSlicer` directly: **237,631 rows across all 285 files, 0 disagreements**, with both documented edges exercised — 232 rows above their file's first coordinate resolving to that first node, and the 2 shared coordinates resolving to the deeper node by name (`dn`, `atta-dn`). That run was a throwaway script; the standing cover is `packages/wisdom_shared/test/slices/slice_index_test.dart`, which is mutation-tested — seven breakages of the rule, including both readings that stop treating containers as boundaries, and every one fails the suite.
 >
@@ -58,7 +58,7 @@
 
 - **App, until S10:** the unit was the *content file*. `ReaderTab` was `(contentFileId, pageStart, pageEnd, entryStart)`; opening any node jumped to its coordinate and paginated forward one printed page at a time to the end of the file. Three consequences:
   - Every one of the 16,355 tree nodes has a `contentFileId` — including `sp` (සුත්තපිටක → `dn-1`) — so a folder or root tap dumped raw text that ran on past what was tapped. **Fixed by B2**: the unit now stops at the end of the tapped node's subtree.
-  - Only `navigateToPreviousSuttaProvider` exists. **There is still no "next"** — B3 leaves the wiring to a second button.
+  - Only a *previous* existed, and it walked readable nodes rather than leaves, so it could land the reader on සුත්තපිටක. **Fixed by B2–B3**: one direction-free `navigateToSuttaProvider`, asked which way by `neighbourLeafProvider`, behind a `skip_previous` / `skip_next` pair.
   - Tab label and breadcrumb never update while scrolling, so scrolling from Mūlapariyāya into Sabbāsava leaves the app claiming you are still in Mūlapariyāya. **Still open**, and much smaller now that a unit is bounded: `SliceIndex.keyAt` answers it (B1), nothing calls it for this yet.
 - **Static site:** the unit is the *page* — `sutta` (own file) · `chapter` (a contiguous run of short leaves, at the vagga's URL or at its first leaf's) · `toc` (container: preamble + links), prev/next walking readable pages only. A page is readable when it carries text, **not** when it is a non-TOC (see "A container that opens with an introduction").
 
@@ -892,25 +892,6 @@ The inversion above renamed what a tab carries, and seven `integration_test/`
 files were left naming the old fields — 47 analyzer errors, so they could not
 run at all. All seven compile and pass now, run one file at a time on macOS.
 
-| old | new |
-| --- | --- |
-| `contentFileId:` / `.contentFileId` | gone — derived from `nodeKey` |
-| `pageStart:` / `.pageStart` / `.pageIndex` | `landingPageIndex` |
-| `entryStart:` / `.entryStart` | `landingEntryIndex` |
-| `pageEnd:` | gone — a unit's end is derived, never stored |
-| `activePageStartProvider` | `activeReaderUnitProvider` → `range.start.pageIndex` |
-| `activeEntryStartProvider` | `activeReaderUnitProvider` → `range.start.entryIndex` |
-| `activePageEndProvider` | `activeReaderUnitProvider` → `range.end?.pageIndex` (null ⇒ runs to end of file) |
-| `previousReadableNodeProvider(key)` | `neighbourLeafProvider((key, ReaderStep.previous))` |
-
-**Not every row is a rename.** `contentFileId` and `pageEnd` are gone outright:
-a test asserting `tab.contentFileId` is asserting the very thing B2 removed — a
-tab no longer carries a file id, or an end. Those assertions need a new
-*subject*: the tab's `nodeKey`, or the unit `ReaderUnitResolver` answers with.
-The three `active*` providers collapsed into one — `activeReaderUnitProvider`
-hands back the whole unit, so a test that read a scalar now reads a field off
-its `range`.
-
 **A rename can leave an assertion standing but empty**, and that is the part
 of this port worth remembering: fifteen assertions came through it still
 compiling, still passing, and no longer testing anything. Two review passes
@@ -977,9 +958,31 @@ so the test cannot call the thing it is testing.
   whole tree, and fixes a live bug with it: it keyed on `isReadableContent`,
   which is `contentFileId != null` — true for **every** node in the tree, roots
   included — so "previous" could land the reader on සුත්තපිටක.
-- **Next is not built.** The reader has no Next button today. `leafAfter` is
-  written and verified, so adding one is wiring a second `IconButton` to the
-  same provider with `ReaderStep.next`.
+- ✅ **Next is a second button in the Mode 1 pill**, beside prev — the placement
+  chosen over a site-style footer pager because the pager would have moved prev
+  out of the pill and re-broken the integration file that had just been brought
+  back. `skip_previous` / `skip_next`, each omitted when there is no leaf that
+  way, and both gone with the rest of Mode 1 once the reader scrolls.
+
+  Three things fell out of wiring it, all of them one thing said once:
+  `navigateToPreviousSuttaProvider` carried nothing direction-specific, so it is
+  `navigateToSuttaProvider` in `navigate_to_sutta_provider.dart`; the ARB string
+  was already direction-neutral (`"Go to: {name}"` — the icon says which way),
+  so `goToPreviousSutta` is `goToSutta`; and `ReaderActionButtonGroup`'s
+  `onScrollTap`/`scrollIcon`/`scrollTooltip` trio — a generic slot whose
+  `?? Icons.vertical_align_top` fallback no caller had reached since Mode 2 took
+  scroll-to-top — is two `ReaderStepTarget?` slots that own their own icons.
+  `ReaderExpandableFab.scrollTooltip` was the same pattern's last survivor, its
+  one caller passing the very string the `??` supplied, and went with it.
+
+  **The fourth button did not fit.** Mode 1 was a `Row` inside a
+  `Positioned(right: 16)`, and a `Positioned` with only one horizontal edge
+  lays its child out *unbounded* — so the row did not overflow, it slid off the
+  left edge and the `Stack` clipped it. Measured at 375pt with the commentary
+  toggle showing: two pills want 376px against 359px, and the layout selector
+  starts at **x = −17**. Bounded on both sides and made a `Wrap`, it drops to a
+  second right-aligned line on a narrow phone and stays on one anywhere wider.
+  No control is hidden, which a responsive branch would have had to do.
 - ✅ Tree-node tap and `openTabFromNodeKeyProvider` need no resolver hop at all —
   the unit is the node they already have, so both stayed synchronous.
 

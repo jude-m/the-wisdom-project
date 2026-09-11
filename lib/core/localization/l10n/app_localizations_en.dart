@@ -227,7 +227,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scrollToBeginning => 'Go to beginning';
 
   @override
-  String goToPreviousSutta(String name) {
+  String goToSutta(String name) {
     return 'Go to: $name';
   }
 

@@ -110,23 +110,15 @@ untouched. `openTabFromSearchResultProvider` is the sole async producer.
 `SitePlan` stays loaded for the **link codec** only, so a link copied out of the
 app still matches the site's URL.
 
-## Not built
+## Finished after the commit
 
-- **Next.** `leafAfter` and `ReaderStep.next` are written and verified but unwired; the reader has one contextual action slot, so a forward control needs a placement decision. Tracked in the owning doc under B3.
-- **Tests.** ~12 files, ~122 references to the removed `ReaderTab` fields will not compile:
-
-  ```
-  44  test/presentation/providers/tab_provider_test.dart
-  25  integration_test/layout_switch_test.dart
-  12  integration_test/previous_sutta_navigation_test.dart
-  11  test/domain/entities/search/grouped_fts_match_test.dart
-   8  test/presentation/providers/deep_link_provider_test.dart
-   6  integration_test/scroll_restoration_test.dart
-   …  + 6 more with ≤4 each
-  ```
-
-  Per `CLAUDE.md` tests are not written unless asked — but these will not compile
-  until they are updated, so this is a real step, not an optional one.
+Both are built now. The **tests** — ~12 files and ~122
+references to the removed `ReaderTab` fields, which did not compile — were
+carried across on 2026-09-10; the shapes that port taught are recorded in the
+owning doc, B2. **Next** was wired the same day as a second button in the Mode 1
+pill, and the group's one generic action slot became two step slots that own
+their icons; the owning doc's B3 has the placement and the narrow-phone clip it
+exposed.
 
 ## Verification
 
