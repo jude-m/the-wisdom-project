@@ -333,8 +333,9 @@ final matchedText = match.matchedText                    // web: already loaded
 
 - `docs/multi_edition_architecture.md` — how multiple content sources (BJT,
   SuttaCentral) share this pipeline.
-- `docs/todo/search_redundant_json_parsing.md` — the same JSON file is currently
-  re-parsed once per match (Step 5); nested sub-matches (Step 6) make this common.
+- `docs/done/perf-fts-snippet-text-loading.md` — Step 5 used to re-read and
+  re-parse the whole JSON file once per match; shipped 2026-06-19 as a
+  group-by-file parse plus an LRU cache.
 - `lib/domain/entities/search/` — the search entities (`SearchQuery`,
   `SearchResult`, `GroupedSearchResult`, `GroupedFTSMatch`,
   `SearchLanguageScope`).

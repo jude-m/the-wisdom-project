@@ -14,9 +14,7 @@
 >   *thin* — raw SQL via `customSelect` for this read-only canon; reserve the
 >   query-builder for future *writable* tables (bookmarks/history).
 > - **Web reads this DB CLIENT-SIDE** (Drift wasm/OPFS), not from a server →
->   **retires the Dart content server**, Flutter web becomes fully static. The
->   "Relationship to a Next.js Web Rewrite" section below is **superseded** (it
->   assumed server-side reads + a Next.js backend — both dropped).
+>   **retires the Dart content server**, Flutter web becomes fully static.
 > - **Delivery: download-once to OPFS on web** (offline), refreshed via **monthly
 >   batched** rebuilds (confirmed acceptable). Content+FTS co-versioned via a small
 >   manifest + content-hashed filenames; `dict.db` versioned separately.
@@ -67,9 +65,9 @@ size bonus.
 
 Move the text out of 285 JSON files and into a **compressed, per-page content
 table** in the existing SQLite DB, then drop `assets/text/` from the bundle.
-The JSON files stay in the repo (the FTS build script reads them from the
-filesystem, not the app bundle), so the database still builds — they just aren't
-shipped.
+The JSON files stay in the repo — the FTS build script and the static site
+generator both read them from the filesystem, not the app bundle — so the database
+still builds and the HTML site still generates. They just aren't shipped.
 
 ```
 TODAY (shipped):  95 MB FTS index  +  340 MB JSON            = ~435 MB   offline
@@ -173,8 +171,12 @@ must switch to the new content table before the assets can be dropped:
 Note: snippet **behavior/UX stays the same** — only its data source changes
 (from JSON file → content table). It gets faster, not different.
 
-The FTS build script `tools/bjt-fts-populate.js` reads JSON from the filesystem
-(`fs.readFileSync`), so it is unaffected by dropping the asset declaration.
+Two **build-time** consumers read the same JSON from the filesystem rather than the
+bundle, so neither is affected by dropping the asset declaration — and both are why
+the files stay in the repo:
+
+- `tools/bjt-fts-populate.js` (`fs.readFileSync`) — builds the FTS index.
+- `static_site_generator/lib/data/corpus_reader.dart` — builds the public HTML site.
 
 ## Proposed Schema
 
@@ -196,8 +198,14 @@ CREATE TABLE bjt_content (
 
 - **Snippet**: `eind` already gives `pageIndex`/`entryIndex` → fetch the page row
   → decompress → pick `entryIndex`.
-- **Reader**: fetch all pages for `filename` (indexed) → decompress per page →
-  assemble the `BJTDocument`. Enables lazy per-page loading later.
+- **Reader**: the reader no longer opens whole files — it opens a **slice**
+  (`SliceIndex` in `wisdom_shared` maps a nodeKey to its entry range;
+  `DocumentSlice` / `ReaderUnit` in `lib/domain/entities/reader/`). Fetch only the
+  page rows that slice spans → decompress → assemble. The per-page laziness this
+  table was going to "enable later" is already the shape the reader wants.
+- **Keep the stored format platform-neutral.** Node writes this table
+  (`better-sqlite3`), Dart reads it. No Freezed models or app-specific types in the
+  blob — just the page's JSON substructure.
 - Compression in Dart: `dart:io` `GZipCodec`/`ZLibCodec` (native) — verify the
   decode path is available on all shipped native platforms.
 - **Optional max-speed snippet path:** add a `text` column (plain, optionally
@@ -207,36 +215,57 @@ CREATE TABLE bjt_content (
 
 ## Implementation Steps
 
-1. **Prove the speed win first (primary goal).** Write a throwaway `dart run`
+1. **Lock the safety net first.** The suite already covers the search *engine*
+   well: `integration_test/search_flow_integration_test.dart` pins exact result
+   counts against the real FTS DB, and every reader integration test constructs the
+   real `BJTDocumentLocalDataSourceImpl` over real assets — so an engine swap or a
+   garbled read fails loudly. It covers snippet **text**, the parser, and any file
+   outside the `dn-1` family not at all. Close those three gaps first:
+   - **Corpus-wide parity script.** For all 285 files, every entry, assert
+     `inflate(bjt_content row) == the JSON entry text`, footnotes included.
+     `static_site_generator/tool/plan_corpus.dart` already walks the whole corpus
+     through `lib/data/corpus_reader.dart` — this is a comparison bolted onto an
+     existing walker, not a new one. Write it now, run it the moment step 5
+     populates a table, and keep it as that script's own verification step. Without
+     it, a populate bug touching only (say) the Vinaya files ships silently.
+   - **Golden snippets.** Record today's output for ~5 real queries **before**
+     anything changes, then require the migration to reproduce it exactly. The
+     teardown below demands snippets stay "byte-for-byte identical" and nothing
+     checks that today — `_loadFileJson` / `_extractEntryText` have no coverage at
+     all, so empty or wrong snippets currently pass green.
+   - **A real-page fixture test for `BJTDocumentParser`.** It has none, and it is
+     the seam the new blob feeds.
+2. **Prove the speed win (primary goal).** Write a throwaway `dart run`
    micro-benchmark on a few real files that times, for the same target entry:
    (a) today's path — `rootBundle.loadString` + `json.decode` the whole file; vs
    (b) proposed — inflate one page blob (+ parse that page for the reader case).
    Confirm (b) is meaningfully faster before building anything. Test a small file
    *and* a large sutta (the large one is where today's whole-file parse hurts).
-2. **Measure the size bonus.** Build a throwaway content table compressed **per
+3. **Measure the size bonus.** Build a throwaway content table compressed **per
    page** (not one big stream) and record the real DB size. The 41.6 MB figure is
    whole-corpus gzip; per-page will be larger (~50–70 MB expected). Confirm the
    total DB lands well under today's 435 MB.
-3. **Also measure the real release artifact.** APK/AAB/IPA compress text assets
+4. **Also measure the real release artifact.** APK/AAB/IPA compress text assets
    on build, so the JSON's *download* impact today may already be ~70–110 MB
    (not 340 MB). The 340 MB mainly hits on-device storage. Know both numbers.
-4. Extend `tools/bjt-fts-populate.js` to populate `bjt_content` (compress per
+5. Extend `tools/bjt-fts-populate.js` to populate `bjt_content` (compress per
    page) alongside the existing `_fts` / `_meta` tables.
-5. Add a local content datasource that reads + decompresses from `bjt_content`.
-6. Repoint snippet path (now `_loadFileJson`/`_extractEntryText` in `_searchFullText`)
+6. Add a local content datasource that reads + decompresses from `bjt_content`.
+7. Repoint snippet path (now `_loadFileJson`/`_extractEntryText` in `_searchFullText`)
    and reader (`BJTDocumentLocalDataSourceImpl`) at the content datasource — see
    **Snippet-path teardown** below for the exact deletions.
-7. Remove `- assets/text/` from `pubspec.yaml`. Keep the files in the repo.
-8. Verify offline reading + search snippets on a real device. Check first-launch
+8. Remove `- assets/text/` from `pubspec.yaml`. Keep the files in the repo.
+9. Verify offline reading + search snippets on a real device. Check first-launch
    DB copy time (`_initializeEdition` copies the asset DB to the documents dir;
    a bigger DB = bigger one-time copy + double on-disk during install).
-9. **Web now reads this DB client-side** (Drift wasm/OPFS) — see the top banner.
-   The old `getWebOverrides()` → server route is being retired, not extended.
+10. **Web now reads this DB client-side** (Drift wasm/OPFS) — see the top banner.
+    The old `getWebOverrides()` → server route is being retired, not extended.
 
-### Snippet-path teardown (step 6 detail)
+### Snippet-path teardown (step 7 detail)
 
-The interim memo-cache fix (`docs/todo/perf-fts-snippet-text-loading.md`, shipped
-2026-06-19) is deliberately isolated, so repointing the snippet path at the content
+The interim memo-cache fix
+([`perf-fts-snippet-text-loading.md`](../../done/perf-fts-snippet-text-loading.md),
+shipped 2026-06-19) is deliberately isolated, so repointing the snippet path at the content
 table is a clean ~2-method + 1-field deletion, not a rewrite. The call-site shape
 (`matchedText ?? <load> ?? ''`, grouped before the loop) is already what the batched
 DB query wants — you replace the *loader*, not the loop. Delete / replace:
@@ -254,11 +283,10 @@ DB query wants — you replace the *loader*, not the loop. Delete / replace:
 - [ ] Preserve the language fallback order (matched lang first, then the other) in
       the row pick so snippets stay byte-for-byte identical.
 
-**Server — `server/lib/src/handlers/fts_handler.dart`**
-- [ ] `_loadTextForMatch`, `_loadJsonFile`, and the unbounded `_jsonCache` map →
-      replace with the same SQL against `bjt_content`. Native and web then run
-      identical queries; the per-request enrichment loop becomes the batched
-      `IN (...)`.
+**Server — nothing to port.** `server/lib/src/handlers/fts_handler.dart` has its own
+`_loadTextForMatch` / `_loadJsonFile` / `_jsonCache`, but the whole `server/` tree is
+being deleted (see [`README.md`](./README.md)) — web reads the same DB client-side
+through Drift. It goes with the server; do not repoint it at `bjt_content`.
 
 **Becomes moot (don't build):**
 - [ ] Top-10 #2 Phase 3 (decode off the UI isolate) — a row lookup never janks.
@@ -269,20 +297,17 @@ DB query wants — you replace the *loader*, not the loop. Delete / replace:
 missing-row degrades to an empty snippet, and the native search path no longer reads
 `assets/text/*.json` at runtime.
 
-## Quick Win (do regardless)
-
-Ship the per-search decode memo cache from
-`docs/todo/search_redundant_json_parsing.md` now. It removes the only real
-snippet perf nit with zero size cost and is independent of this migration.
-
 ## Open Questions / Risks
 
 - **Compression granularity**: per-page (proposed) vs per-entry vs per-document.
   Page balances reader fetch size against compression ratio; revisit after the
-  size measurement (step 2).
-- **First-launch copy**: a ~140–165 MB DB copies to the documents dir on first
-  run and lives twice during install. Still far better than today's 95 MB copy +
-  340 MB un-copied assets, but confirm device storage + copy time.
+  size measurement (step 3).
+- **First-launch copy**: the content+FTS DB (~140–165 MB) copies to the documents
+  dir on first run and lives twice during install — and `dict.db` (167 MB) already
+  copies to that same place, so the real first-run cost is ~310–330 MB written, not
+  the content DB alone. Still far better than today's 95 MB + 167 MB copied
+  alongside 340 MB of un-copied assets, but confirm device storage + copy time
+  against the sum.
 - **Reader rewrite risk**: this touches the reader (higher-risk code than
   search). Stage it: land the content table + snippet repoint first, reader
   second, drop the assets last.
@@ -290,77 +315,9 @@ snippet perf nit with zero size cost and is independent of this migration.
   `BJTDocumentParser` needs (footnotes, `**bold**`/`__underline__`/`{footnote}`
   markers, page metadata), not just the bare `text`.
 
-## Relationship to a Next.js Web Rewrite (single source of truth)
-
-> **SUPERSEDED 2026-07-16 (see top banner).** Two premises here are now dropped:
-> the web client is **not** a Next.js rewrite, and the web does **not** read the DB
-> server-side. The content DB is still the single source of truth — but *both*
-> platforms read it the same way: **locally, via Drift** (native on mobile, wasm +
-> OPFS on web). Kept below for the schema-neutrality reasoning, which still holds.
-
-Confirmed direction:
-
-- **Mobile stays Flutter** (offline, local-first). This task is *not* throwaway.
-- **The web client is being rewritten** (Flutter web → Next.js).
-- **One source of truth is wanted**, and the web side should also stop using JSON.
-
-This makes the task **more valuable, not less** — the content store stops being a
-mobile-only optimization and becomes the **single canonical runtime store** that
-*both* platforms read:
-
-```
-            assets/text/*.json   ← build-time IMPORT only (not shipped, not served)
-                   │  tools/bjt-fts-populate.js
-                   ▼
-        ┌─────────────────────────────┐
-        │  content DB (FTS index +     │   ← the single source of truth at runtime
-        │  per-page content + meta)    │
-        └─────────────────────────────┘
-            │                       │
-   bundled & read locally     read server-side
-            ▼                       ▼
-   Flutter mobile (offline)   Next.js backend → Next.js frontend
-```
-
-What this resolves / implies:
-
-- **JSON is demoted to a build-time import.** Neither mobile nor web reads JSON at
-  runtime. The content DB is canonical. (No runtime JSON anywhere = your "web can
-  ditch the JSON" goal.)
-- **Design the schema platform-neutral**, not Flutter-specific. A Node/Dart
-  backend will read the same tables (`better-sqlite3`, Dart `sqlite3`, etc.), and
-  the same **FTS5 index** powers search on both mobile and server. Keep
-  app-specific logic (Freezed models, etc.) *out* of the stored format.
-- **Backend choice stays open and orthogonal.** Whether Next.js reuses the
-  existing Dart server or gets its own Node backend, it reads the same content DB.
-  Decide that separately; it doesn't change this task.
-
-### Compression in a shared store
-
-Compression was a **mobile-local** size win. In the shared model:
-
-- **Recommended:** keep text **compressed per page** in the canonical DB. Mobile
-  keeps the size bonus; the web backend inflates per request (sub-ms, cacheable);
-  HTTP `Content-Encoding: gzip/br` handles the wire separately. The brief
-  inflate-then-recompress on the server is negligible.
-- **Alternative:** store text **uncompressed** — zero server-side inflate and
-  fastest possible mobile reads (no inflate at all), at the cost of a bigger
-  mobile DB (~380 MB). Valid given speed is the primary goal and size is only a
-  bonus; pick this if you'd rather not inflate on the server and don't mind the
-  larger mobile footprint.
-
-Either way, hide compression behind a content-access layer so both platforms
-share one logical interface.
-
-### Sequencing
-
-Independent workstreams, but they share data — so **settle the canonical format
-once** before building, or you'll design a mobile-only store and redo it for the
-new backend. Suggested order: (1) memo-cache quick win anytime → (2) lock the
-content-DB schema as the shared source of truth → (3) build it → (4) point
-Flutter mobile and the new web backend at it → (5) drop runtime JSON on both.
-
 ## Related
 
+- [`README.md`](./README.md) — the parent plan: retiring the Dart content server.
 - `docs/general/how_search_works.md` — the search pipeline (Step 5 reads JSON).
-- `docs/todo/search_redundant_json_parsing.md` — the memo-cache quick win.
+- [`perf-fts-snippet-text-loading.md`](../../done/perf-fts-snippet-text-loading.md)
+  — the shipped memo-cache fix this migration tears down.
