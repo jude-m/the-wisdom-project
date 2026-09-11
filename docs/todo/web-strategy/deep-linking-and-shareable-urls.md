@@ -1,7 +1,11 @@
 # Deep Linking & Shareable Sutta URLs
 
 > Status: **ACTIVE PLAN — decisions locked 2026-07-06; reading-layout-in-URL added 2026-07-20** (was Proposal since
-> 2026-05-13). Split out of the former `web-deep-linking-seo-and-shareable-urls.md`
+> 2026-05-13). **Build phases 1–4 are shipped** (codec, app wiring, research
+> citations, SN 15 concordance seed) and so are three of the four test layers;
+> what remains is **`?layout=`, the reader-tab share button, `?edition=`,
+> Universal/App Links, and layer B's tests** — see Build phases.
+> Split out of the former `web-deep-linking-seo-and-shareable-urls.md`
 > on 2026-06-11; the SEO / static HTML half lives in
 > [`static-web-hosting.md`](../../decisions/static-web-hosting.md)
 > and [`../web-strategy/static-html-site-plan.md`](../web-strategy/static-html-site-plan.md).
@@ -96,10 +100,12 @@ https://app.sammaditthi.net/tipitaka/sn-2-3-1-3?e=12.4&layout=sideBySide&edition
      └── app host ──┘└── shared grammar ──┘└──────── modifiers ────────┘
 ```
 
-- **Landing in (built).** Flutter reads the whole URL once via `Uri.base` at
-  startup → the LinkOpener opens that sutta / position / layout / edition. Clean
-  `/tipitaka/…` paths need Flutter's **path-URL strategy** (else the default
-  ugly `#`-hash form) **+** the app project's **SPA fallback**
+- **Landing in (the read is built; the clean-URL half is not).** Flutter reads
+  the whole URL once via `Uri.base` at startup → the LinkOpener opens that sutta
+  / position / edition (layout is not built). Clean `/tipitaka/…` paths need
+  Flutter's **path-URL strategy** — not set anywhere in `lib/` or `web/` today,
+  so the app host still produces the ugly `#`-hash form — **+** the app
+  project's **SPA fallback**
   (`/* /index.html 200` — safe there: the project contains nothing but the app)
   so deep URLs serve the shell instead of 404. The `TipitakaLink` codec is
   host-agnostic, so app-host URLs parse as-is; its `/app/`-prefix stripping is
@@ -197,9 +203,10 @@ page's "Open in app" banner is the safety net, one more vote for BJT → `/tipit
   parsing (malformed → `null`, never throw). Accepts `http(s)` on any host —
   which is exactly why the 2026-07-23 `app.sammaditthi.net` move needs **no codec
   change** — plus the legacy `/app/` base-href form and `sammaditthi://`. Carries
-  `{nodeKey, pageIndex?, entryIndex?, layout?}`; `layout` is the raw
-  `ReaderLayout.name` token so the package stays Flutter-free (it never imports
-  the enum) — the sink resolves token→enum leniently.
+  `{nodeKey, pageKey?, pageIndex?, entryIndex?, originKey?}` — `pageKey` is the
+  path key a nodeKey-shaped fragment overrode, `originKey` the canon sutta a
+  merged vaṇṇanā was entered by. **`layout` is not among them**: `?layout=` is a
+  locked decision that has never been built — see the `?layout=` note below.
 - **LinkOpener** awaits `navigationTreeProvider.future` (cold-start links can
   arrive before the tree loads), validates the node exists, then opens through
   the existing tab machinery — deep links behave exactly like tree/search opens.
@@ -215,7 +222,7 @@ page's "Open in app" banner is the safety net, one more vote for BJT → `/tipit
 |---|---|---|
 | `nodeKey` | ✅ path | Identity (was `textId` — superseded, see Decisions) |
 | `pageIndex` + `entryStart` | ✅ query `e=` | Content-addressable jump |
-| `layout` | ✅ query `?layout=` | **Locked v1 2026-07-20** (see Decisions). Optional; absent → the reader's preferred layout. Token = `ReaderLayout.name`. |
+| `layout` | ✅ query `?layout=` | **Locked v1 2026-07-20, not yet built** (see Decisions). Optional; absent → the reader's preferred layout. Token = `ReaderLayout.name`. |
 | `splitRatio`, `scrollOffset`, `panes`, `contentFileId` | ❌ | Device/edition-specific view state |
 
 ## Universal / App Links — when the domain is live
@@ -235,7 +242,10 @@ four files below are static, and each Pages project serves its own pair:
 - All four files are plain static files, each served by its own Pages project.
   The **app-side Dart code needs no change** — the OS just starts delivering
   https URIs through the same `app_links` stream the custom scheme already
-  exercises (only the entitlement/intent-filter lists grow by one host).
+  exercises. The platform declarations, however, are written from scratch:
+  `AndroidManifest.xml` today carries only the `sammaditthi://` custom scheme
+  (no https intent-filter at all), and no `associated-domains` entitlement
+  exists in `ios/` or `macos/`.
 
 Dev-testing reality: custom scheme = full pipe today (all platforms);
 Android http intent-filter on the LAN box = chooser-based testing; iOS
@@ -245,25 +255,38 @@ Universal Links = only with the real domain.
 
 ## Build phases
 
-1. **`TipitakaLink` codec** in `wisdom_shared` (+ export).
-2. **App wiring** — `LINK_BASE_URL` config, LinkOpener provider,
-   `openTabFromNodeKeyProvider` gains optional explicit `pageIndex`/`entryStart`/`layout`
-   (the sink `openTipitakaLinkProvider` maps the codec's raw `layout` token →
-   `ReaderLayout?`, lenient; null → `resolveSeedLayout`),
-   `app_links` + `Uri.base` listeners, platform config (`sammaditthi://` on
-   iOS/macOS/Android; disable Flutter's built-in deeplink handler).
-3. **Research citations** — citation tap → bottom sheet (cited source: ref +
-   title + snippet) → **Open in reader** when `uid` resolves via the shared
-   resolver; graceful "not linked yet" otherwise; **Copy link** action builds
-   the canonical URL.
-4. **Concordance pilot coverage** — grow `sc-to-bjt.json` seed to all of SN 15
-   (title-confirmed), matching the ingested pilot corpus. Full build tool stays
-   a separate task (see the resolver plan §B.4 / findings doc).
-5. **Later**: share/copy-link on reader tabs (the shared URL carries the tab's
-   current `?layout=`), `/.well-known` files + entitlements when the domain is
-   live (**both** apex and `app.` origins — see above), `?edition=` param,
-   go_router if Flutter-web address-bar UX ever matters, segment-level anchors
-   (v2).
+Phases 1–4 are **shipped**: the `TipitakaLink` codec in `wisdom_shared`, the app
+wiring (`LINK_BASE_URL`, `openTipitakaLinkProvider`, explicit
+`pageIndex`/`entryStart` on `openTabFromNodeKeyProvider`, `app_links` +
+`Uri.base` listeners, `sammaditthi://` on iOS/macOS/Android with Flutter's
+built-in deeplink handler disabled), research citations (tap → bottom sheet →
+**Open in reader** when `uid` resolves, graceful "not linked yet" otherwise,
+**Copy link** building the canonical URL), and the `sc-to-bjt.json` seed grown
+to all of SN 15. The full concordance build tool stays a separate task (see the
+resolver plan §B.4 / findings doc).
+
+**What is left, in the order it unblocks itself:**
+
+1. **`?layout=` — decided 2026-07-20, never built.** Nothing in `lib/` or the
+   codec mentions it. The work is one field on `TipitakaLink` (raw
+   `ReaderLayout.name` token, so the package stays Flutter-free and never
+   imports the enum), the lenient token→enum mapping in the single sink
+   `openTipitakaLinkProvider` (null/unknown → `resolveSeedLayout`), a `layout`
+   argument through `openTabFromNodeKeyProvider`, and the ~8-line static-site
+   enhancement in the static plan §7.
+2. **Share / copy-link on reader tabs.** `tipitakaLinkUrlBuilderProvider` exists
+   and already goes through `SitePlan.servingLink`, but its only caller is
+   `citation_source_sheet.dart` — no reader tab emits a link. This is the whole
+   "Sharing out" half of the emit table above, and it is what *produces*
+   `?layout=`, so the two are one piece of work rather than two.
+3. **`?edition=` param** — a modifier on the URL the share button builds, so it
+   follows 2.
+4. **Universal / App Links**: `/.well-known` files on **both** origins +
+   entitlement + Android `autoVerify` intent-filter (see above), Flutter web's
+   path-URL strategy and the app project's SPA fallback, and the cold-start
+   query-string integration test.
+5. **Later**: go_router if Flutter-web address-bar UX ever matters,
+   segment-level anchors (v2).
 
 ## Notes
 
@@ -304,14 +327,16 @@ Universal Links = only with the real domain.
     site — so no caller grows its own idea of grouping. When P5 lands, the leaf
     URL starts working too and **both** forms land on the exact sutta, which is
     what the matrix always required; nothing here needs undoing.
-- **`?layout=` — one token set, both surfaces, backward-compatible.** Token =
-  `ReaderLayout.name`; absent/unknown → the reader's preferred layout
-  (`resolveSeedLayout`), a valid token overrides for that open. The single sink
-  `openTipitakaLinkProvider` (`deep_link_provider.dart`) does the lenient
-  token→enum mapping, so **existing consumers need no change**: the live one —
-  **AI research citations** (`CitationSourceSheet` → `TipitakaLink(nodeKey: …)`,
-  Part D) — passes no layout and keeps opening in the preferred layout. `?layout=`
-  is *produced* by the reader-tab "copy link" (from the tab's current layout) and
+- **`?layout=` — one token set, both surfaces, backward-compatible. NOT BUILT**
+  (decided 2026-07-20; nothing in the codec or `lib/` reads or writes it — see
+  build phases). Token = `ReaderLayout.name`; absent/unknown → the reader's
+  preferred layout (`resolveSeedLayout`), a valid token overrides for that open.
+  Doing the lenient token→enum mapping in the single sink
+  `openTipitakaLinkProvider` (`deep_link_provider.dart`) is what keeps
+  **existing consumers unchanged**: the live one — **AI research citations**
+  (`CitationSourceSheet` → `TipitakaLink(nodeKey: …)`, Part D) — passes no
+  layout and keeps opening in the preferred layout. `?layout=` is to be
+  *produced* by the reader-tab "copy link" (from the tab's current layout) and
   *consumed* by incoming OS/shared links. The static HTML site honours the same
   token via the ~8-line enhancement in
   [`../web-strategy/static-html-site-plan.md`](../web-strategy/static-html-site-plan.md)
@@ -333,34 +358,26 @@ Universal Links = only with the real domain.
 
 # Test coverage
 
-> Status: **Parked 2026-07-29** on branch `feat/static-site`. Written after the
-> code review of `packages/wisdom_shared/test/links/tipitaka_link_test.dart`
-> (the first test the link codec ever had). Layer **A is done**; the A2 sweep
-> and layers B–D are not started.
+> Status: **updated 2026-09-11.** Written after the code review of
+> `packages/wisdom_shared/test/links/tipitaka_link_test.dart` (the first test
+> the link codec ever had). **A, C and D are done**, A2 included; **B is the
+> one layer still at zero.**
 >
 > Everything above owns the URL *grammar* and the decisions; this section only
 > says **what proves it works**.
->
-> The review's own findings (F1–F7), simplifications and the untested-edge list
-> were applied directly to the test file (56 → 67 tests) and are **not**
-> repeated here. Layer A below assumes them. Two findings are deferred and do
-> live here: **F5** (corpus sweep, § A2 — it belongs outside `test/`) and
-> **F6** (nothing runs these tests automatically, last section).
 
 ## TL;DR
 
-Four layers carry a deep link. One has tests.
+Four layers carry a deep link. Three have tests.
 
 | Layer | Code | Tests today |
 |---|---|---|
-| **A** URL codec | `packages/wisdom_shared/lib/src/links/tipitaka_link.dart` | 68 (2026-07-29) — every shape in A covered; corpus sweep **A2 outstanding** |
+| **A** URL codec | `packages/wisdom_shared/lib/src/links/tipitaka_link.dart` | 90, plus 58 in `test/pages/site_plan_test.dart` for the page the link resolves to; corpus sweep A2 done |
 | **B** Reference resolver | `packages/wisdom_shared/lib/src/refs/suttacentral_ref_resolver.dart` | **zero** |
-| **C** Static-site URL emission | `static_site_generator/lib/domain/site_page.dart`, `lib/render/page_template.dart` | **zero** automated (no `test/` dir); five-URL hand-testing sheet in C2 |
-| **D** App-side wiring | `lib/presentation/providers/deep_link_provider.dart`, `widgets/app/deep_link_listener.dart` | **zero** |
+| **C** Static-site URL emission | `static_site_generator/lib/domain/site_page.dart`, `lib/render/page_template.dart` | 34 in `static_site_generator/test/`; five-URL hand-testing sheet in C2 |
+| **D** App-side wiring | `lib/presentation/providers/deep_link_provider.dart`, `widgets/app/deep_link_listener.dart` | 13 |
 
-Recommended order: **A2 + B** (pure Dart, no new infra, sub-second) → **C** →
-**D**. C catches a class of bug nothing else can; D is worth little until
-Universal Links are live on a real domain.
+**B** is what is left: pure Dart, no new infra, sub-second.
 
 ## The surface
 
@@ -378,13 +395,11 @@ web start URL      Uri.base  ─────────────────
                                                        tab opens
 ```
 
-## A — extend `packages/wisdom_shared/test/links/tipitaka_link_test.dart`
+## A — `packages/wisdom_shared/test/links/tipitaka_link_test.dart` — DONE
 
-> **DONE 2026-07-29** (67 → 68 tests). All nine shapes below are covered; the
-> table stays as the record of *why* each is pinned. **A2 is not done.**
-
-No new files or dependencies. Each shape below was probed against the current
-implementation on 2026-07-29; the stated behaviour is what it does *today*.
+All nine shapes below are covered; the table stays as the record of *why* each
+is pinned. Each was probed against the implementation on 2026-07-29; the stated
+behaviour is what it does *today*.
 
 | Shape | Today | Why it needs pinning |
 |---|---|---|
@@ -392,33 +407,21 @@ implementation on 2026-07-29; the stated behaviour is what it does *today*.
 | `…?layout=stacked` | ignored, link survives | Part of the documented grammar (layout decision, 2026-07-20) but **not implemented anywhere in `lib/`**. Also test `?e=12.4&layout=stacked` for param independence. |
 | `https://sammaditthi.net/tipitaka/<key>` | parses | The static-site production host. |
 | `https://app.sammaditthi.net/tipitaka/<key>` | parses | The Flutter-web host — same path, no `/app/` prefix (topology decision, 2026-07-23). |
-| `SAMMADITTHI://TIPITAKA/SN-2-3` | **parses** | Uppercase works on the custom scheme (`Uri` lowercases the host) but *not* on https — see F2. Whichever way that resolves, both forms need a test. |
+| `SAMMADITTHI://TIPITAKA/SN-2-3` | **parses** | Uppercase works on the custom scheme (`Uri` lowercases the host) but *not* on https. Both forms are pinned. |
 | `sammaditthi://foo/tipitaka/<key>` | parses | Wrong custom-scheme host is tolerated as a path prefix. Intended? |
 | `?e=1&e=2` | last wins → page 2 | |
 | `?E=12.4` | ignored (param is case-sensitive) | |
 | `…/tipitaka//sn-2-3` | parses (empty segments skipped) | |
 
-### A2 — corpus sweep: every real nodeKey parses (review finding F5)
+### A2 — corpus sweep: every real nodeKey parses — DONE
 
-Not in `test/`. `_nodeKeyPattern` is the one gate every deep link passes, and
-the test file only pins **3** of the 53 dotted keys — a regression test for the
-bug we know about, silent about key #54 or any other shape in the tree. Sweep
-every key in `assets/data/tree.json`:
-
-```dart
-for (final key in tree.keys) {
-  if (TipitakaLink.tryParse('https://x/tipitaka/$key') == null) {
-    failures.add(key); // this node can never be deep-linked
-  }
-}
-```
-
-Turns "we fixed the dots" into "**no key in the corpus is unlinkable**".
-
-Belongs in `static_site_generator/tool/verify_corpus_invariants.dart`, not the
-package: `wisdom_shared` is Flutter-free by design, can't reach `assets/`, and a
-16k-node load does not belong in a sub-second suite — same split already used
-for markers and tree. ~10 lines, `TipitakaLink.tryParse` only, no shim.
+`_verifyLinks` in `static_site_generator/tool/verify_corpus_invariants.dart`,
+outside `test/` because `wisdom_shared` is Flutter-free by design and a 16k-node
+load does not belong in a sub-second suite — the same split already used for
+markers and tree. It went further than "every key parses": it round-trips every
+key the plan serves through `urlFor` → `TipitakaLink.tryParse` →
+`resolveTarget`, and checks every door into a merged vaṇṇanā is an inverse of
+`canonKeysCoveredBy`.
 
 **Snapshot, not a guarantee.** Re-run after every `tree.json` sync from
 tipitaka.lk (see the canon-sync workflow): a newly-introduced dotted or
@@ -428,7 +431,7 @@ odd-shaped key breaks links again, and only this check would notice.
 
 `SuttaCentralRefResolver` is the other half of the citation path and has never
 been tested. It feeds **two** shipped features: tappable research citations
-(`citation_source_sheet.dart:99-102`) and the "type SN 15.3 → jump" search.
+(`citation_source_sheet.dart:102-103`) and the "type SN 15.3 → jump" search.
 
 Pure Dart with an injected concordance `Map`, so it is table-testable exactly
 like the codec:
@@ -452,44 +455,23 @@ split the package already uses for markers and tree.
 
 Effort: ~20 tests, one new file.
 
-## C — new `static_site_generator/test/` — codec ⇄ generator agreement
+## C — `static_site_generator/test/` — codec ⇄ generator agreement — DONE
 
-**The gap that matters.** The generator builds the same URL grammar
-independently and nothing checks the two agree.
+**The gap that mattered.** The generator builds the same URL grammar
+independently and nothing checked the two agree. Once Universal Links are live,
+**every static-site href is also an app deep link** — the OS intercepts the tap.
+A divergence means the link works in a browser and dies in the app, which is
+exactly the failure users report as "the app opened on the wrong page".
 
-Pointers re-located 2026-08-16 — the generator has moved since this was written,
-and in one respect for the better: every href now funnels through **one** helper
-rather than five hand-built strings, and that helper takes the path segment from
-the codec itself.
-
-- `lib/domain/site_page.dart:15` — `String tipitakaUrl(String nodeKey) =>
-  '/${TipitakaLink.pathSegment}/$nodeKey';`, with `SitePage.url` at `:50`.
-  **The segment can no longer drift** (it is `TipitakaLink`'s own constant);
-  the *shape* around it is still built here and still unchecked, which is what
-  the test is for.
-- `lib/render/page_template.dart:68` — breadcrumb ancestors (`tree.ancestorsOf`)
-- `lib/render/page_template.dart:274` — canon ↔ aṭṭhakathā twin cross-link
-- `lib/render/page_template.dart:97` — child lists on container TOCs (`tocList`)
-- `lib/render/page_template.dart:369` — `id="<nodeKey>"` anchors (the `:target`
-  single-view targets, i.e. the `#fragment` link targets — live on the dev
-  deploy, hand-testing sheet in C2)
-- `lib/render/site_chrome.dart:134,174,196` — breadcrumb, up-link and TOC list
-  items, all through the same helper
-
-Once Universal Links are live, **every static-site href is also an app deep
-link** — the OS intercepts the tap. A divergence means the link works in a
-browser and dies in the app, which is exactly the failure users report as "the
-app opened on the wrong page".
-
-Test: emit pages from a synthetic tree (including the dotted commentary keys —
-`atta-ap-dhs-2-1-1.1` and friends, 53 of them in the real tree), then assert
-every emitted `href` and `id` round-trips through `TipitakaLink.parse` back to
-the same nodeKey.
-
-`test: ^1.24.0` is already a dev-dependency there; only the `test/` directory is
-missing. **Timing:** `lib/domain` and `lib/render` were in flux when this was
-written — the generator has since landed, so the full href sweep is now the
-version to write.
+Two things closed it. Every href now funnels through **one** helper rather than
+five hand-built strings, and that helper takes the path segment from the codec
+itself (`TipitakaLink.pathSegment`), so **the segment can no longer drift**.
+The shape around it is pinned by `test/wiring_contract_test.dart`: `hrefFor`
+builds exactly the URL `SitePlan.urlFor` writes, chapter sections are anchored
+by nodeKey, a folded leaf points at its chapter, a mid-vagga chapter's anchor
+leaf points at its own row, and a leaf with its own file carries no chapter.
+`verify_corpus_invariants.dart` then runs the same agreement over the whole
+corpus rather than a synthetic tree (§ A2).
 
 ### C2 — hand-testing sheet: five live fragment pages
 
@@ -524,10 +506,11 @@ Two gotchas, both found the hard way:
 - **Keep the `dev.` prefix.** `sammaditthi-dev.pages.dev` without it addresses the
   project's *production* branch and 404s on these paths.
 
-**This proves the browser half only.** Per the first row of A's table, the codec
-still **drops** a nodeKey-shaped fragment, so the same URL that opens one sutta
-in a browser opens the whole vagga in the app. These five are the fixtures to
-re-run the day that flips.
+**This proves the browser half only** — `:has(:target)` single-view is
+browser-side and nothing but a browser can show it. The app half of these same
+five URLs is covered in code since 2026-08-23: the codec prefers the
+nodeKey-shaped fragment and `SitePlan` decides which page serves it, so each one
+opens the same single sutta in the app that it shows here.
 
 Grouped pages are exactly the files containing `class="chapter"`; anchor ids are
 always `<pageKey>-<n>`, `n` from 1:
@@ -538,34 +521,26 @@ grep -rl 'class="chapter"' .                        # the 146
 grep -o 'class="sutta" id="[^"]*"' sn-1-1-7.html    # anchors on one page
 ```
 
-## D — new app-side tests (flutter_test)
+## D — app-side tests (flutter_test) — DONE
 
-The "out of scope" gap from the review: **nothing in `test/` or
-`integration_test/` references `TipitakaLink` or the deep-link path at all.**
+`test/presentation/providers/deep_link_provider_test.dart` covers
+`openTipitakaLinkProvider`: `entryStart` derivation (page **with** entry → that
+entry; page **without** entry → `0`, the start of the page and never the node's
+own entry; **no** page → `null`, the node's own coordinates), a tree that will
+not load opening nothing, an unknown nodeKey opening nothing, a successful open
+switching `selectedAppSectionProvider` to `AppSection.reader` and syncing the
+navigator from any section, and `tipitakaLinkUrlBuilderProvider` honouring
+`LINK_BASE_URL`.
 
-`test/presentation/providers/deep_link_provider_test.dart` —
-`openTipitakaLinkProvider` (`deep_link_provider.dart:38-63`):
-
-- `entryStart` derivation (`:46-47`): page **with** entry → that entry; page
-  **without** entry → `0` (start of page, never the node's own entry); **no**
-  page → `null` (node's own coordinates)
-- tree load fails → returns `false`, opens nothing
-- unknown nodeKey (`openTabFromNodeKeyProvider` → `-1`) → `false`
-- success → switches `selectedAppSectionProvider` to `AppSection.reader` and
-  syncs the navigator, *from any section* (Home/Research/Notes)
-- `tipitakaLinkUrlBuilderProvider` uses `LINK_BASE_URL` (default
-  `https://sammaditthi.net`)
-
-`test/helpers/mocks.dart` and `pump_app.dart` already exist.
-
-**Skip `DeepLinkListener` itself** unless something breaks: mocking the
+**`DeepLinkListener` itself is deliberately untested** unless something breaks:
+mocking the
 `app_links` stream and `Uri.base` is heavy, and its logic is three lines
 (parse → mounted check → fire-and-forget) already covered either side.
 
 ## One command runs the package tests — shipped 2026-08-06
 
 Root `flutter test` still does not recurse into `packages/`, and
-`.github/workflows/` is still empty, so this was once "only if someone types
+there is no `.github/workflows/`, so this was once "only if someone types
 `dart test` inside the package". It is now `tools/check-dart-packages.sh`:
 `dart analyze` + `dart test` in `packages/wisdom_shared`,
 `static_site_generator` and `server`, ~35s for all three. Three callers run it —
