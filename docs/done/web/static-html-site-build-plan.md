@@ -1,6 +1,19 @@
 # Static HTML Site — Build Plan
 
-**Status:** active · **Created:** 2026-07-27 · **First slice:** `an-1`
+**Status:** ✅ **ARCHIVED 2026-09-11** · **Created:** 2026-07-27 · **First
+slice:** `an-1`
+
+> **The site is built — P0 through P6 all shipped, and this is the record of how.**
+> Nothing here is open. What was still standing when it was archived went to
+> [`static-site-backlog.md`](../../todo/web-strategy/static-site-backlog.md):
+> C6 footnotes, C7 CI, C9 the HTML validator, B7 minification, and Part D's three
+> decisions. Release and CI are in
+> [`web-release.md`](../../todo/web-strategy/web-release.md). Hosting is in
+> [`../../decisions/static-web-hosting.md`](../../decisions/static-web-hosting.md),
+> the C1–C10 constraints in
+> [`../../decisions/static-site-constraints.md`](../../decisions/static-site-constraints.md),
+> the grouping rule in
+> [`reading-units-and-grouping.md`](../../todo/web-strategy/reading-units-and-grouping.md).
 
 > **Page-count figures are owned by
 > [`reading-units-and-grouping.md`](./reading-units-and-grouping.md).** Numbers
@@ -1373,20 +1386,12 @@ pairing B1 with B2.
   (`ආසව ගොච්ඡක කුසල දුකතික සදිසං`), or a recitation marker modelled as a node
   (`සන්ථතභාණවාරො`). They are counted apart from the defect total, listed by
   `--misaligned`, and never warned about.
-- **Decision gate — deferred 2026-08-19, and it is a post-launch one
-  (restated 2026-09-04).** Stub files vs Cloudflare Bulk Redirects for
-  grouped-leaf clean URLs is still open and blocks nothing. The reason first
-  written here — neither works until there is a deploy on a custom domain —
-  implies the gate closes when the apex is attached, and it does not: **the site
-  has never been published**, so no folded-leaf URL has been linked, shared or
-  crawled, and every producer we own already emits the serving URL
-  (`SitePlan.servingLink`, and search's `…/<chapter>#<key>`). Launch with
-  neither mechanism — nothing links these URLs and no sitemap lists them, so a
-  crawler never sees them — and decide from the 404 logs. A folded leaf's URL
-  answers an honest `404` in the meantime (backlog A1). The half both
-  mechanisms share is built — `plan_corpus.dart --redirects` writes
-  `source,target` for every folded leaf, verified row for row against the built
-  pages and their anchors. Still: **ask before emitting the stubs.**
+- **Decision gate — moved to `static-site-backlog.md` D3** (2026-09-11). Stub
+  files vs Bulk Redirects for grouped-leaf clean URLs, deferred 2026-08-19 and
+  confirmed post-launch: the site has never been published, so no folded-leaf URL
+  has been linked, shared or crawled, and every producer we own already emits the
+  serving URL. Launch with neither and decide from the 404 logs. The shared half
+  is built (`plan_corpus.dart --redirects`). **Ask before emitting stubs.**
 - ✅ **Link checker — `tool/check_links.dart`, 2026-09-04. Dart, not a Node
   CLI**, and the measurement is why: over the full build the only absolute URL
   on a page is that page's own canonical, so there is **no external link
@@ -1461,11 +1466,11 @@ pairing B1 with B2.
   `tool/serve.dart` already calls "the common case and not a bug". A release
   forbids `--root` and `--skip-build` both, so what ships is always the whole
   corpus and always checked.
-- **HTML validator** over `build/` — still open, and genuinely a Node/Java CLI
-  job (`vnu`): validating markup needs a real parser, which is the one thing
-  worth leaving the toolchain for.
-- **Measure before minifying** (D9). Adopt only if the brotli'd win is real *and*
-  the build-twice diff stays empty. Default: don't.
+- **HTML validator** over `build/` — **moved to `static-site-backlog.md` C9**
+  (2026-09-11), the last piece of this phase that was never built. Still a
+  Node/Java CLI job (`vnu`); the reasoning moved with it.
+- **Measure before minifying** (D9) — **moved to `static-site-backlog.md` B7.**
+  Default: don't.
 - **The output of this phase is never committed** — ~340 MB of HTML, produced by CI
   and uploaded straight to Cloudflare. `build/` stays gitignored; the pipeline
   (GitHub Actions → `wrangler` direct upload, and why Cloudflare's own build system
@@ -1501,21 +1506,19 @@ it for why a `{n}` reaches no page.
 
 ---
 
-## 7. Open
+## 7. Open — closed out 2026-09-11
 
-1. **Where romanized titles come from** (D4). Transliterate, or source externally?
-   Deferred, not dropped.
-2. **`colors_and_type.css` / `support.js`** referenced by
-   `Dev/designs/Static Site Sketches.dc.html` were never shared. Resolved by D6
-   (generate from the app theme) — but if those files surface, reconcile.
-3. **Stub files vs Bulk Redirects** — P6 gate, unchanged. Note P4 makes the
-   *search* half of it moot: result rows for the grouped leaves link
-   `…/<chapter>#<key>` directly and never need a redirect. The gate is now only
-   about what a **pasted or inbound** `…/<key>` URL does.
-4. **A sutta's other names.** Name-only search finds what BJT prints, so the
-   Kālāma Sutta is reachable as කේසමුත්තිසුත්තං and not as කාලාම (P4 finding).
-   An alias table would fix it and is editorial content the corpus does not
-   carry — no owner, no source, not scheduled.
+Nothing is open here any more. When this plan was archived its four items were
+resolved or rehomed:
+
+| was | now |
+|---|---|
+| 1. Where romanized titles come from (D4) | `static-site-backlog.md` **D1** |
+| 2. `colors_and_type.css` / `support.js` | **Deleted.** Resolved by D6 long ago (tokens are generated from the app theme); the files it was conditional on were never shared and never will be. |
+| 3. Stub files vs Bulk Redirects | `static-site-backlog.md` **D3** — a post-launch decision, trigger is the 404 logs |
+| 4. A sutta's other names | `static-site-backlog.md` **D2** |
+
+The HTML validator, the last unbuilt piece of P6, is backlog **C9**.
 
 ---
 

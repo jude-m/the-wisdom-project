@@ -1,20 +1,25 @@
 # Static site backlog
 
 Every independently shippable item on the apex static site — search performance,
-build size, the leftovers from review, and since 2026-09-04 the two pieces the
-build plan had left (C6 footnotes, C7 CI). None of these blocks anything; each
-can go on its own. Most are small; C6 is not.
+build size, the leftovers from review, and since 2026-09-11 **everything the two
+plan docs had left standing** (C6 footnotes, C9 the HTML validator, and Part D's
+three decisions; CI went to `web-release.md`). None of these blocks anything; each can go on its
+own. Most are small; C6 is not.
+
+**This is now the only open-work doc for the site.** `static-html-site-plan.md`
+and `static-html-site-build-plan.md` were archived to `docs/done/web/` on
+2026-09-11 — the site is built and they describe how it got there. Release and
+CI live in [`web-release.md`](./web-release.md).
 
 **Scope:** the apex static site only. `app.sammaditthi.net` stays `X-Robots-Tag:
 noindex` (crawlable, not indexed) and the Flutter payload there is a separate
 problem with separate tooling — see `static-web-hosting.md`.
 
-**Cross-refs.** Phasing lives in `static-html-site-build-plan.md`; the deploy
-path in `static-web-hosting.md`; **all corpus counts in
-`static_site_generator/CORPUS_FIGURES.md`**, generated, with the rule behind them
-in `reading-units-and-grouping.md`. Where an item below is also
-named in the build plan, the build plan owns the schedule and this doc owns the
-reasoning. Don't restate a decision in both.
+**Cross-refs.** Release and CI in [`web-release.md`](./web-release.md); hosting,
+topology and the deploy path in `static-web-hosting.md`; the grouping rule in
+`reading-units-and-grouping.md`; **all corpus counts in
+`static_site_generator/CORPUS_FIGURES.md`**, generated. How the site was built is
+in `docs/done/web/`. Don't restate a decision in two places.
 
 > **Merged 2026-08-15** from `seo-wins.md`, `reduce-bundle-size.md` and
 > `further-improvements.md`. Three ranked lists of the same kind of item, each
@@ -526,6 +531,18 @@ moving the dialog's markup into `site.js`, which puts Sinhala and URLs back in
 the script and is forbidden by `CLAUDE.md`. Measured 2026-08-16 — re-measure
 before acting, the chrome has grown twice already.
 
+## B7. Minifying the HTML — the answer is don't
+
+**Moved here 2026-09-11** from the build plan's P6 (D9's "measure before
+minifying" clause). Kept so nobody re-opens it on intuition.
+
+Cloudflare brotlis at the edge, and the markup is already tight — mean 2.2
+indented newlines per page. Adopt only if the brotli'd win is real *and* the
+build-twice diff stays empty; it would run **after** manifest hashing, because
+determinism is the harder constraint.
+
+**No action. Default: don't.**
+
 ---
 
 # Part C — Correctness and hygiene
@@ -721,37 +738,13 @@ doing this on the app and the site together rather than here alone.
   Open since the site plan's §13.8 and never decided, because nothing has needed
   it.
 
-## C7. CI — six test rows, and nothing runs them
+## C7. CI → moved to [`web-release.md`](./web-release.md)
 
-**Moved here 2026-09-04**, from the build plan's §8 where it was the standing
-"the moment a workflow lands" clause on two separate items. It is a real gap and
-it has never had an owner, which is what makes it a backlog item rather than a
-phase.
-
-`.github/workflows/` exists and is **empty**. Every test and tool in the build
-plan's §8.1 table is run by hand: four rows need nothing but a checkout
-(`content_markers`, `tipitaka_tree`, `tipitaka_link`, `wiring_contract`), two
-need the 340 MB corpus, and the whole suite finishes in ~45s.
-
-Three things are already decided and would otherwise be re-derived:
-
-- **Order matters.** The wiring guard runs **ahead** of the exhaustive corpus
-  run, not beside it — a markup ⇄ stylesheet disagreement should stop a deploy
-  before the full build is generated, not after. It needs no corpus, so it is
-  also the cheapest thing to put in a workflow first.
-- ⚠️ **Working directory is `static_site_generator/`.** Two paths in the suite
-  are CWD-relative (`assets/theme_tokens.json`, and `tool/` in
-  `corpus_tools_test.dart`). From the repo root you hit a blunter error first:
-  the root pubspec has no `test` dev_dependency, so resolution fails before any
-  test runs. The fix is in the workflow, not the tests.
-- **It rides the deploy job.** The pipeline decided 2026-07-31 (`static-web-hosting.md`,
-  "Build & deploy pipeline") already checks the corpus out on a runner in order
-  to generate the site, so the two corpus rows cost nothing extra there, and the
-  job calls `deploy.sh --prod --yes` rather than a raw wrangler action.
-
-That pipeline is not built either, and this item does not wait for it: the four
-no-corpus rows are a workflow that needs a checkout and `dart test`, and they
-are the half that catches the silent failures.
+**Moved 2026-09-11.** `.github/workflows/` is empty and every test is run by
+hand; the four no-corpus rows need only a checkout, and the two corpus rows ride
+the deploy job. All of that is release plumbing, so it lives with the release —
+including the three things already decided (working directory, guard-before-corpus
+order, `deploy.sh --prod --yes` over a raw wrangler action).
 
 ## C8. Two pairs of TOC pages print the same two rows
 
@@ -784,6 +777,77 @@ already makes for rows. `SitePage.hasPreamble` is `!node.isLeaf` today and would
 gain that second clause. Verify by re-diffing a full build: exactly two files
 should change.
 
+## C9. HTML validator over `build/`
+
+**Moved here 2026-09-11** from the build plan's P6, its last unshipped
+verification. Blocks nothing, but has no substitute: `check_links.dart` proves
+references resolve and the wiring contract proves markup and stylesheet agree on
+names — neither reads the markup as a *parser* does, so an unclosed or misnested
+element passes both.
+
+A Node/Java CLI job (`vnu`), and the one place worth leaving the toolchain for —
+D9 permits Node over finished bytes. It runs over the built tree, so it belongs
+beside `check_links.dart` in `deploy.sh`, not in `dart test`.
+
+**Worth doing before the site is indexed.** Every page comes off one template,
+so a markup defect is never on one page — it is on all `FIGURES.realPages`.
+Cheap now; a full re-push later.
+
+---
+
+# Part D — Deferred decisions, no owner
+
+**Opened 2026-09-11**, when the two plan docs were archived to `docs/done/web/`.
+These were the build plan's §7 "Open" list. None is a task anyone can pick up
+and finish — each needs a decision, a source, or a signal that does not exist
+yet. Numbered apart from Part C so `D1` never reads as one of the chores.
+
+*(The archived build plan's own `D4` — the romanization seam — is `D1` here.)*
+
+## D1. Where romanized titles come from
+
+Transliterate from the Sinhala-script Pali, or source the romanized names
+externally? **Deferred, not dropped.** Nothing is broken by the absence, but a
+reader who knows the canon as "Mahāsatipaṭṭhāna" has no way in.
+
+A decision before it is work: transliteration gets the diacritics wrong exactly
+where they matter; an external source means carrying a mapping the corpus does
+not have. Nothing downstream waits.
+
+## D2. A sutta's other names
+
+Name-only search finds what BJT prints, so the Kālāma Sutta is reachable as
+කේසමුත්තිසුත්තං and not as කාලාම (a P4 finding). An alias table would fix it.
+
+**Editorial content the corpus does not carry** — no owner, no source, never
+estimated, because whoever builds it is authoring the aliases rather than
+extracting them. A10 is the same problem inverted: there the tree gives a leaf
+no name at all.
+
+## D3. Grouped-leaf clean URLs — stub files vs Bulk Redirects
+
+Something must eventually answer at a folded leaf's own URL
+(`/tipitaka/<leafKey>` → `…/<chapterKey>#<leafKey>`). **Deferred 2026-08-19,
+confirmed post-launch 2026-09-04.** It blocks nothing: the site has never been
+published, every producer we own already emits the serving URL
+(`SitePlan.servingLink`, and search's `…/<chapter>#<key>`), no sitemap lists
+them, and the URL answers an honest `404` meanwhile (A1).
+
+The shared half is built — `plan_corpus.dart --redirects` writes `source,target`
+for every folded leaf, verified row for row against the built pages. Only the
+consumer is undecided:
+
+- **Stub files** — meta-refresh-0 plus a `canonical` pointing at the chapter,
+  kept out of `sitemap.xml`. Costs the gap between `FIGURES.realPages` and
+  `FIGURES.pagesWithStubs`, well inside the 20,000-file cap.
+- **Bulk Redirects** — zone-level, no files. Free quota 10,000 rows, mapping well
+  inside it; needs the zone in the same account as the Pages project.
+
+**Never `_redirects`** — its 2,000-rule cap is far below the row count.
+
+**Trigger: the 404 logs.** Launch with neither, then decide from traffic.
+**Ask before generating stubs** — it changes what the upload contains.
+
 ---
 
 # Order to do them in
@@ -813,12 +877,19 @@ What is left, re-ranked:
    separately pays the full push twice. Together: ~8 MB off the build, ~575 B off
    every page, ~40 KB off first paint. **B1 is unopposed now** — the OG card is
    its own file, so the emblem's 200px is subsidising nothing.
-3. **C7 CI, the four no-corpus rows** — a checkout and `dart test`, and it makes
-   every item below it cheaper to ship. Its corpus half waits for the deploy
-   pipeline; this half does not.
+3. **CI, the four no-corpus rows** — a checkout and `dart test`, and it makes
+   every item below it cheaper to ship. Spec in
+   [`web-release.md`](./web-release.md) §5.
 4. **C2 CSP** — its own deploy and verify.
 5. **A9 font preload, A8 heading duplication** — measure first, both are small.
 6. **A10 the 38 unnamed containers** — decide the derivation before estimating it.
+
+**C9 the HTML validator sits outside that ranking**, because it is release
+verification rather than an improvement: run it once over a full build before the
+first deploy, then keep it in `deploy.sh`. See [`web-release.md`](./web-release.md).
+
+**Part D is not in the ranking at all.** Those are decisions waiting on a signal,
+not tasks waiting on a turn.
 
 **C6 footnotes is unranked**, deliberately. It is the one item here that is a
 feature rather than a fix, it wants an app-side decision it cannot make alone,

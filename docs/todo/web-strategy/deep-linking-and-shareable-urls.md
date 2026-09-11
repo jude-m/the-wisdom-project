@@ -3,7 +3,7 @@
 > Status: **ACTIVE PLAN — decisions locked 2026-07-06; reading-layout-in-URL added 2026-07-20** (was Proposal since
 > 2026-05-13). Split out of the former `web-deep-linking-seo-and-shareable-urls.md`
 > on 2026-06-11; the SEO / static HTML half lives in
-> [`../web-strategy/static-web-hosting.md`](../web-strategy/static-web-hosting.md)
+> [`static-web-hosting.md`](../../decisions/static-web-hosting.md)
 > and [`../web-strategy/static-html-site-plan.md`](../web-strategy/static-html-site-plan.md).
 > First consumer: **AI research citations** (tap a cited source → open in reader) —
 > see [`ai-qa-and-suttacentral-reference-resolver-plan.md`](../research/ai-qa-and-suttacentral-reference-resolver-plan.md) Part D.

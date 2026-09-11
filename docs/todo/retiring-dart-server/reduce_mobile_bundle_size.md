@@ -25,7 +25,7 @@
 >   limit**, whereas R2 has no per-file cap and **zero egress** (already the
 >   media/audio store). The Flutter bundle + static HTML sit on one Pages project;
 >   only the heavy DBs live on R2. Details in
->   [`../web-strategy/static-web-hosting.md`](../web-strategy/static-web-hosting.md)
+>   [`static-web-hosting.md`](../../decisions/static-web-hosting.md)
 >   (Free-tier fit).
 > - **Verify first (flag):** FTS5 in the Drift wasm build — high confidence
 >   (standard `unicode61` tokenizer; prebuilt `sqlite3.wasm` ships

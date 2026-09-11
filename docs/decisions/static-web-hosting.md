@@ -1,26 +1,28 @@
 # Static Web — Hosting (Cloudflare Pages), SEO Plumbing & the App Boundary
 
-> **Corpus counts are owned by
-> [`CORPUS_FIGURES.md`](../../../static_site_generator/CORPUS_FIGURES.md)**,
-> generated from the corpus; the grouping *rule* is owned by
-> [`reading-units-and-grouping.md`](./reading-units-and-grouping.md). What this
-> doc owns is the *invariant*: with stubs the total (`FIGURES.pagesWithStubs`) is
-> fixed by the tree's shape, so the 20,000-file cap is never in play whatever the
-> grouping rule does.
+> **Status: settled decisions.** Direction decided 2026-06-11; hosting reworked
+> for Cloudflare Pages 2026-07-20 (the Dart content server retired). Moved out of
+> `docs/todo/` on 2026-09-11 — nothing here is open work.
 >
-> Status: **Direction decided 2026-06-11; hosting reworked for Cloudflare Pages
-> 2026-07-20** (the Dart content server is being retired).
-> This is the **hosting + deployment + crawl-plumbing** companion to the build
-> spec, [`static-html-site-plan.md`](./static-html-site-plan.md), which
-> owns the *generator* and the page shape (zero-JS navigator, the 4 reading
-> layouts, per-sutta-vs-grouped file boundaries). To avoid duplication, page-shape
-> detail is **not** repeated here — this doc is only *where the files live and how
-> crawlers find them.*
-> The demoted Jaspr-rewrite analysis (Options compare, clean-architecture audit,
-> shared-package extraction) now lives in [`jaspr/`](./jaspr/).
-> Companion todo docs: [`../serverless-deployment-decision.md`](../serverless-deployment-decision.md)
-> (backends), [`./deep-linking-and-shareable-urls.md`](./deep-linking-and-shareable-urls.md)
-> (in-app link receiving + URL grammar).
+> **This doc owns** where the files live, which account and project they live in,
+> how they are cached, and how crawlers find them. It does **not** own the page
+> shape, the grouping rule, or the release itself.
+>
+> | | |
+> |---|---|
+> | the bar this must clear | [`static-site-constraints.md`](./static-site-constraints.md) |
+> | releasing + CI | [`../todo/web-strategy/web-release.md`](../todo/web-strategy/web-release.md) |
+> | open work on the site | [`../todo/web-strategy/static-site-backlog.md`](../todo/web-strategy/static-site-backlog.md) |
+> | the grouping rule | [`../todo/web-strategy/reading-units-and-grouping.md`](../todo/web-strategy/reading-units-and-grouping.md) |
+> | URL grammar, in-app link receiving | [`../todo/web-strategy/deep-linking-and-shareable-urls.md`](../todo/web-strategy/deep-linking-and-shareable-urls.md) |
+> | backends | [`../todo/serverless-deployment-decision.md`](../todo/serverless-deployment-decision.md) |
+> | how the site was built | `docs/done/web/` (incl. the demoted Jaspr analysis) |
+>
+> **Corpus counts are owned by
+> [`CORPUS_FIGURES.md`](../../static_site_generator/CORPUS_FIGURES.md)**,
+> generated. What this doc owns is the *invariant*: with stubs the total
+> (`FIGURES.pagesWithStubs`) is fixed by the tree's shape, so the 20,000-file cap
+> is never in play whatever the grouping rule does.
 >
 > ⚠️ **URL identity** is the bare `nodeKey` under `/tipitaka/` (e.g.
 > `/tipitaka/sn-2-3-1-3`), locked 2026-07-06 — **not** the older `/sutta/<textId>`
@@ -62,6 +64,15 @@ SEO gap rather than fixing Flutter web itself.
 > Flutter web embed real HTML (crawlable text, native selection) *without leaving
 > Flutter* — the single-codebase endgame that could make both the static site and
 > a Jaspr rewrite unnecessary. Experimental, Chrome-only. **Track, don't bank.**
+
+---
+
+## C1–C10 — the bar the static surface clears
+
+Moved out to [`static-site-constraints.md`](./static-site-constraints.md)
+(2026-09-11), from `static-html-site-plan.md` §2 before it was archived. They are
+the standing test for any change to the static surface; this doc is one of the
+places that has to keep passing them.
 
 ---
 
@@ -557,73 +568,37 @@ The SSG emits all of it as static files:
 
 ---
 
-## Open questions (post-server)
+## Settled — the questions this doc used to carry
 
-1. ~~**Static-site search.**~~ **Settled and built, 2026-08-14** (build plan P4).
-   Server-rendered FTS stays gone with the content server; what shipped is a
-   **client-side index over node names only** — 254 KB gzipped / 180 KB brotli,
-   fetched on first dialog open rather than on page load, so a reader who never
-   searches pays nothing for it. That is what answers the zero-JS objection this
-   question raised against option (c): every page still renders, navigates and
-   switches layout with JS off, and the search button simply never appears.
-2. ~~**Production domain.**~~ **RESOLVED 2026-09-01: `sammaditthi.net`**,
-   registered, and written down in exactly one place —
-   `PROD_ORIGIN` in `scripts/static_site/deploy.sh`. `.net` because `.app` was
-   this question's guess and was never bought; the guess had spread to four docs
-   and seven code sites, all corrected. The apex serves the static content site,
-   `app.sammaditthi.net` the Flutter web app, `tika.sammaditthi.net` the ටීකා
-   later (question 3). Pages *project* names were resolved separately on
-   2026-08-02 (`sammaditthi` / `sammaditthi-dev`) and are unaffected: a project
-   keeps its `.pages.dev` name whatever custom domain is attached to it.
+All four are answered. The one thing still *pending* is not a question but a
+task, and it lives in
+[`../todo/web-strategy/web-release.md`](../todo/web-strategy/web-release.md):
+**the production Cloudflare account does not exist yet**, and the apex must be
+attached to the `sammaditthi` project before the first `--prod`.
 
-   > **It cost nothing to wait, which was the bet.** Canonical URLs, OG tags and
-   > `sitemap.xml` all need an absolute origin, and all three shipped in P5
-   > without this being answered: `deploy.sh` computes the origin and passes it
-   > as `--origin`, so the generator never holds a domain at all. Registering the
-   > apex changed one string in that script and nothing in `lib/`, exactly as
-   > predicted.
-   >
-   > **And it landed inside the free window.** The cheap moment was *before the
-   > first prod deploy anyone links to*, because a release names its origin in
-   > every canonical, every `og:url` and all `FIGURES.realPages` sitemap
-   > entries — and once Google has indexed those, moving is a migration rather
-   > than a rename. Prod had never been deployed. Nothing to redirect, nothing
-   > to re-crawl.
-   >
-   > ⚠️ `static-site-backlog.md`'s A4 used to claim "the domain is settled now".
-   > It was unsourced and named no domain. **Deleted there**; this question
-   > remains the only owner.
+- **Static-site search** — settled 2026-08-14. A **client-side index over node
+  names only**, fetched on first dialog open rather than on page load, so a
+  reader who never searches pays nothing. Server-rendered FTS stayed retired with
+  the content server. This is what answers the zero-JS objection: every page
+  still renders, navigates and switches layout with JS off, and the search button
+  simply never appears.
+- **Production domain — `sammaditthi.net`**, registered 2026-09-01, written down
+  in exactly one place: `PROD_ORIGIN` in `scripts/static_site/deploy.sh`. `.net`
+  because `.app` was a guess that was never bought. The apex serves the static
+  site, `app.sammaditthi.net` the Flutter web app, `tika.sammaditthi.net` the
+  ටීකා later.
 
-   **Still open, and now the blocker: the production Cloudflare account.** A
-   separate account under wisdom.ops is planned (today's personal account stays
-   dev — it runs the research Worker). Everything production must land in that
-   ONE account: the Pages projects, the `sammaditthi.net` zone, R2, and the
-   Worker (Bulk Redirects only fire on a zone in the same account; the Worker
-   needs a re-deploy + CORS re-pin from there). **Attaching the apex to
-   `sammaditthi` is the next physical step, and it must happen before the first
-   `--prod`** — until then a release would bake canonicals nobody can resolve.
-3. ~~One Pages project (path-split) vs two (subdomain).~~ **RESOLVED 2026-07-23:
-   one project per surface** — apex = static content, `app.sammaditthi.net` = Flutter
-   web, `tika.sammaditthi.net` = ටීකා later (see "Project topology" above).
-4. ~~**`LINK_BASE_URL`** for shared links.~~ **RESOLVED 2026-09-01 with the
-   domain**: the default in `deep_link_provider.dart` is now
-   `https://sammaditthi.net`, not the retired `:8080` dev server. The apex and
-   not `app.` because that is what the deep-linking plan's emit table already
-   says — a BJT reading shared from any surface emits the apex form, since the
-   static site is the better gift to a recipient with no app and still opens the
-   native app when there is one. A dev build overrides with `--dart-define`.
-
----
-
-## Superseded — the old shelf-server hosting model (kept for provenance)
-
-The former model served **both** surfaces from one origin via the Dart `shelf`
-server: ordered prefix routing in `server_app.dart` (`healthz` / `api/` / `app/` /
-static), gzip + cache middleware, `/api/…` same-origin (so "no CORS"), and a
-global `index.html` fallback scoped to `/app/`. That is **retired with the content
-server** (canon → client-side Drift; research → Worker). The *intent* carries over
-— root is the content home, the app never swallows content URLs — but the
-**mechanism** changed twice: first to Cloudflare Pages path-split (`/app/*` +
-`_redirects`), then **2026-07-23 to one Pages project per surface** (app on
-`app.sammaditthi.net` — see "Project topology"). The old per-sutta HTML was going
-to be rendered by a shelf handler *or* SSG; now it is **only** SSG flat files.
+  > **It cost nothing to wait, which was the bet.** Canonicals, OG tags and
+  > `sitemap.xml` all need an absolute origin, and all three shipped before this
+  > was answered: `deploy.sh` computes the origin and passes `--origin`, so the
+  > generator never holds a domain at all. Registering the apex changed one
+  > string in that script and nothing in `lib/`. And it landed inside the free
+  > window — prod had never been deployed, so there was nothing to redirect and
+  > nothing to re-crawl.
+- **One Pages project vs one per surface** — resolved 2026-07-23 in favour of
+  **one per surface**. See "Project topology" above.
+- **`LINK_BASE_URL`** — defaults to `https://sammaditthi.net` in
+  `deep_link_provider.dart`. The apex and not `app.`, because a BJT reading
+  shared from any surface should give a recipient with no app the instant static
+  page, while still opening the native app when there is one. Dev builds override
+  with `--dart-define`.

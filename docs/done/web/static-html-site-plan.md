@@ -1,8 +1,19 @@
 # Static HTML Site — Build Plan (per-sutta SEO, 4 Layouts, no JS framework)
 
-> Status: **Built — this is the spec the live site implements.** It stays the
-> standing reference for the grouping model, thresholds, URL grammar and C1–C10;
-> execution state lives in [`static-html-site-build-plan.md`](./static-html-site-build-plan.md) (§12 here is the only stale section, and says so).
+> Status: ✅ **ARCHIVED 2026-09-11 — built, and this is the spec the live site
+> implements.** Nothing here is open.
+>
+> **What outlived it, and where it went:** the C1–C10 constraints (§2) →
+> [`../../decisions/static-site-constraints.md`](../../decisions/static-site-constraints.md); the
+> build-and-verify procedure (§11) →
+> [`web-release.md`](../../todo/web-strategy/web-release.md); the grouping rule
+> and every page count →
+> [`reading-units-and-grouping.md`](../../todo/web-strategy/reading-units-and-grouping.md)
+> and `CORPUS_FIGURES.md`; open work →
+> [`static-site-backlog.md`](../../todo/web-strategy/static-site-backlog.md).
+> §6, §7 and §10 are kept as the *reasoning* behind the model — the rule itself
+> is now code (`foldedLeafKeys`, `reading_layouts.dart`, `TipitakaLink`).
+> §12 was already superseded and says so.
 > Captured 2026-06-12 (revised after field research into tipitaka.lk, buddhadust,
 > and SuttaCentral; grouping model refined 2026-07-20).
 > Scope: the honest static-HTML surface of the Tipitaka content from
@@ -857,12 +868,21 @@ their canon twins — untreated they compete for the same name searches.
 4. **Slug in URL?** *(RESOLVED 2026-07-06)* — **bare nodeKey**, no slug:
    `/tipitaka/kn-khp-5`. Matches the app's locked choice
    (`../todo/deep-linking-and-shareable-urls.md`).
-5. **Default layout per page** — Pali-only, or a heuristic? *Lean: Pali-only.*
+5. **Default layout per page** *(RESOLVED 2026-09-11 — **side-by-side**, not the
+   Pali-only lean this line used to carry)*: `defaultLayoutId = sideBySideLayoutId`
+   (`render/reading_layouts.dart`). A searcher arriving from Google on a
+   Pali-only page meets a wall of Pali in Sinhala script and nothing they can
+   read; side-by-side shows the translation immediately and matches the app. The
+   narrow-screen fallback is a separate id and already handles phones.
 6. **Entry alignment** *(RESOLVED 2026-07-22 — full-corpus scan, §7)*: all 1,660
    misaligned pages sit in the 7 `ap-pat*` files; everything else aligns
    perfectly. Pad + warn; ship `ap-pat*` last. No measurement phase needed.
-7. **Container TOC depth** — direct children only, or whole subtree? *Lean: direct
-   children + `<details>` for the rest.*
+7. **Container TOC depth** *(RESOLVED 2026-09-11 — **direct children only**; the
+   `<details>` half of the old lean is dropped)*: `tree.childrenOf(page.nodeKey)`
+   (`render/page_template.dart`). A collapsible subtree on every TOC page is the
+   tree navigator by another name, and that was built on all pages, measured and
+   withdrawn at P3.5 for weight — per-TOC `<details>` would put the same bytes
+   back one page at a time. Breadcrumb + TOC + prev/next already cover it.
 8. **Footnote abbreviations** — fold `assets/data/footnote-abbreviations.json`
    into footnote rendering, or not? *Lean: later.* **Owned by
    [`static-site-backlog.md`](./static-site-backlog.md) C6 since 2026-09-04**,
