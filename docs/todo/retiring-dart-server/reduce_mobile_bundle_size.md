@@ -215,26 +215,49 @@ CREATE TABLE bjt_content (
 
 ## Implementation Steps
 
-1. **Lock the safety net first.** The suite already covers the search *engine*
-   well: `integration_test/search_flow_integration_test.dart` pins exact result
-   counts against the real FTS DB, and every reader integration test constructs the
-   real `BJTDocumentLocalDataSourceImpl` over real assets — so an engine swap or a
-   garbled read fails loudly. It covers snippet **text**, the parser, and any file
-   outside the `dn-1` family not at all. Close those three gaps first:
-   - **Corpus-wide parity script.** For all 285 files, every entry, assert
-     `inflate(bjt_content row) == the JSON entry text`, footnotes included.
-     `static_site_generator/tool/plan_corpus.dart` already walks the whole corpus
-     through `lib/data/corpus_reader.dart` — this is a comparison bolted onto an
-     existing walker, not a new one. Write it now, run it the moment step 5
-     populates a table, and keep it as that script's own verification step. Without
-     it, a populate bug touching only (say) the Vinaya files ships silently.
-   - **Golden snippets.** Record today's output for ~5 real queries **before**
-     anything changes, then require the migration to reproduce it exactly. The
-     teardown below demands snippets stay "byte-for-byte identical" and nothing
-     checks that today — `_loadFileJson` / `_extractEntryText` have no coverage at
-     all, so empty or wrong snippets currently pass green.
-   - **A real-page fixture test for `BJTDocumentParser`.** It has none, and it is
-     the seam the new blob feeds.
+1. **Lock the safety net first — DONE 2026-09-11.** The three gaps that let a
+   garbled migration pass green are closed. Nothing new was scaffolded: each
+   landed in the script or suite that already asked the neighbouring question.
+   - **Corpus-wide parity** → section 5 of
+     `static_site_generator/tool/verify_corpus_invariants.dart`, behind
+     `--content-db <path>`. That file, not `plan_corpus.dart`: it is where the
+     other four whole-corpus invariants live, it already prints PASS/FAIL and
+     exits non-zero, and `test/corpus_tools_test.dart` already runs it. Reads
+     the table with `sqlite3`, a `tool/`-only dev dependency pinned to 2.x so a
+     checkout with no network can still run it. Given no flag it reports
+     **SKIPPED and does not vote** — a section that cannot run has not passed.
+     It walks all 285 files, every page, both languages, and names the first
+     divergence per kind.
+
+     **It is also where the blob format is pinned**, so step 5 writes to a
+     contract rather than inventing one: one row per
+     `(filename, pageIndex, language)`, holding the gzip- **or** zlib-framed
+     bytes of that page's JSON substructure *verbatim* — the same object
+     `pages[i]['pali']` decodes to, entries and footnotes and every other key.
+     Not a remodelled one; Node writes and Dart reads, and anything app-shaped
+     in the blob is a format two runtimes must agree about twice. The frame is
+     sniffed from its magic number and reported, because the thing worth
+     catching is a blob Dart cannot inflate — not a blob in the other of two
+     legal formats. Proven end-to-end before the real table exists, against a
+     throwaway DB written by `better-sqlite3`: gzip and zlib rows both inflate,
+     a wrong page's content is caught and named, missing rows are counted, and
+     a row naming no corpus file is counted separately.
+   - **Golden snippets** → Group 9 of
+     `integration_test/search_flow_integration_test.dart`, reusing
+     `search_test_helper.dart` unchanged. Five real queries; within each, rows
+     pinned byte-for-byte and chosen to carry what compression can quietly
+     eat — `**bold**`, `{n}` refs, embedded newlines, zero-width joiners — plus
+     the whole-set invariant that no result carries an empty snippet, which is
+     the hole that let `_loadFileJson` / `_extractEntryText` pass green with no
+     coverage at all. Groups 1–8 were left alone: they pin result *counts* and
+     BM25 *order*, which is a different question, not a subset of this one.
+   - **`BJTDocumentParser`** → `test/data/datasources/bjt_document_parser_test.dart`
+     over `test/fixtures/kn_jat_pages_0_1.json`: `kn-jat` pages 0–1, verbatim.
+     Those two because between them they hold all five entry types, a `pageNum`
+     that is not the page index, sections with and without footnotes, a
+     non-numeric footnote label, a null `level`, and all three markers. It pins
+     the segment-id counter running unbroken across both languages and both
+     pages, which a per-page blob is the obvious way to break.
 2. **Prove the speed win (primary goal).** Write a throwaway `dart run`
    micro-benchmark on a few real files that times, for the same target entry:
    (a) today's path — `rootBundle.loadString` + `json.decode` the whole file; vs
@@ -282,6 +305,12 @@ DB query wants — you replace the *loader*, not the loop. Delete / replace:
 - [ ] `import '../cache/lru_cache.dart'` — drop iff nothing else uses `LRUCache`.
 - [ ] Preserve the language fallback order (matched lang first, then the other) in
       the row pick so snippets stay byte-for-byte identical.
+- [ ] **Do not key the batched rows by `SearchResult.id`.** It is
+      `editionId_filename_eind` with no language in it, so a Pali entry and its
+      Sinhala twin share one id — real and common, e.g. `atta-dn-2-4` page 110
+      entry 0 for "මහාසති". Key by `(filename, pageIndex, entryIndex, language)`,
+      which is what the Group 9 goldens address rows by and what the
+      `bjt_content` primary key already is.
 
 **Server — nothing to port.** `server/lib/src/handlers/fts_handler.dart` has its own
 `_loadTextForMatch` / `_loadJsonFile` / `_jsonCache`, but the whole `server/` tree is
