@@ -149,7 +149,10 @@ void main() {
       expect(notes.last, startsWith('*. '));
     });
 
-    test('a section with no footnotes parses to an empty list, not null', () {
+    test('an empty footnote list stays empty', () {
+      // Both Sinhala sections here carry `"footnotes": []` — the key is
+      // present, so this does NOT exercise the parser's `?? []` guard. That
+      // path is a section with no key at all, covered in the group below.
       for (final page in document.pages) {
         expect(page.sinhalaSection.footnotes, isEmpty);
         expect(page.sinhalaSection.hasFootnotes, isFalse);
@@ -159,7 +162,12 @@ void main() {
     test('segment ids run unbroken across both languages and both pages', () {
       // The counter is shared, and advances pali-then-sinhala within a page
       // before moving on. Reader features that key off segmentId depend on
-      // that ordering, so a per-page or per-language reset would be a break.
+      // that ordering.
+      //
+      // What this cannot see: a per-page loader calling parseDocument once per
+      // page still yields an unbroken 0..n on each call. Only a reset *within*
+      // one call shows up here, so this does not by itself protect the
+      // migration against per-page reads.
       final ids = [
         for (final page in document.pages)
           for (final section in [page.paliSection, page.sinhalaSection])
@@ -181,6 +189,19 @@ void main() {
       }));
       expect(parsed.pages[0].paliSection.entries[0].entryType,
           equals(EntryType.paragraph));
+    });
+
+    test('a section with no footnotes key gives an empty list, not null', () {
+      // `_pageWith` writes no `footnotes` key, which is the shape a page blob
+      // may well store rather than an explicit `[]`.
+      final parsed = BJTDocumentParser.parseDocument('x', _pageWith({
+        'type': 'paragraph',
+        'text': 'ඒ භගවත්',
+      }));
+      final section = parsed.pages[0].paliSection;
+      expect(section.footnotes, isEmpty);
+      expect(section.hasFootnotes, isFalse);
+      expect(section.getFootnote(1), isNull);
     });
 
     test('type matching ignores case', () {

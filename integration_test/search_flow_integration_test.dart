@@ -672,9 +672,9 @@ void main() {
     // To re-record after a DELIBERATE change, print `matchedText` for these
     // rows and paste the values back. Do not hand-edit them: several carry
     // zero-width joiners that do not survive retyping.
-    for (final golden in _snippetGoldens.entries) {
+    for (final (index, golden) in _snippetGoldens.entries.indexed) {
       testWidgets(
-        '9.x "${golden.key}" - snippets are byte-for-byte unchanged',
+        '9.${index + 1} "${golden.key}" - snippets are byte-for-byte unchanged',
         (tester) async {
           await tester.pumpSearchApp(prefs);
           await tester.searchFor(golden.key);
@@ -695,15 +695,25 @@ void main() {
           );
 
           for (final row in golden.value) {
+            final where = '${row.fileId} page ${row.page} '
+                'entry ${row.entry} (${row.language})';
             final matches = results.where((r) =>
-                r.contentFileId == row.file &&
+                r.contentFileId == row.fileId &&
                 r.pageIndex == row.page &&
                 r.entryIndex == row.entry &&
                 r.language == row.language);
-            final where = '${row.file} page ${row.page} '
-                'entry ${row.entry} (${row.language})';
+
+            // Membership and text are separate failures, and only the second
+            // is what this group exists for. The set is capped (overfetch,
+            // then `_limitToGroups`), so a row can drop out of it with every
+            // snippet still byte-identical — a ranking or corpus change.
+            expect(matches, isNotEmpty,
+                reason: '$where is no longer in the returned set. That is a '
+                    'ranking or corpus change, NOT a snippet regression — '
+                    'pick a different row rather than re-recording the text.');
             expect(matches, hasLength(1),
-                reason: '$where should appear exactly once');
+                reason: '$where matched ${matches.length} results; '
+                    '(file, page, entry, language) is meant to be unique');
             expect(matches.first.matchedText, equals(row.text),
                 reason: 'Snippet text changed for $where');
           }
@@ -716,7 +726,9 @@ void main() {
 /// One recorded snippet: the row it came from, and the exact text the snippet
 /// path produced for it.
 typedef _Snippet = ({
-  String file,
+  /// `atta-sn-3` — a content file id, which is what `bjt_meta.filename` and
+  /// `SearchResult.contentFileId` both hold despite the older column's name.
+  String fileId,
   int page,
   int entry,
   String language,
@@ -728,54 +740,54 @@ typedef _Snippet = ({
 const Map<String, List<_Snippet>> _snippetGoldens = {
     'සොතාපත්ති': [
       // plain text, no markers
-      (file: 'atta-sn-3', page: 70, entry: 1, language: 'pali',
+      (fileId: 'atta-sn-3', page: 70, entry: 1, language: 'pali',
        text: "1. සොතාපත්තිවග්ගො"),
       // same row, other language
-      (file: 'atta-sn-3', page: 70, entry: 1, language: 'sinhala',
+      (fileId: 'atta-sn-3', page: 70, entry: 1, language: 'sinhala',
        text: "1. සොතාපත්ති වර්ගය"),
       // **bold** survives
-      (file: 'ap-kvu-15', page: 11, entry: 9, language: 'pali',
+      (fileId: 'ap-kvu-15', page: 11, entry: 9, language: 'pali',
        text: "**2.** ස. පු: සොතාපත්තිමග්ගස්ස ජරාමරණං සොතාපත්තිමග්ගොති."),
       // {1} footnote ref survives
-      (file: 'ap-kvu-15', page: 79, entry: 9, language: 'pali',
+      (fileId: 'ap-kvu-15', page: 79, entry: 9, language: 'pali',
        text: "ස. අනු: සොතාපත්තිමග්ගෙනාති.{1}"),
     ],
     'මහාසති': [
       // embedded newline survives
-      (file: 'atta-dn-2-4', page: 164, entry: 2, language: 'pali',
+      (fileId: 'atta-dn-2-4', page: 164, entry: 2, language: 'pali',
        text: "ඉති සුමඞ්ගලවිලාසිනියා දීඝනිකායට්ඨකථායං\nමහාසතිපට්ඨානසුත්තවණ්ණනා නිට්ඨිතා."),
       // zero-width joiner survives
-      (file: 'atta-dn-2-4', page: 110, entry: 0, language: 'sinhala',
+      (fileId: 'atta-dn-2-4', page: 110, entry: 0, language: 'sinhala',
        text: "9. මහාසතිපට්ඨාන සූත්‍ර වර්ණනාව"),
       // **bold** mid-sentence
-      (file: 'anya-vm', page: 255, entry: 4, language: 'pali',
+      (fileId: 'anya-vm', page: 255, entry: 4, language: 'pali',
        text: "එවං තික්ඛපඤ්ඤස්ස ධාතුකම්මට්ඨානිකස්ස වසෙන **මහාසතිපට්ඨානෙ** (දී· නි· 2.378) සඞ්ඛෙපතො ආගතං."),
     ],
     'waasawa': [
       // footnote ref AND newline
-      (file: 'sn-1-7', page: 67, entry: 3, language: 'pali',
+      (fileId: 'sn-1-7', page: 67, entry: 3, language: 'pali',
        text: "කින්නු තෙසං පිහයසි අනාගාරාන වාසව,\nආචාරං ඉසිනං{4} බ්රූහි තං සුණොම වචො තවාති."),
       // gatha, two lines
-      (file: 'atta-kn-jat-22', page: 85, entry: 12, language: 'pali',
+      (fileId: 'atta-kn-jat-22', page: 85, entry: 12, language: 'pali',
        text: "“සො පුට්ඨො නරදෙවෙන, වාසවො අවචා නිමිං; \nවිපාකං බ්රහ්මචරියස්ස, ජානං අක්ඛාසිජානතො."),
       // same row, other language
-      (file: 'atta-kn-jat-22', page: 85, entry: 12, language: 'sinhala',
+      (fileId: 'atta-kn-jat-22', page: 85, entry: 12, language: 'sinhala',
        text: "සො ඵුට්ඨො නර දෙවෙන, වාසවො අවචා නිමිං, \nවිපාකං බ්‍රහ්මචරියස්ස, ජානං අක්ඛාස ජානතො"),
     ],
     'බුද්ධ': [
       // three footnote refs in one entry
-      (file: 'kn-ap-2', page: 33, entry: 11, language: 'pali',
+      (fileId: 'kn-ap-2', page: 33, entry: 11, language: 'pali',
        text: "400. බුද්ධො බුද්ධස්ස නිබ්බානෙ{5} නොපදිස්සති{6} භික්ඛවො\nබුද්ධො ගොතමිනිබ්බානෙ සාරිපුත්තාදිකා{7} තථා."),
       // leading bold marker
-      (file: 'ap-kvu-3', page: 69, entry: 16, language: 'pali',
+      (fileId: 'ap-kvu-3', page: 69, entry: 16, language: 'pali',
        text: "**16.** ස. පු: අතීතාය බොධියා බුද්ධො, අනාගතාය බොධියා බුද්ධො, පච්චුප්පන්නාය බොධියා බුද්ධො’ති."),
     ],
     'මෙත්තා': [
       // footnote ref AND newline
-      (file: 'kn-bv', page: 23, entry: 0, language: 'pali',
+      (fileId: 'kn-bv', page: 23, entry: 0, language: 'pali',
        text: "159. තථෙ’ව ත්වම්පි හිතාහිතෙ{1} සමං මෙත්තාය භාවය\nමෙත්තාපාරමිතං ගන්ත්වා සම්බොධිං පාපුණිස්සසි."),
       // **bold** mid-sentence
-      (file: 'atta-ap-dhs', page: 56, entry: 23, language: 'pali',
+      (fileId: 'atta-ap-dhs', page: 56, entry: 23, language: 'pali',
        text: "එවං ජීවිතං අනපලොකෙත්වා මෙත්තායන්තස්ස **මෙත්තාපාරමිතා** පරමත්ථපාරමී නාම ජාතා."),
     ],
 };

@@ -219,15 +219,29 @@ CREATE TABLE bjt_content (
    garbled migration pass green are closed. Nothing new was scaffolded: each
    landed in the script or suite that already asked the neighbouring question.
    - **Corpus-wide parity** → section 5 of
-     `static_site_generator/tool/verify_corpus_invariants.dart`, behind
-     `--content-db <path>`. That file, not `plan_corpus.dart`: it is where the
-     other four whole-corpus invariants live, it already prints PASS/FAIL and
-     exits non-zero, and `test/corpus_tools_test.dart` already runs it. Reads
-     the table with `sqlite3`, a `tool/`-only dev dependency pinned to 2.x so a
-     checkout with no network can still run it. Given no flag it reports
-     **SKIPPED and does not vote** — a section that cannot run has not passed.
-     It walks all 285 files, every page, both languages, and names the first
-     divergence per kind.
+     `static_site_generator/tool/verify_corpus_invariants.dart`. That file, not
+     `plan_corpus.dart`: it is where the other four whole-corpus invariants
+     live, it already prints PASS/FAIL and exits non-zero, and
+     `test/corpus_tools_test.dart` already runs it. Reads the table with
+     `sqlite3`, a `tool/`-only dev dependency pinned to 2.x so a checkout with
+     no network can still run it. It walks every content file, every page, both
+     languages, and names the first divergence per kind.
+
+     **It arms itself.** The default target is the bundled
+     `assets/databases/bjt-fts.db`, so the first run after step 5 populates
+     `bjt_content` starts checking with no flag typed and no checklist item
+     remembered — a trigger written in a doc holds only until someone skips the
+     doc. Before then it reports **SKIPPED and does not vote**: a section that
+     cannot run has not passed. Two states skip (no database; a database with no
+     such table) and one fails (`--content-db` naming a path that is not there),
+     because telling someone who typed a path that it was skipped is how the
+     first version of this hid its own hole.
+
+     The database is opened `immutable=1`, not merely `readOnly` — on a WAL
+     database the latter still bumps the `-shm` sidecar's mtime. Nothing about
+     the bundled asset or its sidecars is touched. The trade is that SQLite then
+     ignores the `-wal`, so an un-checkpointed database is refused with the
+     checkpoint command rather than read stale.
 
      **It is also where the blob format is pinned**, so step 5 writes to a
      contract rather than inventing one: one row per
@@ -235,13 +249,22 @@ CREATE TABLE bjt_content (
      bytes of that page's JSON substructure *verbatim* — the same object
      `pages[i]['pali']` decodes to, entries and footnotes and every other key.
      Not a remodelled one; Node writes and Dart reads, and anything app-shaped
-     in the blob is a format two runtimes must agree about twice. The frame is
-     sniffed from its magic number and reported, because the thing worth
-     catching is a blob Dart cannot inflate — not a blob in the other of two
-     legal formats. Proven end-to-end before the real table exists, against a
-     throwaway DB written by `better-sqlite3`: gzip and zlib rows both inflate,
-     a wrong page's content is caught and named, missing rows are counted, and
-     a row naming no corpus file is counted separately.
+     in the blob is a format two runtimes must agree about twice.
+
+     The frame is sniffed from its magic number, and **gzip and zlib are the
+     only two answers that pass**. Anything else fails even though it decodes:
+     uncompressed JSON round-trips perfectly, so a lenient reader would report
+     a clean run at 100% of plain JSON — the tool printing the number that says
+     nothing was compressed while voting that all is well. A column holding TEXT
+     rather than a BLOB is counted as its own failure too, rather than throwing
+     on the cast and replacing a named finding with a stack trace.
+
+     Proven end-to-end before the real table exists, against throwaway DBs
+     written by `better-sqlite3`: gzip and zlib rows both inflate; a wrong
+     page's content, an entry that is a string, and an entry whose `text` is a
+     number are each caught and named; an absent `footnotes` key is
+     distinguished from an empty one; missing rows are counted, and a row naming
+     no corpus file separately.
    - **Golden snippets** → Group 9 of
      `integration_test/search_flow_integration_test.dart`, reusing
      `search_test_helper.dart` unchanged. Five real queries; within each, rows
@@ -255,9 +278,21 @@ CREATE TABLE bjt_content (
      over `test/fixtures/kn_jat_pages_0_1.json`: `kn-jat` pages 0–1, verbatim.
      Those two because between them they hold all five entry types, a `pageNum`
      that is not the page index, sections with and without footnotes, a
-     non-numeric footnote label, a null `level`, and all three markers. It pins
-     the segment-id counter running unbroken across both languages and both
-     pages, which a per-page blob is the obvious way to break.
+     non-numeric footnote label, a null `level`, and all three markers.
+
+     One thing it does **not** cover, despite looking like it does: the
+     segment-id test pins the counter running unbroken across both languages
+     and both pages, but only *within one `parseDocument` call*. A per-page
+     loader calling it once per page still produces an unbroken `0..n` each
+     time. If step 6 reads page-at-a-time, segment-id continuity across a file
+     needs its own check at whatever layer stitches the pages together.
+
+   **Unrelated TODO, parked here so it is not lost:** consolidate every test
+   path behind one entry point — a master switch that fires unit
+   (`flutter test`), integration (`flutter test integration_test/all_tests.dart
+   -d macos`), `static_site_generator` (`dart test`, its `corpus` tag and the
+   `tool/` scripts) and `packages/wisdom_shared`, taking optional parameters to
+   run a subset instead of remembering four commands.
 2. **Prove the speed win (primary goal).** Write a throwaway `dart run`
    micro-benchmark on a few real files that times, for the same target entry:
    (a) today's path — `rootBundle.loadString` + `json.decode` the whole file; vs
@@ -272,7 +307,26 @@ CREATE TABLE bjt_content (
    on build, so the JSON's *download* impact today may already be ~70–110 MB
    (not 340 MB). The 340 MB mainly hits on-device storage. Know both numbers.
 5. Extend `tools/bjt-fts-populate.js` to populate `bjt_content` (compress per
-   page) alongside the existing `_fts` / `_meta` tables.
+   page) alongside the existing `_fts` / `_meta` tables. **The contract is
+   already written down and enforced** — see step 1: one row per
+   `(filename, pageIndex, language)`, `language` spelled `pali` / `sinh`, the
+   column a real BLOB, the bytes gzip- or zlib-framed, and the payload that
+   page's JSON substructure verbatim. Uncompressed JSON is a *failure*, not a
+   lenient pass: it round-trips clean and would otherwise read green at 100% of
+   plain JSON.
+
+   Nothing needs wiring up to check it. `verify_corpus_invariants.dart` looks in
+   `assets/databases/bjt-fts.db` by default and reports SKIPPED while the table
+   is absent, so the first run after this step arms it automatically — including
+   the run inside `static_site_generator/test/corpus_tools_test.dart`. It opens
+   the database `immutable=1`, touching neither the asset nor its WAL sidecars.
+
+   **Leave no WAL frames behind.** Reading `immutable=1` means SQLite ignores a
+   `-wal`, so the verifier refuses an un-checkpointed database rather than
+   report stale parity. The script already closes in a `finally`, which
+   checkpoints and removes the `-wal`; this bites only after a killed run or an
+   open sqlite3 session. The refusal prints the remedy:
+   `sqlite3 assets/databases/bjt-fts.db 'PRAGMA wal_checkpoint(TRUNCATE);'`
 6. Add a local content datasource that reads + decompresses from `bjt_content`.
 7. Repoint snippet path (now `_loadFileJson`/`_extractEntryText` in `_searchFullText`)
    and reader (`BJTDocumentLocalDataSourceImpl`) at the content datasource — see
@@ -308,9 +362,24 @@ DB query wants — you replace the *loader*, not the loop. Delete / replace:
 - [ ] **Do not key the batched rows by `SearchResult.id`.** It is
       `editionId_filename_eind` with no language in it, so a Pali entry and its
       Sinhala twin share one id — real and common, e.g. `atta-dn-2-4` page 110
-      entry 0 for "මහාසති". Key by `(filename, pageIndex, entryIndex, language)`,
-      which is what the Group 9 goldens address rows by and what the
-      `bjt_content` primary key already is.
+      entry 0 for "මහාසති". Key by
+      `(filename, pageIndex, entryIndex, language)`.
+- [ ] **Spell `language` the table's way, not the entity's.** That tuple exists
+      in two vocabularies, and the seam between them is one line inside the loop
+      being rewritten:
+
+      | Where | Sinhala is |
+      |---|---|
+      | `bjt_content` rows, and `match.language` from FTS | `sinh` |
+      | `SearchResult.language`, after the `normalizedLanguage` ternary | `sinhala` |
+
+      The batched lookup runs **before** that normalize, so key it with
+      `match.language` — already the table's spelling — and leave the normalize
+      untouched where it is. Reach for `SearchResult.language` instead and every
+      Sinhala lookup misses, silently, dropping those snippets to `''`.
+      Group 9 addresses its goldens in the *other* vocabulary because they read
+      finished `SearchResult`s; three of its fourteen rows are `'sinhala'`, and
+      they are what goes red if this is got wrong.
 
 **Server — nothing to port.** `server/lib/src/handlers/fts_handler.dart` has its own
 `_loadTextForMatch` / `_loadJsonFile` / `_jsonCache`, but the whole `server/` tree is

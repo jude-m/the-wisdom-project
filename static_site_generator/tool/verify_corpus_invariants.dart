@@ -11,7 +11,7 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 ///
 ///     dart run static_site_generator/tool/verify_corpus_invariants.dart
 ///     dart run static_site_generator/tool/verify_corpus_invariants.dart \
-///       --content-db build/bjt.db
+///       --content-db build/some-other.db
 ///
 /// **A script *and* a test.** Reading every content file plus the tree
 /// (`FIGURES.corpusMegabytes` and `FIGURES.treeMegabytes`) costs ~23s, so
@@ -41,11 +41,13 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 /// the app's reader silently shows a short unit. Re-run it at every upstream
 /// re-sync; that is the only thing that can break it.
 ///
-/// Section 5 runs only when `--content-db` names one, and is the safety net for
-/// the JSON-to-SQLite migration: every entry in the corpus, read back out of
-/// the `bjt_content` table and required to be the same. Until that table is
-/// built it reports SKIPPED and does not vote — a section that cannot run is
-/// not a section that passed.
+/// Section 5 is the safety net for the JSON-to-SQLite migration: every entry in
+/// the corpus, read back out of the `bjt_content` table and required to be the
+/// same. It looks in the bundled `assets/databases/bjt-fts.db` by default, so
+/// it arms itself the moment step 5 populates that table instead of waiting for
+/// someone to remember a flag; `--content-db` points it elsewhere. Until the
+/// table exists it reports SKIPPED and does not vote — a section that cannot
+/// run is not a section that passed.
 void main(List<String> args) {
   final assetsFlag = _valueOf(args, '--assets');
   final reader = assetsFlag == null
@@ -67,13 +69,18 @@ void main(List<String> args) {
   final contentDb = _valueOf(args, '--content-db');
   stdout.writeln('');
   final bool? contentOk;
-  if (contentDb == null) {
-    contentOk = null;
+  if (contentDb == null && _flagGiven(args, '--content-db')) {
+    // Trailing `--content-db` with nothing after it. Skipping here would tell
+    // an operator who believes they ran the section that it passed.
+    contentOk = false;
     stdout.writeln('CONTENT');
-    stdout.writeln('  SKIPPED — pass --content-db <path> once '
-        'tools/bjt-fts-populate.js populates bjt_content.');
+    stdout.writeln('  ! --content-db needs a path: --content-db build/bjt.db');
   } else {
-    contentOk = _verifyContent(reader, contentDb);
+    contentOk = _verifyContent(
+      reader,
+      contentDb ?? '${reader.assetsPath}/databases/bjt-fts.db',
+      named: contentDb != null,
+    );
   }
 
   stdout.writeln('');
@@ -82,7 +89,7 @@ void main(List<String> args) {
         'every URL reads back as its own page (3), and reading order never '
         'steps backwards inside a content file (4).');
     stdout.writeln(contentOk == null
-        ? '       Section 5 did not run: no --content-db.'
+        ? '       Section 5 did not run — see its SKIPPED line above.'
         : '       The content table matches the JSON, entry for entry (5).');
   } else {
     stdout.writeln('FAIL — see divergences above.');
@@ -187,9 +194,7 @@ bool _verifyMarkers(CorpusReader reader) {
     stdout.writeln('  ⚠ ${underlineSpans - underlineSegmentRuns} span(s) reach '
         'no styled segment — check for footnote-only or adjacent spans');
   }
-  for (final sample in samples) {
-    stdout.writeln('  ! $sample');
-  }
+  _printSamples(samples);
 
   return plainDiffs == 0 &&
       rangeDiffs == 0 &&
@@ -286,9 +291,7 @@ bool _verifyTree(CorpusReader reader) {
     stdout.writeln('  widest such parent    ${widest.key} '
         '(${widest.value} children; List.sort is unstable at 32+)');
   }
-  for (final sample in samples) {
-    stdout.writeln('  ! $sample');
-  }
+  _printSamples(samples);
 
   return mismatches == 0 && deterministic;
 }
@@ -436,9 +439,7 @@ bool _verifyLinks(CorpusReader reader) {
   stdout.writeln('  door failures         $doorFails');
   stdout.writeln('  vannana with no page  $unplanned');
   stdout.writeln('  marker links unprinted $unprinted');
-  for (final sample in samples) {
-    stdout.writeln('  ! $sample');
-  }
+  _printSamples(samples);
 
   return parseFails == 0 &&
       roundTripFails == 0 &&
@@ -519,9 +520,7 @@ bool _verifyReadingOrder(CorpusReader reader) {
   stdout.writeln('  shared coordinates    $ties '
       '(legal — a root printed on its first child\'s heading block)');
   stdout.writeln('  steps backwards       $backwards');
-  for (final sample in samples) {
-    stdout.writeln('  ! $sample');
-  }
+  _printSamples(samples);
 
   return backwards == 0;
 }
@@ -550,26 +549,61 @@ bool _verifyReadingOrder(CorpusReader reader) {
 /// `GZipCodec`/`ZLibCodec` inflate it on the platforms the app ships to. So
 /// the format is sniffed from the frame rather than assumed, and reported.
 ///
-/// Costs a second full read of the corpus on top of section 1, which is why it
-/// runs only when `--content-db` names a database.
-bool _verifyContent(CorpusReader reader, String dbPath) {
+/// Costs a second full read of the corpus on top of section 1.
+/// Returns null when there is nothing to check yet — no database, or one that
+/// predates step 5. Neither is a pass, and neither is a failure.
+bool? _verifyContent(
+  CorpusReader reader,
+  String dbPath, {
+  required bool named,
+}) {
+  stdout.writeln('CONTENT');
   final file = File(dbPath);
   if (!file.existsSync()) {
-    stdout.writeln('CONTENT');
-    stdout.writeln('  ! no database at $dbPath');
+    // A path typed by hand that does not exist is a typo, and saying "skipped"
+    // to someone who believes they named a database is the whole of finding 4.
+    if (named) {
+      stdout.writeln('  ! no database at $dbPath');
+      return false;
+    }
+    stdout.writeln('  SKIPPED — no database at $dbPath.');
+    stdout.writeln('            Build it with tools/bjt-fts-populate.js.');
+    return null;
+  }
+
+  // Strictly read-only, which `OpenMode.readOnly` alone does not give: on a WAL
+  // database that still touches the -shm sidecar. `immutable=1` skips the WAL
+  // machinery altogether, so the bundled asset and both sidecars are left
+  // byte-for-byte and mtime-for-mtime alone.
+  //
+  // The cost is that SQLite then ignores the -wal, so a database with frames
+  // still in it would read stale — exactly the false assurance this section
+  // exists to prevent. Refuse rather than read it.
+  final wal = File('$dbPath-wal');
+  if (wal.existsSync() && wal.lengthSync() > 0) {
+    stdout.writeln('  ! $dbPath has ${wal.lengthSync()} bytes of '
+        'un-checkpointed WAL, which a read-only open must ignore.');
+    stdout.writeln("    Checkpoint first: sqlite3 '$dbPath' "
+        "'PRAGMA wal_checkpoint(TRUNCATE);'");
     return false;
   }
 
-  final db = sqlite3.open(dbPath, mode: OpenMode.readOnly);
+  final db = sqlite3.open(
+    '${Uri.file(file.absolute.path)}?immutable=1',
+    uri: true,
+    mode: OpenMode.readOnly,
+  );
   try {
     final tables = db.select(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
       ['bjt_content'],
     );
     if (tables.isEmpty) {
-      stdout.writeln('CONTENT');
-      stdout.writeln('  ! $dbPath has no bjt_content table');
-      return false;
+      // The normal state until step 5 runs. Skipping here is what lets this
+      // section arm itself later with no flag and no checklist item.
+      stdout.writeln('  SKIPPED — $dbPath has no bjt_content table yet.');
+      stdout.writeln('            Step 5 of the migration plan creates it.');
+      return null;
     }
 
     final rowsInTable =
@@ -581,6 +615,8 @@ bool _verifyContent(CorpusReader reader, String dbPath) {
     var rowsExpected = 0;
     var rowsFound = 0;
     var rowsMissing = 0;
+    var typeFails = 0;
+    var frameFails = 0;
     var inflateFails = 0;
     var entriesCompared = 0;
     var textDiffs = 0;
@@ -594,6 +630,8 @@ bool _verifyContent(CorpusReader reader, String dbPath) {
     // produces tens of thousands of "missing" lines, and they would otherwise
     // spend every sample slot and hide the row that was actually corrupt.
     final missingSamples = <String>[];
+    final typeSamples = <String>[];
+    final frameSamples = <String>[];
     final inflateSamples = <String>[];
     final entrySamples = <String>[];
     final footnoteSamples = <String>[];
@@ -606,10 +644,12 @@ bool _verifyContent(CorpusReader reader, String dbPath) {
       final pages = (decoded['pages'] as List<dynamic>?) ?? const [];
 
       // One query per file, indexed into by the two keys that identify a row.
-      final stored = <String, Uint8List>{};
+      // Held as Object?, because `as Uint8List` on a column the populate script
+      // filled with TEXT throws — killing the run with a stack trace where a
+      // named failure belongs. Wrong type is a finding, not a crash.
+      final stored = <String, Object?>{};
       for (final row in byFile.select([id])) {
-        stored['${row['pageIndex']}/${row['language']}'] =
-            row['blob'] as Uint8List;
+        stored['${row['pageIndex']}/${row['language']}'] = row['blob'];
       }
 
       for (var pageIndex = 0; pageIndex < pages.length; pageIndex++) {
@@ -619,22 +659,44 @@ bool _verifyContent(CorpusReader reader, String dbPath) {
           if (expected == null) continue; // no such side on this page
           rowsExpected++;
 
-          final blob = stored['$pageIndex/$language'];
-          if (blob == null) {
+          final key = '$pageIndex/$language';
+          if (!stored.containsKey(key)) {
             rowsMissing++;
             _sample(missingSamples, '$id page $pageIndex $language');
             continue;
           }
           rowsFound++;
+          final where = '$id page $pageIndex $language';
+
+          final raw = stored[key];
+          if (raw is! Uint8List) {
+            typeFails++;
+            _sample(typeSamples,
+                '$where: the column holds ${_shapeOf(raw)}, not a BLOB');
+            continue;
+          }
+          final blob = raw;
           storedBytes += blob.length;
 
+          // The contract is gzip or zlib. Anything else is a violation even
+          // when it decodes perfectly: uncompressed JSON round-trips clean and
+          // would otherwise pass at 100% ratio, which is the single most likely
+          // populate mistake reading as a green run.
           final format = _frameOf(blob);
           formats.add(format);
+          if (format != 'gzip' && format != 'zlib') {
+            frameFails++;
+            _sample(frameSamples,
+                '$where: $format frame — the contract is gzip or zlib');
+          }
+
           final List<int> plain;
           try {
             plain = switch (format) {
               'gzip' => gzip.decode(blob),
               'zlib' => zlib.decode(blob),
+              // Already counted above. Read it anyway, so the run also says
+              // whether the content underneath was right.
               _ => blob,
             };
           } catch (error) {
@@ -655,7 +717,6 @@ bool _verifyContent(CorpusReader reader, String dbPath) {
             continue;
           }
 
-          final where = '$id page $pageIndex $language';
           final expectedMap = expected as Map<String, dynamic>;
           final actualMap = actual is Map<String, dynamic> ? actual : null;
           if (actualMap == null) {
@@ -680,8 +741,8 @@ bool _verifyContent(CorpusReader reader, String dbPath) {
               expectedMap['footnotes'], actualMap['footnotes'])) {
             footnoteDiffs++;
             _sample(footnoteSamples, '$where: '
-                '${(expectedMap['footnotes'] as List?)?.length ?? 0} in source, '
-                '${(actualMap['footnotes'] as List?)?.length ?? 0} in table');
+                '${_footnoteShape(expectedMap)} in source, '
+                '${_footnoteShape(actualMap)} in table');
           }
 
           // Anything else the page carried. Not decoration: whatever is here
@@ -704,14 +765,18 @@ bool _verifyContent(CorpusReader reader, String dbPath) {
         ? 0.0
         : storedBytes / inflatedBytes;
 
-    stdout.writeln('CONTENT');
     stdout.writeln('  database              $dbPath');
     stdout.writeln('  rows in table         $rowsInTable');
     stdout.writeln('  rows expected         $rowsExpected '
         '(one per page per language)');
     stdout.writeln('  rows missing          $rowsMissing');
     stdout.writeln('  rows not in corpus    $rowsExtra');
-    stdout.writeln('  frames seen           ${(formats.toList()..sort()).join(', ')}');
+    stdout.writeln('  wrong column type     $typeFails '
+        '(not a BLOB)');
+    stdout.writeln('  frames seen           '
+        '${(formats.toList()..sort()).join(', ')}');
+    stdout.writeln('  frame violations      $frameFails '
+        '(contract is gzip or zlib)');
     stdout.writeln('  inflate/decode fails  $inflateFails');
     stdout.writeln('  entries compared      $entriesCompared');
     stdout.writeln('  entry divergences     $textDiffs');
@@ -720,14 +785,18 @@ bool _verifyContent(CorpusReader reader, String dbPath) {
     stdout.writeln('  stored / inflated     ${_mb(storedBytes)} / '
         '${_mb(inflatedBytes)} MB '
         '(${(ratio * 100).toStringAsFixed(1)}% of plain JSON)');
-    _printSamples('missing rows', missingSamples);
-    _printSamples('inflate / decode', inflateSamples);
-    _printSamples('entries', entrySamples);
-    _printSamples('footnotes', footnoteSamples);
-    _printSamples('shape', shapeSamples);
+    _printSamples(missingSamples, 'missing rows');
+    _printSamples(typeSamples, 'column type');
+    _printSamples(frameSamples, 'frame');
+    _printSamples(inflateSamples, 'inflate / decode');
+    _printSamples(entrySamples, 'entries');
+    _printSamples(footnoteSamples, 'footnotes');
+    _printSamples(shapeSamples, 'shape');
 
     return rowsMissing == 0 &&
         rowsExtra == 0 &&
+        typeFails == 0 &&
+        frameFails == 0 &&
         inflateFails == 0 &&
         textDiffs == 0 &&
         footnoteDiffs == 0 &&
@@ -740,8 +809,9 @@ bool _verifyContent(CorpusReader reader, String dbPath) {
 /// Which compression frame [bytes] opens with, by magic number.
 ///
 /// Sniffed rather than configured because the populate script picks it, and
-/// this check exists to find out what it picked — a blob Dart cannot inflate
-/// is the failure, not a blob in the other of two legal formats.
+/// this check exists to find out what it picked. gzip and zlib are both legal
+/// and interchangeable here; every other answer — including plainly readable
+/// JSON — is a contract violation the caller counts and fails on.
 String _frameOf(Uint8List bytes) {
   if (bytes.length < 2) return 'empty';
   if (bytes[0] == 0x1f && bytes[1] == 0x8b) return 'gzip';
@@ -761,15 +831,55 @@ String _firstEntryDivergence(List<dynamic> expected, List<dynamic> actual) {
   }
   for (var i = 0; i < expected.length; i++) {
     if (_deepEquals(expected[i], actual[i])) continue;
-    final source = (expected[i] as Map<String, dynamic>)['text'] as String?;
-    final table = (actual[i] as Map<String, dynamic>?)?['text'] as String?;
-    if (source != table) {
-      return 'entry $i text: "${_clip(source ?? '<none>', 40)}" vs '
-          '"${_clip(table ?? '<none>', 40)}"';
+
+    // A corrupt blob is precisely where a non-map entry turns up, so this has
+    // to name it rather than die casting it.
+    final source = expected[i];
+    final table = actual[i];
+    if (source is! Map || table is! Map) {
+      return 'entry $i is ${_shapeOf(source)} in source, '
+          '${_shapeOf(table)} in table';
+    }
+
+    final sourceText = source['text'];
+    final tableText = table['text'];
+    if (sourceText is! String || tableText is! String) {
+      return 'entry $i text is ${_shapeOf(sourceText)} in source, '
+          '${_shapeOf(tableText)} in table';
+    }
+    if (sourceText != tableText) {
+      return 'entry $i text: "${_clip(sourceText, 40)}" vs '
+          '"${_clip(tableText, 40)}"';
     }
     return 'entry $i differs outside its text (type or level)';
   }
-  return 'no entry differs (list identity only)';
+
+  // Unreachable from the only caller, which asks solely about lists
+  // `_deepEquals` rejected: equal lengths with no differing index means equal.
+  return 'lists compare unequal but no index differs — check _deepEquals';
+}
+
+/// A short, safe name for whatever turned up where something else belonged.
+String _shapeOf(Object? value) => switch (value) {
+      null => 'absent',
+      Map() => 'an object',
+      List() => 'a list',
+      String() => 'a string',
+      _ => _withArticle('${value.runtimeType}'),
+    };
+
+String _withArticle(String noun) =>
+    'aeiou'.contains(noun[0].toLowerCase()) ? 'an $noun' : 'a $noun';
+
+/// How a section's `footnotes` key presents. An absent key and an empty list
+/// are different populate bugs, and `?? 0` printed them identically.
+String _footnoteShape(Map<String, dynamic> section) {
+  if (!section.containsKey('footnotes')) return 'absent';
+  return switch (section['footnotes']) {
+    null => 'null',
+    final List<dynamic> list => '${list.length}',
+    final Object other => _withArticle('${other.runtimeType}'),
+  };
 }
 
 bool _deepEquals(Object? a, Object? b) {
@@ -794,9 +904,12 @@ bool _deepEquals(Object? a, Object? b) {
 
 String _mb(int bytes) => (bytes / (1024 * 1024)).toStringAsFixed(1);
 
-void _printSamples(String label, List<String> samples) {
+/// The `!` lines under a section's counters. [label] names the failure kind,
+/// and is only needed where a section keeps more than one bucket.
+void _printSamples(List<String> samples, [String? label]) {
+  final prefix = label == null ? '' : '$label: ';
   for (final sample in samples) {
-    stdout.writeln('  ! $label: $sample');
+    stdout.writeln('  ! $prefix$sample');
   }
 }
 
@@ -891,6 +1004,10 @@ void _sample(List<String> into, String line) {
 
 String _clip(String text, [int max = 60]) =>
     text.length <= max ? text : '${text.substring(0, max)}…';
+
+/// Whether [flag] was typed at all, with or without a value after it.
+bool _flagGiven(List<String> args, String flag) =>
+    args.any((a) => a == flag || a.startsWith('$flag='));
 
 String? _valueOf(List<String> args, String flag) {
   for (var i = 0; i < args.length; i++) {
