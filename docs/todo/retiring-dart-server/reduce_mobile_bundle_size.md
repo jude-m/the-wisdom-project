@@ -322,14 +322,21 @@ Per entry is worse than per page by 1.67×, which rules it out — including the
 the near end and flat past 8: four pages a blob recovers 16 MB, eight recovers
 21 MB, and everything after that is single digits.
 
-Eight pages a blob would put the download at roughly today's 92 MB and the
-bundle near 150 MB — better than today on **both** axes — at the cost of
-decoding ~8 pages where a slice needs 3. Since the median slice is 2% of its
-file, that is a real cost; `dn-1`'s 34-page slice says it is not a large one.
+**Proposed: four pages a blob.** Eight recovers 20.9 MB of the 22 and puts the
+download under today's 92 MB; four recovers 16.3 MB and leaves it around 98 MB.
+That last 4.6 MB costs double the decode on every read, on the one path the
+user is actually waiting for — four is where the curve flattens and the trade
+stops paying. Since the median slice is 2% of its file, decoding four pages to
+use one is a real cost but a small one; `dn-1`'s 34-page slice is what argues
+against going coarser still.
 
 **This is a decision, not a finding, and it is not made.** Per page is what the
 contract in `verify_corpus_invariants.dart` pins today, and changing it means
 changing that contract (`pageIndex` → a chunk key) before step 5 writes to it.
+Confirm with `tools/bench_content_read.dart` at 1 / 4 / 8 first — and read the
+preset-dictionary question in *Open Questions* before committing, because if
+that measurement lands the way it landed on `dict.db`, per page stops costing
+22 MB and this decision changes shape.
 
 **The web adds a second beneficiary and a second cost, both to the same knob.**
 The blobs are the web download too, and there they are not competing against an
@@ -822,18 +829,141 @@ missing-row degrades to an empty snippet, and the native search path no longer r
 ## Open Questions / Risks
 
 - **Compression granularity — measured, and now a decision.** Per entry is out
-  (1.67× worse than per page). Per page costs 22 MB of download that eight pages
-  a blob would not — on mobile *and* on the web's one-time fetch. Curve and
-  trade-off above; changing it means changing the contract section 5 pins, so it
-  is decided *before* step 5, not after. **The only open question left on this
-  plan's critical path.**
+  (1.67× worse than per page). Per page costs 22 MB of download that a coarser
+  blob would not — on mobile *and* on the web's one-time fetch. Four pages a
+  blob is the proposal; curve and trade-off above. Changing it means changing
+  the contract section 5 pins, so it is decided *before* step 5, not after.
+  **The only open question left on this plan's critical path** — the four below
+  are real but none of them blocks step 5.
+
+- **`page_size` is a disk knob, not a download knob.** The 4/8/16/32 KB table
+  sits next to the download discussion and reads as though a bigger page also
+  shrinks the download. It does not. The 18.1 MB it moves is *slack* — mostly
+  zero bytes — and an archive's deflate removes those for nothing. Raise it for
+  on-device storage (which counts twice) and for web read I/O; do not count it
+  against the 22 MB.
+
+- **Delivery is an untouched axis.** Every figure here assumes the DB ships
+  inside the APK/IPA. [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md)
+  already designs a manifest + boot reconciler that downloads databases and
+  reconciles them on launch — but only for web/OPFS. The same machinery on
+  mobile, or its store-native equivalents (Play Asset Delivery, iOS On-Demand
+  Resources), would take the install to a few megabytes and move the rest to a
+  first-run fetch from R2, where egress is already free. It costs the *installs
+  usable offline* property, which is why this is listed rather than proposed.
+  Nobody has costed it.
+
+- **A shared compression dictionary may dissolve the granularity trade-off
+  entirely.** The 67.2 → 41.0 MB curve is not about blob size as such; it is
+  about whether the compressor can see text it has already compressed. A
+  **preset dictionary** gives a small blob that context without changing the
+  read unit at all. Measured on `dict.db` (below): per-row deflate went from
+  1.52× to **2.64×** with a 32 KiB zlib preset dictionary — round-trip
+  verified, and `ZLibCodec(dictionary:)` is already in `dart:io`, so no new
+  dependency on native. Nobody has run it on `bjt_content`. If it behaves the
+  same there, per-page blobs reach roughly the coarse-chunk size with **zero**
+  read amplification and the four-pages decision changes shape. Cheap to test
+  and it belongs before step 5. (zstd −19 with a 32 KiB *trained* dictionary
+  reached 2.39× on a different sample of the same table — same ballpark, and
+  it loses on dependencies. The dictionary is what matters, not the codec.)
+  The web decoder would need the same capability — see *The web decoder* below.
+
+- **`dict.db` — settled 2026-09-12: no size work, and here is why not.** It is
+  in `pubspec.yaml` and ships in the APK, but appears in *none* of the headline
+  figures above — "434 MB bundled / 529 MB on device / 92 MB download" all
+  exclude it. Including it, today is ~601 MB bundled, ~863 MB on device,
+  ~120 MB downloaded.
+
+  The download is fine and is not the target: the question asked was whether
+  the *bundle* could come down, in one file, without getting slower, by enough
+  to be worth a schema change and a regeneration — a bar set at 10 MB. Every
+  lever clearing that bar costs download; every lever that leaves the download
+  alone is under 3 MB. So nothing is done here.
+
+  | lever | bundle | download |
+  |---|---|---|
+  | compress meanings | **saves ~70 MB** (166.6 → ~96) | 28.5 → ~50 MB |
+  | drop `idx_word` via a clustered table | **costs 9.7 MB — the file gets bigger** | — |
+  | deduplicate meanings | saves 2 MB | — |
+  | 8 KiB pages | saves 2.6 MB — already shipped | — |
+  | `dict_id` as INTEGER, drop `rank` | saves under 3 MB | — |
+
+  **The ~28 MB download is the zip, not the database.** The APK stores the
+  asset deflated — 174,686,208 → 29,907,287 bytes, **5.8×**. Anything done
+  inside the database has to beat that, and nothing does:
+
+  | compressing the 111.4 MB of meanings | ratio |
+  |---|---|
+  | whole file, one deflate stream — what the APK already does, free | **5.8×** |
+  | per row + 32 KiB zlib preset dictionary | 2.64× (42.2 MB) |
+  | per row, plain deflate | 1.52× (73.4 MB) |
+  | grouped by word | 1.50× — 463,337 distinct words, 1.29 entries each |
+
+  Deflate over the whole file sees every `<b>` and `<br>` in the corpus; a
+  196-byte row sees almost nothing. Compressing in the database also makes the
+  bytes opaque to the zip. Net: disk 166.6 → ~96 MB, download **28.5 → ~50 MB**.
+  Both numbers had to fall; one rises.
+
+  Measured on the shipped file (166.6 MB, 596,835 rows; `dictionary` 145 MB +
+  `idx_word` 20 MB by `dbstat`; meanings 111.4 MB, words 15.7 MB, mean 196 B).
+  Why each lever was rejected, so none of them is re-derived:
+
+  - **Shard DPD out.** Wins on both axes — DPD+DPDC are 463,458 rows and 73.6
+    of the 111.4 MB; core-only is ~48 MB bundled, ~9 MB zipped. Rejected for
+    the second file: most lookups want both dictionaries anyway.
+  - **Compress the meanings.** The only lever above 10 MB, and the one that
+    costs ~21.5 MB of download. Revisit only if the download stops mattering —
+    the mechanism is measured and works (2.64× with a 32 KiB preset
+    dictionary, round-trip verified).
+  - **Clustered table** (`WITHOUT ROWID`, `PRIMARY KEY(word, dict_id, id)`).
+    Drops `idx_word` entirely, so it looks like a free 20 MB. It is **not a
+    saving — the file grows**, at both page sizes:
+
+    | | 4 KiB | 8 KiB |
+    |---|---|---|
+    | today's schema | 166.6 MB | **164.0 MB** (shipped) |
+    | clustered | 182.7 MB | 173.7 MB |
+    | *of which overflow pages* | *8 → 37 MB* | *5 → 27 MB* |
+
+    A `WITHOUT ROWID` table is an index b-tree, which caps inline payload near
+    2 KB against a table page's 8 KB. 2,978 entries exceed that (max 69,879 B)
+    and spill: overflow costs 22 MB where the dropped index saved 20 MB. The
+    smallest of the four is what the pipeline already produces. Do not retry
+    this — and note the sign, it has been misread once.
+  - **Deduplicate meanings.** 586,993 distinct of 596,835 rows. 2 MB.
+  - **8 KiB pages.** 166.6 → 164.0 MB. The pipeline sets it for the web read
+    I/O, not the size.
+  - **`dict_id` as INTEGER, drop the derivable `rank`.** Under 3 MB on disk,
+    ~0 zipped.
+
+  Two things are worth keeping, and neither is size work:
+
+  1. **The lookup never uses its index.** `dictionary_local_datasource.dart:83`
+     plans as `SCAN dictionary` — **41 ms against under 1 ms**, warm. `ESCAPE`
+     is not the blocker; current SQLite handles it. The blocker is `LIKE` being
+     case-insensitive by default against a BINARY `idx_word`. Prefer rewriting
+     the predicate as `word >= ? AND word < ?`, which indexes unconditionally,
+     over `PRAGMA case_sensitive_like=ON`, which changes behaviour globally. On
+     web this is the whole 145 MB table per keystroke. Also spike §9c.
+  2. **First launch allocates the file in RAM.**
+     `dictionary_local_datasource.dart:40` loads all 166 MB into one `ByteData`
+     before writing it out. `bjt-fts.db` needs the same copy, so this wants one
+     shared streaming helper rather than a second copy of the bug.
+
+  Unverified, and it sits under the whole plan rather than this bullet: the
+  on-device figures here count the asset twice (bundle + first-run copy). If
+  Android keeps the APK entry deflated — it should, `.db` is not on aapt2's
+  no-compress list — then `dict.db` on device is ~28.5 + 166.6 ≈ 195 MB, not
+  333 MB, and the headline "529 MB on device" is overstated the same way. One
+  `flutter build apk --analyze-size` settles it. It changes no decision above.
+
 - **The web decoder** — `dart:io` is not available there and nothing in
   `pubspec.yaml` replaces it yet. Format is settled; the API is not. Decide in
   step 6. See the spike section.
 - **First-launch copy**: the content+FTS DB copies to the documents dir on first
   run and lives twice from then on — the 180 MB is why the on-device figure is
-  360 MB and not 180. `dict.db` (175 MB) already copies to the same place, so the
-  real first-run write is ~355 MB. Still well under today's, but it means every
+  360 MB and not 180. `dict.db` (166.6 MB) already copies to the same place, so the
+  real first-run write is ~347 MB. Still well under today's, but it means every
   megabyte the table saves is saved twice — which is why `page_size` was taken
   at 8 KB, and half the argument for a coarser blob.
 - **Reader rewrite risk**: this touches the reader (higher-risk code than
