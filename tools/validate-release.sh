@@ -44,8 +44,8 @@ handle_error() {
 # Change to project root
 cd "$PROJECT_ROOT"
 
-# Step 1: Validate FTS database
-print_step "Step 1: Validating FTS Database"
+# Step 1: Validate the shipped databases
+print_step "Step 1: Validating Shipped Databases"
 
 DB_PATH="$PROJECT_ROOT/assets/databases/bjt-fts.db"
 
@@ -74,6 +74,50 @@ if [ "$DB_SIZE_MB" -lt 50 ]; then
 fi
 
 echo -e "${GREEN}✓ FTS database found (${DB_SIZE_MB} MB)${NC}"
+
+# Check every shipped database is openable by the web (wasm) build.
+#
+# Bytes 18/19 of the header are the write/read format versions; 2 means "last
+# used in WAL mode". The wasm SQLite build is compiled SQLITE_OMIT_WAL and
+# rejects such a file on the first prepare with "file is not a database" —
+# before any FTS5 code runs, and saying nothing about WAL. Native opens it
+# fine, so nothing else in this script would catch it.
+#
+# Same two conditions as assertShippableHeader in tools/db-finalize.js, which
+# both generators end in. Kept as a separate implementation on purpose: this
+# runs without node, and catches a database that arrived from a backup or a
+# hand-run sqlite3 rather than from a generator.
+for DB in "$PROJECT_ROOT"/assets/databases/*.db; do
+    [ -f "$DB" ] || continue
+    DB_NAME=$(basename "$DB")
+
+    # Magic first, and bail on it: od on a too-short file prints a complaint of
+    # its own, and "not a database" is the more useful thing to say about one.
+    if [ "$(head -c 15 "$DB")" != "SQLite format 3" ]; then
+        echo -e "${RED}✗ ERROR: ${DB_NAME} is not a SQLite database${NC}"
+        echo "  The file is truncated or is not a database at all."
+        handle_error "${DB_NAME} header validation failed"
+        continue
+    fi
+
+    DB_REPAIR="${DB%.db}.repair.db"
+    WRITE_VER=$(od -An -tu1 -j18 -N1 "$DB" | xargs)
+    READ_VER=$(od -An -tu1 -j19 -N1 "$DB" | xargs)
+
+    if [ "${WRITE_VER:-9}" -gt 1 ] || [ "${READ_VER:-9}" -gt 1 ]; then
+        echo -e "${RED}✗ ERROR: ${DB_NAME} is WAL-flagged (bytes 18/19 = ${WRITE_VER:-?}/${READ_VER:-?})${NC}"
+        echo "  The wasm build will reject it as \"file is not a database\"."
+        echo "  Regenerate it (cd tools && npm run generate-fts | generate-dict),"
+        echo "  or repair in place — this also rebuilds at 8 KiB pages, and the"
+        echo "  ANALYZE is not optional:"
+        echo "    sqlite3 '$DB' \"PRAGMA page_size=8192; VACUUM INTO '${DB_REPAIR}';\""
+        echo "    sqlite3 '${DB_REPAIR}' 'ANALYZE;' && mv '${DB_REPAIR}' '$DB'"
+        echo "    rm -f '${DB}-wal' '${DB}-shm'   # they belong to the replaced file"
+        handle_error "${DB_NAME} header validation failed"
+    else
+        echo -e "${GREEN}✓ ${DB_NAME} header is web-safe${NC}"
+    fi
+done
 
 # Check if pubspec.yaml includes the database
 if ! grep -q "assets/databases/bjt-fts.db" "$PROJECT_ROOT/pubspec.yaml"; then

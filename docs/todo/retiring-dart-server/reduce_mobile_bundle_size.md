@@ -25,10 +25,14 @@
 >   only the heavy DBs live on R2. Details in
 >   [`static-web-hosting.md`](../../decisions/static-web-hosting.md)
 >   (Free-tier fit).
-> - **Verify first (flag):** FTS5 in the Drift wasm build — high confidence
->   (standard `unicode61` tokenizer; prebuilt `sqlite3.wasm` ships
->   `SQLITE_ENABLE_FTS5`) but confirm with a one-file spike (open real `bjt-fts.db`
->   on web, run a `MATCH`).
+> - **~~Verify first (flag):~~ FTS5 in the Drift wasm build — PASSED 2026-09-11.**
+>   `SQLITE_ENABLE_FTS5` is in the shipped binary, and the real `bjt-fts.db`
+>   returns byte-identical rows through it — 15 queries × 7 engine
+>   configurations, including the Sinhala `tokenchars` charlist honoured for
+>   *writes* as well as reads. The spike found a different blocker instead (the
+>   WAL header flag) and three live bugs in this repo: see **What the
+>   Drift/wasm spike changed** below, and the full write-up in
+>   `drift-fts5-wasm-spike-results.md` in this folder.
 > - Companion: [`serverless-deployment-decision.md`](../serverless-deployment-decision.md)
 >   — now largely moot (zero always-on infra; the research server is the only backend).
 
@@ -248,6 +252,25 @@ download impact was high by half.
 would confirm it, but there is no Android SDK on this machine, and iOS needs a
 signed build; the arithmetic an archive does is the same either way.)
 
+**That regression is mobile-only, and reads backwards on web.** The row above
+is an APK/IPA — an archive that deflates the JSON for free. The web has no
+archive. Today's plan for it (spike §8b) is to serve the same 285 JSON files
+and let the client do what the server does, which costs, *per results page*,
+~27 conditional GETs and 3–4 MB transferred to parse ~34 MB of JSON in the tab
+— repeated, unbounded, and never offline. The content table replaces all of it
+with bytes already downloaded:
+
+| | Web, serving JSON | Web, content table |
+|---|---|---|
+| One-time | 47.6 MB (FTS, gzipped) | 47.6 + ~67 MB blobs ≈ **115 MB** |
+| Per results page | ~27 GETs, 3–4 MB, 34 MB parsed | one row fetch |
+| Offline | ✗ | ✓ |
+
+So on web this migration is not a download regression at all: it converts an
+unbounded per-use cost into a bounded one-time one, and it is the only thing
+here that makes web offline possible. The "download rises" framing above is
+true of the phone and false of the browser, and both surfaces read this table.
+
 ### Where the 85 MB goes, and the knob that moves it
 
 The blobs are 67.2 MB. The other 18.1 MB is SQLite leaving space on the floor:
@@ -261,10 +284,26 @@ plan — content table alone, same rows:
 | on disk | 85.4 MB | 77.2 MB | 73.5 MB | 71.9 MB |
 
 Against it: a bigger page reads more to get one blob, and `cache_size` counts
-pages, so the same setting holds 4× the memory at 16 KB. 8 KB looks like the
-trade worth taking — 8 MB for one doubling — but it is step 5's call, and it
-has to be set on a **new** database before the first write. (Changing it later
-means `VACUUM`, which will not do it while the DB is in WAL mode.)
+pages, so the same setting holds 4× the memory at 16 KB.
+
+**Decided: 8 KB, and it is no longer step 5's call** — the build pipeline sets
+it, so the content table inherits it whatever step 5 writes. Two things moved
+after this table was measured:
+
+- The constraint this section stated — *"it has to be set on a **new** database
+  before the first write, and changing it later means `VACUUM`, which will not
+  do it while the DB is in WAL mode"* — **is wrong**, in the useful direction.
+  `VACUUM INTO` builds a new file and takes the page size from the source
+  *connection*, so it works from a WAL source and needs no foresight.
+  Measured on the real index: **0.4 s**. It is a post-pass, not a schema
+  decision, and it now runs on every build (see the pipeline section).
+- A second, independent reason to want it: the Drift/wasm spike measured 8 KB
+  pages **halving the web read I/O** (1,384 → 703 reads, first query 505 →
+  325 ms). The disk saving and the web saving are the same knob turned once.
+
+On this index alone the rebuild is near-neutral on size (99.4 → 99.2 MB — it is
+mostly FTS b-tree, not small blobs). The 8 MB is the content table's, and it is
+saved **twice**, because the DB is copied out of the bundle on first launch.
 
 ### The granularity curve — now load-bearing
 
@@ -291,6 +330,173 @@ file, that is a real cost; `dn-1`'s 34-page slice says it is not a large one.
 **This is a decision, not a finding, and it is not made.** Per page is what the
 contract in `verify_corpus_invariants.dart` pins today, and changing it means
 changing that contract (`pageIndex` → a chunk key) before step 5 writes to it.
+
+**The web adds a second beneficiary and a second cost, both to the same knob.**
+The blobs are the web download too, and there they are not competing against an
+APK's deflate — nothing recompresses them on either side, so 67.2 → 46.3 MB at
+eight pages a blob is a straight 21 MB off a one-time download on a connection
+the user is waiting on. Against that, a web read is dearer than the 0.03 ms
+measured natively: OPFS goes through a JS callback, and on Chrome through
+`Atomics.wait` to a second worker, so decoding eight pages to use three costs
+more there than here. Both halves of that trade are web-side and neither is
+measured — but they push the same way the mobile argument does, and nothing
+found so far argues for staying at one page.
+
+## What the Drift/wasm spike changed (2026-09-11)
+
+The FTS5-in-wasm spike passed its gate, and its write-up
+(`drift-fts5-wasm-spike-results.md`, copied into this folder) reviewed this
+repo on the way past. Five of its findings land on the work below; each claim
+here was re-verified locally against the shipped databases before being written
+down, because a spike's numbers are its machine's.
+
+### The build pipeline is now three steps, not one — and it was shipping a bug
+
+Both generators ended in `VACUUM`. They now end in `finalizeDatabase`
+(`tools/db-finalize.js`, shared by `bjt-fts-populate.js` and
+`dict-populate.js` — `dict.db` is a shipped asset too, and reaches the browser
+through the same wasm build):
+
+```bash
+PRAGMA page_size = 8192; VACUUM INTO 'tmp.db';   # from the WAL source
+ANALYZE;                                          # on the rebuilt file
+# assertShippableHeader: bytes 0-15 are the magic, 18/19 < 2
+# then, and only then, swap tmp.db into place
+```
+
+The assert runs on the temp file, before the swap, so a database that fails it
+never reaches the path the release build reads.
+
+Three unrelated problems, one pass:
+
+- **The WAL flag would have blocked the web build outright.** Both scripts set
+  `journal_mode = WAL` for write speed, which leaves header bytes 18/19 at 2.
+  Verified: both shipped databases carry `2/2` today. The wasm SQLite Drift
+  ships is compiled `SQLITE_OMIT_WAL` and rejects such a file on the **first
+  prepare** — `SQLITE_NOTADB (26): file is not a database`, before any FTS5
+  code runs, saying nothing about WAL, on a file that opens fine everywhere
+  else. This is the sort of thing that costs a week.
+- **8 KB pages**, as above.
+- **`ANALYZE` — and this one is a live bug on phones, not a web concern.**
+  `bjt-fts.db` ships with no `sqlite_stat1` (verified), so the planner guesses
+  on the scope + language query `ScopeFilterSql` builds, sees
+  `idx_bjt_meta_language`, and drives the join from the meta side — one FTS
+  MATCH per `pali` row. Re-measured here on the real index (`බුද්ධ*`, `dn-%`,
+  `pali`, 128 hits, SQLite 3.51.1):
+
+  | | plan | time |
+  |---|---|---|
+  | as shipped | `SEARCH m USING INDEX idx_bjt_meta_language` | **8,736 ms** |
+  | after `ANALYZE` (60 ms, 6 rows) | `SCAN t VIRTUAL TABLE ... SEARCH m USING INTEGER PRIMARY KEY` | **8 ms** |
+
+  A thousandfold, for 60 ms at build time. Newer SQLite happens to pick the
+  good plan unaided — but `sqflite` on Android uses the **system** SQLite,
+  whose version tracks the OS, so some users are on the nine-second path right
+  now. The fix cannot wait for the engine.
+
+Also added: `tools/validate-release.sh` step 1 checks the header of every
+database in `assets/databases/`. There is no CI in this repo, so the
+pre-release script is the gate. It re-implements `assertShippableHeader`'s two
+conditions in `od` rather than calling it: a second implementation is the point,
+because this one must run without node and must catch a database that arrived
+from a backup or a hand-run `sqlite3` instead of from a generator.
+
+> **The shipped assets are still WAL-flagged** — the two *generators* were
+> changed, not the two databases (they are untracked, so this cannot ride in a
+> commit). Both need fixing: `npm run generate-fts` and `npm run generate-dict`
+> in `tools/`, or the repair one-liner `validate-release.sh` prints, on **both**
+> `bjt-fts.db` and `dict.db`.
+
+One consequence worth noting: once both generators end in `VACUUM INTO`, the
+un-checkpointed-WAL branch in `verify_corpus_invariants.dart` becomes
+unreachable for our own builds, and the `-wal`/`-shm` sidecars in
+`assets/databases/` stop existing. Leave the branch — it cost nothing and it
+was describing a real property of the file at the time.
+
+### The blob decoder has a web requirement the schema section doesn't state
+
+The schema below says compression is `dart:io` `GZipCodec`/`ZLibCodec`, to be
+verified "on all shipped **native** platforms". But the banner makes this same
+table the **web** content source, and `dart:io` does not exist there. Nothing
+in `pubspec.yaml` covers the gap — no `archive`, no `drift`, and `lib/` uses no
+codec today.
+
+The *format* is fine: gzip and zlib are both decodable on web, and the contract
+`verify_corpus_invariants.dart` pins needs no change. It is the *decoder* in
+steps 6–7 that needs a web-capable path — `package:archive`, or
+`DecompressionStream` through JS interop. Decide it when step 6 picks an API,
+not after.
+
+### This work now gates the web move, rather than following it
+
+The spike's own biggest open item for going static was the JSON fetch path —
+"~27 conditional GETs and 3–4 MB per results page … **this is now the
+least-understood piece, not SQLite**". This table deletes that path rather than
+prototyping it. So in the README's order of operations, **step 3 (this
+document) must land before step 4 (retire the server, make web static)**, or
+step 4 builds a 285-file fetch path on web and then throws it away. The order
+as written is already right; the dependency was not stated, and now is.
+
+### Three live bugs it found in code this work touches
+
+All three confirmed present here. None is caused by the migration; two are in
+the same build pipeline, one in the same datasource.
+
+1. **`ORDER BY score` has no tiebreaker** —
+   `lib/data/datasources/fts_local_datasource.dart:186` (and
+   `server/lib/src/handlers/fts_handler.dart:93`). bm25 ties are common in this
+   corpus: the first 5,000 hits for භගවා carry 622 distinct scores, largest tie
+   group 69 rows. With `LIMIT`/`OFFSET` paging, rows can repeat or vanish as
+   the user pages. Fix is `ORDER BY score, id`.
+
+   **This one touches the safety net.** Group 9's goldens are *not* order-flaky
+   — they address rows by `(file, page, entry, language)` and the test says why.
+   But the escape hatch it documents, *"a row can drop out of the set with
+   every snippet still byte-identical"*, is exactly what an unstable tiebreaker
+   produces under overfetch + `_limitToGroups`. Adding `, id` is what stops
+   that test firing spuriously — and the engine is about to change twice
+   (Drift native, then wasm).
+2. **Dictionary prefix lookup full-scans 175 MB on every word tap** —
+   `lib/data/datasources/dictionary_local_datasource.dart:83,134,181` use
+   `LIKE ? ESCAPE '\'`, which never uses `idx_word`. 133 ms natively; over OPFS
+   it is the whole file through a JS callback. `buildDictionaryLikePattern`
+   only ever builds a prefix, so the semantics survive
+   `word >= :w AND word < :w || char(0x10FFFF)` — 0.4 ms.
+3. **`idx_bjt_meta_language` earns nothing** — two distinct values over 457k
+   rows. Its only demonstrated effect is the misplan above. Consider dropping
+   it in the same pipeline pass.
+
+### Smaller constraints, for whoever writes steps 5–7
+
+- **`SQLITE_DQS 0` on web:** double-quoted *string literals* are an error
+  there, and native won't catch it. New `bjt_content` SQL must use single
+  quotes (identifier quoting is unaffected). Existing SQL is clean — the spike
+  grepped every site in `lib/`, `packages/` and `server/`.
+- **`enableMigrations: false`** when Drift opens these. `user_version` is 0
+  (verified), so the migrator would otherwise write into the shipped DB.
+- **No `ATTACH`** between this DB and `dict.db`. Drift's OPFS mode is chosen at
+  runtime by browser capability, and one of the two modes stores exactly two
+  files. They are already separate files by design; this just forecloses ever
+  joining across them.
+- **`snippet()`/`highlight()` return NULL, not an error**, on a contentless
+  table. Nothing calls them, which is why the manual snippet path exists — but
+  a silent NULL is what a future caller would get.
+- **`bjt_suggestions` does not exist** (verified), so every autocomplete call
+  throws. Not a mystery: `GENERATE_SUGGESTIONS: false` in the populate script's
+  config. Either flip it and pay the size, or delete
+  `_getSuggestionsFromEdition`. Unrelated to this work, but it is in the file
+  step 6 opens.
+
+### What it did not change
+
+The speed numbers, the parity contract, per-entry being ruled out, and the
+slice shape for step 6. The spike is about the engine under the table, not the
+table. Its own caveat is worth carrying: it could not run the Dart layer at all
+(pub.dev was blocked in that session), so Drift's worker negotiation, its
+migration behaviour, and iOS/Firefox are unverified by execution — as is this
+document's bench, which read with `File.readAsString` rather than through
+`rootBundle` and sqflite's platform channel. Both sets of numbers are floors,
+from different directions.
 
 ## Current Runtime Dependencies on JSON
 
@@ -364,8 +570,11 @@ CREATE TABLE bjt_content (
 - **Keep the stored format platform-neutral.** Node writes this table
   (`better-sqlite3`), Dart reads it. No Freezed models or app-specific types in the
   blob — just the page's JSON substructure.
-- Compression in Dart: `dart:io` `GZipCodec`/`ZLibCodec` (native) — verify the
-  decode path is available on all shipped native platforms.
+- Compression in Dart: `dart:io` `GZipCodec`/`ZLibCodec` on native — **but the
+  decoder must also work on web**, where `dart:io` does not exist and this same
+  table is the content source. `package:archive` or `DecompressionStream` via
+  JS interop; neither is in `pubspec.yaml` yet. The stored format needs no
+  change for this — gzip and zlib both decode there.
 - **~~Optional max-speed snippet path~~ — dropped.** The idea was a per-entry
   `text` column so a snippet needed no parse at all. The benchmark says the page
   fetch *is* 0.03 ms, so there is nothing left to win, and per-entry
@@ -474,8 +683,16 @@ CREATE TABLE bjt_content (
    without qualification, and the blob granularity is what decides whether it
    becomes true. See the granularity curve.
 5. Extend `tools/bjt-fts-populate.js` to populate `bjt_content` (compress per
-   page) alongside the existing `_fts` / `_meta` tables. **The contract is
-   already written down and enforced** — see step 1: one row per
+   page) alongside the existing `_fts` / `_meta` tables.
+
+   **Two things that used to be part of this step are already done.** The
+   script now ends in `finalizeDatabase` (`tools/db-finalize.js`) — `VACUUM
+   INTO` at 8 KB pages,
+   `ANALYZE`, and a header assert — so page size is inherited rather than
+   chosen here, and nothing this step writes can reintroduce the WAL flag.
+   Write rows in WAL mode as before; the finalize pass is what ships.
+
+   **The contract is already written down and enforced** — see step 1: one row per
    `(filename, pageIndex, language)`, `language` spelled `pali` / `sinh`, the
    `blob` column a real BLOB, the bytes gzip- or zlib-framed, and the payload
    that page's JSON substructure verbatim — plus the `pageNum` column beside it,
@@ -606,14 +823,19 @@ missing-row degrades to an empty snippet, and the native search path no longer r
 
 - **Compression granularity — measured, and now a decision.** Per entry is out
   (1.67× worse than per page). Per page costs 22 MB of download that eight pages
-  a blob would not. Curve and trade-off above; changing it means changing the
-  contract section 5 pins, so it is decided *before* step 5, not after.
+  a blob would not — on mobile *and* on the web's one-time fetch. Curve and
+  trade-off above; changing it means changing the contract section 5 pins, so it
+  is decided *before* step 5, not after. **The only open question left on this
+  plan's critical path.**
+- **The web decoder** — `dart:io` is not available there and nothing in
+  `pubspec.yaml` replaces it yet. Format is settled; the API is not. Decide in
+  step 6. See the spike section.
 - **First-launch copy**: the content+FTS DB copies to the documents dir on first
   run and lives twice from then on — the 180 MB is why the on-device figure is
   360 MB and not 180. `dict.db` (175 MB) already copies to the same place, so the
   real first-run write is ~355 MB. Still well under today's, but it means every
-  megabyte the table saves is saved twice — which is the other half of the
-  argument for the `page_size` knob and for a coarser blob.
+  megabyte the table saves is saved twice — which is why `page_size` was taken
+  at 8 KB, and half the argument for a coarser blob.
 - **Reader rewrite risk**: this touches the reader (higher-risk code than
   search). Stage it: land the content table + snippet repoint first, reader
   second, drop the assets last.
@@ -627,6 +849,10 @@ missing-row degrades to an empty snippet, and the native search path no longer r
 ## Related
 
 - [`README.md`](./README.md) — the parent plan: retiring the Dart content server.
+- [`drift-fts5-wasm-spike-results.md`](./drift-fts5-wasm-spike-results.md) — the
+  spike that cleared the FTS5 gate, and found the WAL flag and three live bugs.
+- [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md) — how a rebuilt
+  DB reaches a client that already has the old one (manifest + boot reconciler).
 - `docs/general/how_search_works.md` — the search pipeline (Step 5 reads JSON).
 - [`perf-fts-snippet-text-loading.md`](../../done/perf-fts-snippet-text-loading.md)
   — the shipped memo-cache fix this migration tears down.

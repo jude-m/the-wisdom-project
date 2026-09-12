@@ -41,6 +41,8 @@ try {
     process.exit(1);
 }
 
+const { finalizeDatabase } = require('./db-finalize');
+
 // =============================================================================
 // CONFIGURATION
 // =============================================================================
@@ -187,25 +189,15 @@ async function main() {
         // Populate data
         await populateData(db, convert, Script);
 
-        // Optimize database
-        console.log('');
-        console.log('Optimizing database...');
-
-        // VACUUM to reclaim disk space and defragment
-        // (No FTS5 optimize needed - this is a regular table)
-        console.log('  Running VACUUM...');
-        db.exec('VACUUM');
-        console.log('  ✓ Database vacuumed');
-
-        // Report final size
-        console.log('');
-        const stats = fs.statSync(CONFIG.OUTPUT_DB);
-        const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
-        console.log(`Final database size: ${sizeMB} MB`);
-
     } finally {
         db.close();
     }
+
+    // Replaces the plain VACUUM that used to run here: VACUUM INTO reclaims the
+    // same space, and also clears the WAL flag the wasm build refuses to open,
+    // sets 8 KiB pages, and writes the stats the planner needs. dict.db is a
+    // shipped asset and reaches the browser the same way bjt-fts.db does.
+    finalizeDatabase(CONFIG.OUTPUT_DB);
 
     console.log('');
     console.log('✓ Done!');
