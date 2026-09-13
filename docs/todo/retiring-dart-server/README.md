@@ -11,7 +11,8 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
 - **`reduce_mobile_bundle_size.md`** — the content-DB plan (JSON → contentless FTS +
   per-page compressed text, same file). Now the keystone; the top banner carries the
   decisions, and **What the Drift/wasm spike changed** carries what moved after the
-  spike. The only open question on its critical path is blob granularity.
+  spike. Blob size is decided (one page per blob plus a per-language compression
+  sample), so nothing on its critical path is open; step 5 is next.
 - **`drift-fts5-wasm-spike-results.md`** — what the spike found. Read this one.
 - **`db-auto-update-prestudy.md`** — the follow-on design brief: how a rebuilt DB
   reaches a client that already has the old one. Manifest + a boot reconciler, where
