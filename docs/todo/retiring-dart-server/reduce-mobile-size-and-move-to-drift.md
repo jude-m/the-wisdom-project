@@ -1,9 +1,11 @@
 # Faster Reads (and a Smaller App): Move Text into SQLite and the App onto Drift
 
-> **Status 2026-09-13:** steps 1–4 done; blob layout decided — one page per
-> blob plus a per-language **compression sample** (unrelated to `dict.db`).
-> Step 6 moves the app from `sqflite` to Drift, in the same branch as the
-> content table. Next: step 5.
+> **Status 2026-09-14:** steps 1–4 done; blob layout decided — one page per
+> blob, **plain zlib**. A compression sample would win back most of the
+> download and is kept as an optional later step (**Compression sample —
+> optional, later**). Step 6 moves the app from `sqflite` to Drift, in the same
+> branch as the content table; step 7 makes an app update actually replace the
+> copied databases. Next: step 5.
 
 > **UPDATE 2026-07-16 — CONFIRMED, and promoted to the keystone of a server-free
 > architecture.** Decisions from a follow-up study:
@@ -48,11 +50,12 @@ Move the text into a **per-page content store** in the existing SQLite DB so eac
 read fetches only the entry/page it needs.
 
 **Bonus: size — on iOS.** Once the text is in the DB (compressed), the
-`assets/text/*.json` files no longer ship: on-device storage falls by 43% on
+`assets/text/*.json` files no longer ship: on-device storage falls by 35% on
 iOS, and probably *rises* on Android (see **Size — the bonus, on two axes**).
-The *download* stays about level (92 → 95 MB): the JSON already compresses
-inside the APK/IPA and a pre-compressed blob cannot, so it takes a compression
-sample to keep it there. Measured both ways below.
+The *download* rises, 92 → 114 MB: the JSON already compresses inside the
+APK/IPA and a pre-compressed blob cannot. Accepted for now — speed is the goal —
+and a compression sample can bring it back to 95 MB later. Measured both ways
+below.
 
 **Hard constraint: stays fully offline** — this is a scripture app used on
 retreats, planes, poor signal. (This rules out the "fetch text from the server"
@@ -69,10 +72,10 @@ The speed win is **granular fetch**, not compression. They are independent:
   shrinks the DB but costs only a **sub-millisecond inflate** per read —
   negligible next to the parse it replaces.
 
-So compression is essentially free for speed. Blob size used to be one knob
-for three things — compression unit, fetch unit, download size. A
-compression sample splits them: one page per blob, compressed nearly as well as eight.
-See **Blob size — decided**.
+So compression is essentially free for speed. Blob size is one knob for three
+things — compression unit, fetch unit, download size — and this plan sets it
+for fetch: one page per blob. A compression sample would later split the knob,
+compressing one page nearly as well as eight. See **Blob size — decided**.
 
 ## TL;DR
 
@@ -84,18 +87,18 @@ still builds and the HTML site still generates. They just aren't shipped.
 
 ```
 TODAY (shipped):  95 MB FTS index  +  339 MB JSON  = 434 MB bundled
-PROPOSED:         95 MB FTS index  +  55 MB table  = 150 MB bundled
+PROPOSED:         95 MB FTS index  +   77 MB table  = 172 MB bundled
 ```
 
 Measured, not projected — see **What the measurements said** below. On an
-iPhone that is 529 MB today against 300 MB (the DB is copied out of the bundle
+iPhone that is 529 MB today against 344 MB (the DB is copied out of the bundle
 on first launch, so its size counts twice and the JSON's counts once). Android
-likely goes the other way, 187 → 245 MB, because it never unpacks the APK.
+likely goes the other way, 187 → 286 MB, because it never unpacks the APK.
 
-**Download: 92 MB today, 95 MB after.** An APK/IPA is a zip, today's JSON
+**Download: 92 MB today, 114 MB after.** An APK/IPA is a zip, today's JSON
 deflates inside it to 46 MB, and a pre-compressed blob cannot be compressed
-again. Plain per-page blobs made it 114 MB; a per-language compression sample
-brings it back to 95 MB without slowing reads.
+again. A per-language compression sample would bring it back to 95 MB without
+slowing reads; it is deferred, not rejected.
 
 ## Performance: Why This Is Faster, Not Slower
 
@@ -107,7 +110,7 @@ expensive one.
 
 | | Today (JSON file) | Proposed (page row) |
 |---|------------------|---------------------|
-| Data touched | whole file, 0.1–3.9 MB | one page, ~0.9 KB stored |
+| Data touched | whole file, 0.1–3.9 MB | one page, ~1.2 KB stored |
 | I/O | read whole file from bundle | indexed `SELECT` of one blob |
 | Expensive op | `json.decode` whole file, 0.6–19 ms | inflate + parse one page, 0.03 ms |
 | Main-isolate jank risk | real on big suttas | gone on the snippet path |
@@ -149,17 +152,17 @@ document — and this one interleaves `pali` and `sinh` page by page, while
 grouping a document's pages by language does strictly better: **41 MB**. What
 costs bytes is how finely the text is cut, not how big the stream around it is.
 Plain per-page blobs give up a third of the ratio, because each one starts
-compressing from nothing; a compression sample wins most of it back. See
-**Blob size — decided**.
+compressing from nothing. That is what ships; a compression sample would win
+most of it back (see **Compression sample — optional, later**).
 
 Two things shrink it when it moves into a table:
 
 1. **Packaging disappears** — `type`/`level` become compact typed columns; no
    braces/quotes/field-names/indentation repeated per entry.
-2. **Text compresses** — 7× as one stream, 4.2× per page plain, and **5.9× per
-   page with a compression sample**, which is what ships.
+2. **Text compresses** — 7× as one stream, **4.2× per page**, which is what
+   ships, and 5.9× per page with a compression sample.
 
-So the table costs 55 MB on disk while 339 MB of JSON vanishes entirely.
+So the table costs 77 MB on disk while 339 MB of JSON vanishes entirely.
 
 ## Why This Is the Only Option That Wins on All Three Axes
 
@@ -172,7 +175,7 @@ compressed blob is the reverse.
 | Today | 92 MB | 529 MB | parses whole files | ✅ | — |
 | Per-search memo cache only | same | same | snippets fixed; reader same | ✅ | tiny |
 | Gzip the JSON assets | ~same | ↓↓ | same (still parses) | ✅ | low |
-| **Compressed content table, drop JSON** ⭐ | 95 MB | 300 MB | ✅ per-page fetch | ✅ | medium–high |
+| **Compressed content table, drop JSON** ⭐ | 114 MB | 344 MB | ✅ per-page fetch | ✅ | medium–high |
 | Mobile → server (reuse web path) | ↓↓↓ | ↓↓↓ | network-bound | ❌ | low |
 
 - **Go-online (reuse `getWebOverrides()`)** is the biggest size win and the infra
@@ -239,20 +242,19 @@ ratios are a floor.
 
 ### Size — the bonus, on two axes
 
-| | Today | Plain per page | **Per page + sample** |
+| | Today | **Plain per page (ships)** | Per page + sample (later) |
 |---|-------|----------|----------|
-| Bundled | 94.8 MB DB + 339.2 MB JSON = **434 MB** | 172 MB | **150 MB** |
-| On device, iOS (unpacked + the DB's copy) | **529 MB** | 344 MB | **300 MB** |
-| On device, Android (APK stays zipped + the DB's copy) | 92 + 95 = **187 MB** | 286 MB | **245 MB** |
-| **Download** (deflated, as an APK/IPA carries it) | 45.5 + 46.5 = **92 MB** | 114 MB | **95 MB** |
+| Bundled | 94.8 MB DB + 339.2 MB JSON = **434 MB** | **172 MB** | 150 MB |
+| On device, iOS (unpacked + the DB's copy) | **529 MB** | **344 MB** | 300 MB |
+| On device, Android (APK stays zipped + the DB's copy) | 92 + 95 = **187 MB** | **286 MB** | 245 MB |
+| **Download** (deflated, as an APK/IPA carries it) | 45.5 + 46.5 = **92 MB** | **114 MB** | 95 MB |
 
 Both layouts at the 8 KB pages the pipeline now sets: the index plus the
-content table from **Blob size — decided**. With plain blobs the
-download rose 22 MB, and that is structural: the JSON is enormous and highly
-compressible, so the archive already gets it down to 46 MB, while a compressed
-blob is paid in full on disk and on the wire. The sample cuts the rise to
-3 MB. The 2026-06 estimate of "~70–110 MB" for the JSON's download impact was
-high by half.
+content table from **Blob size — decided**. The download rises 22 MB, and that
+is structural: the JSON is enormous and highly compressible, so the archive
+already gets it down to 46 MB, while a compressed blob is paid in full on disk
+and on the wire. A compression sample would cut the rise to 3 MB. The 2026-06
+estimate of "~70–110 MB" for the JSON's download impact was high by half.
 
 (Measured by deflating each file the way a zip stores an entry. A real APK
 would confirm it, but there is no Android SDK on this machine, and iOS needs a
@@ -263,8 +265,8 @@ install, so today's 339 MB of JSON sits on the phone in full and dropping it is
 a large saving. Android keeps the APK as a zip and reads assets out of it —
 Flutter's Gradle plugin sets no `noCompress`, so `.json` and `.db` are stored
 deflated — so today costs only the 92 MB APK plus the DB's copy, and the
-migration *adds* ~58 MB. Without the sample it would add ~99 MB. Speed is the goal, so
-this changes the headline, not the plan. Derived, not measured: one
+migration *adds* ~99 MB (~58 MB with a compression sample). Speed is the goal,
+so this changes the headline, not the plan. Derived, not measured: one
 `flutter build apk --analyze-size` confirms it.
 
 **What is left of that rise is mobile-only, and reads backwards on web.** The row above
@@ -277,7 +279,7 @@ with bytes already downloaded:
 
 | | Web, serving JSON | Web, content table |
 |---|---|---|
-| One-time | 47.6 MB (FTS, gzipped) | 47.6 + ~49 MB blobs ≈ **97 MB** |
+| One-time | 47.6 MB (FTS, gzipped) | 47.6 + ~68 MB blobs ≈ **116 MB** |
 | Per results page | ~27 GETs, 3–4 MB, 34 MB parsed | one row fetch |
 | Offline | ✗ | ✓ |
 
@@ -321,22 +323,17 @@ On this index alone the rebuild is near-neutral on size (99.4 → 99.2 MB — it
 mostly FTS b-tree, not small blobs). The 8 MB is the content table's, and it is
 saved **twice**, because the DB is copied out of the bundle on first launch.
 
-### Blob size — decided 2026-09-13: one page per blob, with a compression sample
+### Blob size — decided 2026-09-14: one page per blob, plain zlib
 
-**What a compression sample is.** About 32 KB of typical text — the words and
-phrases that recur across the canon — which the compressor treats as if it had
-already seen it. Each page then refers back to that text instead of spelling it
-out again, so a small page compresses nearly as well as a big chunk while a read
-still unpacks one page. Unpacking needs the same sample, so it ships in the DB.
+**Chosen:** one blob per page, as the contract already says, zlib level 9, no
+compression sample.
 
-**Not `dict.db`.** zlib and zstd call this a *preset dictionary*, and their APIs
-name it `dictionary` — which is why the code below does too. It has nothing to
-do with word meanings, and this work does not touch `dict.db`. Everywhere else
-this doc says **compression sample**, so the two never blur.
-
-**Chosen:** one blob per page, as the contract already says, zlib-compressed
-with a **32 KB compression sample per language** — one for `pali`, one for
-`sinh`, in `bjt_content_sample` in the same file.
+**Why plain.** Reads are the goal, and plain is as fast as anything measured —
+a little faster than with a sample, natively and in Chrome. It is also the
+simplest format to read on every platform: `dart:io`, `package:archive` and the
+browser's `DecompressionStream` all read plain zlib as it is. What it costs is
+download: about 19 MB more than with a sample, on phone and web alike. The
+sample stays measured and ready — **Compression sample — optional, later**.
 
 Whole corpus, every blob decoded back and compared to the source JSON — in
 Node, in Dart (native and pure Dart), and a 999-page sample in Chrome. Zero
@@ -344,10 +341,10 @@ mismatches anywhere.
 
 | layout | download (zipped) | on disk (8 KB pages) | snippet read | reader p50 / p90 | web read (Chrome) |
 |---|---|---|---|---|---|
-| 1 page, plain | 68.1 MB | 76.9 MB | 76 µs | 1× / 1× | 0.25 ms |
+| **1 page, plain** | **68.1 MB** | **76.9 MB** | **76 µs** | **1× / 1×** | **0.25 ms** |
 | 4 pages, plain | 51.5 MB | 73.7 MB | 222 µs | 2.9× / 3.6× slower | — |
 | 8 pages, plain | 46.7 MB | 55.4 MB | 412 µs | 5.1× / 6.8× slower | 0.45 ms |
-| **1 page + sample** | **49.7 MB** | **55.1 MB** | **80 µs** | **1.02× / 1.06×** | **0.34 ms** |
+| 1 page + sample | 49.7 MB | 55.1 MB | 80 µs | 1.02× / 1.06× | 0.34 ms |
 | 4 pages + sample | 43.8 MB | 60.2 MB | 227 µs | 2.9× / 3.6× slower | — |
 
 Content table only — add the FTS index (45.5 MB zipped) for the whole download.
@@ -355,39 +352,99 @@ Reader columns are 1,411 real slices from every 9th file, against one plain page
 The whole-document floor is still 41.0 MB, and per entry is still out (1.67×
 worse than per page).
 
-**Why not eight pages.** Eight plain pages download 3 MB less and tie on disk,
-but every read decodes eight pages to use one — 5× slower natively, twice the
-extra cost on web. Four pages loses to the sample on download *and* disk.
+**Why not more pages per blob.** Eight plain pages download 21 MB less than
+one, but every read decodes eight pages to use one — 5× slower natively, and
+nearly twice the cost on web. Four pages saves 17 MB for 3× slower reads. Speed
+is the goal, so neither.
 
 **Smaller findings:**
-- **Per language beats shared** — one sample for both costs 1.9 MB more.
-- **How the sample is built matters a little** — `zstd --train` beats a simple
-  Node frequent-phrase builder by 2.4 MB. See step 5.
 - **Level 9** saves another 0.6 MB and doubles the build's compress time
   (25 → 48 s). Reads are unchanged, so step 5 uses it.
-- **Web needs no sample support from its decoder.** Neither the browser's
-  `DecompressionStream` nor `package:archive` accepts one (archive's zlib
-  decoder returns failure when the header's sample flag is set). Standard
-  deflate gets around it: strip the 6-byte zlib header and 4-byte trailer, put
-  the sample in front as an *uncompressed block*, decode, and cut the first
-  32 KB off the output. Verified in Chrome (999/999) and in pure Dart over the
-  whole corpus. Under 0.1 ms per read over a plain blob in Chrome; pure Dart was
-  no slower than plain (119 vs 127 µs), because the blobs are smaller.
-- **Native Dart needs zlib framing, not raw deflate.** `dart:io`'s
-  `ZLibDecoder(dictionary:)` only applies the sample when the zlib header asks
-  for it; raw deflate plus a sample fails with `Filter error, bad data`. The
-  header carries the sample's checksum, so a blob decoded with the other
-  language's sample throws in both Node and Dart instead of returning garbage.
 - **Platforms.** Android, iOS, macOS, Windows and Linux all decode through
   `dart:io`, one zlib built into the Dart runtime, so they behave the same;
-  only macOS was run. Web through `DecompressionStream` needs Chrome/Edge 103,
-  Firefox 113 or Safari 16.4 for `deflate-raw`; `package:archive` has no floor.
-  Play caps the compressed base download at 200 MB: the two databases take
-  ~124 MB of it, 19 MB less than with plain pages.
+  only macOS was run. On web, `package:archive` has no browser floor (see
+  **The blob decoder needs a web path**). Play caps the compressed base
+  download at 200 MB: the two databases take ~143 MB of it.
 
 The throwaway scripts (a Node size builder, a Dart read benchmark, a
 headless-Chrome test) lived in a session scratchpad, not the repo; the numbers
 above are the record.
+
+### Compression sample — optional, later
+
+Measured 2026-09-13 and ready to pick up if the download starts to matter.
+Nothing in steps 5–11 depends on it.
+
+**What a compression sample is.** About 32 KB of typical text — the words and
+phrases that recur across the canon — which the compressor treats as if it had
+already seen it. Each page then refers back to that text instead of spelling it
+out again, so a small page compresses nearly as well as a big chunk while a read
+still unpacks one page. Unpacking needs the exact same bytes, so the sample
+ships in the DB.
+
+**Not `dict.db`.** zlib and zstd call this a *preset dictionary*, and their APIs
+name it `dictionary`. It has nothing to do with word meanings, and this work
+does not touch `dict.db`. This doc says **compression sample** everywhere, so
+the two never blur.
+
+**What it buys, against plain** — download and storage only; reads are a wash:
+
+| | plain (ships) | with sample |
+|---|---|---|
+| Download, phone | 114 MB | 95 MB |
+| One-time download, web | ~116 MB | ~97 MB |
+| Bundled | 172 MB | 150 MB |
+| On device, iOS / Android | 344 / 286 MB | 300 / 245 MB |
+| Snippet read, native | 76 µs | 80 µs |
+| One page read, web (Chrome) | 0.25 ms | 0.34 ms |
+
+**What it costs:**
+- Two committed build inputs, one per language, and a script to retrain them.
+- A second table in the same file, so blobs and samples never update apart:
+
+  ```sql
+  CREATE TABLE bjt_content_sample (
+    language TEXT PRIMARY KEY,       -- 'pali' / 'sinh'
+    sample BLOB NOT NULL
+  );
+  ```
+- A web decoder that works around the sample (below), with its own checksum
+  checks, and section 5 narrowed to zlib with the header's sample flag set.
+- **Every blob changes when it lands**, so each user downloads the whole
+  database once. The DB ships with the app — bundled on mobile, deployed
+  together on web — so an old app never meets a new DB; on mobile that relies
+  on step 7. The same holds for every later retrain: free while updates ship
+  whole files, as the prestudy plans, not if partial updates are ever added.
+
+**How, if picked up:**
+- **Samples are committed files, trained by a script, never at build time.**
+  Train once per language with `zstd --train --maxdict=40000` over every 4th
+  page (zstd calls its output a dictionary) and keep the last 32 KB. Training
+  on every build would let a new zstd or a small text change alter every blob
+  and force a full re-download for nothing; a command written only in a doc
+  invites a hand-run that compresses worse with nothing failing. A stale sample
+  still works, just a little worse, so retrain deliberately.
+- **`zstd --train` beats a simple Node frequent-phrase builder** by 2.4 MB; the
+  Node builder is the fallback if zstd is unavailable.
+- **Per language beats shared** — one sample for both costs 1.9 MB more.
+- **Native needs zlib framing, not raw deflate.** `dart:io`'s
+  `ZLibDecoder(dictionary:)` only applies the sample when the zlib header asks
+  for it; raw deflate plus a sample fails with `Filter error, bad data`. The
+  header carries the sample's checksum, so a blob decoded with the other
+  language's sample throws in both Node and Dart instead of returning garbage.
+  Load each language's sample once, not per read.
+- **Web decoders don't accept a sample, and don't need to.** Neither the
+  browser's `DecompressionStream` nor `package:archive` takes one (archive's
+  zlib decoder returns failure when the header's sample flag is set). Standard
+  deflate gets around it: strip the 6-byte zlib header and 4-byte trailer, put
+  the sample in front as an *uncompressed block*, decode, and cut the first
+  32 KB off the output. Then check what zlib would — the sample's checksum in
+  the header (bytes 2–5), the page's in the trailer (`getAdler32`) — so a wrong
+  sample or a damaged blob throws on web exactly as natively. Verified in Chrome
+  (999/999) and in pure Dart over the whole corpus: under 0.1 ms per read over a
+  plain blob in Chrome, and no slower than plain in pure Dart (119 vs 127 µs),
+  because the blobs are smaller. `DecompressionStream` with `deflate-raw` needs
+  Chrome/Edge 103, Firefox 113 or Safari 16.4; `package:archive` has no floor.
 
 ## What the Drift/wasm spike changed (2026-09-11)
 
@@ -464,15 +521,16 @@ was describing a real property of the file at the time.
 
 `dart:io` does not exist on web, and this same table is the web's content
 source. Nothing in `pubspec.yaml` covers the gap — no `archive`, no `drift`, and
-`lib/` uses no codec today. Neither web decoder accepts a compression sample
-either; the uncompressed-block trick in **Blob size — decided** solves that
-without one.
+`lib/` uses no codec today.
 
-`DecompressionStream` (through JS interop) and `package:archive` both decode it.
-What separates them is testing: section 5 runs on the Dart VM, so it can run
-`package:archive` over every blob and can never run `DecompressionStream`. That
-favours `package:archive`, written once in `wisdom_shared` (step 5). Its speed
-once compiled to JS or wasm has not been measured; step 10 does that.
+`DecompressionStream` (through JS interop) and `package:archive` both read
+plain zlib. What separates them is testing: section 5 runs on the Dart VM, so it
+can run `package:archive` over every blob and can never run
+`DecompressionStream`. That favours `package:archive` — and its `ZLibDecoder` is
+one call on every platform: `dart:io`'s zlib natively, its pure-Dart `Inflate`
+on web. `ZLibDecoderWeb` forces the pure-Dart path, which is how section 5 runs
+the web's decoder on the VM (step 5). Its speed once compiled to JS or wasm has
+not been measured; step 11 does that.
 
 ### This work now gates the web move, rather than following it
 
@@ -514,7 +572,7 @@ the same build pipeline, one in the same datasource.
    rows. Its only demonstrated effect is the misplan above. Consider dropping
    it in the same pipeline pass.
 
-### Smaller constraints, for whoever writes steps 5–7
+### Smaller constraints, for whoever writes steps 5–8
 
 - **`SQLITE_DQS 0` on web:** double-quoted *string literals* are an error
   there, and native won't catch it. New `bjt_content` SQL must use single
@@ -585,16 +643,8 @@ CREATE TABLE bjt_content (
   pageIndex INTEGER NOT NULL,
   language TEXT NOT NULL,          -- 'pali' / 'sinh'
   pageNum INTEGER NOT NULL,        -- the *printed* page number, and not derivable
-  blob BLOB NOT NULL,             -- zlib, using the language's compression sample
+  blob BLOB NOT NULL,             -- zlib, level 9
   PRIMARY KEY (filename, pageIndex, language)
-);
-
--- One 32 KB compression sample per language (zlib's "preset dictionary";
--- unrelated to dict.db). Same file as the blobs, so the two can never be
--- updated apart.
-CREATE TABLE bjt_content_sample (
-  language TEXT PRIMARY KEY,       -- 'pali' / 'sinh'
-  sample BLOB NOT NULL
 );
 ```
 
@@ -626,10 +676,9 @@ CREATE TABLE bjt_content_sample (
 - **Keep the stored format platform-neutral.** Node writes this table
   (`better-sqlite3`), Dart reads it. No Freezed models or app-specific types in the
   blob — just the page's JSON substructure.
-- Decompression in Dart: `dart:io` `ZLibDecoder(dictionary: sample)` on native.
-  On web, where `dart:io` does not exist, `DecompressionStream` via JS interop
-  or `package:archive`, with the sample sent in front as an uncompressed
-  block. Neither is in `pubspec.yaml` yet. See **Blob size — decided**.
+- Decompression in Dart: `package:archive`'s `ZLibDecoder` — `dart:io`'s zlib
+  natively, pure Dart on web, same call. Not in `pubspec.yaml` yet. See **The
+  blob decoder needs a web path**.
 - **~~Optional max-speed snippet path~~ — dropped.** The idea was a per-entry
   `text` column so a snippet needed no parse at all. The benchmark says the page
   fetch *is* 0.03 ms, so there is nothing left to win, and per-entry
@@ -681,7 +730,7 @@ CREATE TABLE bjt_content_sample (
      rather than a BLOB is counted as its own failure too, rather than throwing
      on the cast and replacing a named finding with a stack trace.
 
-     **Step 5 narrows the frame** to zlib with a compression sample — see there.
+     **Step 5 narrows the frame** to plain zlib — see there.
 
      Proven end-to-end before the real table exists, against throwaway DBs
      written by `better-sqlite3`: gzip and zlib rows both inflate; a wrong
@@ -734,12 +783,12 @@ CREATE TABLE bjt_content_sample (
    wants a signed build. Worth confirming against a real artifact on a machine
    that has one, but it will not change the direction.
 
-   **Answered 2026-09-13:** a per-language compression sample brings the
-   download back to 95 MB with reads as fast as plain pages. See **Blob size —
-   decided**.
+   **Answered 2026-09-14:** accepted. Plain pages ship at 114 MB; a
+   per-language compression sample would bring it back to 95 MB with reads as
+   fast, and is kept for later — see **Compression sample — optional, later**.
 5. Extend `tools/bjt-fts-populate.js` to populate `bjt_content` (one page per
-   blob, zlib level 9 with the language's compression sample) and
-   `bjt_content_sample`, alongside the existing `_fts` / `_meta` tables.
+   blob, plain zlib level 9, plus the `pageNum` column) alongside the existing
+   `_fts` / `_meta` tables.
 
    **Two things that used to be part of this step are already done.** The
    script now ends in `finalizeDatabase` (`tools/db-finalize.js`) — `VACUUM
@@ -755,30 +804,18 @@ CREATE TABLE bjt_content_sample (
    Uncompressed JSON is a *failure*, not a lenient pass: it round-trips clean
    and would otherwise read green at 100% of plain JSON.
 
-   **One part of it changes first: the frame.** Section 5 accepts gzip or zlib
-   and decodes with plain `zlib.decode`, which fails on every blob compressed
-   with a sample. Change it to read `bjt_content_sample`, decode with
-   `ZLibDecoder(dictionary: sample)`, and accept *only* zlib with the header's
-   sample flag set. Plain gzip or zlib should fail for the same reason
-   uncompressed JSON does: it round-trips clean, and silently adds ~18 MB to
-   the download.
+   **One part of it narrows first: the frame.** Section 5 accepts gzip or
+   zlib. Narrow it to zlib, the one frame the app's decoder reads — gzip passes
+   here and fails in the app. A zlib header with the sample flag set fails
+   too: no sample ships, so nothing could open it.
 
-   **And it decodes every blob twice** — natively, and through the web decoder —
-   failing where the two disagree. The web path is a second implementation that
-   nothing else runs over the whole corpus, so write it here rather than in
-   step 6: a pure-Dart function in `wisdom_shared` on `package:archive` that
-   checks both checksums zlib does (step 6, **Decoder**), which section 5
-   imports and the app's web build later calls unchanged.
-
-   **Where the compression samples come from:** train once per language with
-   `zstd --train --maxdict=40000` over every 4th page (zstd calls its output a
-   dictionary), keep the last 32 KB, and commit the two files as build inputs —
-   deterministic, and no zstd needed to build. A stale sample still works, it
-   just compresses a little worse, so retrain deliberately: a new sample changes
-   every blob, so every user downloads the whole database again. That costs
-   nothing extra while updates ship whole files, as the prestudy plans; it
-   would if partial updates are ever added. A Node-only builder is the
-   fallback, at +2.4 MB.
+   **And it decodes every blob twice** — with `dart:io`'s zlib, and with
+   `package:archive`'s pure-Dart decoder (`ZLibDecoderWeb`, checksum
+   verified), which is the path the web build takes — failing where the two
+   disagree. Nothing else runs the web path over the whole corpus, so it
+   happens here rather than at step 11. `archive` joins `sqlite3` as a
+   `tool/`-only dev dependency of `static_site_generator`; the app already
+   locks the same version transitively.
 
    Almost nothing needs wiring up to check it. `verify_corpus_invariants.dart`
    looks in `assets/databases/bjt-fts.db` by default and reports SKIPPED while
@@ -802,6 +839,24 @@ CREATE TABLE bjt_content_sample (
    checkpoints and removes the `-wal`; this bites only after a killed run or an
    open sqlite3 session. The refusal prints the remedy:
    `sqlite3 assets/databases/bjt-fts.db 'PRAGMA wal_checkpoint(TRUNCATE);'`
+
+   **Back up the shipped database before the first run, and compare
+   `bjt_meta` after.** The rebuild regenerates the search index too, not just
+   the new table, and the shipped file's timestamp is earlier than the canon
+   sync commit (`470d105`) on the same day — so it may predate the vendored
+   JSON. If `bjt_meta` moves, the counts Groups 1–8 pin can move with it, for a
+   reason unrelated to `bjt_content`. The file is untracked, so git cannot
+   restore it.
+
+   **Left for after this step:**
+   - **Delete the step 2–4 throwaways**: `tools/bjt-content-spike.js`,
+     `tools/bench_content_read.dart`, `tools/bjt-content-spike.db`, and the
+     `.gitignore` block that names them. Their numbers are recorded in
+     **What the measurements said**; nothing else reads them.
+   - **`dict.db` is still WAL-flagged.** This step's rebuild fixes only
+     `bjt-fts.db`. Run `npm run generate-dict` in `tools/` separately. Until
+     then `validate-release.sh` fails on it, and the web build (step 11)
+     cannot open it.
 6. **Move the app to Drift, then add the content datasource on top.** Decided
    2026-09-13: both land in one branch, and no `sqflite` version of the
    datasource is written first. Two stages, so a failure points at one of them:
@@ -821,7 +876,7 @@ CREATE TABLE bjt_content_sample (
    2. **Add the content datasource** that reads + decompresses from
       `bjt_content`.
 
-   Web keeps its server path in this branch and moves at step 10.
+   Web keeps its server path in this branch and moves at step 11.
 
    Five things the measurements and the spike review turned up, all of which
    bite in stage 2 rather than in step 5:
@@ -852,16 +907,37 @@ CREATE TABLE bjt_content_sample (
      loader calling it once per page still produces a clean `0..n` every time
      and the test passes anyway. Whatever stitches the pages together needs its
      own check.
-   - **Decoder.** Native: `ZLibDecoder(dictionary: sample)`. Web: the
-     `wisdom_shared` function step 5 wrote and section 5 already runs. It
-     checks what zlib would: the sample checksum in the header (bytes 2–5)
-     and the checksum in the trailer (`getAdler32`), so a wrong sample or a
-     damaged blob throws on web exactly as it does natively. Load each
-     language's sample once, not per read.
-7. Repoint snippet path (now `_loadFileJson`/`_extractEntryText` in `_searchFullText`)
+   - **Decoder.** `package:archive`'s `ZLibDecoder` with `verify: true` — one
+     call on every platform (`dart:io`'s zlib natively, pure Dart on web), and
+     step 5 has already run both paths over every blob.
+7. **Make an app update replace the copied databases.** Both
+   `_initializeEdition` (`fts_local_datasource.dart`) and
+   `dictionary_local_datasource.dart` copy the asset out of the bundle only
+   when no copy exists, and nothing checks versions. So an update carrying a
+   rebuilt database never reaches an existing install: it keeps its first copy
+   for good. Every rebuild so far has had that gap, silently. This is the
+   first where the old file cannot serve the new code — it has no
+   `bjt_content`, so after step 8 reading and snippets break for every
+   existing user. Must land before step 8 ships.
+
+   To figure out:
+   - **How the app tells its copy is stale** — something recorded beside the
+     copy and compared with the bundled asset (a content hash, a build id).
+     Not `user_version` without care: Drift's migrator writes it unless
+     `enableMigrations: false` (see **Smaller constraints**).
+   - **Replacing it safely** — close any open connection, copy to a temp
+     file, then swap, so a launch killed mid-copy never leaves a half-written
+     database.
+   - **Memory** — `rootBundle.load` holds the whole asset in RAM before
+     writing it (see `dict.db` under **Open Questions**). One copy helper for
+     both databases, so the fix lands once.
+   - **The web side of the same question** is the manifest + boot reconciler
+     in [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md). Check
+     whether mobile can share its versioning rather than invent a second one.
+8. Repoint snippet path (now `_loadFileJson`/`_extractEntryText` in `_searchFullText`)
    and reader (`BJTDocumentLocalDataSourceImpl`) at the content datasource — see
    **Snippet-path teardown** below for the exact deletions.
-8. **Stop shipping the JSON.** Remove `- assets/text/` from `pubspec.yaml` and
+9. **Stop shipping the JSON.** Remove `- assets/text/` from `pubspec.yaml` and
    keep the files in the repo — every build-time reader opens them from disk
    (see **Current Runtime Dependencies on JSON**), and so does `server/` until
    it is retired. Three things go with that line:
@@ -871,24 +947,25 @@ CREATE TABLE bjt_content_sample (
      and `scripts/web/run_mac.sh` each `rm -rf build/web/assets/assets/text`,
      which does nothing once the files aren't bundled. Delete that line and
      keep the `databases` one beside it.
-   - **Proof nothing still reads them.** Step 7's check covers only snippets.
+   - **Proof nothing still reads them.** Step 8's check covers only snippets.
      `grep -rn "assets/text" lib/` must find no loader (doc comments naming a
      file are fine), and a build must carry no `assets/text/` — on macOS, look
      under `the_wisdom_project.app/Contents/Frameworks/App.framework/Resources/flutter_assets/assets/`.
-9. Verify offline reading + search snippets on a real device. Check first-launch
-   DB copy time (`_initializeEdition` copies the asset DB to the documents dir;
-   a bigger DB = bigger one-time copy + double on-disk during install).
-10. **Web now reads this DB client-side** (Drift wasm/OPFS) — see the top banner.
+10. Verify offline reading + search snippets on a real device. Check first-launch
+    DB copy time (`_initializeEdition` copies the asset DB to the documents dir;
+    a bigger DB = bigger one-time copy + double on-disk during install), and
+    that installing over an older build picks up the new database (step 7).
+11. **Web now reads this DB client-side** (Drift wasm/OPFS) — see the top banner.
     The old `getWebOverrides()` → server route is being retired, not extended.
     Not part of step 6's branch: it needs the download-once path and the
     COOP/COEP headers first (README step 3).
 
-    **Time the web decoder here.** Section 5 runs the `wisdom_shared` decoder
-    on the Dart VM only, so time it and check its output once in a web build;
+    **Time the web decoder here.** Section 5 runs `package:archive`'s pure-Dart
+    decoder on the Dart VM only, so time it and check its output once in a web build;
     if it is too slow there, swap just the unpacking call for
     `DecompressionStream` and keep the rest.
 
-### Snippet-path teardown (step 7 detail)
+### Snippet-path teardown (step 8 detail)
 
 The interim memo-cache fix
 ([`perf-fts-snippet-text-loading.md`](../../done/perf-fts-snippet-text-loading.md),
@@ -947,10 +1024,10 @@ missing-row degrades to an empty snippet, and the native search path no longer r
 
 ## Open Questions / Risks
 
-- **~~Compression granularity~~ — decided 2026-09-13:** one page + a
-  per-language compression sample; see **Blob size — decided**. Nothing on this
-  plan's critical path is open — the bullets below are real, but none blocks
-  step 5.
+- **~~Compression granularity~~ — decided 2026-09-14:** one page per blob,
+  plain zlib; see **Blob size — decided**. The compression sample is optional
+  and later. Nothing on this plan's critical path is open — the bullets below
+  are real, but none blocks step 5.
 
 - **`page_size` is a disk knob, not a download knob.** The 4/8/16/32 KB table
   sits next to the download discussion and reads as though a bigger page also
@@ -1049,7 +1126,7 @@ missing-row degrades to an empty snippet, and the native search path no longer r
   2. **First launch allocates the file in RAM.**
      `dictionary_local_datasource.dart:40` loads all 166 MB into one `ByteData`
      before writing it out. `bjt-fts.db` needs the same copy, so this wants one
-     shared streaming helper rather than a second copy of the bug.
+     shared streaming helper rather than a second copy of the bug — step 7.
 
   On Android `dict.db` costs ~28.5 + 166.6 ≈ 195 MB on the phone, not 333 MB:
   the APK keeps it deflated and only the first-run copy is full size. The same
@@ -1057,11 +1134,12 @@ missing-row degrades to an empty snippet, and the native search path no longer r
   on two axes**.
 
 - **First-launch copy**: the content+FTS DB copies to the documents dir on first
-  run and lives twice from then on — the 150 MB is why the iOS on-device figure
-  is 300 MB and not 150. `dict.db` (166.6 MB) already copies to the same place, so the
-  real first-run write is ~317 MB. Still well under today's, but it means every
-  megabyte the table saves is saved twice — which is why `page_size` was taken
-  at 8 KB.
+  run and lives twice from then on — the 172 MB is why the iOS on-device figure
+  is 344 MB and not 172. `dict.db` (166.6 MB) already copies to the same place, so the
+  real first-run write is ~339 MB, up from ~262 MB today (the JSON is never
+  copied). Every megabyte the table saves is saved twice — which is why
+  `page_size` was taken at 8 KB. And it copies *only* on first run: an update
+  never replaces it (step 7).
 - **Reader rewrite risk**: this touches the reader (higher-risk code than
   search). Stage it: engine swap first (step 6), then the content table +
   snippet repoint, then the reader, and drop the assets last.
