@@ -8,11 +8,12 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
 
 ## In this folder
 
-- **`reduce_mobile_bundle_size.md`** — the content-DB plan (JSON → contentless FTS +
-  per-page compressed text, same file). Now the keystone; the top banner carries the
-  decisions, and **What the Drift/wasm spike changed** carries what moved after the
-  spike. Blob size is decided (one page per blob plus a per-language compression
-  sample), so nothing on its critical path is open; step 5 is next.
+- **`reduce-mobile-size-and-move-to-drift.md`** — the content-DB plan (JSON →
+  contentless FTS + per-page compressed text, same file) and the app's move to
+  Drift. Now the keystone; the top banner carries the decisions, and **What the
+  Drift/wasm spike changed** carries what moved after the spike. Blob size is
+  decided (one page per blob plus a per-language compression sample), so nothing
+  on its critical path is open; step 5 is next.
 - **`drift-fts5-wasm-spike-results.md`** — what the spike found. Read this one.
 - **`db-auto-update-prestudy.md`** — the follow-on design brief: how a rebuilt DB
   reaches a client that already has the old one. Manifest + a boot reconciler, where
@@ -27,23 +28,30 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
    shipped wasm and our index returns byte-identical rows through it. The blocker it
    found instead — both DBs WAL-flagged, which that build rejects outright — is fixed
    in `tools/db-finalize.js`, which both database generators now end in.
-2. **Migrate FTS + dict to Drift** (native + web) — one engine, prove parity on every client.
-3. **Build the content DB** and fold it onto the same Drift path.
+2. **Build the content DB and move the app onto Drift — one branch, native only.**
+   Decided 2026-09-13: FTS, dict and the new content table leave `sqflite`
+   together — engine swap first, content table on top. Steps 5–9 of
+   [`reduce-mobile-size-and-move-to-drift.md`](./reduce-mobile-size-and-move-to-drift.md).
+3. **Move web onto Drift** (wasm + OPFS) — the same datasources, reading a database
+   downloaded once rather than bundled
+   ([`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md)).
 4. **Retire** `server/` and the web remote datasources; make Flutter web static.
-   The static HTML site + Flutter bundle share one **Cloudflare Pages** project;
-   the canon DBs (~180 MB content+FTS, ~175 MB `dict.db`) exceed Pages' 25 MiB
-   per-file limit, so they're hosted on **R2** and downloaded once into OPFS — see
-   [`reduce_mobile_bundle_size.md`](./reduce_mobile_bundle_size.md) (delivery bullet)
-   and [`static-web-hosting.md`](../../decisions/static-web-hosting.md)
-   (Free-tier fit).
+   The static HTML site and the Flutter bundle are separate **Cloudflare Pages**
+   projects (one per surface); the canon DBs (~180 MB content+FTS, ~175 MB
+   `dict.db`) exceed Pages' 25 MiB per-file limit, so they're hosted on **R2** and
+   downloaded once into OPFS — see
+   [`reduce-mobile-size-and-move-to-drift.md`](./reduce-mobile-size-and-move-to-drift.md)
+   (delivery bullet) and
+   [`static-web-hosting.md`](../../decisions/static-web-hosting.md) (Free-tier fit).
 
-> **3 before 4, and that is new.** Without the content DB, going static means serving
+> **2 before 4, and that is new.** Without the content DB, going static means serving
 > the 285 `assets/text/*.json` files to the browser — ~27 conditional GETs and 3–4 MB
-> per results page, and never offline. Step 3 deletes that path; doing 4 first means
+> per results page, and never offline. Step 2 deletes that path; doing 4 first means
 > building it and then throwing it away. (The spike called that fetch path "the
 > least-understood piece" of going static. The answer is not to prototype it.)
+> Step 3 sits between them for a simpler reason: it reads the table step 2 builds.
 >
-> Step 2 is also where the host decision lands: without COOP+COEP, Drift on Chrome
+> Step 3 is also where the host decision lands: without COOP+COEP, Drift on Chrome
 > does not fall back to "slower OPFS", it falls back to IndexedDB holding ~274 MB.
 
 ## Related (outside this folder)

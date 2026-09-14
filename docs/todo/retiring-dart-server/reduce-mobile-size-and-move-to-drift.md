@@ -1,8 +1,9 @@
-# Faster Reads (and a Smaller App): Move Text from JSON into SQLite
+# Faster Reads (and a Smaller App): Move Text into SQLite and the App onto Drift
 
 > **Status 2026-09-13:** steps 1–4 done; blob layout decided — one page per
-> blob plus a per-language **compression sample** (not `dict.db`, which this
-> work leaves alone). Next: step 5.
+> blob plus a per-language **compression sample** (unrelated to `dict.db`).
+> Step 6 moves the app from `sqflite` to Drift, in the same branch as the
+> content table. Next: step 5.
 
 > **UPDATE 2026-07-16 — CONFIRMED, and promoted to the keystone of a server-free
 > architecture.** Decisions from a follow-up study:
@@ -471,17 +472,18 @@ without one.
 What separates them is testing: section 5 runs on the Dart VM, so it can run
 `package:archive` over every blob and can never run `DecompressionStream`. That
 favours `package:archive`, written once in `wisdom_shared` (step 5). Its speed
-once compiled to JS or wasm has not been measured; step 6 does that.
+once compiled to JS or wasm has not been measured; step 10 does that.
 
 ### This work now gates the web move, rather than following it
 
 The spike's own biggest open item for going static was the JSON fetch path —
 "~27 conditional GETs and 3–4 MB per results page … **this is now the
 least-understood piece, not SQLite**". This table deletes that path rather than
-prototyping it. So in the README's order of operations, **step 3 (this
+prototyping it. So in the README's order of operations, **step 2 (this
 document) must land before step 4 (retire the server, make web static)**, or
-step 4 builds a 285-file fetch path on web and then throws it away. The order
-as written is already right; the dependency was not stated, and now is.
+step 4 builds a 285-file fetch path on web and then throws it away. Step 3
+(move web onto Drift) comes between them for a simpler reason: it reads the
+table step 2 builds.
 
 ### Three live bugs it found in code this work touches
 
@@ -800,12 +802,32 @@ CREATE TABLE bjt_content_sample (
    checkpoints and removes the `-wal`; this bites only after a killed run or an
    open sqlite3 session. The refusal prints the remedy:
    `sqlite3 assets/databases/bjt-fts.db 'PRAGMA wal_checkpoint(TRUNCATE);'`
-6. Add a local content datasource that reads + decompresses from `bjt_content`.
-   Five things the measurements and the spike review turned up, all of which
-   bite here rather than in step 5:
+6. **Move the app to Drift, then add the content datasource on top.** Decided
+   2026-09-13: both land in one branch, and no `sqflite` version of the
+   datasource is written first. Two stages, so a failure points at one of them:
 
-   - **The half-open → page-span rule has no home, and needs one before this
-     step.** Step 6 must know which page rows to `SELECT` *before* it has a
+   1. **Swap the engine and change nothing else.** Three files import
+      `sqflite` — `lib/main.dart` (desktop FFI setup),
+      `fts_local_datasource.dart` and `dictionary_local_datasource.dart` — plus
+      `test/data/datasources/fts_language_filter_sql_test.dart`. Move all four,
+      `dict.db` included, so `sqflite` and `sqflite_common_ffi` leave
+      `pubspec.yaml`. Same SQL, same results: the existing unit and integration
+      suites pass with no expectation changed before stage 2 starts. Adopt
+      Drift thin (`customSelect`) and follow **Smaller constraints** above.
+      Land the `ORDER BY score, id` tiebreaker (bug 1 above) as its own change
+      just before the swap, so a bm25 tie can't pass for an engine difference.
+      Native Drift has never run in this repo — the spike could not run the
+      Dart layer — so this stage is where it gets proven.
+   2. **Add the content datasource** that reads + decompresses from
+      `bjt_content`.
+
+   Web keeps its server path in this branch and moves at step 10.
+
+   Five things the measurements and the spike review turned up, all of which
+   bite in stage 2 rather than in step 5:
+
+   - **The half-open → page-span rule has no home, and needs one before
+     stage 2.** Stage 2 must know which page rows to `SELECT` *before* it has a
      document, and the only implementation of that rule today is
      `DocumentSlice.of` (`lib/domain/entities/reader/document_slice.dart`),
      which takes a loaded `BJTDocument` — so it cannot serve the fetch, and the
@@ -835,19 +857,36 @@ CREATE TABLE bjt_content_sample (
      checks what zlib would: the sample checksum in the header (bytes 2–5)
      and the checksum in the trailer (`getAdler32`), so a wrong sample or a
      damaged blob throws on web exactly as it does natively. Load each
-     language's sample once, not per read. Section 5 runs it on the Dart VM
-     only, so time it and check its output once in a web build; if it is too
-     slow there, swap just the unpacking call for `DecompressionStream` and
-     keep the rest.
+     language's sample once, not per read.
 7. Repoint snippet path (now `_loadFileJson`/`_extractEntryText` in `_searchFullText`)
    and reader (`BJTDocumentLocalDataSourceImpl`) at the content datasource — see
    **Snippet-path teardown** below for the exact deletions.
-8. Remove `- assets/text/` from `pubspec.yaml`. Keep the files in the repo.
+8. **Stop shipping the JSON.** Remove `- assets/text/` from `pubspec.yaml` and
+   keep the files in the repo — every build-time reader opens them from disk
+   (see **Current Runtime Dependencies on JSON**), and so does `server/` until
+   it is retired. Three things go with that line:
+   - **The comment above `assets:`** says `text/` ships on native and the API
+     serves it on web. Rewrite it to describe `databases/` alone.
+   - **The web scripts' `assets/text` strip lines.** `scripts/web/deploy.sh`
+     and `scripts/web/run_mac.sh` each `rm -rf build/web/assets/assets/text`,
+     which does nothing once the files aren't bundled. Delete that line and
+     keep the `databases` one beside it.
+   - **Proof nothing still reads them.** Step 7's check covers only snippets.
+     `grep -rn "assets/text" lib/` must find no loader (doc comments naming a
+     file are fine), and a build must carry no `assets/text/` — on macOS, look
+     under `the_wisdom_project.app/Contents/Frameworks/App.framework/Resources/flutter_assets/assets/`.
 9. Verify offline reading + search snippets on a real device. Check first-launch
    DB copy time (`_initializeEdition` copies the asset DB to the documents dir;
    a bigger DB = bigger one-time copy + double on-disk during install).
 10. **Web now reads this DB client-side** (Drift wasm/OPFS) — see the top banner.
     The old `getWebOverrides()` → server route is being retired, not extended.
+    Not part of step 6's branch: it needs the download-once path and the
+    COOP/COEP headers first (README step 3).
+
+    **Time the web decoder here.** Section 5 runs the `wisdom_shared` decoder
+    on the Dart VM only, so time it and check its output once in a web build;
+    if it is too slow there, swap just the unpacking call for
+    `DecompressionStream` and keep the rest.
 
 ### Snippet-path teardown (step 7 detail)
 
@@ -1024,8 +1063,8 @@ missing-row degrades to an empty snippet, and the native search path no longer r
   megabyte the table saves is saved twice — which is why `page_size` was taken
   at 8 KB.
 - **Reader rewrite risk**: this touches the reader (higher-risk code than
-  search). Stage it: land the content table + snippet repoint first, reader
-  second, drop the assets last.
+  search). Stage it: engine swap first (step 6), then the content table +
+  snippet repoint, then the reader, and drop the assets last.
 - **~~Footnotes / formatting markers~~ — answered.** The blob is the page's
   substructure verbatim, so footnotes and every marker come across by
   construction, and section 5 checked it entry for entry over the spike table:
