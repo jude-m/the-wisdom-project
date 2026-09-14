@@ -114,38 +114,56 @@ no lock, and the second wipes `build/` mid-upload.
 
 **Moved here from backlog C7, 2026-09-11** — it is release plumbing, so it lives
 with the release. `.github/workflows/` is empty; every test is run by hand today.
-Four things are already decided — don't re-derive them:
 
-- **Working directory is `static_site_generator/`.** Two paths in the suite are
-  CWD-relative. From the repo root you hit a blunter error first: the root
-  pubspec has no `test` dev_dependency, so resolution fails before any test runs.
+**A workflow calls the project's scripts and holds no logic of its own** — plan
+in [`test-all-and-release-all.md`](../test-all-and-release-all.md). Each
+product's `scripts/<product>/test.sh` is its release gate and its `deploy.sh`
+runs that first, so what was decided here now lives inside those scripts —
+don't re-derive it:
+
+- **`static_site/test.sh` runs from `static_site_generator/`.** Two paths in the
+  suite are CWD-relative, and the root pubspec has no `test` dev_dependency.
 - **The wiring guard runs ahead of the corpus run**, not beside it. A markup ⇄
   stylesheet disagreement should stop a deploy before the full build is
   generated.
-- **Four rows need only a checkout**; the two corpus rows ride the deploy job,
+- **`--quick` is the checkout-only half**; the corpus rows ride the release job,
   which checks the corpus out to generate the site anyway.
-- **The deploy job calls `deploy.sh --prod --yes`**, not a raw wrangler action —
+- **The release job calls `deploy.sh --prod --yes`**, not a raw wrangler action —
   every gate in §2 lives in that script.
+- **Repo secrets use the names in `scripts/config/secrets.env`**, so a script
+  reads the environment in CI and the file on a workstation.
 
-**Workflow 1 — on push/PR.** Checkout, then:
-
-| package | command |
+| job | runs |
 |---|---|
-| `static_site_generator/` | `dart test -x corpus` — the wiring contract, under a second |
-| `packages/wisdom_shared/` | `dart test` — markers, tree, link codec |
+| every push / PR | `scripts/test_all.sh --quick` |
+| release | `scripts/release_all.sh static_site --prod --yes` — full `static_site/test.sh`, build, `check_links.dart`, the HTML validator once it exists, upload |
+| integration (optional, macOS runner) | build the databases (`tools/`), then `scripts/app/test.sh` |
 
-**Workflow 2 — deploy.** Checkout with the corpus, `dart test` (full, ~45s),
-build, `check_links.dart`, the HTML validator, then `deploy.sh --prod --yes`.
-
-Workflow 1 is the half that catches the silent failures and needs nothing that
-does not already exist. Build it first; it does not wait on workflow 2.
+The push/PR job is the half that catches the silent failures. Build it first,
+once the product scripts exist; it does not wait on the release job.
 
 ---
 
 ## 6. Flutter web — not in this release
 
-Placeholder. `app.sammaditthi.net` has a Pages project reserved and nothing to
-put in it.
+Placeholder. **Where it lives on Cloudflare is not decided** — reopened
+2026-09-14. The likely shape is the static site's: two new Pages projects, one in
+the dev (personal) account and one in the prod (ops) account, the prod one
+serving `app.sammaditthi.net`. Names are not chosen, and `.pages.dev` names are
+first-come, so check before creating. `docs/decisions/static-web-hosting.md`
+still records a single reserved project; revise it once this is settled.
+
+**Three targets**, all in `scripts/app/web/`
+([`test-all-and-release-all.md`](../test-all-and-release-all.md)):
+
+| target | command | today |
+|---|---|---|
+| local | `run_mac.sh` | works through the Dart server until it moves to `deprecated/`; then builds only, until a local host replaces it (plan's **Not in this plan**) |
+| dev | `deploy.sh --dev` | placeholder |
+| prod | `deploy.sh --prod` | placeholder |
+
+Project names and origins go in `scripts/config/targets.env`, credentials in
+`scripts/config/secrets.env` — never in the deploy script.
 
 **The gate.** `lib/presentation/providers/platform_providers.dart` swaps in three
 remote HTTP datasources on web — FTS, dictionary, documents — all pointed at
@@ -153,11 +171,14 @@ same-origin `/api/…`. That origin is the Dart `shelf` content server, which is
 the thing being retired. On static Pages with no server the app boots and every
 content, search and dictionary call 404s.
 
-The replacement is the Drift migration (`docs/todo/retiring-dart-server/`), which
-has not started: `pubspec.yaml` has `sqflite`, no `drift`, and the one gate —
-proving FTS5 and the Sinhala tokenizer return identical rows through the wasm
-build — is still TODO. Until then the web app runs only where that server runs,
-which today is the Windows box `scripts/web/deploy.sh` targets.
+The replacement is web's move onto Drift — step 3 of
+[`retiring-dart-server/README.md`](../retiring-dart-server/README.md), after the
+native move. Its gate — FTS5 in the wasm build — passed 2026-09-11
+([`drift-fts5-wasm-spike-results.md`](../retiring-dart-server/drift-fts5-wasm-spike-results.md)).
+The server does not wait for it: it moves to `deprecated/` in step 4 of the plan,
+with the Windows-box deploy that hosted it. From then until web Drift lands the
+web app has no content anywhere, and locally no host either until the
+replacement exists. Accepted.
 
 **Banked for when it is live** — cheap, and currently wrong:
 
@@ -169,4 +190,7 @@ which today is the Windows box `scripts/web/deploy.sh` targets.
 - `X-Robots-Tag: noindex` **plus allow crawl** — not `Disallow`, which would stop
   a crawler ever fetching the response that carries the header.
 - AASA / assetlinks on **both** origins.
-- Research Worker CORS must include the `app.` origin.
+- Research Worker CORS must include the app's dev and prod origins.
+- **Buttons linking the two products, both ways** — the site's "Open in the full
+  reader" (planned in `static-web-hosting.md`) and a matching one in the app back
+  to the site.

@@ -35,7 +35,9 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
 3. **Move web onto Drift** (wasm + OPFS) — the same datasources, reading a database
    downloaded once rather than bundled
    ([`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md)).
-4. **Retire** `server/` and the web remote datasources; make Flutter web static.
+4. **Retire** the web remote datasources; make Flutter web static. `server/` does
+   not wait for this: it moves to `deprecated/` earlier, in
+   [`test-all-and-release-all.md`](../test-all-and-release-all.md).
    The static HTML site and the Flutter bundle are separate **Cloudflare Pages**
    projects (one per surface); the canon DBs (~180 MB content+FTS, ~175 MB
    `dict.db`) exceed Pages' 25 MiB per-file limit, so they're hosted on **R2** and

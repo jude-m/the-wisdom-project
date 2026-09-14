@@ -760,12 +760,8 @@ CREATE TABLE bjt_content (
      time. If step 6 reads page-at-a-time, segment-id continuity across a file
      needs its own check at whatever layer stitches the pages together.
 
-   **Unrelated TODO, parked here so it is not lost:** consolidate every test
-   path behind one entry point — a master switch that fires unit
-   (`flutter test`), integration (`flutter test integration_test/all_tests.dart
-   -d macos`), `static_site_generator` (`dart test`, its `corpus` tag and the
-   `tool/` scripts) and `packages/wisdom_shared`, taking optional parameters to
-   run a subset instead of remembering four commands.
+   **Unrelated TODO, moved out 2026-09-14:** one entry point for every test path
+   is its own plan now — [`test-all-and-release-all.md`](../test-all-and-release-all.md).
 2. **Prove the speed win (primary goal) — DONE 2026-09-11. GO.** Snippets 13–586×,
    reader p50 45× with one slice in 1,411 a quarter-millisecond slower than
    today. Numbers and method in **What the measurements said**;
