@@ -56,7 +56,8 @@ void main() {
         expect(ranges.length, 1);
       });
 
-      test('falls back to phrase search for multi-word query with hyphenated text',
+      test(
+          'falls back to phrase search for multi-word query with hyphenated text',
           () {
         final finder = SearchMatchFinder(
           queryText: 'සීල සමාධි',

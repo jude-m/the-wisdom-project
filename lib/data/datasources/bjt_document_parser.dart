@@ -66,8 +66,7 @@ class BJTDocumentParser {
         sectionJson['footnotes'] as List<dynamic>?;
 
     final entries = entriesJson.map((entryJson) {
-      final segmentId =
-          '$fileId:bjt:${generateSegmentIndex(languageCode)}';
+      final segmentId = '$fileId:bjt:${generateSegmentIndex(languageCode)}';
       return _parseEntry(entryJson as Map<String, dynamic>, segmentId);
     }).toList();
 

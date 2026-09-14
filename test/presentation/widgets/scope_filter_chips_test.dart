@@ -231,6 +231,5 @@ void main() {
         expect(capturedState?.isAllSelected, isFalse);
       });
     });
-
   });
 }

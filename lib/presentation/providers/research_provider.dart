@@ -196,15 +196,18 @@ class ResearchChatNotifier extends StateNotifier<ResearchChatState> {
         // chat always has at least that turn). Filing the answer would
         // resurrect the deleted chat — with the answer prose as its title.
         if (stored.isEmpty) return;
-        await _saveTranscript(sessionId, [
-          ...stored,
-          ChatMessage(
-            role: ChatRole.assistant,
-            content: answer.answer,
-            citations: answer.citations,
-            model: answer.model,
-          ),
-        ], mode);
+        await _saveTranscript(
+            sessionId,
+            [
+              ...stored,
+              ChatMessage(
+                role: ChatRole.assistant,
+                content: answer.answer,
+                citations: answer.citations,
+                model: answer.model,
+              ),
+            ],
+            mode);
       }
       return;
     }

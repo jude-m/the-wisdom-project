@@ -290,7 +290,8 @@ void main() {
         // "the resolver never loaded" alike, so a key that does have a
         // previous leaf has to separate them first.
         expect(
-          container.read(neighbourLeafProvider(('dn-1-2', ReaderStep.previous))),
+          container
+              .read(neighbourLeafProvider(('dn-1-2', ReaderStep.previous))),
           isNotNull,
           reason: 'The leaf walk must be working for vp\'s null to mean '
               '"first in the corpus" rather than "resolver not loaded"',
@@ -300,7 +301,8 @@ void main() {
         final previousNode =
             container.read(neighbourLeafProvider(('vp', ReaderStep.previous)));
         expect(previousNode, isNull,
-            reason: 'vp holds the first leaf in the corpus — nothing before it');
+            reason:
+                'vp holds the first leaf in the corpus — nothing before it');
 
         // ASSERT: Neither navigation icon is visible
         expect(find.byIcon(Icons.skip_previous), findsNothing,
@@ -338,8 +340,7 @@ void main() {
             reason: 'Tab paliName should update to dn-1-1 pali name');
         expect(tabsAfter[0].sinhalaName, 'බ්‍රහ්මජාල සූත්‍රය',
             reason: 'Tab sinhalaName should update to dn-1-1 sinhala name');
-        expect(tabsAfter[0].fullName,
-            'බ්රහ්මජාලසුත්තං / බ්‍රහ්මජාල සූත්‍රය',
+        expect(tabsAfter[0].fullName, 'බ්රහ්මජාලසුත්තං / බ්‍රහ්මජාල සූත්‍රය',
             reason: 'Tab fullName should update');
       },
     );
@@ -443,8 +444,7 @@ void main() {
 
         // ASSERT: vertical_align_top icon now visible inside the expanded FAB
         expect(find.byIcon(Icons.vertical_align_top), findsOneWidget,
-            reason:
-                'Expanded FAB should show scroll-to-top icon');
+            reason: 'Expanded FAB should show scroll-to-top icon');
 
         // ACT: Tap the scroll-to-top button
         await tester.tap(find.byIcon(Icons.vertical_align_top));
@@ -455,8 +455,7 @@ void main() {
         // Mode 1 never leaves the tree, so a bare finder passes whether or
         // not it came back.
         expect(find.byIcon(Icons.skip_previous).hitTestable(), findsOneWidget,
-            reason:
-                'After scrolling back to top → skip-previous icon returns');
+            reason: 'After scrolling back to top → skip-previous icon returns');
       },
     );
   });

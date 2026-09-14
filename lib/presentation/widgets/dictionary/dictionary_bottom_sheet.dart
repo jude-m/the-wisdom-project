@@ -357,7 +357,8 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
                                       _wordFocusNode.requestFocus();
                                       _onWordChanged(_wordController.text);
                                     },
-                                    tooltip: AppLocalizations.of(context).backspace,
+                                    tooltip:
+                                        AppLocalizations.of(context).backspace,
                                   ),
                                 ),
                               ),
@@ -372,7 +373,8 @@ class _DictionarySheetState extends ConsumerState<_DictionarySheet> {
                                   .isExactMatchToggle,
                               onPressed: () {
                                 ref
-                                    .read(bottomSheetExactMatchProvider.notifier)
+                                    .read(
+                                        bottomSheetExactMatchProvider.notifier)
                                     .state = !isExactMatch;
                               },
                             ),
@@ -620,7 +622,8 @@ class _DictionaryEntryTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   entry.word,
-                  style: typography.resultTitle.copyWith(fontWeight: FontWeight.w600),
+                  style: typography.resultTitle
+                      .copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -645,8 +648,7 @@ class _DictionaryEntryTile extends StatelessWidget {
           // "Read more" link rendered outside SelectionArea so tap gestures
           // aren't intercepted by the text selection handler (especially on
           // desktop where mouse clicks trigger selection, not tap recognizers).
-          if (entry.dictionaryId == 'DPD')
-            DpdReadMoreLink(html: entry.meaning),
+          if (entry.dictionaryId == 'DPD') DpdReadMoreLink(html: entry.meaning),
         ],
       ),
     );

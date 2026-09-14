@@ -84,7 +84,8 @@ class GroupedFTSMatch with _$GroupedFTSMatch {
 
       // First match is primary, rest are secondary
       final primaryMatch = matches.first;
-      final secondaryMatches = matches.length > 1 ? matches.sublist(1) : <SearchResult>[];
+      final secondaryMatches =
+          matches.length > 1 ? matches.sublist(1) : <SearchResult>[];
 
       groupedResults.add(
         GroupedFTSMatch(

@@ -22,7 +22,8 @@ final selectedDictionaryWordProvider = StateProvider<String?>((ref) => null);
 /// This ensures only one word is highlighted at a time across all paragraphs.
 ///
 /// Note: This is cleared when the dictionary sheet closes.
-final dictionaryHighlightProvider = StateProvider<({int widgetId, int position})?>((ref) => null);
+final dictionaryHighlightProvider =
+    StateProvider<({int widgetId, int position})?>((ref) => null);
 
 /// Tracks whether there's an active text selection.
 /// When true, word taps should be ignored to prevent dictionary from
@@ -63,9 +64,8 @@ final dictionaryRepositoryProvider = Provider<DictionaryRepository>((ref) {
 /// Lookup a word in the dictionary
 /// Returns a list of dictionary entries ordered by relevance
 /// Uses autoDispose to clean up when no listeners remain (prevents memory leaks).
-final dictionaryLookupProvider =
-    FutureProvider.autoDispose.family<List<DictionaryEntry>, DictionaryLookupParams>(
-        (ref, params) async {
+final dictionaryLookupProvider = FutureProvider.autoDispose
+    .family<List<DictionaryEntry>, DictionaryLookupParams>((ref, params) async {
   final repository = ref.watch(dictionaryRepositoryProvider);
 
   final result = await repository.lookupWord(
@@ -81,13 +81,11 @@ final dictionaryLookupProvider =
   );
 });
 
-
 /// Count lookup results for a word (for bottom sheet "Viewing X of Y" footer).
 /// Reuses countDefinitions since lookupWord and searchDefinitions share the
 /// same SQL WHERE clause (word LIKE ? with optional dictionary filter).
-final dictionaryLookupCountProvider =
-    FutureProvider.autoDispose.family<int, DictionaryLookupParams>(
-        (ref, params) async {
+final dictionaryLookupCountProvider = FutureProvider.autoDispose
+    .family<int, DictionaryLookupParams>((ref, params) async {
   final repository = ref.watch(dictionaryRepositoryProvider);
 
   final result = await repository.countDefinitions(
@@ -108,9 +106,8 @@ final dictionaryLookupCountProvider =
 
 /// Search definitions for a query (used in search tab)
 /// Uses autoDispose to clean up when no listeners remain (prevents memory leaks).
-final dictionarySearchProvider =
-    FutureProvider.autoDispose.family<List<DictionaryEntry>, DictionarySearchParams>(
-        (ref, params) async {
+final dictionarySearchProvider = FutureProvider.autoDispose
+    .family<List<DictionaryEntry>, DictionarySearchParams>((ref, params) async {
   final repository = ref.watch(dictionaryRepositoryProvider);
 
   final result = await repository.searchDefinitions(
@@ -128,8 +125,8 @@ final dictionarySearchProvider =
 
 /// Count definitions for a query (for tab badge)
 /// Uses autoDispose to clean up when no listeners remain (prevents memory leaks).
-final dictionaryCountProvider =
-    FutureProvider.autoDispose.family<int, DictionarySearchParams>((ref, params) async {
+final dictionaryCountProvider = FutureProvider.autoDispose
+    .family<int, DictionarySearchParams>((ref, params) async {
   final repository = ref.watch(dictionaryRepositoryProvider);
 
   final result = await repository.countDefinitions(

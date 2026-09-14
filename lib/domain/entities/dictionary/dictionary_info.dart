@@ -84,10 +84,8 @@ class DictionaryInfo {
   static DictionaryInfo? getById(String id) => all[id];
 
   /// Get display name for a dictionary ID
-  static String getDisplayName(String id) =>
-      all[id]?.name ?? id;
+  static String getDisplayName(String id) => all[id]?.name ?? id;
 
   /// Get abbreviation for a dictionary ID
-  static String getAbbreviation(String id) =>
-      all[id]?.abbreviation ?? id;
+  static String getAbbreviation(String id) => all[id]?.abbreviation ?? id;
 }

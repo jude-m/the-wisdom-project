@@ -96,9 +96,8 @@ class _InPageSearchBarState extends ConsumerState<InPageSearchBar> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: BorderSide(
-          color: _focusNode.hasFocus
-              ? colorScheme.primary
-              : colorScheme.outline,
+          color:
+              _focusNode.hasFocus ? colorScheme.primary : colorScheme.outline,
         ),
       ),
       child: Padding(

@@ -263,8 +263,7 @@ void main() {
 
       // `sp-grp-2` is a follower: its own key names no vaṇṇanā, so the only
       // thing that can say it was the door is the marker.
-      expect(canon,
-          contains('href="/tipitaka/atta-sp-grp-1#via_sp-grp-2">'));
+      expect(canon, contains('href="/tipitaka/atta-sp-grp-1#via_sp-grp-2">'));
       expect(commentary, contains('<span class="origin" id="via_sp-grp-2">'));
 
       // The run's first sutta keeps the plain URL. It is where `.back-default`
@@ -835,7 +834,14 @@ final TipitakaTree _tree = TipitakaTree.fromJson({
   // A commentary side, so the cross-link has somewhere to point. The one
   // vaṇṇanā declares `1-2.`, so it answers for BOTH canon suttas — the merged
   // shape whose return trip needs a marker per sutta rather than one link.
-  'atta-sp': ['අට්ඨකථා', 'අටුවාව', 6, [0, 0], null, 'atta-an-1'],
+  'atta-sp': [
+    'අට්ඨකථා',
+    'අටුවාව',
+    6,
+    [0, 0],
+    null,
+    'atta-an-1'
+  ],
   'atta-sp-grp': [
     'චිත්තපරියාදානවග්ගවණ්ණනා',
     'චිත්ත වර්ග වර්ණනාව',

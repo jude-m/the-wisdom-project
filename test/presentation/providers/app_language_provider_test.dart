@@ -20,7 +20,8 @@ void main() {
   }) {
     final container = ProviderContainer(
       overrides: [
-        keyValueStoreProvider.overrideWithValue(store ?? InMemoryKeyValueStore()),
+        keyValueStoreProvider
+            .overrideWithValue(store ?? InMemoryKeyValueStore()),
         deviceLocalesProvider.overrideWithValue(deviceLocales),
       ],
     );
@@ -41,8 +42,7 @@ void main() {
     // (1.2) — re-testing both locales here would re-litigate that seam.
     test('a saved value wins over the device locale', () {
       // Device says Sinhala, but the user previously chose English.
-      final store =
-          InMemoryKeyValueStore({StorageKeys.appLanguage: 'english'});
+      final store = InMemoryKeyValueStore({StorageKeys.appLanguage: 'english'});
       final container =
           makeContainer(deviceLocales: const [Locale('si')], store: store);
 

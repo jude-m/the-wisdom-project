@@ -87,7 +87,8 @@ void main() {
 
           // Non-empty: rawQuery updates immediately
           notifier.updateQuery('සුතං');
-          expect(container.read(activeInPageSearchStateProvider).rawQuery, 'සුතං');
+          expect(
+              container.read(activeInPageSearchStateProvider).rawQuery, 'සුතං');
           expect(
             container.read(activeInPageSearchStateProvider).effectiveQuery,
             isNotEmpty,

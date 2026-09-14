@@ -31,8 +31,7 @@ class TabsNotifier extends StateNotifier<List<ReaderTab>> {
     // Capture the RemoveListener so dispose() can detach explicitly. Not
     // strictly required (the notifier itself is being disposed), but it
     // future-proofs against accidental re-entrancy if dispose grows.
-    _removeStateListener =
-        addListener(_onStateChanged, fireImmediately: false);
+    _removeStateListener = addListener(_onStateChanged, fireImmediately: false);
   }
 
   final KeyValueStore _store;
@@ -260,7 +259,8 @@ final activeSplitRatioProvider = Provider<double>((ref) =>
 
 /// Provider to update the split ratio of the active tab
 /// Used when user drags the resizable divider in side-by-side layout
-final updateActiveTabSplitRatioProvider = Provider<void Function(double)>((ref) {
+final updateActiveTabSplitRatioProvider =
+    Provider<void Function(double)>((ref) {
   return (double ratio) {
     final activeIndex = ref.read(activeTabIndexProvider);
     final tabs = ref.read(tabsProvider);

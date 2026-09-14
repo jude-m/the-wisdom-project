@@ -159,7 +159,10 @@ void main() {
 
     test('a node with no content file is absent — it has no text to slice', () {
       expect(
-        SliceIndex.nodesByFile(tree).values.expand((n) => n).map((n) => n.nodeKey),
+        SliceIndex.nodesByFile(tree)
+            .values
+            .expand((n) => n)
+            .map((n) => n.nodeKey),
         isNot(contains('bk-4')),
       );
     });

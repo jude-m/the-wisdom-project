@@ -39,7 +39,8 @@ class HealthHandler {
     final file = File(_deployJsonPath);
     if (file.existsSync()) {
       try {
-        final parsed = json.decode(file.readAsStringSync()) as Map<String, dynamic>;
+        final parsed =
+            json.decode(file.readAsStringSync()) as Map<String, dynamic>;
         sha = parsed['sha'] as String?;
         builtAt = parsed['builtAt'] as String?;
         // `notes` may be missing on older deploys — tolerate that silently.

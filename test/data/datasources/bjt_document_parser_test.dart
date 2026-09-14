@@ -183,10 +183,12 @@ void main() {
 
   group('BJTDocumentParser - degenerate input', () {
     test('an unrecognised type falls back to paragraph', () {
-      final parsed = BJTDocumentParser.parseDocument('x', _pageWith({
-        'type': 'marginalia',
-        'text': 'ඒ භගවත්',
-      }));
+      final parsed = BJTDocumentParser.parseDocument(
+          'x',
+          _pageWith({
+            'type': 'marginalia',
+            'text': 'ඒ භගවත්',
+          }));
       expect(parsed.pages[0].paliSection.entries[0].entryType,
           equals(EntryType.paragraph));
     });
@@ -194,10 +196,12 @@ void main() {
     test('a section with no footnotes key gives an empty list, not null', () {
       // `_pageWith` writes no `footnotes` key, which is the shape a page blob
       // may well store rather than an explicit `[]`.
-      final parsed = BJTDocumentParser.parseDocument('x', _pageWith({
-        'type': 'paragraph',
-        'text': 'ඒ භගවත්',
-      }));
+      final parsed = BJTDocumentParser.parseDocument(
+          'x',
+          _pageWith({
+            'type': 'paragraph',
+            'text': 'ඒ භගවත්',
+          }));
       final section = parsed.pages[0].paliSection;
       expect(section.footnotes, isEmpty);
       expect(section.hasFootnotes, isFalse);
@@ -205,10 +209,12 @@ void main() {
     });
 
     test('type matching ignores case', () {
-      final parsed = BJTDocumentParser.parseDocument('x', _pageWith({
-        'type': 'Gatha',
-        'text': 'ඒ භගවත්',
-      }));
+      final parsed = BJTDocumentParser.parseDocument(
+          'x',
+          _pageWith({
+            'type': 'Gatha',
+            'text': 'ඒ භගවත්',
+          }));
       expect(parsed.pages[0].paliSection.entries[0].entryType,
           equals(EntryType.gatha));
     });
@@ -221,8 +227,8 @@ List<Map<String, dynamic>> _sourceEntries(
   int pageIndex,
   String language,
 ) {
-  final page = (fixture['pages'] as List<dynamic>)[pageIndex]
-      as Map<String, dynamic>;
+  final page =
+      (fixture['pages'] as List<dynamic>)[pageIndex] as Map<String, dynamic>;
   final section = page[language] as Map<String, dynamic>;
   return (section['entries'] as List<dynamic>).cast<Map<String, dynamic>>();
 }

@@ -6,7 +6,8 @@ import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../core/utils/pali_letter_options.dart';
 import '../../../core/utils/search_match_finder.dart';
 import '../../../core/utils/text_utils.dart';
-import '../../providers/dictionary_provider.dart' show dictionaryHighlightProvider;
+import '../../providers/dictionary_provider.dart'
+    show dictionaryHighlightProvider;
 import '../../providers/fts_highlight_provider.dart';
 import '../../providers/pali_letter_options_provider.dart';
 
@@ -262,8 +263,9 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
         : <({int start, int end})>[];
 
     // Compute FTS search highlight ranges only if in-page search is not active
-    final searchRanges =
-        hasInPageSearch ? <({int start, int end})>[] : _computeSearchRanges(searchHighlight);
+    final searchRanges = hasInPageSearch
+        ? <({int start, int end})>[]
+        : _computeSearchRanges(searchHighlight);
 
     // For non-Pali text (e.g., Sinhala translations), render as simple Text
     // to avoid unnecessary gesture recognizer overhead.
@@ -387,7 +389,8 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
           baseStyle: widget.style,
           recognizer: recognizer,
           markedRanges: markedRanges,
-          inPageCurrentMatchColor: inPageRanges.isNotEmpty ? inPageCurrentMatchColor : null,
+          inPageCurrentMatchColor:
+              inPageRanges.isNotEmpty ? inPageCurrentMatchColor : null,
           currentInPageRangeIndex: currentInPageRangeIndex,
           allInPageRanges: inPageRanges.isNotEmpty ? inPageRanges : null,
         );
@@ -420,7 +423,8 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
           baseStyle: widget.style,
           recognizer: recognizer,
           markedRanges: markedRanges,
-          inPageCurrentMatchColor: inPageRanges.isNotEmpty ? inPageCurrentMatchColor : null,
+          inPageCurrentMatchColor:
+              inPageRanges.isNotEmpty ? inPageCurrentMatchColor : null,
           currentInPageRangeIndex: currentInPageRangeIndex,
           allInPageRanges: inPageRanges.isNotEmpty ? inPageRanges : null,
         );
@@ -442,7 +446,8 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
         baseStyle: widget.style,
         recognizer: lastRecognizer,
         markedRanges: markedRanges,
-        inPageCurrentMatchColor: inPageRanges.isNotEmpty ? inPageCurrentMatchColor : null,
+        inPageCurrentMatchColor:
+            inPageRanges.isNotEmpty ? inPageCurrentMatchColor : null,
         currentInPageRangeIndex: currentInPageRangeIndex,
         allInPageRanges: inPageRanges.isNotEmpty ? inPageRanges : null,
       );

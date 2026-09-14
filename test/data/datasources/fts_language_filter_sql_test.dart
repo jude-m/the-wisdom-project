@@ -35,11 +35,13 @@ void main() {
 
     // Same logical entry in two languages; both contain the search term, so
     // only the language filter distinguishes them. DB stores Sinhala as 'sinh'.
-    await db.execute("INSERT INTO bjt_fts(rowid, text) VALUES (1, 'dhamma pali');");
+    await db
+        .execute("INSERT INTO bjt_fts(rowid, text) VALUES (1, 'dhamma pali');");
     await db.execute(
       "INSERT INTO bjt_meta VALUES (1, 'dn-1', '0-0', 'pali', 'p', 0, 'dn-1');",
     );
-    await db.execute("INSERT INTO bjt_fts(rowid, text) VALUES (2, 'dhamma sinh');");
+    await db
+        .execute("INSERT INTO bjt_fts(rowid, text) VALUES (2, 'dhamma sinh');");
     await db.execute(
       "INSERT INTO bjt_meta VALUES (2, 'dn-1', '0-0', 'sinh', 'p', 0, 'dn-1');",
     );
@@ -79,7 +81,8 @@ void main() {
         args.addAll(ScopeFilterService.getLanguageParams(language));
       }
     } else {
-      buffer.write('SELECT COUNT(*) as count FROM bjt_fts WHERE bjt_fts MATCH ?');
+      buffer
+          .write('SELECT COUNT(*) as count FROM bjt_fts WHERE bjt_fts MATCH ?');
     }
     final rows = await db.rawQuery(buffer.toString(), args);
     return rows.first['count'] as int;
@@ -128,7 +131,8 @@ void main() {
       expect(await countMatches(null), 2);
     });
 
-    test("'pali' → joined count of just the Pali row "
+    test(
+        "'pali' → joined count of just the Pali row "
         '(guards the needsMetaJoin branch)', () async {
       expect(await countMatches('pali'), 1);
     });
@@ -142,8 +146,8 @@ void main() {
     test('intersects scope AND language — proves BOTH filters apply', () async {
       // Add a third 'dhamma' row: Pali, but in a DIFFERENT location (mn-1).
       //   row 1: pali / dn-1     row 2: sinh / dn-1     row 3: pali / mn-1
-      await db
-          .execute("INSERT INTO bjt_fts(rowid, text) VALUES (3, 'dhamma pali');");
+      await db.execute(
+          "INSERT INTO bjt_fts(rowid, text) VALUES (3, 'dhamma pali');");
       await db.execute(
         "INSERT INTO bjt_meta VALUES (3, 'mn-1', '0-0', 'pali', 'p', 0, 'mn-1');",
       );

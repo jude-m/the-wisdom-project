@@ -33,8 +33,7 @@ void main() {
   group('segments reconstruct the stripped text exactly', () {
     for (final raw in [..._cases, _fabricationHazard]) {
       test(_describe(raw), () {
-        final rebuilt =
-            parseContentMarkers(raw).map((s) => s.text).join();
+        final rebuilt = parseContentMarkers(raw).map((s) => s.text).join();
         expect(rebuilt, ContentMarkers.stripMarkers(raw));
       });
     }

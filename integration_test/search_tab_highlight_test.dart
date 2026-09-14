@@ -70,13 +70,13 @@ class _SearchTabTestWidgetState extends ConsumerState<_SearchTabTestWidget> {
     if (tabIndex >= 0 && result.resultType == SearchResultType.fullText) {
       final searchState = ref.read(searchStateProvider);
       ref.read(ftsHighlightProvider.notifier).setForTab(
-        tabIndex,
-        FtsHighlightState(
-          queryText: searchState.effectiveQueryText,
-          isPhraseSearch: searchState.isPhraseSearch,
-          isExactMatch: searchState.isExactMatch,
-        ),
-      );
+            tabIndex,
+            FtsHighlightState(
+              queryText: searchState.effectiveQueryText,
+              isPhraseSearch: searchState.isPhraseSearch,
+              isExactMatch: searchState.isExactMatch,
+            ),
+          );
     }
 
     // Save to recent searches and dismiss panel
@@ -220,7 +220,8 @@ void main() {
 
         // Tap the first ListTile (search result)
         final ftsListTiles = find.byType(ListTile);
-        expect(ftsListTiles, findsWidgets, reason: 'Step 2: FTS results visible');
+        expect(ftsListTiles, findsWidgets,
+            reason: 'Step 2: FTS results visible');
         await tester.tap(ftsListTiles.first);
         await pumpForSettle(tester, const Duration(seconds: 2));
 
@@ -304,8 +305,7 @@ void main() {
         // STEP 5: Open "dn-2-9" (Mahasatipatthana Sutta) via
         //         openTabFromNodeKeyProvider → 3 tabs, no active FTS highlight
         // ================================================================
-        final newIndex =
-            container.read(openTabFromNodeKeyProvider)('dn-2-9');
+        final newIndex = container.read(openTabFromNodeKeyProvider)('dn-2-9');
         expect(
           newIndex,
           greaterThanOrEqualTo(0),
@@ -321,8 +321,7 @@ void main() {
         expect(
           container.read(activeFtsHighlightProvider),
           isNull,
-          reason:
-              'Step 5: Navigator-opened tab should have no FTS highlight',
+          reason: 'Step 5: Navigator-opened tab should have no FTS highlight',
         );
 
         // ================================================================
@@ -335,7 +334,8 @@ void main() {
         expect(
           container.read(activeFtsHighlightProvider),
           isNotNull,
-          reason: 'Step 6: FTS tab highlight should persist after switching back',
+          reason:
+              'Step 6: FTS tab highlight should persist after switching back',
         );
 
         // ================================================================

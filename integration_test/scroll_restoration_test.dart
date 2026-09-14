@@ -107,12 +107,12 @@ void main() {
         // STEP 1: Scroll Tab A to 300 using the controller
         // SingleColumnPane uses ListView.builder (vertical); TabBarWidget uses horizontal ListView
         final scrollableA = find.byWidgetPredicate(
-          (widget) => widget is ListView && widget.scrollDirection == Axis.vertical,
+          (widget) =>
+              widget is ListView && widget.scrollDirection == Axis.vertical,
         );
         expect(scrollableA, findsOneWidget,
             reason: 'Should find vertical ListView for content');
-        final controllerA =
-            tester.widget<ListView>(scrollableA).controller;
+        final controllerA = tester.widget<ListView>(scrollableA).controller;
         if (controllerA != null && controllerA.hasClients) {
           controllerA.jumpTo(300);
           await pumpForSettle(tester);
@@ -139,11 +139,11 @@ void main() {
 
         // STEP 3: Scroll Tab B to 600
         final scrollableB = find.byWidgetPredicate(
-          (widget) => widget is ListView && widget.scrollDirection == Axis.vertical,
+          (widget) =>
+              widget is ListView && widget.scrollDirection == Axis.vertical,
         );
         expect(scrollableB, findsOneWidget);
-        final controllerB =
-            tester.widget<ListView>(scrollableB).controller;
+        final controllerB = tester.widget<ListView>(scrollableB).controller;
         if (controllerB != null && controllerB.hasClients) {
           controllerB.jumpTo(600);
           await pumpForSettle(tester);
@@ -251,11 +251,11 @@ void main() {
 
         // Scroll Tab A down
         final scrollable = find.byWidgetPredicate(
-          (widget) => widget is ListView && widget.scrollDirection == Axis.vertical,
+          (widget) =>
+              widget is ListView && widget.scrollDirection == Axis.vertical,
         );
         if (scrollable.evaluate().isNotEmpty) {
-          final controller =
-              tester.widget<ListView>(scrollable).controller;
+          final controller = tester.widget<ListView>(scrollable).controller;
           if (controller != null && controller.hasClients) {
             controller.jumpTo(500);
             await pumpForSettle(tester);
@@ -383,11 +383,11 @@ void main() {
 
         // Scroll and save position
         final scrollable = find.byWidgetPredicate(
-          (widget) => widget is ListView && widget.scrollDirection == Axis.vertical,
+          (widget) =>
+              widget is ListView && widget.scrollDirection == Axis.vertical,
         );
         if (scrollable.evaluate().isNotEmpty) {
-          final controller =
-              tester.widget<ListView>(scrollable).controller;
+          final controller = tester.widget<ListView>(scrollable).controller;
           if (controller != null && controller.hasClients) {
             controller.jumpTo(250);
             await pumpForSettle(tester);

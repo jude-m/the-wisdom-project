@@ -32,8 +32,7 @@ class CacheConfig {
       return CacheConfig(maxEntries: 30, enabled: enabled);
     }
     final platform = defaultTargetPlatform;
-    if (platform == TargetPlatform.android ||
-        platform == TargetPlatform.iOS) {
+    if (platform == TargetPlatform.android || platform == TargetPlatform.iOS) {
       // Reduce to 10 if OOM issues surface on older devices.
       return CacheConfig(maxEntries: 20, enabled: enabled);
     }

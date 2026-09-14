@@ -734,13 +734,16 @@ bool? _verifyContent(
           entriesCompared += expectedEntries.length;
           if (!_deepEquals(expectedEntries, actualEntries)) {
             textDiffs++;
-            _sample(entrySamples, '$where: '
+            _sample(
+                entrySamples,
+                '$where: '
                 '${_firstEntryDivergence(expectedEntries, actualEntries)}');
           }
-          if (!_deepEquals(
-              expectedMap['footnotes'], actualMap['footnotes'])) {
+          if (!_deepEquals(expectedMap['footnotes'], actualMap['footnotes'])) {
             footnoteDiffs++;
-            _sample(footnoteSamples, '$where: '
+            _sample(
+                footnoteSamples,
+                '$where: '
                 '${_footnoteShape(expectedMap)} in source, '
                 '${_footnoteShape(actualMap)} in table');
           }
@@ -761,9 +764,7 @@ bool? _verifyContent(
     byFile.dispose();
 
     final rowsExtra = rowsInTable - rowsFound;
-    final ratio = inflatedBytes == 0
-        ? 0.0
-        : storedBytes / inflatedBytes;
+    final ratio = inflatedBytes == 0 ? 0.0 : storedBytes / inflatedBytes;
 
     stdout.writeln('  database              $dbPath');
     stdout.writeln('  rows in table         $rowsInTable');

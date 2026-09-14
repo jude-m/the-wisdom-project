@@ -30,9 +30,8 @@ class ScopeFilterSql {
     final patterns = ScopePatterns.getPatternsForScope(searchScope);
     if (patterns.isEmpty) return null;
 
-    final conditions = patterns
-        .map((_) => '$tableAlias.$columnName LIKE ?')
-        .join(' OR ');
+    final conditions =
+        patterns.map((_) => '$tableAlias.$columnName LIKE ?').join(' OR ');
 
     return '($conditions)';
   }

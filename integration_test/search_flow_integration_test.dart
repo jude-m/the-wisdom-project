@@ -147,8 +147,7 @@ void main() {
           tester.element(find.byType(MaterialApp)),
         );
 
-        final titleResults =
-            grouped.getResultsByType(SearchResultType.title);
+        final titleResults = grouped.getResultsByType(SearchResultType.title);
         final paliTitleResult =
             titleResults.where((r) => r.language == 'pali').firstOrNull;
         if (paliTitleResult != null) {
@@ -169,8 +168,7 @@ void main() {
               PaliLetterOptions.defaults,
             );
             expect(find.textContaining(expectedSinhalaTitle), findsWidgets,
-                reason:
-                    'In the default (Sinhala) Content Language, the title '
+                reason: 'In the default (Sinhala) Content Language, the title '
                     'should show the node\'s Sinhala name, unchanged');
           }
 
@@ -196,8 +194,7 @@ void main() {
               : beautifyPaliText(
                   paliTitleResult.title, PaliLetterOptions.defaults);
           expect(find.textContaining(expectedPaliTitle), findsWidgets,
-              reason:
-                  'Pali title results should display with conjunct '
+              reason: 'Pali title results should display with conjunct '
                   'transformation');
         }
       },
@@ -639,7 +636,8 @@ void main() {
         final state = tester.getSearchState();
         final defResults = state.fullResults.value;
         expect(defResults, isNotNull, reason: 'Should have definition results');
-        expect(defResults, isNotEmpty, reason: 'Should have definition results');
+        expect(defResults, isNotEmpty,
+            reason: 'Should have definition results');
 
         // Use the first result — it's always rendered by ListView (top of list).
         // Results further down may not be built due to lazy rendering.
@@ -647,8 +645,7 @@ void main() {
         final transformedTitle =
             beautifyPaliText(firstResult.title, PaliLetterOptions.defaults);
         expect(find.textContaining(transformedTitle), findsWidgets,
-            reason:
-                'First dictionary result title should display with Pali '
+            reason: 'First dictionary result title should display with Pali '
                 'conjunct transformation applied by the tile widget');
       },
     );
@@ -738,56 +735,135 @@ typedef _Snippet = ({
 /// Recorded 2026-09-11, before the `bjt_content` migration, against the
 /// bundled FTS database and `assets/text/*.json`.
 const Map<String, List<_Snippet>> _snippetGoldens = {
-    'සොතාපත්ති': [
-      // plain text, no markers
-      (fileId: 'atta-sn-3', page: 70, entry: 1, language: 'pali',
-       text: "1. සොතාපත්තිවග්ගො"),
-      // same row, other language
-      (fileId: 'atta-sn-3', page: 70, entry: 1, language: 'sinhala',
-       text: "1. සොතාපත්ති වර්ගය"),
-      // **bold** survives
-      (fileId: 'ap-kvu-15', page: 11, entry: 9, language: 'pali',
-       text: "**2.** ස. පු: සොතාපත්තිමග්ගස්ස ජරාමරණං සොතාපත්තිමග්ගොති."),
-      // {1} footnote ref survives
-      (fileId: 'ap-kvu-15', page: 79, entry: 9, language: 'pali',
-       text: "ස. අනු: සොතාපත්තිමග්ගෙනාති.{1}"),
-    ],
-    'මහාසති': [
-      // embedded newline survives
-      (fileId: 'atta-dn-2-4', page: 164, entry: 2, language: 'pali',
-       text: "ඉති සුමඞ්ගලවිලාසිනියා දීඝනිකායට්ඨකථායං\nමහාසතිපට්ඨානසුත්තවණ්ණනා නිට්ඨිතා."),
-      // zero-width joiner survives
-      (fileId: 'atta-dn-2-4', page: 110, entry: 0, language: 'sinhala',
-       text: "9. මහාසතිපට්ඨාන සූත්‍ර වර්ණනාව"),
-      // **bold** mid-sentence
-      (fileId: 'anya-vm', page: 255, entry: 4, language: 'pali',
-       text: "එවං තික්ඛපඤ්ඤස්ස ධාතුකම්මට්ඨානිකස්ස වසෙන **මහාසතිපට්ඨානෙ** (දී· නි· 2.378) සඞ්ඛෙපතො ආගතං."),
-    ],
-    'waasawa': [
-      // footnote ref AND newline
-      (fileId: 'sn-1-7', page: 67, entry: 3, language: 'pali',
-       text: "කින්නු තෙසං පිහයසි අනාගාරාන වාසව,\nආචාරං ඉසිනං{4} බ්රූහි තං සුණොම වචො තවාති."),
-      // gatha, two lines
-      (fileId: 'atta-kn-jat-22', page: 85, entry: 12, language: 'pali',
-       text: "“සො පුට්ඨො නරදෙවෙන, වාසවො අවචා නිමිං; \nවිපාකං බ්රහ්මචරියස්ස, ජානං අක්ඛාසිජානතො."),
-      // same row, other language
-      (fileId: 'atta-kn-jat-22', page: 85, entry: 12, language: 'sinhala',
-       text: "සො ඵුට්ඨො නර දෙවෙන, වාසවො අවචා නිමිං, \nවිපාකං බ්‍රහ්මචරියස්ස, ජානං අක්ඛාස ජානතො"),
-    ],
-    'බුද්ධ': [
-      // three footnote refs in one entry
-      (fileId: 'kn-ap-2', page: 33, entry: 11, language: 'pali',
-       text: "400. බුද්ධො බුද්ධස්ස නිබ්බානෙ{5} නොපදිස්සති{6} භික්ඛවො\nබුද්ධො ගොතමිනිබ්බානෙ සාරිපුත්තාදිකා{7} තථා."),
-      // leading bold marker
-      (fileId: 'ap-kvu-3', page: 69, entry: 16, language: 'pali',
-       text: "**16.** ස. පු: අතීතාය බොධියා බුද්ධො, අනාගතාය බොධියා බුද්ධො, පච්චුප්පන්නාය බොධියා බුද්ධො’ති."),
-    ],
-    'මෙත්තා': [
-      // footnote ref AND newline
-      (fileId: 'kn-bv', page: 23, entry: 0, language: 'pali',
-       text: "159. තථෙ’ව ත්වම්පි හිතාහිතෙ{1} සමං මෙත්තාය භාවය\nමෙත්තාපාරමිතං ගන්ත්වා සම්බොධිං පාපුණිස්සසි."),
-      // **bold** mid-sentence
-      (fileId: 'atta-ap-dhs', page: 56, entry: 23, language: 'pali',
-       text: "එවං ජීවිතං අනපලොකෙත්වා මෙත්තායන්තස්ස **මෙත්තාපාරමිතා** පරමත්ථපාරමී නාම ජාතා."),
-    ],
+  'සොතාපත්ති': [
+    // plain text, no markers
+    (
+      fileId: 'atta-sn-3',
+      page: 70,
+      entry: 1,
+      language: 'pali',
+      text: "1. සොතාපත්තිවග්ගො"
+    ),
+    // same row, other language
+    (
+      fileId: 'atta-sn-3',
+      page: 70,
+      entry: 1,
+      language: 'sinhala',
+      text: "1. සොතාපත්ති වර්ගය"
+    ),
+    // **bold** survives
+    (
+      fileId: 'ap-kvu-15',
+      page: 11,
+      entry: 9,
+      language: 'pali',
+      text: "**2.** ස. පු: සොතාපත්තිමග්ගස්ස ජරාමරණං සොතාපත්තිමග්ගොති."
+    ),
+    // {1} footnote ref survives
+    (
+      fileId: 'ap-kvu-15',
+      page: 79,
+      entry: 9,
+      language: 'pali',
+      text: "ස. අනු: සොතාපත්තිමග්ගෙනාති.{1}"
+    ),
+  ],
+  'මහාසති': [
+    // embedded newline survives
+    (
+      fileId: 'atta-dn-2-4',
+      page: 164,
+      entry: 2,
+      language: 'pali',
+      text:
+          "ඉති සුමඞ්ගලවිලාසිනියා දීඝනිකායට්ඨකථායං\nමහාසතිපට්ඨානසුත්තවණ්ණනා නිට්ඨිතා."
+    ),
+    // zero-width joiner survives
+    (
+      fileId: 'atta-dn-2-4',
+      page: 110,
+      entry: 0,
+      language: 'sinhala',
+      text: "9. මහාසතිපට්ඨාන සූත්‍ර වර්ණනාව"
+    ),
+    // **bold** mid-sentence
+    (
+      fileId: 'anya-vm',
+      page: 255,
+      entry: 4,
+      language: 'pali',
+      text:
+          "එවං තික්ඛපඤ්ඤස්ස ධාතුකම්මට්ඨානිකස්ස වසෙන **මහාසතිපට්ඨානෙ** (දී· නි· 2.378) සඞ්ඛෙපතො ආගතං."
+    ),
+  ],
+  'waasawa': [
+    // footnote ref AND newline
+    (
+      fileId: 'sn-1-7',
+      page: 67,
+      entry: 3,
+      language: 'pali',
+      text:
+          "කින්නු තෙසං පිහයසි අනාගාරාන වාසව,\nආචාරං ඉසිනං{4} බ්රූහි තං සුණොම වචො තවාති."
+    ),
+    // gatha, two lines
+    (
+      fileId: 'atta-kn-jat-22',
+      page: 85,
+      entry: 12,
+      language: 'pali',
+      text:
+          "“සො පුට්ඨො නරදෙවෙන, වාසවො අවචා නිමිං; \nවිපාකං බ්රහ්මචරියස්ස, ජානං අක්ඛාසිජානතො."
+    ),
+    // same row, other language
+    (
+      fileId: 'atta-kn-jat-22',
+      page: 85,
+      entry: 12,
+      language: 'sinhala',
+      text:
+          "සො ඵුට්ඨො නර දෙවෙන, වාසවො අවචා නිමිං, \nවිපාකං බ්‍රහ්මචරියස්ස, ජානං අක්ඛාස ජානතො"
+    ),
+  ],
+  'බුද්ධ': [
+    // three footnote refs in one entry
+    (
+      fileId: 'kn-ap-2',
+      page: 33,
+      entry: 11,
+      language: 'pali',
+      text:
+          "400. බුද්ධො බුද්ධස්ස නිබ්බානෙ{5} නොපදිස්සති{6} භික්ඛවො\nබුද්ධො ගොතමිනිබ්බානෙ සාරිපුත්තාදිකා{7} තථා."
+    ),
+    // leading bold marker
+    (
+      fileId: 'ap-kvu-3',
+      page: 69,
+      entry: 16,
+      language: 'pali',
+      text:
+          "**16.** ස. පු: අතීතාය බොධියා බුද්ධො, අනාගතාය බොධියා බුද්ධො, පච්චුප්පන්නාය බොධියා බුද්ධො’ති."
+    ),
+  ],
+  'මෙත්තා': [
+    // footnote ref AND newline
+    (
+      fileId: 'kn-bv',
+      page: 23,
+      entry: 0,
+      language: 'pali',
+      text:
+          "159. තථෙ’ව ත්වම්පි හිතාහිතෙ{1} සමං මෙත්තාය භාවය\nමෙත්තාපාරමිතං ගන්ත්වා සම්බොධිං පාපුණිස්සසි."
+    ),
+    // **bold** mid-sentence
+    (
+      fileId: 'atta-ap-dhs',
+      page: 56,
+      entry: 23,
+      language: 'pali',
+      text:
+          "එවං ජීවිතං අනපලොකෙත්වා මෙත්තායන්තස්ස **මෙත්තාපාරමිතා** පරමත්ථපාරමී නාම ජාතා."
+    ),
+  ],
 };

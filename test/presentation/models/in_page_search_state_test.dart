@@ -5,13 +5,22 @@ void main() {
   group('InPageMatch -', () {
     test('equality and hashCode based on all fields', () {
       const a = InPageMatch(
-        pageIndex: 0, entryIndex: 2, languageCode: 'pi', matchIndexInEntry: 1,
+        pageIndex: 0,
+        entryIndex: 2,
+        languageCode: 'pi',
+        matchIndexInEntry: 1,
       );
       const same = InPageMatch(
-        pageIndex: 0, entryIndex: 2, languageCode: 'pi', matchIndexInEntry: 1,
+        pageIndex: 0,
+        entryIndex: 2,
+        languageCode: 'pi',
+        matchIndexInEntry: 1,
       );
       const different = InPageMatch(
-        pageIndex: 0, entryIndex: 2, languageCode: 'si', matchIndexInEntry: 1,
+        pageIndex: 0,
+        entryIndex: 2,
+        languageCode: 'si',
+        matchIndexInEntry: 1,
       );
 
       expect(a, equals(same));
@@ -28,7 +37,10 @@ void main() {
         effectiveQuery: 'ධම්ම',
         matches: const [
           InPageMatch(
-            pageIndex: 0, entryIndex: 0, languageCode: 'pi', matchIndexInEntry: 0,
+            pageIndex: 0,
+            entryIndex: 0,
+            languageCode: 'pi',
+            matchIndexInEntry: 0,
           ),
         ],
         currentMatchIndex: 0,
@@ -42,7 +54,8 @@ void main() {
       expect(updated.matches.length, 1);
     });
 
-    test('isSinglishConverted requires both queries non-empty and different', () {
+    test('isSinglishConverted requires both queries non-empty and different',
+        () {
       // True: different queries
       expect(
         InPageSearchState(rawQuery: 'dhamma', effectiveQuery: 'ධම්ම')
@@ -63,13 +76,16 @@ void main() {
       );
     });
 
-    test('hasActiveQuery requires both visible and non-empty effectiveQuery', () {
+    test('hasActiveQuery requires both visible and non-empty effectiveQuery',
+        () {
       expect(
-        InPageSearchState(isVisible: true, effectiveQuery: 'සුතං').hasActiveQuery,
+        InPageSearchState(isVisible: true, effectiveQuery: 'සුතං')
+            .hasActiveQuery,
         true,
       );
       expect(
-        InPageSearchState(isVisible: false, effectiveQuery: 'සුතං').hasActiveQuery,
+        InPageSearchState(isVisible: false, effectiveQuery: 'සුතං')
+            .hasActiveQuery,
         false,
       );
       expect(
@@ -80,8 +96,16 @@ void main() {
 
     test('currentMatch returns null for invalid index, match for valid', () {
       const matches = [
-        InPageMatch(pageIndex: 0, entryIndex: 0, languageCode: 'pi', matchIndexInEntry: 0),
-        InPageMatch(pageIndex: 1, entryIndex: 2, languageCode: 'si', matchIndexInEntry: 0),
+        InPageMatch(
+            pageIndex: 0,
+            entryIndex: 0,
+            languageCode: 'pi',
+            matchIndexInEntry: 0),
+        InPageMatch(
+            pageIndex: 1,
+            entryIndex: 2,
+            languageCode: 'si',
+            matchIndexInEntry: 0),
       ];
 
       expect(
@@ -98,12 +122,25 @@ void main() {
       );
     });
 
-    test('matchedEntries deduplicates and hasMatchInEntry checks correctly', () {
+    test('matchedEntries deduplicates and hasMatchInEntry checks correctly',
+        () {
       final state = InPageSearchState(
         matches: const [
-          InPageMatch(pageIndex: 0, entryIndex: 1, languageCode: 'pi', matchIndexInEntry: 0),
-          InPageMatch(pageIndex: 0, entryIndex: 1, languageCode: 'pi', matchIndexInEntry: 1),
-          InPageMatch(pageIndex: 2, entryIndex: 0, languageCode: 'si', matchIndexInEntry: 0),
+          InPageMatch(
+              pageIndex: 0,
+              entryIndex: 1,
+              languageCode: 'pi',
+              matchIndexInEntry: 0),
+          InPageMatch(
+              pageIndex: 0,
+              entryIndex: 1,
+              languageCode: 'pi',
+              matchIndexInEntry: 1),
+          InPageMatch(
+              pageIndex: 2,
+              entryIndex: 0,
+              languageCode: 'si',
+              matchIndexInEntry: 0),
         ],
       );
 

@@ -183,10 +183,10 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
 
     _scrollController
         .animateTo(
-          target,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        )
+      target,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    )
         .then((_) {
       // Verify against the settled layout once the scroll ends. With the
       // constant floating-chevron viewport this is normally a no-op

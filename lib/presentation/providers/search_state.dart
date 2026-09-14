@@ -279,7 +279,8 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     final query = _buildSearchQuery();
     if (query == null) {
       if (_searchRequestId == requestId) {
-        state = state.copyWith(isLoading: false, fullResults: const AsyncValue.data(null));
+        state = state.copyWith(
+            isLoading: false, fullResults: const AsyncValue.data(null));
       }
       return;
     }
@@ -378,8 +379,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
   /// Delegates to shared [computeEffectiveQuery] for consistent
   /// query processing across FTS and in-page search.
-  String _computeEffectiveQuery(String query) =>
-      computeEffectiveQuery(query);
+  String _computeEffectiveQuery(String query) => computeEffectiveQuery(query);
 
   /// Builds validated [SearchQuery] from current state, or `null` if invalid.
   /// Uses pre-computed effectiveQueryText from state.

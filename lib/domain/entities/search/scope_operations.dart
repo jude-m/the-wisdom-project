@@ -125,8 +125,7 @@ class ScopeOperations {
     }
 
     // Scope is covered if the covered keys exactly match the scope
-    return coveredKeys.length == scope.length &&
-        coveredKeys.containsAll(scope);
+    return coveredKeys.length == scope.length && coveredKeys.containsAll(scope);
   }
 
   /// Check if the scope contains custom selections beyond predefined chips.

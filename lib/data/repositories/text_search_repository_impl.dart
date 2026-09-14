@@ -404,15 +404,14 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     bool matchesScope(String? contentFileId) {
       if (scopePatterns.isEmpty) return true; // No filter = match all
       if (contentFileId == null) return false;
-      return scopePatterns
-          .any((pattern) => contentFileId.startsWith(pattern));
+      return scopePatterns.any((pattern) => contentFileId.startsWith(pattern));
     }
 
     for (final node in nodeMap.values) {
       final paliName =
           normalizeText(node.paliName, toLowerCase: true).replaceAll('.', '');
-      final sinhalaName =
-          normalizeText(node.sinhalaName, toLowerCase: true).replaceAll('.', '');
+      final sinhalaName = normalizeText(node.sinhalaName, toLowerCase: true)
+          .replaceAll('.', '');
 
       // Match normalized query against each name, but only when the language
       // scope includes that language. Narrowed to one language, a node that

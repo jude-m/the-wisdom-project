@@ -25,7 +25,9 @@ class TextHandler {
   Future<Response> _getText(Request request, String fileId) async {
     try {
       // Sanitize fileId to prevent path traversal
-      if (fileId.contains('..') || fileId.contains('/') || fileId.contains('\\')) {
+      if (fileId.contains('..') ||
+          fileId.contains('/') ||
+          fileId.contains('\\')) {
         return Response(
           400,
           body: json.encode({'error': 'Invalid file ID'}),

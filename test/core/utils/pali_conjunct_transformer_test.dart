@@ -85,7 +85,8 @@ void main() {
       expect(beautifyPaliText(sentence, touchingOnly), equals(expected));
     });
 
-    test('All off (PaliLetterOptions.baseline) — bare text, no ZWJ inserted', () {
+    test('All off (PaliLetterOptions.baseline) — bare text, no ZWJ inserted',
+        () {
       // All three switches off: the input has no zero-width chars to strip, so
       // the output must equal the raw input exactly.
       expect(
@@ -192,8 +193,8 @@ void main() {
       const raw = 'චන්ද';
       const ranges = [(start: 1, end: 4)];
 
-      final (displayText, remappedRanges) =
-          applyConjunctsWithRangeMapping(raw, ranges, PaliLetterOptions.defaults);
+      final (displayText, remappedRanges) = applyConjunctsWithRangeMapping(
+          raw, ranges, PaliLetterOptions.defaults);
 
       const expectedDisplay = 'චන්\u200Dද';
       expect(displayText, equals(expectedDisplay));

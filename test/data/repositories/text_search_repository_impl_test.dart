@@ -1777,7 +1777,8 @@ void main() {
         )).called(1);
       });
 
-      test('should return empty results when definition search without dictionary repository',
+      test(
+          'should return empty results when definition search without dictionary repository',
           () async {
         // ARRANGE
         const query = SearchQuery(queryText: 'dhamma');
@@ -1956,12 +1957,12 @@ void main() {
             .thenAnswer((_) async => Right(treeOneLangEach));
         stubFtsEmpty();
 
-        final result = await repository.searchTopResults(query, maxPerCategory: 10);
+        final result =
+            await repository.searchTopResults(query, maxPerCategory: 10);
 
         result.fold(
           (failure) => fail('Expected success but got failure'),
-          (categorized) =>
-              expect(titleNodeKeys(categorized), {'pali-only'}),
+          (categorized) => expect(titleNodeKeys(categorized), {'pali-only'}),
         );
       });
 
@@ -1976,12 +1977,12 @@ void main() {
             .thenAnswer((_) async => Right(treeOneLangEach));
         stubFtsEmpty();
 
-        final result = await repository.searchTopResults(query, maxPerCategory: 10);
+        final result =
+            await repository.searchTopResults(query, maxPerCategory: 10);
 
         result.fold(
           (failure) => fail('Expected success but got failure'),
-          (categorized) =>
-              expect(titleNodeKeys(categorized), {'sinhala-only'}),
+          (categorized) => expect(titleNodeKeys(categorized), {'sinhala-only'}),
         );
       });
 
@@ -1991,7 +1992,8 @@ void main() {
             .thenAnswer((_) async => Right(treeOneLangEach));
         stubFtsEmpty();
 
-        final result = await repository.searchTopResults(query, maxPerCategory: 10);
+        final result =
+            await repository.searchTopResults(query, maxPerCategory: 10);
 
         result.fold(
           (failure) => fail('Expected success but got failure'),
@@ -2021,13 +2023,13 @@ void main() {
             .thenAnswer((_) async => Right(treeBoth));
         stubFtsEmpty();
 
-        final result = await repository.searchTopResults(query, maxPerCategory: 10);
+        final result =
+            await repository.searchTopResults(query, maxPerCategory: 10);
 
         result.fold(
           (failure) => fail('Expected success but got failure'),
           (categorized) {
-            final titles =
-                categorized.resultsByType[SearchResultType.title]!;
+            final titles = categorized.resultsByType[SearchResultType.title]!;
             expect(titles.length, 1);
             // Prefers the Sinhala name + tags 'sinhala' when both matched.
             expect(titles.first.title, 'Metta B');
@@ -2083,7 +2085,8 @@ void main() {
             .thenAnswer((_) async => Right(treeScoped));
         stubFtsEmpty();
 
-        final result = await repository.searchTopResults(query, maxPerCategory: 10);
+        final result =
+            await repository.searchTopResults(query, maxPerCategory: 10);
 
         result.fold(
           (failure) => fail('Expected success but got failure'),
@@ -2155,7 +2158,8 @@ void main() {
         )).called(1);
       });
 
-      test('Sinhala-only → searchFullText receives the DB code sinh (not sinhala)',
+      test(
+          'Sinhala-only → searchFullText receives the DB code sinh (not sinhala)',
           () async {
         const query = SearchQuery(
           queryText: 'dhamma',
@@ -2182,7 +2186,8 @@ void main() {
         )).called(1);
       });
 
-      test('countByResultType passes the SAME language to countFullTextMatches '
+      test(
+          'countByResultType passes the SAME language to countFullTextMatches '
           '(tab-badge parity)', () async {
         // The single most important regression guard: if the count path used a
         // different language than the search path, the badge would disagree

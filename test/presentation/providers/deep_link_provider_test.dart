@@ -341,8 +341,14 @@ final TipitakaTree _tree = TipitakaTree.fromJson({
 /// One tree row: `[pali, sinhala, level, [page, entry], parent, file]`, with the
 /// title on both language sides — the Pali one is the authority the declared
 /// range is read from.
-List<Object?> _row(String? parent, String title) =>
-    [title, title, 1, const <int>[0, 0], parent ?? 'root', 'f'];
+List<Object?> _row(String? parent, String title) => [
+      title,
+      title,
+      1,
+      const <int>[0, 0],
+      parent ?? 'root',
+      'f'
+    ];
 
 /// Hand-made, never the shipped snapshot: these keys are not in the corpus, and
 /// a test reading the real set would measure the corpus instead of the rule.

@@ -33,15 +33,12 @@ class CachingTextSearchRepository implements TextSearchRepository {
   CachingTextSearchRepository(
     this._delegate, {
     required CacheConfig config,
-  })  : _topResultsCache =
-            config.enabled ? LRUCache(config.maxEntries) : null,
+  })  : _topResultsCache = config.enabled ? LRUCache(config.maxEntries) : null,
         // No `* 2` multiplier on full-results capacity yet: pagination is
         // not implemented (limit=50, offset=0 in current call sites).
         // Bump when "load more" lands.
-        _fullResultsCache =
-            config.enabled ? LRUCache(config.maxEntries) : null,
-        _countsCache =
-            config.enabled ? LRUCache(config.maxEntries) : null;
+        _fullResultsCache = config.enabled ? LRUCache(config.maxEntries) : null,
+        _countsCache = config.enabled ? LRUCache(config.maxEntries) : null;
 
   @override
   Future<Either<Failure, GroupedSearchResult>> searchTopResults(

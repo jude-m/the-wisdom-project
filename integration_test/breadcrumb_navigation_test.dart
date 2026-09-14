@@ -215,8 +215,7 @@ void main() {
 
         // ACT: Tap the first parent segment (root of the path)
         final spans = getBreadcrumbSpans(tester);
-        final parentRecognizer =
-            spans.first.recognizer as TapGestureRecognizer;
+        final parentRecognizer = spans.first.recognizer as TapGestureRecognizer;
         parentRecognizer.onTap!();
         await pumpForSettle(tester, const Duration(seconds: 2));
 
@@ -234,8 +233,7 @@ void main() {
         // (which is the root ancestor of dn-1-1)
         final newTab = tabs[activeIndex];
         // Verify the new tab is for the root of the breadcrumb path
-        final ancestorKeys =
-            container.read(ancestorKeysProvider('dn-1-1'));
+        final ancestorKeys = container.read(ancestorKeysProvider('dn-1-1'));
         expect(newTab.nodeKey, equals(ancestorKeys.first),
             reason: 'New tab nodeKey should match the tapped parent');
       },
@@ -301,10 +299,10 @@ void main() {
 
         // ASSERT: Now shows Pali names (with conjunct transformation applied)
         final textAfter = getBreadcrumbText(tester);
-        expect(
-            textAfter,
+        expect(textAfter,
             contains(beautifyPaliText(paliName, PaliLetterOptions.defaults)),
-            reason: 'After switching to Pali, breadcrumb should show Pali names');
+            reason:
+                'After switching to Pali, breadcrumb should show Pali names');
         expect(textAfter, isNot(contains(sinhalaName)),
             reason: 'Sinhala names should no longer appear');
 
@@ -315,8 +313,7 @@ void main() {
         final dnPaliTransformed =
             beautifyPaliText(dnNode!.paliName, PaliLetterOptions.defaults);
         expect(find.text(dnPaliTransformed), findsOneWidget,
-            reason:
-                'Tree navigator should show Pali names with conjuncts '
+            reason: 'Tree navigator should show Pali names with conjuncts '
                 'after language switch');
       },
     );

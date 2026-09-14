@@ -113,8 +113,7 @@ class ReaderLayoutPill extends ConsumerWidget {
                 layout: layout,
                 tooltip: _tooltipFor(context, layout),
                 isSelected: currentLayout == layout,
-                onTap: () =>
-                    ref.read(updateActiveTabLayoutProvider)(layout),
+                onTap: () => ref.read(updateActiveTabLayoutProvider)(layout),
               ),
           ],
         ),
@@ -215,13 +214,13 @@ class _ReaderExpandableFabState extends ConsumerState<ReaderExpandableFab> {
                             isCommentary: !isCommentary,
                             colorScheme: colorScheme,
                           ).icon,
-                          label:
-                              isCommentary ? l10n.rootText : l10n.commentary,
+                          label: isCommentary ? l10n.rootText : l10n.commentary,
                           onTap: () {
                             _collapse();
                             ref.read(openParallelTextProvider)(
-                              isPortraitMode: ResponsiveUtils
-                                  .shouldDefaultToSingleColumn(context),
+                              isPortraitMode:
+                                  ResponsiveUtils.shouldDefaultToSingleColumn(
+                                      context),
                             );
                           },
                         ),
@@ -363,9 +362,7 @@ class _LayoutOptionButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: isSelected
-            ? colorScheme.secondaryContainer
-            : Colors.transparent,
+        color: isSelected ? colorScheme.secondaryContainer : Colors.transparent,
         borderRadius: BorderRadius.circular(22),
         child: InkWell(
           borderRadius: BorderRadius.circular(22),

@@ -9,7 +9,8 @@ import 'package:the_wisdom_project/domain/entities/navigation/tipitaka_tree_node
 // intentionally not tested.
 void main() {
   // Minimal node factory — only the fields under test vary.
-  TipitakaTreeNode node({required String paliName, required String sinhalaName}) {
+  TipitakaTreeNode node(
+      {required String paliName, required String sinhalaName}) {
     return TipitakaTreeNode(
       nodeKey: 'test-key',
       paliName: paliName,
@@ -27,7 +28,8 @@ void main() {
       expect(n.getDisplayName(ContentLanguage.pali), equals('දික් සඟිය'));
     });
 
-    test('Sinhala requested but sinhalaName empty → falls back to paliName', () {
+    test('Sinhala requested but sinhalaName empty → falls back to paliName',
+        () {
       // The real-world ap-pat / Paṭṭhāna case: no Sinhala translation exists.
       final n = node(paliName: 'පට්ඨාන', sinhalaName: '');
 

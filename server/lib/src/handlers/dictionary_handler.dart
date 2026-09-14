@@ -35,7 +35,8 @@ class DictionaryHandler {
       final dictionaryIds = parseCsvToSet(params['dictionaryIds']);
       final limit = int.tryParse(params['limit'] ?? '') ?? 50;
 
-      final likePattern = buildDictionaryLikePattern(word, exactMatch: exactMatch);
+      final likePattern =
+          buildDictionaryLikePattern(word, exactMatch: exactMatch);
 
       final sql = StringBuffer();
       sql.write('''
@@ -76,7 +77,8 @@ class DictionaryHandler {
       final limit = int.tryParse(params['limit'] ?? '') ?? 50;
       final offset = int.tryParse(params['offset'] ?? '') ?? 0;
 
-      final likePattern = buildDictionaryLikePattern(query, exactMatch: isExactMatch);
+      final likePattern =
+          buildDictionaryLikePattern(query, exactMatch: isExactMatch);
 
       final sql = StringBuffer();
       sql.write('''
@@ -115,7 +117,8 @@ class DictionaryHandler {
       final isExactMatch = params['isExactMatch'] == 'true';
       final dictionaryIds = parseCsvToSet(params['dictionaryIds']);
 
-      final likePattern = buildDictionaryLikePattern(query, exactMatch: isExactMatch);
+      final likePattern =
+          buildDictionaryLikePattern(query, exactMatch: isExactMatch);
 
       final sql = StringBuffer();
       sql.write('''

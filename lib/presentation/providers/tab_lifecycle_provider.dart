@@ -49,7 +49,9 @@ final closeTabProvider = Provider<void Function(int)>((ref) {
         ref.read(inPageSearchStatesProvider.notifier).clearAll();
         ref.read(ftsHighlightProvider.notifier).clearAll();
         ref.read(selectedNodeProvider.notifier).state = null;
-        ref.read(expandedNodesProvider.notifier).state = {TipitakaNodeKeys.suttaPitaka};
+        ref.read(expandedNodesProvider.notifier).state = {
+          TipitakaNodeKeys.suttaPitaka
+        };
       } else {
         // Sync navigator to the new active tab
         ref.read(syncNavigatorToActiveTabProvider)();

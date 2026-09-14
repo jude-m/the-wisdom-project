@@ -349,8 +349,8 @@ List<FigureGroup> computeCorpusFigures({
     if (page.kind != PageKind.toc) continue;
     tocRowsNeedingUrlFor += tree
         .childrenOf(page.nodeKey)
-        .where((child) =>
-            plan.urlFor(child.nodeKey) != tipitakaUrl(child.nodeKey))
+        .where(
+            (child) => plan.urlFor(child.nodeKey) != tipitakaUrl(child.nodeKey))
         .length;
   }
 

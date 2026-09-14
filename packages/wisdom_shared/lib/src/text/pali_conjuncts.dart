@@ -165,8 +165,7 @@ String addTouchingConjuncts(String t) {
 
 /// Switch 1 · long→short vowel (traditional Pali orthography):
 /// ේ (U+0DDA) → ෙ (U+0DD9), ෝ (U+0DDD) → ො (U+0DDC).
-String shortenVowels(String t) =>
-    t.replaceAll('ේ', 'ෙ').replaceAll('ෝ', 'ො');
+String shortenVowels(String t) => t.replaceAll('ේ', 'ෙ').replaceAll('ෝ', 'ො');
 
 // ===========================================================================
 // ORCHESTRATOR (composition only)

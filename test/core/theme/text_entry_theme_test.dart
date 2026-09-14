@@ -59,8 +59,7 @@ void main() {
       test('just past the threshold grows continuously from 24 (no jump)', () {
         // One pixel past the boundary the horizontal padding is still ~24.5,
         // so there is no visible jump.
-        final padding =
-            themeAt().readingPadding(54.5 * defaultParagraph + 49);
+        final padding = themeAt().readingPadding(54.5 * defaultParagraph + 49);
         expect(padding.left, closeTo(24.5, 0.01));
       });
 
@@ -116,8 +115,8 @@ void main() {
         () {
       // 1440 is well under 1918.4 + 24*2, so side-by-side reads exactly as it
       // did before the cap existed.
-      expect(themeAt().readingPadding(1440, columns: 2),
-          const EdgeInsets.all(24));
+      expect(
+          themeAt().readingPadding(1440, columns: 2), const EdgeInsets.all(24));
     });
 
     test('exactly at the threshold (1918.4 + 48) still stays uniform', () {
@@ -147,8 +146,7 @@ void main() {
       // The pair is allowed more room than one column: at 1440 side-by-side is
       // still uniform while the single-script panes have long been centered.
       final theme = themeAt();
-      expect(
-          theme.readingPadding(1440, columns: 2), const EdgeInsets.all(24));
+      expect(theme.readingPadding(1440, columns: 2), const EdgeInsets.all(24));
       expect(theme.readingPadding(1440).left, greaterThan(24));
     });
   });

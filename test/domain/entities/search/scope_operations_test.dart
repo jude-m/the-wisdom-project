@@ -129,8 +129,8 @@ void main() {
       });
 
       test('returns correct patterns for sutta pitaka (sp)', () {
-        final patterns = ScopeOperations.getPatternsForScope(
-            {TipitakaNodeKeys.suttaPitaka});
+        final patterns =
+            ScopeOperations.getPatternsForScope({TipitakaNodeKeys.suttaPitaka});
         expect(patterns, equals(['dn-', 'mn-', 'sn-', 'an-', 'kn-']));
       });
 
@@ -167,8 +167,8 @@ void main() {
 
     group('getPatternsForNodeKey', () {
       test('expands sp to nikaya patterns', () {
-        final patterns = ScopeOperations.getPatternsForNodeKey(
-            TipitakaNodeKeys.suttaPitaka);
+        final patterns =
+            ScopeOperations.getPatternsForNodeKey(TipitakaNodeKeys.suttaPitaka);
         expect(patterns, equals(['dn-', 'mn-', 'sn-', 'an-', 'kn-']));
       });
 
@@ -191,8 +191,8 @@ void main() {
       });
 
       test('returns pattern for specific node like dn', () {
-        final patterns = ScopeOperations.getPatternsForNodeKey(
-            TipitakaNodeKeys.dighaNikaya);
+        final patterns =
+            ScopeOperations.getPatternsForNodeKey(TipitakaNodeKeys.dighaNikaya);
         expect(patterns, equals(['dn-']));
       });
     });
@@ -293,8 +293,10 @@ void main() {
           {TipitakaNodeKeys.suttaPitaka, TipitakaNodeKeys.dighaNikaya},
         );
         // Both sp and dn cover dn-1
-        expect(ancestors,
-            containsAll([TipitakaNodeKeys.suttaPitaka, TipitakaNodeKeys.dighaNikaya]));
+        expect(
+            ancestors,
+            containsAll(
+                [TipitakaNodeKeys.suttaPitaka, TipitakaNodeKeys.dighaNikaya]));
       });
     });
 
@@ -456,8 +458,10 @@ void main() {
           {TipitakaNodeKeys.suttaPitaka, TipitakaNodeKeys.vinayaPitaka},
         );
         // Should add vp since not all keys were present
-        expect(result,
-            containsAll([TipitakaNodeKeys.suttaPitaka, TipitakaNodeKeys.vinayaPitaka]));
+        expect(
+            result,
+            containsAll(
+                [TipitakaNodeKeys.suttaPitaka, TipitakaNodeKeys.vinayaPitaka]));
       });
 
       test('removes covered children when adding parent', () {
@@ -519,7 +523,8 @@ void main() {
         expect(result, equals({TipitakaNodeKeys.suttaPitaka}));
       });
 
-      test('hasCustomSelections returns false after parent covers children', () {
+      test('hasCustomSelections returns false after parent covers children',
+          () {
         // Simulates: refine dialog selects mn, then user clicks Sutta chip
         final afterRefine = {TipitakaNodeKeys.majjhimaNikaya};
         expect(ScopeOperations.hasCustomSelections(afterRefine), isTrue);
@@ -611,7 +616,8 @@ void main() {
 
       setUp(() {
         suttaPitaka = buildMockSuttaPitaka();
-        dighaNikaya = suttaPitaka.findDescendantByKey(TipitakaNodeKeys.dighaNikaya)!;
+        dighaNikaya =
+            suttaPitaka.findDescendantByKey(TipitakaNodeKeys.dighaNikaya)!;
         treeRoots = buildMockTreeRoots();
       });
 
@@ -783,7 +789,8 @@ void main() {
           expect(result, isEmpty);
         });
 
-        test('removes covering ancestor when selecting child (narrow down)', () {
+        test('removes covering ancestor when selecting child (narrow down)',
+            () {
           // sp is selected, user clicks dn to narrow down
           final result = ScopeOperations.toggleNodeSelection(
             dighaNikaya,
@@ -803,10 +810,12 @@ void main() {
           expect(result, equals({TipitakaNodeKeys.dighaNikaya}));
         });
 
-        test('auto-collapses to parent when last sibling selected (with treeRoots)',
+        test(
+            'auto-collapses to parent when last sibling selected (with treeRoots)',
             () {
           // 4 nikayas selected, user clicks the 5th (kn)
-          final kn = suttaPitaka.findDescendantByKey(TipitakaNodeKeys.khuddakaNikaya)!;
+          final kn =
+              suttaPitaka.findDescendantByKey(TipitakaNodeKeys.khuddakaNikaya)!;
           final scope = {
             TipitakaNodeKeys.dighaNikaya,
             TipitakaNodeKeys.majjhimaNikaya,
@@ -824,7 +833,8 @@ void main() {
 
         test('does not collapse without treeRoots parameter', () {
           // Same scenario but without treeRoots
-          final kn = suttaPitaka.findDescendantByKey(TipitakaNodeKeys.khuddakaNikaya)!;
+          final kn =
+              suttaPitaka.findDescendantByKey(TipitakaNodeKeys.khuddakaNikaya)!;
           final scope = {
             TipitakaNodeKeys.dighaNikaya,
             TipitakaNodeKeys.majjhimaNikaya,
@@ -841,7 +851,8 @@ void main() {
           expect(result, contains(TipitakaNodeKeys.khuddakaNikaya));
         });
 
-        test('cascades collapse through multiple levels (vagga → nikaya → pitaka)',
+        test(
+            'cascades collapse through multiple levels (vagga → nikaya → pitaka)',
             () {
           // Scenario: dn-1 selected, all other nikayas selected
           // Selecting dn-2 should trigger two-level cascade:

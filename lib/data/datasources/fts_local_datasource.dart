@@ -403,7 +403,8 @@ class FTSDataSourceImpl implements FTSDataSource {
 
     // Report if any errors occurred
     if (errors.isNotEmpty) {
-      _log('Failed to close ${errors.length} database(s): ${errors.keys.join(', ')}');
+      _log(
+          'Failed to close ${errors.length} database(s): ${errors.keys.join(', ')}');
     }
   }
 }
