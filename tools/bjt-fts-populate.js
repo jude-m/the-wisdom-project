@@ -2,8 +2,8 @@
  * BJT Full-Text Search Database Generator
  *
  * Creates an optimized FTS5 database for the Buddha Jayanti Tripitaka (BJT) edition.
- * This uses a contentless approach that reduces database size by ~75% by storing
- * only the search index (not the actual text, which is already in JSON files).
+ * The FTS5 table is contentless: it stores only the search index, which keeps it
+ * ~75% smaller. The text itself sits beside it in bjt_content, compressed per page.
  *
  * Size comparison:
  *   - Regular FTS5:     ~455 MB (stores text redundantly)
@@ -15,12 +15,13 @@
  *   - Actively maintained (FTS4 is legacy)
  *
  * Trade-off:
- *   - snippet() function not available in contentless mode - context fetched from JSON files
+ *   - snippet() function not available in contentless mode - context fetched from JSON files today, from bjt_content once the app is repointed (plan step 8)
  *   - Queries require JOIN with metadata table
  *
  * Database structure:
  *   - bjt_fts: Contentless FTS5 index (text search with bm25 ranking)
  *   - bjt_meta: Metadata table (filename, eind, language, type, level)
+ *   - bjt_content: The text itself, one zlib blob per page per language
  *   - bjt_suggestions: Word frequency for auto-complete (95K+ words)
  *
  * Usage:
@@ -39,6 +40,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 
 // Try to use better-sqlite3 (recommended)
 let Database;
@@ -296,6 +298,31 @@ function createFTSTables(db) {
 }
 
 /**
+ * Creates the content table the app reads text from, in place of the JSON.
+ *
+ * The contract — blob = that page's language side verbatim, zlib-framed — is
+ * enforced by section 5 of static_site_generator/tool/verify_corpus_invariants.dart.
+ * pageNum is a column because it sits beside pali/sinh in the JSON, not inside them.
+ * @param {Database} db - SQLite database instance
+ */
+function createContentTable(db) {
+    const editionPrefix = CONFIG.EDITION_ID;
+
+    db.exec(`DROP TABLE IF EXISTS ${editionPrefix}_content`);
+    db.exec(`
+        CREATE TABLE ${editionPrefix}_content (
+            filename TEXT NOT NULL,
+            pageIndex INTEGER NOT NULL,
+            language TEXT NOT NULL,
+            pageNum INTEGER NOT NULL,
+            blob BLOB NOT NULL,
+            PRIMARY KEY (filename, pageIndex, language)
+        )
+    `);
+    console.log(`  ✓ ${editionPrefix}_content: Page text (one zlib blob per page per language)`);
+}
+
+/**
  * Creates the suggestions table for auto-complete
  * @param {Database} db - SQLite database instance
  */
@@ -363,6 +390,7 @@ function main() {
         // Step 1: Create table structure
         if (CONFIG.CREATE_TABLE) {
             createFTSTables(db);
+            createContentTable(db);
             if (CONFIG.GENERATE_SUGGESTIONS) {
                 createSuggestionsTable(db);
             }
@@ -438,6 +466,12 @@ function populateData(db) {
         VALUES (?, ?)
     `);
 
+    // 3. Insert one compressed page (per language) into the content table
+    const insertContent = db.prepare(`
+        INSERT INTO ${editionPrefix}_content(filename, pageIndex, language, pageNum, blob)
+        VALUES (?, ?, ?, ?, ?)
+    `);
+
     // Word frequency maps for suggestions
     const wordFrequencyPali = new Map();
     const wordFrequencySinh = new Map();
@@ -445,10 +479,20 @@ function populateData(db) {
     // Counters
     let docId = 1;
     let totalEntries = 0;
+    let totalPages = 0;
     let processedFiles = 0;
 
     // Begin transaction for bulk insert (much faster)
-    const insertMany = db.transaction((entries) => {
+    const insertMany = db.transaction((entries, pages) => {
+        for (const page of pages) {
+            insertContent.run(
+                page.filename,
+                page.pageIndex,
+                page.language,
+                page.pageNum,
+                page.blob
+            );
+        }
         for (const entry of entries) {
             // Insert metadata (including nodeKey)
             insertMeta.run(
@@ -483,12 +527,30 @@ function populateData(db) {
             }
 
             const entries = [];
+            const pages = [];
 
             // Get sorted nodes for this file (for nodeKey computation)
             const sortedNodes = nodesByFile.get(fileKey) || [];
 
             // Process each page
             data.pages.forEach((page, pageIndex) => {
+                // Store each language side whole, including entries whose text
+                // cleans to nothing and so never reach the index below.
+                for (const language of ['pali', 'sinh']) {
+                    if (page[language] == null) continue;
+                    pages.push({
+                        filename: fileKey,
+                        pageIndex: pageIndex,
+                        language: language,
+                        pageNum: page.pageNum,
+                        // Level 9: smaller than the default for a slower build; reads unchanged
+                        blob: zlib.deflateSync(
+                            Buffer.from(JSON.stringify(page[language]), 'utf-8'),
+                            { level: 9 }
+                        )
+                    });
+                }
+
                 // Process Pali entries
                 if (page.pali && page.pali.entries) {
                     page.pali.entries.forEach((entry, entryIndex) => {
@@ -554,10 +616,11 @@ function populateData(db) {
                 }
             });
 
-            // Insert entries in a transaction (much faster than individual inserts)
-            if (entries.length > 0) {
-                insertMany(entries);
+            // Insert entries and pages in a transaction (much faster than individual inserts)
+            if (entries.length > 0 || pages.length > 0) {
+                insertMany(entries, pages);
                 totalEntries += entries.length;
+                totalPages += pages.length;
             }
 
             processedFiles++;
@@ -574,6 +637,7 @@ function populateData(db) {
 
     console.log('');
     console.log(`✓ Indexed ${totalEntries.toLocaleString()} entries from ${processedFiles} files`);
+    console.log(`✓ Stored ${totalPages.toLocaleString()} page rows in ${editionPrefix}_content`);
 
     // Save suggestions if enabled
     if (CONFIG.GENERATE_SUGGESTIONS) {

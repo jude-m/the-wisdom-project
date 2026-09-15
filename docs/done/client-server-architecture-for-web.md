@@ -6,7 +6,7 @@
 > [Drift](https://pub.dev/packages/drift) (sqlite3 wasm + OPFS), same engine as
 > native. No always-on server; Flutter web ships fully static. Kept for history and
 > the datasource-split groundwork (Phase 1) it still informs. See
-> [`reduce_mobile_bundle_size.md`](../todo/retiring-dart-server/reduce_mobile_bundle_size.md) and
+> [`reduce-mobile-size-and-move-to-drift.md`](../todo/retiring-dart-server/reduce-mobile-size-and-move-to-drift.md) and
 > [`serverless-deployment-decision.md`](../todo/serverless-deployment-decision.md).
 
 ## Goal

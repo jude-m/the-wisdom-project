@@ -20,7 +20,7 @@
 >   platform, unrelated to the web move.
 >
 > **Part of:** retiring the Dart content server (see `README.md` and
-> `reduce_mobile_bundle_size.md`).
+> `reduce-mobile-size-and-move-to-drift.md`).
 
 ## The narrow question this answers
 

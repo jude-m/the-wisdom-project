@@ -22,3 +22,7 @@ dev_dependencies:
   # build time, which a checkout with no network cannot do. 2.x opens the OS
   # library, and a plain SELECT of BLOBs needs nothing newer.
   sqlite3: ^2.4.0
+  # tool/ only — section 5 of `verify_corpus_invariants.dart` decodes every
+  # content blob with this package's pure-Dart zlib too, which is the decoder
+  # the app's web build uses. Same version the app already locks.
+  archive: ^4.0.9

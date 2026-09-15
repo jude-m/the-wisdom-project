@@ -77,7 +77,7 @@ tools/*.csv
 assets/databases/*.db
 
 # Throwaway spikes for steps 2-4 of
-# docs/todo/retiring-dart-server/reduce_mobile_bundle_size.md. They produced the
+# docs/todo/retiring-dart-server/reduce-mobile-size-and-move-to-drift.md. They produced the
 # numbers in that doc's "What the measurements said" and have no job after it:
 # delete both (and tools/bjt-content-spike.db, ~180 MB, already ignored above)
 # once step 5 lands, and drop these three lines with them. The parts worth

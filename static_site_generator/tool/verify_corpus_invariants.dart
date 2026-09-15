@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart' show ZLibDecoderWeb;
 import 'package:sqlite3/sqlite3.dart';
 import 'package:static_site_generator/data/corpus_reader.dart';
 import 'package:wisdom_shared/wisdom_shared.dart';
@@ -531,7 +532,7 @@ bool _verifyReadingOrder(CorpusReader reader) {
 
 /// Full-corpus parity between `assets/text/*.json` and the `bjt_content` table
 /// that is about to replace it as the app's runtime source
-/// (`docs/todo/retiring-dart-server/reduce_mobile_bundle_size.md`).
+/// (`docs/todo/retiring-dart-server/reduce-mobile-size-and-move-to-drift.md`).
 ///
 /// **Written before the table exists, on purpose.** Without it, a populate bug
 /// touching only the Vinaya files — or only Sinhala sections, or only pages
@@ -539,15 +540,19 @@ bool _verifyReadingOrder(CorpusReader reader) {
 /// and search counts rows without reading them.
 ///
 /// **The contract it pins.** One row per (file, page index, language), holding
-/// the compressed bytes of that page's JSON substructure *verbatim* — the same
-/// object `pages[i]['pali']` decodes to, entries and footnotes and all. Not a
-/// remodelled one: Node writes this table and Dart reads it, so anything
-/// app-shaped in the blob is a format two runtimes have to agree about twice.
+/// the plain-zlib bytes of that page's JSON substructure *verbatim* — the same
+/// object `pages[i]['pali']` decodes to, entries and footnotes and all — plus
+/// the printed `pageNum` in a column beside it, because in the JSON it sits
+/// beside `pali`/`sinh` rather than inside them. Not a remodelled object: Node
+/// writes this table and Dart reads it, so anything app-shaped in the blob is a
+/// format two runtimes have to agree about twice.
 ///
 /// **And it is Dart that reads.** A Node-side self-check would prove Node can
 /// read what Node wrote, which is not the question — the question is whether
-/// `GZipCodec`/`ZLibCodec` inflate it on the platforms the app ships to. So
-/// the format is sniffed from the frame rather than assumed, and reported.
+/// the app's two decoders inflate it: `dart:io`'s zlib natively, and
+/// `package:archive`'s pure-Dart one on web. Every blob goes through both and
+/// they must agree; nothing else runs the web decoder over the whole corpus.
+/// The frame is sniffed rather than assumed, and reported.
 ///
 /// Costs a second full read of the corpus on top of section 1.
 /// Returns null when there is nothing to check yet — no database, or one that
@@ -608,8 +613,16 @@ bool? _verifyContent(
 
     final rowsInTable =
         db.select('SELECT COUNT(*) AS n FROM bjt_content').first['n'] as int;
+    // A table without the column selects NULL in its place, so its blobs are
+    // still checked and every row fails on pageNum by name instead of the
+    // prepare throwing.
+    final hasPageNum = db
+        .select('PRAGMA table_info(bjt_content)')
+        .any((column) => column['name'] == 'pageNum');
     final byFile = db.prepare(
-      'SELECT pageIndex, language, blob FROM bjt_content WHERE filename = ?',
+      'SELECT pageIndex, language, '
+      '${hasPageNum ? 'pageNum' : 'NULL AS pageNum'}, blob '
+      'FROM bjt_content WHERE filename = ?',
     );
 
     var rowsExpected = 0;
@@ -618,6 +631,8 @@ bool? _verifyContent(
     var typeFails = 0;
     var frameFails = 0;
     var inflateFails = 0;
+    var decoderDiffs = 0;
+    var pageNumDiffs = 0;
     var entriesCompared = 0;
     var textDiffs = 0;
     var footnoteDiffs = 0;
@@ -633,6 +648,8 @@ bool? _verifyContent(
     final typeSamples = <String>[];
     final frameSamples = <String>[];
     final inflateSamples = <String>[];
+    final decoderSamples = <String>[];
+    final pageNumSamples = <String>[];
     final entrySamples = <String>[];
     final footnoteSamples = <String>[];
     final shapeSamples = <String>[];
@@ -647,9 +664,10 @@ bool? _verifyContent(
       // Held as Object?, because `as Uint8List` on a column the populate script
       // filled with TEXT throws — killing the run with a stack trace where a
       // named failure belongs. Wrong type is a finding, not a crash.
-      final stored = <String, Object?>{};
+      final stored = <String, ({Object? blob, Object? pageNum})>{};
       for (final row in byFile.select([id])) {
-        stored['${row['pageIndex']}/${row['language']}'] = row['blob'];
+        stored['${row['pageIndex']}/${row['language']}'] =
+            (blob: row['blob'], pageNum: row['pageNum']);
       }
 
       for (var pageIndex = 0; pageIndex < pages.length; pageIndex++) {
@@ -667,8 +685,19 @@ bool? _verifyContent(
           }
           rowsFound++;
           final where = '$id page $pageIndex $language';
+          final storedRow = stored[key]!;
 
-          final raw = stored[key];
+          // The one column not derivable from the rest of the table: a wrong
+          // key shows up as a missing row, a wrong pageNum nowhere but here.
+          if (storedRow.pageNum != page['pageNum']) {
+            pageNumDiffs++;
+            _sample(
+                pageNumSamples,
+                '$where: pageNum ${page['pageNum']} in source, '
+                '${storedRow.pageNum ?? 'absent'} in table');
+          }
+
+          final raw = storedRow.blob;
           if (raw is! Uint8List) {
             typeFails++;
             _sample(typeSamples,
@@ -678,23 +707,25 @@ bool? _verifyContent(
           final blob = raw;
           storedBytes += blob.length;
 
-          // The contract is gzip or zlib. Anything else is a violation even
-          // when it decodes perfectly: uncompressed JSON round-trips clean and
-          // would otherwise pass at 100% ratio, which is the single most likely
+          // The contract is plain zlib, the one frame the app decodes on every
+          // platform. Anything else is a violation even when it decodes here:
+          // gzip reads natively and comes back empty on web, and uncompressed
+          // JSON round-trips clean at 100% ratio — the single most likely
           // populate mistake reading as a green run.
           final format = _frameOf(blob);
           formats.add(format);
-          if (format != 'gzip' && format != 'zlib') {
+          if (format != 'zlib') {
             frameFails++;
             _sample(frameSamples,
-                '$where: $format frame — the contract is gzip or zlib');
+                '$where: $format frame — the contract is plain zlib');
           }
 
           final List<int> plain;
           try {
             plain = switch (format) {
               'gzip' => gzip.decode(blob),
-              'zlib' => zlib.decode(blob),
+              // A sample-flagged stream throws here, as it would natively.
+              'zlib' || 'zlib+sample' => zlib.decode(blob),
               // Already counted above. Read it anyway, so the run also says
               // whether the content underneath was right.
               _ => blob,
@@ -706,6 +737,27 @@ bool? _verifyContent(
             continue;
           }
           inflatedBytes += plain.length;
+
+          // The web build's decoder over the same bytes. Neither decoder always
+          // throws on a broken blob — either can return short or empty bytes —
+          // so a difference is named as well as a throw.
+          if (format == 'zlib') {
+            String? disagreement;
+            try {
+              final web =
+                  const ZLibDecoderWeb().decodeBytes(blob, verify: true);
+              if (!_sameBytes(plain, web)) {
+                disagreement = 'dart:io inflated ${plain.length} B, '
+                    'the pure-Dart decoder ${web.length} B that differ';
+              }
+            } catch (error) {
+              disagreement = 'the pure-Dart decoder threw: $error';
+            }
+            if (disagreement != null) {
+              decoderDiffs++;
+              _sample(decoderSamples, '$where: $disagreement');
+            }
+          }
 
           final Object? actual;
           try {
@@ -777,8 +829,11 @@ bool? _verifyContent(
     stdout.writeln('  frames seen           '
         '${(formats.toList()..sort()).join(', ')}');
     stdout.writeln('  frame violations      $frameFails '
-        '(contract is gzip or zlib)');
+        '(contract is plain zlib)');
     stdout.writeln('  inflate/decode fails  $inflateFails');
+    stdout.writeln('  decoder disagreements $decoderDiffs '
+        '(dart:io vs the web build\'s pure-Dart zlib)');
+    stdout.writeln('  pageNum divergences   $pageNumDiffs');
     stdout.writeln('  entries compared      $entriesCompared');
     stdout.writeln('  entry divergences     $textDiffs');
     stdout.writeln('  footnote divergences  $footnoteDiffs');
@@ -790,6 +845,8 @@ bool? _verifyContent(
     _printSamples(typeSamples, 'column type');
     _printSamples(frameSamples, 'frame');
     _printSamples(inflateSamples, 'inflate / decode');
+    _printSamples(decoderSamples, 'decoders');
+    _printSamples(pageNumSamples, 'pageNum');
     _printSamples(entrySamples, 'entries');
     _printSamples(footnoteSamples, 'footnotes');
     _printSamples(shapeSamples, 'shape');
@@ -799,6 +856,8 @@ bool? _verifyContent(
         typeFails == 0 &&
         frameFails == 0 &&
         inflateFails == 0 &&
+        decoderDiffs == 0 &&
+        pageNumDiffs == 0 &&
         textDiffs == 0 &&
         footnoteDiffs == 0 &&
         shapeDiffs == 0;
@@ -810,16 +869,17 @@ bool? _verifyContent(
 /// Which compression frame [bytes] opens with, by magic number.
 ///
 /// Sniffed rather than configured because the populate script picks it, and
-/// this check exists to find out what it picked. gzip and zlib are both legal
-/// and interchangeable here; every other answer — including plainly readable
-/// JSON — is a contract violation the caller counts and fails on.
+/// this check exists to find out what it picked. Only `zlib` is legal; every
+/// other answer — gzip, a zlib stream that needs a compression sample, plainly
+/// readable JSON — is a contract violation the caller counts and fails on.
 String _frameOf(Uint8List bytes) {
   if (bytes.length < 2) return 'empty';
   if (bytes[0] == 0x1f && bytes[1] == 0x8b) return 'gzip';
   // RFC 1950: low nibble 8 = deflate, and the two header bytes are a
   // multiple of 31.
   if ((bytes[0] & 0x0f) == 0x08 && ((bytes[0] << 8) | bytes[1]) % 31 == 0) {
-    return 'zlib';
+    // FDICT (bit 5): the stream needs a compression sample, and none ships.
+    return (bytes[1] & 0x20) != 0 ? 'zlib+sample' : 'zlib';
   }
   if (bytes[0] == 0x7b || bytes[0] == 0x5b) return 'uncompressed';
   return 'unknown';
@@ -901,6 +961,14 @@ bool _deepEquals(Object? a, Object? b) {
     return true;
   }
   return a == b;
+}
+
+bool _sameBytes(List<int> a, List<int> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }
 
 String _mb(int bytes) => (bytes / (1024 * 1024)).toStringAsFixed(1);

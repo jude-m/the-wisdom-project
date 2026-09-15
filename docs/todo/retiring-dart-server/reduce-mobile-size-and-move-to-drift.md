@@ -1,11 +1,18 @@
 # Faster Reads (and a Smaller App): Move Text into SQLite and the App onto Drift
 
-> **Status 2026-09-14:** steps 1–4 done; blob layout decided — one page per
-> blob, **plain zlib**. A compression sample would win back most of the
-> download and is kept as an optional later step (**Compression sample —
-> optional, later**). Step 6 moves the app from `sqflite` to Drift, in the same
-> branch as the content table; step 7 makes an app update actually replace the
-> copied databases. Next: step 5.
+> **Status 2026-09-15:** steps 1–5 done. `bjt-fts.db` now carries
+> `bjt_content` — one page per blob, **plain zlib** — and section 5 passes on
+> it entry for entry, with the search index unchanged. **Next: step 6** — the
+> `ORDER BY score, id` tiebreaker as its own change, then the Drift engine
+> swap. Three chores from step 5 are deliberately still open (deletions and
+> the `dict.db` rebuild): see **Left open after step 5**. Step 7 makes an app
+> update replace the copied databases. A compression sample stays optional
+> (**Compression sample — optional, later**).
+>
+> **No mobile release until steps 7–10 are done.** Until step 9 the bundle
+> carries the JSON *and* the same text again in `bjt-fts.db`, which nothing
+> reads yet, so the app is bigger than today for no gain. And until step 7 an
+> update never reaches an existing install's copy of the database.
 
 > **UPDATE 2026-07-16 — CONFIRMED, and promoted to the keystone of a server-free
 > architecture.** Decisions from a follow-up study:
@@ -505,11 +512,11 @@ conditions in `od` rather than calling it: a second implementation is the point,
 because this one must run without node and must catch a database that arrived
 from a backup or a hand-run `sqlite3` instead of from a generator.
 
-> **The shipped assets are still WAL-flagged** — the two *generators* were
-> changed, not the two databases (they are untracked, so this cannot ride in a
-> commit). Both need fixing: `npm run generate-fts` and `npm run generate-dict`
-> in `tools/`, or the repair one-liner `validate-release.sh` prints, on **both**
-> `bjt-fts.db` and `dict.db`.
+> **`dict.db` is still WAL-flagged** (header bytes 18/19 = 2/2, checked
+> 2026-09-15). Step 5's rebuild fixed `bjt-fts.db`; `dict.db` has not been
+> rebuilt. Run `npm run generate-dict` in `tools/`, or the repair one-liner
+> `validate-release.sh` prints. The databases are untracked, so no commit
+> carries the fix.
 
 One consequence worth noting: once both generators end in `VACUUM INTO`, the
 un-checkpointed-WAL branch in `verify_corpus_invariants.dart` becomes
@@ -714,30 +721,33 @@ CREATE TABLE bjt_content (
      ignores the `-wal`, so an un-checkpointed database is refused with the
      checkpoint command rather than read stale.
 
-     **It is also where the blob format is pinned**, so step 5 writes to a
+     **It is also where the blob format is pinned**, so step 5 wrote to a
      contract rather than inventing one: one row per
-     `(filename, pageIndex, language)`, holding the gzip- **or** zlib-framed
-     bytes of that page's JSON substructure *verbatim* — the same object
-     `pages[i]['pali']` decodes to, entries and footnotes and every other key.
-     Not a remodelled one; Node writes and Dart reads, and anything app-shaped
-     in the blob is a format two runtimes must agree about twice.
+     `(filename, pageIndex, language)`, with that page's `pageNum` in its own
+     column and a **plain zlib** blob of that page's JSON substructure
+     *verbatim* — the same object `pages[i]['pali']` decodes to, entries and
+     footnotes and every other key. Not a remodelled one; Node writes and Dart
+     reads, and anything app-shaped in the blob is a format two runtimes must
+     agree about twice.
 
-     The frame is sniffed from its magic number, and **gzip and zlib are the
-     only two answers that pass**. Anything else fails even though it decodes:
-     uncompressed JSON round-trips perfectly, so a lenient reader would report
-     a clean run at 100% of plain JSON — the tool printing the number that says
-     nothing was compressed while voting that all is well. A column holding TEXT
-     rather than a BLOB is counted as its own failure too, rather than throwing
-     on the cast and replacing a named finding with a stack trace.
+     The frame is sniffed from its header, and **plain zlib is the only answer
+     that passes**. Everything else fails even where it decodes: gzip reads
+     natively but comes back empty on web, a sample-flagged zlib header needs a
+     sample the app doesn't have, and uncompressed JSON round-trips perfectly,
+     so a lenient reader would report a clean run at 100% of plain JSON — the
+     tool printing the number that says nothing was compressed while voting
+     that all is well. Every blob is decoded by `dart:io` and by the web
+     build's pure-Dart decoder, and fails where the two differ. A column
+     holding TEXT rather than a BLOB is counted as its own failure too, rather
+     than throwing on the cast and replacing a named finding with a stack
+     trace.
 
-     **Step 5 narrows the frame** to plain zlib — see there.
-
-     Proven end-to-end before the real table exists, against throwaway DBs
-     written by `better-sqlite3`: gzip and zlib rows both inflate; a wrong
-     page's content, an entry that is a string, and an entry whose `text` is a
-     number are each caught and named; an absent `footnotes` key is
-     distinguished from an empty one; missing rows are counted, and a row naming
-     no corpus file separately.
+     Proven end-to-end before the real table existed, against throwaway DBs
+     written by `better-sqlite3`: a wrong page's content, an entry that is a
+     string, and an entry whose `text` is a number are each caught and named;
+     an absent `footnotes` key is distinguished from an empty one; missing rows
+     are counted, and a row naming no corpus file separately. Step 5 proved the
+     frame, `pageNum` and decoder checks the same way.
    - **Golden snippets** → Group 9 of
      `integration_test/search_flow_integration_test.dart`, reusing
      `search_test_helper.dart` unchanged. Five real queries; within each, rows
@@ -782,77 +792,95 @@ CREATE TABLE bjt_content (
    **Answered 2026-09-14:** accepted. Plain pages ship at 114 MB; a
    per-language compression sample would bring it back to 95 MB with reads as
    fast, and is kept for later — see **Compression sample — optional, later**.
-5. Extend `tools/bjt-fts-populate.js` to populate `bjt_content` (one page per
-   blob, plain zlib level 9, plus the `pageNum` column) alongside the existing
-   `_fts` / `_meta` tables.
+5. **Populate `bjt_content` — DONE 2026-09-15.** `tools/bjt-fts-populate.js`
+   (`createContentTable` + the page loop in `populateData`) writes one row per
+   `(filename, pageIndex, language)`: that page's language side,
+   `JSON.stringify`'d verbatim and `zlib.deflateSync`'d at level 9, with
+   `pageNum` in its own column. The rows go in the same per-file transaction as
+   the `_fts` / `_meta` rows. Writes stay in WAL mode; `finalizeDatabase` is
+   what ships.
 
-   **Two things that used to be part of this step are already done.** The
-   script now ends in `finalizeDatabase` (`tools/db-finalize.js`) — `VACUUM
-   INTO` at 8 KB pages,
-   `ANALYZE`, and a header assert — so page size is inherited rather than
-   chosen here, and nothing this step writes can reintroduce the WAL flag.
-   Write rows in WAL mode as before; the finalize pass is what ships.
+   **Section 5 was tightened before the real run:**
+   - **Plain zlib only.** gzip now fails: it reads natively but comes back as
+     empty bytes from the web decoder. A zlib header with the sample flag
+     (FDICT) set fails too, shown as frame `zlib+sample`.
+   - **Every blob is decoded twice**, with `dart:io`'s zlib and with
+     `package:archive`'s `ZLibDecoderWeb` (`verify: true`, the web build's
+     path), and fails where the bytes differ. `archive: ^4.0.9` is now a
+     `tool/`-only dev dependency of `static_site_generator`, the version the
+     app already locks.
+   - **`pageNum` is compared** against `pages[i]['pageNum']` on every row. A
+     table with no such column selects NULL in its place and fails each row by
+     name.
 
-   **The contract is already written down and enforced** — see step 1: one row per
-   `(filename, pageIndex, language)`, `language` spelled `pali` / `sinh`, the
-   `blob` column a real BLOB, and the payload that page's JSON substructure
-   verbatim — plus the `pageNum` column beside it, copied from the page.
-   Uncompressed JSON is a *failure*, not a lenient pass: it round-trips clean
-   and would otherwise read green at 100% of plain JSON.
+   **Proved on a table built to fail.** A throwaway DB with one good row and
+   five bad ones: gzip and `zlib+sample` were named as frames; a sample-flagged
+   stream and a corrupted checksum as inflate failures (`Filter error, bad
+   data`); a wrong `pageNum`; and a stream with two trailing bytes as a
+   **decoder disagreement** (see step 6, Decoder). The good row was in none.
+   The step 2–4 spike table now fails every row on frame and `pageNum` while
+   its entries still match.
 
-   **One part of it narrows first: the frame.** Section 5 accepts gzip or
-   zlib. Narrow it to zlib, the one frame the app's decoder reads — gzip passes
-   here and fails in the app. A zlib header with the sample flag set fails
-   too: no sample ships, so nothing could open it.
+   **Result on the real build:**
 
-   **And it decodes every blob twice** — with `dart:io`'s zlib, and with
-   `package:archive`'s pure-Dart decoder (`ZLibDecoderWeb`, checksum
-   verified), which is the path the web build takes — failing where the two
-   disagree. Nothing else runs the web path over the whole corpus, so it
-   happens here rather than at step 11. `archive` joins `sqlite3` as a
-   `tool/`-only dev dependency of `static_site_generator`; the app already
-   locks the same version transitively.
+   | | |
+   |---|---|
+   | rows | 57,934 over 285 files; none missing, none extra |
+   | entries compared | 466,127; zero divergences of any kind |
+   | frames | every blob `78 DA` (zlib, level 9) |
+   | blobs | 66.5 MB, 23.3% of the JSON they hold; largest 3.7 KB |
+   | `bjt_content` on disk | 74.9 MB + 1.4 MB primary-key index |
+   | `bjt-fts.db` | 94.8 → **170.8 MB** (the plan said 172) |
+   | header | 8 KB pages, bytes 18/19 = 1/1, `sqlite_stat1` written, no sidecars |
+   | build / verify time | 25 s / 31 s |
 
-   Almost nothing needs wiring up to check it. `verify_corpus_invariants.dart`
-   looks in `assets/databases/bjt-fts.db` by default and reports SKIPPED while
-   the table is absent, so the first run after this step arms it automatically —
-   including the run inside
-   `static_site_generator/test/corpus_tools_test.dart`. It opens the database
-   `immutable=1`, touching neither the asset nor its WAL sidecars.
+   **The search index did not move.** `bjt_meta` hashes the same before and
+   after (456,977 rows; SHA-256 over every column in `id` order), and two
+   `MATCH` counts agree (`භගවා` 11,459, `බුද්ධ*` 16,537). So the old file
+   matched the vendored JSON despite its older timestamp, and the counts
+   Groups 1–8 pin have no reason to move. The integration suites were not run.
 
-   **The exception is `pageNum`, and it has to be closed in this step.** Section
-   5 compares blobs; the column sits beside them and nothing reads it. That is
-   the one field of the four that is *not* derivable from anything else in the
-   table, so a populate bug there is both the likeliest and the only invisible
-   one — every other column is in the primary key, and a wrong key shows up as a
-   missing or extra row. Extending section 5 to compare the column against
-   `pages[i]['pageNum']` is a few lines in the loop that already has both sides
-   in hand.
+   Nothing else needs wiring: `static_site_generator/test/corpus_tools_test.dart`
+   runs the verifier with no flag, so it enforces section 5 from now on.
 
-   **Leave no WAL frames behind.** Reading `immutable=1` means SQLite ignores a
-   `-wal`, so the verifier refuses an un-checkpointed database rather than
-   report stale parity. The script already closes in a `finally`, which
-   checkpoints and removes the `-wal`; this bites only after a killed run or an
-   open sqlite3 session. The refusal prints the remedy:
-   `sqlite3 assets/databases/bjt-fts.db 'PRAGMA wal_checkpoint(TRUNCATE);'`
+   **Recap for whoever starts step 6** — what step 5 leaves you:
+   - **The table.** `bjt_content(filename, pageIndex, language, pageNum,
+     blob)`, keyed on `(filename, pageIndex, language)`, inside
+     `assets/databases/bjt-fts.db`. `filename` is the JSON name without
+     `.json` (`an-1`), the same key `bjt_meta` uses. Every page has both a
+     `pali` and a `sinh` row, so a missing row really is a fault.
+   - **The blob** inflates to exactly `pages[i]['pali']` or `['sinh']` from the
+     JSON. `pageNum` is the printed page number, not `pageIndex + 1`: take it
+     from the column.
+   - **Nothing in the app reads the table yet.** Snippets and the reader still
+     load `assets/text/*.json` until step 8.
+   - **Your local app holds an old copy.** The app copies `bjt-fts.db` into its
+     documents directory only when none is there (step 7 fixes that), so a
+     machine that ran the app before step 5 has no `bjt_content`. Delete that
+     copy before testing stage 2.
+   - **Rebuild and check:** `npm run generate-fts` in `tools/`, then
+     `dart run tool/verify_corpus_invariants.dart` in `static_site_generator/`.
+     Section 5 already proves the table matches the JSON entry for entry, so if
+     stage 2 shows a page differently from today, suspect the datasource, not
+     the data.
+   - **Not run since the rebuild:** `flutter test` and the integration suites.
+     Get them green before the swap, as stage 1's baseline. `all_tests.dart`
+     can flake when files share the database; re-run a failing file alone
+     before blaming a change.
+   - **The decoder traps** are under **Decoder** in step 6.
 
-   **Back up the shipped database before the first run, and compare
-   `bjt_meta` after.** The rebuild regenerates the search index too, not just
-   the new table, and the shipped file's timestamp is earlier than the canon
-   sync commit (`470d105`) on the same day — so it may predate the vendored
-   JSON. If `bjt_meta` moves, the counts Groups 1–8 pin can move with it, for a
-   reason unrelated to `bjt_content`. The file is untracked, so git cannot
-   restore it.
-
-   **Left for after this step:**
+   **Left open after step 5** — deliberately not done yet (the user's call,
+   2026-09-15); nothing in step 6 waits on them:
    - **Delete the step 2–4 throwaways**: `tools/bjt-content-spike.js`,
      `tools/bench_content_read.dart`, `tools/bjt-content-spike.db`, and the
      `.gitignore` block that names them. Their numbers are recorded in
-     **What the measurements said**; nothing else reads them.
-   - **`dict.db` is still WAL-flagged.** This step's rebuild fixes only
-     `bjt-fts.db`. Run `npm run generate-dict` in `tools/` separately. Until
-     then `validate-release.sh` fails on it, and the web build (step 11)
-     cannot open it.
+     **What the measurements said**; nothing else reads them. They are
+     untracked, so deleting them cannot be undone — ask first.
+   - **Delete the pre-rebuild backup** `tools/bjt-fts.pre-step5.db` (the old
+     95 MB database, gitignored by `tools/*.db`). Also untracked; ask first.
+   - **Rebuild `dict.db`**, still WAL-flagged: `npm run generate-dict` in
+     `tools/`. Until then `validate-release.sh` fails on it, and the web build
+     (step 11) cannot open it.
 6. **Move the app to Drift, then add the content datasource on top.** Decided
    2026-09-13: both land in one branch, and no `sqflite` version of the
    datasource is written first. Two stages, so a failure points at one of them:
@@ -905,7 +933,35 @@ CREATE TABLE bjt_content (
      own check.
    - **Decoder.** `package:archive`'s `ZLibDecoder` with `verify: true` — one
      call on every platform (`dart:io`'s zlib natively, pure Dart on web), and
-     step 5 has already run both paths over every blob.
+     step 5 has already run both paths over every blob. **A bad blob fails
+     differently on each, and neither always throws** (probed 2026-09-15):
+
+     | Broken blob | Native (`dart:io`) | Web (pure Dart) |
+     |---|---|---|
+     | bad checksum | throws `FormatException` | empty bytes |
+     | a byte changed mid-stream | throws `FormatException` | throws `RangeError` or empty bytes, by position (one tried to allocate ~24 GB and ran out of memory) |
+     | cut short | part of the page, no error | throws `RangeError` |
+     | trailing bytes | whole page, no error | empty bytes |
+     | gzip frame | whole page, no error | empty bytes |
+
+     So an empty-bytes check alone misses a cut-short blob on native. Decode
+     and parse in one `try`, and turn every failure into one error naming the
+     row. The parse catches the quiet cases: part of a page is never a whole
+     JSON object. Catch everything, not `on Exception` — `RangeError` is an
+     `Error`.
+
+     ```dart
+     try {
+       final bytes = const ZLibDecoder().decodeBytes(blob, verify: true);
+       if (bytes.isEmpty) throw const FormatException('empty blob');
+       return json.decode(utf8.decode(bytes)) as Map<String, dynamic>;
+     } catch (error) {
+       // Use the datasource's own error type; the point is naming the row.
+       throw StateError('corrupt row $filename/$pageIndex/$language: $error');
+     }
+     ```
+
+     No real blob does any of this today — section 5 would fail.
 7. **Make an app update replace the copied databases.** Both
    `_initializeEdition` (`fts_local_datasource.dart`) and
    `dictionary_local_datasource.dart` copy the asset out of the bundle only
@@ -1023,7 +1079,7 @@ missing-row degrades to an empty snippet, and the native search path no longer r
 - **~~Compression granularity~~ — decided 2026-09-14:** one page per blob,
   plain zlib; see **Blob size — decided**. The compression sample is optional
   and later. Nothing on this plan's critical path is open — the bullets below
-  are real, but none blocks step 5.
+  are real, but none blocks step 6.
 
 - **`page_size` is a disk knob, not a download knob.** The 4/8/16/32 KB table
   sits next to the download discussion and reads as though a bigger page also
