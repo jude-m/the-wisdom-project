@@ -30,8 +30,7 @@ class CircularToggleButton extends StatelessWidget {
         tooltip: tooltip,
         onPressed: onPressed,
         style: IconButton.styleFrom(
-          backgroundColor:
-              isActive ? theme.colorScheme.primaryContainer : null,
+          backgroundColor: isActive ? theme.colorScheme.primaryContainer : null,
           foregroundColor: isActive
               ? theme.colorScheme.onPrimaryContainer
               : theme.colorScheme.onSurfaceVariant,

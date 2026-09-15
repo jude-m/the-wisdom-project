@@ -69,9 +69,7 @@ void main() {
       final container1 = ProviderContainer(
         overrides: [keyValueStoreProvider.overrideWithValue(store)],
       );
-      await container1
-          .read(specialConjunctsProvider.notifier)
-          .set(true);
+      await container1.read(specialConjunctsProvider.notifier).set(true);
 
       // Assert the value was written under the documented storage key.
       expect(store.getBool(StorageKeys.paliSpecialConjuncts), isTrue);
@@ -187,7 +185,8 @@ void main() {
       expect(container.read(specialConjunctsProvider), isTrue);
 
       // The combined provider also reflects the change.
-      expect(container.read(paliLetterOptionsProvider).specialConjuncts, isTrue);
+      expect(
+          container.read(paliLetterOptionsProvider).specialConjuncts, isTrue);
     });
   });
 
@@ -217,7 +216,8 @@ void main() {
 
     test('defaults and baseline are not equal', () {
       // Ensures the equality implementation distinguishes the two canonical singletons.
-      expect(PaliLetterOptions.defaults, isNot(equals(PaliLetterOptions.baseline)));
+      expect(PaliLetterOptions.defaults,
+          isNot(equals(PaliLetterOptions.baseline)));
     });
 
     test('any flag difference breaks equality', () {

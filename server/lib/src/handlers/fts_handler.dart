@@ -38,7 +38,8 @@ class FtsHandler {
       final isExactMatch = params['isExactMatch'] == 'true';
       final isPhraseSearch = params['isPhraseSearch'] != 'false';
       final isAnywhereInText = params['isAnywhereInText'] == 'true';
-      final proximityDistance = int.tryParse(params['proximityDistance'] ?? '') ?? 10;
+      final proximityDistance =
+          int.tryParse(params['proximityDistance'] ?? '') ?? 10;
       final limit = int.tryParse(params['limit'] ?? '') ?? 50;
       final offset = int.tryParse(params['offset'] ?? '') ?? 0;
       // Language filter (පාළි / සිංහල toggle): 'pali' / 'sinh', or absent = both.
@@ -84,7 +85,8 @@ class FtsHandler {
       }
       // 'language' lives on the meta table, already joined as `m` above. Same
       // shared builder the client uses, so the SQL/column contract is single-sourced.
-      final languageClause = ScopeFilterSql.buildLanguageClause(effectiveLanguage);
+      final languageClause =
+          ScopeFilterSql.buildLanguageClause(effectiveLanguage);
       if (languageClause != null) {
         sql.write(' AND $languageClause');
       }
@@ -154,7 +156,8 @@ class FtsHandler {
       final isExactMatch = params['isExactMatch'] == 'true';
       final isPhraseSearch = params['isPhraseSearch'] != 'false';
       final isAnywhereInText = params['isAnywhereInText'] == 'true';
-      final proximityDistance = int.tryParse(params['proximityDistance'] ?? '') ?? 10;
+      final proximityDistance =
+          int.tryParse(params['proximityDistance'] ?? '') ?? 10;
       // Whitelist as in _search: unknown language → no filter, not an empty count.
       const allowedLanguages = {'pali', 'sinh'};
       final language = params['language'];

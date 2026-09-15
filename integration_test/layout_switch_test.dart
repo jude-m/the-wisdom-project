@@ -232,7 +232,8 @@ void main() {
         // first one, and the next expectation would fail blaming the
         // listener, which is innocent.
         expect(
-          controller.offset, greaterThan(0),
+          controller.offset,
+          greaterThan(0),
           reason: 'jumpTo(1200) must produce a non-zero offset before a '
               'moved-off-the-top entry can be proved to survive — if the '
               'offset is 0 the laid-out list is shorter than 1200px and '
@@ -256,7 +257,8 @@ void main() {
         final posA = await switchTo(ReaderLayout.stacked);
         expect(posA.layout, ReaderLayout.stacked);
         expect(
-          posA.offset, greaterThan(atTop.offset),
+          posA.offset,
+          greaterThan(atTop.offset),
           reason: 'The entry at the top of sideBySide is pages into the '
               'unit, so revealing it in stacked must leave the viewport '
               'well below where a top-of-unit switch lands — offset '
@@ -265,7 +267,8 @@ void main() {
               'the top and lost the reading position',
         );
         expect(
-          posA.top, scrolledTo,
+          posA.top,
+          scrolledTo,
           reason: 'The entry at the top of sideBySide must be the entry at '
               'the top of stacked. Revealing the WRONG entry also leaves the '
               'viewport below the reference, so the offset above cannot tell '
@@ -280,13 +283,15 @@ void main() {
         final posASurvived = await switchTo(ReaderLayout.sinhalaOnly);
         expect(posASurvived.layout, ReaderLayout.sinhalaOnly);
         expect(
-          posASurvived.offset, greaterThan(atTop.offset),
+          posASurvived.offset,
+          greaterThan(atTop.offset),
           reason: 'stacked → sinhalaOnly with no re-scroll must keep the '
               'reading position — offset ${posASurvived.offset} vs '
               'reference ${atTop.offset}',
         );
         expect(
-          posASurvived.top, scrolledTo,
+          posASurvived.top,
+          scrolledTo,
           reason: 'Still the same entry two layouts on — expected '
               '$scrolledTo, got ${posASurvived.top}',
         );
@@ -309,7 +314,8 @@ void main() {
         final posB = await switchTo(ReaderLayout.sideBySide);
         expect(posB.layout, ReaderLayout.sideBySide);
         expect(
-          posB.offset, closeTo(atTop.offset, 1.0),
+          posB.offset,
+          closeTo(atTop.offset, 1.0),
           reason: 'After scrolling back to the top, the switch must come back '
               'up with it: revealing the unit\'s first entry in sideBySide is '
               'where phase 1 landed, ${atTop.offset}. An offset of '
@@ -318,7 +324,8 @@ void main() {
               're-reading the viewport',
         );
         expect(
-          posB.top, atTop.top,
+          posB.top,
+          atTop.top,
           reason: 'And it must be the unit\'s first entry that came back '
               '(${atTop.top}), not the one phase 2 left at the top '
               '($scrolledTo)',
@@ -374,9 +381,7 @@ void main() {
         // Driving the notifier directly would skip the visibility flip
         // the real UI does — opening the bar restores parity.
         container.read(inPageSearchStatesProvider.notifier).openSearch();
-        container
-            .read(inPageSearchStatesProvider.notifier)
-            .updateQuery('එවං');
+        container.read(inPageSearchStatesProvider.notifier).updateQuery('එවං');
         // 300 ms debounce + buffer, then settle for the match computation.
         await tester.pump(const Duration(milliseconds: 400));
         await pumpForSettle(tester);
@@ -393,8 +398,7 @@ void main() {
 
         // ACT 1 — switch to sinhalaOnly. Recompute must run against
         // ONLY the Sinhala entries, dropping all Pali matches from the set.
-        container
-            .read(updateActiveTabLayoutProvider)(ReaderLayout.sinhalaOnly);
+        container.read(updateActiveTabLayoutProvider)(ReaderLayout.sinhalaOnly);
         await pumpForSettle(tester);
 
         final sinhalaState = readSearchState(container, 0);
@@ -413,8 +417,7 @@ void main() {
         // ACT 2 — switch to sideBySide. Both sections scanned, so
         // matchCount must equal paliCount + sinhalaCount. This is the
         // load-bearing assertion (see test header).
-        container
-            .read(updateActiveTabLayoutProvider)(ReaderLayout.sideBySide);
+        container.read(updateActiveTabLayoutProvider)(ReaderLayout.sideBySide);
         await pumpForSettle(tester);
 
         final sideBySideState = readSearchState(container, 0);
@@ -428,8 +431,7 @@ void main() {
         // ROUND-TRIP — back to paliOnly. The original match set must
         // return. Without the recompute being wired up, this would
         // still report sideBySide's count (or whatever was cached).
-        container
-            .read(updateActiveTabLayoutProvider)(ReaderLayout.paliOnly);
+        container.read(updateActiveTabLayoutProvider)(ReaderLayout.paliOnly);
         await pumpForSettle(tester);
 
         final restoredState = readSearchState(container, 0);
@@ -509,23 +511,21 @@ void main() {
 
         // Start in sideBySide so "සීල" matches both Pali and Sinhala
         // entries (10 total in dn-1-1).
-        container
-            .read(updateActiveTabLayoutProvider)(ReaderLayout.sideBySide);
+        container.read(updateActiveTabLayoutProvider)(ReaderLayout.sideBySide);
         await pumpForSettle(tester);
 
         // Drive search via the notifier (same pattern as the recompute
         // test above). openSearch first so the visibility flag flips
         // before updateQuery — matches the real UI path.
         container.read(inPageSearchStatesProvider.notifier).openSearch();
-        container
-            .read(inPageSearchStatesProvider.notifier)
-            .updateQuery('සීල');
+        container.read(inPageSearchStatesProvider.notifier).updateQuery('සීල');
         await tester.pump(const Duration(milliseconds: 400));
         await pumpForSettle(tester);
 
         final matchCount = readSearchState(container, 0).matchCount;
         expect(
-          matchCount, 10,
+          matchCount,
+          10,
           reason: '"සීල" in dn-1-1 sideBySide should yield 10 matches '
               '(see _findAllMatches: Pali + Sinhala sections scanned). '
               'Got $matchCount — repro depends on this exact count.',
@@ -550,12 +550,12 @@ void main() {
         // Switch to stacked. Listener captures the top entry and reveals
         // it again once the new layout has laid out. Matches dropped
         // (search hidden).
-        container
-            .read(updateActiveTabLayoutProvider)(ReaderLayout.stacked);
+        container.read(updateActiveTabLayoutProvider)(ReaderLayout.stacked);
         await pumpForSettle(tester, const Duration(seconds: 1));
 
         expect(
-          readSearchState(container, 0).matches, isEmpty,
+          readSearchState(container, 0).matches,
+          isEmpty,
           reason: 'Layout switch with search hidden must drop stale '
               'matches — openSearch will recompute on reopen',
         );
@@ -568,12 +568,14 @@ void main() {
         await pumpForSettle(tester, const Duration(seconds: 2));
 
         expect(
-          readSearchState(container, 0).matchCount, 10,
+          readSearchState(container, 0).matchCount,
+          10,
           reason: 'Reopen must recompute against stacked (still both '
               'langs scanned) — count unchanged',
         );
         expect(
-          readSearchState(container, 0).currentMatchIndex, 0,
+          readSearchState(container, 0).currentMatchIndex,
+          0,
           reason: 'Reopen recompute resets currentMatchIndex to 0',
         );
 
@@ -604,7 +606,8 @@ void main() {
           await pumpForSettle(tester, const Duration(milliseconds: 500));
         }
         expect(
-          readSearchState(container, 0).currentMatchIndex, 5,
+          readSearchState(container, 0).currentMatchIndex,
+          5,
           reason: '5 next-taps should advance currentMatchIndex from 0 to 5',
         );
 
@@ -614,7 +617,8 @@ void main() {
         final offsetAfterAdvance = controller.offset;
         final delta = offsetAfterAdvance - offsetAtFirstMatch;
         expect(
-          delta, greaterThan(viewport),
+          delta,
+          greaterThan(viewport),
           reason: 'After 5 next-taps past cacheExtent, scroll offset '
               'must advance by more than one viewport height '
               '($viewport px). Got delta $delta '
@@ -657,8 +661,7 @@ void main() {
 
         // 1. First tab via the real creator with nothing saved → falls
         //    back to the landscape orientation default (sideBySide).
-        final idxA =
-            container.read(openTabFromNodeKeyProvider)('dn-1-1');
+        final idxA = container.read(openTabFromNodeKeyProvider)('dn-1-1');
         await pumpForSettle(tester, const Duration(seconds: 2));
         expect(idxA, isNonNegative, reason: 'dn-1-1 should open');
         expect(
@@ -694,8 +697,8 @@ void main() {
           reason: 'New landscape tab seeds from saved layout, not sideBySide',
         );
 
-        final idxPortrait = container
-            .read(openTabFromNodeKeyProvider)('dn-1-1', isPortraitMode: true);
+        final idxPortrait = container.read(openTabFromNodeKeyProvider)('dn-1-1',
+            isPortraitMode: true);
         await pumpForSettle(tester, const Duration(seconds: 2));
         expect(
           container.read(tabsProvider)[idxPortrait].layout,

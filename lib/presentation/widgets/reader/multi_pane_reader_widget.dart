@@ -38,7 +38,6 @@ import '../dictionary/dictionary_bottom_sheet.dart';
 import '../common/status_message_view.dart';
 import '../../../core/utils/responsive_utils.dart';
 
-
 class MultiPaneReaderWidget extends ConsumerStatefulWidget {
   const MultiPaneReaderWidget({super.key});
 
@@ -538,8 +537,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     // is now exactly "scrolled down" — including after a search hit, which
     // scrolls into the unit rather than starting partway through it.
     final hasContent = slice != null && !slice.isEmpty;
-    final showMode1 =
-        hasContent && !searchState.isVisible && !_isScrolledDown;
+    final showMode1 = hasContent && !searchState.isVisible && !_isScrolledDown;
     final showMode2 = hasContent && !searchState.isVisible && _isScrolledDown;
 
     return Stack(
@@ -649,9 +647,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOutCubic,
                 child: AnimatedSlide(
-                  offset: showMode2
-                      ? Offset.zero
-                      : const Offset(0, 0.3),
+                  offset: showMode2 ? Offset.zero : const Offset(0, 0.3),
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeOutCubic,
                   child: ReaderExpandableFab(

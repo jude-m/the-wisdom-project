@@ -211,8 +211,7 @@ void main() {
       expect(find.text('0'), findsNWidgets(3));
     });
 
-    testWidgets('badge at exactly 100 shows "100", not "100+"',
-        (tester) async {
+    testWidgets('badge at exactly 100 shows "100", not "100+"', (tester) async {
       await _pumpPanel(
         tester,
         state: const SearchState(
@@ -367,7 +366,8 @@ void main() {
       expect(find.text('බ්‍රහ්මජාලසූත්‍රය'), findsNothing);
     });
 
-    testWidgets('flipping the toggle re-renders the tile into the other language',
+    testWidgets(
+        'flipping the toggle re-renders the tile into the other language',
         (tester) async {
       final notifier = await _pumpPanel(
         tester,

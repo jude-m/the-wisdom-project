@@ -200,7 +200,8 @@ void main() {
         test('large indices are handled correctly', () {
           // ARRANGE
           final results = [
-            createSearchResult(nodeKey: 'dn-1', pageIndex: 999, entryIndex: 999),
+            createSearchResult(
+                nodeKey: 'dn-1', pageIndex: 999, entryIndex: 999),
             createSearchResult(nodeKey: 'dn-1', pageIndex: 0, entryIndex: 0),
           ];
 
@@ -272,7 +273,8 @@ void main() {
     });
 
     group('Computed properties -', () {
-      test('hasSecondaryMatches returns true when there are secondary matches', () {
+      test('hasSecondaryMatches returns true when there are secondary matches',
+          () {
         // ARRANGE
         final results = [
           createSearchResult(nodeKey: 'dn-1', pageIndex: 0, entryIndex: 0),

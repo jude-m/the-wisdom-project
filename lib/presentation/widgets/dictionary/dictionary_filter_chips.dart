@@ -58,8 +58,7 @@ class _DictionaryFilterChipsState extends State<DictionaryFilterChips> {
       ids,
       DictionaryFilterOperations.englishIds,
     );
-    final hasCustomScope =
-        DictionaryFilterOperations.hasCustomSelections(ids);
+    final hasCustomScope = DictionaryFilterOperations.hasCustomSelections(ids);
 
     return SizedBox(
       height: 48,

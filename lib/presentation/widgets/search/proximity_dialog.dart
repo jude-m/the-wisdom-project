@@ -91,7 +91,8 @@ class _ProximityDialogState extends ConsumerState<ProximityDialog> {
 
   /// Whether the slider should be enabled.
   /// Only enabled when separate-word mode and "anywhere" is not checked.
-  bool get _isSliderEnabled => _isProximityControlsEnabled && !_isAnywhereInText;
+  bool get _isSliderEnabled =>
+      _isProximityControlsEnabled && !_isAnywhereInText;
 
   @override
   Widget build(BuildContext context) {

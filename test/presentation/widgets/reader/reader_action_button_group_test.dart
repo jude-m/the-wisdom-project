@@ -29,8 +29,12 @@ void main() {
   /// Pumps the button group with the providers it watches overridden to
   /// stable test defaults. Returns a counter per callback so a test can say
   /// which one fired, not merely that something did.
-  Future<({int Function() search, int Function() previous, int Function() next})>
-      pumpGroup(
+  Future<
+      ({
+        int Function() search,
+        int Function() previous,
+        int Function() next
+      })> pumpGroup(
     WidgetTester tester, {
     TipitakaTreeNode? parallelTextNode,
     bool isCommentary = false,
@@ -94,8 +98,7 @@ void main() {
       expect(taps.search(), 1);
     });
 
-    testWidgets(
-        'search icon is present even when commentary toggle is hidden',
+    testWidgets('search icon is present even when commentary toggle is hidden',
         (tester) async {
       // No parallel-text node → commentary/root-text toggle is omitted.
       // The search button should still render.

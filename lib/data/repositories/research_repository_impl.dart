@@ -41,7 +41,8 @@ class ResearchRepositoryImpl implements ResearchRepository {
       //
       // The real cause is logged here; the user-facing copy is chosen upstream
       // from the kind. (The `Failure` still carries the original error for logs.)
-      developer.log('research failed', name: 'research', error: e, stackTrace: stack);
+      developer.log('research failed',
+          name: 'research', error: e, stackTrace: stack);
       return Left(mapResearchError(e));
     }
   }

@@ -185,17 +185,14 @@ void main() {
         // ASSERT: TextField shows භික්ඛ (with conjunct ZWJ formatting).
         // The backspace button removes one code unit at a time, preserving
         // the ZWJ characters inserted by beautifyPaliText.
-        final textField =
-            tester.widget<TextField>(findDictionaryTextField());
-        expect(
-            removeConjunctFormatting(textField.controller!.text), 'භික්ඛ',
+        final textField = tester.widget<TextField>(findDictionaryTextField());
+        expect(removeConjunctFormatting(textField.controller!.text), 'භික්ඛ',
             reason:
                 'TextField should show "භික්ඛ" (with conjuncts) after 2 backspaces');
 
         // ASSERT: Results updated — first record should contain bhikkha definition
         expect(find.textContaining('භු යාචනෙ'), findsWidgets,
-            reason:
-                'After editing to භික්ඛ, results should contain භු යාචනෙ');
+            reason: 'After editing to භික්ඛ, results should contain භු යාචනෙ');
       },
     );
 
@@ -219,10 +216,12 @@ void main() {
         // itself, whose LayoutBuilder center falls on content text spans).
         // .first targets the CustomScrollView's Scrollable, skipping the
         // TextField's internal Scrollable.
-        final sheetScrollable = find.descendant(
-          of: find.byType(DictionaryBottomSheet),
-          matching: find.byType(Scrollable),
-        ).first;
+        final sheetScrollable = find
+            .descendant(
+              of: find.byType(DictionaryBottomSheet),
+              matching: find.byType(Scrollable),
+            )
+            .first;
 
         // Drag the sheet up to max via its Scrollable (DraggableScrollableSheet
         // intercepts scroll events to expand before scrolling content)
@@ -247,10 +246,8 @@ void main() {
 
         // Verify header doesn't go behind the tab bar:
         // TabBarWidget should be above the TextField
-        final tabBarBottom =
-            tester.getBottomLeft(find.byType(TabBarWidget)).dy;
-        final textFieldTop =
-            tester.getTopLeft(findDictionaryTextField()).dy;
+        final tabBarBottom = tester.getBottomLeft(find.byType(TabBarWidget)).dy;
+        final textFieldTop = tester.getTopLeft(findDictionaryTextField()).dy;
         expect(textFieldTop, greaterThanOrEqualTo(tabBarBottom),
             reason: 'Dictionary header must not go behind the tab bar');
 
@@ -289,8 +286,7 @@ void main() {
         await pumpForSettle(tester);
 
         // Select all and delete
-        final textField =
-            tester.widget<TextField>(findDictionaryTextField());
+        final textField = tester.widget<TextField>(findDictionaryTextField());
         textField.controller!.clear();
         await tester.pump();
 
@@ -302,11 +298,9 @@ void main() {
         // Verify the lookup returned results (not the "no results" state)
         // and that the converted Sinhala word appears in the result tiles.
         expect(find.byIcon(Icons.search_off), findsNothing,
-            reason:
-                'Should NOT show "no results" icon after Singlish lookup');
+            reason: 'Should NOT show "no results" icon after Singlish lookup');
         expect(find.textContaining('අභිනන්දති'), findsWidgets,
-            reason:
-                'Singlish "abhinandhathi" should convert to අභිනන්දති '
+            reason: 'Singlish "abhinandhathi" should convert to අභිනන්දති '
                 'and find dictionary results');
 
         // Scroll through results to find "delighting" (appears in the DPD
@@ -317,16 +311,16 @@ void main() {
         // (since both share a ScrollController), then scrolls the content.
         // .first targets the CustomScrollView's Scrollable (the outer one),
         // skipping the TextField's internal Scrollable (for text input).
-        final sheetScrollable = find.descendant(
-          of: find.byType(DictionaryBottomSheet),
-          matching: find.byType(Scrollable),
-        ).first;
+        final sheetScrollable = find
+            .descendant(
+              of: find.byType(DictionaryBottomSheet),
+              matching: find.byType(Scrollable),
+            )
+            .first;
 
         var found = false;
         for (var i = 0; i < 15; i++) {
-          if (tester
-              .widgetList(find.textContaining('delighting'))
-              .isNotEmpty) {
+          if (tester.widgetList(find.textContaining('delighting')).isNotEmpty) {
             found = true;
             break;
           }
@@ -335,8 +329,7 @@ void main() {
         }
 
         expect(found, isTrue,
-            reason:
-                'Scrolling through results should reveal "delighting" '
+            reason: 'Scrolling through results should reveal "delighting" '
                 'from a DPD prefix-match entry');
       },
     );
@@ -379,9 +372,8 @@ void main() {
             dictionaryIds: filter,
             exactMatch: exactMatch,
           );
-          final entries = container
-              .read(dictionaryLookupProvider(params))
-              .value;
+          final entries =
+              container.read(dictionaryLookupProvider(params)).value;
           expect(entries, isNotNull,
               reason: 'Dictionary lookup should have completed');
           return entries!.map((e) => e.dictionaryId).toSet();
@@ -390,8 +382,7 @@ void main() {
         // Multiple dictionaries should have results for භගවා (e.g. DPD, VRI, DPDC).
         final allBadgeTexts = dictIdsFromProvider();
         expect(allBadgeTexts.length, greaterThan(1),
-            reason:
-                'භගවා should have results from multiple dictionaries, '
+            reason: 'භගවා should have results from multiple dictionaries, '
                 'found: $allBadgeTexts');
         expect(allBadgeTexts.contains('DPD'), isTrue,
             reason: 'DPD should be among the initial results');
@@ -434,8 +425,7 @@ void main() {
         // badges, for the reason explained in dictIdsFromProvider above).
         final filteredDictIds = dictIdsFromProvider();
         expect(filteredDictIds, equals({'DPD'}),
-            reason:
-                'After filtering to DPD only, the lookup should return '
+            reason: 'After filtering to DPD only, the lookup should return '
                 'entries from no other dictionary, got: $filteredDictIds');
 
         // STEP 4: Open refine dialog again and tap DPD to restore all.
@@ -453,8 +443,7 @@ void main() {
         final filterAfterRestore =
             container.read(bottomSheetDictionaryFilterProvider);
         expect(filterAfterRestore.isEmpty, isTrue,
-            reason:
-                'After deselecting the only selected dict, '
+            reason: 'After deselecting the only selected dict, '
                 'filter should normalize to {} (All)');
 
         // Verify all checkboxes in the dialog show as checked.
@@ -464,8 +453,7 @@ void main() {
             tester.widgetList<Checkbox>(find.byType(Checkbox)).toList();
         for (final checkbox in checkboxes) {
           expect(checkbox.value, isTrue,
-              reason:
-                  'All checkboxes should be checked when filter is "All"');
+              reason: 'All checkboxes should be checked when filter is "All"');
         }
 
         // Close the dialog
@@ -477,8 +465,7 @@ void main() {
         // ASSERT: Results from multiple dictionaries should be returned again
         final restoredBadges = dictIdsFromProvider();
         expect(restoredBadges.length, greaterThan(1),
-            reason:
-                'After restoring to "All", multiple dictionary badges '
+            reason: 'After restoring to "All", multiple dictionary badges '
                 'should be visible again, found: $restoredBadges');
       },
     );

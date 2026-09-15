@@ -39,16 +39,15 @@ class _DeepLinkListenerState extends ConsumerState<DeepLinkListener> {
     super.initState();
     if (kIsWeb) {
       // Post-frame so MediaQuery/providers are fully in place at cold start.
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _handleUri(Uri.base));
+      WidgetsBinding.instance.addPostFrameCallback((_) => _handleUri(Uri.base));
     } else {
       // The stream includes the initial (cold-start) link on app_links ≥6.
       // onError: a platform-channel hiccup must never surface as an unhandled
       // stream error — same stance as malformed links: silently ignore.
       _subscription = AppLinks().uriLinkStream.listen(
-        _handleUri,
-        onError: (Object _) {},
-      );
+            _handleUri,
+            onError: (Object _) {},
+          );
     }
   }
 

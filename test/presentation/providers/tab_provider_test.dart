@@ -58,10 +58,8 @@ void main() {
     test('removeTab should remove tab at specified index', () {
       // ARRANGE
       final notifier = container.read(tabsProvider.notifier);
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'mn-1'));
 
       // ACT
       notifier.removeTab(0);
@@ -328,12 +326,9 @@ void main() {
     test('closing active tab should select previous tab', () {
       // ARRANGE - Add 3 tabs and make the last one active
       final notifier = container.read(tabsProvider.notifier);
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'sn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'mn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'sn-1'));
 
       // Set the last tab (index 2) as active
       container.read(activeTabIndexProvider.notifier).state = 2;
@@ -352,10 +347,8 @@ void main() {
         () {
       // ARRANGE - Add 2 tabs and make the first one active
       final notifier = container.read(tabsProvider.notifier);
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'mn-1'));
 
       container.read(activeTabIndexProvider.notifier).state = 0;
 
@@ -371,8 +364,7 @@ void main() {
     test('closing the only tab should set activeTabIndex to -1', () {
       // ARRANGE - Add only 1 tab and make it active
       final notifier = container.read(tabsProvider.notifier);
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       container.read(activeTabIndexProvider.notifier).state = 0;
 
       // ACT - Close the only tab
@@ -388,12 +380,9 @@ void main() {
         () {
       // ARRANGE - Add 3 tabs and make the last one (index 2) active
       final notifier = container.read(tabsProvider.notifier);
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'sn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'mn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'sn-1'));
 
       container.read(activeTabIndexProvider.notifier).state = 2;
 
@@ -410,12 +399,9 @@ void main() {
     test('closing tab after active should not change activeTabIndex', () {
       // ARRANGE - Add 3 tabs and make the first one (index 0) active
       final notifier = container.read(tabsProvider.notifier);
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'sn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'mn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'sn-1'));
 
       container.read(activeTabIndexProvider.notifier).state = 0;
 
@@ -433,12 +419,9 @@ void main() {
       // Scroll position now lives on ReaderTab.scrollOffset, so closing
       // a tab shifts surrounding offsets naturally as the list collapses.
       final notifier = container.read(tabsProvider.notifier);
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'sn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'mn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'sn-1'));
 
       notifier.updateTabScrollOffset(0, 100.0);
       notifier.updateTabScrollOffset(1, 200.0);
@@ -460,8 +443,7 @@ void main() {
     test('closing the only tab should clear selectedNode', () {
       // ARRANGE - Add 1 tab and set a selected node
       final notifier = container.read(tabsProvider.notifier);
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       container.read(activeTabIndexProvider.notifier).state = 0;
       container.read(selectedNodeProvider.notifier).state = 'dn-1';
 
@@ -475,8 +457,7 @@ void main() {
     test('closing the only tab should reset expandedNodes to default', () {
       // ARRANGE - Add 1 tab and expand some nodes
       final notifier = container.read(tabsProvider.notifier);
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       container.read(activeTabIndexProvider.notifier).state = 0;
       container.read(expandedNodesProvider.notifier).state = {
         TipitakaNodeKeys.dighaNikaya,
@@ -497,8 +478,7 @@ void main() {
       // the tab inherently discards its offset — assert the tabs list
       // is empty rather than checking a separate map.
       final notifier = container.read(tabsProvider.notifier);
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       container.read(activeTabIndexProvider.notifier).state = 0;
       notifier.updateTabScrollOffset(0, 500.0);
 
@@ -512,14 +492,10 @@ void main() {
     test('closing middle tab should correctly shift scroll positions', () {
       // ARRANGE - Add 4 tabs with scroll positions
       final notifier = container.read(tabsProvider.notifier);
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'sn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'an-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'mn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'sn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'an-1'));
 
       notifier.updateTabScrollOffset(0, 100.0);
       notifier.updateTabScrollOffset(1, 200.0);
@@ -543,12 +519,9 @@ void main() {
         () {
       // ARRANGE - Add 3 tabs, make middle one active
       final notifier = container.read(tabsProvider.notifier);
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'sn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'mn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'sn-1'));
 
       notifier.updateTabScrollOffset(0, 100.0);
       notifier.updateTabScrollOffset(1, 200.0);
@@ -577,12 +550,9 @@ void main() {
     test('closing tab should re-index in-page search state', () {
       // ARRANGE - Add 3 tabs with search state
       final notifier = container.read(tabsProvider.notifier);
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'mn-1'));
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'sn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'mn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'sn-1'));
 
       // Open search on each tab
       final searchNotifier =
@@ -612,8 +582,7 @@ void main() {
     test('closing the only tab should clear all in-page search state', () {
       // ARRANGE - Add 1 tab with search state
       final notifier = container.read(tabsProvider.notifier);
-      notifier
-          .addTab(_createTestReaderTab(nodeKey: 'dn-1'));
+      notifier.addTab(_createTestReaderTab(nodeKey: 'dn-1'));
       container.read(activeTabIndexProvider.notifier).state = 0;
       container.read(inPageSearchStatesProvider.notifier).openSearch();
 
@@ -623,7 +592,6 @@ void main() {
       // ASSERT - All search state should be cleared
       expect(container.read(inPageSearchStatesProvider), isEmpty);
     });
-
   });
 }
 

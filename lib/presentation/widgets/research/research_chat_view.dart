@@ -200,8 +200,7 @@ class _ResearchChatViewState extends ConsumerState<ResearchChatView> {
                   TextButton(
                     onPressed: state.isLoading
                         ? null
-                        : () =>
-                            ref.read(researchChatProvider.notifier).retry(),
+                        : () => ref.read(researchChatProvider.notifier).retry(),
                     child: Text(l10n.researchRetry),
                   ),
               ],
@@ -212,8 +211,7 @@ class _ResearchChatViewState extends ConsumerState<ResearchChatView> {
         if (showLimitBanner)
           _CenteredBottomRow(
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: colors.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
@@ -401,8 +399,7 @@ class _BusyRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final mode =
-        ref.watch(researchChatProvider.select((s) => s.inFlightMode));
+    final mode = ref.watch(researchChatProvider.select((s) => s.inFlightMode));
     final label = mode.busyLabel(l10n);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
@@ -476,8 +473,8 @@ class _MessageTurn extends StatelessWidget {
                   color: colors.primary,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.auto_awesome,
-                    size: 16, color: colors.onPrimary),
+                child:
+                    Icon(Icons.auto_awesome, size: 16, color: colors.onPrimary),
               ),
               const SizedBox(width: 8),
               Text(

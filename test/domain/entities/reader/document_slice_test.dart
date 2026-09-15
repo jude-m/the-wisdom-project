@@ -33,10 +33,12 @@ void main() {
 
   group('of — a range the document cannot honour', () {
     test('a start outside the document is empty, not a crash', () {
-      expect(DocumentSlice.of(_document(2), _range((5, 0), null)).isEmpty, true);
+      expect(
+          DocumentSlice.of(_document(2), _range((5, 0), null)).isEmpty, true);
       expect(
           DocumentSlice.of(_document(2), _range((-1, 0), null)).isEmpty, true);
-      expect(DocumentSlice.of(_document(0), _range((0, 0), null)).isEmpty, true);
+      expect(
+          DocumentSlice.of(_document(0), _range((0, 0), null)).isEmpty, true);
     });
 
     test('an end past the last page clamps, and drops its entry bound with it',

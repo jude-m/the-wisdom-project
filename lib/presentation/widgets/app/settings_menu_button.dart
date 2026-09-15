@@ -220,8 +220,7 @@ class _FontSizeSelector extends ConsumerWidget {
                   divisions: _scaleDivisions,
                   onChanged: (value) {
                     // Round to avoid floating point drift
-                    final rounded =
-                        (value * 20).round() / 20; // nearest 0.05
+                    final rounded = (value * 20).round() / 20; // nearest 0.05
                     notifier.setScale(rounded);
                   },
                 ),
@@ -340,7 +339,8 @@ class _ContentLanguageSelector extends ConsumerWidget {
   }
 
   /// Maps a [ContentLanguage] to its localized label.
-  String _contentLanguageLabel(ContentLanguage language, AppLocalizations l10n) {
+  String _contentLanguageLabel(
+      ContentLanguage language, AppLocalizations l10n) {
     switch (language) {
       case ContentLanguage.pali:
         return l10n.paliLanguageLabel;

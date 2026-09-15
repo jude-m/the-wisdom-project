@@ -20,7 +20,8 @@ void main() {
       expect(buildFtsQuery('අනාථ', isExactMatch: true), 'අනාථ');
     });
 
-    test('single word bypasses phrase logic even with isPhraseSearch: true', () {
+    test('single word bypasses phrase logic even with isPhraseSearch: true',
+        () {
       expect(
         buildFtsQuery('singleword', isPhraseSearch: true, isExactMatch: false),
         'singleword*',

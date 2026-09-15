@@ -116,14 +116,21 @@ void main() {
           };
 
       expect(
-        TipitakaTree.fromJson(source()).allNodes.map((n) => n.childKeys).toList(),
-        TipitakaTree.fromJson(source()).allNodes.map((n) => n.childKeys).toList(),
+        TipitakaTree.fromJson(source())
+            .allNodes
+            .map((n) => n.childKeys)
+            .toList(),
+        TipitakaTree.fromJson(source())
+            .allNodes
+            .map((n) => n.childKeys)
+            .toList(),
       );
     });
   });
 
   group('malformed input fails loudly', () {
-    test('a parent that does not exist throws rather than stranding a subtree', () {
+    test('a parent that does not exist throws rather than stranding a subtree',
+        () {
       // Silently dropping these would delete a whole branch from navigation
       // with no error anywhere.
       expect(
@@ -139,7 +146,12 @@ void main() {
     test('a row with the wrong field count is named', () {
       expect(
         () => TipitakaTree.fromJson({
-          'short': ['pali', 'sinh', 1, [0, 0]],
+          'short': [
+            'pali',
+            'sinh',
+            1,
+            [0, 0]
+          ],
         }),
         throwsA(isA<FormatException>().having(
           (e) => e.message,
@@ -164,7 +176,14 @@ void main() {
       // Previously `data[3][0]` would throw a bare RangeError naming nothing.
       expect(
         () => TipitakaTree.fromJson({
-          'bad': ['pali', 'sinh', 1, [0], 'root', 'f'],
+          'bad': [
+            'pali',
+            'sinh',
+            1,
+            [0],
+            'root',
+            'f'
+          ],
         }),
         throwsA(isA<FormatException>().having(
           (e) => e.message,
@@ -293,4 +312,11 @@ List<dynamic> _row(
   int page = 0,
   int entry = 0,
 }) =>
-    ['pali', 'sinh', level, <int>[page, entry], parent ?? 'root', file];
+    [
+      'pali',
+      'sinh',
+      level,
+      <int>[page, entry],
+      parent ?? 'root',
+      file
+    ];

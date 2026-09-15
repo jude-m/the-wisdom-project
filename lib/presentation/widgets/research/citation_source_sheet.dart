@@ -226,7 +226,9 @@ List<InlineSpan> _boldSpans(String text) {
   final spans = <InlineSpan>[];
   var last = 0;
   for (final m in _boldMarker.allMatches(text)) {
-    if (m.start > last) spans.add(TextSpan(text: text.substring(last, m.start)));
+    if (m.start > last) {
+      spans.add(TextSpan(text: text.substring(last, m.start)));
+    }
     spans.add(TextSpan(
       text: m.group(1),
       style: const TextStyle(fontWeight: FontWeight.bold),
@@ -274,8 +276,8 @@ class _SinhalaSourcePreview extends ConsumerWidget {
         if (entries.isEmpty) return const SizedBox.shrink();
 
         final start = node.entryIndexInPage.clamp(0, entries.length);
-        final preview =
-            entries.sublist(start, (start + _maxEntries).clamp(0, entries.length));
+        final preview = entries.sublist(
+            start, (start + _maxEntries).clamp(0, entries.length));
         // A sutta starting at the last entry slices to nothing — don't render a
         // lone title with no body.
         if (preview.isEmpty) return const SizedBox.shrink();

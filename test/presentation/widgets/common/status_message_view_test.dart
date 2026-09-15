@@ -256,8 +256,7 @@ void main() {
       );
     });
 
-    test('"JSON load failed" must NOT match (no typeerror prefix) → error',
-        () {
+    test('"JSON load failed" must NOT match (no typeerror prefix) → error', () {
       // Regression: bare 'load failed' used to match and falsely classify
       // parse errors as offline. We now require the "TypeError:" prefix.
       expect(

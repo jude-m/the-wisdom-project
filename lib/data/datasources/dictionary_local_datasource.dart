@@ -68,7 +68,8 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     }
 
     try {
-      final likePattern = buildDictionaryLikePattern(word, exactMatch: exactMatch);
+      final likePattern =
+          buildDictionaryLikePattern(word, exactMatch: exactMatch);
 
       // Build the SQL query
       // Order by:
@@ -122,7 +123,8 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     }
 
     try {
-      final likePattern = buildDictionaryLikePattern(query, exactMatch: isExactMatch);
+      final likePattern =
+          buildDictionaryLikePattern(query, exactMatch: isExactMatch);
 
       // Build the SQL query
       final buffer = StringBuffer();
@@ -171,7 +173,8 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     }
 
     try {
-      final likePattern = buildDictionaryLikePattern(query, exactMatch: isExactMatch);
+      final likePattern =
+          buildDictionaryLikePattern(query, exactMatch: isExactMatch);
 
       // Build count query
       final buffer = StringBuffer();

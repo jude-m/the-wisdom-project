@@ -10,7 +10,8 @@ class BJTDocumentLocalDataSourceImpl implements BJTDocumentDataSource {
 
   // Mirrors DictionaryDataSourceImpl._log. No-op in release builds.
   void _log(String message, {Object? error, StackTrace? stack}) {
-    developer.log(message, name: 'BJTDataSource', error: error, stackTrace: stack);
+    developer.log(message,
+        name: 'BJTDataSource', error: error, stackTrace: stack);
   }
 
   @override

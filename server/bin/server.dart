@@ -10,10 +10,14 @@ import 'package:wisdom_server/src/server_app.dart';
 void main(List<String> arguments) async {
   // Parse command-line arguments
   final parser = ArgParser()
-    ..addOption('port', abbr: 'p', defaultsTo: '8080', help: 'Port to listen on')
-    ..addOption('assets', abbr: 'a', help: 'Path to assets directory (default: ../assets)')
-    ..addOption('web-root', abbr: 'w', help: 'Path to Flutter web build (e.g., ../build/web)')
-    ..addOption('log-file', abbr: 'l', defaultsTo: 'server.log', help: 'Log file path')
+    ..addOption('port',
+        abbr: 'p', defaultsTo: '8080', help: 'Port to listen on')
+    ..addOption('assets',
+        abbr: 'a', help: 'Path to assets directory (default: ../assets)')
+    ..addOption('web-root',
+        abbr: 'w', help: 'Path to Flutter web build (e.g., ../build/web)')
+    ..addOption('log-file',
+        abbr: 'l', defaultsTo: 'server.log', help: 'Log file path')
     ..addFlag('verbose', abbr: 'v', defaultsTo: false, help: 'Verbose logging')
     ..addFlag('help', abbr: 'h', negatable: false, help: 'Show help');
 

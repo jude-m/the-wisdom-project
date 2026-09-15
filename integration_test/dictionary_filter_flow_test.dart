@@ -135,11 +135,9 @@ void main() {
 
         // ASSERT: Definition count matches the original "All" count from step 1
         final restoredCount = tester.getResultCounts();
-        final restoredDefinitions =
-            restoredCount[SearchResultType.definition]!;
+        final restoredDefinitions = restoredCount[SearchResultType.definition]!;
         expect(restoredDefinitions, equals(allDefinitions),
-            reason:
-                'Restored "All" count ($restoredDefinitions) should match '
+            reason: 'Restored "All" count ($restoredDefinitions) should match '
                 'original All count ($allDefinitions)');
       },
     );
@@ -156,8 +154,7 @@ void main() {
         await tester.switchToTab('Definitions');
 
         final baselineCount = tester.getResultCounts();
-        final baselineDefinitions =
-            baselineCount[SearchResultType.definition]!;
+        final baselineDefinitions = baselineCount[SearchResultType.definition]!;
         expect(baselineDefinitions, equals(23));
 
         // ---------------------------------------------------------------
@@ -208,8 +205,7 @@ void main() {
         // Provider should hold only {BUS} after the narrow-down.
         final stateAfterNarrow = tester.getSearchState();
         expect(stateAfterNarrow.selectedDictionaryIds, equals({'BUS'}),
-            reason:
-                'Tapping BUS while {BUS, MS} is fully selected should '
+            reason: 'Tapping BUS while {BUS, MS} is fully selected should '
                 'narrow to {BUS} (parent-fully-selected → narrow-down)');
 
         // ---------------------------------------------------------------
@@ -225,8 +221,7 @@ void main() {
 
         // ASSERT: Snapped back to "All"
         expect(tester.isDictFilterChipSelected('All'), isTrue,
-            reason:
-                'Unchecking the last dictionary should snap back to "All"');
+            reason: 'Unchecking the last dictionary should snap back to "All"');
 
         final stateAfterEmpty = tester.getSearchState();
         expect(stateAfterEmpty.selectedDictionaryIds, isEmpty,
@@ -236,8 +231,7 @@ void main() {
         final restoredDefinitions =
             tester.getResultCounts()[SearchResultType.definition]!;
         expect(restoredDefinitions, equals(baselineDefinitions),
-            reason:
-                'After snapping back to All, count ($restoredDefinitions) '
+            reason: 'After snapping back to All, count ($restoredDefinitions) '
                 'should match baseline ($baselineDefinitions)');
       },
     );

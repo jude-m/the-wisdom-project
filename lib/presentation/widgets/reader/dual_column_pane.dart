@@ -146,8 +146,8 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
     var entries = 0;
     while (fromPage + pages < slice.pages.length && entries < entryBudget) {
       final local = fromPage + pages;
-      final (start, end) = slice.entriesOn(
-          local, slice.pages[local].paliSection.entries.length);
+      final (start, end) =
+          slice.entriesOn(local, slice.pages[local].paliSection.entries.length);
       entries += end - start;
       pages++;
     }
@@ -235,9 +235,8 @@ class _DualColumnPaneState extends ConsumerState<DualColumnPane> {
               builder: (context, constraints) {
                 final padding = context.textEntryTheme
                     .readingPadding(constraints.maxWidth, columns: 2);
-                final dividerWidth = isTabletOrDesktop
-                    ? PaneWidthConstants.dividerWidth
-                    : 24.0;
+                final dividerWidth =
+                    isTabletOrDesktop ? PaneWidthConstants.dividerWidth : 24.0;
                 final availableWidth =
                     constraints.maxWidth - padding.horizontal - dividerWidth;
 

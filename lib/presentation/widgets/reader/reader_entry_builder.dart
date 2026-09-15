@@ -99,8 +99,7 @@ class ReaderEntryBuilder {
 
     final textAlign = switch (entry.entryType) {
       EntryType.paragraph || EntryType.unindented => TextAlign.justify,
-      _ =>
-        TextAlign.left, // heading, centered, gatha already returned above
+      _ => TextAlign.left, // heading, centered, gatha already returned above
     };
 
     // paragraph / unindented — copyWith ignores a null fontWeight.
@@ -156,7 +155,9 @@ class ReaderEntryBuilder {
       // entries in adjacent suttas that share the same document file)
       final entryHasMatch = hasQuery &&
           searchState.hasMatchInEntry(
-            absolutePageIndex, absoluteEntryIndex, languageCode,
+            absolutePageIndex,
+            absoluteEntryIndex,
+            languageCode,
           );
 
       final entryWidget = Padding(

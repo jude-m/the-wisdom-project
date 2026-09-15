@@ -27,8 +27,7 @@ class ChatHistoryPanel extends ConsumerWidget {
     final summaries = ref.watch(chatSummariesProvider);
     // Only the id matters here — don't rebuild the list on every transcript
     // change while an answer streams in.
-    final activeId =
-        ref.watch(researchChatProvider.select((s) => s.sessionId));
+    final activeId = ref.watch(researchChatProvider.select((s) => s.sessionId));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -67,8 +66,8 @@ class ChatHistoryPanel extends ConsumerWidget {
             data: (chats) => chats.isEmpty
                 ? _emptyHint(l10n)
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     itemCount: chats.length,
                     itemBuilder: (context, index) => _ChatTile(
                       chat: chats[index],
@@ -153,7 +152,9 @@ String _relativeTime(BuildContext context, DateTime time) {
   final elapsed = now.difference(time);
 
   if (elapsed.inMinutes < 1) return l10n.relativeTimeJustNow;
-  if (elapsed.inMinutes < 60) return l10n.relativeTimeMinutesAgo(elapsed.inMinutes);
+  if (elapsed.inMinutes < 60) {
+    return l10n.relativeTimeMinutesAgo(elapsed.inMinutes);
+  }
   if (elapsed.inHours < 24) return l10n.relativeTimeHoursAgo(elapsed.inHours);
 
   // Calendar-day distance for the day-granularity labels, so "yesterday

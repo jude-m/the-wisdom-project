@@ -131,8 +131,7 @@ void main() {
     expect(notifier.languageCalls.last, (pali: false, sinhala: true));
   });
 
-  testWidgets(
-      'MANDATORY: tapping the only selected segment cannot turn it off',
+  testWidgets('MANDATORY: tapping the only selected segment cannot turn it off',
       (tester) async {
     // Only Pali is on. Its segment is locked (disabled), so a tap is a no-op —
     // the user can never reach "zero languages selected".

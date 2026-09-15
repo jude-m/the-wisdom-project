@@ -1,7 +1,24 @@
 # Spike: Verify FTS5 works in the Drift WASM build (the one gate)
 
-> **Status:** TODO — the single technical gate before committing to Drift +
-> client-side SQLite on web. ~30 min, throwaway code.
+> **Status: DONE 2026-09-11 — PASSED.** The gate is cleared: FTS5 is compiled
+> into the `sqlite3.wasm` Drift ships, and the real `bjt-fts.db` returns
+> byte-identical rows through it. This page is the brief that was written
+> *before* the spike ran; it is kept for what it asked, not as guidance.
+>
+> **Read [`drift-fts5-wasm-spike-results.md`](./drift-fts5-wasm-spike-results.md)
+> instead.** It answers everything below and more, because the spike went
+> further than this brief asked — and what it found that matters most is not in
+> this page's pass criteria at all:
+>
+> - **The real blocker was never FTS5.** Both shipped databases are WAL-flagged,
+>   and the wasm build (compiled `SQLITE_OMIT_WAL`) rejects such a file on the
+>   first prepare with `SQLITE_NOTADB: file is not a database`. Fixed in the
+>   build pipeline, 2026-09-11.
+> - **"Secondary (deploy detail, not a gate)" below is wrong**, and is the one
+>   part of this page that could still mislead — see the note on it.
+> - It also found **three live performance bugs** in this repo, on every
+>   platform, unrelated to the web move.
+>
 > **Part of:** retiring the Dart content server (see `README.md` and
 > `reduce_mobile_bundle_size.md`).
 
@@ -49,8 +66,22 @@ order under `bm25`. Zero `no such module: fts5` / `unknown tokenizer` errors.
   built with is honoured and the Sinhala `tokenchars` survived.
 - Neither is expected — the evidence points to a clean pass.
 
-## Secondary (deploy detail, not a gate)
+## ~~Secondary (deploy detail, not a gate)~~ — this was the wrong call
 
-For full-speed OPFS, serve the web app with `Cross-Origin-Opener-Policy: same-origin`
-+ `Cross-Origin-Embedder-Policy: require-corp`. Drift falls back (slower) without them.
-Watch: `require-corp` can block cross-origin assets that lack CORP headers.
+> The original text read: *"For full-speed OPFS, serve the web app with
+> `Cross-Origin-Opener-Policy: same-origin` + `Cross-Origin-Embedder-Policy:
+> require-corp`. Drift falls back (slower) without them."*
+>
+> **It is a hosting constraint, not a deploy detail.** Drift picks its storage
+> mode at runtime from browser capability. The OPFS mode that does not need
+> cross-origin isolation requires nested workers in a shared worker — **Firefox
+> only**. On Chrome and Safari the only OPFS path needs `Atomics.wait`, hence
+> COOP+COEP. So without the headers, on the primary target, the fallback is not
+> "slower OPFS" — it is **IndexedDB holding 274 MB**, which is a different
+> product.
+>
+> Consequences: the host must be able to set response headers (Cloudflare Pages
+> can; GitHub Pages cannot), and `require-corp` breaks any cross-origin
+> subresource lacking CORP — consider `credentialless` and self-hosted fonts.
+> Measured, the headers are **not** a performance knob (447 vs 436 ms cold);
+> they are the gate that decides whether OPFS is used at all.

@@ -119,7 +119,8 @@ class TipitakaLink {
   /// This is a *syntactic* guard only; whether the key exists is the tree's
   /// business, so a well-formed key that names nothing resolves to "not found"
   /// exactly like a typo'd `sn-99-99` does.
-  static final RegExp _nodeKeyPattern = RegExp(r'^[a-z0-9]+(?:[-.][a-z0-9]+)*$');
+  static final RegExp _nodeKeyPattern =
+      RegExp(r'^[a-z0-9]+(?:[-.][a-z0-9]+)*$');
 
   /// Parses a URI into a [TipitakaLink], or `null` if it isn't one.
   ///
@@ -179,8 +180,7 @@ class TipitakaLink {
     final fragment = uri.fragment.toLowerCase();
     final targeted = fragment.isNotEmpty && _nodeKeyPattern.hasMatch(fragment);
     final door = canonKeyFromOriginId(fragment);
-    final origin =
-        door != null && _nodeKeyPattern.hasMatch(door) ? door : null;
+    final origin = door != null && _nodeKeyPattern.hasMatch(door) ? door : null;
 
     final (page, entry) = _parseEntry(uri.queryParameters[entryParam]);
     return TipitakaLink(

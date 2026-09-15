@@ -129,7 +129,8 @@ void main() {
       // ASSERT — The cache was busted. The widget now renders the special-ligated
       // form, proving the stale cached string was discarded.
       expect(find.text(ligatedForm), findsOneWidget,
-          reason: 'After S2 enabled, the special-ligated form must be rendered');
+          reason:
+              'After S2 enabled, the special-ligated form must be rendered');
 
       expect(find.text(touchingForm), findsNothing,
           reason: 'The stale touching form must not persist after cache bust');
@@ -137,8 +138,7 @@ void main() {
 
     testWidgets(
         'toggling S2 back off restores the touching form '
-        '(round-trip cache invalidation)',
-        (tester) async {
+        '(round-trip cache invalidation)', (tester) async {
       const paliWord = 'බුද්ධ';
       const touchingForm = 'බුද‍්ධ';
       const ligatedForm = 'බුද්‍ධ';

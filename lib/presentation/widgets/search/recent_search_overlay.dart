@@ -87,8 +87,8 @@ class RecentSearchOverlay extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(
-            context, ref, AppLocalizations.of(context).recentSearches.toUpperCase()),
+        _sectionHeader(context, ref,
+            AppLocalizations.of(context).recentSearches.toUpperCase()),
         ...recentSearches.map((search) => ListTile(
               dense: true,
               leading: Icon(

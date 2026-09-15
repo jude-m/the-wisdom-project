@@ -258,8 +258,8 @@ class _SearchBarState extends ConsumerState<SearchBar> {
               color: _focusNode.hasFocus
                   ? theme.colorScheme.surfaceContainerHighest
                   : (scrolledUnder
-                    ? theme.colorScheme.surfaceContainer
-                    : theme.colorScheme.surfaceContainerHigh),
+                      ? theme.colorScheme.surfaceContainer
+                      : theme.colorScheme.surfaceContainerHigh),
               borderRadius: BorderRadius.circular(20),
               // Always 1px (transparent when unfocused) so focus change
               // doesn't reflow inner content by the stroke width.

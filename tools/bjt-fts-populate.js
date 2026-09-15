@@ -50,6 +50,8 @@ try {
     process.exit(1);
 }
 
+const { finalizeDatabase } = require('./db-finalize');
+
 // =============================================================================
 // CONFIGURATION
 // =============================================================================
@@ -376,7 +378,7 @@ function main() {
         console.log('');
         console.log('Optimizing database...');
 
-        // Step 1: Optimize FTS5 index (merge internal b-tree segments)
+        // Optimize FTS5 index (merge internal b-tree segments)
         // This merges FTS5's internal index segments into one large segment,
         // which significantly improves MATCH query performance.
         // VACUUM alone doesn't optimize FTS5's internal structures.
@@ -384,22 +386,14 @@ function main() {
         db.exec(`INSERT INTO ${CONFIG.EDITION_ID}_fts(${CONFIG.EDITION_ID}_fts) VALUES('optimize')`);
         console.log('  ✓ FTS5 index optimized');
 
-        // Step 2: VACUUM to reclaim disk space
-        // After FTS5 optimization, VACUUM reclaims actual disk space
-        // and defragments the database file.
-        console.log('  Running VACUUM...');
-        db.exec('VACUUM');
-        console.log('  ✓ Database vacuumed');
-
-        // Report final size
-        console.log('');
-        const stats = fs.statSync(CONFIG.OUTPUT_DB);
-        const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
-        console.log(`Final database size: ${sizeMB} MB`);
-
     } finally {
         db.close();
     }
+
+    // The file this script hands over is not the file it just wrote — see
+    // finalizeDatabase. (It replaces the plain VACUUM that used to run above:
+    // VACUUM INTO reclaims the same space and does three more things.)
+    finalizeDatabase(CONFIG.OUTPUT_DB);
 
     console.log('');
     console.log('✓ Done!');

@@ -485,8 +485,8 @@ class AppTypography extends ThemeExtension<AppTypography> {
       tabLabelInactive:
           TextStyle.lerp(tabLabelInactive, other.tabLabelInactive, t)!,
       treeNodeLabel: TextStyle.lerp(treeNodeLabel, other.treeNodeLabel, t)!,
-      treeNodeLabelSelected:
-          TextStyle.lerp(treeNodeLabelSelected, other.treeNodeLabelSelected, t)!,
+      treeNodeLabelSelected: TextStyle.lerp(
+          treeNodeLabelSelected, other.treeNodeLabelSelected, t)!,
       dialogTitle: TextStyle.lerp(dialogTitle, other.dialogTitle, t)!,
       menuSectionLabel:
           TextStyle.lerp(menuSectionLabel, other.menuSectionLabel, t)!,

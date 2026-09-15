@@ -19,7 +19,9 @@ class DatabaseManager {
   }
 
   Database get dictDb {
-    if (_dictDb == null) throw StateError('Dictionary database not initialized');
+    if (_dictDb == null) {
+      throw StateError('Dictionary database not initialized');
+    }
     return _dictDb!;
   }
 
@@ -51,10 +53,8 @@ class DatabaseManager {
     // File sizes
     final ftsSize = File(ftsPath).lengthSync();
     final dictSize = File(dictPath).lengthSync();
-    _logger.info(
-        'Database: bjt-fts.db (${_formatBytes(ftsSize)})');
-    _logger.info(
-        'Database: dict.db (${_formatBytes(dictSize)})');
+    _logger.info('Database: bjt-fts.db (${_formatBytes(ftsSize)})');
+    _logger.info('Database: dict.db (${_formatBytes(dictSize)})');
 
     // Row counts
     try {

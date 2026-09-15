@@ -51,15 +51,18 @@ class ResearchRemoteDataSourceImpl implements ResearchDataSource {
     ResearchFilters? filters,
     ResearchMode mode = ResearchMode.fast,
   }) async {
-    final json = await _client.postJson('/research', {
-      'question': question,
-      // §7: history carries role + content only.
-      'history': history.map((m) => m.toHistoryJson()).toList(),
-      if (filters != null) 'filters': filters.toJson(),
-      // "fast" | "thinking" — the backend maps it to a model tier. Always sent;
-      // an older backend that doesn't know the field just ignores it.
-      'mode': mode.wire,
-    }, timeout: _timeoutFor(mode));
+    final json = await _client.postJson(
+        '/research',
+        {
+          'question': question,
+          // §7: history carries role + content only.
+          'history': history.map((m) => m.toHistoryJson()).toList(),
+          if (filters != null) 'filters': filters.toJson(),
+          // "fast" | "thinking" — the backend maps it to a model tier. Always sent;
+          // an older backend that doesn't know the field just ignores it.
+          'mode': mode.wire,
+        },
+        timeout: _timeoutFor(mode));
     return ResearchAnswer.fromJson(json);
   }
 }

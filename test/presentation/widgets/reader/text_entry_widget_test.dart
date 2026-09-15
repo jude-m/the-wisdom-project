@@ -213,9 +213,7 @@ void main() {
         expect(textWidget.data, isNull);
       });
 
-      testWidgets(
-          'in-page search suppresses FTS highlighting',
-          (tester) async {
+      testWidgets('in-page search suppresses FTS highlighting', (tester) async {
         // Set up FTS highlight state AND in-page search query simultaneously
         late WidgetRef testRef;
 

@@ -285,8 +285,7 @@ void main() {
         final scrollable = find.byWidgetPredicate(
           (w) => w is ListView && w.scrollDirection == Axis.vertical,
         );
-        final controller =
-            tester.widget<ListView>(scrollable).controller!;
+        final controller = tester.widget<ListView>(scrollable).controller!;
         final offsetAtStart = controller.offset;
 
         // Step through a few matches forward — verify index tracks correctly
@@ -305,7 +304,8 @@ void main() {
         // which let a real "match advances but viewport stays put" bug slip.
         final offsetAfterForward = controller.offset;
         expect(
-          offsetAfterForward, greaterThan(offsetAtStart),
+          offsetAfterForward,
+          greaterThan(offsetAtStart),
           reason: 'Stepping forward through matches must scroll the viewport '
               'down — offset: $offsetAtStart → $offsetAfterForward',
         );
@@ -327,7 +327,8 @@ void main() {
         // Back scroll-behaviour assertion: offset must shrink back toward 0.
         final offsetAfterBack = controller.offset;
         expect(
-          offsetAfterBack, lessThan(offsetAfterForward),
+          offsetAfterBack,
+          lessThan(offsetAfterForward),
           reason: 'Stepping back through matches must scroll the viewport up '
               '— offset: $offsetAfterForward → $offsetAfterBack',
         );
@@ -356,7 +357,8 @@ void main() {
         // small forward nudge and proves nothing about reaching the end.
         final offsetAtLast = controller.offset;
         expect(
-          offsetAtLast, greaterThan(offsetAfterForward),
+          offsetAtLast,
+          greaterThan(offsetAfterForward),
           reason: 'Wrapping to the last match must scroll the viewport past '
               'everything stepping forward reached — offset: '
               '$offsetAfterForward (match 4) → $offsetAtLast (match '

@@ -245,7 +245,9 @@ void _scan(
     final char = raw.codeUnitAt(i);
 
     // `**` — bold toggle.
-    if (char == _asterisk && i + 1 < length && raw.codeUnitAt(i + 1) == _asterisk) {
+    if (char == _asterisk &&
+        i + 1 < length &&
+        raw.codeUnitAt(i + 1) == _asterisk) {
       emitChunk();
       onBoldToggle?.call();
       i += 2;

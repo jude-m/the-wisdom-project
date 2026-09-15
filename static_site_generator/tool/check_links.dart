@@ -282,8 +282,7 @@ final RegExp _metaRef =
 /// a URL on every page that no `href` or `src` carries, and whose absence
 /// breaks search in silence. Only URL-shaped values are taken; the other
 /// `data-*` attributes hold Sinhala UI strings.
-final RegExp _dataRef =
-    RegExp(r'\sdata-[a-z-]+="(/[^"]*|https?://[^"]*)"');
+final RegExp _dataRef = RegExp(r'\sdata-[a-z-]+="(/[^"]*|https?://[^"]*)"');
 
 final RegExp _cssRef = RegExp(r'''url\(\s*['"]?([^'")]+)['"]?\s*\)''');
 

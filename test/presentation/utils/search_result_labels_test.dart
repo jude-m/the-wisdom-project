@@ -21,7 +21,8 @@ import '../../helpers/pump_app.dart';
 // PATH, the dictionary fallback, and live reactivity to a language change.
 
 // A StateProvider we can flip at runtime to prove the labels re-render live.
-final _testLang = StateProvider<ContentLanguage>((ref) => ContentLanguage.sinhala);
+final _testLang =
+    StateProvider<ContentLanguage>((ref) => ContentLanguage.sinhala);
 
 void main() {
   // root (sp) → parent (dn) → leaf (dn-1). All Pali names carry a consonant
@@ -96,7 +97,8 @@ void main() {
   }
 
   group('searchResultLabels (2.2) -', () {
-    testWidgets('Sinhala: title + breadcrumb path use the nodes\' Sinhala names',
+    testWidgets(
+        'Sinhala: title + breadcrumb path use the nodes\' Sinhala names',
         (tester) async {
       await pumpProbe(
         tester,
@@ -114,7 +116,8 @@ void main() {
       expect(find.text('සුත් පෙළ > සංයුත් සඟිය'), findsOneWidget);
     });
 
-    testWidgets('Pali: every breadcrumb path segment carries conjunct ligatures',
+    testWidgets(
+        'Pali: every breadcrumb path segment carries conjunct ligatures',
         (tester) async {
       await pumpProbe(
         tester,

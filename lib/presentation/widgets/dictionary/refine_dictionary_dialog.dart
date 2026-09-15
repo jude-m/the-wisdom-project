@@ -359,8 +359,7 @@ class _RefineDictionaryDialogState extends State<RefineDictionaryDialog> {
       // this dict instead of deselecting it (matches search refine behavior
       // where clicking a child of a fully-selected parent narrows down).
       final parentGroup = _findParentGroup(dictId);
-      if (parentGroup != null &&
-          parentGroup.every(currentSelection.contains)) {
+      if (parentGroup != null && parentGroup.every(currentSelection.contains)) {
         _commitSelection({dictId});
         return;
       }

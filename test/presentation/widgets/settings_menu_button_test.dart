@@ -14,7 +14,8 @@ import '../../helpers/pump_app.dart';
 
 void main() {
   group('SettingsMenuButton', () {
-    testWidgets('should render complete settings menu structure', (tester) async {
+    testWidgets('should render complete settings menu structure',
+        (tester) async {
       await tester.pumpApp(const SettingsMenuButton());
 
       // Initially menu is closed

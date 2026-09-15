@@ -22,7 +22,8 @@ void main() {
       // Matches the production transformer exactly...
       expect(
         result,
-        equals(beautifyPaliText(sampleWithConjunct, PaliLetterOptions.defaults)),
+        equals(
+            beautifyPaliText(sampleWithConjunct, PaliLetterOptions.defaults)),
       );
       // ...and is genuinely different from the raw input (the branch is real,
       // not an accidental no-op).
