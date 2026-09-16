@@ -1016,6 +1016,40 @@ CREATE TABLE bjt_content (
    - **The web side of the same question** is the manifest + boot reconciler
      in [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md). Check
      whether mobile can share its versioning rather than invent a second one.
+
+   **7.1 — Rename `bjt-fts.db` to `bjt.db`. Its own commit, and it lands before
+   the rest of step 7.** The file stopped being a search index at step 5: it
+   holds `bjt_content` alongside `bjt_fts`, `bjt_meta` and `bjt_suggestions`,
+   so `-fts` now names one table out of four. `dict.db` carries no suffix, so
+   `bjt.db` beside it is the consistent pair. Do it while nothing is released
+   and no install carries the old copy. It also retires the chore in step 6's
+   recap — a new name forces a fresh copy, so the stale one nobody deletes by
+   hand stops mattering. What it leaves behind is a dead `bjt-fts.db` in the
+   documents directory of every dev machine: step 7's replace path should
+   delete databases it does not recognise.
+
+   Mechanical and wide, so keep behaviour changes out of the commit.
+   `_dbNameFor` in `fts_local_datasource.dart` becomes `'$editionId.db'`, and
+   **table names do not move** — the prefix is `{editionId}_fts`, independent
+   of the file name, and renaming tables would be a data migration. Outside
+   `lib/`: `pubspec.yaml`, `main.dart`'s asset check and its error screen,
+   `server/database_manager.dart`, `tools/` (generator, `package.json`,
+   `README.md`, `validate-release.sh`), the static site generator's
+   `verify_corpus_invariants.dart`, `plan_corpus.dart` and
+   `corpus_tools_test.dart`, `scripts/bjt-sync-regen/sync-regen.sh`, the live
+   docs, and the manifest key in `db-auto-update-prestudy.md`. `.gitignore`
+   needs nothing: it globs `assets/databases/*.db`.
+
+   Two calls to make while doing it:
+   - **`npm run generate-fts` and `tools/bjt-fts-populate.js`** carry the same
+     stale name and now build the whole edition database. Rename them in the
+     same commit.
+   - **Leave the record alone.** `docs/done/`, `docs/decisions/`, the wasm
+     spike results and the `tools/bjt-fts*.db` leftovers describe what was true
+     on a given day. Only live references move.
+
+   Done when `grep -rn bjt-fts` finds only those records, the generator
+   rebuilds, `tools/validate-release.sh` passes and the suites are green.
 8. Repoint snippet path (now `_loadFileJson`/`_extractEntryText` in `_searchFullText`)
    and reader (`BJTDocumentLocalDataSourceImpl`) at the content datasource — see
    **Snippet-path teardown** below for the exact deletions.
