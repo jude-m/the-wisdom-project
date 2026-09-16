@@ -10,10 +10,9 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
 
 - **`reduce-mobile-size-and-move-to-drift.md`** — the content-DB plan (JSON →
   contentless FTS + per-page compressed text, same file) and the app's move to
-  Drift. Now the keystone; the top banner carries the decisions, and **What the
-  Drift/wasm spike changed** carries what moved after the spike. Blob size is
-  decided (one page per blob plus a per-language compression sample), so nothing
-  on its critical path is open; step 5 is next.
+  Drift. Now the keystone; the top banner carries the decisions and the current
+  step, and **What the Drift/wasm spike changed** carries what moved after the
+  spike.
 - **`drift-fts5-wasm-spike-results.md`** — what the spike found. Read this one.
 - **`db-auto-update-prestudy.md`** — the follow-on design brief: how a rebuilt DB
   reaches a client that already has the old one. Manifest + a boot reconciler, where
@@ -30,8 +29,9 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
    in `tools/db-finalize.js`, which both database generators now end in.
 2. **Build the content DB and move the app onto Drift — one branch, native only.**
    Decided 2026-09-13: FTS, dict and the new content table leave `sqflite`
-   together — engine swap first, content table on top. Steps 5–9 of
-   [`reduce-mobile-size-and-move-to-drift.md`](./reduce-mobile-size-and-move-to-drift.md).
+   together — engine swap first, content table on top. Steps 5–10 of
+   [`reduce-mobile-size-and-move-to-drift.md`](./reduce-mobile-size-and-move-to-drift.md);
+   5 and 6 are done (the app is on Drift), 7 is next.
 3. **Move web onto Drift** (wasm + OPFS) — the same datasources, reading a database
    downloaded once rather than bundled
    ([`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md)).

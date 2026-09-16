@@ -1,12 +1,8 @@
 import 'dart:developer' as developer;
-import 'dart:io';
 
-import 'package:flutter/services.dart';
-import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:wisdom_shared/wisdom_shared.dart';
 
+import '../database/bundled_database.dart';
 import '../services/scope_filter_service.dart';
 import 'fts_datasource.dart';
 
@@ -14,7 +10,7 @@ import 'fts_datasource.dart';
 /// Each edition has its own SQLite database with edition-specific table names
 class FTSDataSourceImpl implements FTSDataSource {
   /// Map of edition ID to database instance
-  final Map<String, Database> _databases = {};
+  final Map<String, BundledDatabase> _databases = {};
 
   /// Log debug messages only in debug mode.
   /// Uses dart:developer.log which is stripped in release builds.
@@ -24,6 +20,9 @@ class FTSDataSourceImpl implements FTSDataSource {
 
   /// Track which editions are initialized
   final Set<String> _initializedEditions = {};
+
+  /// Database naming: {editionId}-fts.db (e.g., bjt-fts.db, sc-fts.db)
+  static String _dbNameFor(String editionId) => '$editionId-fts.db';
 
   @override
   Future<void> initializeEditions(Set<String> editionIds) async {
@@ -40,40 +39,9 @@ class FTSDataSourceImpl implements FTSDataSource {
   /// Initialize a single edition's database
   Future<void> _initializeEdition(String editionId) async {
     try {
-      // Database naming: {editionId}-fts.db (e.g., bjt-fts.db, sc-fts.db)
-      final dbName = '$editionId-fts.db';
-      final assetPath = 'assets/databases/$dbName';
-
-      // Get the path to the documents directory
-      final documentsDirectory = await getApplicationDocumentsDirectory();
-      final dbPath = join(documentsDirectory.path, dbName);
-
       _log('Initializing edition $editionId');
-      _log('Asset path: $assetPath');
-      _log('DB path: $dbPath');
-
-      // Check if database already exists
-      final exists = await File(dbPath).exists();
-      _log('Database exists: $exists');
-
-      if (!exists) {
-        // Copy from assets
-        _log('Copying database from assets...');
-        final ByteData data = await rootBundle.load(assetPath);
-        final List<int> bytes = data.buffer.asUint8List();
-        _log('Loaded ${bytes.length} bytes from assets');
-
-        // Write to file
-        await File(dbPath).writeAsBytes(bytes, flush: true);
-        _log('Database copied successfully');
-      }
-
-      // Open the database
-      _log('Opening database...');
-      final db = await openDatabase(dbPath);
+      _databases[editionId] = await BundledDatabase.open(_dbNameFor(editionId));
       _log('Database opened successfully');
-
-      _databases[editionId] = db;
     } catch (e) {
       _log('Error initializing $editionId: $e');
       throw Exception(
@@ -181,9 +149,10 @@ class FTSDataSourceImpl implements FTSDataSource {
       if (languageClause != null) {
         buffer.write(' AND $languageClause');
       }
+      // `id` breaks bm25 ties, so paging can't repeat or drop a tied row.
       buffer.write('''
         )
-        SELECT * FROM ranked ORDER BY score LIMIT ? OFFSET ?
+        SELECT * FROM ranked ORDER BY score, id LIMIT ? OFFSET ?
       ''');
 
       // Build args — order MUST match the '?' placeholders above:
@@ -390,7 +359,7 @@ class FTSDataSourceImpl implements FTSDataSource {
 
     for (final entry in _databases.entries) {
       try {
-        await entry.value.close();
+        await BundledDatabase.closeShared(_dbNameFor(entry.key));
       } catch (e) {
         errors[entry.key] = e;
         _log('Error closing database ${entry.key}: $e');

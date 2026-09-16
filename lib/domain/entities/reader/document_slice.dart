@@ -34,35 +34,24 @@ class DocumentSlice {
   /// in the generator but must not take the reader down.
   factory DocumentSlice.of(BJTDocument document, SliceRange range) {
     final pageCount = document.pageCount;
-    final start = range.start;
-    if (start.pageIndex < 0 || start.pageIndex >= pageCount) return empty;
+    final span = range.pageSpan;
+    final firstPage = span.firstPage;
+    if (firstPage < 0 || firstPage >= pageCount) return empty;
 
-    final end = range.end;
-    int lastPage;
-    int? endEntry;
-    if (end == null) {
-      // Runs to the end of the file — the last node in it, and every node
-      // sharing that last coordinate.
-      lastPage = pageCount - 1;
-    } else if (end.entryIndex == 0) {
-      // The next unit starts at the top of its page, so that whole page is
-      // theirs. Same reading the site takes.
-      lastPage = end.pageIndex - 1;
-    } else {
-      lastPage = end.pageIndex;
-      endEntry = end.entryIndex;
-    }
-
+    // No last page runs to the end of the file — the last node in it, and
+    // every node sharing that last coordinate.
+    var lastPage = span.lastPage ?? pageCount - 1;
+    var endEntry = span.endEntry;
     if (lastPage >= pageCount) {
       lastPage = pageCount - 1;
       endEntry = null;
     }
-    if (lastPage < start.pageIndex) return empty;
+    if (lastPage < firstPage) return empty;
 
     return DocumentSlice._(
-      document.pages.sublist(start.pageIndex, lastPage + 1),
-      start.pageIndex,
-      start.entryIndex,
+      document.pages.sublist(firstPage, lastPage + 1),
+      firstPage,
+      range.start.entryIndex,
       endEntry,
     );
   }

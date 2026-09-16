@@ -1,18 +1,20 @@
 # Faster Reads (and a Smaller App): Move Text into SQLite and the App onto Drift
 
-> **Status 2026-09-15:** steps 1–5 done. `bjt-fts.db` now carries
-> `bjt_content` — one page per blob, **plain zlib** — and section 5 passes on
-> it entry for entry, with the search index unchanged. **Next: step 6** — the
-> `ORDER BY score, id` tiebreaker as its own change, then the Drift engine
-> swap. Three chores from step 5 are deliberately still open (deletions and
-> the `dict.db` rebuild): see **Left open after step 5**. Step 7 makes an app
-> update replace the copied databases. A compression sample stays optional
+> **Status 2026-09-16:** steps 1–6 done. `bjt-fts.db` carries `bjt_content` —
+> one page per blob, **plain zlib** — and the app is on Drift: search and the
+> dictionary read through it with every suite green, and a content datasource
+> over `bjt_content` is written and checked against the whole corpus, though
+> nothing calls it yet. **Next: step 7** — an app update must replace the
+> copied databases — then step 8 repoints snippets and the reader. Three chores
+> from step 5 are deliberately still open (deletions and the `dict.db`
+> rebuild): see **Left open after step 5**. A compression sample stays optional
 > (**Compression sample — optional, later**).
 >
 > **No mobile release until steps 7–10 are done.** Until step 9 the bundle
 > carries the JSON *and* the same text again in `bjt-fts.db`, which nothing
-> reads yet, so the app is bigger than today for no gain. And until step 7 an
-> update never reaches an existing install's copy of the database.
+> reads yet, so the app is bigger than today for no gain. Until step 7 an
+> update never reaches an existing install's copy of the database. And Android
+> and iOS have not been built since the move to Drift.
 
 > **UPDATE 2026-07-16 — CONFIRMED, and promoted to the keystone of a server-free
 > architecture.** Decisions from a follow-up study:
@@ -527,8 +529,8 @@ was describing a real property of the file at the time.
 ### The blob decoder needs a web path
 
 `dart:io` does not exist on web, and this same table is the web's content
-source. Nothing in `pubspec.yaml` covers the gap — no `archive`, no `drift`, and
-`lib/` uses no codec today.
+source. `archive` and `drift` are in `pubspec.yaml` since step 6, and
+`_decode` in `bjt_content_local_datasource.dart` is the one decode call.
 
 `DecompressionStream` (through JS interop) and `package:archive` both read
 plain zlib. What separates them is testing: section 5 runs on the Dart VM, so it
@@ -555,22 +557,19 @@ table step 2 builds.
 All three confirmed present here. None is caused by the migration; two are in
 the same build pipeline, one in the same datasource.
 
-1. **`ORDER BY score` has no tiebreaker** —
-   `lib/data/datasources/fts_local_datasource.dart:186` (and
-   `server/lib/src/handlers/fts_handler.dart:93`). bm25 ties are common in this
-   corpus: the first 5,000 hits for භගවා carry 622 distinct scores, largest tie
-   group 69 rows. With `LIMIT`/`OFFSET` paging, rows can repeat or vanish as
-   the user pages. Fix is `ORDER BY score, id`.
+1. **~~`ORDER BY score` has no tiebreaker~~ — fixed 2026-09-16, step 6.** bm25
+   ties are common in this corpus: the first 5,000 hits for භගවා carry 622
+   distinct scores, largest tie group 69 rows, so `LIMIT`/`OFFSET` paging could
+   repeat or drop a row. `fts_local_datasource.dart` and
+   `server/lib/src/handlers/fts_handler.dart` now both end
+   `ORDER BY score, id`. Every suite passed with no expectation changed.
 
-   **This one touches the safety net.** Group 9's goldens are *not* order-flaky
-   — they address rows by `(file, page, entry, language)` and the test says why.
-   But the escape hatch it documents, *"a row can drop out of the set with
-   every snippet still byte-identical"*, is exactly what an unstable tiebreaker
-   produces under overfetch + `_limitToGroups`. Adding `, id` is what stops
-   that test firing spuriously — and the engine is about to change twice
-   (Drift native, then wasm).
-2. **Dictionary prefix lookup full-scans 175 MB on every word tap** —
-   `lib/data/datasources/dictionary_local_datasource.dart:83,134,181` use
+   It mattered to the safety net: Group 9's escape hatch, *"a row can drop out
+   of the set with every snippet still byte-identical"*, is what an unstable
+   tie produces under overfetch + `_limitToGroups`, and the engine then changed
+   under it.
+2. **Dictionary prefix lookup full-scans 175 MB on every word tap** — the
+   three queries in `lib/data/datasources/dictionary_local_datasource.dart` use
    `LIKE ? ESCAPE '\'`, which never uses `idx_word`. 133 ms natively; over OPFS
    it is the whole file through a JS callback. `buildDictionaryLikePattern`
    only ever builds a prefix, so the semantics survive
@@ -581,12 +580,13 @@ the same build pipeline, one in the same datasource.
 
 ### Smaller constraints, for whoever writes steps 5–8
 
-- **`SQLITE_DQS 0` on web:** double-quoted *string literals* are an error
-  there, and native won't catch it. New `bjt_content` SQL must use single
-  quotes (identifier quoting is unaffected). Existing SQL is clean — the spike
-  grepped every site in `lib/`, `packages/` and `server/`.
+- **`SQLITE_DQS=0` on native too, now:** double-quoted *string literals* are
+  an error. Under sqflite that was web-only; the SQLite `package:sqlite3`
+  bundles natively is compiled the same way, so native tests catch it as well.
+  Use single quotes (identifier quoting is unaffected). Existing SQL is clean.
 - **`enableMigrations: false`** when Drift opens these. `user_version` is 0
   (verified), so the migrator would otherwise write into the shipped DB.
+  Native passes it (`bundled_database_executor_native.dart`); web must too.
 - **No `ATTACH`** between this DB and `dict.db`. Drift's OPFS mode is chosen at
   runtime by browser capability, and one of the two modes stores exactly two
   files. They are already separate files by design; this just forecloses ever
@@ -684,8 +684,8 @@ CREATE TABLE bjt_content (
   (`better-sqlite3`), Dart reads it. No Freezed models or app-specific types in the
   blob — just the page's JSON substructure.
 - Decompression in Dart: `package:archive`'s `ZLibDecoder` — `dart:io`'s zlib
-  natively, pure Dart on web, same call. Not in `pubspec.yaml` yet. See **The
-  blob decoder needs a web path**.
+  natively, pure Dart on web, same call. A direct dependency since step 6. See
+  **The blob decoder needs a web path**.
 - **~~Optional max-speed snippet path~~ — dropped.** The idea was a per-entry
   `text` column so a snippet needed no parse at all. The benchmark says the page
   fetch *is* 0.03 ms, so there is nothing left to win, and per-entry
@@ -767,8 +767,9 @@ CREATE TABLE bjt_content (
      segment-id test pins the counter running unbroken across both languages
      and both pages, but only *within one `parseDocument` call*. A per-page
      loader calling it once per page still produces an unbroken `0..n` each
-     time. If step 6 reads page-at-a-time, segment-id continuity across a file
-     needs its own check at whatever layer stitches the pages together.
+     time. Once the reader loads pages from `bjt_content` (step 8), segment-id
+     continuity across a file needs its own check at whatever layer stitches
+     the pages together.
 
    **Unrelated TODO, moved out 2026-09-14:** one entry point for every test path
    is its own plan now — [`test-all-and-release-all.md`](../test-all-and-release-all.md).
@@ -854,19 +855,14 @@ CREATE TABLE bjt_content (
      from the column.
    - **Nothing in the app reads the table yet.** Snippets and the reader still
      load `assets/text/*.json` until step 8.
-   - **Your local app holds an old copy.** The app copies `bjt-fts.db` into its
-     documents directory only when none is there (step 7 fixes that), so a
-     machine that ran the app before step 5 has no `bjt_content`. Delete that
-     copy before testing stage 2.
    - **Rebuild and check:** `npm run generate-fts` in `tools/`, then
      `dart run tool/verify_corpus_invariants.dart` in `static_site_generator/`.
      Section 5 already proves the table matches the JSON entry for entry, so if
-     stage 2 shows a page differently from today, suspect the datasource, not
+     step 8 shows a page differently from today, suspect the datasource, not
      the data.
-   - **Not run since the rebuild:** `flutter test` and the integration suites.
-     Get them green before the swap, as stage 1's baseline. `all_tests.dart`
-     can flake when files share the database; re-run a failing file alone
-     before blaming a change.
+   - **Suites:** green on this build before and after the swap (step 6).
+     `all_tests.dart` can flake when files share the database; re-run a
+     failing file alone before blaming a change.
    - **The decoder traps** are under **Decoder** in step 6.
 
    **Left open after step 5** — deliberately not done yet (the user's call,
@@ -881,91 +877,124 @@ CREATE TABLE bjt_content (
    - **Rebuild `dict.db`**, still WAL-flagged: `npm run generate-dict` in
      `tools/`. Until then `validate-release.sh` fails on it, and the web build
      (step 11) cannot open it.
-6. **Move the app to Drift, then add the content datasource on top.** Decided
-   2026-09-13: both land in one branch, and no `sqflite` version of the
-   datasource is written first. Two stages, so a failure points at one of them:
+6. **Move the app to Drift, then add the content datasource on top — DONE
+   2026-09-16.** One branch, two stages, and no `sqflite` version of the
+   datasource was ever written. Web keeps its server path and moves at step 11.
 
-   1. **Swap the engine and change nothing else.** Three files import
-      `sqflite` — `lib/main.dart` (desktop FFI setup),
-      `fts_local_datasource.dart` and `dictionary_local_datasource.dart` — plus
-      `test/data/datasources/fts_language_filter_sql_test.dart`. Move all four,
-      `dict.db` included, so `sqflite` and `sqflite_common_ffi` leave
-      `pubspec.yaml`. Same SQL, same results: the existing unit and integration
-      suites pass with no expectation changed before stage 2 starts. Adopt
-      Drift thin (`customSelect`) and follow **Smaller constraints** above.
-      Land the `ORDER BY score, id` tiebreaker (bug 1 above) as its own change
-      just before the swap, so a bm25 tie can't pass for an engine difference.
-      Native Drift has never run in this repo — the spike could not run the
-      Dart layer — so this stage is where it gets proven.
-   2. **Add the content datasource** that reads + decompresses from
-      `bjt_content`.
+   **Tiebreaker first, on its own:** `ORDER BY score, id` (bug 1). Suites
+   green, no expectation changed.
 
-   Web keeps its server path in this branch and moves at step 11.
+   **Stage 1 — the engine swap.** `sqflite` and `sqflite_common_ffi` left
+   `pubspec.yaml` for `drift`; `package:sqlite3` bundles one SQLite build on
+   every native platform.
+   - `lib/data/database/bundled_database.dart`: **`BundledDatabase`**, a
+     table-less `GeneratedDatabase` whose `rawQuery(sql, args)` wraps
+     `customSelect`, so every query kept its text. Its statics `open` and
+     `closeShared` keep one connection per file for the whole app — what
+     sqflite's one instance per path gave. FTS and page text share a
+     connection, and two first-launch readers can't copy the same asset at
+     once. The static can't be named `close`: Drift's instance `close()`
+     already is.
+   - `bundled_database_executor_native.dart`: the copy-if-absent both
+     datasources used to repeat, now written once, then
+     `NativeDatabase.createInBackground(file, enableMigrations: false)`. Its
+     `_web.dart` twin throws, and the conditional export keeps `dart:ffi` out
+     of the web build.
+   - `main.dart` lost the desktop FFI setup; `lib/core/utils/platform_utils*`,
+     used only for it, is deleted.
+   - `fts_language_filter_sql_test.dart` runs on an in-memory `BundledDatabase`.
 
-   Five things the measurements and the spike review turned up, all of which
-   bite in stage 2 rather than in step 5:
+   Unit and every integration file, each run alone on macOS, were green at
+   three checkpoints — before any change, after the tiebreaker, after the
+   swap — with no expectation changed and no Drift warning or SQLite error in
+   any log. `flutter build web --release` still builds. **Not run: Android and
+   iOS** (no SDK or signing here). Their first builds are also the first to
+   fetch the bundled SQLite's native binaries.
 
-   - **The half-open → page-span rule has no home, and needs one before
-     stage 2.** Stage 2 must know which page rows to `SELECT` *before* it has a
-     document, and the only implementation of that rule today is
-     `DocumentSlice.of` (`lib/domain/entities/reader/document_slice.dart`),
-     which takes a loaded `BJTDocument` — so it cannot serve the fetch, and the
-     benchmark wrote its own copy twice rather than reuse it. The rule is
-     subtle enough to be worth writing once: a `SliceRange.end` landing on entry
-     0 means the slice stops *before* that page, anywhere else means it shares
-     it. The two copies already disagree at the edges — `DocumentSlice.of`
-     returns empty and drops `endEntry` when it clamps. Put a document-free form
-     on `SliceRange`/`SliceIndex` in `wisdom_shared`, which already owns
-     `rangeFor`, and have `DocumentSlice.of` consume it instead of re-deriving
-     it.
-   - **Fetch the whole span in one query**, not two statements per page:
-     `WHERE filename = ? AND pageIndex BETWEEN ? AND ? ORDER BY pageIndex`.
-     Measured at a further 5–10%.
-   - **A missing row must throw, not be skipped.** `BJTDocumentParser._parsePage`
-     hard-casts `pageNum`, `pali` and `sinh`, so a page assembled from a partial
-     result set either crashes a layer further down or renders with one language
-     silently absent. Assemble `{pageNum, pali, sinh}` per page and let an
-     absent row fail at the fetch, where it can say which row.
-   - **Segment-id continuity is not covered by the parser test** — see step 1.
-     The counter runs unbroken *within one `parseDocument` call*, so a per-page
-     loader calling it once per page still produces a clean `0..n` every time
-     and the test passes anyway. Whatever stitches the pages together needs its
-     own check.
-   - **Decoder.** `package:archive`'s `ZLibDecoder` with `verify: true` — one
-     call on every platform (`dart:io`'s zlib natively, pure Dart on web), and
-     step 5 has already run both paths over every blob. **A bad blob fails
-     differently on each, and neither always throws** (probed 2026-09-15):
+   **Stage 2 — the content datasource.**
+   - **The page-span rule has one home:** `SliceRange.pageSpan` returns a
+     `SlicePageSpan(firstPage, lastPage?, endEntry?)` in `wisdom_shared`, from
+     coordinates alone. `DocumentSlice.of` consumes it and keeps only the
+     clamping a loaded document needs.
+   - **`BJTContentDataSource`** and `BJTContentLocalDataSourceImpl`
+     (`lib/data/datasources/bjt_content_*`), on the FTS index's connection:
+     - `loadPages(fileId, firstPage:, lastPage:)` — the span in one query, each
+       page shaped like an item of the JSON's `pages` list
+       (`{pageNum, pali, sinh}`), so `BJTDocumentParser` reads it unchanged. A
+       page missing a language throws a `StateError` naming the row.
+     - `loadPageSides(keys)` — the snippet batch, keyed by `ContentPageKey`
+       `(fileId, pageIndex, language)` in the table's spelling. It joins
+       against a `VALUES` list, so each key is one primary-key seek; the
+       row-value `IN` planned as two IN lists, filename × page. A missing or
+       corrupt row is left out and costs only its own snippet.
+     - Both queries `CAST(blob AS BLOB)`. A value stored as TEXT is otherwise
+       read as a string inside SQLite and fails the whole query before the row
+       can be named.
+   - `archive` is a direct dependency. **No provider and no caller yet** —
+     step 8 wires it.
 
-     | Broken blob | Native (`dart:io`) | Web (pure Dart) |
-     |---|---|---|
-     | bad checksum | throws `FormatException` | empty bytes |
-     | a byte changed mid-stream | throws `FormatException` | throws `RangeError` or empty bytes, by position (one tried to allocate ~24 GB and ran out of memory) |
-     | cut short | part of the page, no error | throws `RangeError` |
-     | trailing bytes | whole page, no error | empty bytes |
-     | gzip frame | whole page, no error | empty bytes |
+   **Verified by a throwaway probe**, outside the repo, through the real
+   datasource, Drift and a copy of the real `bjt-fts.db`. Every page of every
+   content file equals its JSON and parses to an identical `BJTDocument`,
+   segment ids included: 0 mismatches, 11 s. Also: bounded, open-ended,
+   one-page and empty spans; batched sides across 40 files with a missing key
+   left out; a page past the end, an unknown file and a deleted language row
+   each throwing with the row named; and seven broken blobs — empty, cut
+   short, bad checksum, changed byte, gzip header, plain JSON, stored as TEXT —
+   each becoming a `FormatException` naming the row, and left out of
+   `loadPageSides` while the other language survives. The TEXT case failed
+   first; it is what added the `CAST`.
+   **Decoder — the record behind `_decode`.** `package:archive`'s
+   `ZLibDecoder` with `verify: true`: `dart:io`'s zlib natively, pure Dart on
+   web, and step 5 ran both over every blob. **A bad blob fails differently on
+   each, and neither always throws** (probed 2026-09-15):
 
-     So an empty-bytes check alone misses a cut-short blob on native. Decode
-     and parse in one `try`, and turn every failure into one error naming the
-     row. The parse catches the quiet cases: part of a page is never a whole
-     JSON object. Catch everything, not `on Exception` — `RangeError` is an
-     `Error`.
+   | Broken blob | Native (`dart:io`) | Web (pure Dart) |
+   |---|---|---|
+   | bad checksum | throws `FormatException` | empty bytes |
+   | a byte changed mid-stream | throws `FormatException` | throws `RangeError` or empty bytes, by position (one tried to allocate ~24 GB and ran out of memory) |
+   | cut short | part of the page, no error | throws `RangeError` |
+   | trailing bytes | whole page, no error | empty bytes |
+   | gzip frame | whole page, no error | empty bytes |
 
-     ```dart
-     try {
-       final bytes = const ZLibDecoder().decodeBytes(blob, verify: true);
-       if (bytes.isEmpty) throw const FormatException('empty blob');
-       return json.decode(utf8.decode(bytes)) as Map<String, dynamic>;
-     } catch (error) {
-       // Use the datasource's own error type; the point is naming the row.
-       throw StateError('corrupt row $filename/$pageIndex/$language: $error');
-     }
-     ```
+   So an empty-bytes check alone misses a cut-short blob on native. `_decode`
+   decodes and parses in one `try` — part of a page is never a whole JSON
+   object — and turns every failure, `Error` included, into one
+   `FormatException` naming the row. No real blob does any of this today:
+   section 5 would fail.
 
-     No real blob does any of this today — section 5 would fail.
-7. **Make an app update replace the copied databases.** Both
-   `_initializeEdition` (`fts_local_datasource.dart`) and
-   `dictionary_local_datasource.dart` copy the asset out of the bundle only
-   when no copy exists, and nothing checks versions. So an update carrying a
+   **Recap for whoever starts step 8:**
+   - **Nothing reads the content datasource yet.** It needs a provider.
+     Snippets read `loadPageSides`, keyed with `match.language` (see
+     **Snippet-path teardown**); the reader reads `loadPages` over
+     `SliceRange.pageSpan` and parses with `BJTDocumentParser`.
+   - **Segment ids:** parsing a slice restarts the counter at 0, so a reader
+     that loads pages needs the check step 1 describes.
+   - **Old local copies:** the app keeps whichever `bjt-fts.db` it copied
+     first, and on this machine that predates `bjt_content`. Until step 7
+     lands, delete the copy before testing step 8.
+
+   **Left open after step 6** — raised by the review, none of them a bug
+   (2026-09-16); nothing in step 7 waits on them:
+   - **The declared SDK floor is stale.** `pubspec.yaml` still says
+     `sdk: '>=3.5.2 <4.0.0'`, while `pubspec.lock` already resolved to
+     `>=3.12.0` — drift and `package:sqlite3` both need a recent Dart, so the
+     declared floor could not resolve anyway. Raise it **in its own commit,
+     with a `dart format` pass**: a floor past 3.7 switches the formatter to
+     tall style and rewrites most of the repo, which would bury this one.
+   - **`dontWarnAboutMultipleDatabases` is set per connection**, in
+     `BundledDatabase._connect`, rather than once. The assignment is global and
+     idempotent, so it costs nothing; the comment beside it says why silencing
+     it for every class is safe here.
+   - **`DictionaryDataSourceImpl.close()` guards on `_database != null`** where
+     `_initialized` beside it says the same thing.
+   - **`_log` is hand-copied into five datasources.** A shared two-line helper
+     earns its place at five, but it touches files this branch otherwise leaves
+     alone — the user's call, like the step 5 deletions above.
+7. **Make an app update replace the copied databases.** `openBundledExecutor`
+   (`lib/data/database/bundled_database_executor_native.dart`), which both
+   databases open through, copies the asset out of the bundle only when no
+   copy exists, and nothing checks versions. So an update carrying a
    rebuilt database never reaches an existing install: it keeps its first copy
    for good. Every rebuild so far has had that gap, silently. This is the
    first where the old file cannot serve the new code — it has no
@@ -977,18 +1006,45 @@ CREATE TABLE bjt_content (
      copy and compared with the bundled asset (a content hash, a build id).
      Not `user_version` without care: Drift's migrator writes it unless
      `enableMigrations: false` (see **Smaller constraints**).
-   - **Replacing it safely** — close any open connection, copy to a temp
-     file, then swap, so a launch killed mid-copy never leaves a half-written
-     database.
+   - **Replacing it safely** — copy to a temp file, then swap, so a launch
+     killed mid-copy never leaves a half-written database. Swap before the
+     first `BundledDatabase.open`: `closeShared` is for app shutdown only
+     (see step 8, **Who may close**).
    - **Memory** — `rootBundle.load` holds the whole asset in RAM before
-     writing it (see `dict.db` under **Open Questions**). One copy helper for
-     both databases, so the fix lands once.
+     writing it (see `dict.db` under **Open Questions**). The copy already
+     lives in that one function, so the fix lands once for both databases.
    - **The web side of the same question** is the manifest + boot reconciler
      in [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md). Check
      whether mobile can share its versioning rather than invent a second one.
 8. Repoint snippet path (now `_loadFileJson`/`_extractEntryText` in `_searchFullText`)
    and reader (`BJTDocumentLocalDataSourceImpl`) at the content datasource — see
    **Snippet-path teardown** below for the exact deletions.
+
+   **Decide while wiring it** (found in the step 6 review; none is a bug today,
+   because nothing calls the datasource yet):
+   - **`DocumentSlice.of` counts pages from the top of the file.** Its page
+     indexes go straight into `document.pages`, which is right only while the
+     reader loads the whole JSON. Load just the slice's pages and it goes
+     wrong without throwing: a span from page 34 of a 3-page document comes
+     back empty, one from page 1 cuts the wrong pages. Give `BJTDocument` the
+     index of its first page in the file, or make the slice page-relative.
+   - **A span past the file's last page.** `SliceRange.pageSpan` works from
+     coordinates alone, so it can't know the page count. `DocumentSlice.of`
+     clamps (pinned in `document_slice_test.dart`: "an end past the last page
+     clamps"); `loadPages` throws. So a tree and corpus out of step degrade on
+     the JSON path and crash on this one. Pick one: the caller clamps (it
+     needs the page count, e.g. `SELECT MAX(pageIndex)`), or `loadPages`
+     tolerates a missing *tail* and still throws on a hole inside the span.
+     Don't just loosen `_whole` — a missing page mid-span is a real fault.
+   - **Who may close `bjt-fts.db`.** Search and `bjt_content` share one
+     connection, so `FTSDataSourceImpl.close()` closes the content
+     datasource's too. Nothing calls `close()` at runtime today, and
+     `BundledDatabase.closeShared` says app shutdown only. Settle it when the
+     datasource gets its provider; no ref-counting before a caller needs it.
+   - **`loadPageSides` is one statement, not chunked.** Three bind variables
+     per key against SQLite's 32,766-variable limit caps a batch near 10,900
+     keys. A results page asks for about 50; change nothing unless a caller
+     batches far more.
 9. **Stop shipping the JSON.** Remove `- assets/text/` from `pubspec.yaml` and
    keep the files in the repo — every build-time reader opens them from disk
    (see **Current Runtime Dependencies on JSON**), and so does `server/` until
@@ -1004,7 +1060,7 @@ CREATE TABLE bjt_content (
      file are fine), and a build must carry no `assets/text/` — on macOS, look
      under `the_wisdom_project.app/Contents/Frameworks/App.framework/Resources/flutter_assets/assets/`.
 10. Verify offline reading + search snippets on a real device. Check first-launch
-    DB copy time (`_initializeEdition` copies the asset DB to the documents dir;
+    DB copy time (`openBundledExecutor` copies the asset DB to the documents dir;
     a bigger DB = bigger one-time copy + double on-disk during install), and
     that installing over an older build picks up the new database (step 7).
 11. **Web now reads this DB client-side** (Drift wasm/OPFS) — see the top banner.
@@ -1016,6 +1072,13 @@ CREATE TABLE bjt_content (
     decoder on the Dart VM only, so time it and check its output once in a web build;
     if it is too slow there, swap just the unpacking call for
     `DecompressionStream` and keep the rest.
+
+    **Rename `BundledDatabase` here.** This is the first database it opens that
+    did not come out of the app bundle: `open` should take an executor instead
+    of hardcoding `openBundledExecutor`, and the class becomes source-neutral
+    (`LocalDatabase`) — nothing in it is bundle-specific. A downloadable
+    edition triggers the same change; a remote-API edition does not, as it
+    never reaches this class.
 
 ### Snippet-path teardown (step 8 detail)
 
@@ -1168,17 +1231,17 @@ missing-row degrades to an empty snippet, and the native search path no longer r
 
   Two things are worth keeping, and neither is size work:
 
-  1. **The lookup never uses its index.** `dictionary_local_datasource.dart:83`
-     plans as `SCAN dictionary` — **41 ms against under 1 ms**, warm. `ESCAPE`
+  1. **The lookup never uses its index.** `lookupWord` in
+     `dictionary_local_datasource.dart` plans as `SCAN dictionary` — **41 ms against under 1 ms**, warm. `ESCAPE`
      is not the blocker; current SQLite handles it. The blocker is `LIKE` being
      case-insensitive by default against a BINARY `idx_word`. Prefer rewriting
      the predicate as `word >= ? AND word < ?`, which indexes unconditionally,
      over `PRAGMA case_sensitive_like=ON`, which changes behaviour globally. On
      web this is the whole 145 MB table per keystroke. Also spike §9c.
-  2. **First launch allocates the file in RAM.**
-     `dictionary_local_datasource.dart:40` loads all 166 MB into one `ByteData`
-     before writing it out. `bjt-fts.db` needs the same copy, so this wants one
-     shared streaming helper rather than a second copy of the bug — step 7.
+  2. **First launch allocates the file in RAM.** `openBundledExecutor` loads
+     all 166 MB into one `ByteData` before writing it out, and does the same
+     for `bjt-fts.db`. Since step 6 that is one function, so streaming it is
+     one fix — step 7.
 
   On Android `dict.db` costs ~28.5 + 166.6 ≈ 195 MB on the phone, not 333 MB:
   the APK keeps it deflated and only the first-run copy is full size. The same

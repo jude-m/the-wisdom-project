@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'core/storage/key_value_store_provider.dart';
 import 'core/storage/shared_preferences_key_value_store.dart';
 import 'presentation/keyboard/app_shortcuts.dart';
@@ -22,18 +21,8 @@ import 'presentation/widgets/app/overlay_stack_sync.dart';
 import 'presentation/widgets/app/update_available_banner.dart';
 import 'core/theme/theme_notifier.dart';
 
-// Conditional import: uses dart:io on native, no-op on web
-import 'core/utils/platform_utils.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize FFI-based SQLite for desktop platforms (Windows, Linux)
-  // Uses conditional import so dart:io is never referenced on web
-  if (!kIsWeb && isDesktopPlatform()) {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
-  }
 
   // Initialize SharedPreferences for search history
   final sharedPrefs = await SharedPreferences.getInstance();
