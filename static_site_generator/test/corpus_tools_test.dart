@@ -45,7 +45,7 @@ void main() {
     // pre-extraction oracles. Counts live in the tool.
     //
     // No argument on purpose. The tool's content-parity section finds the
-    // bundled assets/databases/bjt-fts.db by itself and reports SKIPPED until
+    // bundled assets/databases/bjt.db by itself and reports SKIPPED until
     // that database grows a bjt_content table, so this test starts enforcing
     // JSON-to-SQLite parity the first time it runs after the migration's
     // populate step — with nothing added here. Same reason the file exists:

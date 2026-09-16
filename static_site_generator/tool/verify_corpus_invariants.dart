@@ -44,7 +44,7 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 ///
 /// Section 5 is the safety net for the JSON-to-SQLite migration: every entry in
 /// the corpus, read back out of the `bjt_content` table and required to be the
-/// same. It looks in the bundled `assets/databases/bjt-fts.db` by default, so
+/// same. It looks in the bundled `assets/databases/bjt.db` by default, so
 /// it arms itself the moment step 5 populates that table instead of waiting for
 /// someone to remember a flag; `--content-db` points it elsewhere. Until the
 /// table exists it reports SKIPPED and does not vote — a section that cannot
@@ -79,7 +79,7 @@ void main(List<String> args) {
   } else {
     contentOk = _verifyContent(
       reader,
-      contentDb ?? '${reader.assetsPath}/databases/bjt-fts.db',
+      contentDb ?? '${reader.assetsPath}/databases/bjt.db',
       named: contentDb != null,
     );
   }
@@ -572,7 +572,7 @@ bool? _verifyContent(
       return false;
     }
     stdout.writeln('  SKIPPED — no database at $dbPath.');
-    stdout.writeln('            Build it with tools/bjt-fts-populate.js.');
+    stdout.writeln('            Build it with tools/bjt-populate.js.');
     return null;
   }
 

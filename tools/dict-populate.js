@@ -196,7 +196,7 @@ async function main() {
     // Replaces the plain VACUUM that used to run here: VACUUM INTO reclaims the
     // same space, and also clears the WAL flag the wasm build refuses to open,
     // sets 8 KiB pages, and writes the stats the planner needs. dict.db is a
-    // shipped asset and reaches the browser the same way bjt-fts.db does.
+    // shipped asset and reaches the browser the same way bjt.db does.
     finalizeDatabase(CONFIG.OUTPUT_DB);
 
     console.log('');

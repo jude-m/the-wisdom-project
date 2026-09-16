@@ -31,7 +31,7 @@ void main() async {
   // Skip on web - web uses remote datasources (server has the databases)
   if (!kIsWeb) {
     try {
-      await rootBundle.load('assets/databases/bjt-fts.db');
+      await rootBundle.load('assets/databases/bjt.db');
     } catch (e) {
       // Database not found - show error and exit
       runApp(const _DatabaseMissingError());
@@ -98,9 +98,9 @@ class _DatabaseMissingError extends StatelessWidget {
                     ),
                     child: const SelectableText(
                       'Critical asset missing:\n\n'
-                      '  • assets/databases/bjt-fts.db\n\n'
+                      '  • assets/databases/bjt.db\n\n'
                       'The FTS database is required for search functionality.\n\n'
-                      'Developers: Run "cd tools && npm run generate-fts"\n'
+                      'Developers: Run "cd tools && npm run generate-bjt"\n'
                       'before building the app.',
                       style: TextStyle(
                         fontFamily: 'monospace',

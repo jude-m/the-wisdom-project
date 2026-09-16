@@ -97,7 +97,7 @@ class FTSSuggestion {
 /// Supports multiple Tipitaka editions with separate databases
 abstract class FTSDataSource {
   /// Initialize FTS databases for the specified editions
-  /// Each edition has its own database file: {editionId}-fts.db
+  /// Each edition has its own database file: {editionId}.db
   Future<void> initializeEditions(Set<String> editionIds);
 
   /// Search for content across one or more editions

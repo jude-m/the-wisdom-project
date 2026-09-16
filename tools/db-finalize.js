@@ -1,6 +1,6 @@
 /**
  * Turns a freshly built database into a shippable one. Shared by
- * `bjt-fts-populate.js` and `dict-populate.js` — both write in WAL mode, and
+ * `bjt-populate.js` and `dict-populate.js` — both write in WAL mode, and
  * both ship their output as a Flutter asset, so both need the same last pass.
  */
 

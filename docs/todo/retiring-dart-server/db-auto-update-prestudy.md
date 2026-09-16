@@ -1,7 +1,7 @@
 # DB auto-update mechanism — pre-study / design brief
 
 **Context:** follow-on to the *Retiring the Dart server* spike (`drift-fts5-wasm-spike-results.md`).
-That spike established that the client downloads `bjt-fts.db` and the `dict.db` shards once
+That spike established that the client downloads `bjt.db` and the `dict.db` shards once
 and stores them in OPFS. This brief answers the next question: **when a new version of a DB
 ships (say `dict.db` two months later), how does the client pick it up seamlessly, without the
 user re-downloading everything by hand?**
@@ -67,7 +67,7 @@ it drops to best-effort storage, which the reconciler already handles.
 
 ```
 /manifest.json                    ← mutable;   Cache-Control: no-cache
-/db/bjt-fts.2026-09-01.db.gz      ← immutable; Cache-Control: public, max-age=31536000, immutable
+/db/bjt.2026-09-01.db.gz          ← immutable; Cache-Control: public, max-age=31536000, immutable
 /db/dict-core.2026-09-01.db.gz    ← immutable
 /db/dict-dpd.2026-07-15.db.gz     ← immutable; independent version per shard
 ```
@@ -79,7 +79,7 @@ hash. Sketch:
 {
   "schemaVersion": 1,
   "databases": {
-    "bjt-fts":   { "version": "2026-09-01", "url": "/db/bjt-fts.2026-09-01.db.gz",
+    "bjt":       { "version": "2026-09-01", "url": "/db/bjt.2026-09-01.db.gz",
                    "bytesGz": 47600000, "bytesRaw": 99400000, "sha256": "..." },
     "dict-core": { "version": "2026-09-01", "url": "/db/dict-core.2026-09-01.db.gz", ... },
     "dict-dpd":  { "version": "2026-07-15", "url": "/db/dict-dpd.2026-07-15.db.gz", ... }

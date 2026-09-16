@@ -27,7 +27,7 @@ datasource (FTS) → SQLite, then back out to the JSON assets.
         │  • buildFtsQuery()  → FTS5 syntax
         │  • SQL: SELECT ... WHERE fts MATCH ?  ORDER BY bm25()
         ▼
-   SQLite FTS5 database (bjt-fts.db)
+   SQLite FTS5 database (bjt.db)
         │  returns rows of *metadata* (filename, eind, nodeKey) — NOT the text
         ▼
 5. Back in TextSearchRepositoryImpl
@@ -163,7 +163,7 @@ String? _ftsLanguageFilter(SearchLanguageScope scope) => switch (scope) {
 ## Step 4 — FTS matching (the actual SQLite query)
 
 `FTSDataSourceImpl.searchFullText` does the matching. It can search several
-editions in parallel (each edition has its own `{editionId}-fts.db`, copied from
+editions in parallel (each edition has its own `{editionId}.db`, copied from
 assets to the documents directory on first use).
 
 ### 4a. Build FTS5 syntax

@@ -27,10 +27,10 @@
  * Usage:
  *   cd tools
  *   npm install better-sqlite3  # First time only
- *   node bjt-fts-populate.js
+ *   node bjt-populate.js
  *
  * Input:  ../assets/text/*.json (BJT text files)
- * Output: bjt-fts.db (~110-120 MB)
+ * Output: bjt.db (~110-120 MB)
  *
  * Based on: tipitaka.lk/dev/fts-populate.js
  * Modified for: The Wisdom Project - Multi-edition architecture
@@ -86,7 +86,7 @@ const CONFIG = {
     TREE_JSON: path.join(__dirname, '../assets/data/tree.json'),
 
     // Output database file
-    OUTPUT_DB: path.join(__dirname, '../assets/databases/bjt-fts.db'),
+    OUTPUT_DB: path.join(__dirname, '../assets/databases/bjt.db'),
 };
 
 // =============================================================================

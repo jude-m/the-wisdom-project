@@ -21,8 +21,8 @@ class FTSDataSourceImpl implements FTSDataSource {
   /// Track which editions are initialized
   final Set<String> _initializedEditions = {};
 
-  /// Database naming: {editionId}-fts.db (e.g., bjt-fts.db, sc-fts.db)
-  static String _dbNameFor(String editionId) => '$editionId-fts.db';
+  /// Database naming: {editionId}.db (e.g., bjt.db, sc.db)
+  static String _dbNameFor(String editionId) => '$editionId.db';
 
   @override
   Future<void> initializeEditions(Set<String> editionIds) async {

@@ -56,14 +56,15 @@
 
 | Database | Purpose | Location |
 |----------|---------|----------|
-| `bjt-fts.db` | Full-text search (FTS4), sutta metadata | `assets/databases/` |
+| `bjt.db` | Full-text search (FTS5), sutta metadata, page text | `assets/databases/` |
 | SharedPreferences | User settings, recent searches | Device storage |
 | **Future**: Supabase | User sync, cloud features | Remote |
 
 ### FTS Database Schema
-- `bjt_fts` — FTS4 virtual table (contentless)
-- `bjt_meta` — Metadata (filename, eind, language, type, level)
-- `bjt_suggestions` — Word frequency for autocomplete
+- `bjt_fts` — FTS5 virtual table (contentless)
+- `bjt_meta` — Metadata (filename, eind, language, type, level, nodeKey)
+- `bjt_content` — Page text, one zlib blob per page per language
+- `bjt_suggestions` is not built (off in `tools/bjt-populate.js`)
 
 ---
 
@@ -176,7 +177,7 @@ Architecture supports multiple Tipitaka editions:
 - **BJT** (Buddha Jayanti Tripitaka) — Currently implemented
 - **SuttaCentral** — Future integration
 
-Each edition has its own FTS database (`{editionId}-fts.db`) and can be searched in parallel.
+Each edition has its own FTS database (`{editionId}.db`) and can be searched in parallel.
 
 ---
 

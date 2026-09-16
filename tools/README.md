@@ -2,11 +2,11 @@
 
 This directory contains build-time tools for The Wisdom Project.
 
-## FTS Database Generator
+## BJT Database Generator
 
 ### Purpose
 
-Generates an optimized SQLite FTS4 (Full-Text Search) database from the BJT (Buddha Jayanti Tripitaka) text files.
+Builds `bjt.db` for the BJT (Buddha Jayanti Tripitaka) edition: the full-text search index and the page text, in one SQLite file.
 
 ### Quick Start
 
@@ -14,28 +14,22 @@ Generates an optimized SQLite FTS4 (Full-Text Search) database from the BJT (Bud
 # Install dependencies (first time only)
 npm install
 
-# Generate the FTS database
-npm run generate-fts
+# Generate the BJT database
+npm run generate-bjt
 ```
 
-The database will be automatically created at `assets/databases/bjt-fts.db` (~114 MB).
+The database is written to `assets/databases/bjt.db`.
 
 ### What It Does
 
-1. **Reads** all 285 JSON text files from `../assets/text/`
-2. **Indexes** ~457,000 text entries (Pali and Sinhala)
-3. **Generates** 100,000 word suggestions for auto-complete
-4. **Creates** optimized contentless FTS4 database (75% smaller than standard FTS4)
-5. **Copies** the database to `assets/databases/bjt-fts.db`
+1. **Reads** every JSON text file in `../assets/text/`
+2. **Indexes** every entry, Pali and Sinhala, into a contentless FTS5 table
+3. **Stores** the page text in `bjt_content`, one zlib blob per page per language
+4. **Finalizes** the file for shipping (`db-finalize.js`): 8 KiB pages, no WAL flag, `ANALYZE`
 
-### Database Optimization
+### Why Contentless
 
-The script uses a "contentless" FTS4 approach:
-
-- **Standard FTS4**: Stores text + index = 455 MB
-- **Contentless FTS4**: Stores only index + metadata = 114 MB
-
-This works because the actual text is already stored in the JSON files. The database only needs the search index and location metadata (filename, page, entry index).
+The FTS5 index stores no text of its own, so the text is not kept twice. Search reads the index for locations; the text sits beside it in `bjt_content`. The app still reads the JSON until step 8 of `docs/todo/retiring-dart-server/reduce-mobile-size-and-move-to-drift.md`, which also has the sizes and measurements behind this layout.
 
 ### When to Regenerate
 
@@ -45,8 +39,8 @@ This works because the actual text is already stored in the JSON files. The data
 
 ### Database Schema
 
-**bjt_fts** (FTS4 virtual table)
-- Contentless search index
+**bjt_fts** (FTS5 virtual table)
+- Contentless search index, ranked with bm25()
 - Fields: text (searchable)
 
 **bjt_meta** (metadata table)
@@ -56,18 +50,20 @@ This works because the actual text is already stored in the JSON files. The data
 - language: "pali" or "sinh"
 - type: Entry type (paragraph, heading, centered, etc.)
 - level: Hierarchy level (0-4)
+- nodeKey: The tree node the entry belongs to
 
-**bjt_suggestions** (auto-complete)
-- word: Suggestion text
-- language: "pali" or "sinh"
-- frequency: Word occurrence count
+**bjt_content** (page text)
+- filename, pageIndex, language: primary key
+- pageNum: The printed page number
+- blob: That page's language side from the JSON, verbatim, plain zlib
+
+**bjt_suggestions** is not built: `GENERATE_SUGGESTIONS` is `false` in `bjt-populate.js`.
 
 ### Technical Details
 
 - **Technology**: Node.js with better-sqlite3
-- **FTS Version**: SQLite FTS4 with unicode61 tokenizer
+- **FTS Version**: SQLite FTS5 with unicode61 tokenizer
 - **Sinhala Support**: Custom tokenchars for Sinhala Unicode range (U+0D80-0x0DFF)
-- **Performance**: ~4ms search time across 457K entries
 
 ### Troubleshooting
 
@@ -80,7 +76,7 @@ npm install
 Make sure you're running from the `tools/` directory and that `../assets/text/` exists.
 
 **Database not appearing in assets/databases/**
-Check that the script completed without errors. The database should be automatically copied.
+Check that the script completed without errors. It writes the database there directly.
 
 ---
 
@@ -118,10 +114,9 @@ If any check fails, the script exits with an error message showing which check f
 
 ### Files
 
-- `bjt-fts-populate.js` - Database generation script
+- `bjt-populate.js` - Database generation script (writes `../assets/databases/bjt.db`, gitignored)
 - `package.json` - Node.js dependencies
 - `validate-release.sh` - Pre-release validation script
-- `bjt-fts.db` - Generated database (gitignored)
 - `README.md` - This file
 
 ### Credits

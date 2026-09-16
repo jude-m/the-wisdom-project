@@ -71,9 +71,9 @@ Edition(
 ## Multi-Edition Search
 
 ### Database Structure
-Each edition has its own FTS database: `{editionId}-fts.db`
-- `bjt-fts.db` - BJT search index (contentless FTS4)
-- `sc-fts.db` - SuttaCentral (future)
+Each edition has its own FTS database: `{editionId}.db`
+- `bjt.db` - BJT search index and page text
+- `sc.db` - SuttaCentral (future)
 
 ### Table Naming
 ```sql
@@ -136,7 +136,7 @@ TextLayer supports same Pali text in multiple scripts:
 
 ## Adding a New Edition
 
-1. **Create FTS database**: `{editionId}-fts.db` with tables `{editionId}_fts`, `{editionId}_meta`, `{editionId}_suggestions`
+1. **Create FTS database**: `{editionId}.db` with tables `{editionId}_fts`, `{editionId}_meta`, `{editionId}_suggestions`
 2. **Create datasource**: If edition is segment-based like SC, return `TextLayer` directly. If page-based, create intermediate model.
 3. **Register edition**: Add to edition registry
 4. **Update search**: Edition automatically included via `editionIds` parameter

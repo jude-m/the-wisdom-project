@@ -1,17 +1,18 @@
 # Faster Reads (and a Smaller App): Move Text into SQLite and the App onto Drift
 
-> **Status 2026-09-16:** steps 1–6 done. `bjt-fts.db` carries `bjt_content` —
+> **Status 2026-09-16:** steps 1–6 and 7.1 done. `bjt.db` (renamed from
+> `bjt-fts.db` at 7.1) carries `bjt_content` —
 > one page per blob, **plain zlib** — and the app is on Drift: search and the
 > dictionary read through it with every suite green, and a content datasource
 > over `bjt_content` is written and checked against the whole corpus, though
-> nothing calls it yet. **Next: step 7** — an app update must replace the
+> nothing calls it yet. **Next: the rest of step 7** — an app update must replace the
 > copied databases — then step 8 repoints snippets and the reader. Three chores
 > from step 5 are deliberately still open (deletions and the `dict.db`
 > rebuild): see **Left open after step 5**. A compression sample stays optional
 > (**Compression sample — optional, later**).
 >
 > **No mobile release until steps 7–10 are done.** Until step 9 the bundle
-> carries the JSON *and* the same text again in `bjt-fts.db`, which nothing
+> carries the JSON *and* the same text again in `bjt.db`, which nothing
 > reads yet, so the app is bigger than today for no gain. Until step 7 an
 > update never reaches an existing install's copy of the database. And Android
 > and iOS have not been built since the move to Drift.
@@ -202,7 +203,7 @@ bundled DB, `tools/bench_content_read.dart` times reads out of it.
 
 **Neither is in git** — both are gitignored, with a comment there saying when
 to delete them — so the numbers below are the record, not the scripts. What is
-worth keeping out of them moves into `tools/bjt-fts-populate.js` at step 5 and
+worth keeping out of them moves into `tools/bjt-populate.js` at step 5 and
 into the datasource at step 6, both noted where they land.
 
 The table it built was checked by the safety net rather than by eye —
@@ -466,7 +467,7 @@ down, because a spike's numbers are its machine's.
 ### The build pipeline is now three steps, not one — and it was shipping a bug
 
 Both generators ended in `VACUUM`. They now end in `finalizeDatabase`
-(`tools/db-finalize.js`, shared by `bjt-fts-populate.js` and
+(`tools/db-finalize.js`, shared by `bjt-populate.js` and
 `dict-populate.js` — `dict.db` is a shipped asset too, and reaches the browser
 through the same wasm build):
 
@@ -633,7 +634,7 @@ Two **build-time** consumers read the same JSON from the filesystem rather than 
 bundle, so neither is affected by dropping the asset declaration — and both are why
 the files stay in the repo:
 
-- `tools/bjt-fts-populate.js` (`fs.readFileSync`) — builds the FTS index.
+- `tools/bjt-populate.js` (`fs.readFileSync`) — builds the FTS index.
 - `static_site_generator/lib/data/corpus_reader.dart` — builds the public HTML site.
 
 ## Proposed Schema
@@ -706,7 +707,7 @@ CREATE TABLE bjt_content (
      languages, and names the first divergence per kind.
 
      **It arms itself.** The default target is the bundled
-     `assets/databases/bjt-fts.db`, so the first run after step 5 populates
+     `assets/databases/bjt.db`, so the first run after step 5 populates
      `bjt_content` starts checking with no flag typed and no checklist item
      remembered — a trigger written in a doc holds only until someone skips the
      doc. Before then it reports **SKIPPED and does not vote**: a section that
@@ -793,7 +794,7 @@ CREATE TABLE bjt_content (
    **Answered 2026-09-14:** accepted. Plain pages ship at 114 MB; a
    per-language compression sample would bring it back to 95 MB with reads as
    fast, and is kept for later — see **Compression sample — optional, later**.
-5. **Populate `bjt_content` — DONE 2026-09-15.** `tools/bjt-fts-populate.js`
+5. **Populate `bjt_content` — DONE 2026-09-15.** `tools/bjt-populate.js`
    (`createContentTable` + the page loop in `populateData`) writes one row per
    `(filename, pageIndex, language)`: that page's language side,
    `JSON.stringify`'d verbatim and `zlib.deflateSync`'d at level 9, with
@@ -847,7 +848,7 @@ CREATE TABLE bjt_content (
    **Recap for whoever starts step 6** — what step 5 leaves you:
    - **The table.** `bjt_content(filename, pageIndex, language, pageNum,
      blob)`, keyed on `(filename, pageIndex, language)`, inside
-     `assets/databases/bjt-fts.db`. `filename` is the JSON name without
+     `assets/databases/bjt.db`. `filename` is the JSON name without
      `.json` (`an-1`), the same key `bjt_meta` uses. Every page has both a
      `pali` and a `sinh` row, so a missing row really is a fault.
    - **The blob** inflates to exactly `pages[i]['pali']` or `['sinh']` from the
@@ -855,7 +856,7 @@ CREATE TABLE bjt_content (
      from the column.
    - **Nothing in the app reads the table yet.** Snippets and the reader still
      load `assets/text/*.json` until step 8.
-   - **Rebuild and check:** `npm run generate-fts` in `tools/`, then
+   - **Rebuild and check:** `npm run generate-bjt` in `tools/`, then
      `dart run tool/verify_corpus_invariants.dart` in `static_site_generator/`.
      Section 5 already proves the table matches the JSON entry for entry, so if
      step 8 shows a page differently from today, suspect the datasource, not
@@ -970,9 +971,9 @@ CREATE TABLE bjt_content (
      `SliceRange.pageSpan` and parses with `BJTDocumentParser`.
    - **Segment ids:** parsing a slice restarts the counter at 0, so a reader
      that loads pages needs the check step 1 describes.
-   - **Old local copies:** the app keeps whichever `bjt-fts.db` it copied
-     first, and on this machine that predates `bjt_content`. Until step 7
-     lands, delete the copy before testing step 8.
+   - **Old local copies:** the app keeps whichever `bjt.db` it copied first.
+     The rename at 7.1 forced a fresh copy, but any rebuild after that still
+     needs the copy deleted by hand until step 7 lands.
 
    **Left open after step 6** — raised by the review, none of them a bug
    (2026-09-16); nothing in step 7 waits on them:
@@ -1016,40 +1017,37 @@ CREATE TABLE bjt_content (
    - **The web side of the same question** is the manifest + boot reconciler
      in [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md). Check
      whether mobile can share its versioning rather than invent a second one.
+   - **Delete databases the app does not recognise.** 7.1 left a dead
+     `bjt-fts.db` in the documents directory of every dev machine.
 
-   **7.1 — Rename `bjt-fts.db` to `bjt.db`. Its own commit, and it lands before
-   the rest of step 7.** The file stopped being a search index at step 5: it
-   holds `bjt_content` alongside `bjt_fts`, `bjt_meta` and `bjt_suggestions`,
-   so `-fts` now names one table out of four. `dict.db` carries no suffix, so
-   `bjt.db` beside it is the consistent pair. Do it while nothing is released
-   and no install carries the old copy. It also retires the chore in step 6's
-   recap — a new name forces a fresh copy, so the stale one nobody deletes by
-   hand stops mattering. What it leaves behind is a dead `bjt-fts.db` in the
-   documents directory of every dev machine: step 7's replace path should
-   delete databases it does not recognise.
+   **7.1 — Rename `bjt-fts.db` to `bjt.db` — DONE 2026-09-16, in its own
+   commit.** The file stopped being a search index at step 5: it holds
+   `bjt_content` beside `bjt_fts` and `bjt_meta`, and `dict.db` has no suffix
+   either. No behaviour changed.
+   - **Names:** `_dbNameFor` is `'$editionId.db'`; the content datasource's
+     `_dbName` is `bjt.db`. The generator is `tools/bjt-populate.js`, run with
+     `npm run generate-bjt` — the pair `dict-populate.js` / `generate-dict`
+     already set. **Table names did not move**: they are `{editionId}_*`,
+     independent of the file name.
+   - **Live references moved** in `lib/`, `pubspec.yaml`, `server/`,
+     `tools/`, `scripts/bjt-sync-regen/`, the static site generator's tools,
+     test and `UPSTREAM_DEFECTS.md`, `.agent/`, the live docs, and the
+     manifest key in `db-auto-update-prestudy.md`.
+   - **Records kept the old name**: `docs/done/`, `docs/decisions/` (except
+     one pointer to the generator, now by function name), the wasm spike docs, dated measurements in this plan, the FTS4 file in
+     `performance_test_queries.md`, `tools/bjt-fts-populate-obsolete.js`, and
+     the untracked `tools/bjt-fts*.db` leftovers.
+   - **`bjt_suggestions` does not exist** (this step's text said it did). It
+     was not in the step-5 backup either — see the spike's §8c.
 
-   Mechanical and wide, so keep behaviour changes out of the commit.
-   `_dbNameFor` in `fts_local_datasource.dart` becomes `'$editionId.db'`, and
-   **table names do not move** — the prefix is `{editionId}_fts`, independent
-   of the file name, and renaming tables would be a data migration. Outside
-   `lib/`: `pubspec.yaml`, `main.dart`'s asset check and its error screen,
-   `server/database_manager.dart`, `tools/` (generator, `package.json`,
-   `README.md`, `validate-release.sh`), the static site generator's
-   `verify_corpus_invariants.dart`, `plan_corpus.dart` and
-   `corpus_tools_test.dart`, `scripts/bjt-sync-regen/sync-regen.sh`, the live
-   docs, and the manifest key in `db-auto-update-prestudy.md`. `.gitignore`
-   needs nothing: it globs `assets/databases/*.db`.
-
-   Two calls to make while doing it:
-   - **`npm run generate-fts` and `tools/bjt-fts-populate.js`** carry the same
-     stale name and now build the whole edition database. Rename them in the
-     same commit.
-   - **Leave the record alone.** `docs/done/`, `docs/decisions/`, the wasm
-     spike results and the `tools/bjt-fts*.db` leftovers describe what was true
-     on a given day. Only live references move.
-
-   Done when `grep -rn bjt-fts` finds only those records, the generator
-   rebuilds, `tools/validate-release.sh` passes and the suites are green.
+   **Checked:** the rebuilt `bjt.db` has the same size (170.80 MB), rows
+   (456,977 meta, 57,934 content) and `MATCH` counts (`භගවා` 11,459,
+   `බුද්ධ*` 16,537) as step 5; the bytes differ, the build is not
+   byte-deterministic. `verify_corpus_invariants.dart` with no flag found
+   `bjt.db` and passed section 5 (466,127 entries, 0 divergences).
+   `flutter analyze` is clean. `validate-release.sh`'s database checks pass
+   for `bjt.db` and fail only on `dict.db`'s WAL flag (**Left open after
+   step 5**).
 8. Repoint snippet path (now `_loadFileJson`/`_extractEntryText` in `_searchFullText`)
    and reader (`BJTDocumentLocalDataSourceImpl`) at the content datasource — see
    **Snippet-path teardown** below for the exact deletions.
@@ -1070,7 +1068,7 @@ CREATE TABLE bjt_content (
      needs the page count, e.g. `SELECT MAX(pageIndex)`), or `loadPages`
      tolerates a missing *tail* and still throws on a hole inside the span.
      Don't just loosen `_whole` — a missing page mid-span is a real fault.
-   - **Who may close `bjt-fts.db`.** Search and `bjt_content` share one
+   - **Who may close `bjt.db`.** Search and `bjt_content` share one
      connection, so `FTSDataSourceImpl.close()` closes the content
      datasource's too. Nothing calls `close()` at runtime today, and
      `BundledDatabase.closeShared` says app shutdown only. Settle it when the
@@ -1274,7 +1272,7 @@ missing-row degrades to an empty snippet, and the native search path no longer r
      web this is the whole 145 MB table per keystroke. Also spike §9c.
   2. **First launch allocates the file in RAM.** `openBundledExecutor` loads
      all 166 MB into one `ByteData` before writing it out, and does the same
-     for `bjt-fts.db`. Since step 6 that is one function, so streaming it is
+     for `bjt.db`. Since step 6 that is one function, so streaming it is
      one fix — step 7.
 
   On Android `dict.db` costs ~28.5 + 166.6 ≈ 195 MB on the phone, not 333 MB:

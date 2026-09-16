@@ -1,7 +1,7 @@
 # Performance Testing Queries: FTS4 vs FTS5
 
 ## Test Setup
-- Database: bjt-fts.db
+- Database: bjt.db
 - Test search term: "buddha" (common word for meaningful results)
 - Test with and without scope filter
 - Test with LIMIT and OFFSET for pagination
@@ -126,7 +126,7 @@ sqlite3 bjt-fts-fts4.db
 # Run queries and compare
 
 # Test FTS5 database (current)
-sqlite3 assets/databases/bjt-fts.db
+sqlite3 assets/databases/bjt.db
 
 # Enable timing
 .timer ON

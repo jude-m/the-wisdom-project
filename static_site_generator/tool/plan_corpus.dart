@@ -1556,7 +1556,7 @@ We correct these on read — `correctedTreeCoordinates` in `wisdom_shared`,
 derived by `plan_corpus.dart --write-alignment` and frozen — so our own
 surfaces are right today. **That is a patch on our side, not a fix.** Anything
 reading `tree.json` directly still has the defect, and we have one: the search
-database built by `tools/bjt-fts-populate.js` attributes each indexed row to a
+database built by `tools/bjt-populate.js` attributes each indexed row to a
 section using the uncorrected coordinates, so a hit in these ranges is filed
 under the neighbouring section. Correcting it upstream is what makes every
 consumer right at once, ours included.

@@ -6,10 +6,10 @@ import 'package:archive/archive.dart';
 import '../database/bundled_database.dart';
 import 'bjt_content_datasource.dart';
 
-/// Reads `bjt_content` out of the bundled `bjt-fts.db`, on the same connection
+/// Reads `bjt_content` out of the bundled `bjt.db`, on the same connection
 /// as the FTS index.
 class BJTContentLocalDataSourceImpl implements BJTContentDataSource {
-  static const String _dbName = 'bjt-fts.db';
+  static const String _dbName = 'bjt.db';
   static const List<String> _languages = ['pali', 'sinh'];
 
   // Mirrors DictionaryDataSourceImpl._log. No-op in release builds.
