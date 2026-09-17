@@ -1,21 +1,20 @@
 # Faster Reads (and a Smaller App): Move Text into SQLite and the App onto Drift
 
-> **Status 2026-09-16:** steps 1–6 and 7.1 done. `bjt.db` (renamed from
+> **Status 2026-09-17:** steps 1–7 done. `bjt.db` (renamed from
 > `bjt-fts.db` at 7.1) carries `bjt_content` —
 > one page per blob, **plain zlib** — and the app is on Drift: search and the
 > dictionary read through it with every suite green, and a content datasource
 > over `bjt_content` is written and checked against the whole corpus, though
-> nothing calls it yet. **Next: the rest of step 7** — an app update must replace the
-> copied databases — then step 8 repoints snippets and the reader. Three chores
-> from step 5 are deliberately still open (deletions and the `dict.db`
-> rebuild): see **Left open after step 5**. A compression sample stays optional
+> nothing calls it yet. A rebuilt database now replaces the app's copy, by a
+> manifest hash and a stamp (step 7). **Next: step 8** repoints snippets and
+> the reader. Two deletions from step 5 are deliberately still open: see
+> **Left open after step 5**. A compression sample stays optional
 > (**Compression sample — optional, later**).
 >
-> **No mobile release until steps 7–10 are done.** Until step 9 the bundle
+> **No mobile release until steps 8–10 are done.** Until step 9 the bundle
 > carries the JSON *and* the same text again in `bjt.db`, which nothing
-> reads yet, so the app is bigger than today for no gain. Until step 7 an
-> update never reaches an existing install's copy of the database. And Android
-> and iOS have not been built since the move to Drift.
+> reads yet, so the app is bigger than today for no gain. And Android and iOS
+> have not been built since the move to Drift.
 
 > **UPDATE 2026-07-16 — CONFIRMED, and promoted to the keystone of a server-free
 > architecture.** Decisions from a follow-up study:
@@ -861,7 +860,8 @@ CREATE TABLE bjt_content (
      Section 5 already proves the table matches the JSON entry for entry, so if
      step 8 shows a page differently from today, suspect the datasource, not
      the data.
-   - **Suites:** green on this build before and after the swap (step 6).
+   - **Suites:** green before and after the swap (step 6), though macOS read
+     a January copy of the index, not this build (see step 7).
      `all_tests.dart` can flake when files share the database; re-run a
      failing file alone before blaming a change.
    - **The decoder traps** are under **Decoder** in step 6.
@@ -875,9 +875,6 @@ CREATE TABLE bjt_content (
      untracked, so deleting them cannot be undone — ask first.
    - **Delete the pre-rebuild backup** `tools/bjt-fts.pre-step5.db` (the old
      95 MB database, gitignored by `tools/*.db`). Also untracked; ask first.
-   - **Rebuild `dict.db`**, still WAL-flagged: `npm run generate-dict` in
-     `tools/`. Until then `validate-release.sh` fails on it, and the web build
-     (step 11) cannot open it.
 6. **Move the app to Drift, then add the content datasource on top — DONE
    2026-09-16.** One branch, two stages, and no `sqflite` version of the
    datasource was ever written. Web keeps its server path and moves at step 11.
@@ -971,9 +968,6 @@ CREATE TABLE bjt_content (
      `SliceRange.pageSpan` and parses with `BJTDocumentParser`.
    - **Segment ids:** parsing a slice restarts the counter at 0, so a reader
      that loads pages needs the check step 1 describes.
-   - **Old local copies:** the app keeps whichever `bjt.db` it copied first.
-     The rename at 7.1 forced a fresh copy, but any rebuild after that still
-     needs the copy deleted by hand until step 7 lands.
 
    **Left open after step 6** — raised by the review, none of them a bug
    (2026-09-16); nothing in step 7 waits on them:
@@ -992,33 +986,173 @@ CREATE TABLE bjt_content (
    - **`_log` is hand-copied into five datasources.** A shared two-line helper
      earns its place at five, but it touches files this branch otherwise leaves
      alone — the user's call, like the step 5 deletions above.
-7. **Make an app update replace the copied databases.** `openBundledExecutor`
+7. **Make a rebuilt database reach the app's copy — DONE 2026-09-17.**
+   `openBundledExecutor`
    (`lib/data/database/bundled_database_executor_native.dart`), which both
-   databases open through, copies the asset out of the bundle only when no
-   copy exists, and nothing checks versions. So an update carrying a
-   rebuilt database never reaches an existing install: it keeps its first copy
-   for good. Every rebuild so far has had that gap, silently. This is the
-   first where the old file cannot serve the new code — it has no
-   `bjt_content`, so after step 8 reading and snippets break for every
-   existing user. Must land before step 8 ships.
+   databases open through, used to copy the asset out of the bundle only when
+   no copy existed. So a rebuilt database never reached a device that already
+   had a copy, and after step 8 an old copy, with no `bjt_content`, would
+   break reading and snippets.
 
-   To figure out:
-   - **How the app tells its copy is stale** — something recorded beside the
-     copy and compared with the bundled asset (a content hash, a build id).
-     Not `user_version` without care: Drift's migrator writes it unless
-     `enableMigrations: false` (see **Smaller constraints**).
-   - **Replacing it safely** — copy to a temp file, then swap, so a launch
-     killed mid-copy never leaves a half-written database. Swap before the
-     first `BundledDatabase.open`: `closeShared` is for app shutdown only
-     (see step 8, **Who may close**).
-   - **Memory** — `rootBundle.load` holds the whole asset in RAM before
-     writing it (see `dict.db` under **Open Questions**). The copy already
-     lives in that one function, so the fix lands once for both databases.
-   - **The web side of the same question** is the manifest + boot reconciler
-     in [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md). Check
-     whether mobile can share its versioning rather than invent a second one.
-   - **Delete databases the app does not recognise.** 7.1 left a dead
-     `bjt-fts.db` in the documents directory of every dev machine.
+   **It had already happened on the dev Mac.** The macOS app's copy was a
+   `bjt-fts.db` made on 15 Jan 2026, and every macOS run until this step read
+   it, step 6's green suites included. Checked 2026-09-17: its `bjt_meta` rows
+   (456,977) and both `MATCH` counts (`භගවා` 11,459, `බුද්ධ*` 16,537) equal
+   today's `bjt.db`. It lacked `bjt_content`, and one other count differed:
+   see the suites below.
+
+   **Nothing has been released**, so no install holds an old copy. No code
+   deals with old file names or old copies; the dev Mac's were deleted by hand.
+
+   **What was built:**
+   - **Fingerprint: a manifest.** `finalizeDatabase` (`tools/db-finalize.js`)
+     ends by writing the finished file's SHA-256 into
+     `assets/databases/manifest.json`:
+     `{"bjt.db": {"sha256": "…"}, "dict.db": {"sha256": "…"}}`. It updates only
+     that file's entry, keys sorted. Gitignored like the databases, so the two
+     always travel together, and listed in `pubspec.yaml`, so a checkout that
+     never ran a generator fails at build time, as a missing database already
+     does. The builds are not byte-identical, so every rebuild changes the
+     hash and costs one recopy. Accepted.
+   - **A stamp beside the copy.** `openBundledExecutor` gets the manifest's
+     hash for `dbName` from `bundledDatabaseSha256`
+     (`bundled_database_manifest.dart`, plain Dart, so web needs no twin),
+     which throws a `StateError` naming the `npm run generate-…` command if
+     the entry is missing. The copy is current when `bjt.db` exists **and**
+     `bjt.db.sha256` holds that hash; both are checked because the OS can
+     delete one file of the pair. Otherwise it deletes the stamp, then the old
+     copy, writes the asset straight to `bjt.db`, and writes the stamp last.
+     The stamp is the only mark of a finished copy, so a launch killed at any
+     point copies again next time. The stamp goes first because it can already
+     hold this hash, when only the copy was deleted. Deleting the old copy
+     first means an update needs room for one copy, not two, and no temp file
+     is left behind. A copy that throws — a phone that fills up, say — deletes
+     its partial file before rethrowing, since nothing else would: Android
+     never clears the files folder. This runs inside
+     `BundledDatabase._connect`, once per file per launch, before a connection
+     exists, so nothing is deleted under an open database.
+   - **A full phone is still a bad place to be, and step 10 looks at it.**
+     Every search retries the copy (the debounce is 300 ms, and a failed open
+     is forgotten so the next one retries), and on Android every try unpacks
+     the whole asset on the UI thread. The failure reaches the screen as "no
+     results", like any database that won't open. Whether it should say "free
+     up space" instead, and whether a failed copy should stop retrying until
+     the app restarts, is for the device check to answer.
+   - **Where: a `databases/` folder** the code creates, in a place that
+     depends on the platform:
+     - **Android: the files folder**, `getApplicationSupportDirectory()`.
+       Android clears the cache folder whenever the phone needs space, and
+       cleaner apps clear it too. A recopy there is the costly kind: the asset
+       is compressed in the APK, and the engine inflates all of it on the UI
+       thread (see the `main.dart` change below). The files folder is backed
+       up, so `android/app/src/main/res/xml/backup_rules.xml` (Android 11 and
+       lower) and `data_extraction_rules.xml` (12 and higher) leave
+       `databases/` out. Over Auto Backup's 25 MB limit, Android would skip
+       the app's whole backup, settings included.
+     - **Everywhere else: the cache folder**, `getApplicationCacheDirectory()`.
+       It is left out of iCloud backups and stays out of a Windows or Linux
+       user's own Documents folder. If the OS clears it, the next open copies
+       from the app package again, with no download and no extra code. The
+       asset isn't compressed on these platforms, so that costs about 0.7 s per
+       file on the dev Mac. The sandboxed macOS app's folder is
+       `~/Library/Containers/lk.tipitaka.theWisdomProject/Data/Library/Caches/lk.tipitaka.theWisdomProject/databases/`.
+   - **Memory: written in 8 MB pieces**, through a `RandomAccessFile`, each
+     piece a `Uint8List.sublistView`. `rootBundle.load` still loads the whole
+     asset; avoiding that needs native code per platform, which isn't planned.
+     A whole `Uint8List` given to `writeAsBytes`, or to
+     `writeFrom(whole, start, end)`, goes to dart:io's IO thread as it is; a
+     partial view is copied into a buffer its own size
+     (`_ensureFastAndSerializableByteData`, `dart:io` `common.dart`).
+     **Measured on macOS** (`ProcessInfo.maxRss` around the `bjt.db` copy,
+     2026-09-17): one `writeAsBytes` raised the peak 342 MB; 8 MB pieces
+     raised it 211 MB and 230 MB in two runs. So the pieces remove about one
+     extra copy of the file.
+   - **No sidecar handling.** The copies are only read and use a rollback
+     journal (header bytes 18/19 = 1), so SQLite never creates `-wal`, `-shm`
+     or `-journal` for them. None existed after the suites ran.
+   - **Web uses the same fingerprint.** The CDN manifest in
+     [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md) uses this
+     SHA-256 as each database's version and in its file name. No web code
+     now.
+   - **Nothing checks the manifest against the files yet.** The app trusts
+     it, so a database changed outside `finalizeDatabase` (copied in by hand,
+     repaired with `sqlite3`, or left half-written by a failed generator run)
+     would leave existing installs on their old copy. The check belongs to
+     `scripts/app/test.sh`'s "shipped databases" row in
+     [`test-all-and-release-all.md`](../test-all-and-release-all.md).
+   - **`validate-release.sh` is not taught the manifest.** It is being
+     retired ([`test-all-and-release-all.md`](../test-all-and-release-all.md));
+     one comment line there says the omission is deliberate.
+
+   **Done by hand first:** deleted the old copies in
+   `~/Library/Containers/lk.tipitaka.theWisdomProject/Data/Documents/`
+   (`bjt-fts.db`, `dict-fts.db`, `dict.db`, each with `-wal`/`-shm`; about
+   500 MB), then rebuilt both databases (`npm run generate-bjt`, then
+   `npm run generate-dict`) so the manifest has both entries. The `dict.db`
+   rebuild cleared its WAL flag (bytes 18/19 now 1/1) and took it from
+   174.7 MB to 164.0 MB.
+
+   **Checked on macOS**, launching with
+   `integration_test/search_language_toggle_test.dart` (it opens both
+   databases), with temporary log lines since removed:
+   - Rebuilding `dict.db` changed only its manifest entry, and the next launch
+     copied only `dict.db`.
+   - With `bjt.db`'s manifest entry removed, the open failed with
+     `Bad state: assets/databases/manifest.json has no entry for bjt.db. Rebuild the database: cd tools && npm run generate-bjt`.
+     The search repository turns that into a `Failure`, so the screen shows no
+     results rather than the message, as for any database that fails to open.
+     Not changed here.
+   - Suites: unit 638 passed. Integration 77 passed, 1 failed, and it failed
+     alone too: `B2 Pagination` in `search_flow_integration_test.dart` pinned
+     `Viewing 50 out of 29769 results` for `මහා`. The real `bjt.db` has 29,770
+     `MATCH 'මහා*'` rows, and so does the July backup
+     `tools/bjt-fts.pre-step5.db`; the pin was taken against the January copy
+     (test added 2026-02-20). The user approved moving the pin to 29770; the
+     file then passed (32/32). No `-wal`, `-shm` or `-journal` in the cache
+     folder afterwards. `flutter analyze` is clean.
+
+   **Checked again after a review the same day** changed the copy (delete
+   first, delete the partial file if it throws), the folder, and where the
+   manifest reader lives. A throwaway probe ran in the macOS app, reading the
+   copy's modified time:
+   - The first open created `databases/` and copied. Both copies and both
+     stamps match the assets (`shasum`).
+   - A reopen copied nothing.
+   - A stale stamp, a deleted copy with its stamp kept, and a deleted stamp
+     with its copy kept each copied again and ended with a matching stamp.
+   - Every open answered a query, and the folder held only the two copies and
+     their stamps.
+   - The copies from before the change, in the cache folder itself, were
+     deleted by hand.
+   - With the folder deleted first, `search_language_toggle_test.dart` passed
+     on macOS (1/1) and left both copies matching the assets. The other
+     suites were not run again.
+   - **Not exercised:** the failed-copy path. Filling the disk isn't
+     reproducible here; step 10's full-phone check covers it.
+   - **Android is unchecked:** this Mac has no Android SDK. Step 10 covers
+     the files folder and the backup rules.
+
+   **Also changed: the startup check in `main.dart`.** It checked `bjt.db` was
+   bundled with `rootBundle.load('assets/databases/bjt.db')`. It now calls
+   `bundledDatabaseSha256('bjt.db')`. A build missing the database or the
+   manifest file already fails to build, so the check catches a manifest with
+   no `bjt.db` entry. The error screen now shows the caught error, which names
+   the command to run, instead of showing no search results. Checked in the
+   real macOS app.
+   - **The memory saving is Android's, not macOS's.** Measured on macOS
+     (debug, `maxRss` just after the check): 251 MB before, 248 and 252 MB
+     after. The engine maps a large asset from disk without copying it
+     (`platform_message_response_dart.cc`), so the old load read nothing. On
+     Android the asset sits compressed in the APK (no `noCompress`), and
+     `AAsset_getBuffer` inflates the whole file into memory
+     (`apk_asset_provider.cc`) on every launch, on the UI thread. Read from
+     the engine source, not measured: Android has not been built since the
+     move to Drift. The copy still pays that once per install or database
+     update.
+   - **`noCompress` for `.db` would avoid the inflate, but costs about
+     190 MB installed.** Deflate shrinks `bjt.db` from 170 to 113 MB and
+     `dict.db` from 163 to 28 MB (measured 2026-09-17). Not done: step 10
+     times the first search after install on a phone first.
 
    **7.1 — Rename `bjt-fts.db` to `bjt.db` — DONE 2026-09-16, in its own
    commit.** The file stopped being a search index at step 5: it holds
@@ -1092,9 +1226,19 @@ CREATE TABLE bjt_content (
      file are fine), and a build must carry no `assets/text/` — on macOS, look
      under `the_wisdom_project.app/Contents/Frameworks/App.framework/Resources/flutter_assets/assets/`.
 10. Verify offline reading + search snippets on a real device. Check first-launch
-    DB copy time (`openBundledExecutor` copies the asset DB to the documents dir;
+    DB copy time (`openBundledExecutor` copies the asset DB to `databases/`;
     a bigger DB = bigger one-time copy + double on-disk during install), and
-    that installing over an older build picks up the new database (step 7).
+    that installing over an older build copies the database again (step 7).
+    On Android, also: time the first search after install on a low-end phone
+    (the engine inflates the whole asset on the UI thread); clearing the
+    app's cache must not copy again; and Auto Backup must leave
+    `files/databases/` out (`adb shell bmgr backupnow <package>` succeeds).
+    **The full-phone case:** fill the device's storage, then search. The
+    partial copy must be gone afterwards (`adb shell run-as <package> ls
+    files/databases`), and the app must stay usable. Decide from what you see
+    whether search should say "free up space", and whether a failed copy
+    should stop retrying until the app restarts (today every search retries,
+    and each try unpacks the asset again).
 11. **Web now reads this DB client-side** (Drift wasm/OPFS) — see the top banner.
     The old `getWebOverrides()` → server route is being retired, not extended.
     Not part of step 6's branch: it needs the download-once path and the
@@ -1272,21 +1416,22 @@ missing-row degrades to an empty snippet, and the native search path no longer r
      web this is the whole 145 MB table per keystroke. Also spike §9c.
   2. **First launch allocates the file in RAM.** `openBundledExecutor` loads
      all 166 MB into one `ByteData` before writing it out, and does the same
-     for `bjt.db`. Since step 6 that is one function, so streaming it is
-     one fix — step 7.
+     for `bjt.db`. Step 7 writes it in 8 MB pieces, which removed a second
+     copy (peak +342 MB → +211 MB for `bjt.db`); the load itself stays whole.
 
   On Android `dict.db` costs ~28.5 + 166.6 ≈ 195 MB on the phone, not 333 MB:
   the APK keeps it deflated and only the first-run copy is full size. The same
   split, applied to the content table's headline, is under **Size — the bonus,
   on two axes**.
 
-- **First-launch copy**: the content+FTS DB copies to the documents dir on first
+- **First-launch copy**: the content+FTS DB copies out of the package on first
   run and lives twice from then on — the 172 MB is why the iOS on-device figure
   is 344 MB and not 172. `dict.db` (166.6 MB) already copies to the same place, so the
   real first-run write is ~339 MB, up from ~262 MB today (the JSON is never
   copied). Every megabyte the table saves is saved twice — which is why
-  `page_size` was taken at 8 KB. And it copies *only* on first run: an update
-  never replaces it (step 7).
+  `page_size` was taken at 8 KB. After step 7 it copies again whenever the
+  bundled database's hash changes or, outside Android, the OS clears the cache
+  folder.
 - **Reader rewrite risk**: this touches the reader (higher-risk code than
   search). Stage it: engine swap first (step 6), then the content table +
   snippet repoint, then the reader, and drop the assets last.

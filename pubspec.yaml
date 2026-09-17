@@ -123,6 +123,8 @@ flutter:
     - assets/databases/bjt.db
     # Dictionary database - Pali-English/Sinhala (native only; web uses API)
     - assets/databases/dict.db
+    # SHA-256 of each database above; the app recopies a database when it changes
+    - assets/databases/manifest.json
     # UI icons / illustrations
     - assets/icons/
 

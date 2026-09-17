@@ -127,6 +127,7 @@ if ! grep -q "assets/databases/bjt.db" "$PROJECT_ROOT/pubspec.yaml"; then
 fi
 
 echo -e "${GREEN}✓ pubspec.yaml includes database${NC}"
+# assets/databases/manifest.json is not checked, on purpose: this script is being retired (docs/todo/test-all-and-release-all.md).
 
 # Step 2: Run code generation
 print_step "Step 2: Running Code Generation"

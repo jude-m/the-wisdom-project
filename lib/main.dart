@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/storage/key_value_store_provider.dart';
 import 'core/storage/shared_preferences_key_value_store.dart';
+import 'data/database/bundled_database_manifest.dart';
 import 'presentation/keyboard/app_shortcuts.dart';
 import 'presentation/screens/app_shell.dart';
 import 'presentation/providers/search_provider.dart';
@@ -27,14 +27,16 @@ void main() async {
   // Initialize SharedPreferences for search history
   final sharedPrefs = await SharedPreferences.getInstance();
 
-  // Quick validation: Check if FTS database exists in assets
+  // Quick validation: the build's manifest has an entry for bjt.db (a build
+  // missing either file fails to build). Reads the manifest, not the
+  // database: on Android loading the database would inflate the whole file.
   // Skip on web - web uses remote datasources (server has the databases)
   if (!kIsWeb) {
     try {
-      await rootBundle.load('assets/databases/bjt.db');
+      await bundledDatabaseSha256('bjt.db');
     } catch (e) {
-      // Database not found - show error and exit
-      runApp(const _DatabaseMissingError());
+      // No usable entry - show why and exit
+      runApp(_DatabaseMissingError('$e'));
       return;
     }
   }
@@ -57,9 +59,11 @@ void main() async {
   );
 }
 
-/// Error screen shown when the FTS database is missing
+/// Error screen shown when the manifest check fails, with its [message]
 class _DatabaseMissingError extends StatelessWidget {
-  const _DatabaseMissingError();
+  const _DatabaseMissingError(this.message);
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -96,13 +100,9 @@ class _DatabaseMissingError extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.red.shade200),
                     ),
-                    child: const SelectableText(
-                      'Critical asset missing:\n\n'
-                      '  • assets/databases/bjt.db\n\n'
-                      'The FTS database is required for search functionality.\n\n'
-                      'Developers: Run "cd tools && npm run generate-bjt"\n'
-                      'before building the app.',
-                      style: TextStyle(
+                    child: SelectableText(
+                      message,
+                      style: const TextStyle(
                         fontFamily: 'monospace',
                         fontSize: 12,
                       ),

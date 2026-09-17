@@ -75,6 +75,8 @@ package-lock.json
 tools/*.db
 tools/*.csv
 assets/databases/*.db
+# Their SHA-256s, written by tools/db-finalize.js; travels with the databases
+assets/databases/manifest.json
 
 # Throwaway spikes for steps 2-4 of
 # docs/todo/retiring-dart-server/reduce-mobile-size-and-move-to-drift.md. They produced the
