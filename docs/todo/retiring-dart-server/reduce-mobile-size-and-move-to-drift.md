@@ -1,20 +1,19 @@
 # Faster Reads (and a Smaller App): Move Text into SQLite and the App onto Drift
 
-> **Status 2026-09-17:** steps 1–7 done. `bjt.db` (renamed from
+> **Status 2026-09-18:** steps 1–9 done. `bjt.db` (renamed from
 > `bjt-fts.db` at 7.1) carries `bjt_content` —
-> one page per blob, **plain zlib** — and the app is on Drift: search and the
-> dictionary read through it with every suite green, and a content datasource
-> over `bjt_content` is written and checked against the whole corpus, though
-> nothing calls it yet. A rebuilt database now replaces the app's copy, by a
-> manifest hash and a stamp (step 7). **Next: step 8** repoints snippets and
-> the reader. Two deletions from step 5 are deliberately still open: see
-> **Left open after step 5**. A compression sample stays optional
-> (**Compression sample — optional, later**).
+> one page per blob, **plain zlib** — and the app is on Drift: search, the
+> dictionary, the reader and its snippets all read through it, with every
+> suite green. A rebuilt database reaches the app's copy by a manifest hash
+> and a stamp (step 7). **The JSON no longer ships** (step 9): 340 MiB off the
+> macOS release bundle, 733 → 393 MiB, with the files kept in the repo for the
+> build-time readers. **Next: step 10**, the real-device pass. Two deletions
+> from step 5 are deliberately still open: see **Left open after step 5**. A
+> compression sample stays optional (**Compression sample — optional, later**).
 >
-> **No mobile release until steps 8–10 are done.** Until step 9 the bundle
-> carries the JSON *and* the same text again in `bjt.db`, which nothing
-> reads yet, so the app is bigger than today for no gain. And Android and iOS
-> have not been built since the move to Drift.
+> **No mobile release until step 10 is done.** Android and iOS have not been
+> built since the move to Drift, and every size figure here was taken on
+> macOS — nothing has been measured out of a real APK or IPA.
 
 > **UPDATE 2026-07-16 — CONFIRMED, and promoted to the keystone of a server-free
 > architecture.** Decisions from a follow-up study:
@@ -614,7 +613,7 @@ from different directions.
 ## Current Runtime Dependencies on JSON
 
 Two code paths read `assets/text/{filename}.json` via `rootBundle`. **Both
-moved to the content table at step 8**, which is what lets step 9 drop the
+moved to the content table at step 8**, which is what let step 9 drop the
 assets:
 
 1. **Search snippets** — `_searchFullText` in
@@ -629,12 +628,17 @@ assets:
 Note: snippet **behavior/UX stays the same** — only its data source changes
 (from JSON file → content table). It gets faster, not different.
 
-Two **build-time** consumers read the same JSON from the filesystem rather than the
-bundle, so neither is affected by dropping the asset declaration — and both are why
+Three other consumers read the same JSON from the filesystem rather than the
+bundle, so none was affected by dropping the asset declaration — and they are why
 the files stay in the repo:
 
 - `tools/bjt-populate.js` (`fs.readFileSync`) — builds the FTS index.
 - `static_site_generator/lib/data/corpus_reader.dart` — builds the public HTML site.
+- `server/lib/src/handlers/fts_handler.dart` (`_loadTextForMatch` /
+  `_loadJsonFile` / `_jsonCache`) — the one that is **not** build-time: it serves
+  snippets to web at runtime, off the server's own filesystem. It is **not** being
+  repointed at `bjt_content`; the whole `server/` tree is being deleted (see
+  [`README.md`](./README.md)), and the JSON has to outlive it.
 
 ## Proposed Schema
 
@@ -1180,10 +1184,10 @@ CREATE TABLE bjt_content (
    `flutter analyze` is clean. `validate-release.sh`'s database checks pass
    for `bjt.db` and fail only on `dict.db`'s WAL flag (**Left open after
    step 5**).
-8. **Both readers of the JSON now read the table — BUILT 2026-09-18,
-   uncommitted.** Snippets and the reader in one change, on the user's
+8. **Both readers of the JSON now read the table — DONE 2026-09-18**, committed
+   as `d9965fd`. Snippets and the reader in one change, on the user's
    instruction to keep them together. Nothing in `lib/` loads
-   `assets/text/*.json` any more, which is what step 9 waits on.
+   `assets/text/*.json` any more, which is what step 9 waited on.
 
    **The snippet path.** `_fileJsonCache`, `_loadFileJson` and
    `_extractEntryText` are gone from `text_search_repository_impl.dart`, with
@@ -1297,20 +1301,70 @@ CREATE TABLE bjt_content (
    naming the JSON having moved to `bjt_content`'s vocabulary. What remains is
    `pubspec.yaml`, the comment above `assets:`, the two web scripts' strip
    lines, and a built artifact that must carry no `assets/text/`.
-9. **Stop shipping the JSON.** Remove `- assets/text/` from `pubspec.yaml` and
-   keep the files in the repo — every build-time reader opens them from disk
+9. **Stop shipping the JSON — DONE 2026-09-18.** `- assets/text/` is out of
+   `pubspec.yaml`, and the 285 files stay in the repo: `tools/bjt-populate.js`
+   and `static_site_generator/lib/data/corpus_reader.dart` open them from disk
    (see **Current Runtime Dependencies on JSON**), and so does `server/` until
-   it is retired. Three things go with that line:
-   - **The comment above `assets:`** says `text/` ships on native and the API
-     serves it on web. Rewrite it to describe `databases/` alone.
-   - **The web scripts' `assets/text` strip lines.** `scripts/web/deploy.sh`
-     and `scripts/web/run_mac.sh` each `rm -rf build/web/assets/assets/text`,
-     which does nothing once the files aren't bundled. Delete that line and
-     keep the `databases` one beside it.
-   - **Proof nothing still reads them.** Step 8's check covers only snippets.
-     `grep -rn "assets/text" lib/` must find no loader (doc comments naming a
-     file are fine), and a build must carry no `assets/text/` — on macOS, look
-     under `the_wisdom_project.app/Contents/Frameworks/App.framework/Resources/flutter_assets/assets/`.
+   it is retired. The comment above `assets:` now describes `databases/` alone,
+   and the dead `rm -rf build/web/assets/assets/text` line is gone from both
+   `scripts/web/deploy.sh` and `scripts/web/run_mac.sh` — the `databases` line
+   beside it stays. Three files changed; no Dart was touched.
+
+   **The number this plan exists for.** macOS release `.app`, both builds from
+   this same tree so the only variable is the pubspec line:
+
+   | | before | after |
+   |---|---|---|
+   | `the_wisdom_project.app` (`du -sh`) | **733 MiB** | **393 MiB** |
+   | as `flutter build` reports it | 767.9 MB | 412.1 MB |
+   | `flutter_assets/assets/text` | 340 MiB, 285 files | **absent** |
+   | `flutter_assets/assets/databases` | 335 MiB | 335 MiB |
+
+   **340 MiB comes off, 46% of the app**, and the delta is exactly `assets/text`
+   — nothing else moved. What remains is mostly the two databases: `bjt.db`
+   171 MiB + `dict.db` 164 MiB.
+
+   **This is not the mobile figure.** It is a macOS bundle, it includes
+   `dict.db`, and steps 3–4 costed the APK/IPA with `dict.db` excluded, so it
+   neither confirms nor replaces them. In particular the **download** still
+   rises (92 → 114 MB, step 4): a pre-compressed blob cannot deflate again.
+   Nothing here was measured out of a real APK or IPA.
+
+   **How absence was proved**, three ways, since a size drop alone would not
+   show it:
+   - `grep -rn "assets/text" lib/` finds nothing at all — step 8's precondition,
+     re-verified before the edit.
+   - `AssetManifest.bin` in the built app carries **zero** `assets/text` entries,
+     so `rootBundle` cannot resolve one even if a caller reappeared.
+   - A `flutter clean` build has no `assets/text` directory at all, and `find`
+     over the whole `.app` turns up no JSON under any `text` path.
+
+   **Checked on macOS, 2026-09-18, with the JSON no longer in the bundle.** No
+   Dart changed at this step, so nothing was re-analyzed; what matters here is
+   runtime, and only the app-launching suites can see an asset that stopped
+   shipping. **638 unit tests pass**, and **every integration file passed, each
+   run alone — 78/78**, both identical to step 8's counts:
+
+   | | |
+   |---|---|
+   | `search_flow_integration_test.dart` | 32 — **including all five Group 9 snippet goldens** |
+   | `sutta_step_navigation_test.dart` | 13 |
+   | `in_page_search_test.dart`, `breadcrumb_navigation_test.dart` | 8 each |
+   | `layout_switch_test.dart`, `scroll_restoration_test.dart`, `dictionary_editable_word_test.dart` | 4 each |
+   | `dictionary_filter_flow_test.dart` | 2 |
+   | `language_independence_test.dart`, `search_tab_highlight_test.dart`, `search_language_toggle_test.dart` | 1 each |
+
+   Group 9 is again the one that carries the argument: it pins snippet rows
+   byte-for-byte, and it passed against a bundle with no JSON in it. The same
+   goes for the reader — `sutta_step_navigation` walks real suttas. So the text
+   the app shows now provably comes from `bjt_content`. `in_page_search` did not
+   hang this run.
+
+   **An incremental rebuild leaves an empty `assets/text/` directory behind.**
+   The 285 files go, the directory does not. It is stale build residue, 0 bytes,
+   and a clean build never produces it — worth knowing before reading it as a
+   failure. The first `flutter build macos` after the edit also died once on
+   `Failed to copy Flutter framework`; it built on an unchanged retry.
 10. Verify offline reading + search snippets on a real device. Check first-launch
     DB copy time (`openBundledExecutor` copies the asset DB to `databases/`;
     a bigger DB = bigger one-time copy + double on-disk during install), and
