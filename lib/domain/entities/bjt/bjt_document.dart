@@ -21,20 +21,33 @@ class BJTDocument with _$BJTDocument {
 
     /// Edition identifier - always 'bjt' for this class
     @Default('bjt') String editionId,
+
+    /// Index of `pages.first` in the whole file. Non-zero when only part of the
+    /// file was loaded, which is what the reader asks for: everything that
+    /// names a position — entry keys, search hits, deep links — is absolute,
+    /// so this is what maps those onto [pages].
+    @Default(0) int firstPageIndex,
   }) = _BJTDocument;
 
-  /// Returns the total number of pages
+  /// How many pages this document holds — the loaded span, not the file.
   int get pageCount => pages.length;
+
+  /// Index of the last page this document holds, or one below
+  /// [firstPageIndex] when it holds none.
+  int get lastPageIndex => firstPageIndex + pages.length - 1;
 
   /// Checks if this document has any pages
   bool get hasPages => pages.isNotEmpty;
 
-  /// Gets a specific page by its index (0-based)
+  /// Gets a specific page by its index in the file (0-based, absolute).
+  ///
+  /// Null when that page sits outside the loaded span.
   BJTPage? getPageByIndex(int index) {
-    if (index < 0 || index >= pages.length) {
+    final local = index - firstPageIndex;
+    if (local < 0 || local >= pages.length) {
       return null;
     }
-    return pages[index];
+    return pages[local];
   }
 
   /// Gets a specific page by its page number

@@ -42,8 +42,26 @@ class BJTContentLocalDataSourceImpl implements BJTContentDataSource {
       page[row['language'] as String] = _decode(row, fileId);
     }
 
-    // Rows arrive in page order, so the last key is the file's last page.
-    final last = lastPage ?? (byPage.isEmpty ? firstPage : byPage.keys.last);
+    // Nothing in range. An unknown file is a fault worth naming — a tree
+    // pointing at a file the corpus does not have would otherwise open an
+    // empty reader forever. A span starting past a real file's last page is
+    // the tail case below, and comes back empty.
+    if (byPage.isEmpty) {
+      final known = await db.rawQuery(
+        'SELECT 1 FROM bjt_content WHERE filename = ? LIMIT 1',
+        [fileId],
+      );
+      if (known.isEmpty) throw StateError('No bjt_content rows for $fileId');
+      return const [];
+    }
+
+    // Rows arrive in page order, so the last key is the last page present.
+    // A bounded span may reach past the file's end — a tree and a corpus out
+    // of step, which DocumentSlice clamps rather than refuses — so the tail is
+    // allowed to be missing while a hole inside the span still throws.
+    final lastPresent = byPage.keys.last;
+    final last =
+        lastPage == null || lastPage > lastPresent ? lastPresent : lastPage;
     return [
       for (var pageIndex = firstPage; pageIndex <= last; pageIndex++)
         _whole(byPage[pageIndex], fileId, pageIndex),

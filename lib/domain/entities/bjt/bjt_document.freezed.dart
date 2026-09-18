@@ -25,6 +25,12 @@ mixin _$BJTDocument {
   /// Edition identifier - always 'bjt' for this class
   String get editionId => throw _privateConstructorUsedError;
 
+  /// Index of `pages.first` in the whole file. Non-zero when only part of the
+  /// file was loaded, which is what the reader asks for: everything that
+  /// names a position — entry keys, search hits, deep links — is absolute,
+  /// so this is what maps those onto [pages].
+  int get firstPageIndex => throw _privateConstructorUsedError;
+
   /// Create a copy of BJTDocument
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -38,7 +44,11 @@ abstract class $BJTDocumentCopyWith<$Res> {
           BJTDocument value, $Res Function(BJTDocument) then) =
       _$BJTDocumentCopyWithImpl<$Res, BJTDocument>;
   @useResult
-  $Res call({String fileId, List<BJTPage> pages, String editionId});
+  $Res call(
+      {String fileId,
+      List<BJTPage> pages,
+      String editionId,
+      int firstPageIndex});
 }
 
 /// @nodoc
@@ -59,6 +69,7 @@ class _$BJTDocumentCopyWithImpl<$Res, $Val extends BJTDocument>
     Object? fileId = null,
     Object? pages = null,
     Object? editionId = null,
+    Object? firstPageIndex = null,
   }) {
     return _then(_value.copyWith(
       fileId: null == fileId
@@ -73,6 +84,10 @@ class _$BJTDocumentCopyWithImpl<$Res, $Val extends BJTDocument>
           ? _value.editionId
           : editionId // ignore: cast_nullable_to_non_nullable
               as String,
+      firstPageIndex: null == firstPageIndex
+          ? _value.firstPageIndex
+          : firstPageIndex // ignore: cast_nullable_to_non_nullable
+              as int,
     ) as $Val);
   }
 }
@@ -85,7 +100,11 @@ abstract class _$$BJTDocumentImplCopyWith<$Res>
       __$$BJTDocumentImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String fileId, List<BJTPage> pages, String editionId});
+  $Res call(
+      {String fileId,
+      List<BJTPage> pages,
+      String editionId,
+      int firstPageIndex});
 }
 
 /// @nodoc
@@ -104,6 +123,7 @@ class __$$BJTDocumentImplCopyWithImpl<$Res>
     Object? fileId = null,
     Object? pages = null,
     Object? editionId = null,
+    Object? firstPageIndex = null,
   }) {
     return _then(_$BJTDocumentImpl(
       fileId: null == fileId
@@ -118,6 +138,10 @@ class __$$BJTDocumentImplCopyWithImpl<$Res>
           ? _value.editionId
           : editionId // ignore: cast_nullable_to_non_nullable
               as String,
+      firstPageIndex: null == firstPageIndex
+          ? _value.firstPageIndex
+          : firstPageIndex // ignore: cast_nullable_to_non_nullable
+              as int,
     ));
   }
 }
@@ -128,7 +152,8 @@ class _$BJTDocumentImpl extends _BJTDocument {
   const _$BJTDocumentImpl(
       {required this.fileId,
       final List<BJTPage> pages = const [],
-      this.editionId = 'bjt'})
+      this.editionId = 'bjt',
+      this.firstPageIndex = 0})
       : _pages = pages,
         super._();
 
@@ -153,9 +178,17 @@ class _$BJTDocumentImpl extends _BJTDocument {
   @JsonKey()
   final String editionId;
 
+  /// Index of `pages.first` in the whole file. Non-zero when only part of the
+  /// file was loaded, which is what the reader asks for: everything that
+  /// names a position — entry keys, search hits, deep links — is absolute,
+  /// so this is what maps those onto [pages].
+  @override
+  @JsonKey()
+  final int firstPageIndex;
+
   @override
   String toString() {
-    return 'BJTDocument(fileId: $fileId, pages: $pages, editionId: $editionId)';
+    return 'BJTDocument(fileId: $fileId, pages: $pages, editionId: $editionId, firstPageIndex: $firstPageIndex)';
   }
 
   @override
@@ -166,12 +199,14 @@ class _$BJTDocumentImpl extends _BJTDocument {
             (identical(other.fileId, fileId) || other.fileId == fileId) &&
             const DeepCollectionEquality().equals(other._pages, _pages) &&
             (identical(other.editionId, editionId) ||
-                other.editionId == editionId));
+                other.editionId == editionId) &&
+            (identical(other.firstPageIndex, firstPageIndex) ||
+                other.firstPageIndex == firstPageIndex));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, fileId,
-      const DeepCollectionEquality().hash(_pages), editionId);
+      const DeepCollectionEquality().hash(_pages), editionId, firstPageIndex);
 
   /// Create a copy of BJTDocument
   /// with the given fields replaced by the non-null parameter values.
@@ -186,7 +221,8 @@ abstract class _BJTDocument extends BJTDocument {
   const factory _BJTDocument(
       {required final String fileId,
       final List<BJTPage> pages,
-      final String editionId}) = _$BJTDocumentImpl;
+      final String editionId,
+      final int firstPageIndex}) = _$BJTDocumentImpl;
   const _BJTDocument._() : super._();
 
   /// The unique identifier for this document (filename without extension)
@@ -200,6 +236,13 @@ abstract class _BJTDocument extends BJTDocument {
   /// Edition identifier - always 'bjt' for this class
   @override
   String get editionId;
+
+  /// Index of `pages.first` in the whole file. Non-zero when only part of the
+  /// file was loaded, which is what the reader asks for: everything that
+  /// names a position — entry keys, search hits, deep links — is absolute,
+  /// so this is what maps those onto [pages].
+  @override
+  int get firstPageIndex;
 
   /// Create a copy of BJTDocument
   /// with the given fields replaced by the non-null parameter values.

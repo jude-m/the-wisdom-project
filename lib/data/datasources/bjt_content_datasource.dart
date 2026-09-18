@@ -8,8 +8,11 @@ abstract class BJTContentDataSource {
   /// file when [lastPage] is null — each shaped like one item of the JSON's
   /// `pages` list: `{pageNum, pali, sinh}`.
   ///
-  /// Throws when a page in that span has no row for a language, or a row does
-  /// not decode.
+  /// A span reaching past the file's last page stops there, and one starting
+  /// past it comes back empty: a tree and a corpus out of step must not take
+  /// the reader down. Throws when [fileId] has no rows at all, when a page
+  /// *inside* the span has no row for a language, or when a row does not
+  /// decode.
   Future<List<Map<String, dynamic>>> loadPages(
     String fileId, {
     required int firstPage,

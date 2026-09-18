@@ -613,18 +613,18 @@ from different directions.
 
 ## Current Runtime Dependencies on JSON
 
-Two code paths read `assets/text/{filename}.json` via `rootBundle` today. Both
-must switch to the new content table before the assets can be dropped:
+Two code paths read `assets/text/{filename}.json` via `rootBundle`. **Both
+moved to the content table at step 8**, which is what lets step 9 drop the
+assets:
 
 1. **Search snippets** — `_searchFullText` in
-   `lib/data/repositories/text_search_repository_impl.dart`, via the interim
-   group-once loader (`_loadFileJson` + `_extractEntryText`, memoised in
-   `_fileJsonCache`). Was a per-match `_loadTextForMatch`; replaced 2026-06-19 by the
-   memo-cache quick win. See **Snippet-path teardown** below for what to delete when
-   repointing.
+   `lib/data/repositories/text_search_repository_impl.dart`. Was a per-match
+   `_loadTextForMatch`, then the 2026-06-19 memo-cache quick win
+   (`_loadFileJson` + `_extractEntryText` + `_fileJsonCache`), now one batched
+   `loadPageSides`.
 2. **Reader** — `BJTDocumentLocalDataSourceImpl.loadDocument` in
    `lib/data/datasources/bjt_document_local_datasource.dart` →
-   `BJTDocumentParser` (the whole document).
+   `BJTDocumentParser`. Was the whole document; now the unit's pages.
 
 Note: snippet **behavior/UX stays the same** — only its data source changes
 (from JSON file → content table). It gets faster, not different.
@@ -767,9 +767,10 @@ CREATE TABLE bjt_content (
      segment-id test pins the counter running unbroken across both languages
      and both pages, but only *within one `parseDocument` call*. A per-page
      loader calling it once per page still produces an unbroken `0..n` each
-     time. Once the reader loads pages from `bjt_content` (step 8), segment-id
-     continuity across a file needs its own check at whatever layer stitches
-     the pages together.
+     time. **Resolved at step 8, without a new check:** the reader now parses
+     one span at a time, so ids are per-document by design, and nothing reads
+     `Entry.segmentId` — the note lives on the counter, and alignment work
+     will derive ids from absolute coordinates instead.
 
    **Unrelated TODO, moved out 2026-09-14:** one entry point for every test path
    is its own plan now — [`test-all-and-release-all.md`](../test-all-and-release-all.md).
@@ -961,13 +962,10 @@ CREATE TABLE bjt_content (
    `FormatException` naming the row. No real blob does any of this today:
    section 5 would fail.
 
-   **Recap for whoever starts step 8:**
-   - **Nothing reads the content datasource yet.** It needs a provider.
-     Snippets read `loadPageSides`, keyed with `match.language` (see
-     **Snippet-path teardown**); the reader reads `loadPages` over
-     `SliceRange.pageSpan` and parses with `BJTDocumentParser`.
-   - **Segment ids:** parsing a slice restarts the counter at 0, so a reader
-     that loads pages needs the check step 1 describes.
+   **Recap for whoever starts step 8** — all of it done there: snippets read
+   `loadPageSides` keyed with `match.language`, the reader reads `loadPages`
+   over `SliceRange.pageSpan`, and the segment-id counter still restarts per
+   parse (step 8 records why that is safe today).
 
    **Left open after step 6** — raised by the review, none of them a bug
    (2026-09-16); nothing in step 7 waits on them:
@@ -1182,35 +1180,123 @@ CREATE TABLE bjt_content (
    `flutter analyze` is clean. `validate-release.sh`'s database checks pass
    for `bjt.db` and fail only on `dict.db`'s WAL flag (**Left open after
    step 5**).
-8. Repoint snippet path (now `_loadFileJson`/`_extractEntryText` in `_searchFullText`)
-   and reader (`BJTDocumentLocalDataSourceImpl`) at the content datasource — see
-   **Snippet-path teardown** below for the exact deletions.
+8. **Both readers of the JSON now read the table — BUILT 2026-09-18,
+   uncommitted.** Snippets and the reader in one change, on the user's
+   instruction to keep them together. Nothing in `lib/` loads
+   `assets/text/*.json` any more, which is what step 9 waits on.
 
-   **Decide while wiring it** (found in the step 6 review; none is a bug today,
-   because nothing calls the datasource yet):
-   - **`DocumentSlice.of` counts pages from the top of the file.** Its page
-     indexes go straight into `document.pages`, which is right only while the
-     reader loads the whole JSON. Load just the slice's pages and it goes
-     wrong without throwing: a span from page 34 of a 3-page document comes
-     back empty, one from page 1 cuts the wrong pages. Give `BJTDocument` the
-     index of its first page in the file, or make the slice page-relative.
-   - **A span past the file's last page.** `SliceRange.pageSpan` works from
-     coordinates alone, so it can't know the page count. `DocumentSlice.of`
-     clamps (pinned in `document_slice_test.dart`: "an end past the last page
-     clamps"); `loadPages` throws. So a tree and corpus out of step degrade on
-     the JSON path and crash on this one. Pick one: the caller clamps (it
-     needs the page count, e.g. `SELECT MAX(pageIndex)`), or `loadPages`
-     tolerates a missing *tail* and still throws on a hole inside the span.
-     Don't just loosen `_whole` — a missing page mid-span is a real fault.
-   - **Who may close `bjt.db`.** Search and `bjt_content` share one
-     connection, so `FTSDataSourceImpl.close()` closes the content
-     datasource's too. Nothing calls `close()` at runtime today, and
-     `BundledDatabase.closeShared` says app shutdown only. Settle it when the
-     datasource gets its provider; no ref-counting before a caller needs it.
-   - **`loadPageSides` is one statement, not chunked.** Three bind variables
-     per key against SQLite's 32,766-variable limit caps a batch near 10,900
-     keys. A results page asks for about 50; change nothing unless a caller
-     batches far more.
+   **The snippet path.** `_fileJsonCache`, `_loadFileJson` and
+   `_extractEntryText` are gone from `text_search_repository_impl.dart`, with
+   the `dart:convert` and `flutter/services.dart` imports they were the last
+   users of. In their place `_searchFullText` collects one
+   `Set<ContentPageKey>` before the loop and makes a single `loadPageSides`
+   call, then `_entryTextFrom` picks each entry out of the returned rows.
+   - **Both language sides of a hit's page are asked for**, not just the
+     matched one: the old loader fell back to the other language when the
+     matched side carried no text at that entry, and the goldens pin what that
+     produced. Doubling the keys costs nothing — a results page asks for about
+     100 primary-key seeks.
+   - **The keys are built from `match.language`**, before the
+     `normalizedLanguage` ternary, so they are spelled the table's way
+     (`sinh`). The `SearchResult.id` trap was avoided by not keying on it at
+     all: `_entryTextFrom` takes `(fileId, pageIndex, entryIndex, language)`.
+   - **A failed batch costs the snippets only.** `loadPageSides` already
+     leaves out single corrupt rows; the call is also wrapped, because the
+     JSON loader caught its own failures per file and "a missing snippet never
+     fails the search" is the invariant that path documents. A database that
+     will not open now loses the previews, not the results.
+   - **Web is unchanged.** `_contentDataSource` is nullable and the server
+     pre-fills `matchedText`, so the guard that skipped the file read skips the
+     batch. `LRUCache` stays — `caching_text_search_repository.dart` and
+     `cache_config.dart` use it.
+
+   **The reader loads its unit's pages, not its file.** This is where the
+   measured 45× comes from, and it needed the three decisions below.
+   `BJTDocumentLocalDataSourceImpl` now holds a `BJTContentDataSource` and
+   parses `{'pages': rows}`; the span travels
+   `bjtDocumentProvider` → use case → repository → datasource as
+   `(firstPage, lastPage)`.
+   - **`BJTDocument.firstPageIndex`** (default 0) is the index of `pages.first`
+     in the file. `DocumentSlice.of` and `getPageByIndex` translate through it
+     instead of indexing `pages` directly, so **one slicing path serves both
+     surfaces**: the reader's document holds its span, the web server's holds
+     the whole file at 0, and neither needs to know which it got. `pageCount`
+     now means the loaded span, so `lastPageIndex` was added beside it.
+   - **A span past the file's last page stops there.** `loadPages` keeps
+     `_whole` strict for a hole *inside* the span and truncates only the tail,
+     matching the clamp `DocumentSlice.of` has always done. An empty result
+     costs one `SELECT 1 … LIMIT 1`: no rows for the file at all is a tree
+     pointing at content that does not exist, and throws with the name, while
+     a span starting past a real file's end comes back empty and renders
+     nothing.
+   - **`close()` was left alone.** Still nothing calls it at runtime, so the
+     shared connection needs no ref-counting — as the step 6 note said, settle
+     it when a caller appears.
+   - **The provider key is a record**, `({fileId, firstPage, lastPage})`, so
+     two tabs on the same unit share one load and two units in one file do not
+     collide. Same reason the repository's own cache key gained the span.
+     `requestFor(unit)` builds it in one place; the reader, in-page search
+     (which reads a *specific* tab's document, not the active one) and the
+     citation preview all go through it.
+   - **The citation preview got faster for free.** It quoted three entries out
+     of a whole decoded file; `requestForPage` fetches the one page it shows.
+   - **`loadPageSides` is still one statement.** Three bind variables per key
+     against SQLite's 32,766 caps a batch near 10,900, and a results page asks
+     for about 100. Unchanged.
+
+   **Segment ids are per-parse, and now that means per-span.** The parser's
+   counter starts at 0 on every `parseDocument`, so a unit's ids no longer
+   count from the top of its file. Nothing reads `Entry.segmentId` — only
+   `bjt_document_parser_test.dart` pins it — so this breaks nothing today, and
+   the note step 1 asked for is on the counter itself: cross-edition alignment
+   will have to derive ids from the absolute page and entry rather than trust
+   these.
+
+   **Checked on macOS, 2026-09-18.** `dart analyze` clean, `dart format`
+   clean. **638 unit tests pass, unchanged, and no test file was edited** —
+   the regenerated mockito mock fills `firstPage: 0` by default, so the
+   repository's existing stubs still match its new signature.
+
+   **Every integration file passed, each run alone — 78/78**, against step 7's
+   77-pass-1-fail (that failure was the `මහා` count pin, since corrected):
+
+   | | |
+   |---|---|
+   | `search_flow_integration_test.dart` | 32 — **including all five Group 9 snippet goldens** |
+   | `in_page_search_test.dart` | 8 |
+   | `sutta_step_navigation_test.dart` | 13 |
+   | `breadcrumb_navigation_test.dart` | 8 |
+   | `layout_switch_test.dart`, `scroll_restoration_test.dart`, `dictionary_editable_word_test.dart` | 4 each |
+   | `dictionary_filter_flow_test.dart` | 2 |
+   | `language_independence_test.dart`, `search_tab_highlight_test.dart`, `search_language_toggle_test.dart` | 1 each |
+
+   Group 9 is the one that matters: it pins snippet rows byte-for-byte,
+   including `**bold**`, `{n}` refs, embedded newlines and zero-width joiners,
+   and three of its fourteen rows are Sinhala — the rows that go red if the
+   `sinh`/`sinhala` seam is got wrong. Group 2's highlighting check passed too,
+   so the markers survive the round trip.
+
+   **One run hung and it was not this change:** an `in_page_search_test` launch
+   sat at 0% CPU after `Failed to foreground app; open returned 1`. Re-run
+   alone it passed 8/8 in 2:22. Worth knowing before blaming a diff — it looks
+   exactly like the shared-database flake, and is neither.
+
+   **Not exercised, reasoned instead:** a missing or corrupt row degrading to
+   an empty snippet. `loadPageSides` leaves bad rows out (step 6 probed all
+   seven corruptions) and the call site's `?? ''` is unchanged, but no test
+   feeds the app a broken row.
+
+   **The speed win is inherited, not re-measured.** Step 2 timed the two paths
+   directly (snippets 13–586×, reader p50 45×); this step wired them up and
+   proved the *text* is identical, not that the app got faster. Nobody has
+   timed a search or a reader open in the real app before and after. If that
+   number is wanted, take it on a device at step 10 rather than on this Mac.
+
+   **Recap for whoever starts step 9:** its first check already passes —
+   `grep -rn "assets/text" lib/` now finds nothing at all, the last doc comment
+   naming the JSON having moved to `bjt_content`'s vocabulary. What remains is
+   `pubspec.yaml`, the comment above `assets:`, the two web scripts' strip
+   lines, and a built artifact that must carry no `assets/text/`.
 9. **Stop shipping the JSON.** Remove `- assets/text/` from `pubspec.yaml` and
    keep the files in the repo — every build-time reader opens them from disk
    (see **Current Runtime Dependencies on JSON**), and so does `server/` until
@@ -1256,62 +1342,25 @@ CREATE TABLE bjt_content (
     edition triggers the same change; a remote-API edition does not, as it
     never reaches this class.
 
-### Snippet-path teardown (step 8 detail)
+### What the snippet path lost at step 8
 
 The interim memo-cache fix
 ([`perf-fts-snippet-text-loading.md`](../../done/perf-fts-snippet-text-loading.md),
-shipped 2026-06-19) is deliberately isolated, so repointing the snippet path at the content
-table is a clean ~2-method + 1-field deletion, not a rewrite. The call-site shape
-(`matchedText ?? <load> ?? ''`, grouped before the loop) is already what the batched
-DB query wants — you replace the *loader*, not the loop. Delete / replace:
-
-**Client — `lib/data/repositories/text_search_repository_impl.dart`**
-- [ ] `_fileJsonCache` field (`LRUCache(20)`) — gone; SQLite's page cache handles
-      reuse, nothing heavy left to memoise.
-- [ ] `_loadFileJson(...)` — gone (no file read / `json.decode`).
-- [ ] `_extractEntryText(...)` — gone (replaced by the row `SELECT` + page inflate).
-- [ ] In `_searchFullText`: the `filesToLoad` grouping + pre-loop decode → replace
-      with one batched lookup (`WHERE (filename,pageIndex,language) IN (...)`,
-      decompress, pick `entryIndex`) for all `matchedText == null` hits, then index
-      the rows in the loop. Keep the web-prefill skip and the `?? ''` degradation.
-- [ ] `import '../cache/lru_cache.dart'` — drop iff nothing else uses `LRUCache`.
-- [ ] Preserve the language fallback order (matched lang first, then the other) in
-      the row pick so snippets stay byte-for-byte identical.
-- [ ] **Do not key the batched rows by `SearchResult.id`.** It is
-      `editionId_filename_eind` with no language in it, so a Pali entry and its
-      Sinhala twin share one id — real and common, e.g. `atta-dn-2-4` page 110
-      entry 0 for "මහාසති". Key by
-      `(filename, pageIndex, entryIndex, language)`.
-- [ ] **Spell `language` the table's way, not the entity's.** That tuple exists
-      in two vocabularies, and the seam between them is one line inside the loop
-      being rewritten:
-
-      | Where | Sinhala is |
-      |---|---|
-      | `bjt_content` rows, and `match.language` from FTS | `sinh` |
-      | `SearchResult.language`, after the `normalizedLanguage` ternary | `sinhala` |
-
-      The batched lookup runs **before** that normalize, so key it with
-      `match.language` — already the table's spelling — and leave the normalize
-      untouched where it is. Reach for `SearchResult.language` instead and every
-      Sinhala lookup misses, silently, dropping those snippets to `''`.
-      Group 9 addresses its goldens in the *other* vocabulary because they read
-      finished `SearchResult`s; three of its fourteen rows are `'sinhala'`, and
-      they are what goes red if this is got wrong.
+shipped 2026-06-19) was deliberately isolated, so repointing it was a two-method
+deletion rather than a rewrite: `_fileJsonCache`, `_loadFileJson` and
+`_extractEntryText` went, the call-site shape (`matchedText ?? <load> ?? ''`,
+grouped before the loop) stayed, and only the loader was replaced. What
+replaced it, and the two vocabulary traps it had to get right, are in step 8.
 
 **Server — nothing to port.** `server/lib/src/handlers/fts_handler.dart` has its own
 `_loadTextForMatch` / `_loadJsonFile` / `_jsonCache`, but the whole `server/` tree is
 being deleted (see [`README.md`](./README.md)) — web reads the same DB client-side
 through Drift. It goes with the server; do not repoint it at `bjt_content`.
 
-**Becomes moot (don't build):**
-- [ ] Top-10 #2 Phase 3 (decode off the UI isolate) — a row lookup never janks.
-- [ ] Track B #4 (windowed payload) — windowing becomes a substring on the fetched
-      row, decoupled from any file parse.
-
-**Verify after teardown:** snippet + highlighting parity for the same query,
-missing-row degrades to an empty snippet, and the native search path no longer reads
-`assets/text/*.json` at runtime.
+**Became moot at step 8 — don't build:**
+- Top-10 #2 Phase 3 (decode off the UI isolate) — a row lookup never janks.
+- Track B #4 (windowed payload) — windowing is now a substring on the fetched
+  row, decoupled from any file parse.
 
 ## Open Questions / Risks
 

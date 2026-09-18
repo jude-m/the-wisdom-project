@@ -12,13 +12,25 @@ import '../../domain/entities/content/entry_type.dart';
 class BJTDocumentParser {
   const BJTDocumentParser._();
 
-  /// Parse a full document JSON into a [BJTDocument] entity.
-  static BJTDocument parseDocument(String fileId, Map<String, dynamic> json) {
+  /// Parse a document's `pages` JSON into a [BJTDocument] entity.
+  ///
+  /// [firstPageIndex] is where `json['pages']` starts in the file — 0 for a
+  /// whole file, the span's first page when only part of one was loaded.
+  static BJTDocument parseDocument(
+    String fileId,
+    Map<String, dynamic> json, {
+    int firstPageIndex = 0,
+  }) {
     final List<dynamic> pagesJson = json['pages'] as List<dynamic>;
 
     // Shared counter for generating sequential segment IDs across all entries.
     // Increments across BOTH Pali and Sinhala entries for unique IDs
     // useful in future cross-edition alignment (BJT <-> SuttaCentral <-> PTS).
+    //
+    // It counts from 0 per parse, so these are unique within a document, not
+    // within a file: the reader parses one span at a time. Nothing reads them
+    // yet; cross-edition alignment will need them derived from the absolute
+    // page and entry instead.
     int segmentIndex = 0;
 
     final pages = pagesJson.map((pageJson) {
@@ -33,6 +45,7 @@ class BJTDocumentParser {
       fileId: fileId,
       pages: pages,
       editionId: 'bjt',
+      firstPageIndex: firstPageIndex,
     );
   }
 

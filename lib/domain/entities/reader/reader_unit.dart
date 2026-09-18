@@ -9,7 +9,7 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 class ReaderUnit {
   final TipitakaNode node;
 
-  /// The `assets/text/<id>.json` holding this unit's rows.
+  /// The content file holding this unit's rows — `filename` in `bjt_content`.
   final String contentFileId;
 
   final SliceRange range;

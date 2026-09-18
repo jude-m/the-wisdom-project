@@ -7,14 +7,19 @@ import '../entities/bjt/bjt_document.dart';
 /// This interface defines the contract for loading and accessing
 /// BJT (Buddha Jayanti Tripitaka) documents.
 abstract class BJTDocumentRepository {
-  /// Loads BJT document by its file identifier
+  /// Loads pages [firstPage] to [lastPage] of the file [fileId], inclusive —
+  /// the whole file when [lastPage] is null and [firstPage] is 0.
   ///
   /// [fileId] The unique identifier of the document file (filename without extension)
   ///
   /// Returns Either:
   /// - Left(Failure): If loading or parsing fails
   /// - Right(BJTDocument): The loaded BJT document on success
-  Future<Either<Failure, BJTDocument>> loadDocument(String fileId);
+  Future<Either<Failure, BJTDocument>> loadDocument(
+    String fileId, {
+    int firstPage = 0,
+    int? lastPage,
+  });
 
   /// Checks if BJT document exists for the given file identifier
   ///

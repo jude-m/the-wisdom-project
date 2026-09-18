@@ -7,24 +7,34 @@ import '../datasources/bjt_document_datasource.dart';
 class BJTDocumentRepositoryImpl implements BJTDocumentRepository {
   final BJTDocumentDataSource _dataSource;
 
-  // Cache recently loaded documents
+  // Cache recently loaded documents, keyed by the span that was asked for:
+  // two units of the same file are different documents now.
   final Map<String, BJTDocument> _cache = {};
 
   BJTDocumentRepositoryImpl(this._dataSource);
 
   @override
-  Future<Either<Failure, BJTDocument>> loadDocument(String fileId) async {
+  Future<Either<Failure, BJTDocument>> loadDocument(
+    String fileId, {
+    int firstPage = 0,
+    int? lastPage,
+  }) async {
+    final cacheKey = '$fileId:$firstPage:${lastPage ?? 'eof'}';
     try {
       // Return cached document if available
-      if (_cache.containsKey(fileId)) {
-        return Right(_cache[fileId]!);
+      if (_cache.containsKey(cacheKey)) {
+        return Right(_cache[cacheKey]!);
       }
 
       // Load from data source
-      final document = await _dataSource.loadDocument(fileId);
+      final document = await _dataSource.loadDocument(
+        fileId,
+        firstPage: firstPage,
+        lastPage: lastPage,
+      );
 
       // Cache it
-      _cache[fileId] = document;
+      _cache[cacheKey] = document;
 
       return Right(document);
     } catch (e) {
@@ -38,12 +48,12 @@ class BJTDocumentRepositoryImpl implements BJTDocumentRepository {
   @override
   Future<Either<Failure, bool>> hasDocument(String fileId) async {
     try {
-      // Check cache first
-      if (_cache.containsKey(fileId)) {
-        return const Right(true);
-      }
-
-      // Try to load it
+      // NOT cheap, and nothing in the app calls it. It reads the whole file —
+      // every page, both languages, inflated and parsed — to answer a bool,
+      // and caches it under a span key no reader asks for, since units only
+      // ever request their own span now. Give it a caller and it should first
+      // become the row probe bjt_content_local_datasource.dart already runs
+      // inline: SELECT 1 FROM bjt_content WHERE filename = ? LIMIT 1.
       final result = await loadDocument(fileId);
       return Right(result.isRight());
     } catch (e) {

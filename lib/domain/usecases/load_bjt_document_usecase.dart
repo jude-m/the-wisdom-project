@@ -9,8 +9,17 @@ class LoadBJTDocumentUseCase {
 
   LoadBJTDocumentUseCase(this._repository);
 
-  /// Execute the use case to load BJT document
-  Future<Either<Failure, BJTDocument>> execute(String fileId) async {
-    return await _repository.loadDocument(fileId);
+  /// Execute the use case to load a BJT document — pages [firstPage] to
+  /// [lastPage] of the file, or all of it by default.
+  Future<Either<Failure, BJTDocument>> execute(
+    String fileId, {
+    int firstPage = 0,
+    int? lastPage,
+  }) async {
+    return await _repository.loadDocument(
+      fileId,
+      firstPage: firstPage,
+      lastPage: lastPage,
+    );
   }
 }

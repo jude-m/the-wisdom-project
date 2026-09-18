@@ -258,7 +258,10 @@ class _SinhalaSourcePreview extends ConsumerWidget {
 
     final textTheme = Theme.of(context).textTheme;
     final colors = Theme.of(context).colorScheme;
-    final docAsync = ref.watch(bjtDocumentProvider(node.contentFileId!));
+    // Just the page the preview quotes from, not the whole file.
+    final docAsync = ref.watch(bjtDocumentProvider(
+      requestForPage(node.contentFileId!, node.entryPageIndex),
+    ));
 
     return docAsync.when(
       loading: () => const Padding(

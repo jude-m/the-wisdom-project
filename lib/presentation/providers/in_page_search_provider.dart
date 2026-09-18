@@ -293,7 +293,7 @@ class InPageSearchNotifier extends StateNotifier<Map<int, InPageSearchState>> {
     // two states and left the old query's matches standing.
     final document = unit == null
         ? null
-        : _ref.read(bjtDocumentProvider(unit.contentFileId)).valueOrNull;
+        : _ref.read(bjtDocumentProvider(requestFor(unit))).valueOrNull;
 
     if (unit == null || document == null) {
       // The query has already been committed to state, so leaving the previous

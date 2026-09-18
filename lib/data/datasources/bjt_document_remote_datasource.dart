@@ -18,8 +18,15 @@ class BJTDocumentRemoteDataSourceImpl implements BJTDocumentDataSource {
   })  : _baseUrl = baseUrl,
         _client = client ?? http.Client();
 
+  /// The API serves whole files, so the span is ignored and the document
+  /// comes back starting at page 0 — what [BJTDocument.firstPageIndex]
+  /// records, and what the reader's slicing then works from.
   @override
-  Future<BJTDocument> loadDocument(String fileId) async {
+  Future<BJTDocument> loadDocument(
+    String fileId, {
+    int firstPage = 0,
+    int? lastPage,
+  }) async {
     final uri = Uri.parse('$_baseUrl/api/text/$fileId');
     final response = await _client.get(uri);
 

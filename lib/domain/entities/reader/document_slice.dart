@@ -30,26 +30,34 @@ class DocumentSlice {
   static const empty = DocumentSlice._([], 0, 0, null);
 
   /// Cuts [document] to [range]. Empty when the range names pages the
-  /// document does not have — a corpus and a tree out of step, which throws
+  /// document does not hold — a corpus and a tree out of step, which throws
   /// in the generator but must not take the reader down.
+  ///
+  /// The document may hold the whole file (web, and anything that asked for
+  /// it) or just this span's pages (the reader), so every page index here is
+  /// translated through [BJTDocument.firstPageIndex] rather than used as a
+  /// position in [BJTDocument.pages].
   factory DocumentSlice.of(BJTDocument document, SliceRange range) {
-    final pageCount = document.pageCount;
+    if (document.pages.isEmpty) return empty;
+    final firstLoaded = document.firstPageIndex;
+    final lastLoaded = document.lastPageIndex;
     final span = range.pageSpan;
     final firstPage = span.firstPage;
-    if (firstPage < 0 || firstPage >= pageCount) return empty;
+    if (firstPage < firstLoaded || firstPage > lastLoaded) return empty;
 
-    // No last page runs to the end of the file — the last node in it, and
-    // every node sharing that last coordinate.
-    var lastPage = span.lastPage ?? pageCount - 1;
+    // No last page runs to the end of what was loaded — the last node in the
+    // file, and every node sharing that last coordinate.
+    var lastPage = span.lastPage ?? lastLoaded;
     var endEntry = span.endEntry;
-    if (lastPage >= pageCount) {
-      lastPage = pageCount - 1;
+    if (lastPage > lastLoaded) {
+      lastPage = lastLoaded;
       endEntry = null;
     }
     if (lastPage < firstPage) return empty;
 
     return DocumentSlice._(
-      document.pages.sublist(firstPage, lastPage + 1),
+      document.pages
+          .sublist(firstPage - firstLoaded, lastPage - firstLoaded + 1),
       firstPage,
       range.start.entryIndex,
       endEntry,

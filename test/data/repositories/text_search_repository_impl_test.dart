@@ -23,6 +23,10 @@ void main() {
     repository = TextSearchRepositoryImpl(
       mockFTSDataSource,
       mockTreeRepository,
+      // No local database here: these tests assert on metadata and grouping,
+      // so every snippet comes back empty. Snippet text is covered by the
+      // goldens in integration_test/search_flow_integration_test.dart.
+      contentDataSource: null,
     );
   });
 
