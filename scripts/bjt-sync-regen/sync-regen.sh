@@ -430,19 +430,19 @@ fi
 echo
 
 # --- 5b. FTS database (real) ---
-if confirm "Regenerate the FTS database (bjt-fts.db, ~114 MB heavy rebuild)?"; then
-  echo "  Regenerating bjt-fts.db — indexing ~457k entries into assets/databases/;"
+if confirm "Regenerate the FTS database (bjt.db, ~114 MB heavy rebuild)?"; then
+  echo "  Regenerating bjt.db — indexing ~457k entries into assets/databases/;"
   echo "  this takes a few minutes..."
-  # Run from tools/ (the generator reads ../assets/text and writes assets/databases/bjt-fts.db).
+  # Run from tools/ (the generator reads ../assets/text and writes assets/databases/bjt.db).
   # Wrapped in `if` so a failure only warns instead of aborting the script (set -e).
-  if ( cd tools && { [ -d node_modules ] || npm install; } && npm run generate-fts ); then
-    echo "  FTS database rebuilt: assets/databases/bjt-fts.db"
+  if ( cd tools && { [ -d node_modules ] || npm install; } && npm run generate-bjt ); then
+    echo "  FTS database rebuilt: assets/databases/bjt.db"
   else
-    echo "  WARNING: FTS regeneration FAILED — bjt-fts.db may be stale."
-    echo "           Run it by hand to see the error: cd tools && npm run generate-fts"
+    echo "  WARNING: FTS regeneration FAILED — bjt.db may be stale."
+    echo "           Run it by hand to see the error: cd tools && npm run generate-bjt"
   fi
 else
-  echo "  Skipped FTS regeneration — bjt-fts.db is now STALE until you run: cd tools && npm run generate-fts"
+  echo "  Skipped FTS regeneration — bjt.db is now STALE until you run: cd tools && npm run generate-bjt"
 fi
 
 # ---------------------------------------------------------------------------

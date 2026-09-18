@@ -1,18 +1,16 @@
 import 'dart:developer' as developer;
-import 'dart:io';
 
-import 'package:flutter/services.dart';
-import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:wisdom_shared/wisdom_shared.dart';
 
 import '../../domain/entities/dictionary/dictionary_entry.dart';
+import '../database/bundled_database.dart';
 import 'dictionary_datasource.dart';
 
 /// Implementation of dictionary data source
 class DictionaryDataSourceImpl implements DictionaryDataSource {
-  Database? _database;
+  static const String _dbName = 'dict.db';
+
+  BundledDatabase? _database;
   bool _initialized = false;
 
   /// Log debug messages only in debug mode.
@@ -25,27 +23,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     if (_initialized) return;
 
     try {
-      const dbName = 'dict.db';
-      const assetPath = 'assets/databases/$dbName';
-
-      // Get the path to the documents directory
-      final documentsDirectory = await getApplicationDocumentsDirectory();
-      final dbPath = join(documentsDirectory.path, dbName);
-
-      // Check if database already exists
-      final exists = await File(dbPath).exists();
-
-      if (!exists) {
-        // Copy from assets
-        final ByteData data = await rootBundle.load(assetPath);
-        final List<int> bytes = data.buffer.asUint8List();
-
-        // Write to file
-        await File(dbPath).writeAsBytes(bytes, flush: true);
-      }
-
-      // Open the database
-      _database = await openDatabase(dbPath);
+      _database = await BundledDatabase.open(_dbName);
 
       _initialized = true;
     } catch (e) {
@@ -221,7 +199,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
   @override
   Future<void> close() async {
     try {
-      await _database?.close();
+      if (_database != null) await BundledDatabase.closeShared(_dbName);
     } catch (e) {
       _log('Error closing dictionary database: $e');
     } finally {

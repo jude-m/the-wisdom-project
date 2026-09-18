@@ -113,11 +113,10 @@ if [ "$SKIP_BUILD" = false ]; then
       ;;
   esac
 
-  # Remove server-only assets from web build (databases + text JSON files).
-  # On web these are served by the API — bundling them wastes ~600 MB.
+  # Remove the server-only databases from the web build. On web the API serves
+  # this content — bundling the databases only bloats the download.
   echo "Cleaning server-only assets from web build..."
   [ -d "build/web/assets/assets/databases" ] && rm -rf build/web/assets/assets/databases
-  [ -d "build/web/assets/assets/text" ] && rm -rf build/web/assets/assets/text
 
   # Strip the Flutter service worker. Without it, redeploys show fresh
   # code immediately instead of serving a stale cached bundle until the

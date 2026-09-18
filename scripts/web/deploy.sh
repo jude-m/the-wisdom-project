@@ -156,9 +156,8 @@ flutter build web --release \
   --dart-define=VERSION_CHECK_POLL_SECONDS=120 \
   || die "web build failed"
 
-# Strip server-only assets from the web bundle (served by API instead).
+# Strip the server-only databases from the web bundle (served by API instead).
 [[ -d build/web/assets/assets/databases ]] && rm -rf build/web/assets/assets/databases
-[[ -d build/web/assets/assets/text      ]] && rm -rf build/web/assets/assets/text
 
 # Strip the Flutter service worker. Without it, redeploys serve fresh
 # code immediately instead of stale cache until the user hard-reloads.

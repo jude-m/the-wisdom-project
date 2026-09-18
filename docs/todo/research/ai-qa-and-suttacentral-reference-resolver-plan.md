@@ -445,7 +445,7 @@ never**, and the resolver should add **zero** runtime DB load.
 - **Chat history** is small and ephemeral. Follow the existing pattern —
   `RecentSearchesRepositoryImpl` stores history in **`shared_preferences`** as
   JSON, not SQLite. For the prototype, in-memory (the notifier) is enough.
-  **Never** write chat into `bjt-fts.db` / `dict.db`: those are **read-only
+  **Never** write chat into `bjt.db` / `dict.db`: those are **read-only
   bundled assets** that get rebuilt and replaced on content updates — any user
   data inside them is silently destroyed, and there's no reason to open them
   read-write.

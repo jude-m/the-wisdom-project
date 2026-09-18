@@ -2,7 +2,7 @@ import 'scope_patterns.dart';
 
 /// Converts search scope (tree node keys) into SQL WHERE clause fragments.
 ///
-/// Used by both the Flutter client (sqflite) and the Dart server (sqlite3)
+/// Used by both the Flutter client (Drift) and the Dart server (sqlite3)
 /// to filter FTS search results by Tipitaka location.
 class ScopeFilterSql {
   ScopeFilterSql._();

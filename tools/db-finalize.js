@@ -1,11 +1,12 @@
 /**
  * Turns a freshly built database into a shippable one. Shared by
- * `bjt-fts-populate.js` and `dict-populate.js` — both write in WAL mode, and
+ * `bjt-populate.js` and `dict-populate.js` — both write in WAL mode, and
  * both ship their output as a Flutter asset, so both need the same last pass.
  */
 
 "use strict";
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -14,7 +15,8 @@ const Database = require('better-sqlite3');
 
 /**
  * Rebuilds a finished database into its shippable form: 8 KiB pages, no WAL
- * flag, and query statistics. Replaces the file in place.
+ * flag, and query statistics. Replaces the file in place, then records its
+ * SHA-256 in `manifest.json` beside it.
  *
  * Three separate problems, one pass — none of them optional, all of them
  * measured (2026-09-11, and in the Drift/wasm spike):
@@ -82,9 +84,37 @@ function finalizeDatabase(dbPath) {
         if (fs.existsSync(sidecar)) fs.unlinkSync(sidecar);
     }
 
+    writeManifestEntry(dbPath);
+
     const sizeMB = (fs.statSync(dbPath).size / 1024 / 1024).toFixed(2);
     console.log('');
     console.log(`Final database size: ${sizeMB} MB`);
+}
+
+/**
+ * Sets [dbPath]'s entry in `manifest.json` in the same folder, leaving the
+ * other entries alone. The app recopies its database when this hash changes
+ * (`bundled_database_executor_native.dart`).
+ *
+ * @param {string} dbPath - Finished database to record
+ */
+function writeManifestEntry(dbPath) {
+    const manifestPath = path.join(path.dirname(dbPath), 'manifest.json');
+    const name = path.basename(dbPath);
+    const sha256 = crypto.createHash('sha256')
+        .update(fs.readFileSync(dbPath))
+        .digest('hex');
+
+    const manifest = fs.existsSync(manifestPath)
+        ? JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+        : {};
+    manifest[name] = { sha256 };
+
+    // Sorted keys, so the file's text doesn't depend on which database was built last.
+    const sorted = {};
+    for (const key of Object.keys(manifest).sort()) sorted[key] = manifest[key];
+    fs.writeFileSync(manifestPath, `${JSON.stringify(sorted, null, 2)}\n`);
+    console.log(`  ✓ manifest.json: ${name} sha256 ${sha256.slice(0, 12)}…`);
 }
 
 /**

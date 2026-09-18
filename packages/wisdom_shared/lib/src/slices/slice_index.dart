@@ -63,6 +63,56 @@ class SliceRange {
 
   @override
   String toString() => 'SliceRange($nodeKey, $start..${end ?? 'eof'})';
+
+  /// The pages this span reaches, from its coordinates alone, so a caller can
+  /// fetch them before it holds any text.
+  ///
+  /// An [end] on a page's first entry means the next node owns that whole
+  /// page, so the span stops on the page before. Anywhere else they share it.
+  SlicePageSpan get pageSpan {
+    final end = this.end;
+    return switch (end) {
+      null => SlicePageSpan(firstPage: start.pageIndex),
+      SliceCoordinate(entryIndex: 0) => SlicePageSpan(
+          firstPage: start.pageIndex,
+          lastPage: end.pageIndex - 1,
+        ),
+      _ => SlicePageSpan(
+          firstPage: start.pageIndex,
+          lastPage: end.pageIndex,
+          endEntry: end.entryIndex,
+        ),
+    };
+  }
+}
+
+/// The pages a [SliceRange] reaches: [firstPage] to [lastPage], inclusive.
+class SlicePageSpan {
+  final int firstPage;
+
+  /// Null when the span runs to the end of the file. Below [firstPage] when it
+  /// reaches no page at all.
+  final int? lastPage;
+
+  /// Where the span stops on [lastPage], exclusive; null reads that page to
+  /// its end.
+  final int? endEntry;
+
+  const SlicePageSpan({required this.firstPage, this.lastPage, this.endEntry});
+
+  @override
+  bool operator ==(Object other) =>
+      other is SlicePageSpan &&
+      other.firstPage == firstPage &&
+      other.lastPage == lastPage &&
+      other.endEntry == endEntry;
+
+  @override
+  int get hashCode => Object.hash(firstPage, lastPage, endEntry);
+
+  @override
+  String toString() =>
+      'SlicePageSpan($firstPage..${lastPage ?? 'eof'}, endEntry: $endEntry)';
 }
 
 /// Where each node's text starts and stops inside one content file.

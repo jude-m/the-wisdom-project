@@ -573,7 +573,7 @@ void main() {
         await tester.pumpSearchApp(prefs);
         await tester.searchFor('මහා');
 
-        // Full text tab — "Viewing 50 out of 29769 results"
+        // Full text tab — "Viewing 50 out of 29770 results"
         await tester.switchToTab('Full text');
         await tester.dragUntilVisible(
           find.textContaining('Viewing 50 out of'),
@@ -581,7 +581,7 @@ void main() {
           const Offset(0, -300),
         );
         expect(
-          find.textContaining('Viewing 50 out of 29769 results'),
+          find.textContaining('Viewing 50 out of 29770 results'),
           findsOneWidget,
         );
 

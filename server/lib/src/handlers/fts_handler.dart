@@ -90,9 +90,10 @@ class FtsHandler {
       if (languageClause != null) {
         sql.write(' AND $languageClause');
       }
+      // `id` breaks bm25 ties, so paging can't repeat or drop a tied row.
       sql.write('''
         )
-        SELECT * FROM ranked ORDER BY score LIMIT ? OFFSET ?
+        SELECT * FROM ranked ORDER BY score, id LIMIT ? OFFSET ?
       ''');
 
       // Arg order MUST match the '?' placeholders: MATCH, [scope...],

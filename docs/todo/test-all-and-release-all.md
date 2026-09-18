@@ -81,8 +81,8 @@ working. `run.bat` cannot source a bash file and keeps its own default.
 | generated code is current | hash the generated files, run `build_runner build` and `flutter gen-l10n`, fail if a hash changed. Before/after hashes, not `git diff`, so a fresh but uncommitted regen passes | ✓ |
 | unit + widget | `flutter test` | ✓ |
 | wisdom_shared | `dart test` in `packages/wisdom_shared` | ✓ |
-| shipped databases | exist, SQLite magic, not WAL-flagged (from `validate-release.sh`) | – built, not committed |
-| integration | `flutter test integration_test/all_tests.dart -d macos` | – needs macOS and the databases |
+| shipped databases | exist, SQLite magic, not WAL-flagged (from `validate-release.sh`); each file's SHA-256 equals its entry in `assets/databases/manifest.json`, since phones keep their old copy of a database changed outside `tools/db-finalize.js` | – built, not committed |
+| integration | `flutter test integration_test/all_tests.dart -d macos`, then `integration_test/bundled_database_copy_test.dart` the same way — it swaps a database file, so it can't share the suite's one app launch ([proposal](./retiring-dart-server/bundled-database-copy-tests.md)) | – needs macOS and the databases |
 
 `a3f6c46` formatted every Dart package once. If the format gate is red by step
 4, format in a commit of its own first.
@@ -350,4 +350,5 @@ Gaps the investigation found, each its own item:
 - Build-twice determinism is checked by hand (`web-release.md` §2).
 - The HTML validator (backlog C9).
 - `research_server` has no tests.
-- Mobile release: signing, iOS export, store upload.
+- Mobile release: signing, iOS export, store upload — tracked in
+  [`first-mobile-release.md`](mobile-release/first-mobile-release.md).

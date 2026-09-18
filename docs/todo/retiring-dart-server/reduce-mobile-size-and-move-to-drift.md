@@ -1,11 +1,20 @@
 # Faster Reads (and a Smaller App): Move Text into SQLite and the App onto Drift
 
-> **Status 2026-09-14:** steps 1–4 done; blob layout decided — one page per
-> blob, **plain zlib**. A compression sample would win back most of the
-> download and is kept as an optional later step (**Compression sample —
-> optional, later**). Step 6 moves the app from `sqflite` to Drift, in the same
-> branch as the content table; step 7 makes an app update actually replace the
-> copied databases. Next: step 5.
+> **Status 2026-09-18:** steps 1–9 done. `bjt.db` (renamed from
+> `bjt-fts.db` at 7.1) carries `bjt_content` —
+> one page per blob, **plain zlib** — and the app is on Drift: search, the
+> dictionary, the reader and its snippets all read through it, with every
+> suite green. A rebuilt database reaches the app's copy by a manifest hash
+> and a stamp (step 7). **The JSON no longer ships** (step 9): 340 MiB off the
+> macOS release bundle, 733 → 393 MiB, with the files kept in the repo for the
+> build-time readers. **Next here: step 11**, web. Two deletions
+> from step 5 are deliberately still open: see **Left open after step 5**. A
+> compression sample stays optional (**Compression sample — optional, later**).
+>
+> **No mobile release until
+> [`first-mobile-release.md`](../mobile-release/first-mobile-release.md) is
+> done.** It holds the real-device pass that was step 10, and everything else
+> a phone release waits on.
 
 > **UPDATE 2026-07-16 — CONFIRMED, and promoted to the keystone of a server-free
 > architecture.** Decisions from a follow-up study:
@@ -193,7 +202,7 @@ bundled DB, `tools/bench_content_read.dart` times reads out of it.
 
 **Neither is in git** — both are gitignored, with a comment there saying when
 to delete them — so the numbers below are the record, not the scripts. What is
-worth keeping out of them moves into `tools/bjt-fts-populate.js` at step 5 and
+worth keeping out of them moves into `tools/bjt-populate.js` at step 5 and
 into the datasource at step 6, both noted where they land.
 
 The table it built was checked by the safety net rather than by eye —
@@ -457,7 +466,7 @@ down, because a spike's numbers are its machine's.
 ### The build pipeline is now three steps, not one — and it was shipping a bug
 
 Both generators ended in `VACUUM`. They now end in `finalizeDatabase`
-(`tools/db-finalize.js`, shared by `bjt-fts-populate.js` and
+(`tools/db-finalize.js`, shared by `bjt-populate.js` and
 `dict-populate.js` — `dict.db` is a shipped asset too, and reaches the browser
 through the same wasm build):
 
@@ -505,11 +514,11 @@ conditions in `od` rather than calling it: a second implementation is the point,
 because this one must run without node and must catch a database that arrived
 from a backup or a hand-run `sqlite3` instead of from a generator.
 
-> **The shipped assets are still WAL-flagged** — the two *generators* were
-> changed, not the two databases (they are untracked, so this cannot ride in a
-> commit). Both need fixing: `npm run generate-fts` and `npm run generate-dict`
-> in `tools/`, or the repair one-liner `validate-release.sh` prints, on **both**
-> `bjt-fts.db` and `dict.db`.
+> **`dict.db` is still WAL-flagged** (header bytes 18/19 = 2/2, checked
+> 2026-09-15). Step 5's rebuild fixed `bjt-fts.db`; `dict.db` has not been
+> rebuilt. Run `npm run generate-dict` in `tools/`, or the repair one-liner
+> `validate-release.sh` prints. The databases are untracked, so no commit
+> carries the fix.
 
 One consequence worth noting: once both generators end in `VACUUM INTO`, the
 un-checkpointed-WAL branch in `verify_corpus_invariants.dart` becomes
@@ -520,8 +529,8 @@ was describing a real property of the file at the time.
 ### The blob decoder needs a web path
 
 `dart:io` does not exist on web, and this same table is the web's content
-source. Nothing in `pubspec.yaml` covers the gap — no `archive`, no `drift`, and
-`lib/` uses no codec today.
+source. `archive` and `drift` are in `pubspec.yaml` since step 6, and
+`_decode` in `bjt_content_local_datasource.dart` is the one decode call.
 
 `DecompressionStream` (through JS interop) and `package:archive` both read
 plain zlib. What separates them is testing: section 5 runs on the Dart VM, so it
@@ -548,22 +557,19 @@ table step 2 builds.
 All three confirmed present here. None is caused by the migration; two are in
 the same build pipeline, one in the same datasource.
 
-1. **`ORDER BY score` has no tiebreaker** —
-   `lib/data/datasources/fts_local_datasource.dart:186` (and
-   `server/lib/src/handlers/fts_handler.dart:93`). bm25 ties are common in this
-   corpus: the first 5,000 hits for භගවා carry 622 distinct scores, largest tie
-   group 69 rows. With `LIMIT`/`OFFSET` paging, rows can repeat or vanish as
-   the user pages. Fix is `ORDER BY score, id`.
+1. **~~`ORDER BY score` has no tiebreaker~~ — fixed 2026-09-16, step 6.** bm25
+   ties are common in this corpus: the first 5,000 hits for භගවා carry 622
+   distinct scores, largest tie group 69 rows, so `LIMIT`/`OFFSET` paging could
+   repeat or drop a row. `fts_local_datasource.dart` and
+   `server/lib/src/handlers/fts_handler.dart` now both end
+   `ORDER BY score, id`. Every suite passed with no expectation changed.
 
-   **This one touches the safety net.** Group 9's goldens are *not* order-flaky
-   — they address rows by `(file, page, entry, language)` and the test says why.
-   But the escape hatch it documents, *"a row can drop out of the set with
-   every snippet still byte-identical"*, is exactly what an unstable tiebreaker
-   produces under overfetch + `_limitToGroups`. Adding `, id` is what stops
-   that test firing spuriously — and the engine is about to change twice
-   (Drift native, then wasm).
-2. **Dictionary prefix lookup full-scans 175 MB on every word tap** —
-   `lib/data/datasources/dictionary_local_datasource.dart:83,134,181` use
+   It mattered to the safety net: Group 9's escape hatch, *"a row can drop out
+   of the set with every snippet still byte-identical"*, is what an unstable
+   tie produces under overfetch + `_limitToGroups`, and the engine then changed
+   under it.
+2. **Dictionary prefix lookup full-scans 175 MB on every word tap** — the
+   three queries in `lib/data/datasources/dictionary_local_datasource.dart` use
    `LIKE ? ESCAPE '\'`, which never uses `idx_word`. 133 ms natively; over OPFS
    it is the whole file through a JS callback. `buildDictionaryLikePattern`
    only ever builds a prefix, so the semantics survive
@@ -574,12 +580,13 @@ the same build pipeline, one in the same datasource.
 
 ### Smaller constraints, for whoever writes steps 5–8
 
-- **`SQLITE_DQS 0` on web:** double-quoted *string literals* are an error
-  there, and native won't catch it. New `bjt_content` SQL must use single
-  quotes (identifier quoting is unaffected). Existing SQL is clean — the spike
-  grepped every site in `lib/`, `packages/` and `server/`.
+- **`SQLITE_DQS=0` on native too, now:** double-quoted *string literals* are
+  an error. Under sqflite that was web-only; the SQLite `package:sqlite3`
+  bundles natively is compiled the same way, so native tests catch it as well.
+  Use single quotes (identifier quoting is unaffected). Existing SQL is clean.
 - **`enableMigrations: false`** when Drift opens these. `user_version` is 0
   (verified), so the migrator would otherwise write into the shipped DB.
+  Native passes it (`bundled_database_executor_native.dart`); web must too.
 - **No `ATTACH`** between this DB and `dict.db`. Drift's OPFS mode is chosen at
   runtime by browser capability, and one of the two modes stores exactly two
   files. They are already separate files by design; this just forecloses ever
@@ -606,28 +613,33 @@ from different directions.
 
 ## Current Runtime Dependencies on JSON
 
-Two code paths read `assets/text/{filename}.json` via `rootBundle` today. Both
-must switch to the new content table before the assets can be dropped:
+Two code paths read `assets/text/{filename}.json` via `rootBundle`. **Both
+moved to the content table at step 8**, which is what let step 9 drop the
+assets:
 
 1. **Search snippets** — `_searchFullText` in
-   `lib/data/repositories/text_search_repository_impl.dart`, via the interim
-   group-once loader (`_loadFileJson` + `_extractEntryText`, memoised in
-   `_fileJsonCache`). Was a per-match `_loadTextForMatch`; replaced 2026-06-19 by the
-   memo-cache quick win. See **Snippet-path teardown** below for what to delete when
-   repointing.
+   `lib/data/repositories/text_search_repository_impl.dart`. Was a per-match
+   `_loadTextForMatch`, then the 2026-06-19 memo-cache quick win
+   (`_loadFileJson` + `_extractEntryText` + `_fileJsonCache`), now one batched
+   `loadPageSides`.
 2. **Reader** — `BJTDocumentLocalDataSourceImpl.loadDocument` in
    `lib/data/datasources/bjt_document_local_datasource.dart` →
-   `BJTDocumentParser` (the whole document).
+   `BJTDocumentParser`. Was the whole document; now the unit's pages.
 
 Note: snippet **behavior/UX stays the same** — only its data source changes
 (from JSON file → content table). It gets faster, not different.
 
-Two **build-time** consumers read the same JSON from the filesystem rather than the
-bundle, so neither is affected by dropping the asset declaration — and both are why
+Three other consumers read the same JSON from the filesystem rather than the
+bundle, so none was affected by dropping the asset declaration — and they are why
 the files stay in the repo:
 
-- `tools/bjt-fts-populate.js` (`fs.readFileSync`) — builds the FTS index.
+- `tools/bjt-populate.js` (`fs.readFileSync`) — builds the FTS index.
 - `static_site_generator/lib/data/corpus_reader.dart` — builds the public HTML site.
+- `server/lib/src/handlers/fts_handler.dart` (`_loadTextForMatch` /
+  `_loadJsonFile` / `_jsonCache`) — the one that is **not** build-time: it serves
+  snippets to web at runtime, off the server's own filesystem. It is **not** being
+  repointed at `bjt_content`; the whole `server/` tree is being deleted (see
+  [`README.md`](./README.md)), and the JSON has to outlive it.
 
 ## Proposed Schema
 
@@ -677,8 +689,8 @@ CREATE TABLE bjt_content (
   (`better-sqlite3`), Dart reads it. No Freezed models or app-specific types in the
   blob — just the page's JSON substructure.
 - Decompression in Dart: `package:archive`'s `ZLibDecoder` — `dart:io`'s zlib
-  natively, pure Dart on web, same call. Not in `pubspec.yaml` yet. See **The
-  blob decoder needs a web path**.
+  natively, pure Dart on web, same call. A direct dependency since step 6. See
+  **The blob decoder needs a web path**.
 - **~~Optional max-speed snippet path~~ — dropped.** The idea was a per-entry
   `text` column so a snippet needed no parse at all. The benchmark says the page
   fetch *is* 0.03 ms, so there is nothing left to win, and per-entry
@@ -699,7 +711,7 @@ CREATE TABLE bjt_content (
      languages, and names the first divergence per kind.
 
      **It arms itself.** The default target is the bundled
-     `assets/databases/bjt-fts.db`, so the first run after step 5 populates
+     `assets/databases/bjt.db`, so the first run after step 5 populates
      `bjt_content` starts checking with no flag typed and no checklist item
      remembered — a trigger written in a doc holds only until someone skips the
      doc. Before then it reports **SKIPPED and does not vote**: a section that
@@ -714,30 +726,33 @@ CREATE TABLE bjt_content (
      ignores the `-wal`, so an un-checkpointed database is refused with the
      checkpoint command rather than read stale.
 
-     **It is also where the blob format is pinned**, so step 5 writes to a
+     **It is also where the blob format is pinned**, so step 5 wrote to a
      contract rather than inventing one: one row per
-     `(filename, pageIndex, language)`, holding the gzip- **or** zlib-framed
-     bytes of that page's JSON substructure *verbatim* — the same object
-     `pages[i]['pali']` decodes to, entries and footnotes and every other key.
-     Not a remodelled one; Node writes and Dart reads, and anything app-shaped
-     in the blob is a format two runtimes must agree about twice.
+     `(filename, pageIndex, language)`, with that page's `pageNum` in its own
+     column and a **plain zlib** blob of that page's JSON substructure
+     *verbatim* — the same object `pages[i]['pali']` decodes to, entries and
+     footnotes and every other key. Not a remodelled one; Node writes and Dart
+     reads, and anything app-shaped in the blob is a format two runtimes must
+     agree about twice.
 
-     The frame is sniffed from its magic number, and **gzip and zlib are the
-     only two answers that pass**. Anything else fails even though it decodes:
-     uncompressed JSON round-trips perfectly, so a lenient reader would report
-     a clean run at 100% of plain JSON — the tool printing the number that says
-     nothing was compressed while voting that all is well. A column holding TEXT
-     rather than a BLOB is counted as its own failure too, rather than throwing
-     on the cast and replacing a named finding with a stack trace.
+     The frame is sniffed from its header, and **plain zlib is the only answer
+     that passes**. Everything else fails even where it decodes: gzip reads
+     natively but comes back empty on web, a sample-flagged zlib header needs a
+     sample the app doesn't have, and uncompressed JSON round-trips perfectly,
+     so a lenient reader would report a clean run at 100% of plain JSON — the
+     tool printing the number that says nothing was compressed while voting
+     that all is well. Every blob is decoded by `dart:io` and by the web
+     build's pure-Dart decoder, and fails where the two differ. A column
+     holding TEXT rather than a BLOB is counted as its own failure too, rather
+     than throwing on the cast and replacing a named finding with a stack
+     trace.
 
-     **Step 5 narrows the frame** to plain zlib — see there.
-
-     Proven end-to-end before the real table exists, against throwaway DBs
-     written by `better-sqlite3`: gzip and zlib rows both inflate; a wrong
-     page's content, an entry that is a string, and an entry whose `text` is a
-     number are each caught and named; an absent `footnotes` key is
-     distinguished from an empty one; missing rows are counted, and a row naming
-     no corpus file separately.
+     Proven end-to-end before the real table existed, against throwaway DBs
+     written by `better-sqlite3`: a wrong page's content, an entry that is a
+     string, and an entry whose `text` is a number are each caught and named;
+     an absent `footnotes` key is distinguished from an empty one; missing rows
+     are counted, and a row naming no corpus file separately. Step 5 proved the
+     frame, `pageNum` and decoder checks the same way.
    - **Golden snippets** → Group 9 of
      `integration_test/search_flow_integration_test.dart`, reusing
      `search_test_helper.dart` unchanged. Five real queries; within each, rows
@@ -757,8 +772,10 @@ CREATE TABLE bjt_content (
      segment-id test pins the counter running unbroken across both languages
      and both pages, but only *within one `parseDocument` call*. A per-page
      loader calling it once per page still produces an unbroken `0..n` each
-     time. If step 6 reads page-at-a-time, segment-id continuity across a file
-     needs its own check at whatever layer stitches the pages together.
+     time. **Resolved at step 8, without a new check:** the reader now parses
+     one span at a time, so ids are per-document by design, and nothing reads
+     `Entry.segmentId` — the note lives on the counter, and alignment work
+     will derive ids from absolute coordinates instead.
 
    **Unrelated TODO, moved out 2026-09-14:** one entry point for every test path
    is its own plan now — [`test-all-and-release-all.md`](../test-all-and-release-all.md).
@@ -776,181 +793,580 @@ CREATE TABLE bjt_content (
    Today's JSON deflates to 46 MB, not the 70–110 estimated, so the **download
    rises** 92 → 114 MB while storage falls. Measured as deflate per file rather
    than out of a built APK: there is no Android SDK on this machine and iOS
-   wants a signed build. Worth confirming against a real artifact on a machine
-   that has one, but it will not change the direction.
+   wants a signed build. Confirming it against a real artifact is section 4
+   of [`first-mobile-release.md`](../mobile-release/first-mobile-release.md);
+   it will not change the direction.
 
    **Answered 2026-09-14:** accepted. Plain pages ship at 114 MB; a
    per-language compression sample would bring it back to 95 MB with reads as
    fast, and is kept for later — see **Compression sample — optional, later**.
-5. Extend `tools/bjt-fts-populate.js` to populate `bjt_content` (one page per
-   blob, plain zlib level 9, plus the `pageNum` column) alongside the existing
-   `_fts` / `_meta` tables.
+5. **Populate `bjt_content` — DONE 2026-09-15.** `tools/bjt-populate.js`
+   (`createContentTable` + the page loop in `populateData`) writes one row per
+   `(filename, pageIndex, language)`: that page's language side,
+   `JSON.stringify`'d verbatim and `zlib.deflateSync`'d at level 9, with
+   `pageNum` in its own column. The rows go in the same per-file transaction as
+   the `_fts` / `_meta` rows. Writes stay in WAL mode; `finalizeDatabase` is
+   what ships.
 
-   **Two things that used to be part of this step are already done.** The
-   script now ends in `finalizeDatabase` (`tools/db-finalize.js`) — `VACUUM
-   INTO` at 8 KB pages,
-   `ANALYZE`, and a header assert — so page size is inherited rather than
-   chosen here, and nothing this step writes can reintroduce the WAL flag.
-   Write rows in WAL mode as before; the finalize pass is what ships.
+   **Section 5 was tightened before the real run:**
+   - **Plain zlib only.** gzip now fails: it reads natively but comes back as
+     empty bytes from the web decoder. A zlib header with the sample flag
+     (FDICT) set fails too, shown as frame `zlib+sample`.
+   - **Every blob is decoded twice**, with `dart:io`'s zlib and with
+     `package:archive`'s `ZLibDecoderWeb` (`verify: true`, the web build's
+     path), and fails where the bytes differ. `archive: ^4.0.9` is now a
+     `tool/`-only dev dependency of `static_site_generator`, the version the
+     app already locks.
+   - **`pageNum` is compared** against `pages[i]['pageNum']` on every row. A
+     table with no such column selects NULL in its place and fails each row by
+     name.
 
-   **The contract is already written down and enforced** — see step 1: one row per
-   `(filename, pageIndex, language)`, `language` spelled `pali` / `sinh`, the
-   `blob` column a real BLOB, and the payload that page's JSON substructure
-   verbatim — plus the `pageNum` column beside it, copied from the page.
-   Uncompressed JSON is a *failure*, not a lenient pass: it round-trips clean
-   and would otherwise read green at 100% of plain JSON.
+   **Proved on a table built to fail.** A throwaway DB with one good row and
+   five bad ones: gzip and `zlib+sample` were named as frames; a sample-flagged
+   stream and a corrupted checksum as inflate failures (`Filter error, bad
+   data`); a wrong `pageNum`; and a stream with two trailing bytes as a
+   **decoder disagreement** (see step 6, Decoder). The good row was in none.
+   The step 2–4 spike table now fails every row on frame and `pageNum` while
+   its entries still match.
 
-   **One part of it narrows first: the frame.** Section 5 accepts gzip or
-   zlib. Narrow it to zlib, the one frame the app's decoder reads — gzip passes
-   here and fails in the app. A zlib header with the sample flag set fails
-   too: no sample ships, so nothing could open it.
+   **Result on the real build:**
 
-   **And it decodes every blob twice** — with `dart:io`'s zlib, and with
-   `package:archive`'s pure-Dart decoder (`ZLibDecoderWeb`, checksum
-   verified), which is the path the web build takes — failing where the two
-   disagree. Nothing else runs the web path over the whole corpus, so it
-   happens here rather than at step 11. `archive` joins `sqlite3` as a
-   `tool/`-only dev dependency of `static_site_generator`; the app already
-   locks the same version transitively.
+   | | |
+   |---|---|
+   | rows | 57,934 over 285 files; none missing, none extra |
+   | entries compared | 466,127; zero divergences of any kind |
+   | frames | every blob `78 DA` (zlib, level 9) |
+   | blobs | 66.5 MB, 23.3% of the JSON they hold; largest 3.7 KB |
+   | `bjt_content` on disk | 74.9 MB + 1.4 MB primary-key index |
+   | `bjt-fts.db` | 94.8 → **170.8 MB** (the plan said 172) |
+   | header | 8 KB pages, bytes 18/19 = 1/1, `sqlite_stat1` written, no sidecars |
+   | build / verify time | 25 s / 31 s |
 
-   Almost nothing needs wiring up to check it. `verify_corpus_invariants.dart`
-   looks in `assets/databases/bjt-fts.db` by default and reports SKIPPED while
-   the table is absent, so the first run after this step arms it automatically —
-   including the run inside
-   `static_site_generator/test/corpus_tools_test.dart`. It opens the database
-   `immutable=1`, touching neither the asset nor its WAL sidecars.
+   **The search index did not move.** `bjt_meta` hashes the same before and
+   after (456,977 rows; SHA-256 over every column in `id` order), and two
+   `MATCH` counts agree (`භගවා` 11,459, `බුද්ධ*` 16,537). So the old file
+   matched the vendored JSON despite its older timestamp, and the counts
+   Groups 1–8 pin have no reason to move. The integration suites were not run.
 
-   **The exception is `pageNum`, and it has to be closed in this step.** Section
-   5 compares blobs; the column sits beside them and nothing reads it. That is
-   the one field of the four that is *not* derivable from anything else in the
-   table, so a populate bug there is both the likeliest and the only invisible
-   one — every other column is in the primary key, and a wrong key shows up as a
-   missing or extra row. Extending section 5 to compare the column against
-   `pages[i]['pageNum']` is a few lines in the loop that already has both sides
-   in hand.
+   Nothing else needs wiring: `static_site_generator/test/corpus_tools_test.dart`
+   runs the verifier with no flag, so it enforces section 5 from now on.
 
-   **Leave no WAL frames behind.** Reading `immutable=1` means SQLite ignores a
-   `-wal`, so the verifier refuses an un-checkpointed database rather than
-   report stale parity. The script already closes in a `finally`, which
-   checkpoints and removes the `-wal`; this bites only after a killed run or an
-   open sqlite3 session. The refusal prints the remedy:
-   `sqlite3 assets/databases/bjt-fts.db 'PRAGMA wal_checkpoint(TRUNCATE);'`
+   **Recap for whoever starts step 6** — what step 5 leaves you:
+   - **The table.** `bjt_content(filename, pageIndex, language, pageNum,
+     blob)`, keyed on `(filename, pageIndex, language)`, inside
+     `assets/databases/bjt.db`. `filename` is the JSON name without
+     `.json` (`an-1`), the same key `bjt_meta` uses. Every page has both a
+     `pali` and a `sinh` row, so a missing row really is a fault.
+   - **The blob** inflates to exactly `pages[i]['pali']` or `['sinh']` from the
+     JSON. `pageNum` is the printed page number, not `pageIndex + 1`: take it
+     from the column.
+   - **Nothing in the app reads the table yet.** Snippets and the reader still
+     load `assets/text/*.json` until step 8.
+   - **Rebuild and check:** `npm run generate-bjt` in `tools/`, then
+     `dart run tool/verify_corpus_invariants.dart` in `static_site_generator/`.
+     Section 5 already proves the table matches the JSON entry for entry, so if
+     step 8 shows a page differently from today, suspect the datasource, not
+     the data.
+   - **Suites:** green before and after the swap (step 6), though macOS read
+     a January copy of the index, not this build (see step 7).
+     `all_tests.dart` can flake when files share the database; re-run a
+     failing file alone before blaming a change.
+   - **The decoder traps** are under **Decoder** in step 6.
 
-   **Back up the shipped database before the first run, and compare
-   `bjt_meta` after.** The rebuild regenerates the search index too, not just
-   the new table, and the shipped file's timestamp is earlier than the canon
-   sync commit (`470d105`) on the same day — so it may predate the vendored
-   JSON. If `bjt_meta` moves, the counts Groups 1–8 pin can move with it, for a
-   reason unrelated to `bjt_content`. The file is untracked, so git cannot
-   restore it.
-
-   **Left for after this step:**
+   **Left open after step 5** — deliberately not done yet (the user's call,
+   2026-09-15); nothing in step 6 waits on them:
    - **Delete the step 2–4 throwaways**: `tools/bjt-content-spike.js`,
      `tools/bench_content_read.dart`, `tools/bjt-content-spike.db`, and the
      `.gitignore` block that names them. Their numbers are recorded in
-     **What the measurements said**; nothing else reads them.
-   - **`dict.db` is still WAL-flagged.** This step's rebuild fixes only
-     `bjt-fts.db`. Run `npm run generate-dict` in `tools/` separately. Until
-     then `validate-release.sh` fails on it, and the web build (step 11)
-     cannot open it.
-6. **Move the app to Drift, then add the content datasource on top.** Decided
-   2026-09-13: both land in one branch, and no `sqflite` version of the
-   datasource is written first. Two stages, so a failure points at one of them:
+     **What the measurements said**; nothing else reads them. They are
+     untracked, so deleting them cannot be undone — ask first.
+   - **Delete the pre-rebuild backup** `tools/bjt-fts.pre-step5.db` (the old
+     95 MB database, gitignored by `tools/*.db`). Also untracked; ask first.
+6. **Move the app to Drift, then add the content datasource on top — DONE
+   2026-09-16.** One branch, two stages, and no `sqflite` version of the
+   datasource was ever written. Web keeps its server path and moves at step 11.
 
-   1. **Swap the engine and change nothing else.** Three files import
-      `sqflite` — `lib/main.dart` (desktop FFI setup),
-      `fts_local_datasource.dart` and `dictionary_local_datasource.dart` — plus
-      `test/data/datasources/fts_language_filter_sql_test.dart`. Move all four,
-      `dict.db` included, so `sqflite` and `sqflite_common_ffi` leave
-      `pubspec.yaml`. Same SQL, same results: the existing unit and integration
-      suites pass with no expectation changed before stage 2 starts. Adopt
-      Drift thin (`customSelect`) and follow **Smaller constraints** above.
-      Land the `ORDER BY score, id` tiebreaker (bug 1 above) as its own change
-      just before the swap, so a bm25 tie can't pass for an engine difference.
-      Native Drift has never run in this repo — the spike could not run the
-      Dart layer — so this stage is where it gets proven.
-   2. **Add the content datasource** that reads + decompresses from
-      `bjt_content`.
+   **Tiebreaker first, on its own:** `ORDER BY score, id` (bug 1). Suites
+   green, no expectation changed.
 
-   Web keeps its server path in this branch and moves at step 11.
+   **Stage 1 — the engine swap.** `sqflite` and `sqflite_common_ffi` left
+   `pubspec.yaml` for `drift`; `package:sqlite3` bundles one SQLite build on
+   every native platform.
+   - `lib/data/database/bundled_database.dart`: **`BundledDatabase`**, a
+     table-less `GeneratedDatabase` whose `rawQuery(sql, args)` wraps
+     `customSelect`, so every query kept its text. Its statics `open` and
+     `closeShared` keep one connection per file for the whole app — what
+     sqflite's one instance per path gave. FTS and page text share a
+     connection, and two first-launch readers can't copy the same asset at
+     once. The static can't be named `close`: Drift's instance `close()`
+     already is.
+   - `bundled_database_executor_native.dart`: the copy-if-absent both
+     datasources used to repeat, now written once, then
+     `NativeDatabase.createInBackground(file, enableMigrations: false)`. Its
+     `_web.dart` twin throws, and the conditional export keeps `dart:ffi` out
+     of the web build.
+   - `main.dart` lost the desktop FFI setup; `lib/core/utils/platform_utils*`,
+     used only for it, is deleted.
+   - `fts_language_filter_sql_test.dart` runs on an in-memory `BundledDatabase`.
 
-   Five things the measurements and the spike review turned up, all of which
-   bite in stage 2 rather than in step 5:
+   Unit and every integration file, each run alone on macOS, were green at
+   three checkpoints — before any change, after the tiebreaker, after the
+   swap — with no expectation changed and no Drift warning or SQLite error in
+   any log. `flutter build web --release` still builds. **Not run: Android and
+   iOS** (no SDK or signing here) — see
+   [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
 
-   - **The half-open → page-span rule has no home, and needs one before
-     stage 2.** Stage 2 must know which page rows to `SELECT` *before* it has a
-     document, and the only implementation of that rule today is
-     `DocumentSlice.of` (`lib/domain/entities/reader/document_slice.dart`),
-     which takes a loaded `BJTDocument` — so it cannot serve the fetch, and the
-     benchmark wrote its own copy twice rather than reuse it. The rule is
-     subtle enough to be worth writing once: a `SliceRange.end` landing on entry
-     0 means the slice stops *before* that page, anywhere else means it shares
-     it. The two copies already disagree at the edges — `DocumentSlice.of`
-     returns empty and drops `endEntry` when it clamps. Put a document-free form
-     on `SliceRange`/`SliceIndex` in `wisdom_shared`, which already owns
-     `rangeFor`, and have `DocumentSlice.of` consume it instead of re-deriving
-     it.
-   - **Fetch the whole span in one query**, not two statements per page:
-     `WHERE filename = ? AND pageIndex BETWEEN ? AND ? ORDER BY pageIndex`.
-     Measured at a further 5–10%.
-   - **A missing row must throw, not be skipped.** `BJTDocumentParser._parsePage`
-     hard-casts `pageNum`, `pali` and `sinh`, so a page assembled from a partial
-     result set either crashes a layer further down or renders with one language
-     silently absent. Assemble `{pageNum, pali, sinh}` per page and let an
-     absent row fail at the fetch, where it can say which row.
-   - **Segment-id continuity is not covered by the parser test** — see step 1.
-     The counter runs unbroken *within one `parseDocument` call*, so a per-page
-     loader calling it once per page still produces a clean `0..n` every time
-     and the test passes anyway. Whatever stitches the pages together needs its
-     own check.
-   - **Decoder.** `package:archive`'s `ZLibDecoder` with `verify: true` — one
-     call on every platform (`dart:io`'s zlib natively, pure Dart on web), and
-     step 5 has already run both paths over every blob.
-7. **Make an app update replace the copied databases.** Both
-   `_initializeEdition` (`fts_local_datasource.dart`) and
-   `dictionary_local_datasource.dart` copy the asset out of the bundle only
-   when no copy exists, and nothing checks versions. So an update carrying a
-   rebuilt database never reaches an existing install: it keeps its first copy
-   for good. Every rebuild so far has had that gap, silently. This is the
-   first where the old file cannot serve the new code — it has no
-   `bjt_content`, so after step 8 reading and snippets break for every
-   existing user. Must land before step 8 ships.
+   **Stage 2 — the content datasource.**
+   - **The page-span rule has one home:** `SliceRange.pageSpan` returns a
+     `SlicePageSpan(firstPage, lastPage?, endEntry?)` in `wisdom_shared`, from
+     coordinates alone. `DocumentSlice.of` consumes it and keeps only the
+     clamping a loaded document needs.
+   - **`BJTContentDataSource`** and `BJTContentLocalDataSourceImpl`
+     (`lib/data/datasources/bjt_content_*`), on the FTS index's connection:
+     - `loadPages(fileId, firstPage:, lastPage:)` — the span in one query, each
+       page shaped like an item of the JSON's `pages` list
+       (`{pageNum, pali, sinh}`), so `BJTDocumentParser` reads it unchanged. A
+       page missing a language throws a `StateError` naming the row.
+     - `loadPageSides(keys)` — the snippet batch, keyed by `ContentPageKey`
+       `(fileId, pageIndex, language)` in the table's spelling. It joins
+       against a `VALUES` list, so each key is one primary-key seek; the
+       row-value `IN` planned as two IN lists, filename × page. A missing or
+       corrupt row is left out and costs only its own snippet.
+     - Both queries `CAST(blob AS BLOB)`. A value stored as TEXT is otherwise
+       read as a string inside SQLite and fails the whole query before the row
+       can be named.
+   - `archive` is a direct dependency. **No provider and no caller yet** —
+     step 8 wires it.
 
-   To figure out:
-   - **How the app tells its copy is stale** — something recorded beside the
-     copy and compared with the bundled asset (a content hash, a build id).
-     Not `user_version` without care: Drift's migrator writes it unless
-     `enableMigrations: false` (see **Smaller constraints**).
-   - **Replacing it safely** — close any open connection, copy to a temp
-     file, then swap, so a launch killed mid-copy never leaves a half-written
-     database.
-   - **Memory** — `rootBundle.load` holds the whole asset in RAM before
-     writing it (see `dict.db` under **Open Questions**). One copy helper for
-     both databases, so the fix lands once.
-   - **The web side of the same question** is the manifest + boot reconciler
-     in [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md). Check
-     whether mobile can share its versioning rather than invent a second one.
-8. Repoint snippet path (now `_loadFileJson`/`_extractEntryText` in `_searchFullText`)
-   and reader (`BJTDocumentLocalDataSourceImpl`) at the content datasource — see
-   **Snippet-path teardown** below for the exact deletions.
-9. **Stop shipping the JSON.** Remove `- assets/text/` from `pubspec.yaml` and
-   keep the files in the repo — every build-time reader opens them from disk
+   **Verified by a throwaway probe**, outside the repo, through the real
+   datasource, Drift and a copy of the real `bjt-fts.db`. Every page of every
+   content file equals its JSON and parses to an identical `BJTDocument`,
+   segment ids included: 0 mismatches, 11 s. Also: bounded, open-ended,
+   one-page and empty spans; batched sides across 40 files with a missing key
+   left out; a page past the end, an unknown file and a deleted language row
+   each throwing with the row named; and seven broken blobs — empty, cut
+   short, bad checksum, changed byte, gzip header, plain JSON, stored as TEXT —
+   each becoming a `FormatException` naming the row, and left out of
+   `loadPageSides` while the other language survives. The TEXT case failed
+   first; it is what added the `CAST`.
+   **Decoder — the record behind `_decode`.** `package:archive`'s
+   `ZLibDecoder` with `verify: true`: `dart:io`'s zlib natively, pure Dart on
+   web, and step 5 ran both over every blob. **A bad blob fails differently on
+   each, and neither always throws** (probed 2026-09-15):
+
+   | Broken blob | Native (`dart:io`) | Web (pure Dart) |
+   |---|---|---|
+   | bad checksum | throws `FormatException` | empty bytes |
+   | a byte changed mid-stream | throws `FormatException` | throws `RangeError` or empty bytes, by position (one tried to allocate ~24 GB and ran out of memory) |
+   | cut short | part of the page, no error | throws `RangeError` |
+   | trailing bytes | whole page, no error | empty bytes |
+   | gzip frame | whole page, no error | empty bytes |
+
+   So an empty-bytes check alone misses a cut-short blob on native. `_decode`
+   decodes and parses in one `try` — part of a page is never a whole JSON
+   object — and turns every failure, `Error` included, into one
+   `FormatException` naming the row. No real blob does any of this today:
+   section 5 would fail.
+
+   **Recap for whoever starts step 8** — all of it done there: snippets read
+   `loadPageSides` keyed with `match.language`, the reader reads `loadPages`
+   over `SliceRange.pageSpan`, and the segment-id counter still restarts per
+   parse (step 8 records why that is safe today).
+
+   **Left open after step 6** — raised by the review, none of them a bug
+   (2026-09-16); nothing in step 7 waits on them:
+   - **The declared SDK floor is stale.** `pubspec.yaml` still says
+     `sdk: '>=3.5.2 <4.0.0'`, while `pubspec.lock` already resolved to
+     `>=3.12.0` — drift and `package:sqlite3` both need a recent Dart, so the
+     declared floor could not resolve anyway. Raise it **in its own commit,
+     with a `dart format` pass**: a floor past 3.7 switches the formatter to
+     tall style and rewrites most of the repo, which would bury this one.
+   - **`dontWarnAboutMultipleDatabases` is set per connection**, in
+     `BundledDatabase._connect`, rather than once. The assignment is global and
+     idempotent, so it costs nothing; the comment beside it says why silencing
+     it for every class is safe here.
+   - **`DictionaryDataSourceImpl.close()` guards on `_database != null`** where
+     `_initialized` beside it says the same thing.
+   - **`_log` is hand-copied into five datasources.** A shared two-line helper
+     earns its place at five, but it touches files this branch otherwise leaves
+     alone — the user's call, like the step 5 deletions above.
+7. **Make a rebuilt database reach the app's copy — DONE 2026-09-17.**
+   `openBundledExecutor`
+   (`lib/data/database/bundled_database_executor_native.dart`), which both
+   databases open through, used to copy the asset out of the bundle only when
+   no copy existed. So a rebuilt database never reached a device that already
+   had a copy, and after step 8 an old copy, with no `bjt_content`, would
+   break reading and snippets.
+
+   **It had already happened on the dev Mac.** The macOS app's copy was a
+   `bjt-fts.db` made on 15 Jan 2026, and every macOS run until this step read
+   it, step 6's green suites included. Checked 2026-09-17: its `bjt_meta` rows
+   (456,977) and both `MATCH` counts (`භගවා` 11,459, `බුද්ධ*` 16,537) equal
+   today's `bjt.db`. It lacked `bjt_content`, and one other count differed:
+   see the suites below.
+
+   **Nothing has been released**, so no install holds an old copy. No code
+   deals with old file names or old copies; the dev Mac's were deleted by hand.
+
+   **What was built:**
+   - **Fingerprint: a manifest.** `finalizeDatabase` (`tools/db-finalize.js`)
+     ends by writing the finished file's SHA-256 into
+     `assets/databases/manifest.json`:
+     `{"bjt.db": {"sha256": "…"}, "dict.db": {"sha256": "…"}}`. It updates only
+     that file's entry, keys sorted. Gitignored like the databases, so the two
+     always travel together, and listed in `pubspec.yaml`, so a checkout that
+     never ran a generator fails at build time, as a missing database already
+     does. The builds are not byte-identical, so every rebuild changes the
+     hash and costs one recopy. Accepted.
+   - **A stamp beside the copy.** `openBundledExecutor` gets the manifest's
+     hash for `dbName` from `bundledDatabaseSha256`
+     (`bundled_database_manifest.dart`, plain Dart, so web needs no twin),
+     which throws a `StateError` naming the `npm run generate-…` command if
+     the entry is missing. The copy is current when `bjt.db` exists **and**
+     `bjt.db.sha256` holds that hash; both are checked because the OS can
+     delete one file of the pair. Otherwise it deletes the stamp, then the old
+     copy, writes the asset straight to `bjt.db`, and writes the stamp last.
+     The stamp is the only mark of a finished copy, so a launch killed at any
+     point copies again next time. The stamp goes first because it can already
+     hold this hash, when only the copy was deleted. Deleting the old copy
+     first means an update needs room for one copy, not two, and no temp file
+     is left behind. A copy that throws — a phone that fills up, say — deletes
+     its partial file before rethrowing, since nothing else would: Android
+     never clears the files folder. This runs inside
+     `BundledDatabase._connect`, once per file per launch, before a connection
+     exists, so nothing is deleted under an open database.
+   - **A full phone is still a bad place to be:** every search retries the
+     copy. What it should do instead is decided on a device, in
+     [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
+   - **Where: a `databases/` folder** the code creates, in a place that
+     depends on the platform:
+     - **Android: the files folder**, `getApplicationSupportDirectory()`.
+       Android clears the cache folder whenever the phone needs space, and
+       cleaner apps clear it too. A recopy there is the costly kind: the asset
+       is compressed in the APK, and the engine inflates all of it on the UI
+       thread (see the `main.dart` change below). The files folder is backed
+       up, so `android/app/src/main/res/xml/backup_rules.xml` (Android 11 and
+       lower) and `data_extraction_rules.xml` (12 and higher) leave
+       `databases/` out. Over Auto Backup's 25 MB limit, Android would skip
+       the app's whole backup, settings included.
+     - **Everywhere else: the cache folder**, `getApplicationCacheDirectory()`.
+       It is left out of iCloud backups and stays out of a Windows or Linux
+       user's own Documents folder. If the OS clears it, the next open copies
+       from the app package again, with no download and no extra code. The
+       asset isn't compressed on these platforms, so that costs about 0.7 s per
+       file on the dev Mac. The sandboxed macOS app's folder is
+       `~/Library/Containers/lk.tipitaka.theWisdomProject/Data/Library/Caches/lk.tipitaka.theWisdomProject/databases/`.
+   - **Memory: written in 8 MB pieces**, through a `RandomAccessFile`, each
+     piece a `Uint8List.sublistView`. `rootBundle.load` still loads the whole
+     asset; avoiding that needs native code per platform, which isn't planned.
+     A whole `Uint8List` given to `writeAsBytes`, or to
+     `writeFrom(whole, start, end)`, goes to dart:io's IO thread as it is; a
+     partial view is copied into a buffer its own size
+     (`_ensureFastAndSerializableByteData`, `dart:io` `common.dart`).
+     **Measured on macOS** (`ProcessInfo.maxRss` around the `bjt.db` copy,
+     2026-09-17): one `writeAsBytes` raised the peak 342 MB; 8 MB pieces
+     raised it 211 MB and 230 MB in two runs. So the pieces remove about one
+     extra copy of the file.
+   - **No sidecar handling.** The copies are only read and use a rollback
+     journal (header bytes 18/19 = 1), so SQLite never creates `-wal`, `-shm`
+     or `-journal` for them. None existed after the suites ran.
+   - **Web uses the same fingerprint.** The CDN manifest in
+     [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md) uses this
+     SHA-256 as each database's version and in its file name. No web code
+     now.
+   - **Nothing checks the manifest against the files yet.** The app trusts
+     it, so a database changed outside `finalizeDatabase` (copied in by hand,
+     repaired with `sqlite3`, or left half-written by a failed generator run)
+     would leave existing installs on their old copy. The check belongs to
+     `scripts/app/test.sh`'s "shipped databases" row in
+     [`test-all-and-release-all.md`](../test-all-and-release-all.md).
+   - **`validate-release.sh` is not taught the manifest.** It is being
+     retired ([`test-all-and-release-all.md`](../test-all-and-release-all.md));
+     one comment line there says the omission is deliberate.
+
+   **Done by hand first:** deleted the old copies in
+   `~/Library/Containers/lk.tipitaka.theWisdomProject/Data/Documents/`
+   (`bjt-fts.db`, `dict-fts.db`, `dict.db`, each with `-wal`/`-shm`; about
+   500 MB), then rebuilt both databases (`npm run generate-bjt`, then
+   `npm run generate-dict`) so the manifest has both entries. The `dict.db`
+   rebuild cleared its WAL flag (bytes 18/19 now 1/1) and took it from
+   174.7 MB to 164.0 MB.
+
+   **Checked on macOS**, launching with
+   `integration_test/search_language_toggle_test.dart` (it opens both
+   databases), with temporary log lines since removed:
+   - Rebuilding `dict.db` changed only its manifest entry, and the next launch
+     copied only `dict.db`.
+   - With `bjt.db`'s manifest entry removed, the open failed with
+     `Bad state: assets/databases/manifest.json has no entry for bjt.db. Rebuild the database: cd tools && npm run generate-bjt`.
+     The search repository turns that into a `Failure`, so the screen shows no
+     results rather than the message, as for any database that fails to open.
+     Not changed here.
+   - Suites: unit 638 passed. Integration 77 passed, 1 failed, and it failed
+     alone too: `B2 Pagination` in `search_flow_integration_test.dart` pinned
+     `Viewing 50 out of 29769 results` for `මහා`. The real `bjt.db` has 29,770
+     `MATCH 'මහා*'` rows, and so does the July backup
+     `tools/bjt-fts.pre-step5.db`; the pin was taken against the January copy
+     (test added 2026-02-20). The user approved moving the pin to 29770; the
+     file then passed (32/32). No `-wal`, `-shm` or `-journal` in the cache
+     folder afterwards. `flutter analyze` is clean.
+
+   **Checked again after a review the same day** changed the copy (delete
+   first, delete the partial file if it throws), the folder, and where the
+   manifest reader lives. A throwaway probe ran in the macOS app, reading the
+   copy's modified time:
+   - The first open created `databases/` and copied. Both copies and both
+     stamps match the assets (`shasum`).
+   - A reopen copied nothing.
+   - A stale stamp, a deleted copy with its stamp kept, and a deleted stamp
+     with its copy kept each copied again and ended with a matching stamp.
+   - Every open answered a query, and the folder held only the two copies and
+     their stamps.
+   - The copies from before the change, in the cache folder itself, were
+     deleted by hand.
+   - With the folder deleted first, `search_language_toggle_test.dart` passed
+     on macOS (1/1) and left both copies matching the assets. The other
+     suites were not run again.
+   - **Not exercised:** the failed-copy path. Filling the disk isn't
+     reproducible here; the full-phone check in
+     [`first-mobile-release.md`](../mobile-release/first-mobile-release.md)
+     covers it.
+   - **Android is unchecked:** this Mac has no Android SDK. The same doc
+     covers the files folder and the backup rules.
+
+   **Also changed: the startup check in `main.dart`.** It checked `bjt.db` was
+   bundled with `rootBundle.load('assets/databases/bjt.db')`. It now calls
+   `bundledDatabaseSha256('bjt.db')`. A build missing the database or the
+   manifest file already fails to build, so the check catches a manifest with
+   no `bjt.db` entry. The error screen now shows the caught error, which names
+   the command to run, instead of showing no search results. Checked in the
+   real macOS app.
+   - **The memory saving is Android's, not macOS's.** Measured on macOS
+     (debug, `maxRss` just after the check): 251 MB before, 248 and 252 MB
+     after. The engine maps a large asset from disk without copying it
+     (`platform_message_response_dart.cc`), so the old load read nothing. On
+     Android the asset sits compressed in the APK (no `noCompress`), and
+     `AAsset_getBuffer` inflates the whole file into memory
+     (`apk_asset_provider.cc`) on every launch, on the UI thread. Read from
+     the engine source, not measured: Android has not been built since the
+     move to Drift. The copy still pays that once per install or database
+     update. Whether `noCompress` for `.db` is worth its installed size is
+     decided in [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
+
+   **7.1 — Rename `bjt-fts.db` to `bjt.db` — DONE 2026-09-16, in its own
+   commit.** The file stopped being a search index at step 5: it holds
+   `bjt_content` beside `bjt_fts` and `bjt_meta`, and `dict.db` has no suffix
+   either. No behaviour changed.
+   - **Names:** `_dbNameFor` is `'$editionId.db'`; the content datasource's
+     `_dbName` is `bjt.db`. The generator is `tools/bjt-populate.js`, run with
+     `npm run generate-bjt` — the pair `dict-populate.js` / `generate-dict`
+     already set. **Table names did not move**: they are `{editionId}_*`,
+     independent of the file name.
+   - **Live references moved** in `lib/`, `pubspec.yaml`, `server/`,
+     `tools/`, `scripts/bjt-sync-regen/`, the static site generator's tools,
+     test and `UPSTREAM_DEFECTS.md`, `.agent/`, the live docs, and the
+     manifest key in `db-auto-update-prestudy.md`.
+   - **Records kept the old name**: `docs/done/`, `docs/decisions/` (except
+     one pointer to the generator, now by function name), the wasm spike docs, dated measurements in this plan, the FTS4 file in
+     `performance_test_queries.md`, `tools/bjt-fts-populate-obsolete.js`, and
+     the untracked `tools/bjt-fts*.db` leftovers.
+   - **`bjt_suggestions` does not exist** (this step's text said it did). It
+     was not in the step-5 backup either — see the spike's §8c.
+
+   **Checked:** the rebuilt `bjt.db` has the same size (170.80 MB), rows
+   (456,977 meta, 57,934 content) and `MATCH` counts (`භගවා` 11,459,
+   `බුද්ධ*` 16,537) as step 5; the bytes differ, the build is not
+   byte-deterministic. `verify_corpus_invariants.dart` with no flag found
+   `bjt.db` and passed section 5 (466,127 entries, 0 divergences).
+   `flutter analyze` is clean. `validate-release.sh`'s database checks pass
+   for `bjt.db` and fail only on `dict.db`'s WAL flag (**Left open after
+   step 5**).
+8. **Both readers of the JSON now read the table — DONE 2026-09-18**, committed
+   as `d9965fd`. Snippets and the reader in one change, on the user's
+   instruction to keep them together. Nothing in `lib/` loads
+   `assets/text/*.json` any more, which is what step 9 waited on.
+
+   **The snippet path.** `_fileJsonCache`, `_loadFileJson` and
+   `_extractEntryText` are gone from `text_search_repository_impl.dart`, with
+   the `dart:convert` and `flutter/services.dart` imports they were the last
+   users of. In their place `_searchFullText` collects one
+   `Set<ContentPageKey>` before the loop and makes a single `loadPageSides`
+   call, then `_entryTextFrom` picks each entry out of the returned rows.
+   - **Both language sides of a hit's page are asked for**, not just the
+     matched one: the old loader fell back to the other language when the
+     matched side carried no text at that entry, and the goldens pin what that
+     produced. Doubling the keys costs nothing — a results page asks for about
+     100 primary-key seeks.
+   - **The keys are built from `match.language`**, before the
+     `normalizedLanguage` ternary, so they are spelled the table's way
+     (`sinh`). The `SearchResult.id` trap was avoided by not keying on it at
+     all: `_entryTextFrom` takes `(fileId, pageIndex, entryIndex, language)`.
+   - **A failed batch costs the snippets only.** `loadPageSides` already
+     leaves out single corrupt rows; the call is also wrapped, because the
+     JSON loader caught its own failures per file and "a missing snippet never
+     fails the search" is the invariant that path documents. A database that
+     will not open now loses the previews, not the results.
+   - **Web is unchanged.** `_contentDataSource` is nullable and the server
+     pre-fills `matchedText`, so the guard that skipped the file read skips the
+     batch. `LRUCache` stays — `caching_text_search_repository.dart` and
+     `cache_config.dart` use it.
+
+   **The reader loads its unit's pages, not its file.** This is where the
+   measured 45× comes from, and it needed the three decisions below.
+   `BJTDocumentLocalDataSourceImpl` now holds a `BJTContentDataSource` and
+   parses `{'pages': rows}`; the span travels
+   `bjtDocumentProvider` → use case → repository → datasource as
+   `(firstPage, lastPage)`.
+   - **`BJTDocument.firstPageIndex`** (default 0) is the index of `pages.first`
+     in the file. `DocumentSlice.of` and `getPageByIndex` translate through it
+     instead of indexing `pages` directly, so **one slicing path serves both
+     surfaces**: the reader's document holds its span, the web server's holds
+     the whole file at 0, and neither needs to know which it got. `pageCount`
+     now means the loaded span, so `lastPageIndex` was added beside it.
+   - **A span past the file's last page stops there.** `loadPages` keeps
+     `_whole` strict for a hole *inside* the span and truncates only the tail,
+     matching the clamp `DocumentSlice.of` has always done. An empty result
+     costs one `SELECT 1 … LIMIT 1`: no rows for the file at all is a tree
+     pointing at content that does not exist, and throws with the name, while
+     a span starting past a real file's end comes back empty and renders
+     nothing.
+   - **`close()` was left alone.** Still nothing calls it at runtime, so the
+     shared connection needs no ref-counting — as the step 6 note said, settle
+     it when a caller appears.
+   - **The provider key is a record**, `({fileId, firstPage, lastPage})`, so
+     two tabs on the same unit share one load and two units in one file do not
+     collide. Same reason the repository's own cache key gained the span.
+     `requestFor(unit)` builds it in one place; the reader, in-page search
+     (which reads a *specific* tab's document, not the active one) and the
+     citation preview all go through it.
+   - **The citation preview got faster for free.** It quoted three entries out
+     of a whole decoded file; `requestForPage` fetches the one page it shows.
+   - **`loadPageSides` is still one statement.** Three bind variables per key
+     against SQLite's 32,766 caps a batch near 10,900, and a results page asks
+     for about 100. Unchanged.
+
+   **Segment ids are per-parse, and now that means per-span.** The parser's
+   counter starts at 0 on every `parseDocument`, so a unit's ids no longer
+   count from the top of its file. Nothing reads `Entry.segmentId` — only
+   `bjt_document_parser_test.dart` pins it — so this breaks nothing today, and
+   the note step 1 asked for is on the counter itself: cross-edition alignment
+   will have to derive ids from the absolute page and entry rather than trust
+   these.
+
+   **Checked on macOS, 2026-09-18.** `dart analyze` clean, `dart format`
+   clean. **638 unit tests pass, unchanged, and no test file was edited** —
+   the regenerated mockito mock fills `firstPage: 0` by default, so the
+   repository's existing stubs still match its new signature.
+
+   **Every integration file passed, each run alone — 78/78**, against step 7's
+   77-pass-1-fail (that failure was the `මහා` count pin, since corrected):
+
+   | | |
+   |---|---|
+   | `search_flow_integration_test.dart` | 32 — **including all five Group 9 snippet goldens** |
+   | `in_page_search_test.dart` | 8 |
+   | `sutta_step_navigation_test.dart` | 13 |
+   | `breadcrumb_navigation_test.dart` | 8 |
+   | `layout_switch_test.dart`, `scroll_restoration_test.dart`, `dictionary_editable_word_test.dart` | 4 each |
+   | `dictionary_filter_flow_test.dart` | 2 |
+   | `language_independence_test.dart`, `search_tab_highlight_test.dart`, `search_language_toggle_test.dart` | 1 each |
+
+   Group 9 is the one that matters: it pins snippet rows byte-for-byte,
+   including `**bold**`, `{n}` refs, embedded newlines and zero-width joiners,
+   and three of its fourteen rows are Sinhala — the rows that go red if the
+   `sinh`/`sinhala` seam is got wrong. Group 2's highlighting check passed too,
+   so the markers survive the round trip.
+
+   **One run hung and it was not this change:** an `in_page_search_test` launch
+   sat at 0% CPU after `Failed to foreground app; open returned 1`. Re-run
+   alone it passed 8/8 in 2:22. Worth knowing before blaming a diff — it looks
+   exactly like the shared-database flake, and is neither.
+
+   **Not exercised, reasoned instead:** a missing or corrupt row degrading to
+   an empty snippet. `loadPageSides` leaves bad rows out (step 6 probed all
+   seven corruptions) and the call site's `?? ''` is unchanged, but no test
+   feeds the app a broken row.
+
+   **The speed win is inherited, not re-measured.** Step 2 timed the two paths
+   directly (snippets 13–586×, reader p50 45×); this step wired them up and
+   proved the *text* is identical, not that the app got faster. Nobody has
+   timed a search or a reader open in the real app before and after. If that
+   number is wanted, take it on a device — an optional item in
+   [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
+
+   **Recap for whoever starts step 9:** its first check already passes —
+   `grep -rn "assets/text" lib/` now finds nothing at all, the last doc comment
+   naming the JSON having moved to `bjt_content`'s vocabulary. What remains is
+   `pubspec.yaml`, the comment above `assets:`, the two web scripts' strip
+   lines, and a built artifact that must carry no `assets/text/`.
+9. **Stop shipping the JSON — DONE 2026-09-18.** `- assets/text/` is out of
+   `pubspec.yaml`, and the 285 files stay in the repo: `tools/bjt-populate.js`
+   and `static_site_generator/lib/data/corpus_reader.dart` open them from disk
    (see **Current Runtime Dependencies on JSON**), and so does `server/` until
-   it is retired. Three things go with that line:
-   - **The comment above `assets:`** says `text/` ships on native and the API
-     serves it on web. Rewrite it to describe `databases/` alone.
-   - **The web scripts' `assets/text` strip lines.** `scripts/web/deploy.sh`
-     and `scripts/web/run_mac.sh` each `rm -rf build/web/assets/assets/text`,
-     which does nothing once the files aren't bundled. Delete that line and
-     keep the `databases` one beside it.
-   - **Proof nothing still reads them.** Step 8's check covers only snippets.
-     `grep -rn "assets/text" lib/` must find no loader (doc comments naming a
-     file are fine), and a build must carry no `assets/text/` — on macOS, look
-     under `the_wisdom_project.app/Contents/Frameworks/App.framework/Resources/flutter_assets/assets/`.
-10. Verify offline reading + search snippets on a real device. Check first-launch
-    DB copy time (`_initializeEdition` copies the asset DB to the documents dir;
-    a bigger DB = bigger one-time copy + double on-disk during install), and
-    that installing over an older build picks up the new database (step 7).
+   it is retired. The comment above `assets:` now describes `databases/` alone,
+   and the dead `rm -rf build/web/assets/assets/text` line is gone from both
+   `scripts/web/deploy.sh` and `scripts/web/run_mac.sh` — the `databases` line
+   beside it stays. Three files changed; no Dart was touched.
+
+   **The number this plan exists for.** macOS release `.app`, both builds from
+   this same tree so the only variable is the pubspec line:
+
+   | | before | after |
+   |---|---|---|
+   | `the_wisdom_project.app` (`du -sh`) | **733 MiB** | **393 MiB** |
+   | as `flutter build` reports it | 767.9 MB | 412.1 MB |
+   | `flutter_assets/assets/text` | 340 MiB, 285 files | **absent** |
+   | `flutter_assets/assets/databases` | 335 MiB | 335 MiB |
+
+   **340 MiB comes off, 46% of the app**, and the delta is exactly `assets/text`
+   — nothing else moved. What remains is mostly the two databases: `bjt.db`
+   171 MiB + `dict.db` 164 MiB.
+
+   **This is not the mobile figure.** It is a macOS bundle, it includes
+   `dict.db`, and steps 3–4 costed the APK/IPA with `dict.db` excluded, so it
+   neither confirms nor replaces them. In particular the **download** still
+   rises (92 → 114 MB, step 4): a pre-compressed blob cannot deflate again.
+   Nothing here was measured out of a real APK or IPA; that is in
+   [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
+
+   **How absence was proved**, three ways, since a size drop alone would not
+   show it:
+   - `grep -rn "assets/text" lib/` finds nothing at all — step 8's precondition,
+     re-verified before the edit.
+   - `AssetManifest.bin` in the built app carries **zero** `assets/text` entries,
+     so `rootBundle` cannot resolve one even if a caller reappeared.
+   - A `flutter clean` build has no `assets/text` directory at all, and `find`
+     over the whole `.app` turns up no JSON under any `text` path.
+
+   **Checked on macOS, 2026-09-18, with the JSON no longer in the bundle.** No
+   Dart changed at this step, so nothing was re-analyzed; what matters here is
+   runtime, and only the app-launching suites can see an asset that stopped
+   shipping. **638 unit tests pass**, and **every integration file passed, each
+   run alone — 78/78**, both identical to step 8's counts:
+
+   | | |
+   |---|---|
+   | `search_flow_integration_test.dart` | 32 — **including all five Group 9 snippet goldens** |
+   | `sutta_step_navigation_test.dart` | 13 |
+   | `in_page_search_test.dart`, `breadcrumb_navigation_test.dart` | 8 each |
+   | `layout_switch_test.dart`, `scroll_restoration_test.dart`, `dictionary_editable_word_test.dart` | 4 each |
+   | `dictionary_filter_flow_test.dart` | 2 |
+   | `language_independence_test.dart`, `search_tab_highlight_test.dart`, `search_language_toggle_test.dart` | 1 each |
+
+   Group 9 is again the one that carries the argument: it pins snippet rows
+   byte-for-byte, and it passed against a bundle with no JSON in it. The same
+   goes for the reader — `sutta_step_navigation` walks real suttas. So the text
+   the app shows now provably comes from `bjt_content`. `in_page_search` did not
+   hang this run.
+
+   **An incremental rebuild leaves an empty `assets/text/` directory behind.**
+   The 285 files go, the directory does not. It is stale build residue, 0 bytes,
+   and a clean build never produces it — worth knowing before reading it as a
+   failure. The first `flutter build macos` after the edit also died once on
+   `Failed to copy Flutter framework`; it built on an unchanged retry.
+10. **The real-device pass — moved 2026-09-18** to
+    [`first-mobile-release.md`](../mobile-release/first-mobile-release.md),
+    with everything else a mobile release waits on.
 11. **Web now reads this DB client-side** (Drift wasm/OPFS) — see the top banner.
     The old `getWebOverrides()` → server route is being retired, not extended.
     Not part of step 6's branch: it needs the download-once path and the
@@ -961,69 +1377,39 @@ CREATE TABLE bjt_content (
     if it is too slow there, swap just the unpacking call for
     `DecompressionStream` and keep the rest.
 
-### Snippet-path teardown (step 8 detail)
+    **Rename `BundledDatabase` here.** This is the first database it opens that
+    did not come out of the app bundle: `open` should take an executor instead
+    of hardcoding `openBundledExecutor`, and the class becomes source-neutral
+    (`LocalDatabase`) — nothing in it is bundle-specific. A downloadable
+    edition triggers the same change; a remote-API edition does not, as it
+    never reaches this class.
+
+### What the snippet path lost at step 8
 
 The interim memo-cache fix
 ([`perf-fts-snippet-text-loading.md`](../../done/perf-fts-snippet-text-loading.md),
-shipped 2026-06-19) is deliberately isolated, so repointing the snippet path at the content
-table is a clean ~2-method + 1-field deletion, not a rewrite. The call-site shape
-(`matchedText ?? <load> ?? ''`, grouped before the loop) is already what the batched
-DB query wants — you replace the *loader*, not the loop. Delete / replace:
-
-**Client — `lib/data/repositories/text_search_repository_impl.dart`**
-- [ ] `_fileJsonCache` field (`LRUCache(20)`) — gone; SQLite's page cache handles
-      reuse, nothing heavy left to memoise.
-- [ ] `_loadFileJson(...)` — gone (no file read / `json.decode`).
-- [ ] `_extractEntryText(...)` — gone (replaced by the row `SELECT` + page inflate).
-- [ ] In `_searchFullText`: the `filesToLoad` grouping + pre-loop decode → replace
-      with one batched lookup (`WHERE (filename,pageIndex,language) IN (...)`,
-      decompress, pick `entryIndex`) for all `matchedText == null` hits, then index
-      the rows in the loop. Keep the web-prefill skip and the `?? ''` degradation.
-- [ ] `import '../cache/lru_cache.dart'` — drop iff nothing else uses `LRUCache`.
-- [ ] Preserve the language fallback order (matched lang first, then the other) in
-      the row pick so snippets stay byte-for-byte identical.
-- [ ] **Do not key the batched rows by `SearchResult.id`.** It is
-      `editionId_filename_eind` with no language in it, so a Pali entry and its
-      Sinhala twin share one id — real and common, e.g. `atta-dn-2-4` page 110
-      entry 0 for "මහාසති". Key by
-      `(filename, pageIndex, entryIndex, language)`.
-- [ ] **Spell `language` the table's way, not the entity's.** That tuple exists
-      in two vocabularies, and the seam between them is one line inside the loop
-      being rewritten:
-
-      | Where | Sinhala is |
-      |---|---|
-      | `bjt_content` rows, and `match.language` from FTS | `sinh` |
-      | `SearchResult.language`, after the `normalizedLanguage` ternary | `sinhala` |
-
-      The batched lookup runs **before** that normalize, so key it with
-      `match.language` — already the table's spelling — and leave the normalize
-      untouched where it is. Reach for `SearchResult.language` instead and every
-      Sinhala lookup misses, silently, dropping those snippets to `''`.
-      Group 9 addresses its goldens in the *other* vocabulary because they read
-      finished `SearchResult`s; three of its fourteen rows are `'sinhala'`, and
-      they are what goes red if this is got wrong.
+shipped 2026-06-19) was deliberately isolated, so repointing it was a two-method
+deletion rather than a rewrite: `_fileJsonCache`, `_loadFileJson` and
+`_extractEntryText` went, the call-site shape (`matchedText ?? <load> ?? ''`,
+grouped before the loop) stayed, and only the loader was replaced. What
+replaced it, and the two vocabulary traps it had to get right, are in step 8.
 
 **Server — nothing to port.** `server/lib/src/handlers/fts_handler.dart` has its own
 `_loadTextForMatch` / `_loadJsonFile` / `_jsonCache`, but the whole `server/` tree is
 being deleted (see [`README.md`](./README.md)) — web reads the same DB client-side
 through Drift. It goes with the server; do not repoint it at `bjt_content`.
 
-**Becomes moot (don't build):**
-- [ ] Top-10 #2 Phase 3 (decode off the UI isolate) — a row lookup never janks.
-- [ ] Track B #4 (windowed payload) — windowing becomes a substring on the fetched
-      row, decoupled from any file parse.
-
-**Verify after teardown:** snippet + highlighting parity for the same query,
-missing-row degrades to an empty snippet, and the native search path no longer reads
-`assets/text/*.json` at runtime.
+**Became moot at step 8 — don't build:**
+- Top-10 #2 Phase 3 (decode off the UI isolate) — a row lookup never janks.
+- Track B #4 (windowed payload) — windowing is now a substring on the fetched
+  row, decoupled from any file parse.
 
 ## Open Questions / Risks
 
 - **~~Compression granularity~~ — decided 2026-09-14:** one page per blob,
   plain zlib; see **Blob size — decided**. The compression sample is optional
   and later. Nothing on this plan's critical path is open — the bullets below
-  are real, but none blocks step 5.
+  are real, but none blocks step 6.
 
 - **`page_size` is a disk knob, not a download knob.** The 4/8/16/32 KB table
   sits next to the download discussion and reads as though a bigger page also
@@ -1033,14 +1419,8 @@ missing-row degrades to an empty snippet, and the native search path no longer r
   against the download.
 
 - **Delivery is an untouched axis.** Every figure here assumes the DB ships
-  inside the APK/IPA. [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md)
-  already designs a manifest + boot reconciler that downloads databases and
-  reconciles them on launch — but only for web/OPFS. The same machinery on
-  mobile, or its store-native equivalents (Play Asset Delivery, iOS On-Demand
-  Resources), would take the install to a few megabytes and move the rest to a
-  first-run fetch from R2, where egress is already free. It costs the *installs
-  usable offline* property, which is why this is listed rather than proposed.
-  Nobody has costed it.
+  inside the APK/IPA. Downloading it instead is listed, not costed, under
+  **Later** in [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
 
 - **`dict.db` — settled 2026-09-12: no size work, and here is why not.** It is
   in `pubspec.yaml` and ships in the APK, but appears in *none* of the headline
@@ -1112,30 +1492,31 @@ missing-row degrades to an empty snippet, and the native search path no longer r
 
   Two things are worth keeping, and neither is size work:
 
-  1. **The lookup never uses its index.** `dictionary_local_datasource.dart:83`
-     plans as `SCAN dictionary` — **41 ms against under 1 ms**, warm. `ESCAPE`
+  1. **The lookup never uses its index.** `lookupWord` in
+     `dictionary_local_datasource.dart` plans as `SCAN dictionary` — **41 ms against under 1 ms**, warm. `ESCAPE`
      is not the blocker; current SQLite handles it. The blocker is `LIKE` being
      case-insensitive by default against a BINARY `idx_word`. Prefer rewriting
      the predicate as `word >= ? AND word < ?`, which indexes unconditionally,
      over `PRAGMA case_sensitive_like=ON`, which changes behaviour globally. On
      web this is the whole 145 MB table per keystroke. Also spike §9c.
-  2. **First launch allocates the file in RAM.**
-     `dictionary_local_datasource.dart:40` loads all 166 MB into one `ByteData`
-     before writing it out. `bjt-fts.db` needs the same copy, so this wants one
-     shared streaming helper rather than a second copy of the bug — step 7.
+  2. **First launch allocates the file in RAM.** `openBundledExecutor` loads
+     all 166 MB into one `ByteData` before writing it out, and does the same
+     for `bjt.db`. Step 7 writes it in 8 MB pieces, which removed a second
+     copy (peak +342 MB → +211 MB for `bjt.db`); the load itself stays whole.
 
   On Android `dict.db` costs ~28.5 + 166.6 ≈ 195 MB on the phone, not 333 MB:
   the APK keeps it deflated and only the first-run copy is full size. The same
   split, applied to the content table's headline, is under **Size — the bonus,
   on two axes**.
 
-- **First-launch copy**: the content+FTS DB copies to the documents dir on first
+- **First-launch copy**: the content+FTS DB copies out of the package on first
   run and lives twice from then on — the 172 MB is why the iOS on-device figure
   is 344 MB and not 172. `dict.db` (166.6 MB) already copies to the same place, so the
   real first-run write is ~339 MB, up from ~262 MB today (the JSON is never
   copied). Every megabyte the table saves is saved twice — which is why
-  `page_size` was taken at 8 KB. And it copies *only* on first run: an update
-  never replaces it (step 7).
+  `page_size` was taken at 8 KB. After step 7 it copies again whenever the
+  bundled database's hash changes or, outside Android, the OS clears the cache
+  folder.
 - **Reader rewrite risk**: this touches the reader (higher-risk code than
   search). Stage it: engine swap first (step 6), then the content table +
   snippet repoint, then the reader, and drop the assets last.

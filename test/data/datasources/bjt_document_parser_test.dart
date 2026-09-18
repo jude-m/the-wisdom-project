@@ -1,7 +1,7 @@
 /// What a real page must survive being parsed into.
 ///
 /// Written as the safety net for the JSON → `bjt_content` migration
-/// (`docs/todo/retiring-dart-server/reduce_mobile_bundle_size.md`, step 1):
+/// (`docs/todo/retiring-dart-server/reduce-mobile-size-and-move-to-drift.md`, step 1):
 /// the parser is the seam the compressed page blob will feed, and until now it
 /// had no direct coverage at all. Everything asserted here is something the
 /// blob has to carry — markers, footnotes, levels, page numbers — so a blob

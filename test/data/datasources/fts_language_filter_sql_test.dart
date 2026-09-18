@@ -1,5 +1,6 @@
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:the_wisdom_project/data/database/bundled_database.dart';
 import 'package:the_wisdom_project/data/services/scope_filter_service.dart';
 
 /// Proves the FTS `m.language = ?` filter actually returns only the right rows
@@ -14,18 +15,14 @@ import 'package:the_wisdom_project/data/services/scope_filter_service.dart';
 /// The SELECT/COUNT skeletons mirror the datasource's `searchFullText` /
 /// `countFullTextMatches`.
 void main() {
-  late Database db;
-
-  setUpAll(() {
-    // Use the FFI SQLite implementation (pure Dart, runs on the test VM).
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
-  });
+  late BundledDatabase db;
 
   setUp(() async {
-    db = await databaseFactory.openDatabase(inMemoryDatabasePath);
-    await db.execute('CREATE VIRTUAL TABLE bjt_fts USING fts5(text);');
-    await db.execute('''
+    // The same Drift database class and bundled SQLite the datasource uses,
+    // in memory.
+    db = BundledDatabase(NativeDatabase.memory());
+    await db.customStatement('CREATE VIRTUAL TABLE bjt_fts USING fts5(text);');
+    await db.customStatement('''
       CREATE TABLE bjt_meta (
         id INTEGER PRIMARY KEY,
         filename TEXT, eind TEXT, language TEXT,
@@ -35,14 +32,14 @@ void main() {
 
     // Same logical entry in two languages; both contain the search term, so
     // only the language filter distinguishes them. DB stores Sinhala as 'sinh'.
-    await db
-        .execute("INSERT INTO bjt_fts(rowid, text) VALUES (1, 'dhamma pali');");
-    await db.execute(
+    await db.customStatement(
+        "INSERT INTO bjt_fts(rowid, text) VALUES (1, 'dhamma pali');");
+    await db.customStatement(
       "INSERT INTO bjt_meta VALUES (1, 'dn-1', '0-0', 'pali', 'p', 0, 'dn-1');",
     );
-    await db
-        .execute("INSERT INTO bjt_fts(rowid, text) VALUES (2, 'dhamma sinh');");
-    await db.execute(
+    await db.customStatement(
+        "INSERT INTO bjt_fts(rowid, text) VALUES (2, 'dhamma sinh');");
+    await db.customStatement(
       "INSERT INTO bjt_meta VALUES (2, 'dn-1', '0-0', 'sinh', 'p', 0, 'dn-1');",
     );
   });
@@ -146,9 +143,9 @@ void main() {
     test('intersects scope AND language — proves BOTH filters apply', () async {
       // Add a third 'dhamma' row: Pali, but in a DIFFERENT location (mn-1).
       //   row 1: pali / dn-1     row 2: sinh / dn-1     row 3: pali / mn-1
-      await db.execute(
+      await db.customStatement(
           "INSERT INTO bjt_fts(rowid, text) VALUES (3, 'dhamma pali');");
-      await db.execute(
+      await db.customStatement(
         "INSERT INTO bjt_meta VALUES (3, 'mn-1', '0-0', 'pali', 'p', 0, 'mn-1');",
       );
 

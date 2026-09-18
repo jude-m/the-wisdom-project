@@ -202,7 +202,7 @@ group inside a `SingleChildScrollView`. Reader `SingleColumnPane` and `StackedPa
 
 ### B1. First-launch DB copy reads the entire DB into memory
 
-`dict.db` (174 MB) and `bjt-fts.db` (99 MB) are loaded with
+`dict.db` (174 MB) and `bjt.db` (99 MB) are loaded with
 `rootBundle.load(...).buffer.asUint8List()` then `writeAsBytes`
 (`lib/data/datasources/dictionary_local_datasource.dart:40-44`,
 `lib/data/datasources/fts_local_datasource.dart:62-67`).

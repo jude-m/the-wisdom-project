@@ -9,7 +9,7 @@
 > points at the check as it was actually implemented here.
 >
 > What this changes in the plan is summarised in
-> [`reduce_mobile_bundle_size.md`](./reduce_mobile_bundle_size.md) under **What
+> [`reduce-mobile-size-and-move-to-drift.md`](./reduce-mobile-size-and-move-to-drift.md) under **What
 > the Drift/wasm spike changed**, where the repo-specific claims were also
 > re-verified locally. Where the two disagree, the plan is the one being
 > maintained.

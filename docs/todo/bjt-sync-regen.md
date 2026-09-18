@@ -3,7 +3,7 @@
 > Status: **Script built (2026-07-23), verify step added 2026-08-06.** The read-only
 > sync source is set up, and `scripts/bjt-sync-regen/sync-regen.sh` does Steps 0–5 + 7
 > for real, plus a closing sync report. Step 6b (FTS regen) is **wired** (real
-> `npm run generate-fts`); Step 6a (static HTML) stays a **stub** until the generator
+> `npm run generate-bjt`); Step 6a (static HTML) stays a **stub** until the generator
 > exists.
 > Scope: how the app's vendored canon text stays in step with the upstream
 > tipitaka.lk project, and the script that does it.
@@ -35,7 +35,7 @@ confusion came from mixing them up.
 
 Key facts:
 
-- The app reads copy **#3**. `tools/bjt-fts-populate.js` reads it from `../assets/text/`.
+- The app reads copy **#3**. `tools/bjt-populate.js` reads it from `../assets/text/`.
 - Copy #3 is **disconnected** — nothing links it back to #1. It was copied by hand.
 - Best-guess vintage of #3 = ~September 2025 (the fork's last upstream merge, squashed
   into the 2025-12-03 initial commit, so git history can't tell us exactly).
@@ -211,8 +211,8 @@ Two things rebuild from the corrected JSON, **both asked (y/n), not automatic**:
    once the generator exists
    (see [web-strategy/static-html-site-plan.md](./web-strategy/static-html-site-plan.md)).
    Prompt wired; body still a stub.
-2. **FTS database — ASK FIRST (wired).** Runs `cd tools && npm run generate-fts` to
-   regenerate `assets/databases/bjt-fts.db` (~114 MB, indexes ~457k entries; it is
+2. **FTS database — ASK FIRST (wired).** Runs `cd tools && npm run generate-bjt` to
+   regenerate `assets/databases/bjt.db` (~114 MB, indexes ~457k entries; it is
    **gitignored**, so it's rebuilt locally, not committed). A heavy rebuild, so it is
    prompted rather than silent — corrections are often tiny and may not be worth a full
    re-index every time. A failure warns instead of aborting the sync.
@@ -257,7 +257,7 @@ tooling metadata, not canon content, and keeping it out lets `assets/` stay a fa
 | Corpus verify (Step 5) | ✅ Done (2026-08-06) — `tools/check-dart-packages.sh`, warns on drift |
 | Provenance receipt (Step 7) | ✅ Done — `scripts/bjt-sync-regen/bjt-provenance.json` |
 | Static HTML rebuild (Step 6a) | 🔶 Stub — y/n prompt wired, generator not built |
-| FTS rebuild (Step 6b) | ✅ Wired — y/n prompt runs `npm run generate-fts` |
+| FTS rebuild (Step 6b) | ✅ Wired — y/n prompt runs `npm run generate-bjt` |
 | `--dry-run` / `--force` flags | ✅ Done |
 
 ---

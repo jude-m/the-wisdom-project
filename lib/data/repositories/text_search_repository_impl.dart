@@ -1,7 +1,5 @@
-import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:dartz/dartz.dart';
-import 'package:flutter/services.dart';
 import '../../domain/entities/failure.dart';
 import '../../domain/entities/search/grouped_search_result.dart';
 import '../../domain/entities/search/search_result_type.dart';
@@ -16,7 +14,7 @@ import '../../domain/repositories/navigation_tree_repository.dart';
 import '../../domain/repositories/dictionary_repository.dart';
 import '../../core/utils/text_utils.dart';
 import '../../domain/repositories/text_search_repository.dart';
-import '../cache/lru_cache.dart';
+import '../datasources/bjt_content_datasource.dart';
 import '../datasources/fts_datasource.dart';
 
 /// Implementation of TextSearchRepository using FTS database and navigation tree
@@ -26,11 +24,19 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   final NavigationTreeRepository _treeRepository;
   final DictionaryRepository? _dictionaryRepository;
 
+  /// Where snippet text comes from. Null when there is no local database to
+  /// read, which costs every native snippet — so it is `required` rather than
+  /// optional: a caller that forgets it gets a compile error, not blank
+  /// previews nothing reports.
+  final BJTContentDataSource? _contentDataSource;
+
   TextSearchRepositoryImpl(
     this._ftsDataSource,
-    this._treeRepository, [
-    this._dictionaryRepository,
-  ]);
+    this._treeRepository, {
+    DictionaryRepository? dictionaryRepository,
+    required BJTContentDataSource? contentDataSource,
+  })  : _dictionaryRepository = dictionaryRepository,
+        _contentDataSource = contentDataSource;
 
   /// Overfetch multiplier for grouped results.
   /// We fetch more records than needed to ensure enough unique groups (nodeKeys).
@@ -48,23 +54,6 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   /// ```
   /// Overfetching chosen for better performance (single query, no window functions).
   static const int _groupedSearchOverfetchMultiplier = 7;
-
-  /// Caches parsed sutta JSON files across searches (native only).
-  ///
-  /// FTS snippet text isn't stored in the index, so on native we read it from
-  /// the bundled JSON. Memoising parsed files here means a repeated, refined, or
-  /// paginated query that touches the same file skips the expensive
-  /// `json.decode` — the dominant cost between "Enter" and "results appear."
-  ///
-  /// No TTL by design: the Tipitaka corpus is immutable, so cached files never
-  /// go stale (see [LRUCache]). Capacity bounds memory — each entry is a parsed
-  /// map sourced from a ~200–400 KB file; [_fileJsonCacheCapacity] is a safe
-  /// starting point. On web this is never populated: the server pre-fills
-  /// `matchedText`, so the `match.matchedText == null` guard below skips the
-  /// load entirely.
-  static const int _fileJsonCacheCapacity = 20;
-  final LRUCache<String, Map<String, dynamic>> _fileJsonCache =
-      LRUCache(_fileJsonCacheCapacity);
 
   // ============================================================================
   // PUBLIC API
@@ -520,21 +509,48 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     );
 
     // FTS rows carry only metadata (filename, eind, language) — not the snippet
-    // text the result preview needs. On native we read that text from the
-    // bundled JSON; load each DISTINCT file exactly once here, BEFORE the loop,
-    // so 50 hits clustered in a handful of files cost a few decodes instead of
-    // one full-file decode per hit (the old per-hit reload).
+    // text the result preview needs. On native we read that text out of
+    // `bjt_content`: one batched query for every hit's page here, BEFORE the
+    // loop, so a page of results costs one round trip rather than a file read
+    // each.
     //
-    // Files the server already pre-filled (web: match.matchedText != null) are
+    // Both language sides of a page are asked for, because a snippet falls
+    // back to the other language when the matched one carries no text at that
+    // entry — the order the JSON loader used, kept so snippets do not move.
+    //
+    // Hits the server already pre-filled (web: match.matchedText != null) are
     // skipped — their snippet travels inline in the response.
-    final filesToLoad = ftsMatches
-        .where((m) => m.matchedText == null)
-        .map((m) => m.filename)
-        .toSet();
-    final parsedFiles = <String, Map<String, dynamic>>{};
-    for (final filename in filesToLoad) {
-      final fileJson = await _loadFileJson(filename);
-      if (fileJson != null) parsedFiles[filename] = fileJson;
+    final content = _contentDataSource;
+    final wanted = <ContentPageKey>{};
+    if (content != null) {
+      for (final match in ftsMatches) {
+        if (match.matchedText != null) continue;
+        final pageIndex = int.parse(match.eind.split('-')[0]);
+        for (final language in _snippetLanguages) {
+          wanted.add((
+            fileId: match.filename,
+            pageIndex: pageIndex,
+            language: language,
+          ));
+        }
+      }
+    }
+    // A whole-query failure — a database that will not open, say — costs the
+    // snippets and nothing else. Losing the previews is survivable; losing the
+    // results because of them is not, and the JSON loader degraded the same
+    // way. Single bad rows are already left out inside loadPageSides.
+    var pageSides = const <ContentPageKey, Map<String, dynamic>>{};
+    if (content != null && wanted.isNotEmpty) {
+      try {
+        pageSides = await content.loadPageSides(wanted);
+      } catch (e, stackTrace) {
+        developer.log(
+          'Failed to read snippet text for ${wanted.length} page sides',
+          error: e,
+          stackTrace: stackTrace,
+          name: 'TextSearchRepository',
+        );
+      }
     }
 
     final results = <SearchResult>[];
@@ -550,18 +566,20 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       final node = nodeMap[match.nodeKey];
 
       if (node != null) {
-        // Snippet text resolution (same fallback chain as before, just sourced
-        // from the pre-parsed map instead of a fresh per-hit file read):
+        // Snippet text resolution (the same fallback chain as before, sourced
+        // from the rows fetched above instead of a parsed file):
         //   web    → match.matchedText (server pre-filled).
-        //   native → extract from the file parsed above.
-        //   either → '' if unavailable, so a single missing/corrupt file
-        //            degrades only its own hits and never fails the search.
-        final fileJson = parsedFiles[match.filename];
+        //   native → the entry in one of the two rows for its page.
+        //   either → '' if unavailable, so a missing or corrupt row degrades
+        //            only its own hit and never fails the search.
         final matchedText = match.matchedText ??
-            (fileJson != null
-                ? _extractEntryText(
-                    fileJson, pageIndex, entryIndex, match.language)
-                : null) ??
+            _entryTextFrom(
+              pageSides,
+              match.filename,
+              pageIndex,
+              entryIndex,
+              match.language,
+            ) ??
             '';
 
         // Prefer Sinhala title if language is sinh, otherwise use Pali
@@ -683,59 +701,31 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     return parts.join(' > ');
   }
 
-  /// Loads and decodes a sutta JSON file from the asset bundle, memoised across
-  /// searches by [_fileJsonCache].
-  ///
-  /// Returns null (and logs once) if the file is missing or can't be parsed, so
-  /// a single bad file never fails the whole search — its hits just get an empty
-  /// snippet. Split out from extraction so the (expensive) read + decode happens
-  /// once per distinct file, while [_extractEntryText] runs per hit with no I/O.
-  Future<Map<String, dynamic>?> _loadFileJson(String filename) async {
-    final cached = _fileJsonCache.get(filename);
-    if (cached != null) return cached;
+  /// The two language sides a snippet may come from, in the table's spelling.
+  static const List<String> _snippetLanguages = ['pali', 'sinh'];
 
-    try {
-      final jsonString =
-          await rootBundle.loadString('assets/text/$filename.json');
-      final jsonData = json.decode(jsonString) as Map<String, dynamic>;
-      _fileJsonCache.put(filename, jsonData);
-      return jsonData;
-    } catch (e, stackTrace) {
-      // Log the error for debugging - text loading is optional but
-      // failures should be traceable during development.
-      developer.log(
-        'Failed to load text file: $filename',
-        error: e,
-        stackTrace: stackTrace,
-        name: 'TextSearchRepository',
-      );
-      return null;
-    }
-  }
-
-  /// Extracts a single entry's text from an already-parsed sutta file.
+  /// Picks one entry's text out of the rows fetched for its page.
   ///
-  /// Pure: no I/O, no decode — just indexes into the in-memory map, so it is
-  /// cheap to call once per hit. [language] is the matched language ('pali' or
-  /// 'sinh'); it is tried first, then the other is used as a fallback — the same
-  /// order the old per-hit loader used. Returns null if the position is out of
-  /// range or no non-empty text exists for either language.
-  String? _extractEntryText(
-    Map<String, dynamic> jsonData,
+  /// Pure: the rows are already inflated, so this is index arithmetic. The
+  /// matched language is tried first and the other as a fallback — the order
+  /// the JSON loader used, so snippets are byte-for-byte what they were.
+  ///
+  /// [language] is spelled the way `bjt_content` and FTS matches spell it
+  /// (`pali`/`sinh`). `SearchResult`'s `sinhala` is a different vocabulary and
+  /// would miss every Sinhala row.
+  static String? _entryTextFrom(
+    Map<ContentPageKey, Map<String, dynamic>> sides,
+    String fileId,
     int pageIndex,
     int entryIndex,
     String language,
   ) {
-    final pages = jsonData['pages'] as List<dynamic>?;
-    if (pages == null || pageIndex >= pages.length) return null;
-
-    final page = pages[pageIndex] as Map<String, dynamic>;
-
-    // Try matched language first, then fallback to the other.
-    final langOrder = language == 'pali' ? ['pali', 'sinh'] : ['sinh', 'pali'];
-    for (final lang in langOrder) {
-      final langData = page[lang] as Map<String, dynamic>?;
-      final entries = langData?['entries'] as List<dynamic>?;
+    final order =
+        language == 'pali' ? _snippetLanguages : _snippetLanguages.reversed;
+    for (final lang in order) {
+      final side =
+          sides[(fileId: fileId, pageIndex: pageIndex, language: lang)];
+      final entries = side?['entries'] as List<dynamic>?;
       if (entries != null && entryIndex < entries.length) {
         final entry = entries[entryIndex] as Map<String, dynamic>;
         final text = entry['text'] as String?;

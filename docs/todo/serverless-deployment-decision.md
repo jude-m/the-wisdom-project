@@ -8,7 +8,7 @@
 > `/ask` backend this started with),
 > [`ai-qa-and-suttacentral-reference-resolver-plan.md`](./ai-qa-and-suttacentral-reference-resolver-plan.md)
 > (Flutter integration), and
-> [`reduce_mobile_bundle_size.md`](./retiring-dart-server/reduce_mobile_bundle_size.md) (the
+> [`reduce-mobile-size-and-move-to-drift.md`](./retiring-dart-server/reduce-mobile-size-and-move-to-drift.md) (the
 > content-DB / single-source plan that this decision leans on).
 
 > **UPDATE 2026-07-16 — the content-server hinge is dissolved; the B1/B2/B3 tree
@@ -20,7 +20,7 @@
 > The **research (RAG) server stays** — the one backend, still scale-to-zero.
 > Notes → **Firestore** (direct client). **Net: zero always-on infrastructure.**
 > Content refreshes as monthly batched rebuilds. Details:
-> [`reduce_mobile_bundle_size.md`](./retiring-dart-server/reduce_mobile_bundle_size.md).
+> [`reduce-mobile-size-and-move-to-drift.md`](./retiring-dart-server/reduce-mobile-size-and-move-to-drift.md).
 
 ---
 
@@ -63,7 +63,7 @@ ask path"), so its serverless-ness is *independent* — it is influenced only
    content store (semantic retrieval for *answering*, paid per query, holds a
    *different* corpus — SuttaCentral English, not BJT). SQLite stays, but its job
    **narrows to the offline search/dictionary index** (offline *forces* a local
-   index). Adopting the content-DB (`reduce_mobile_bundle_size.md`) drops the
+   index). Adopting the content-DB (`reduce-mobile-size-and-move-to-drift.md`) drops the
    340 MB JSON → server payload ~halves to ~310 MB.
 6. **"Cloud/online SQLite?"** → Yes (Turso / Cloudflare D1) — decouples data from
    compute so the function goes featherweight. Trade: every query becomes a
@@ -287,7 +287,7 @@ is why **B1 stays the §7 default**.
 ## 5. Constants (true on every branch — don't re-litigate)
 
 - **Offline mobile is always bundled.** No cloud-SQLite/CDN idea touches it;
-  offline is the hard anchor (`reduce_mobile_bundle_size.md` rejects server-fetch
+  offline is the hard anchor (`reduce-mobile-size-and-move-to-drift.md` rejects server-fetch
   for mobile).
 - **`ask` never reads SQLite.** Its serverless-ness is independent of the tree.
 - **The research server is mandatory — there is no client-direct path.** Gemini

@@ -29,7 +29,7 @@ class DatabaseManager {
   /// [assetsPath] is the path to the directory containing the database files
   /// and other assets (data/, text/).
   Future<void> initialize(String assetsPath) async {
-    final ftsPath = '$assetsPath/databases/bjt-fts.db';
+    final ftsPath = '$assetsPath/databases/bjt.db';
     final dictPath = '$assetsPath/databases/dict.db';
 
     // Validate files exist
@@ -53,7 +53,7 @@ class DatabaseManager {
     // File sizes
     final ftsSize = File(ftsPath).lengthSync();
     final dictSize = File(dictPath).lengthSync();
-    _logger.info('Database: bjt-fts.db (${_formatBytes(ftsSize)})');
+    _logger.info('Database: bjt.db (${_formatBytes(ftsSize)})');
     _logger.info('Database: dict.db (${_formatBytes(dictSize)})');
 
     // Row counts

@@ -300,7 +300,7 @@ final switchTabProvider = Provider<void Function(int)>((ref) {
 /// Provider to open a new tab from a search result.
 ///
 /// **The unit comes from the row the hit is on, not from the result's stored
-/// `nodeKey`.** `bjt-fts.db` implements the slicing rule against the *raw*
+/// `nodeKey`.** `bjt.db` implements the slicing rule against the *raw*
 /// tree, so for the corrected coordinates its column names an adjacent
 /// sibling — 244 rows corpus-wide open a unit the matched line is not in.
 /// `ReaderUnitResolver.keyAt` derives the owner from the coordinate instead,

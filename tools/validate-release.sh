@@ -47,7 +47,7 @@ cd "$PROJECT_ROOT"
 # Step 1: Validate the shipped databases
 print_step "Step 1: Validating Shipped Databases"
 
-DB_PATH="$PROJECT_ROOT/assets/databases/bjt-fts.db"
+DB_PATH="$PROJECT_ROOT/assets/databases/bjt.db"
 
 # Check if the FTS database exists
 if [ ! -f "$DB_PATH" ]; then
@@ -55,7 +55,7 @@ if [ ! -f "$DB_PATH" ]; then
     echo "  Expected location: $DB_PATH"
     echo ""
     echo "To generate the database:"
-    echo "  cd tools && npm install && npm run generate-fts"
+    echo "  cd tools && npm install && npm run generate-bjt"
     handle_error "FTS database not found"
     exit 1
 fi
@@ -68,7 +68,7 @@ if [ "$DB_SIZE_MB" -lt 50 ]; then
     echo -e "${RED}✗ ERROR: Database file is too small (${DB_SIZE_MB} MB)${NC}"
     echo "  Expected: ~114 MB | Actual: ${DB_SIZE_MB} MB"
     echo "  The database may be corrupted. Regenerate it:"
-    echo "  cd tools && npm run generate-fts"
+    echo "  cd tools && npm run generate-bjt"
     handle_error "Database size validation failed"
     exit 1
 fi
@@ -107,7 +107,7 @@ for DB in "$PROJECT_ROOT"/assets/databases/*.db; do
     if [ "${WRITE_VER:-9}" -gt 1 ] || [ "${READ_VER:-9}" -gt 1 ]; then
         echo -e "${RED}✗ ERROR: ${DB_NAME} is WAL-flagged (bytes 18/19 = ${WRITE_VER:-?}/${READ_VER:-?})${NC}"
         echo "  The wasm build will reject it as \"file is not a database\"."
-        echo "  Regenerate it (cd tools && npm run generate-fts | generate-dict),"
+        echo "  Regenerate it (cd tools && npm run generate-bjt | generate-dict),"
         echo "  or repair in place — this also rebuilds at 8 KiB pages, and the"
         echo "  ANALYZE is not optional:"
         echo "    sqlite3 '$DB' \"PRAGMA page_size=8192; VACUUM INTO '${DB_REPAIR}';\""
@@ -120,13 +120,14 @@ for DB in "$PROJECT_ROOT"/assets/databases/*.db; do
 done
 
 # Check if pubspec.yaml includes the database
-if ! grep -q "assets/databases/bjt-fts.db" "$PROJECT_ROOT/pubspec.yaml"; then
+if ! grep -q "assets/databases/bjt.db" "$PROJECT_ROOT/pubspec.yaml"; then
     echo -e "${YELLOW}⚠ WARNING: pubspec.yaml may not include the database${NC}"
-    echo "Make sure pubspec.yaml contains: assets/databases/bjt-fts.db"
+    echo "Make sure pubspec.yaml contains: assets/databases/bjt.db"
     handle_error "Database not in pubspec.yaml"
 fi
 
 echo -e "${GREEN}✓ pubspec.yaml includes database${NC}"
+# assets/databases/manifest.json is not checked, on purpose: this script is being retired (docs/todo/test-all-and-release-all.md).
 
 # Step 2: Run code generation
 print_step "Step 2: Running Code Generation"

@@ -319,11 +319,10 @@ batched `WHERE (file,page,entry) IN (...)` query and this document closes out.
 Until then, the JSON grouping + LRU here is the low-risk interim win — and it is the
 exact behavior the DB version replaces, so nothing done now is wasted.
 
-> **Teardown checklist moved to the endgame doc.** The step-by-step list of what to
-> delete from here when the content DB lands now lives with the migration that
-> triggers it — see **Snippet-path teardown** in
-> `docs/todo/retiring-dart-server/reduce_mobile_bundle_size.md`. (This doc archives to *done* once the
-> interim fix ships, so the checklist shouldn't ride along with it.)
+> **Torn down at step 8 of the endgame doc (2026-09-18).** `_loadFileJson`,
+> `_extractEntryText` and `_fileJsonCache` are gone; snippets come from
+> `bjt_content` in one batched query. See step 8 of
+> `docs/todo/retiring-dart-server/reduce-mobile-size-and-move-to-drift.md`.
 
 ---
 

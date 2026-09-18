@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/datasources/bjt_content_datasource.dart';
+import '../../data/datasources/bjt_content_local_datasource.dart';
 import '../../data/datasources/bjt_document_datasource.dart';
 import '../../data/datasources/bjt_document_local_datasource.dart';
 import '../../data/repositories/bjt_document_repository_impl.dart';
@@ -11,9 +13,23 @@ import '../../domain/usecases/load_bjt_document_usecase.dart';
 import 'reader_unit_provider.dart';
 import 'tab_provider.dart';
 
+/// Page text out of `bjt_content`, for the reader and for search snippets.
+///
+/// It reads the bundled database, which only native has — and `getWebOverrides`
+/// does **not** replace it: it replaces the document datasource below, but the
+/// search repositories take this one on every platform. What keeps web off it
+/// is the search path itself — the server pre-fills `matchedText`, so no page
+/// is ever asked for, and the one call that could is caught. Remove either
+/// guard and web reaches this.
+final bjtContentDataSourceProvider = Provider<BJTContentDataSource>((ref) {
+  return BJTContentLocalDataSourceImpl();
+});
+
 // Datasource provider
 final bjtDocumentDataSourceProvider = Provider<BJTDocumentDataSource>((ref) {
-  return BJTDocumentLocalDataSourceImpl();
+  return BJTDocumentLocalDataSourceImpl(
+    contentDataSource: ref.watch(bjtContentDataSourceProvider),
+  );
 });
 
 // Repository provider
@@ -28,13 +44,38 @@ final loadBJTDocumentUseCaseProvider = Provider<LoadBJTDocumentUseCase>((ref) {
   return LoadBJTDocumentUseCase(repository);
 });
 
-// BJT document provider (loads document by file ID)
+/// Which pages of which file to load: a unit's span, or one page for a
+/// preview. `lastPage` null runs to the end of the file.
+///
+/// A record, so two requests for the same span are the same family key and
+/// share one load.
+typedef DocumentRequest = ({String fileId, int firstPage, int? lastPage});
+
+/// The request that loads exactly what [unit] renders, and no more.
+DocumentRequest requestFor(ReaderUnit unit) {
+  final span = unit.range.pageSpan;
+  return (
+    fileId: unit.contentFileId,
+    firstPage: span.firstPage,
+    lastPage: span.lastPage,
+  );
+}
+
+/// One page of a file, for a preview that shows a few entries of it.
+DocumentRequest requestForPage(String fileId, int pageIndex) =>
+    (fileId: fileId, firstPage: pageIndex, lastPage: pageIndex);
+
+// BJT document provider (loads the pages one request names)
 // Uses autoDispose to clean up when no listeners remain.
 // keepAlive() caches successful loads; failed loads can be retried.
-final bjtDocumentProvider =
-    FutureProvider.autoDispose.family<BJTDocument, String>((ref, fileId) async {
+final bjtDocumentProvider = FutureProvider.autoDispose
+    .family<BJTDocument, DocumentRequest>((ref, request) async {
   final useCase = ref.watch(loadBJTDocumentUseCaseProvider);
-  final result = await useCase.execute(fileId);
+  final result = await useCase.execute(
+    request.fileId,
+    firstPage: request.firstPage,
+    lastPage: request.lastPage,
+  );
 
   return result.fold(
     (failure) => throw Exception(failure.userMessage),
@@ -49,7 +90,8 @@ final bjtDocumentProvider =
 // CONTENT STATE
 // Everything the reader shows is derived from the active tab's node key:
 //   activeNodeKeyProvider → activeReaderUnitProvider → the file and the span
-//     → currentBJTDocumentProvider → activeDocumentSliceProvider
+//     → activeDocumentRequestProvider → currentBJTDocumentProvider
+//       → activeDocumentSliceProvider
 // The tab stores no coordinates, so nothing here can disagree with the
 // resolver about where a unit starts or stops.
 // ============================================================================
@@ -71,20 +113,31 @@ final activeReaderUnitProvider = Provider<AsyncValue<ReaderUnit?>>((ref) {
 });
 
 /// The content file the active tab's unit lives in — derived, never stored.
+///
+/// Nothing in `lib/` reads it since the reader moved to
+/// [activeDocumentRequestProvider]; it stays because it is what the navigation
+/// tests assert the active tab landed on.
 final activeContentFileIdProvider = Provider<String?>((ref) {
   return ref.watch(activeReaderUnitProvider).valueOrNull?.contentFileId;
 });
 
-// Current BJT document provider (uses activeContentFileIdProvider above)
-final currentBJTDocumentProvider = Provider<AsyncValue<BJTDocument?>>((ref) {
-  final fileId = ref.watch(activeContentFileIdProvider);
+/// The pages the active tab's unit needs — null when it has no unit.
+final activeDocumentRequestProvider = Provider<DocumentRequest?>((ref) {
+  final unit = ref.watch(activeReaderUnitProvider).valueOrNull;
+  if (unit == null || unit.contentFileId.trim().isEmpty) return null;
+  return requestFor(unit);
+});
 
-  if (fileId == null || fileId.trim().isEmpty) {
+// Current BJT document provider — only the active unit's pages, not its file.
+final currentBJTDocumentProvider = Provider<AsyncValue<BJTDocument?>>((ref) {
+  final request = ref.watch(activeDocumentRequestProvider);
+
+  if (request == null) {
     return const AsyncValue.data(null);
   }
 
   // Return the AsyncValue directly to properly propagate loading/error states
-  return ref.watch(bjtDocumentProvider(fileId));
+  return ref.watch(bjtDocumentProvider(request));
 });
 
 /// The unit's span cut out of the loaded document — the pages the panes build.

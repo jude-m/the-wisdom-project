@@ -33,7 +33,7 @@ You are a security specialist for The Wisdom Project. Your role is to ensure:
 **Data Architecture**:
 | Data Type | Storage | Sensitivity |
 |-----------|---------|-------------|
-| Sutta texts | SQLite FTS (`bjt-fts.db`) | Read-only, integrity critical |
+| Sutta texts | SQLite FTS (`bjt.db`) | Read-only, integrity critical |
 | Navigation tree | JSON files | Read-only |
 | User preferences | SharedPreferences | Low sensitivity |
 | Search history | SharedPreferences | Medium sensitivity (privacy) |
@@ -111,13 +111,13 @@ db.rawQuery('SELECT * FROM fts WHERE text MATCH ?', [sanitizeFtsQuery(query)]);
 ```dart
 // 🔴 DANGEROUS - Write access to sutta database
 final db = await openDatabase(
-  'bjt-fts.db',
+  'bjt.db',
   readOnly: false,  // Allows modification!
 );
 
 // 🟢 SAFE - Explicit read-only
 final db = await openDatabase(
-  'bjt-fts.db',
+  'bjt.db',
   readOnly: true,  // Cannot be modified
 );
 

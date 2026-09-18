@@ -1,7 +1,7 @@
 # DB auto-update mechanism — pre-study / design brief
 
 **Context:** follow-on to the *Retiring the Dart server* spike (`drift-fts5-wasm-spike-results.md`).
-That spike established that the client downloads `bjt-fts.db` and the `dict.db` shards once
+That spike established that the client downloads `bjt.db` and the `dict.db` shards once
 and stores them in OPFS. This brief answers the next question: **when a new version of a DB
 ships (say `dict.db` two months later), how does the client pick it up seamlessly, without the
 user re-downloading everything by hand?**
@@ -63,35 +63,39 @@ it drops to best-effort storage, which the reconciler already handles.
 
 ---
 
-## 3. CDN layout: manifest + version-stamped immutable files
+## 3. CDN layout: manifest + hash-named immutable files
 
 ```
 /manifest.json                    ← mutable;   Cache-Control: no-cache
-/db/bjt-fts.2026-09-01.db.gz      ← immutable; Cache-Control: public, max-age=31536000, immutable
-/db/dict-core.2026-09-01.db.gz    ← immutable
-/db/dict-dpd.2026-07-15.db.gz     ← immutable; independent version per shard
+/db/bjt.<sha256>.db.gz            ← immutable; Cache-Control: public, max-age=31536000, immutable
+/db/dict-core.<sha256>.db.gz      ← immutable
+/db/dict-dpd.<sha256>.db.gz       ← immutable; each shard has its own hash
 ```
 
-`manifest.json` lists, per DB/shard: current version, on-the-wire size, decompressed size, and
-hash. Sketch:
+A database's version **is its SHA-256**: the one `tools/db-finalize.js` computes over the
+finished, uncompressed file, the same fingerprint the mobile app compares
+(`assets/databases/manifest.json`, plan step 7). There is no separate version to bump.
+
+`manifest.json` lists, per DB/shard: that hash, the URL, on-the-wire size, and decompressed
+size. Sketch:
 
 ```json
 {
   "schemaVersion": 1,
   "databases": {
-    "bjt-fts":   { "version": "2026-09-01", "url": "/db/bjt-fts.2026-09-01.db.gz",
-                   "bytesGz": 47600000, "bytesRaw": 99400000, "sha256": "..." },
-    "dict-core": { "version": "2026-09-01", "url": "/db/dict-core.2026-09-01.db.gz", ... },
-    "dict-dpd":  { "version": "2026-07-15", "url": "/db/dict-dpd.2026-07-15.db.gz", ... }
+    "bjt":       { "sha256": "…", "url": "/db/bjt.<sha256>.db.gz",
+                   "bytesGz": 47600000, "bytesRaw": 99400000 },
+    "dict-core": { "sha256": "…", "url": "/db/dict-core.<sha256>.db.gz", ... },
+    "dict-dpd":  { "sha256": "…", "url": "/db/dict-dpd.<sha256>.db.gz", ... }
   }
 }
 ```
 
 Why this shape:
 
-- **The version is in the URL and the file is served `immutable`,** so browser and CDN caches are
+- **The hash is in the URL and the file is served `immutable`,** so browser and CDN caches are
   trivially correct — you never fight cache invalidation. Only `manifest.json` is ever revalidated.
-- **Version each shard independently** (the per-`dict_id` split from spike §8). A month where only
+- **Each shard has its own hash** (the per-`dict_id` split from spike §8). A month where only
   DPD changed then re-downloads only DPD (~30 MB gz), not the whole 274 MB. On flaky mobile this
   also raises the odds a non-resumable download completes.
 
@@ -131,11 +135,11 @@ One function, `reconcile()`, run **before Drift opens any DB**, under a **Web Lo
 (`navigator.locks.request(...)`) so two tabs can't both do it.
 
 For each DB in the manifest, decide from three questions — *present? correct size? matching
-version?*:
+hash?* The live file's hash is the one recorded when it was installed, not recomputed on boot.
 
-1. **Verified staged file matching the manifest version exists** → delete live, move staged → live,
-   record new version. → *this is the update landing.*
-2. **Live file missing / short / wrong version, no staged file** → mark for download (happens in
+1. **Verified staged file matching the manifest hash exists** → delete live, move staged → live,
+   record its hash. → *this is the update landing.*
+2. **Live file missing / short / wrong hash, no staged file** → mark for download (happens in
    §5 once the app is interactive). → *this is eviction recovery **and** first install.*
 3. **Live file present and matches manifest** → nothing to do.
 
@@ -170,9 +174,9 @@ for DPD). The per-shard split keeps this bounded — another reason it pays off.
 
 - **Byte-length vs manifest** — catches truncation, the common failure.
 - **`PRAGMA quick_check`** when the staged DB first opens — catches structural corruption cheaply.
-- **Full SHA-256** is optional belt-and-suspenders. `SubtleCrypto` does **not** stream, so don't
-  hash 175 MB of decompressed bytes in one buffer — either hash the ~30 MB *compressed* artifact,
-  or use a streaming WASM hasher during the write pass.
+- **Full SHA-256** is optional belt-and-suspenders. The manifest's hash is of the decompressed
+  file, and `SubtleCrypto` does **not** stream, so don't hash 175 MB in one buffer — use a
+  streaming WASM hasher during the write pass.
 
 ---
 
@@ -181,7 +185,7 @@ for DPD). The per-shard split keeps this bounded — another reason it pays off.
 The single most useful property of this design: **one reconciler covers all three.** "There's a
 newer version," "iOS evicted the file after ~7 days of no interaction," and "first-ever visit"
 are all just *"OPFS doesn't match the manifest → make it match."* Build it once, keyed on
-(present? correct size? matching version?). This is the same requirement as spike §11.11
+(present? correct size? matching hash?). This is the same requirement as spike §11.11
 (manifest + integrity check + re-download-on-eviction) — this brief is that item, fleshed out.
 
 ---
@@ -210,11 +214,11 @@ a Web Lock, streaming download-to-staging, crash-safe atomic swap, the byte-leng
 gate, `persist()` + handling `false`.
 
 **Explicitly out of scope / deferred:** background scheduling (there is none), same-session apply,
-delta/patch downloads (ship whole versioned files — the per-shard split already bounds payloads).
+delta/patch downloads (ship whole hash-named files — the per-shard split already bounds payloads).
 
 **Prototype first, in this order:**
 
-1. Manifest + one versioned immutable file on the real host; confirm cache headers behave
+1. Manifest + one hash-named immutable file on the real host; confirm cache headers behave
    (ties into the COOP/COEP host decision, spike §3 — same "can this host set headers" question).
 2. Streaming download-to-staging reusing the §6 pre-seed writer; verify ~2 MB peak buffer holds.
 3. The crash-safe swap + `reconcile()` boot pass — this is the heart of it, and the part with the

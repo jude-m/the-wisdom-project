@@ -1006,7 +1006,7 @@ have an owner under the rule — against `ContentSlicer`:
 | disagree | **0** | **649** |
 
 Against the raw tree the database is a byte-perfect implementation of the
-slicing rule — `tools/bjt-fts-populate.js:212` reimplements it in JavaScript,
+slicing rule — `findNodeKeyForEntry` in `tools/bjt-populate.js` reimplements it in JavaScript,
 by its own comment "the same algorithm as tipitaka.lk's `getKeyForEInd`". So
 the whole disagreement is `correctedTreeCoordinates`, which that builder has
 never heard of: the distinct wrong pairs number exactly

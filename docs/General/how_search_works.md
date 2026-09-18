@@ -1,9 +1,10 @@
 # How Search Works
 
 This document traces the full search pipeline — from a keystroke in the search
-bar all the way to the JSON document that holds the matched text. It follows
+bar all the way to the stored text that becomes the preview snippet. It follows
 clean architecture: presentation → repository (caching) → repository (real) →
-datasource (FTS) → SQLite, then back out to the JSON assets.
+datasource (FTS) → SQLite, then a second read against the content table in that
+same database.
 
 ## The journey at a glance
 
@@ -27,12 +28,12 @@ datasource (FTS) → SQLite, then back out to the JSON assets.
         │  • buildFtsQuery()  → FTS5 syntax
         │  • SQL: SELECT ... WHERE fts MATCH ?  ORDER BY bm25()
         ▼
-   SQLite FTS5 database (bjt-fts.db)
+   SQLite FTS5 database (bjt.db)
         │  returns rows of *metadata* (filename, eind, nodeKey) — NOT the text
         ▼
 5. Back in TextSearchRepositoryImpl
-        │  • for each match, _loadTextForMatch()
-        │  • reads assets/text/{filename}.json  ← the JSON doc!
+        │  • collects every hit's page, then ONE loadPageSides() call
+        │  • reads the bjt_content table in that same bjt.db  ← the text!
         ▼
    SearchResult objects → back up to the UI
         │
@@ -55,6 +56,7 @@ datasource (FTS) → SQLite, then back out to the JSON assets.
 | Orchestration repo | `lib/data/repositories/text_search_repository_impl.dart` |
 | FTS datasource | `lib/data/datasources/fts_local_datasource.dart` |
 | FTS data models | `lib/data/datasources/fts_datasource.dart` |
+| Snippet text source | `lib/data/datasources/bjt_content_local_datasource.dart` |
 | FTS5 query builder | `packages/wisdom_shared/lib/src/fts/fts_query_builder.dart` |
 | Grouping by sutta | `lib/domain/entities/search/grouped_fts_match.dart` |
 | Grouped result tile | `lib/presentation/widgets/search/grouped_fts_tile.dart` |
@@ -163,7 +165,7 @@ String? _ftsLanguageFilter(SearchLanguageScope scope) => switch (scope) {
 ## Step 4 — FTS matching (the actual SQLite query)
 
 `FTSDataSourceImpl.searchFullText` does the matching. It can search several
-editions in parallel (each edition has its own `{editionId}-fts.db`, copied from
+editions in parallel (each edition has its own `{editionId}.db`, copied from
 assets to the documents directory on first use).
 
 ### 4a. Build FTS5 syntax
@@ -223,42 +225,54 @@ badge numbers cheaply.
 
 ---
 
-## Step 5 — Finding the JSON doc
+## Step 5 — Fetching the snippet text
 
 Back in `TextSearchRepositoryImpl._searchFullText`, each `FTSMatch` becomes a
-`SearchResult`. To get the preview snippet, it reads the actual JSON document
+`SearchResult`. The FTS index is **contentless**, so it returned coordinates and
+no text; the snippet comes from the `bjt_content` table sitting beside it in the
+same `bjt.db`. One row holds one page of one language, zlib-compressed.
+
+The whole results page is fetched in **one** call, before the loop
 (`text_search_repository_impl.dart`):
 
 ```dart
-Future<String?> _loadTextForMatch(String filename, String eind, String language) async {
-  final eindParts = eind.split('-');               // "12-3" → page 12, entry 3
-  final pageIndex = int.parse(eindParts[0]);
-  final entryIndex = int.parse(eindParts[1]);
-
-  // ← THE JSON DOC: bundled asset, named by the filename from the FTS row
-  final jsonString = await rootBundle.loadString('assets/text/$filename.json');
-  final jsonData = json.decode(jsonString) as Map<String, dynamic>;
-
-  final page = (jsonData['pages'] as List)[pageIndex];   // jump to the page
-  final langData = page[lang];                            // 'pali' or 'sinh'
-  final entry = langData['entries'][entryIndex];          // jump to the entry
-  return entry['text'] as String;                         // the matched text
+// Collect every page a hit lands on — both language sides, because a snippet
+// falls back to the other language when the matched one has no text there.
+final wanted = <ContentPageKey>{};
+for (final match in ftsMatches) {
+  if (match.matchedText != null) continue;          // web: server pre-filled it
+  final pageIndex = int.parse(match.eind.split('-')[0]);
+  for (final language in _snippetLanguages) {       // const ['pali', 'sinh']
+    wanted.add((fileId: match.filename, pageIndex: pageIndex, language: language));
+  }
 }
+
+// One statement, one primary-key seek per key. A results page asks for ~100.
+final pageSides = await content.loadPageSides(wanted);
+```
+
+Then, per match, `_entryTextFrom` is pure index arithmetic over the rows already
+fetched — no I/O inside the loop:
+
+```dart
+final entries = side['entries'] as List<dynamic>;
+final text = (entries[entryIndex] as Map<String, dynamic>)['text'] as String?;
 ```
 
 So:
-- **`filename`** tells you *which* JSON file to open.
+- **`filename`** (`fileId` in the table) selects the rows.
 - **`eind`** (e.g. `"12-3"`) is the **coordinate** pinning the match to an exact
-  page + entry inside that file. No scanning — direct indexed access.
+  page + entry: `pageIndex` picks the row, `entryIndex` indexes into it. No
+  scanning — a primary-key seek, then an array index.
 - **`nodeKey`** is used for an O(1) lookup into the navigation tree
   (`nodeMap[match.nodeKey]`) to get the sutta title and breadcrumb path — no
   tree walking needed.
 
 > **`nodeKey` vs `filename` (contentFileId)** — these are *not* the same thing.
-> `nodeKey` identifies the **sutta/section**; `filename` identifies the **JSON
-> file**. Multiple suttas can live in one content file, so several `nodeKey`s can
-> map to the same `filename`. This matters for grouping (next step) and for
-> performance (see the "Related reading" TODO on redundant parsing).
+> `nodeKey` identifies the **sutta/section**; `filename` identifies the **content
+> file** the text was split into, which is what `bjt_content.filename` keys on.
+> Multiple suttas can live in one content file, so several `nodeKey`s can map to
+> the same `filename`. This matters for grouping (next step).
 
 ---
 
@@ -302,19 +316,28 @@ implication.
 
 ## Web vs native: where the text comes from
 
-The JSON read differs by platform (`text_search_repository_impl.dart`):
+The fallback chain is one expression (`text_search_repository_impl.dart`):
 
 ```dart
 final matchedText = match.matchedText                    // web: already loaded
-    ?? await _loadTextForMatch(match.filename, match.eind, match.language)  // native
+    ?? _entryTextFrom(pageSides, match.filename, pageIndex, entryIndex, match.language)
     ?? '';
 ```
 
-- **Native** (macOS / iOS / Android): the JSON files are bundled assets, so the
-  repository reads them via `rootBundle`.
-- **Web**: the JSON files are *not* bundled. The server pre-loads the text and
-  attaches it as `match.matchedText` in the response, so the repository skips
-  the file read entirely.
+- **Native** (macOS / iOS / Android): `bjt.db` is a bundled asset, copied to
+  disk on first launch, and the snippet is read out of its `bjt_content` table.
+  The JSON files are **not** bundled — they stopped shipping once this path
+  landed, taking 340 MiB off the app.
+- **Web**: the server pre-loads the text and attaches it as `match.matchedText`
+  in the response, so the repository reads nothing. (This is the path being
+  retired — web is moving to the same database client-side via Drift wasm/OPFS.)
+- **Either way `?? ''`**: a missing or unreadable row costs that one snippet and
+  never the search.
+
+> The JSON files still live in the repo under `assets/text/`, because
+> build-time tools read them from disk — `tools/bjt-populate.js` builds this
+> database from them, and the static site generator builds the public HTML site
+> from them. They are simply not shipped inside the app any more.
 
 ---
 
@@ -323,9 +346,9 @@ final matchedText = match.matchedText                    // web: already loaded
 > You type → it's debounced and normalized (Singlish→Sinhala, ZWJ stripped) →
 > checked against an LRU cache → the FTS5 `MATCH` query finds *which entries*
 > contain the word (ranked by BM25, returning only metadata: `filename` +
-> `eind` + `nodeKey`) → those coordinates are used to open
-> `assets/text/{filename}.json` and pull the exact entry's text for the result
-> snippet.
+> `eind` + `nodeKey`) → those coordinates go into one batched read of the
+> `bjt_content` table, which returns each hit's page and gives up the exact
+> entry's text for the result snippet.
 
 ---
 
@@ -333,9 +356,11 @@ final matchedText = match.matchedText                    // web: already loaded
 
 - `docs/multi_edition_architecture.md` — how multiple content sources (BJT,
   SuttaCentral) share this pipeline.
-- `docs/done/perf-fts-snippet-text-loading.md` — Step 5 used to re-read and
-  re-parse the whole JSON file once per match; shipped 2026-06-19 as a
-  group-by-file parse plus an LRU cache.
+- `docs/done/perf-fts-snippet-text-loading.md` — history. Step 5 once re-read and
+  re-parsed the whole JSON file per match; a group-by-file parse plus an LRU
+  cache shipped 2026-06-19. Both are gone — the table replaced them.
+- `docs/todo/retiring-dart-server/reduce-mobile-size-and-move-to-drift.md` — why
+  the text moved into `bjt_content`, and the measurements behind it.
 - `lib/domain/entities/search/` — the search entities (`SearchQuery`,
   `SearchResult`, `GroupedSearchResult`, `GroupedFTSMatch`,
   `SearchLanguageScope`).

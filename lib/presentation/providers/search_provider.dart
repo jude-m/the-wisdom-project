@@ -9,6 +9,7 @@ import '../../data/repositories/text_search_repository_impl.dart';
 import '../../domain/repositories/recent_searches_repository.dart';
 import '../../domain/repositories/text_search_repository.dart';
 import 'dictionary_provider.dart';
+import 'document_provider.dart';
 import 'navigation_tree_provider.dart';
 import 'search_state.dart';
 
@@ -44,7 +45,8 @@ final cachingSearchRepositoryProvider =
   final base = TextSearchRepositoryImpl(
     ref.watch(ftsDataSourceProvider),
     ref.watch(navigationTreeRepositoryProvider),
-    ref.watch(dictionaryRepositoryProvider),
+    dictionaryRepository: ref.watch(dictionaryRepositoryProvider),
+    contentDataSource: ref.watch(bjtContentDataSourceProvider),
   );
   return CachingTextSearchRepository(
     base,
@@ -62,7 +64,8 @@ final textSearchRepositoryProvider = Provider<TextSearchRepository>((ref) {
   return TextSearchRepositoryImpl(
     ref.watch(ftsDataSourceProvider),
     ref.watch(navigationTreeRepositoryProvider),
-    ref.watch(dictionaryRepositoryProvider),
+    dictionaryRepository: ref.watch(dictionaryRepositoryProvider),
+    contentDataSource: ref.watch(bjtContentDataSourceProvider),
   );
 });
 

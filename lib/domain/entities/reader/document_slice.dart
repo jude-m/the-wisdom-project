@@ -30,39 +30,36 @@ class DocumentSlice {
   static const empty = DocumentSlice._([], 0, 0, null);
 
   /// Cuts [document] to [range]. Empty when the range names pages the
-  /// document does not have — a corpus and a tree out of step, which throws
+  /// document does not hold — a corpus and a tree out of step, which throws
   /// in the generator but must not take the reader down.
+  ///
+  /// The document may hold the whole file (web, and anything that asked for
+  /// it) or just this span's pages (the reader), so every page index here is
+  /// translated through [BJTDocument.firstPageIndex] rather than used as a
+  /// position in [BJTDocument.pages].
   factory DocumentSlice.of(BJTDocument document, SliceRange range) {
-    final pageCount = document.pageCount;
-    final start = range.start;
-    if (start.pageIndex < 0 || start.pageIndex >= pageCount) return empty;
+    if (document.pages.isEmpty) return empty;
+    final firstLoaded = document.firstPageIndex;
+    final lastLoaded = document.lastPageIndex;
+    final span = range.pageSpan;
+    final firstPage = span.firstPage;
+    if (firstPage < firstLoaded || firstPage > lastLoaded) return empty;
 
-    final end = range.end;
-    int lastPage;
-    int? endEntry;
-    if (end == null) {
-      // Runs to the end of the file — the last node in it, and every node
-      // sharing that last coordinate.
-      lastPage = pageCount - 1;
-    } else if (end.entryIndex == 0) {
-      // The next unit starts at the top of its page, so that whole page is
-      // theirs. Same reading the site takes.
-      lastPage = end.pageIndex - 1;
-    } else {
-      lastPage = end.pageIndex;
-      endEntry = end.entryIndex;
-    }
-
-    if (lastPage >= pageCount) {
-      lastPage = pageCount - 1;
+    // No last page runs to the end of what was loaded — the last node in the
+    // file, and every node sharing that last coordinate.
+    var lastPage = span.lastPage ?? lastLoaded;
+    var endEntry = span.endEntry;
+    if (lastPage > lastLoaded) {
+      lastPage = lastLoaded;
       endEntry = null;
     }
-    if (lastPage < start.pageIndex) return empty;
+    if (lastPage < firstPage) return empty;
 
     return DocumentSlice._(
-      document.pages.sublist(start.pageIndex, lastPage + 1),
-      start.pageIndex,
-      start.entryIndex,
+      document.pages
+          .sublist(firstPage - firstLoaded, lastPage - firstLoaded + 1),
+      firstPage,
+      range.start.entryIndex,
       endEntry,
     );
   }
