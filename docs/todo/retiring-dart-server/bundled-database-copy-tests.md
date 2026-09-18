@@ -146,7 +146,7 @@ here means old text in a new app, silently.
     silently keep their old copy. That check belongs to `scripts/app/test.sh`'s
     "shipped databases" row in
     [`test-all-and-release-all.md`](../test-all-and-release-all.md).
-14. **Devices (plan step 10).** Installing over an older build; on Android,
+14. **Devices ([`first-mobile-release.md`](../mobile-release/first-mobile-release.md)).** Installing over an older build; on Android,
     clear-cache versus clear-storage, `adb shell bmgr backupnow <package>`, and
     the full-phone case.
 

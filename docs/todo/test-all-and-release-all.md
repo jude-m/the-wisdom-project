@@ -350,4 +350,5 @@ Gaps the investigation found, each its own item:
 - Build-twice determinism is checked by hand (`web-release.md` §2).
 - The HTML validator (backlog C9).
 - `research_server` has no tests.
-- Mobile release: signing, iOS export, store upload.
+- Mobile release: signing, iOS export, store upload — tracked in
+  [`first-mobile-release.md`](mobile-release/first-mobile-release.md).

@@ -29,9 +29,11 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
    in `tools/db-finalize.js`, which both database generators now end in.
 2. **Build the content DB and move the app onto Drift — one branch, native only.**
    Decided 2026-09-13: FTS, dict and the new content table leave `sqflite`
-   together — engine swap first, content table on top. Steps 5–10 of
-   [`reduce-mobile-size-and-move-to-drift.md`](./reduce-mobile-size-and-move-to-drift.md);
-   5 and 6 are done (the app is on Drift), 7 is next.
+   together — engine swap first, content table on top. Steps 5–9 of
+   [`reduce-mobile-size-and-move-to-drift.md`](./reduce-mobile-size-and-move-to-drift.md),
+   all done 2026-09-18: the app is on Drift and ships no JSON. The device
+   pass that was step 10 is in
+   [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
 3. **Move web onto Drift** (wasm + OPFS) — the same datasources, reading a database
    downloaded once rather than bundled
    ([`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md)).

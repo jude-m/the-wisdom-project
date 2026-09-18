@@ -7,13 +7,14 @@
 > suite green. A rebuilt database reaches the app's copy by a manifest hash
 > and a stamp (step 7). **The JSON no longer ships** (step 9): 340 MiB off the
 > macOS release bundle, 733 → 393 MiB, with the files kept in the repo for the
-> build-time readers. **Next: step 10**, the real-device pass. Two deletions
+> build-time readers. **Next here: step 11**, web. Two deletions
 > from step 5 are deliberately still open: see **Left open after step 5**. A
 > compression sample stays optional (**Compression sample — optional, later**).
 >
-> **No mobile release until step 10 is done.** Android and iOS have not been
-> built since the move to Drift, and every size figure here was taken on
-> macOS — nothing has been measured out of a real APK or IPA.
+> **No mobile release until
+> [`first-mobile-release.md`](../mobile-release/first-mobile-release.md) is
+> done.** It holds the real-device pass that was step 10, and everything else
+> a phone release waits on.
 
 > **UPDATE 2026-07-16 — CONFIRMED, and promoted to the keystone of a server-free
 > architecture.** Decisions from a follow-up study:
@@ -792,8 +793,9 @@ CREATE TABLE bjt_content (
    Today's JSON deflates to 46 MB, not the 70–110 estimated, so the **download
    rises** 92 → 114 MB while storage falls. Measured as deflate per file rather
    than out of a built APK: there is no Android SDK on this machine and iOS
-   wants a signed build. Worth confirming against a real artifact on a machine
-   that has one, but it will not change the direction.
+   wants a signed build. Confirming it against a real artifact is section 4
+   of [`first-mobile-release.md`](../mobile-release/first-mobile-release.md);
+   it will not change the direction.
 
    **Answered 2026-09-14:** accepted. Plain pages ship at 114 MB; a
    per-language compression sample would bring it back to 95 MB with reads as
@@ -911,8 +913,8 @@ CREATE TABLE bjt_content (
    three checkpoints — before any change, after the tiebreaker, after the
    swap — with no expectation changed and no Drift warning or SQLite error in
    any log. `flutter build web --release` still builds. **Not run: Android and
-   iOS** (no SDK or signing here). Their first builds are also the first to
-   fetch the bundled SQLite's native binaries.
+   iOS** (no SDK or signing here) — see
+   [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
 
    **Stage 2 — the content datasource.**
    - **The page-span rule has one home:** `SliceRange.pageSpan` returns a
@@ -1033,13 +1035,9 @@ CREATE TABLE bjt_content (
      never clears the files folder. This runs inside
      `BundledDatabase._connect`, once per file per launch, before a connection
      exists, so nothing is deleted under an open database.
-   - **A full phone is still a bad place to be, and step 10 looks at it.**
-     Every search retries the copy (the debounce is 300 ms, and a failed open
-     is forgotten so the next one retries), and on Android every try unpacks
-     the whole asset on the UI thread. The failure reaches the screen as "no
-     results", like any database that won't open. Whether it should say "free
-     up space" instead, and whether a failed copy should stop retrying until
-     the app restarts, is for the device check to answer.
+   - **A full phone is still a bad place to be:** every search retries the
+     copy. What it should do instead is decided on a device, in
+     [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
    - **Where: a `databases/` folder** the code creates, in a place that
      depends on the platform:
      - **Android: the files folder**, `getApplicationSupportDirectory()`.
@@ -1130,9 +1128,11 @@ CREATE TABLE bjt_content (
      on macOS (1/1) and left both copies matching the assets. The other
      suites were not run again.
    - **Not exercised:** the failed-copy path. Filling the disk isn't
-     reproducible here; step 10's full-phone check covers it.
-   - **Android is unchecked:** this Mac has no Android SDK. Step 10 covers
-     the files folder and the backup rules.
+     reproducible here; the full-phone check in
+     [`first-mobile-release.md`](../mobile-release/first-mobile-release.md)
+     covers it.
+   - **Android is unchecked:** this Mac has no Android SDK. The same doc
+     covers the files folder and the backup rules.
 
    **Also changed: the startup check in `main.dart`.** It checked `bjt.db` was
    bundled with `rootBundle.load('assets/databases/bjt.db')`. It now calls
@@ -1150,11 +1150,8 @@ CREATE TABLE bjt_content (
      (`apk_asset_provider.cc`) on every launch, on the UI thread. Read from
      the engine source, not measured: Android has not been built since the
      move to Drift. The copy still pays that once per install or database
-     update.
-   - **`noCompress` for `.db` would avoid the inflate, but costs about
-     190 MB installed.** Deflate shrinks `bjt.db` from 170 to 113 MB and
-     `dict.db` from 163 to 28 MB (measured 2026-09-17). Not done: step 10
-     times the first search after install on a phone first.
+     update. Whether `noCompress` for `.db` is worth its installed size is
+     decided in [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
 
    **7.1 — Rename `bjt-fts.db` to `bjt.db` — DONE 2026-09-16, in its own
    commit.** The file stopped being a search index at step 5: it holds
@@ -1294,7 +1291,8 @@ CREATE TABLE bjt_content (
    directly (snippets 13–586×, reader p50 45×); this step wired them up and
    proved the *text* is identical, not that the app got faster. Nobody has
    timed a search or a reader open in the real app before and after. If that
-   number is wanted, take it on a device at step 10 rather than on this Mac.
+   number is wanted, take it on a device — an optional item in
+   [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
 
    **Recap for whoever starts step 9:** its first check already passes —
    `grep -rn "assets/text" lib/` now finds nothing at all, the last doc comment
@@ -1328,7 +1326,8 @@ CREATE TABLE bjt_content (
    `dict.db`, and steps 3–4 costed the APK/IPA with `dict.db` excluded, so it
    neither confirms nor replaces them. In particular the **download** still
    rises (92 → 114 MB, step 4): a pre-compressed blob cannot deflate again.
-   Nothing here was measured out of a real APK or IPA.
+   Nothing here was measured out of a real APK or IPA; that is in
+   [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
 
    **How absence was proved**, three ways, since a size drop alone would not
    show it:
@@ -1365,20 +1364,9 @@ CREATE TABLE bjt_content (
    and a clean build never produces it — worth knowing before reading it as a
    failure. The first `flutter build macos` after the edit also died once on
    `Failed to copy Flutter framework`; it built on an unchanged retry.
-10. Verify offline reading + search snippets on a real device. Check first-launch
-    DB copy time (`openBundledExecutor` copies the asset DB to `databases/`;
-    a bigger DB = bigger one-time copy + double on-disk during install), and
-    that installing over an older build copies the database again (step 7).
-    On Android, also: time the first search after install on a low-end phone
-    (the engine inflates the whole asset on the UI thread); clearing the
-    app's cache must not copy again; and Auto Backup must leave
-    `files/databases/` out (`adb shell bmgr backupnow <package>` succeeds).
-    **The full-phone case:** fill the device's storage, then search. The
-    partial copy must be gone afterwards (`adb shell run-as <package> ls
-    files/databases`), and the app must stay usable. Decide from what you see
-    whether search should say "free up space", and whether a failed copy
-    should stop retrying until the app restarts (today every search retries,
-    and each try unpacks the asset again).
+10. **The real-device pass — moved 2026-09-18** to
+    [`first-mobile-release.md`](../mobile-release/first-mobile-release.md),
+    with everything else a mobile release waits on.
 11. **Web now reads this DB client-side** (Drift wasm/OPFS) — see the top banner.
     The old `getWebOverrides()` → server route is being retired, not extended.
     Not part of step 6's branch: it needs the download-once path and the
@@ -1431,14 +1419,8 @@ through Drift. It goes with the server; do not repoint it at `bjt_content`.
   against the download.
 
 - **Delivery is an untouched axis.** Every figure here assumes the DB ships
-  inside the APK/IPA. [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md)
-  already designs a manifest + boot reconciler that downloads databases and
-  reconciles them on launch — but only for web/OPFS. The same machinery on
-  mobile, or its store-native equivalents (Play Asset Delivery, iOS On-Demand
-  Resources), would take the install to a few megabytes and move the rest to a
-  first-run fetch from R2, where egress is already free. It costs the *installs
-  usable offline* property, which is why this is listed rather than proposed.
-  Nobody has costed it.
+  inside the APK/IPA. Downloading it instead is listed, not costed, under
+  **Later** in [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
 
 - **`dict.db` — settled 2026-09-12: no size work, and here is why not.** It is
   in `pubspec.yaml` and ships in the APK, but appears in *none* of the headline
