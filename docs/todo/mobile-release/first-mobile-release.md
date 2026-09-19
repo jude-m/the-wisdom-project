@@ -68,8 +68,9 @@ estimate. None came out of an APK or IPA.
 - **Download the databases instead of bundling them.** Every figure assumes the
   databases ship inside the APK/IPA. Two ways would take the install to a few
   megabytes, with a first-run fetch from R2, where egress is free:
-  - the web's manifest + boot reconciler
-    ([`db-auto-update-prestudy.md`](../retiring-dart-server/db-auto-update-prestudy.md))
+  - the web's installer
+    ([`move-web-onto-drift.md`](../retiring-dart-server/move-web-onto-drift.md)):
+    the build's manifest names each database, fetched once from R2
   - the store-native options, Play Asset Delivery and iOS On-Demand Resources
 
   Either way, a fresh install no longer works offline, which is why this is

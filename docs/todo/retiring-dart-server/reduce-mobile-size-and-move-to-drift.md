@@ -7,7 +7,8 @@
 > suite green. A rebuilt database reaches the app's copy by a manifest hash
 > and a stamp (step 7). **The JSON no longer ships** (step 9): 340 MiB off the
 > macOS release bundle, 733 → 393 MiB, with the files kept in the repo for the
-> build-time readers. **Next here: step 11**, web. Two deletions
+> build-time readers. **Next: step 11, web**, which is its own plan now:
+> [`move-web-onto-drift.md`](./move-web-onto-drift.md). Two deletions
 > from step 5 are deliberately still open: see **Left open after step 5**. A
 > compression sample stays optional (**Compression sample — optional, later**).
 >
@@ -37,8 +38,8 @@
 >   **Host the blobs on Cloudflare R2, not Cloudflare Pages** — the content+FTS DB
 >   and `dict.db` each exceed **Pages' 25 MiB per-file
 >   limit** by an order of magnitude, whereas R2 has no per-file cap and **zero egress** (already the
->   media/audio store). The Flutter bundle + static HTML sit on one Pages project;
->   only the heavy DBs live on R2. Details in
+>   media/audio store). The Flutter bundle and the static HTML are separate Pages
+>   projects; only the heavy DBs live on R2. Details in
 >   [`static-web-hosting.md`](../../decisions/static-web-hosting.md)
 >   (Free-tier fit).
 > - **~~Verify first (flag):~~ FTS5 in the Drift wasm build — PASSED 2026-09-11.**
@@ -1070,10 +1071,10 @@ CREATE TABLE bjt_content (
    - **No sidecar handling.** The copies are only read and use a rollback
      journal (header bytes 18/19 = 1), so SQLite never creates `-wal`, `-shm`
      or `-journal` for them. None existed after the suites ran.
-   - **Web uses the same fingerprint.** The CDN manifest in
-     [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md) uses this
-     SHA-256 as each database's version and in its file name. No web code
-     now.
+   - **Web uses the same fingerprint.**
+     [`move-web-onto-drift.md`](./move-web-onto-drift.md) reads this manifest
+     in the browser; the hash names each version's OPFS folder and its file on
+     R2. No web code now.
    - **Nothing checks the manifest against the files yet.** The app trusts
      it, so a database changed outside `finalizeDatabase` (copied in by hand,
      repaired with `sqlite3`, or left half-written by a failed generator run)
@@ -1367,22 +1368,8 @@ CREATE TABLE bjt_content (
 10. **The real-device pass — moved 2026-09-18** to
     [`first-mobile-release.md`](../mobile-release/first-mobile-release.md),
     with everything else a mobile release waits on.
-11. **Web now reads this DB client-side** (Drift wasm/OPFS) — see the top banner.
-    The old `getWebOverrides()` → server route is being retired, not extended.
-    Not part of step 6's branch: it needs the download-once path and the
-    COOP/COEP headers first (README step 3).
-
-    **Time the web decoder here.** Section 5 runs `package:archive`'s pure-Dart
-    decoder on the Dart VM only, so time it and check its output once in a web build;
-    if it is too slow there, swap just the unpacking call for
-    `DecompressionStream` and keep the rest.
-
-    **Rename `BundledDatabase` here.** This is the first database it opens that
-    did not come out of the app bundle: `open` should take an executor instead
-    of hardcoding `openBundledExecutor`, and the class becomes source-neutral
-    (`LocalDatabase`) — nothing in it is bundle-specific. A downloadable
-    edition triggers the same change; a remote-API edition does not, as it
-    never reaches this class.
+11. **Web onto Drift — moved 2026-09-18** to
+    [`move-web-onto-drift.md`](./move-web-onto-drift.md), its own plan.
 
 ### What the snippet path lost at step 8
 
@@ -1532,8 +1519,10 @@ through Drift. It goes with the server; do not repoint it at `bjt_content`.
 - [`README.md`](./README.md) — the parent plan: retiring the Dart content server.
 - [`drift-fts5-wasm-spike-results.md`](./drift-fts5-wasm-spike-results.md) — the
   spike that cleared the FTS5 gate, and found the WAL flag and three live bugs.
+- [`move-web-onto-drift.md`](./move-web-onto-drift.md) — step 11 as its own
+  plan: web reads these databases in the browser.
 - [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md) — how a rebuilt
-  DB reaches a client that already has the old one (manifest + boot reconciler).
+  DB reaches a browser that already has the old one (answered: with the build).
 - `docs/general/how_search_works.md` — the search pipeline (Step 5 reads JSON).
 - [`perf-fts-snippet-text-loading.md`](../../done/perf-fts-snippet-text-loading.md)
   — the shipped memo-cache fix this migration tears down.

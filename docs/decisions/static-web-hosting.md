@@ -111,9 +111,11 @@ Two things ship as **static builds**; one **Worker** stays. Nothing is always-on
   The Flutter bundle and the static HTML are **separate Pages projects** (see
   "Project topology"); the heavy canon blobs sit on R2 (zero egress) and are
   fetched once into OPFS.
-- **CORS now applies to the research call** (the app on Pages → the Worker on a
-  different origin). Today it's pinned to the tester origin, with the App Check
-  gate deferred (serverless doc §6). Content reads have *no* API, so *no* CORS.
+- **CORS applies twice.** The research call (the app on Pages → the Worker on a
+  different origin) — today pinned to the tester origin, with the App Check
+  gate deferred (serverless doc §6). And the one-time database download (the
+  app → R2 on a different origin), so the bucket carries a CORS rule for the
+  app's origins. Content reads after that are local; there is no content API.
 
 ### Free-tier fit — files, HTTPS, bandwidth (verified 2026-07-20)
 

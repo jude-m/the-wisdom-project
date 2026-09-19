@@ -13,10 +13,13 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
   Drift. Now the keystone; the top banner carries the decisions and the current
   step, and **What the Drift/wasm spike changed** carries what moved after the
   spike.
+- **`move-web-onto-drift.md`** — web reads the same databases in the browser, with
+  no server. Was step 11 of the content-DB plan.
 - **`drift-fts5-wasm-spike-results.md`** — what the spike found. Read this one.
-- **`db-auto-update-prestudy.md`** — the follow-on design brief: how a rebuilt DB
-  reaches a client that already has the old one. Manifest + a boot reconciler, where
-  the update path, eviction recovery and first install are one function.
+- **`db-auto-update-prestudy.md`** — how a rebuilt database reaches a browser that
+  already has the old one. Answered: the version rides with the web build
+  (`move-web-onto-drift.md`); the brief keeps what the study found about browser
+  storage, and why update, eviction recovery and first install are one path.
 - **`drift-fts5-wasm-spike.md`** — ~~the ONE gate~~ **PASSED 2026-09-11**. The brief
   as written before the spike ran, kept for what it asked. One section of it is
   actively wrong and marked so.
@@ -35,17 +38,17 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
    pass that was step 10 is in
    [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
 3. **Move web onto Drift** (wasm + OPFS) — the same datasources, reading a database
-   downloaded once rather than bundled
-   ([`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md)).
-4. **Retire** the web remote datasources; make Flutter web static. `server/` does
-   not wait for this: it moves to `deprecated/` earlier, in
+   downloaded once rather than bundled:
+   [`move-web-onto-drift.md`](./move-web-onto-drift.md).
+4. **Host Flutter web statically** —
+   [`web-release.md`](../web-strategy/web-release.md) §6. Step 3 already deletes
+   the web remote datasources. `server/` does not wait for this: it moves to
+   `deprecated/` earlier, in
    [`test-all-and-release-all.md`](../test-all-and-release-all.md).
    The static HTML site and the Flutter bundle are separate **Cloudflare Pages**
    projects (one per surface); the canon DBs (~180 MB content+FTS, ~175 MB
    `dict.db`) exceed Pages' 25 MiB per-file limit, so they're hosted on **R2** and
    downloaded once into OPFS — see
-   [`reduce-mobile-size-and-move-to-drift.md`](./reduce-mobile-size-and-move-to-drift.md)
-   (delivery bullet) and
    [`static-web-hosting.md`](../../decisions/static-web-hosting.md) (Free-tier fit).
 
 > **2 before 4, and that is new.** Without the content DB, going static means serving
@@ -55,8 +58,11 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
 > least-understood piece" of going static. The answer is not to prototype it.)
 > Step 3 sits between them for a simpler reason: it reads the table step 2 builds.
 >
-> Step 3 is also where the host decision lands: without COOP+COEP, Drift on Chrome
-> does not fall back to "slower OPFS", it falls back to IndexedDB holding ~274 MB.
+> Step 3 is also where COOP+COEP become required: without them Drift on Chrome
+> does not fall back to "slower OPFS", it falls back to IndexedDB holding the whole
+> library. Step 3 sends them locally (`web_dev_config.yaml`) and shows a message
+> instead of running without them; hosting sends them from `_headers`
+> (`web-release.md` §6).
 
 ## Related (outside this folder)
 

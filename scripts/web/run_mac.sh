@@ -42,10 +42,10 @@ CLEAN=false
 # exported RESEARCH_BASE_URL wins.
 #
 # CORS CAVEAT (web only): the browser enforces the Worker's CORS allow-list
-# (RESEARCH_CORS_ORIGINS in research_server/wrangler.jsonc). This dev server is
-# http://localhost:PORT, which is NOT in that list, so research calls will be
-# CORS-blocked in the browser until you add http://localhost:8080 there and
-# redeploy the Worker. Native platforms don't hit this — only the browser does.
+# (RESEARCH_CORS_ORIGINS in research_server/wrangler.jsonc). It lists
+# http://localhost:8080, the default here; with another --port, research calls
+# are CORS-blocked until that origin is added and the Worker redeployed. Native
+# platforms don't hit this — only the browser does.
 RESEARCH_BASE_URL="${RESEARCH_BASE_URL:-https://wisdom-research.bk-anigha.workers.dev}"
 
 # Parse arguments

@@ -119,7 +119,7 @@ today a type error ships. Writing tests is a separate task.
 |---|---|---|---|
 | static site | `run.sh` | `deploy.sh --dev` → `sammaditthi-dev`, branch `dev` | `deploy.sh --prod` → `sammaditthi.net` |
 | research server | `run.sh` | `deploy.sh --dev` → today's only Worker, personal account | **placeholder** — moves to the ops account ([`web-release.md`](web-strategy/web-release.md) §4) |
-| app · web | `run_mac.sh` — from step 4 it only builds: no local host, no content (see **Moves**) | **placeholder** — home not decided | **placeholder** — `app.sammaditthi.net` |
+| app · web | `run_mac.sh` — from step 4 through Flutter's own server, with no content until web Drift lands (see **Moves**) | **placeholder** — home not decided | **placeholder** — `app.sammaditthi.net` |
 | app · android, ios, macos | `run.sh` | **placeholder** | **placeholder** — no signing or store upload; Android release builds use the debug key |
 | app · windows | `run.bat` | – | – |
 
@@ -242,7 +242,7 @@ code through, so CI never reads a placeholder's 3 as released.
 | **keep** | waiting after the upload until the live site reports the new SHA |
 | **change** | rsync + SSH → a wrangler Pages upload, with the static site's dev/prod and account guards moved into `lib/common.sh` rather than copied |
 | **change** | `/healthz` is served by the Dart server, which Pages does not have: the build writes a static version file and `version_check_provider.dart` polls that — a small app change |
-| **change** | which assets are stripped depends on how Drift delivers the databases on web |
+| **change** | strip only `assets/assets/databases/*.db`: `manifest.json` stays, because the app reads each database's version from it. The databases go to R2 ([`web-release.md`](web-strategy/web-release.md) §6) |
 | **drop** | the SMB mount and the SSH restart |
 
 ## Moves — confirmed 2026-09-14
@@ -258,13 +258,20 @@ templates are the one exception — every line in them moves to
 | `scripts/web/deploy.sh`, `run_win.bat`, `restart_win.bat` | move → `deprecated/web_windows_box/` |
 | `server/` | move → `deprecated/server/`, **without waiting for web Drift**. Its `wisdom_shared` path dependency no longer resolves from there; `deprecated/**` is excluded from analysis. No new script tests it. |
 | `scripts/{android,ios,macos}/run.sh`, `scripts/windows/run.bat` | `git mv` → `scripts/app/<platform>/` |
-| `scripts/web/run_mac.sh` | `git mv` → `scripts/app/web/run_mac.sh` — name kept, it says which machine. Loses its serve step (below) |
+| `scripts/web/run_mac.sh` | `git mv` → `scripts/app/web/run_mac.sh` — name kept, it says which machine. Serves through Flutter's own server (below) |
 | `scripts/static_site/.prod.env.example`, `research_server/.dev.vars.example` | fold into `scripts/config/secrets.env.example`, then delete |
 
-**`run_mac.sh` loses its host, not just its content.** The Dart server did two
-jobs: `/api/…` content, and hosting `build/web` (`--web-root`). From step 4
-`run_mac.sh` builds, then says there is nowhere local to serve it yet — the
-replacement is its own item (**Not in this plan**).
+**`run_mac.sh` keeps a host and loses its content.** The Dart server did two
+jobs: `/api/…` content, and hosting `build/web` (`--web-root`). Flutter's own
+server takes over the second: `run_mac.sh` runs
+`flutter run -d web-server --web-port 8080`, passing on `--debug`, `--profile`
+or `--release`; `--skip-build` goes, since `flutter run` always builds. It
+answers unknown paths with `index.html`, so a reloaded `/tipitaka/…` deep link
+works, and port 8080 is already in the Worker's CORS list. Open the URL in your
+usual Chrome: `-d chrome` would start a throwaway profile on every run. Content
+comes back with web Drift, which also adds the COOP/COEP headers in
+`web_dev_config.yaml`
+([`move-web-onto-drift.md`](retiring-dart-server/move-web-onto-drift.md)).
 
 Then repoint every live mention of a moved file, `.dev.vars`, `.prod.env`, or
 the Windows box's port 8081:
@@ -305,7 +312,8 @@ the secrets in step 1.
 2. **`scripts/static_site/test.sh`**, called by its `deploy.sh`.
 3. **`scripts/research_server/test.sh`**, called by its `deploy.sh`; `--prod`
    placeholder.
-4. **`scripts/app/`.** Move the run scripts, write `app/test.sh`, add the four
+4. **`scripts/app/`.** Move the run scripts — `run_mac.sh` now serving through
+   Flutter's own server (**Moves**) — write `app/test.sh`, add the four
    placeholder deploys, and move the Windows-box files and `server/` to
    `deprecated/`. In the same step drop the Windows box from the Worker's CORS
    list, and `server` from `check-dart-packages.sh`, so that gate keeps passing
@@ -319,8 +327,9 @@ outputs, safe to regenerate. On 2026-09-15 both on this Mac were WAL-flagged,
 which the full `app/test.sh` rightly fails. Then: each `test.sh` passes alone,
 with and without `--quick`; `release_all.sh` sweeps every `deploy.sh` and names
 each placeholder without running a test; `static_site/deploy.sh --dry-run` and
-`research_server/deploy.sh --dry-run` behave as before. No live deploy without
-asking.
+`research_server/deploy.sh --dry-run` behave as before; `app/web/run_mac.sh`
+serves the app on port 8080, and a reloaded deep link loads it. No live deploy
+without asking.
 
 ## CI, once the steps land
 
@@ -336,15 +345,6 @@ Owned by [`web-release.md`](web-strategy/web-release.md) §5:
 
 Gaps the investigation found, each its own item:
 
-- **A local host for `build/web`**, replacing the Dart server's `--web-root`.
-  Like `static_site_generator/tool/serve.dart`, it imitates Cloudflare Pages
-  rather than serving plain files: unknown paths fall back to `index.html`, as
-  Pages does for a project with no `404.html`, so reloading a `/tipitaka/…` deep
-  link works; and it sends COOP/COEP, which Drift's wasm build needs for OPFS
-  ([`drift-fts5-wasm-spike-results.md`](retiring-dart-server/drift-fts5-wasm-spike-results.md)
-  §4). `python3 -m http.server` does neither. Port **8080**, the one
-  `run_mac.sh`'s Dart server holds today and already in the Worker's CORS list.
-  `run_mac.sh` calls it once it exists.
 - `theme_tokens.json` is never checked against the app theme it is dumped from.
 - `CORPUS_FIGURES.md` is never checked against a fresh `--write-figures`.
 - Build-twice determinism is checked by hand (`web-release.md` §2).

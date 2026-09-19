@@ -1,230 +1,99 @@
-# DB auto-update mechanism — pre-study / design brief
+# Database updates on the web — pre-study
 
-**Context:** follow-on to the *Retiring the Dart server* spike (`drift-fts5-wasm-spike-results.md`).
-That spike established that the client downloads `bjt.db` and the `dict.db` shards once
-and stores them in OPFS. This brief answers the next question: **when a new version of a DB
-ships (say `dict.db` two months later), how does the client pick it up seamlessly, without the
-user re-downloading everything by hand?**
+**Context:** follow-on to the *Retiring the Dart server* spike
+(`drift-fts5-wasm-spike-results.md`), which settled that the browser downloads
+`bjt.db` and `dict.db` once and keeps them in OPFS. The question here: **when a
+rebuilt database ships, how does a browser that already holds the old one pick it
+up, without the user doing anything?**
 
-Verdict up front: **doable, no user-facing permissions, and it reuses code the spike already
-requires.** The update path and the eviction-recovery path are literally the same function.
-
-This is a design brief, not an implementation. It fixes the shape and names the traps so the
-developer starts from the right place. Items marked **VERIFY** are web-platform behaviours that
-shift over time and must be confirmed against current browser support at implementation time —
-do not take them as settled.
+> **Answered 2026-09-18: the database version rides with the web build.** The
+> build's `manifest.json` names each database's SHA-256; the browser installs that
+> version into a folder of its own, and deletes an old version once no tab uses
+> it. The design is in [`move-web-onto-drift.md`](./move-web-onto-drift.md). This
+> brief keeps what the study found that still holds.
 
 ---
 
-## 1. The one premise to correct first
+## 1. No schedule on the web — check on open
 
-There is **no reliable "check once a month while the app is closed"** on the web. There is no
-cron. The only thing resembling it is the **Periodic Background Sync API**, which is
-Chromium-only, requires the app to be installed as a PWA, and fires at the browser's discretion —
-never on Safari or Firefox, and not on a guaranteed schedule even where it exists.
-
-So the model is **check on open, not on a schedule.** And the check is cheap enough that the
-"once a month" throttle is not worth building: the manifest is ~1 KB, fetching it on every launch
-costs nothing, and a download only happens when the version actually differs.
-
-> **Decision: check the manifest on every boot. Download only on a version diff. No throttle.**
-> A throttle would only save a trivial request while adding state you have to keep correct.
-
----
+There is **no reliable "check once a month while the app is closed"** on the web.
+The only thing resembling it, the **Periodic Background Sync API**, is
+Chromium-only, needs the app installed as a PWA, and fires at the browser's
+discretion — never on Safari or Firefox, and not on a schedule even where it
+exists. So the check happens when the app opens. With the version in the build,
+it is a comparison against the build's `manifest.json`, fetched from the app's
+own host like any asset: no request to R2.
 
 ## 2. Storage category and permissions — nothing to solve
 
-The DB files live in **OPFS (Origin Private File System)** — `navigator.storage.getDirectory()`.
-This is browser-managed storage, the same bucket as IndexedDB and Cache Storage. Treating these
-files as **cache/temp, not user-owned downloads, is the correct mental model.**
+The databases live in **OPFS (Origin Private File System)** —
+`navigator.storage.getDirectory()`. This is browser-managed storage, the same
+bucket as IndexedDB and Cache Storage. Treating these files as **cache, not
+user-owned downloads, is the right mental model.**
 
-Every operation — fetch bytes, write into OPFS, delete the old file, move staged → live — happens
-**silently, with zero permission prompts.** The user is never asked, sees no "file downloaded"
-indicator, and cannot browse to these files in their OS file manager.
-
-The distinction worth being precise about: there are two filesystem APIs on the web and only one
-prompts.
+Every operation — fetch, write into OPFS, delete an old version — happens
+**silently, with zero permission prompts.** The user is never asked, sees no
+"file downloaded" indicator, and cannot browse to these files in their OS file
+manager. Only one of the two filesystem APIs prompts:
 
 | API | Prompts? | Use it here? |
 |---|---|---|
 | **OPFS** (`navigator.storage.getDirectory()`) | Never | **Yes** — this is the sandbox |
 | **File System Access** (`showSaveFilePicker`, `showDirectoryPicker`) | Yes — shows a picker, touches the real filesystem | **No** — that's the *deliberate download* case, not ours |
 
-**The consequence of the cache category — internalise this:** cache is **evictable.** The browser
-may wipe the origin's storage under disk pressure, and the user can clear it via "Clear browsing
-data / site data." This is not a flaw in the plan; it is exactly *why* the reconcile-on-boot
-design below is mandatory rather than optional (see §6–7).
+**Cache is evictable.** The browser may wipe the origin's storage under disk
+pressure, and the user can clear it via "Clear browsing data / site data."
+`navigator.storage.persist()` asks the browser to resist that. Chrome answers
+from site engagement at the time of asking, with no dialog, so the app asks on
+each start until it gets `true`. A `false` is not fatal: storage stays
+best-effort, and §5 covers an eviction.
 
-`navigator.storage.persist()` asks the browser to mark storage durable so it resists casual
-eviction. On Chrome it's granted silently on engagement heuristics (returns true/false, no
-dialog). **VERIFY** current Firefox/Safari behaviour — historically Firefox prompted, engines have
-been converging toward silent grants. Either way, `persist()` returning `false` is **not fatal** —
-it drops to best-effort storage, which the reconciler already handles.
-
----
-
-## 3. CDN layout: manifest + hash-named immutable files
+## 3. One file per version on R2, named by its hash
 
 ```
-/manifest.json                    ← mutable;   Cache-Control: no-cache
-/db/bjt.<sha256>.db.gz            ← immutable; Cache-Control: public, max-age=31536000, immutable
-/db/dict-core.<sha256>.db.gz      ← immutable
-/db/dict-dpd.<sha256>.db.gz       ← immutable; each shard has its own hash
+bjt-<first 16 hex of SHA-256>.db.gz     ← Cache-Control: public, max-age=31536000, immutable
+dict-<first 16 hex of SHA-256>.db.gz    ← the same
 ```
 
-A database's version **is its SHA-256**: the one `tools/db-finalize.js` computes over the
-finished, uncompressed file, the same fingerprint the mobile app compares
-(`assets/databases/manifest.json`, plan step 7). There is no separate version to bump.
+A database's version **is its SHA-256**: the one `tools/db-finalize.js` computes
+over the finished, uncompressed file, the same fingerprint native compares
+(`assets/databases/manifest.json`). There is no separate version to bump.
 
-`manifest.json` lists, per DB/shard: that hash, the URL, on-the-wire size, and decompressed
-size. Sketch:
+- **The hash is in the name and a file is never overwritten,** so browser and
+  CDN caches are trivially correct, and a tab still on an old build finishes
+  downloading its own version after a deploy.
+- **The same name is the OPFS folder** (`drift_db/bjt-<sha16>/`), so nothing is
+  ever replaced in place.
+- **No shards.** The set of databases is fixed (decided 2026-09-19).
 
-```json
-{
-  "schemaVersion": 1,
-  "databases": {
-    "bjt":       { "sha256": "…", "url": "/db/bjt.<sha256>.db.gz",
-                   "bytesGz": 47600000, "bytesRaw": 99400000 },
-    "dict-core": { "sha256": "…", "url": "/db/dict-core.<sha256>.db.gz", ... },
-    "dict-dpd":  { "sha256": "…", "url": "/db/dict-dpd.<sha256>.db.gz", ... }
-  }
-}
-```
+## 4. You cannot delete a database a tab is reading
 
-Why this shape:
+Chrome's OPFS mode (`opfsLocks`) closes a file 150 ms after its last query, so
+the browser does not stop another tab deleting a file that an idle old tab still
+reads — its next search would fail. Hence a new version goes into a new folder,
+and an old folder is deleted only when no tab holds its in-use Web Lock
+([`move-web-onto-drift.md`](./move-web-onto-drift.md) step 4).
 
-- **The hash is in the URL and the file is served `immutable`,** so browser and CDN caches are
-  trivially correct — you never fight cache invalidation. Only `manifest.json` is ever revalidated.
-- **Each shard has its own hash** (the per-`dict_id` split from spike §8). A month where only
-  DPD changed then re-downloads only DPD (~30 MB gz), not the whole 274 MB. On flaky mobile this
-  also raises the odds a non-resumable download completes.
+## 5. Update == eviction recovery == first install
 
----
+The most useful property: **one path covers all three.** "There's a newer
+version," "the browser evicted the storage" and "first-ever visit" are all *no
+finished folder for this build's version → install it.* Build it once.
 
-## 4. The core constraint: you cannot overwrite an open DB
+## 6. Integrity — keep it cheap
 
-Drift holds each DB through a `FileSystemSyncAccessHandle` in its worker, and the user is hitting
-`dict.db` on every word tap. Renaming over an open handle, or swapping mid-session, races
-in-flight queries.
+- **Byte length against the manifest** — catches a cut download, the common
+  failure.
+- **`createWritable()` commits on close**, and a stamp written last marks an
+  install finished; a folder without one is installed again.
+- **Full SHA-256 is optional.** A file's name comes from its hash and HTTPS
+  covers the transfer. `SubtleCrypto` does not stream, so hashing would be pure
+  Dart on the UI thread over 351 MB — measured before it is kept
+  (`move-web-onto-drift.md` step 3).
 
-> **Decision: download-in-background, swap-on-next-boot.** The staged file is applied while Drift
-> is closed, at the next launch. For a monthly dictionary refresh the one-launch delay is
-> invisible, and it removes the open-handle problem entirely — no "please restart" nag, no
-> mid-session disruption.
+## 7. Verify at implementation time
 
-(Same-session apply is possible — close the dict connection, swap, reopen — but it's more code and
-more failure surface for no real benefit here. Default to boot-swap.)
-
----
-
-## 5. Download-to-staging (during the session)
-
-Reuse the streaming writer the spike already needs for initial pre-seed (spike §6): stream the
-`fetch` body, decompress, write into OPFS in chunks (~2 MB peak buffer — do **not** buffer the
-whole 175 MB). Note `Content-Encoding: gzip` is transparent to `fetch`, so you write the
-*uncompressed* bytes to OPFS.
-
-Write to a **staging path**, never over the live file. Verify it (§7). Set a "pending swap" flag.
-Do not touch the live file. That's the whole in-session job.
-
----
-
-## 6. The reconciler (on boot, before Drift opens anything)
-
-One function, `reconcile()`, run **before Drift opens any DB**, under a **Web Lock**
-(`navigator.locks.request(...)`) so two tabs can't both do it.
-
-For each DB in the manifest, decide from three questions — *present? correct size? matching
-hash?* The live file's hash is the one recorded when it was installed, not recomputed on boot.
-
-1. **Verified staged file matching the manifest hash exists** → delete live, move staged → live,
-   record its hash. → *this is the update landing.*
-2. **Live file missing / short / wrong hash, no staged file** → mark for download (happens in
-   §5 once the app is interactive). → *this is eviction recovery **and** first install.*
-3. **Live file present and matches manifest** → nothing to do.
-
-Then open Drift on files that are now guaranteed correct.
-
-```
-boot
- └─ navigator.locks.request("db-reconcile", async () => {
-      manifest = await fetch("/manifest.json")   // ~1 KB, no-cache
-      for each db:
-        if stagedVerified(db):   swap(db)        // delete live, move staged→live
-        elif liveBad(db):        markForDownload(db)
-        // else: ok
-    })
- └─ Drift.open(...)   // on known-good files
- └─ (interactive) → download any marked DBs into staging → verify → set pending-swap
-      → applied on next boot
-```
-
----
-
-## 7. Integrity and crash-safety — non-negotiable
-
-**Crash-safe swap.** Staging + atomic move, **never** download-over-live. Delete the old file
-**only after** the move succeeds. A swap interrupted halfway must leave *either* the intact old
-file *or* a verified staged file — never a half-written live one.
-
-**Transient disk.** During a swap you briefly hold old + new for the DB being replaced (~350 MB
-for DPD). The per-shard split keeps this bounded — another reason it pays off.
-
-**Integrity gate — keep it cheap:**
-
-- **Byte-length vs manifest** — catches truncation, the common failure.
-- **`PRAGMA quick_check`** when the staged DB first opens — catches structural corruption cheaply.
-- **Full SHA-256** is optional belt-and-suspenders. The manifest's hash is of the decompressed
-  file, and `SubtleCrypto` does **not** stream, so don't hash 175 MB in one buffer — use a
-  streaming WASM hasher during the write pass.
-
----
-
-## 8. Update path == eviction-recovery path == first install
-
-The single most useful property of this design: **one reconciler covers all three.** "There's a
-newer version," "iOS evicted the file after ~7 days of no interaction," and "first-ever visit"
-are all just *"OPFS doesn't match the manifest → make it match."* Build it once, keyed on
-(present? correct size? matching hash?). This is the same requirement as spike §11.11
-(manifest + integrity check + re-download-on-eviction) — this brief is that item, fleshed out.
-
----
-
-## 9. The developer must VERIFY (web-platform, shifts over time)
-
-- **OPFS `FileSystemHandle.move()` / rename support** across Chrome, Safari, Firefox. If not
-  universal, the fallback for the swap is copy-via-stream then delete — one extra full-size pass
-  during the (Drift-closed) boot window. Since the swap runs while Drift is closed, raw OPFS APIs
-  are free to use either way.
-- **`navigator.storage.persist()` behaviour** (silent vs prompt) on each target engine.
-- **Periodic Background Sync** — assume unavailable; the design does not depend on it. Only
-  revisit if you later ship an installed PWA and want opportunistic pre-fetch as a bonus.
-- **iOS Safari eviction window** (~7 days without interaction) and its tighter per-origin quota —
-  the best-effort tier. The reconciler makes this survivable, not invisible.
-
-Confirm these against current MDN / caniuse at implementation time rather than trusting any
-figure here — this brief predates your build.
-
----
-
-## 10. Scope and first steps
-
-**In scope for this work:** manifest schema, CDN cache headers, the `reconcile()` boot pass under
-a Web Lock, streaming download-to-staging, crash-safe atomic swap, the byte-length + `quick_check`
-gate, `persist()` + handling `false`.
-
-**Explicitly out of scope / deferred:** background scheduling (there is none), same-session apply,
-delta/patch downloads (ship whole hash-named files — the per-shard split already bounds payloads).
-
-**Prototype first, in this order:**
-
-1. Manifest + one hash-named immutable file on the real host; confirm cache headers behave
-   (ties into the COOP/COEP host decision, spike §3 — same "can this host set headers" question).
-2. Streaming download-to-staging reusing the §6 pre-seed writer; verify ~2 MB peak buffer holds.
-3. The crash-safe swap + `reconcile()` boot pass — this is the heart of it, and the part with the
-   real failure modes. Test: kill the tab mid-swap, mid-download, mid-verify; confirm you always
-   boot into either old-good or new-good, never broken.
-
-**Ties back to the spike doc:** this is sequence items §11.10 (split `dict.db` by `dict_id`) and
-§11.11 (manifest + integrity + re-download-on-eviction), specified. It assumes the OPFS layout and
-streaming writer from §6 already exist.
+- **`navigator.storage.persist()`** on each target engine (silent or a prompt).
+- **iOS Safari eviction** (~7 days without interaction) and its tighter
+  per-origin quota — the best-effort tier. §5 makes it survivable, not invisible.
+- **Periodic Background Sync** — assume unavailable; nothing depends on it.

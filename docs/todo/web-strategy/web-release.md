@@ -158,7 +158,7 @@ still records a single reserved project; revise it once this is settled.
 
 | target | command | today |
 |---|---|---|
-| local | `run_mac.sh` | works through the Dart server until it moves to `deprecated/`; then builds only, until a local host replaces it (plan's **Not in this plan**) |
+| local | `run_mac.sh` | works through the Dart server until it moves to `deprecated/`; then through Flutter's own server (`flutter run -d web-server`), with content once web Drift lands |
 | dev | `deploy.sh --dev` | placeholder |
 | prod | `deploy.sh --prod` | placeholder |
 
@@ -171,14 +171,50 @@ same-origin `/api/…`. That origin is the Dart `shelf` content server, which is
 the thing being retired. On static Pages with no server the app boots and every
 content, search and dictionary call 404s.
 
-The replacement is web's move onto Drift — step 3 of
-[`retiring-dart-server/README.md`](../retiring-dart-server/README.md), after the
+The replacement is web's move onto Drift —
+[`move-web-onto-drift.md`](../retiring-dart-server/move-web-onto-drift.md), step 3
+of [`retiring-dart-server/README.md`](../retiring-dart-server/README.md), after the
 native move. Its gate — FTS5 in the wasm build — passed 2026-09-11
 ([`drift-fts5-wasm-spike-results.md`](../retiring-dart-server/drift-fts5-wasm-spike-results.md)).
 The server does not wait for it: it moves to `deprecated/` in step 4 of the plan,
 with the Windows-box deploy that hosted it. From then until web Drift lands the
-web app has no content anywhere, and locally no host either until the
-replacement exists. Accepted.
+web app has no content anywhere; locally it still runs, through Flutter's own
+server. Accepted.
+
+**What web Drift needs from hosting.** The app side is decided in
+`move-web-onto-drift.md`; this is the host's half.
+
+- **COOP/COEP on every file** — `/*` in `_headers`:
+  `Cross-Origin-Opener-Policy: same-origin` and
+  `Cross-Origin-Embedder-Policy: require-corp`. Not just the page: Drift starts
+  its worker from `drift_worker.js`. Without them Chrome can't use OPFS, and the
+  app shows its unsupported-browser message.
+- **The deploy strips `assets/assets/databases/*.db` and keeps
+  `manifest.json`** — the app reads each database's version from it. The
+  Windows-box `deploy.sh` deleted the whole folder.
+- **No `immutable` rule on the app's `/assets/*`**, unlike the static site.
+  Flutter's asset URLs carry no hash, so a cached old manifest would pair a new
+  app with an old database. Pages' default (revalidate) is right.
+- **One R2 file per database version**, named like its OPFS folder:
+  `bjt-<first 16 hex of SHA-256>.db.gz`. Upload it before deploying the app,
+  never overwrite it, and keep old ones — a tab on the old build may still be
+  downloading its version; delete them by hand now and then. The base URL is
+  the build's `DATABASE_BASE_URL`, per target in `scripts/config/targets.env`.
+- **Upload with** `wrangler r2 object put <bucket>/<name> --file <name>
+  --content-encoding gzip --content-type application/octet-stream
+  --cache-control "public, max-age=31536000, immutable" --remote` (the docs
+  don't state wrangler's default, so pass `--remote`). Check the first one:
+  `curl -sI -H 'Accept-Encoding: gzip' <url>` shows `content-encoding: gzip`,
+  and the app's size check passes — a file gzipped twice arrives still gzipped.
+  There are community reports of R2 doing that.
+- **A CORS rule on the bucket** for the app's dev and prod origins (`GET`): the
+  database comes from another origin. `r2.dev` is rate-limited and for
+  development only; prod needs a custom domain in the bucket's account.
+- **To confirm at setup:** whether turning R2 on needs a card on file
+  (community reports say yes).
+- **Later:** `require-corp` blocks media from another host unless it sends
+  `Cross-Origin-Resource-Policy` (e.g. recordings for the TTS plan), and COOP
+  `same-origin` breaks popup sign-in. Nothing in the app today.
 
 **Banked for when it is live** — cheap, and currently wrong:
 
