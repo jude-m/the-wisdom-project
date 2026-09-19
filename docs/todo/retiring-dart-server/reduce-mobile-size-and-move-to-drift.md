@@ -569,12 +569,14 @@ the same build pipeline, one in the same datasource.
    of the set with every snippet still byte-identical"*, is what an unstable
    tie produces under overfetch + `_limitToGroups`, and the engine then changed
    under it.
-2. **Dictionary prefix lookup full-scans 175 MB on every word tap** — the
-   three queries in `lib/data/datasources/dictionary_local_datasource.dart` use
-   `LIKE ? ESCAPE '\'`, which never uses `idx_word`. 133 ms natively; over OPFS
-   it is the whole file through a JS callback. `buildDictionaryLikePattern`
-   only ever builds a prefix, so the semantics survive
-   `word >= :w AND word < :w || char(0x10FFFF)` — 0.4 ms.
+2. **~~Dictionary prefix lookup full-scans 175 MB on every word tap~~ — fixed
+   2026-09-19, step 1 of [`move-web-onto-drift.md`](./move-web-onto-drift.md).**
+   The three queries in `lib/data/datasources/dictionary_local_datasource.dart`
+   used `LIKE ? ESCAPE '\'`, which never uses `idx_word`: 133 ms natively, and
+   over OPFS the whole file through a JS callback. They are now
+   `word >= :w AND word < :w || char(0x10FFFF)` — 0.4 ms — with the same rows,
+   and the ORDER BY ends `word, id` so ties inside a dictionary no longer
+   follow the query plan.
 3. **`idx_bjt_meta_language` earns nothing** — two distinct values over 457k
    rows. Its only demonstrated effect is the misplan above. Consider dropping
    it in the same pipeline pass.
@@ -1479,13 +1481,14 @@ through Drift. It goes with the server; do not repoint it at `bjt_content`.
 
   Two things are worth keeping, and neither is size work:
 
-  1. **The lookup never uses its index.** `lookupWord` in
-     `dictionary_local_datasource.dart` plans as `SCAN dictionary` — **41 ms against under 1 ms**, warm. `ESCAPE`
-     is not the blocker; current SQLite handles it. The blocker is `LIKE` being
-     case-insensitive by default against a BINARY `idx_word`. Prefer rewriting
-     the predicate as `word >= ? AND word < ?`, which indexes unconditionally,
-     over `PRAGMA case_sensitive_like=ON`, which changes behaviour globally. On
-     web this is the whole 145 MB table per keystroke. Also spike §9c.
+  1. **~~The lookup never uses its index~~ — fixed 2026-09-19** (step 1 of
+     `move-web-onto-drift.md`). `lookupWord` in
+     `dictionary_local_datasource.dart` planned as `SCAN dictionary` — **41 ms against under 1 ms**, warm. `ESCAPE`
+     was not the blocker; current SQLite handles it. The blocker was `LIKE` being
+     case-insensitive by default against a BINARY `idx_word`. The predicate is
+     now `word >= ? AND word < ?`, which indexes unconditionally, rather than
+     `PRAGMA case_sensitive_like=ON`, which changes behaviour globally. Also
+     spike §9c.
   2. **First launch allocates the file in RAM.** `openBundledExecutor` loads
      all 166 MB into one `ByteData` before writing it out, and does the same
      for `bjt.db`. Step 7 writes it in 8 MB pieces, which removed a second

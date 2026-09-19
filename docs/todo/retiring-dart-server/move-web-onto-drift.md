@@ -1,6 +1,7 @@
 # Move Web onto Drift
 
-> **Status 2026-09-19: planned, not started.** This was step 11 of
+> **Status 2026-09-19: in progress on branch `feat/move-web-onto-drift`; step 1
+> done.** This was step 11 of
 > [`reduce-mobile-size-and-move-to-drift.md`](./reduce-mobile-size-and-move-to-drift.md),
 > whose steps 1–9 are done: `bjt.db` holds the page text, and native reads both
 > databases through Drift. It is step 3 of the [`README.md`](./README.md) order.
@@ -31,9 +32,6 @@ this plan — it is [`web-release.md`](../web-strategy/web-release.md) §6.
   `run_mac.sh` serves the build through the Dart server.
 - The update banner polls `/healthz`, which only the Dart server answers. Local
   builds leave it off (`VERSION_CHECK_ENABLED`).
-- The dictionary's prefix lookup is `word LIKE ? ESCAPE '\'`, which never uses
-  `idx_word`: 41 ms natively, and the whole table read per word tap over OPFS.
-  The spike called it not shippable (spike §9c).
 - **Drift's web side has never run here.** The spike drove SQLite through its
   own harness; Drift's workers, its storage-mode choice and opening a file we
   wrote ourselves are unverified (spike §7). Step 3 starts there.
@@ -157,23 +155,32 @@ this plan — it is [`web-release.md`](../web-strategy/web-release.md) §6.
   `WasmDatabase.open`, by contrast, picks a mode itself and keeps an existing
   database's storage — in a browser without the headers it creates an
   IndexedDB database under our name. `probe()` plus `open(mode, …)` avoids both.
-- **The range query uses the index.** `EXPLAIN QUERY PLAN` on `dict.db`:
-  `SEARCH … USING COVERING INDEX idx_word` instead of a full scan, with the
-  same rows as `LIKE` on a sample prefix (2026-09-18). `LIKE` ignores ASCII
-  case and the range does not; no headword has an uppercase letter.
 - **Flutter 3.44's `flutter_service_worker.js` only unregisters itself.**
   Nothing caches the databases.
 
 ## Steps
 
-Step 1 is independent and lands on main first; the rest on a new branch.
+All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
+2026-09-19 over landing it on main first).
 
-1. **Fix the dictionary query.** Prefix: `word >= ? AND word < ?` (the word, and
-   the word followed by `char(0x10FFFF)`). Exact: `word = ?`. Replace
-   `buildDictionaryLikePattern` in `wisdom_shared` rather than adding a second
-   helper; while `server/` is still live, its `dictionary_handler.dart` switches
-   with it (the same change at six call sites, three in each). Faster on native too; the
-   dictionary integration tests confirm nothing changed.
+1. **~~Fix the dictionary query~~ — done 2026-09-19.** The prefix lookup was
+   `word LIKE ? ESCAPE '\'`, which never uses `idx_word`: the whole table read
+   per word tap, over OPFS on web (spike §9c). Now prefix is
+   `word >= ? AND word < ?` (the word, and the word followed by U+10FFFF) and
+   exact is `word = ?`, built by `appendDictionaryWordMatch`, which replaced
+   `buildDictionaryLikePattern` in `wisdom_shared` at all six call sites — the
+   app's datasource and `server/`'s `dictionary_handler.dart`, three each.
+   Same rows as `LIKE` for 907 sampled prefixes, now through `idx_word`:
+   `බුද්ධ` 63 ms → under 1 ms natively. `LIKE` ignored ASCII case and the
+   range does not, which changes nothing: no headword has an uppercase letter.
+
+   The order needed a tiebreaker. `rank` is the same across a whole
+   dictionary, so ties inside one followed the query plan: load order under the
+   full scan, word order under the index — the first 50 differed for 267 of
+   485 sampled prefixes. `dictionaryOrderBy` in `wisdom_shared` now ends
+   `word, id`: alphabetical on purpose, chosen over `id` alone, which gives
+   back load order exactly. The dictionary and search-flow integration tests
+   pass; they check counts, not order.
 2. **Rename `BundledDatabase` to `LocalDatabase`**, the executor files to
    `local_database_executor*`, and `bundled_database_manifest.dart` to
    `database_manifest.dart` (`bundledDatabaseSha256` → `databaseSha256`): on
@@ -228,6 +235,29 @@ Step 1 is independent and lands on main first; the rest on a new branch.
    `bjtContentDataSourceProvider`, `bjt_document_datasource.dart` and
    `bjt_document_parser.dart`.
    `main.dart`'s startup check runs on web too.
+
+   **The suggestions path goes too** (decided 2026-09-19: the feature is not
+   used). `bjt_suggestions` is not in `bjt.db` and no screen calls
+   `getSuggestions`, so every call would throw (spike §8c); the server's copy
+   also pastes `editionIds` into the table name. Delete:
+   - `getSuggestions` in `TextSearchRepository`, `TextSearchRepositoryImpl`,
+     `CachingTextSearchRepository` (and its class comment's line on it) and
+     `FTSDataSource`; `FTSSuggestion`; `getSuggestions` and
+     `_getSuggestionsFromEdition` in `fts_local_datasource.dart`. The remote
+     one goes with its file.
+   - The `getSuggestions` group in `text_search_repository_impl_test.dart`;
+     regenerate `mocks.mocks.dart`.
+   - `server/`: the `/suggestions` route and `_suggestions` in
+     `fts_handler.dart` (and its class comment), the `bjt_suggestions` check in
+     `database_manager.dart`.
+   - `tools/bjt-populate.js`: the `bjt_suggestions` header line, the three
+     suggestion settings, `extractWords`, the word counting,
+     `createSuggestionsTable`, `saveSuggestions`; its line in
+     `tools/README.md`. The flag is already off, so `bjt.db` does not change.
+   - Docs: `{edition}_suggestions` in `multi_edition_architecture.md`; the
+     open `bjt_suggestions` note in `reduce-mobile-size-and-move-to-drift.md`
+     becomes done. Records stay: `docs/done/`, the spike results,
+     `bjt-fts-populate-obsolete.js`.
 6. **First-visit screen,** full screen, driven by the installer through a
    provider: progress, the unsupported-browser message, "try again" after a failed
    download, "not enough space" (a private window may refuse 351 MB), and
@@ -269,16 +299,19 @@ Step 1 is independent and lands on main first; the rest on a new branch.
    - Flutter's CanvasKit loads from Google's CDN, which must allow it under
      `require-corp`. If it doesn't, build with `--no-web-resources-cdn`.
    - Measure prefix search (the spike had `බුද්ධ*` at ~800 ms). Measure only.
+   - Time the dictionary's slow case: a one-letter prefix with a dictionary
+     filter. The count then reads `dict_id` from the table, not just the
+     index. If it is slow, replace `idx_word` with `(word, dict_id)`.
    - `flutter analyze` clean; the native suites still pass.
 
 **Tests:** not written by this work. A test proposal for the test agent, like
 [`bundled-database-copy-tests.md`](./bundled-database-copy-tests.md). Three
 existing tests change with the code: `dictionary_sql_helpers_test.dart` in
-`wisdom_shared` (step 1 replaces its helper),
+`wisdom_shared` (step 1 replaced its helper; done),
 `test/data/datasources/fts_language_filter_sql_test.dart`, which builds a
 `BundledDatabase` (step 2), and
 `test/data/repositories/text_search_repository_impl_test.dart`, which passes
-`contentDataSource: null` (step 5).
+`contentDataSource: null` and has a `getSuggestions` group (step 5).
 
 ## Not in this plan
 
@@ -292,3 +325,8 @@ existing tests change with the code: `dictionary_sql_helpers_test.dart` in
 - **Faster prefix search.**
 - **Firefox and Safari** — they may pass the check and run the same code;
   tested later.
+- **One dictionary query, not two.** `lookupWord` and `searchDefinitions` run
+  the same SQL except `OFFSET`, in the app and in `server/`; `lookupWord`
+  could call `searchDefinitions`.
+- **`dictionary_sql_helpers.dart` back into the app** once `server/` is gone;
+  the app is then its only user.

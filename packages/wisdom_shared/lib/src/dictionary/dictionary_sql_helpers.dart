@@ -1,12 +1,28 @@
-/// Builds a SQL LIKE pattern for dictionary word lookup.
+/// Appends the WHERE condition for headwords starting with [word], or equal
+/// to it when [exactMatch] is true.
 ///
-/// Escapes special LIKE characters (% and _).
-/// Returns prefix match pattern by default, exact match when [exactMatch] is true.
-String buildDictionaryLikePattern(String word, {bool exactMatch = false}) {
-  if (word.isEmpty) return '%';
-  final escaped = word.replaceAll('%', '\\%').replaceAll('_', '\\_');
-  return exactMatch ? escaped : '$escaped%';
+/// A range rather than `LIKE`, so SQLite searches `idx_word` instead of reading
+/// the whole table. U+10FFFF sorts after any character that can follow [word].
+void appendDictionaryWordMatch(
+  StringBuffer buffer,
+  List<Object> args,
+  String word, {
+  bool exactMatch = false,
+}) {
+  if (exactMatch) {
+    buffer.write('word = ?');
+    args.add(word);
+  } else {
+    buffer.write('word >= ? AND word < ?');
+    args.addAll([word, '$word\u{10FFFF}']);
+  }
 }
+
+/// Dictionary result order: exact match, then the higher-ranked dictionary,
+/// then alphabetical. `rank` is the same for a whole dictionary, so without
+/// the last two the order inside one would depend on the query plan; `id`
+/// breaks the last ties. Needs `is_exact` in the SELECT.
+const String dictionaryOrderBy = 'ORDER BY is_exact ASC, rank DESC, word, id';
 
 /// Appends SQL WHERE clause fragment for dictionary ID filtering.
 ///
