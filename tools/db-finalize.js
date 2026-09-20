@@ -94,7 +94,7 @@ function finalizeDatabase(dbPath) {
 /**
  * Sets [dbPath]'s entry in `manifest.json` in the same folder, leaving the
  * other entries alone. The app recopies its database when this hash changes
- * (`bundled_database_executor_native.dart`).
+ * (`local_database_executor_native.dart`).
  *
  * @param {string} dbPath - Finished database to record
  */

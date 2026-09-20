@@ -3,14 +3,14 @@ import 'dart:developer' as developer;
 import 'package:wisdom_shared/wisdom_shared.dart';
 
 import '../../domain/entities/dictionary/dictionary_entry.dart';
-import '../database/bundled_database.dart';
+import '../database/local_database.dart';
 import 'dictionary_datasource.dart';
 
 /// Implementation of dictionary data source
 class DictionaryDataSourceImpl implements DictionaryDataSource {
   static const String _dbName = 'dict.db';
 
-  BundledDatabase? _database;
+  LocalDatabase? _database;
   bool _initialized = false;
 
   /// Log debug messages only in debug mode.
@@ -23,7 +23,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     if (_initialized) return;
 
     try {
-      _database = await BundledDatabase.open(_dbName);
+      _database = await LocalDatabase.open(_dbName);
 
       _initialized = true;
     } catch (e) {
@@ -181,7 +181,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
   @override
   Future<void> close() async {
     try {
-      if (_database != null) await BundledDatabase.closeShared(_dbName);
+      if (_database != null) await LocalDatabase.closeShared(_dbName);
     } catch (e) {
       _log('Error closing dictionary database: $e');
     } finally {

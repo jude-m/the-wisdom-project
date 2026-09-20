@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'bundled_database_manifest.dart';
+import 'database_manifest.dart';
 
 const int _copyPieceBytes = 8 * 1024 * 1024;
 
@@ -15,8 +15,8 @@ const int _copyPieceBytes = 8 * 1024 * 1024;
 /// the bundle first unless the copy matches the build's manifest.
 ///
 /// If the OS deletes the copy, the next open copies from the bundle again.
-Future<QueryExecutor> openBundledExecutor(String dbName) async {
-  final sha256 = await bundledDatabaseSha256(dbName);
+Future<QueryExecutor> openLocalExecutor(String dbName) async {
+  final sha256 = await databaseSha256(dbName);
   // Android clears its cache folder whenever the phone needs space, and a
   // recopy there unpacks the whole compressed asset. So Android keeps the
   // copies in its files folder, left out of backups by `res/xml/`.

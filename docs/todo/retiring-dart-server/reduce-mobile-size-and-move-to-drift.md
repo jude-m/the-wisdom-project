@@ -589,7 +589,7 @@ the same build pipeline, one in the same datasource.
   Use single quotes (identifier quoting is unaffected). Existing SQL is clean.
 - **`enableMigrations: false`** when Drift opens these. `user_version` is 0
   (verified), so the migrator would otherwise write into the shipped DB.
-  Native passes it (`bundled_database_executor_native.dart`); web must too.
+  Native passes it (`local_database_executor_native.dart`); web must too.
 - **No `ATTACH`** between this DB and `dict.db`. Drift's OPFS mode is chosen at
   runtime by browser capability, and one of the two modes stores exactly two
   files. They are already separate files by design; this just forecloses ever
@@ -1489,7 +1489,7 @@ through Drift. It goes with the server; do not repoint it at `bjt_content`.
      now `word >= ? AND word < ?`, which indexes unconditionally, rather than
      `PRAGMA case_sensitive_like=ON`, which changes behaviour globally. Also
      spike §9c.
-  2. **First launch allocates the file in RAM.** `openBundledExecutor` loads
+  2. **First launch allocates the file in RAM.** `openLocalExecutor` loads
      all 166 MB into one `ByteData` before writing it out, and does the same
      for `bjt.db`. Step 7 writes it in 8 MB pieces, which removed a second
      copy (peak +342 MB → +211 MB for `bjt.db`); the load itself stays whole.

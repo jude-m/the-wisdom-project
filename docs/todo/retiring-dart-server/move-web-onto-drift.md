@@ -1,7 +1,7 @@
 # Move Web onto Drift
 
-> **Status 2026-09-19: in progress on branch `feat/move-web-onto-drift`; step 1
-> done.** This was step 11 of
+> **Status 2026-09-19: in progress on branch `feat/move-web-onto-drift`; steps
+> 1–2 done.** This was step 11 of
 > [`reduce-mobile-size-and-move-to-drift.md`](./reduce-mobile-size-and-move-to-drift.md),
 > whose steps 1–9 are done: `bjt.db` holds the page text, and native reads both
 > databases through Drift. It is step 3 of the [`README.md`](./README.md) order.
@@ -22,7 +22,7 @@ this plan — it is [`web-release.md`](../web-strategy/web-release.md) §6.
 - `getWebOverrides()` (`platform_providers.dart`) swaps in three HTTP
   datasources — search, dictionary, reader — that call `/api/…` on the Dart
   server.
-- `bundled_database_executor_web.dart` throws. Nothing opens a database in a
+- `local_database_executor_web.dart` throws. Nothing opens a database in a
   browser.
 - `bjtContentDataSourceProvider` is not overridden on web. Web never reaches it
   only because the server pre-fills `matchedText`
@@ -181,14 +181,20 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
    `word, id`: alphabetical on purpose, chosen over `id` alone, which gives
    back load order exactly. The dictionary and search-flow integration tests
    pass; they check counts, not order.
-2. **Rename `BundledDatabase` to `LocalDatabase`**, the executor files to
-   `local_database_executor*`, and `bundled_database_manifest.dart` to
-   `database_manifest.dart` (`bundledDatabaseSha256` → `databaseSha256`): on
-   web, only the manifest is bundled. Keep the native/web file split instead of
-   passing an executor in — each platform has one way to open. Native behaviour
-   unchanged. The test proposal
-   [`bundled-database-copy-tests.md`](./bundled-database-copy-tests.md) takes
-   the new names.
+2. **~~Rename `BundledDatabase` to `LocalDatabase`~~ — done 2026-09-19.** On
+   web only the manifest is bundled, so "bundled" was the wrong word.
+   `bundled_database.dart` is now `local_database.dart`, the executor files
+   `local_database_executor*` (`openBundledExecutor` → `openLocalExecutor`), and
+   `bundled_database_manifest.dart` is `database_manifest.dart`
+   (`bundledDatabaseSha256` → `databaseSha256`). The native/web file split
+   stays instead of passing an executor in: each platform has one way to open.
+   Native behaviour is unchanged — the copy's path and stamp don't use these
+   names — and the web file still throws until steps 3–4.
+   [`bundled-database-copy-tests.md`](./bundled-database-copy-tests.md) took the
+   new names for the code it tests; its own name and its test files' names
+   stay, as they test the native copy out of the bundle. `flutter build web`
+   compiles; the unit suite and the search-flow and dictionary integration
+   tests pass.
 3. **Prove Drift on web, throwaway.** In a release build with the headers:
    fetch `bjt.db` into `drift_db/bjt-<sha16>/database` with `createWritable()` —
    no locks, no stamp, no progress — open it with `probe()` and
@@ -227,13 +233,17 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
      first-visit false can become true later.
    - `LocalDatabase.open` on web waits for that database's install, and fails at
      once if the install has failed, so a search shows an error, not a spinner.
-     After "try again" it waits for the new attempt.
+     After "try again" it waits for the new attempt. Its doc comment describes
+     the native copy only, so it changes here.
 5. **Wiring.** Delete `getWebOverrides()`, the three remote datasources,
    `FTSMatch.matchedText` (only the server filled it) and the search
    repository's pre-filled-`matchedText` guard; its content datasource stops
    being nullable. Fix the comments that name the remote datasources:
    `bjtContentDataSourceProvider`, `bjt_document_datasource.dart` and
-   `bjt_document_parser.dart`.
+   `bjt_document_parser.dart`. Two more say the JSON ships with the app, which
+   it has not since `da67891`: the no-retry comment in
+   `multi_pane_reader_widget.dart` (its "on web the user can refresh" half goes
+   with the server) and `EditionType.local`'s example in `edition.dart`.
    `main.dart`'s startup check runs on web too.
 
    **The suggestions path goes too** (decided 2026-09-19: the feature is not
@@ -309,7 +319,7 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
 existing tests change with the code: `dictionary_sql_helpers_test.dart` in
 `wisdom_shared` (step 1 replaced its helper; done),
 `test/data/datasources/fts_language_filter_sql_test.dart`, which builds a
-`BundledDatabase` (step 2), and
+`LocalDatabase` (step 2; done), and
 `test/data/repositories/text_search_repository_impl_test.dart`, which passes
 `contentDataSource: null` and has a `getSuggestions` group (step 5).
 

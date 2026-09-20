@@ -1,6 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:the_wisdom_project/data/database/bundled_database.dart';
+import 'package:the_wisdom_project/data/database/local_database.dart';
 import 'package:the_wisdom_project/data/services/scope_filter_service.dart';
 
 /// Proves the FTS `m.language = ?` filter actually returns only the right rows
@@ -15,12 +15,12 @@ import 'package:the_wisdom_project/data/services/scope_filter_service.dart';
 /// The SELECT/COUNT skeletons mirror the datasource's `searchFullText` /
 /// `countFullTextMatches`.
 void main() {
-  late BundledDatabase db;
+  late LocalDatabase db;
 
   setUp(() async {
     // The same Drift database class and bundled SQLite the datasource uses,
     // in memory.
-    db = BundledDatabase(NativeDatabase.memory());
+    db = LocalDatabase(NativeDatabase.memory());
     await db.customStatement('CREATE VIRTUAL TABLE bjt_fts USING fts5(text);');
     await db.customStatement('''
       CREATE TABLE bjt_meta (

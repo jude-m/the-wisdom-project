@@ -7,7 +7,7 @@ const String _manifestAsset = 'assets/databases/manifest.json';
 
 /// The SHA-256 `tools/db-finalize.js` recorded for [dbName]. Throws a
 /// [StateError] naming the command to run when the manifest has no entry.
-Future<String> bundledDatabaseSha256(String dbName) async {
+Future<String> databaseSha256(String dbName) async {
   final manifest =
       jsonDecode(await rootBundle.loadString(_manifestAsset)) as Map;
   final sha256 = (manifest[dbName] as Map?)?['sha256'];

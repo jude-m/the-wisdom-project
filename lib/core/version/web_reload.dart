@@ -4,6 +4,6 @@
 //
 // The `dart.library.js_interop` flag is the canonical way to detect
 // the web compile target — same pattern used by
-// `data/database/bundled_database_executor.dart`.
+// `data/database/local_database_executor.dart`.
 export 'web_reload_stub.dart'
     if (dart.library.js_interop) 'web_reload_web.dart';

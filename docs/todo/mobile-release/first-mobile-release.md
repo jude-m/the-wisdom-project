@@ -21,7 +21,7 @@ Section 2 was its step 10.
 
 On both platforms:
 - Reading and search snippets work with no network.
-- Time the first-launch copy. `openBundledExecutor` copies each bundled
+- Time the first-launch copy. `openLocalExecutor` copies each bundled
   database into `databases/`, so the file lives twice on disk from then on.
 - Install over an older build. The database must copy again (plan step 7).
 

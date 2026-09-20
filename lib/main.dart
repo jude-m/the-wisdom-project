@@ -6,7 +6,7 @@ import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/storage/key_value_store_provider.dart';
 import 'core/storage/shared_preferences_key_value_store.dart';
-import 'data/database/bundled_database_manifest.dart';
+import 'data/database/database_manifest.dart';
 import 'presentation/keyboard/app_shortcuts.dart';
 import 'presentation/screens/app_shell.dart';
 import 'presentation/providers/search_provider.dart';
@@ -33,7 +33,7 @@ void main() async {
   // Skip on web - web uses remote datasources (server has the databases)
   if (!kIsWeb) {
     try {
-      await bundledDatabaseSha256('bjt.db');
+      await databaseSha256('bjt.db');
     } catch (e) {
       // No usable entry - show why and exit
       runApp(_DatabaseMissingError('$e'));

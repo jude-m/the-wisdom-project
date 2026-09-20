@@ -2,7 +2,7 @@ import 'dart:developer' as developer;
 
 import 'package:wisdom_shared/wisdom_shared.dart';
 
-import '../database/bundled_database.dart';
+import '../database/local_database.dart';
 import '../services/scope_filter_service.dart';
 import 'fts_datasource.dart';
 
@@ -10,7 +10,7 @@ import 'fts_datasource.dart';
 /// Each edition has its own SQLite database with edition-specific table names
 class FTSDataSourceImpl implements FTSDataSource {
   /// Map of edition ID to database instance
-  final Map<String, BundledDatabase> _databases = {};
+  final Map<String, LocalDatabase> _databases = {};
 
   /// Log debug messages only in debug mode.
   /// Uses dart:developer.log which is stripped in release builds.
@@ -40,7 +40,7 @@ class FTSDataSourceImpl implements FTSDataSource {
   Future<void> _initializeEdition(String editionId) async {
     try {
       _log('Initializing edition $editionId');
-      _databases[editionId] = await BundledDatabase.open(_dbNameFor(editionId));
+      _databases[editionId] = await LocalDatabase.open(_dbNameFor(editionId));
       _log('Database opened successfully');
     } catch (e) {
       _log('Error initializing $editionId: $e');
@@ -359,7 +359,7 @@ class FTSDataSourceImpl implements FTSDataSource {
 
     for (final entry in _databases.entries) {
       try {
-        await BundledDatabase.closeShared(_dbNameFor(entry.key));
+        await LocalDatabase.closeShared(_dbNameFor(entry.key));
       } catch (e) {
         errors[entry.key] = e;
         _log('Error closing database ${entry.key}: $e');

@@ -1,16 +1,15 @@
 import 'package:drift/drift.dart';
 
-import 'bundled_database_executor.dart';
+import 'local_database_executor.dart';
 
-/// A read-only SQLite database shipped with the app, one shared connection per
-/// file.
+/// A read-only SQLite database on this device, one shared connection per file.
 ///
 /// Drift adopted thin — no tables are declared and every read is raw SQL
-/// through [rawQuery], so the shipped files and their SQL stay as they are.
-class BundledDatabase extends GeneratedDatabase {
-  BundledDatabase(super.executor);
+/// through [rawQuery], so the database files and their SQL stay as they are.
+class LocalDatabase extends GeneratedDatabase {
+  LocalDatabase(super.executor);
 
-  static final Map<String, Future<BundledDatabase>> _open = {};
+  static final Map<String, Future<LocalDatabase>> _open = {};
 
   @override
   Iterable<TableInfo> get allTables => const [];
@@ -20,7 +19,7 @@ class BundledDatabase extends GeneratedDatabase {
 
   /// The connection to [dbName], opened on first use and shared by every
   /// reader after, so two first-launch readers never copy the same asset.
-  static Future<BundledDatabase> open(String dbName) =>
+  static Future<LocalDatabase> open(String dbName) =>
       _open[dbName] ??= _connect(dbName);
 
   /// Closes [dbName] for every reader of it; the next [open] reconnects.
@@ -44,15 +43,15 @@ class BundledDatabase extends GeneratedDatabase {
     return [for (final row in rows) row.data];
   }
 
-  static Future<BundledDatabase> _connect(String dbName) async {
+  static Future<LocalDatabase> _connect(String dbName) async {
     // Drift warns about a second instance of one database class, because two
     // on the same executor race. Each of these owns its own file and executor.
     // The switch is global, so it silences that warning for every class.
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
-    BundledDatabase? database;
+    LocalDatabase? database;
     try {
-      database = BundledDatabase(await openBundledExecutor(dbName));
+      database = LocalDatabase(await openLocalExecutor(dbName));
       // Drift connects lazily. Connect now, so a bad file fails here and the
       // next open retries instead of keeping a broken connection.
       await database.customSelect('SELECT 1').get();
