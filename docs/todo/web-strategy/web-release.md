@@ -158,28 +158,21 @@ still records a single reserved project; revise it once this is settled.
 
 | target | command | today |
 |---|---|---|
-| local | `run_mac.sh` | works through the Dart server until it moves to `deprecated/`; then through Flutter's own server (`flutter run -d web-server`), with content once web Drift lands |
+| local | `run_mac.sh` | works: `flutter run -d web-server`, with the databases downloaded into the browser |
 | dev | `deploy.sh --dev` | placeholder |
 | prod | `deploy.sh --prod` | placeholder |
 
 Project names and origins go in `scripts/config/targets.env`, credentials in
 `scripts/config/secrets.env` — never in the deploy script.
 
-**The gate.** `lib/presentation/providers/platform_providers.dart` swaps in three
-remote HTTP datasources on web — FTS, dictionary, documents — all pointed at
-same-origin `/api/…`. That origin is the Dart `shelf` content server, which is
-the thing being retired. On static Pages with no server the app boots and every
-content, search and dictionary call 404s.
-
-The replacement is web's move onto Drift —
-[`move-web-onto-drift.md`](../retiring-dart-server/move-web-onto-drift.md), step 3
-of [`retiring-dart-server/README.md`](../retiring-dart-server/README.md), after the
-native move. Its gate — FTS5 in the wasm build — passed 2026-09-11
-([`drift-fts5-wasm-spike-results.md`](../retiring-dart-server/drift-fts5-wasm-spike-results.md)).
-The server does not wait for it: it moves to `deprecated/` in step 4 of the plan,
-with the Windows-box deploy that hosted it. From then until web Drift lands the
-web app has no content anywhere; locally it still runs, through Flutter's own
-server. Accepted.
+**The gate is met locally, 2026-09-20.** Web no longer needs a server: the
+browser downloads `bjt.db` and `dict.db` into its own file system and reads them
+through Drift, the way native reads its copies. There is no web-only datasource
+left, and `server/` and the Windows-box deploy are in `deprecated/`. What
+remains here is the host's half, below —
+[`move-web-onto-drift.md`](../retiring-dart-server/move-web-onto-drift.md) (step
+3 of [`retiring-dart-server/README.md`](../retiring-dart-server/README.md)) owns
+the app's, and its step 8 is still open.
 
 **What web Drift needs from hosting.** The app side is decided in
 `move-web-onto-drift.md`; this is the host's half.
@@ -199,7 +192,10 @@ server. Accepted.
   the files from the Flutter cache, costing bundle size only.
 - **The deploy strips `assets/assets/databases/*.db` and keeps
   `manifest.json`** — the app reads each database's version from it. The
-  Windows-box `deploy.sh` deleted the whole folder.
+  Windows-box `deploy.sh` deleted the whole folder, and it is in `deprecated/`,
+  so **nothing strips them today**: an unset `DATABASE_BASE_URL` makes the app
+  read the databases straight out of its own bundle, which is what every local
+  run does. A build for Pages without this is ~350 MB of assets.
 - **No `immutable` rule on the app's `/assets/*`**, unlike the static site.
   Flutter's asset URLs carry no hash, so a cached old manifest would pair a new
   app with an old database. Pages' default (revalidate) is right.

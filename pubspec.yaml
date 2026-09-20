@@ -57,6 +57,9 @@ dependencies:
   path_provider: ^2.1.1
   path: ^1.8.3
 
+  # Browser APIs (OPFS, fetch, Web Locks) for the web database installer
+  web: ^1.1.0
+
   # zlib inflate for bjt_content page text (dart:io natively, pure Dart on web)
   archive: ^4.0.9
 

@@ -404,7 +404,7 @@ packages:
   wisdom_shared:
     dependency: "direct main"
     description:
-      path: "../packages/wisdom_shared"
+      path: "../../packages/wisdom_shared"
       relative: true
     source: path
     version: "0.1.0"

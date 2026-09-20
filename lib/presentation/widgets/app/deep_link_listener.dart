@@ -17,8 +17,8 @@ import '../../providers/deep_link_provider.dart';
 ///   production domain is live. Covers both cold start (initial link) and
 ///   links arriving while the app runs.
 /// - **Web**: only the URL the app was opened with matters (`Uri.base`) — the
-///   Dart server SPA-fallbacks `/tipitaka/*` to the app, and without a router the
-///   address bar never changes afterwards.
+///   host answers an unknown `/tipitaka/*` path with `index.html`, and without a
+///   router the address bar never changes afterwards.
 ///
 /// Wraps the app (inside MaterialApp's builder) so MediaQuery is available for
 /// the orientation-based layout seed. Non-link URIs are silently ignored.

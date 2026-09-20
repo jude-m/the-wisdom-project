@@ -297,9 +297,11 @@ is why **B1 stays the §7 default**.
   Google Search / Maps grounding. So you cannot move the RAG call into the app to
   delete the server, *even after adopting Firebase*. Adding **Firestore for notes
   is orthogonal** (client → Firestore direct, no server) and doesn't change this.
-- **Escape hatches:** the **`/ask` contract** + the **local/remote datasource
-  seam** (`getWebOverrides()`) make every branch swappable later — no lock-in.
-  Start at the default, move branches cheaply if needed.
+- **Escape hatch:** the **`/ask` contract** keeps that branch swappable later —
+  no lock-in. (The local/remote datasource seam it used to be paired with is
+  gone: `getWebOverrides()` and the three remote datasources were deleted on
+  2026-09-20 when web moved onto Drift, so every platform now reads the same
+  local datasources.)
 - **File Search ≠ content store.** It answers questions over its own corpus; it
   does not deliver BJT documents and is not part of this tree.
 - **RAG retrieval store = Gemini File Search — decided 2026-07-03.** Compared vs

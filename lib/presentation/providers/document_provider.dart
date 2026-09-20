@@ -15,12 +15,8 @@ import 'tab_provider.dart';
 
 /// Page text out of `bjt_content`, for the reader and for search snippets.
 ///
-/// It reads the bundled database, which only native has — and `getWebOverrides`
-/// does **not** replace it: it replaces the document datasource below, but the
-/// search repositories take this one on every platform. What keeps web off it
-/// is the search path itself — the server pre-fills `matchedText`, so no page
-/// is ever asked for, and the one call that could is caught. Remove either
-/// guard and web reaches this.
+/// One implementation on every platform: native reads its copy of `bjt.db`,
+/// web reads the copy it downloaded into OPFS.
 final bjtContentDataSourceProvider = Provider<BJTContentDataSource>((ref) {
   return BJTContentLocalDataSourceImpl();
 });

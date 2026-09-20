@@ -5,6 +5,7 @@ import 'package:the_wisdom_project/domain/repositories/recent_searches_repositor
 import 'package:the_wisdom_project/domain/repositories/text_search_repository.dart';
 import 'package:the_wisdom_project/domain/repositories/dictionary_repository.dart';
 import 'package:the_wisdom_project/data/datasources/tree_local_datasource.dart';
+import 'package:the_wisdom_project/data/datasources/bjt_content_datasource.dart';
 import 'package:the_wisdom_project/data/datasources/bjt_document_datasource.dart';
 import 'package:the_wisdom_project/data/datasources/fts_datasource.dart';
 import 'package:the_wisdom_project/data/datasources/dictionary_datasource.dart';
@@ -24,6 +25,7 @@ import 'package:the_wisdom_project/data/datasources/dictionary_datasource.dart';
 
   // Data layer - Data sources
   TreeLocalDataSource,
+  BJTContentDataSource,
   BJTDocumentDataSource,
   FTSDataSource,
   DictionaryDataSource,

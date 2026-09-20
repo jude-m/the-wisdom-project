@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -10,7 +9,6 @@ import 'data/database/database_manifest.dart';
 import 'presentation/keyboard/app_shortcuts.dart';
 import 'presentation/screens/app_shell.dart';
 import 'presentation/providers/search_provider.dart';
-import 'presentation/providers/platform_providers.dart';
 import 'presentation/providers/app_language_provider.dart';
 import 'presentation/providers/tab_provider.dart'
     show activeTabIndexPersistenceProvider;
@@ -29,16 +27,15 @@ void main() async {
 
   // Quick validation: the build's manifest has an entry for bjt.db (a build
   // missing either file fails to build). Reads the manifest, not the
-  // database: on Android loading the database would inflate the whole file.
-  // Skip on web - web uses remote datasources (server has the databases)
-  if (!kIsWeb) {
-    try {
-      await databaseSha256('bjt.db');
-    } catch (e) {
-      // No usable entry - show why and exit
-      runApp(_DatabaseMissingError('$e'));
-      return;
-    }
+  // database: on Android loading the database would inflate the whole file,
+  // and on web the manifest is the only part that ships — the database itself
+  // is downloaded on the first visit.
+  try {
+    await databaseManifestEntry('bjt.db');
+  } catch (e) {
+    // No usable entry - show why and exit
+    runApp(_DatabaseMissingError('$e'));
+    return;
   }
 
   runApp(
@@ -51,8 +48,6 @@ void main() async {
         keyValueStoreProvider.overrideWithValue(
           SharedPreferencesKeyValueStore(sharedPrefs),
         ),
-        // On web, swap local datasources for remote (HTTP) datasources
-        if (kIsWeb) ...getWebOverrides(),
       ],
       child: const MyApp(),
     ),

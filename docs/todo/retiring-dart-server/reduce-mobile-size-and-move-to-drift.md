@@ -599,9 +599,10 @@ the same build pipeline, one in the same datasource.
   a silent NULL is what a future caller would get.
 - **`bjt_suggestions` does not exist** (verified), so every autocomplete call
   throws. Not a mystery: `GENERATE_SUGGESTIONS: false` in the populate script's
-  config. Either flip it and pay the size, or delete
-  `_getSuggestionsFromEdition`. Unrelated to this work, but it is in the file
-  step 6 opens.
+  config. **Settled 2026-09-20:** no screen calls `getSuggestions`, so the
+  whole path went — the repositories, the datasources, `FTSSuggestion` and the
+  populate script's word counting — in step 5 of
+  [`move-web-onto-drift.md`](./move-web-onto-drift.md).
 
 ### What it did not change
 

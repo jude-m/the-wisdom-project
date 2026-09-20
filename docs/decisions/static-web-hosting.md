@@ -292,7 +292,7 @@ site — it would take the rest of the canon offline. (On dev that same replacem
 is the point: `--root an-1,atta-an-1` is the fast iteration loop.)
 
 **Deferred — script standardization** (worth doing after the first green prod
-release, not before; it touches all three deploy paths at once):
+release, not before; it touches both remaining deploy paths at once):
 
 1. One shared `scripts/lib/` for the Node ≥ 22 guard — copy-pasted verbatim in
    `research_server/{deploy,run}.sh` and `static_site/deploy.sh` today, so a
@@ -303,10 +303,8 @@ release, not before; it touches all three deploy paths at once):
 3. Give `research_server/deploy.sh` the same `whoami` account check. Account
    separation is now an invariant that only one of the two Cloudflare scripts
    enforces — the Worker deploy still lands wherever the login points.
-4. `set -euo pipefail` in both wrangler scripts (`scripts/web/deploy.sh` already
-   does; the others are bare `set -e`, so pipeline failures are masked).
-5. Move `scripts/web/deploy.sh`'s `usage()` to the `END-USAGE` sentinel idiom —
-   it slices a hardcoded line range today, which desyncs on any header edit.
+4. `set -euo pipefail` in both wrangler scripts — they are bare `set -e` today,
+   so pipeline failures are masked.
 
 Also parked: a dev deploy from CI is currently impossible by design — the dev
 path refuses an exported `CLOUDFLARE_API_TOKEN`, which is the only way an Action

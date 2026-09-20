@@ -315,12 +315,19 @@ the secrets in step 1.
 2. **`scripts/static_site/test.sh`**, called by its `deploy.sh`.
 3. **`scripts/research_server/test.sh`**, called by its `deploy.sh`; `--prod`
    placeholder.
-4. **`scripts/app/`.** Move the run scripts — `run_mac.sh` now serving through
-   Flutter's own server (**Moves**) — write `app/test.sh`, add the four
-   placeholder deploys, and move the Windows-box files and `server/` to
-   `deprecated/`. In the same step drop the Windows box from the Worker's CORS
-   list, and `server` from `check-dart-packages.sh`, so that gate keeps passing
-   until step 6 moves it.
+4. **`scripts/app/`.** Move the run scripts, write `app/test.sh`, add the four
+   placeholder deploys.
+
+   **Done early, 2026-09-20**, by
+   [`move-web-onto-drift.md`](retiring-dart-server/move-web-onto-drift.md)
+   steps 5 and 7, because retiring the Dart server could not wait for this
+   plan: `server/` is in `deprecated/server/` and the three Windows-box files
+   in `deprecated/scripts-web/`; `server` is out of
+   `check-dart-packages.sh`, which passes again; and `run_mac.sh` is rewritten
+   to serve through Flutter's own server (**Moves**), still at
+   `scripts/web/run_mac.sh` until this step moves it. Left for this step: the
+   move to `scripts/app/`, `app/test.sh`, the placeholder deploys, and dropping
+   the Windows box from the Worker's CORS list.
 5. **`test_all.sh` and `release_all.sh`.**
 6. **Move** `validate-release.sh` and `check-dart-packages.sh` to
    `deprecated/tools/`; fix `sync-regen.sh`; repoint the paths and docs above.

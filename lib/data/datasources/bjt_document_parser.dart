@@ -6,9 +6,8 @@ import '../../domain/entities/content/entry_type.dart';
 
 /// Shared JSON-to-entity parsing for BJT documents.
 ///
-/// Used by both [BJTDocumentLocalDataSourceImpl] (native) and
-/// [BJTDocumentRemoteDataSourceImpl] (web) since the server returns
-/// the same raw JSON format as the bundled asset files.
+/// The page JSON in `bjt_content` is the same shape the source files had, so
+/// this stayed a separate class when the loader moved onto the database.
 class BJTDocumentParser {
   const BJTDocumentParser._();
 

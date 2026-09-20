@@ -2,10 +2,10 @@
 # Analyze and test every pure-Dart package in one pass.
 #
 # `dart` cannot cross package boundaries — each resolves its own deps — so this
-# can only be a loop that cd's into each one. Callers: tools/validate-release.sh,
-# scripts/web/deploy.sh (Phase 2), scripts/bjt-sync-regen/sync-regen.sh (Step 5,
-# where a re-sync of assets/ can rename the nodeKeys the static site's frozen
-# grouping snapshot points at, with no code change at all).
+# can only be a loop that cd's into each one. Callers: tools/validate-release.sh
+# and scripts/bjt-sync-regen/sync-regen.sh (Step 5, where a re-sync of assets/
+# can rename the nodeKeys the static site's frozen grouping snapshot points at,
+# with no code change at all).
 #
 # The Flutter app is not here — different runner, needs a device for integration:
 #   flutter test
@@ -20,13 +20,13 @@
 # file doesn't exist; cd into the package for that.
 #
 # A package here must HAVE tests: `dart test` errors on an empty test/, and that
-# is the point. Skipping them with a warning is how `server` sat test-less inside
-# a gate that claimed to test it.
+# is the point. Skipping them with a warning is how the retired `server` package
+# sat test-less inside a gate that claimed to test it.
 
 set -u
 cd "$(dirname "$0")/.." || exit 1
 
-packages="packages/wisdom_shared static_site_generator server"
+packages="packages/wisdom_shared static_site_generator"
 failed=""
 
 for pkg in $packages; do

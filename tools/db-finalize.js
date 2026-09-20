@@ -96,11 +96,17 @@ function finalizeDatabase(dbPath) {
  * other entries alone. The app recopies its database when this hash changes
  * (`local_database_executor_native.dart`).
  *
+ * `bytes` is what web checks a finished download against — hashing 179 MB in
+ * the browser costs two seconds of main-isolate CPU, a byte count nothing
+ * (`local_database_executor_web.dart`). It also drives the progress bar,
+ * which cannot use `Content-Length`: the file is served gzipped.
+ *
  * @param {string} dbPath - Finished database to record
  */
 function writeManifestEntry(dbPath) {
     const manifestPath = path.join(path.dirname(dbPath), 'manifest.json');
     const name = path.basename(dbPath);
+    const bytes = fs.statSync(dbPath).size;
     const sha256 = crypto.createHash('sha256')
         .update(fs.readFileSync(dbPath))
         .digest('hex');
@@ -108,13 +114,14 @@ function writeManifestEntry(dbPath) {
     const manifest = fs.existsSync(manifestPath)
         ? JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
         : {};
-    manifest[name] = { sha256 };
+    manifest[name] = { bytes, sha256 };
 
     // Sorted keys, so the file's text doesn't depend on which database was built last.
     const sorted = {};
     for (const key of Object.keys(manifest).sort()) sorted[key] = manifest[key];
     fs.writeFileSync(manifestPath, `${JSON.stringify(sorted, null, 2)}\n`);
-    console.log(`  ✓ manifest.json: ${name} sha256 ${sha256.slice(0, 12)}…`);
+    console.log(`  ✓ manifest.json: ${name} ${bytes} bytes, `
+        + `sha256 ${sha256.slice(0, 12)}…`);
 }
 
 /**
@@ -158,4 +165,7 @@ function assertShippableHeader(dbPath, label = path.basename(dbPath)) {
         + 'no WAL flag)');
 }
 
-module.exports = { finalizeDatabase, assertShippableHeader };
+// writeManifestEntry has no in-repo caller of its own: finalizeDatabase calls it,
+// and it is exported for the ad-hoc `node -e` refresh that database_manifest.dart
+// names when a manifest has a hash but no byte count.
+module.exports = { finalizeDatabase, writeManifestEntry, assertShippableHeader };

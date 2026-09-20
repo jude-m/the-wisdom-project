@@ -16,7 +16,7 @@ const int _copyPieceBytes = 8 * 1024 * 1024;
 ///
 /// If the OS deletes the copy, the next open copies from the bundle again.
 Future<QueryExecutor> openLocalExecutor(String dbName) async {
-  final sha256 = await databaseSha256(dbName);
+  final sha256 = (await databaseManifestEntry(dbName)).sha256;
   // Android clears its cache folder whenever the phone needs space, and a
   // recopy there unpacks the whole compressed asset. So Android keeps the
   // copies in its files folder, left out of backups by `res/xml/`.
@@ -57,7 +57,7 @@ Future<QueryExecutor> openLocalExecutor(String dbName) async {
 }
 
 Future<void> _copyAsset(String dbName, File file) async {
-  final data = await rootBundle.load('assets/databases/$dbName');
+  final data = await rootBundle.load('$databaseAssetFolder/$dbName');
   final output = await file.open(mode: FileMode.write);
   try {
     // Written in pieces so dart:io copies 8 MB per write. Given the whole

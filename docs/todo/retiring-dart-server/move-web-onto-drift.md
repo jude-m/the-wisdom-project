@@ -1,13 +1,13 @@
 # Move Web onto Drift
 
 > **Status 2026-09-20: in progress on branch `feat/move-web-onto-drift`; steps
-> 1–3 done.** This was step 11 of
+> 1–5 done.** This was step 11 of
 > [`reduce-mobile-size-and-move-to-drift.md`](./reduce-mobile-size-and-move-to-drift.md),
 > whose steps 1–9 are done: `bjt.db` holds the page text, and native reads both
 > databases through Drift. It is step 3 of the [`README.md`](./README.md) order.
 > Every question it raised is decided — see **Decided**. Checked on 2026-09-18
-> against the Drift 2.35.0, sqlite3 3.5.2 and Flutter 3.44.1 tool sources, and
-> the web half ran for the first time on 2026-09-20 (step 3).
+> against the Drift 2.35.0, sqlite3 3.5.2 and Flutter 3.44.1 tool sources. The
+> app itself first ran on web without a server on 2026-09-20 (step 5).
 
 ## Goal
 
@@ -18,28 +18,24 @@ build, the way native reads its copies. No Dart server.
 the reader and the dictionary show what macOS shows. Hosting is not part of
 this plan — it is [`web-release.md`](../web-strategy/web-release.md) §6.
 
-## Where web stands (2026-09-18)
+## Where web stands (2026-09-20, after step 5)
 
-- `getWebOverrides()` (`platform_providers.dart`) swaps in three HTTP
-  datasources — search, dictionary, reader — that call `/api/…` on the Dart
-  server.
-- `local_database_executor_web.dart` throws. Nothing opens a database in a
-  browser.
-- `bjtContentDataSourceProvider` is not overridden on web. Web never reaches it
-  only because the server pre-fills `matchedText`
-  (`text_search_repository_impl.dart`).
-- `scripts/web/deploy.sh` and `run_mac.sh` delete
-  `build/web/assets/assets/databases/` — `manifest.json` with it — and
-  `run_mac.sh` serves the build through the Dart server.
-- The update banner polls `/healthz`, which only the Dart server answers. Local
-  builds leave it off (`VERSION_CHECK_ENABLED`).
-- **Drift's web side now runs here** (step 3, 2026-09-20). Its workers, opening
-  by storage mode and opening a file we wrote ourselves are all verified in
-  Chrome against the real `bjt.db`; the spike could only reach the SQLite layer
-  under it (spike §7).
+- **There is no web-only datasource left.** `getWebOverrides()` and the three
+  remote datasources are deleted; every platform reads the same local
+  datasources. `main.dart` runs the manifest check on web too.
+- `local_database_executor_web.dart` opens the browser's own copy through
+  `WebDatabaseInstaller`, which downloads it on the first visit. Anything
+  outside `lib/data/database/` reaches it through `DatabaseInstallation`, a
+  conditional export with a do-nothing native side (step 4's notes).
+- `scripts/web/run_mac.sh` serves the app with `flutter run -d web-server`;
+  `server/` and the three `scripts/web/` files that only ran or deployed it
+  are in `deprecated/`.
+- The update banner polls `/healthz`, which nothing answers now. Local builds
+  leave it off (`VERSION_CHECK_ENABLED`); making it a static file is
+  [`test-all-and-release-all.md`](../test-all-and-release-all.md)'s.
 - Locked in `pubspec.lock`: Flutter 3.44.1, `drift` 2.35.0, `sqlite3` 3.5.2.
-  `pubspec.yaml` does not hold them: it has `drift: ^2.35.0`, and `sqlite3`
-  only comes in through Drift (3.6.0 is already in the pub cache).
+  `pubspec.yaml` does not pin them yet (step 7): it has `drift: ^2.35.0`, and
+  `sqlite3` only comes in through Drift. `web: ^1.1.0` is direct since step 4.
 
 ## Decided (2026-09-18; cleanup 2026-09-19)
 
@@ -93,7 +89,9 @@ this plan — it is [`web-release.md`](../web-strategy/web-release.md) §6.
   Chrome. Not `-d chrome` — see **What the earlier docs don't have**.
 - **`drift` and `sqlite3` are pinned exactly** in `pubspec.yaml`, with a comment
   naming `web/sqlite3.wasm` and `web/drift_worker.js`; a bump changes all four
-  together.
+  together — and check the fifth thing with them: the installer walks OPFS
+  itself, so it mirrors drift's own folder name (`driftOpfsRoot`, `drift_db`,
+  which the package does not export) as a `const`.
 - **This plan ends at "runs locally, no server".** Hosting goes to
   `web-release.md` §6.
 - **The three remote datasources and `getWebOverrides()` are deleted**, not
@@ -187,6 +185,29 @@ this plan — it is [`web-release.md`](../web-strategy/web-release.md) §6.
   `depend_on_referenced_packages` lint fails `flutter analyze`.
 - **Flutter 3.44's `flutter_service_worker.js` only unregisters itself.**
   Nothing caches the databases.
+- **The dev server answers `/main.dart.js` with `index.html` until the compile
+  finishes.** `flutter run -d web-server` serves `index.html` as soon as it is
+  listening, minutes before `--release` has written `main.dart.js`; the
+  fallback then hands the bootstrap an HTML file and Chrome says only
+  "Refused to execute script … MIME type ('text/html')". Wait for
+  `Compiling lib/main.dart for the Web...` to finish, not for the port to
+  answer.
+- **Headless Chrome runs all of this**, which is how step 5 was verified:
+  `--headless=new` with a throwaway `--user-data-dir` is a genuine first visit
+  (its OPFS goes with the folder), `--enable-logging=stderr --v=1` puts the
+  app's `debugPrint` in the log as `CONSOLE:` lines, and
+  `--remote-debugging-port` lets a script click, type and screenshot. Two
+  traps: **virtual time starves the real OPFS I/O**, and Chrome's own
+  `--screenshot` flag runs the page on it — with that flag the app paints its
+  shell and then a spinner for ever, and not one `[db]` line is logged, because
+  the install never starts. Take the picture on real time instead, over CDP
+  (`Page.captureScreenshot`) once the page has had its seconds. The second trap
+  is milder: `--disable-gpu` falls back to CPU rendering, which is slower but
+  paints correctly.
+- **Chrome's OPFS files are easy to count.** Each is a numbered file under
+  `<profile>/Default/File System/000/t/00/`, at the database's own byte count,
+  with its 64-byte `install.sha256` beside it — so `ls -l` alone says which
+  versions are installed and whether an old one really went.
 
 ## Steps
 
@@ -273,103 +294,106 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
    ```
 
    Then open that URL in your usual Chrome.
-4. **The web installer** (data layer, web only). Each start:
+4. **~~The web installer~~ — done 2026-09-20.**
+   `local_database_executor_web.dart` now starts `WebDatabaseInstaller`
+   (`lib/data/database/web_database_installer.dart`) and returns its
+   `open(dbName)`; the installer holds everything the pseudocode described —
+   the feature check before any download, a shared
+   `wisdom-db-in-use:<db>-<sha16>` per database for the tab's life, deleting
+   the versions nothing holds, then the streamed download under an exclusive
+   `wisdom-db-download:<db>-<sha16>`, byte count checked, stamp last. One
+   download at a time. `LocalDatabase` was not touched: `probe.open` returns a
+   `DatabaseConnection`, which is a `QueryExecutor`.
 
-   ```
-   probe = WasmDatabase.probe(...)
-   no opfsLocks, or no createWritable → unsupported message; nothing downloaded
-   for db in manifest: hold shared "wisdom-db-in-use:<db>-<sha16>" for the tab's life
-   for old in probe.existingDatabases        // bjt-/dict- + 16 hex, not this build's
-     take exclusive "wisdom-db-in-use:<old>", only if free right now:
-       free  → probe.deleteDatabase(old)
-       held  → skip: an old tab still reads it; a later start deletes it
-       error → skip
-   install bjt.db, then dict.db, each under exclusive "wisdom-db-download:<db>-<sha16>":
-     stamp holds the hash → installed
-     otherwise stream the download into `database` (createWritable), counting bytes;
-       count == manifest bytes → write the stamp
-   probe.open(opfsLocks, "<db>-<sha16>", enableMigrations: false)
-   ```
+   The parts worth knowing that the pseudocode did not say:
 
-   - The download lock stops two tabs downloading the same file.
-     `createWritable()` commits on close, so a cut download leaves no half
-     file, and the stamp goes last — native's rule: no stamp, not finished.
-     Fetch with `cache: 'no-store'`, so Chrome keeps no second copy.
-   - No `initializeDatabase`: it loads the whole file into memory.
-   - **The size check stays a byte count, not a hash.** Step 3 measured SHA-256
-     over `bjt.db` at 2,141 ms of main-isolate CPU (`package:crypto`, chunked);
-     `dict.db` would cost about as much again. The browser's
-     `crypto.subtle.digest` is faster but takes one buffer, which is the 179 MB
-     allocation this design exists to avoid. That 2,141 ms was measured against
-     localhost, where nothing hides it; on a real connection most of it would
-     overlap with the transfer, but it is still main-isolate CPU.
-   - `manifest.json` gains `bytes` per database (`tools/db-finalize.js`), for
-     the size check and the progress bar.
-   - **Reuse the probe's shapes** (`lib/dev/web_drift_probe.dart`, deleted at
-     the end of this step). The OPFS walk:
+   - The stamp is `install.sha256` **inside** the version folder, beside
+     drift's `database`. Drift lists a folder as an existing database as soon
+     as it holds a `database` file, so a cut download would look installed
+     without it; it ignores the extra file, and `deleteDatabase` removes the
+     folder whole.
+   - Nothing starts the download at app start yet — `openLocalExecutor` does,
+     on the first read. That is step 6's job, and until then a first visit sits
+     on a spinner while ~350 MB arrives.
+   - `databaseSha256` became `databaseManifestEntry`, returning
+     `({String sha256, int bytes})`. `tools/db-finalize.js` writes `bytes`;
+     `writeManifestEntry` is exported so the manifest can be refreshed without
+     rebuilding a database, which is how the two existing entries got theirs.
+     `manifest.json` is gitignored, so **a checkout without `bytes` fails the
+     startup check until the databases are rebuilt or the manifest refreshed.**
+     The field stays required on every platform even though only web reads it —
+     one manifest, one shape — so the two failures carry two different
+     messages: no entry at all names `npm run generate-<name>`, a hash without
+     a byte count names the `node -e` refresh, which is the smaller repair.
+   - `web: ^1.1.0` is a direct dependency now.
+   - `DATABASE_BASE_URL` (empty by default) picks the URL: the app's own asset
+     copy locally, `<base>/<db>-<sha16>.db.gz` when set. Empty also means
+     `flutter build web` bundles both databases, because they are declared
+     assets — stripping them is the deploy's job
+     ([`web-release.md`](../web-strategy/web-release.md) §6), and nothing does
+     it today.
+   - **Status is per database, and the screen reads it through a
+     platform-neutral name** (both settled 2026-09-20, when steps 4 and 5 were
+     reviewed; step 6 depends on them):
+     - `DatabaseInstallStatus` (in `database_install_status.dart`, with
+       `DatabaseInstallPhase`, `DatabaseInstallFailure` and
+       `DatabaseInstallFailureKind` — `unsupportedBrowser` / `outOfSpace` /
+       `download` / `other`) carries the database it is about and a
+       **`blocking`** flag, true only for `databases.first`. So `dict.db`
+       failing cannot read as the app failing: the reader and search are in
+       `bjt.db`, which is the whole point of installing it first. The installer
+       keeps one status per database; `status` hands out the blocking one, and
+       `changes` carries every change, tagged.
+     - `DatabaseInstallation` (`database_installation.dart`) is the conditional
+       export — the same split as `local_database_executor.dart` — with
+       `status`, `changes`, `start()` and `retry()`. The web file delegates to
+       `WebDatabaseInstaller`, the native file is always ready and does
+       nothing. **`main.dart`, the provider and the screen import that, never
+       `web_database_installer.dart`.** It has no caller yet; step 6 is its
+       first.
 
-     ```
-     navigator.storage.getDirectory()
-       → getDirectoryHandle('drift_db', create: true)
-       → getDirectoryHandle('<db>-<sha16>', create: true)
-       → getFileHandle('database', create: true)
-       → createWritable()
-     ```
+5. **~~Wiring~~ — done 2026-09-20.** `getWebOverrides()`,
+   `platform_providers.dart` and the three remote datasources are gone, with
+   `FTSMatch.matchedText`, the search repository's pre-filled guard and
+   `FTSMatch.toJson` (whose only callers were the remotes). `contentDataSource`
+   is non-nullable. The comments naming the server were fixed in
+   `document_provider.dart`, `bjt_document_datasource.dart`,
+   `bjt_document_parser.dart`, `multi_pane_reader_widget.dart`,
+   `edition.dart` and `deep_link_listener.dart`. `main.dart`'s manifest check
+   runs on web.
 
-     and the read loop, `ReadableStreamDefaultReader(response.body)` writing
-     each `JSUint8Array` straight to the sink. Writing the JS chunk
-     unconverted is what keeps the peak small. The probe's URIs are
-     root-relative — `sqlite3Uri: Uri.parse('sqlite3.wasm')`,
-     `driftWorkerUri: Uri.parse('drift_worker.js')` — because Flutter copies
-     `web/` to the build root.
-   - **Add `web` to `pubspec.yaml`** — it is transitive today, and `lib/` code
-     importing it trips the `depend_on_referenced_packages` lint.
-   - `navigator.storage.persist()` on each start until it returns true: Chrome
-     decides from how much the site is used, at the time of asking, so a
-     first-visit false can become true later.
-   - `LocalDatabase.open` on web waits for that database's install, and fails at
-     once if the install has failed, so a search shows an error, not a spinner.
-     After "try again" it waits for the new attempt. Its doc comment describes
-     the native copy only, so it changes here.
-5. **Wiring.** Delete `getWebOverrides()`, the three remote datasources,
-   `FTSMatch.matchedText` (only the server filled it) and the search
-   repository's pre-filled-`matchedText` guard; its content datasource stops
-   being nullable. Fix the comments that name the remote datasources:
-   `bjtContentDataSourceProvider`, `bjt_document_datasource.dart` and
-   `bjt_document_parser.dart`. Two more say the JSON ships with the app, which
-   it has not since `da67891`: the no-retry comment in
-   `multi_pane_reader_widget.dart` (its "on web the user can refresh" half goes
-   with the server) and `EditionType.local`'s example in `edition.dart`.
-   `main.dart`'s startup check runs on web too.
+   **The suggestions path is gone**: `getSuggestions` from the domain
+   interface, `TextSearchRepositoryImpl`, `CachingTextSearchRepository` and
+   `FTSDataSource`, `FTSSuggestion`, both methods in
+   `fts_local_datasource.dart`, the test group, and the word counting,
+   `extractWords`, `createSuggestionsTable` and `saveSuggestions` in
+   `tools/bjt-populate.js` with its three config settings.
+   `{edition}_suggestions` in `multi_edition_architecture.md` became
+   `{edition}_content`, and `reduce-mobile-size-and-move-to-drift.md`'s open
+   note says where it went. `tools/bjt-fts-populate-obsolete.js` keeps its copy
+   — it is a record.
 
-   **The suggestions path goes too** (decided 2026-09-19: the feature is not
-   used). `bjt_suggestions` is not in `bjt.db` and no screen calls
-   `getSuggestions`, so every call would throw (spike §8c); the server's copy
-   also pastes `editionIds` into the table name. Delete:
-   - `getSuggestions` in `TextSearchRepository`, `TextSearchRepositoryImpl`,
-     `CachingTextSearchRepository` (and its class comment's line on it) and
-     `FTSDataSource`; `FTSSuggestion`; `getSuggestions` and
-     `_getSuggestionsFromEdition` in `fts_local_datasource.dart`. The remote
-     one goes with its file.
-   - The `getSuggestions` group in `text_search_repository_impl_test.dart`;
-     regenerate `mocks.mocks.dart`.
-   - `server/`: the `/suggestions` route and `_suggestions` in
-     `fts_handler.dart` (and its class comment), the `bjt_suggestions` check in
-     `database_manager.dart`.
-   - `tools/bjt-populate.js`: the `bjt_suggestions` header line, the three
-     suggestion settings, `extractWords`, the word counting,
-     `createSuggestionsTable`, `saveSuggestions`; its line in
-     `tools/README.md`. The flag is already off, so `bjt.db` does not change.
-   - Docs: `{edition}_suggestions` in `multi_edition_architecture.md`; the
-     open `bjt_suggestions` note in `reduce-mobile-size-and-move-to-drift.md`
-     becomes done. Records stay: `docs/done/`, the spike results,
-     `bjt-fts-populate-obsolete.js`.
-6. **First-visit screen,** full screen, driven by the installer through a
-   provider: progress, the unsupported-browser message, "try again" after a failed
-   download, "not enough space" (a private window may refuse 351 MB), and
-   `dict.db` starting once `bjt.db` is done. A deep link opened on a first
-   visit still lands after the download (`deep_link_listener.dart` reads
-   `Uri.base` after the first frame).
+   **`server/` was not edited. It moved to `deprecated/server/`** (decided
+   2026-09-20, bringing forward
+   [`test-all-and-release-all.md`](../test-all-and-release-all.md) step 4).
+   With it went `scripts/web/deploy.sh`, `run_win.bat` and `restart_win.bat`,
+   to `deprecated/scripts-web/` — all three existed only to deploy or run the
+   Dart server. Its `pubspec.yaml` path to `wisdom_shared` was repointed so the
+   package still resolves if it is ever revived.
+
+   `test/data/repositories/text_search_repository_impl_test.dart` takes a
+   `MockBJTContentDataSource` stubbed to return no page sides instead of
+   `contentDataSource: null`, so `BJTContentDataSource` joined
+   `test/helpers/mocks.dart`. The unit suite is 636 tests, from 639.
+
+6. **First-visit screen,** full screen, driven by `DatabaseInstallation`
+   through a provider: progress, the unsupported-browser message, "try again"
+   after a failed download, "not enough space" (a private window may refuse
+   351 MB), and `dict.db` starting once `bjt.db` is done. It covers the app
+   only while a **blocking** status is unready, so a failed dictionary leaves
+   the reader and search alone — see step 4's notes for the surface. A deep
+   link opened on a first visit still lands after the download
+   (`deep_link_listener.dart` reads `Uri.base` after the first frame).
 7. **Web files and scripts.** The first two arrived with step 3 (2026-09-20).
    - **~~`web/sqlite3.wasm` and `web/drift_worker.js`~~ — added.** Neither
      needed a download: `drift` 2.35.0 ships the prebuilt worker at its package
@@ -394,39 +418,70 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
          - name: Cross-Origin-Embedder-Policy
            value: require-corp
      ```
-   - The download URL: locally the app's own `assets/assets/databases/<db>.db`,
-     uncompressed; with a `DATABASE_BASE_URL` build setting,
-     `<base>/<db>-<sha16>.db.gz` on R2. The local half is confirmed — the dev
-     server answers that path with the whole file (`content-length:
-     179093504`, `application/octet-stream`, and a
-     `cross-origin-resource-policy: cross-origin` it adds itself).
-   - `run_mac.sh` stops deleting the databases from the build. Its serving
-     moves off the Dart server to `flutter run -d web-server` in
-     [`test-all-and-release-all.md`](../test-all-and-release-all.md) step 4; if
-     this plan lands first, that change happens here. It wants
-     `--web-hostname localhost` (secure context) and, until the CanvasKit
-     question in step 8 is settled, `--no-web-resources-cdn`.
-8. **Verify in Chrome.**
+   - **~~The download URL~~ — built in step 4**, and both halves of the rule
+     are in `WebDatabaseInstaller`. The local one is confirmed end to end: a
+     first visit installed both databases from
+     `assets/assets/databases/<db>.db` at the manifest's byte counts.
+   - **~~`run_mac.sh`~~ — rewritten 2026-09-20**, bringing forward
+     [`test-all-and-release-all.md`](../test-all-and-release-all.md) step 4. It
+     is now `flutter run -d web-server` with `--web-hostname localhost`
+     (secure context) and `--no-web-resources-cdn` (until step 8 settles
+     CanvasKit); `--debug|--profile|--release`, `--port` and `--clean` survive,
+     `--skip-build` does not — `flutter run` always builds. Nothing deletes
+     the databases from a build any more, because there is no `build/web` to
+     clean: the dev server serves the assets itself.
+8. **Verify in Chrome.** Some of this was done on 2026-09-20 while verifying
+   step 5, in **headless** Chrome (release build, `-d web-server`, driven over
+   the DevTools protocol). Headless is not the browser a reader uses, so the
+   ticks below say what was seen, not that the item is closed.
+
+   Already seen, headless:
+   - A first visit through the deep link `/tipitaka/dn-1-1` installed `bjt.db`
+     (179,093,504 bytes) and then `dict.db` (171,941,888 bytes), both exactly
+     the manifest's counts, and the reader painted the sutta in parallel
+     Pali/Sinhala. So a deep link on a first visit does land.
+   - A reload downloaded nothing.
+   - A search for `එවං` returned full-text hits with snippets out of
+     `bjt_content` and definitions out of `dict.db`.
+   - A planted `drift_db/bjt-0000000000000000/database` was deleted at the next
+     start; both current folders survived.
+   - No errors in the console on any run. `storage.persist()` returned false,
+     which is what headless does.
+
+   Seen again on 2026-09-20 after the review fixes, headless, release build,
+   served from `build/web` with the two headers:
+
+   - A first visit installed both databases in order and at exactly the
+     manifest's counts, and `ls -l` in the throwaway profile showed the four
+     files: 179,093,504 and 171,941,888 bytes, each with a 64-byte stamp.
+   - A reload downloaded nothing (`already installed as bjt-<sha16>`).
+   - **A new version replaces the old one and frees its space first.** With the
+     build's manifest given a different hash for `bjt.db`, the next start
+     deleted `bjt-d3f2cd05cf3343b7`, then downloaded — and the profile held
+     341 MB, not 520 MB, so the delete was real and not just logged. `dict.db`
+     was left alone.
+   - The reader painted `dn-1` in parallel Pali/Sinhala out of the downloaded
+     `bjt.db`.
+
+   Still to do, and the reason this step is open:
+   - **All of the above again in a real Chrome**, by eye.
    - Search, the reader and the dictionary against macOS, including the Group 9
      snippet queries by hand. **Compare what is stored, not a re-serialised
      copy:** step 3's one mismatch was a baseline built by re-encoding a page's
      JSON in Python, whose separator spacing added 55 characters.
-   - A reload downloads nothing — the probe already showed a second load
-     finding `(opfs, bjt-<sha16>)` in `existingDatabases` and skipping, so this
-     is a re-check, not an unknown. After a new database, the old folder goes at
-     the next start with no old tab open, and stays while one is. A tab closed
-     mid-download starts clean next time. Two tabs on a first visit download
-     once.
+   - A tab closed mid-download starts clean next time. Two tabs on a first
+     visit download once. A version an **open second tab** holds is kept —
+     only the "nothing holds it" half has been seen.
    - A dropped connection mid-download offers "try again"; a private window
      works or says there isn't enough space.
-   - A deep link on a first visit opens after the download.
    - **Still open: Flutter's CanvasKit from Google's CDN under
      `require-corp`.** Step 3 dodged it with `--no-web-resources-cdn` rather
      than answering it, so the CDN path is untested. Try without the flag; if
      it fails, keep the flag — the canvaskit files are already in
      `flutter/bin/cache/flutter_web_sdk/canvaskit`, so it costs bundle size and
      nothing else. Whatever this settles applies to the deployed build too
-     ([`web-release.md`](../web-strategy/web-release.md) §6).
+     ([`web-release.md`](../web-strategy/web-release.md) §6) and to
+     `run_mac.sh`.
    - Measure prefix search (the spike had `බුද්ධ*` at ~800 ms count + search,
      §10). Measure only. Use **`බුද්ධ*` and `ද*`**, the spike's own terms, for a
      like-for-like: step 3 timed `එවං*` (27,850 hits) at 165–448 ms cold and
@@ -440,26 +495,29 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
    - Time the dictionary's slow case: a one-letter prefix with a dictionary
      filter. The count then reads `dict_id` from the table, not just the
      index. If it is slow, replace `idx_word` with `(word, dict_id)`.
-   - `flutter analyze` clean; the native suites still pass.
-   - Delete `lib/dev/web_drift_probe.dart` — due at the end of step 4; check it
-     has actually gone.
+   - `flutter analyze` clean; the native suites still pass. (Both true at the
+     end of step 5, and again after the review fixes: 636 unit tests, plus the
+     search-flow and two dictionary integration files.)
+   - ~~Delete `lib/dev/web_drift_probe.dart`~~ — gone 2026-09-20, once step 5
+     had been verified.
    - **Then the two reference docs can go.** `drift-fts5-wasm-spike-results.md`
      and `db-auto-update-prestudy.md` survived the 2026-09-20 cleanup — which
      took the spike brief, its two scripts and 407 MB of databases — only
      because this plan still cites them: the spike at §5 and §10 for the
-     numbers step 8 replaces, at §7, §8c and §9c for what it found, and the
+     numbers this step replaces, at §7 and §9c for what it found, and the
      prestudy under **Decided** for the version rule. Sweep those citations,
      and the ones in `web-release.md`,
      `reduce-mobile-size-and-move-to-drift.md` and `README.md`, first.
 
-**Tests:** not written by this work. A test proposal for the test agent, like
-[`bundled-database-copy-tests.md`](./bundled-database-copy-tests.md). Three
-existing tests change with the code: `dictionary_sql_helpers_test.dart` in
-`wisdom_shared` (step 1 replaced its helper; done),
-`test/data/datasources/fts_language_filter_sql_test.dart`, which builds a
-`LocalDatabase` (step 2; done), and
-`test/data/repositories/text_search_repository_impl_test.dart`, which passes
-`contentDataSource: null` and has a `getSuggestions` group (step 5).
+**Tests:** not written by this work, the 2026-09-20 review fixes included. The
+proposal for the test agent is
+[`web-database-installer-tests.md`](./web-database-installer-tests.md) —
+read its "The hard part" section first: none of the installer is reachable
+from `flutter test` on the VM, so what can be tested at all is the first
+question. Three existing tests changed with the code:
+`dictionary_sql_helpers_test.dart` in `wisdom_shared` (step 1),
+`test/data/datasources/fts_language_filter_sql_test.dart` (step 2) and
+`test/data/repositories/text_search_repository_impl_test.dart` (step 5).
 
 ## Not in this plan
 
@@ -476,5 +534,12 @@ existing tests change with the code: `dictionary_sql_helpers_test.dart` in
 - **One dictionary query, not two.** `lookupWord` and `searchDefinitions` run
   the same SQL except `OFFSET`, in the app and in `server/`; `lookupWord`
   could call `searchDefinitions`.
+- **One place that knows a database's name.** Three know today:
+  `WebDatabaseInstaller.databases`, `FTSDataSourceImpl._dbNameFor`
+  (`'$editionId.db'`) and `DictionaryLocalDataSource._dbName`. A new edition
+  means a new `{editionId}.db`
+  ([`multi_edition_architecture.md`](../multi_edition_architecture.md)), which
+  on web also has to be installed and published; `open()` says so rather than
+  throwing a null check, and unifying the three is multi-edition work.
 - **`dictionary_sql_helpers.dart` back into the app** once `server/` is gone;
   the app is then its only user.

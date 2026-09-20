@@ -39,9 +39,9 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
    [`move-web-onto-drift.md`](./move-web-onto-drift.md).
 4. **Host Flutter web statically** —
    [`web-release.md`](../web-strategy/web-release.md) §6. Step 3 already deletes
-   the web remote datasources. `server/` does not wait for this: it moves to
-   `deprecated/` earlier, in
-   [`test-all-and-release-all.md`](../test-all-and-release-all.md).
+   the web remote datasources, and moved `server/` — with the three
+   `scripts/web/` files that only existed to run or deploy it — to
+   `deprecated/` (2026-09-20).
    The static HTML site and the Flutter bundle are separate **Cloudflare Pages**
    projects (one per surface); the canon DBs (~180 MB content+FTS, ~175 MB
    `dict.db`) exceed Pages' 25 MiB per-file limit, so they're hosted on **R2** and

@@ -686,8 +686,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
       // No Retry / no widget-level logging:
       //   - BJTDataSource logs the raw error + stack trace at the catch site,
       //     so DevTools shows the real cause.
-      //   - On web the user can refresh; on mobile the JSON is bundled in the
-      //     app, so retry can't fix it.
+      //   - The text comes from this device's own copy of `bjt.db`, so a
+      //     retry cannot fix what went wrong reading it.
       final variant = statusVariantForError(failure);
       final l10n = AppLocalizations.of(context);
       return StatusMessageView(

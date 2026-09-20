@@ -16,7 +16,7 @@ how the app keeps its copy of `bjt.db` and `dict.db` current. Read step 7 first.
     straight to `<db>` in 8 MB pieces, and writes the stamp last.
   - If the copy or the stamp write throws, it deletes the partial copy and
     rethrows.
-- **`database_manifest.dart`** — `databaseSha256(dbName)` throws a `StateError`
+- **`database_manifest.dart`** — `databaseManifestEntry(dbName)` throws a `StateError`
   naming `npm run generate-<name>` when the manifest has no entry.
 - **`local_database.dart`** — `LocalDatabase.open` shares one connection per
   file, so two first readers copy once, and a failed open is forgotten so the

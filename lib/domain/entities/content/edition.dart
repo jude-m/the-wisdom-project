@@ -33,7 +33,7 @@ class Edition with _$Edition {
 /// Defines where the edition data comes from
 enum EditionType {
   /// Edition is stored locally in the app bundle or device storage
-  /// Example: BJT JSON files bundled with the app
+  /// Example: the BJT text in this device's copy of `bjt.db`
   local,
 
   /// Edition is fetched from a remote API

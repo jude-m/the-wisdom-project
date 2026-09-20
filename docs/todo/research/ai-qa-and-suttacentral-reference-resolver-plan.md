@@ -67,23 +67,24 @@ resolver then unlocks reference-search and deep-links, in that order.
 
 ## 1. The one insight that shapes the architecture
 
-Every existing feature (FTS, dictionary, documents) has **two real datasource
-implementations**: a *local* one (bundled SQLite/JSON on native) and a *remote*
-one (HTTP to our Dart `server/`, injected only on web via `getWebOverrides()` in
-`lib/presentation/providers/platform_providers.dart`). Same data, different
-transport.
+Every existing feature (FTS, dictionary, documents) reads its data **locally**,
+on every platform: bundled SQLite through Drift, no server in the path. Web was
+the exception until 2026-09-20 — the same features had a second, remote
+datasource pointed at our Dart `server/` — and that server is retired, those
+datasources deleted
+([`move-web-onto-drift.md`](../retiring-dart-server/move-web-onto-drift.md)).
 
-**RAG breaks that symmetry.** No client can ever call Gemini directly (the API
+**RAG is the one exception.** No client can ever call Gemini directly (the API
 key must stay server-side) and the File Search index lives in Google's cloud.
 So:
 
 - The Q&A feature is **remote-only on _every_ platform** — native, desktop, web
   all hit a backend. There is no `ResearchLocalDataSource`. This *simplifies* the
   clean-architecture mapping (no platform override), but introduces one wiring
-  difference: **native currently never talks to a server**, so the Q&A
+  difference: **no other feature talks to a server at all**, so the Q&A
   datasource needs a **configurable absolute base URL** (e.g.
   `https://research.thewisdomproject.app`), not the same-origin `''` trick the
-  content server uses on web.
+  retired content server used on web.
 - Because of this, the feature **cannot work offline** — unlike everything else
   in the app. It must degrade gracefully (a clear "needs connection" state) and
   be hideable behind a capability flag when no backend is configured.
@@ -187,11 +188,13 @@ class ResearchAnswer with _$ResearchAnswer {
 > Sujato notes (`kind=note`) or turning on deep-links is *no contract change and
 > no app release*.
 
-### A.3 Datasource — mirrors `FTSRemoteDataSourceImpl`
+### A.3 Datasource — `ResearchRemoteDataSourceImpl`
 
-Same `http.Client` + base-URL + `_checkResponse` shape as
-`lib/data/datasources/fts_remote_datasource.dart`; only difference is a `POST`
-with a JSON body instead of a `GET` with query params.
+A `POST` with a JSON body, against a base URL the caller supplies. As built
+(`lib/data/datasources/research_remote_datasource.dart`) the transport — base
+URL, timeout, app token, status codes — sits in an injected `ApiClient`
+(`api_client.dart`), leaving the datasource pure JSON↔entity; the sketch below
+predates that split, and `ApiException` replaced the bare `Exception` in it.
 
 ```dart
 abstract class ResearchDataSource {
@@ -554,8 +557,7 @@ Net: chat → `shared_preferences`; resolver → in-memory JSON map; hybrid (lat
 
 | Concern | Existing file (pattern to follow) |
 |---|---|
-| Remote datasource shape | `lib/data/datasources/fts_remote_datasource.dart` |
-| Platform overrides | `lib/presentation/providers/platform_providers.dart` |
+| Remote datasource shape | `lib/data/datasources/api_client.dart` + `research_remote_datasource.dart` — the only remote datasource left |
 | Provider chain | `lib/presentation/providers/search_provider.dart` |
 | `Either`/`Failure` | `lib/domain/entities/failure.dart` |
 | Client-side history (shared_prefs, not SQLite) | `lib/data/repositories/recent_searches_repository_impl.dart` |
