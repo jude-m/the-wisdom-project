@@ -188,7 +188,15 @@ server. Accepted.
   `Cross-Origin-Opener-Policy: same-origin` and
   `Cross-Origin-Embedder-Policy: require-corp`. Not just the page: Drift starts
   its worker from `drift_worker.js`. Without them Chrome can't use OPFS, and the
-  app shows its unsupported-browser message.
+  app shows its unsupported-browser message. Confirmed to be enough on
+  2026-09-20: with exactly these two on Flutter's dev server, `opfsLocks` was
+  offered and the real `bjt.db` opened from OPFS.
+- **CanvasKit may need `--no-web-resources-cdn` in the build.** Under
+  `require-corp` a cross-origin subresource has to send
+  `Cross-Origin-Resource-Policy`, and Flutter loads CanvasKit from Google's CDN
+  by default. Untested either way — `move-web-onto-drift.md` step 8 settles it
+  locally first, and the answer carries straight over here. The flag self-hosts
+  the files from the Flutter cache, costing bundle size only.
 - **The deploy strips `assets/assets/databases/*.db` and keeps
   `manifest.json`** — the app reads each database's version from it. The
   Windows-box `deploy.sh` deleted the whole folder.

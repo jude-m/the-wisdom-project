@@ -327,16 +327,20 @@ database. The Dart layer above it was **not run** — pub.dev and
 storage.googleapis.com are blocked by this session's egress policy, so no Dart or
 Flutter SDK was reachable. Specifically unverified by execution:
 
-- `WasmDatabase.open()`'s worker negotiation and storage-mode selection in a real browser
-- Drift's own migration/`user_version` behaviour against a prebuilt DB
+- ~~`WasmDatabase.open()`'s worker negotiation and storage-mode selection in a real
+  browser~~ — **answered 2026-09-20** in Chrome, with `probe()` + `open(opfsLocks, …)`
+  rather than `open()`'s own pick
+- ~~Drift's own migration/`user_version` behaviour against a prebuilt DB~~ —
+  **answered 2026-09-20**: `enableMigrations: false` opens the shipped file untouched
 - the IndexedDB fallback path's performance
 - iOS Safari and Firefox (Chromium only here)
 
 (Your app's real call sites were reviewed after the fact — see §8 onward.)
 
-A ~30-minute Flutter web target on your machine would close the rest, and it now has a
-much shorter checklist to run: clear the WAL flag, pre-seed OPFS, set the headers,
-`enableMigrations: false`.
+That Flutter web target was run on 2026-09-20 —
+[`move-web-onto-drift.md`](./move-web-onto-drift.md) step 3 — against this checklist:
+clear the WAL flag, pre-seed OPFS, set the headers, `enableMigrations: false`. All four
+held.
 
 ---
 

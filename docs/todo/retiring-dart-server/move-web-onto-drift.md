@@ -1,12 +1,13 @@
 # Move Web onto Drift
 
-> **Status 2026-09-19: in progress on branch `feat/move-web-onto-drift`; steps
-> 1–2 done.** This was step 11 of
+> **Status 2026-09-20: in progress on branch `feat/move-web-onto-drift`; steps
+> 1–3 done.** This was step 11 of
 > [`reduce-mobile-size-and-move-to-drift.md`](./reduce-mobile-size-and-move-to-drift.md),
 > whose steps 1–9 are done: `bjt.db` holds the page text, and native reads both
 > databases through Drift. It is step 3 of the [`README.md`](./README.md) order.
 > Every question it raised is decided — see **Decided**. Checked on 2026-09-18
-> against the Drift 2.35.0, sqlite3 3.5.2 and Flutter 3.44.1 tool sources.
+> against the Drift 2.35.0, sqlite3 3.5.2 and Flutter 3.44.1 tool sources, and
+> the web half ran for the first time on 2026-09-20 (step 3).
 
 ## Goal
 
@@ -32,9 +33,10 @@ this plan — it is [`web-release.md`](../web-strategy/web-release.md) §6.
   `run_mac.sh` serves the build through the Dart server.
 - The update banner polls `/healthz`, which only the Dart server answers. Local
   builds leave it off (`VERSION_CHECK_ENABLED`).
-- **Drift's web side has never run here.** The spike drove SQLite through its
-  own harness; Drift's workers, its storage-mode choice and opening a file we
-  wrote ourselves are unverified (spike §7). Step 3 starts there.
+- **Drift's web side now runs here** (step 3, 2026-09-20). Its workers, opening
+  by storage mode and opening a file we wrote ourselves are all verified in
+  Chrome against the real `bjt.db`; the spike could only reach the SQLite layer
+  under it (spike §7).
 - Locked in `pubspec.lock`: Flutter 3.44.1, `drift` 2.35.0, `sqlite3` 3.5.2.
   `pubspec.yaml` does not hold them: it has `drift: ^2.35.0`, and `sqlite3`
   only comes in through Drift (3.6.0 is already in the pub cache).
@@ -128,14 +130,24 @@ this plan — it is [`web-release.md`](../web-strategy/web-release.md) §6.
   `dict.db` 172 → 30 MB. About 149 MB on a first visit.
 - **The web build already carries the manifest.** `manifest.json` is a Flutter
   asset, so a web build knows each database's SHA-256 with no extra file.
-- **Flutter's own server sends COOP/COEP.** Flutter 3.44.1 has no
-  `--web-header` flag, but every `flutter run` web target reads
-  `web_dev_config.yaml` at the project root (`flutter_tools`
-  `devfs_config.dart`) and puts its headers on every response. That matters:
-  Drift starts its worker from `drift_worker.js`, a file of its own. A hidden
-  `--cross-origin-isolation` flag exists too, but in release and profile builds
-  it covers `.html` only, and it sends `credentialless`. Both Flutter servers
-  answer an unknown path with `index.html`, so reloading a deep link works.
+- **Flutter's own server sends COOP/COEP** — verified on the wire 2026-09-20.
+  Every `flutter run` web target reads `web_dev_config.yaml` at the project root
+  (`flutter_tools` `devfs_config.dart`; it logs `[WebDevServer] Loaded
+  configuration from web_dev_config.yaml`) and puts its headers on every
+  response, `--release` included. That matters: Drift starts its worker from
+  `drift_worker.js`, a file of its own. `flutter run` also has a
+  `--web-header key=value` flag, hidden unless `--verbose`, and CLI headers
+  **merge** with the file's rather than replacing them (`copyWith` in
+  `devfs_config.dart`) — the file is still the choice, so no one has to
+  remember flags.
+  A hidden `--cross-origin-isolation` flag exists too, but in release and
+  profile builds it covers `.html` only, and it sends `credentialless`. Both
+  Flutter servers answer an unknown path with `index.html`, so reloading a deep
+  link works.
+- **Use `--web-hostname localhost`.** Cross-origin isolation needs a secure
+  context, which `http://localhost` is; the default host is `any` (`0.0.0.0`).
+- **The dev server answers HEAD with 404** but serves the same path on GET.
+  `curl -I` against it proves nothing; use `curl -r 0-0 -D -`.
 - **`-d chrome` copies the databases on every run.** It starts a throwaway
   Chrome profile and restores, then saves, `Default/` — where OPFS lives —
   through `.dart_tool/chrome-device` (`flutter_tools` `web/chrome.dart`).
@@ -145,7 +157,15 @@ this plan — it is [`web-release.md`](../web-strategy/web-release.md) §6.
   `async_opfs/worker.dart`, `_releaseImplicitLocks`; the 150 ms is
   `asyncIdleWaitTimeMs` in `sync_channel.dart`). Firefox's `opfsShared` would keep files open for the
   shared worker's life and store a third file, `meta` — moot with `opfsLocks`
-  pinned.
+  pinned. Practical consequence, hit in step 3: **deleting a folder straight
+  after closing its database can still meet an open handle.** Wait, or delete
+  only folders no tab has opened — which is what step 4's cleanup does anyway.
+- **Chrome's OPFS is a plain file on disk**, so a run can be checked without the
+  browser: the database shows up under
+  `~/Library/Application Support/Google/Chrome/<profile>/File System/…` at
+  exactly the source file's byte count (179,093,504 for `bjt.db`). To get back
+  to a first visit, wipe it in Chrome: Settings → Privacy → Site data → the
+  origin → Delete.
 - **Drift already holds a lock per database:** `drift-db-<databaseName>`,
   exclusive, around every query (`navigator_locks_interceptor.dart`). Our lock
   names must not start with `drift-db-`.
@@ -155,6 +175,16 @@ this plan — it is [`web-release.md`](../web-strategy/web-release.md) §6.
   `WasmDatabase.open`, by contrast, picks a mode itself and keeps an existing
   database's storage — in a browser without the headers it creates an
   IndexedDB database under our name. `probe()` plus `open(mode, …)` avoids both.
+- **`WasmProbeResult`'s field is `availableStorages`**, not
+  `availableStorageImplementations`, and `existingDatabases` is a list of
+  `(WebStorageApi, String)` records.
+- **`probe.open(...)` returns a `DatabaseConnection`, which is a
+  `QueryExecutor`** — `LocalDatabase` wraps it exactly as it wraps the native
+  one. Web needs no new database class, only a new executor.
+- **`package:web` and `package:crypto` are transitive today.** Anything in
+  `lib/` that reaches OPFS, `fetch` or SHA-256 needs `web` (and `crypto`, if a
+  hash survives step 4) added to `pubspec.yaml`, or the
+  `depend_on_referenced_packages` lint fails `flutter analyze`.
 - **Flutter 3.44's `flutter_service_worker.js` only unregisters itself.**
   Nothing caches the databases.
 
@@ -189,20 +219,60 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
    (`bundledDatabaseSha256` → `databaseSha256`). The native/web file split
    stays instead of passing an executor in: each platform has one way to open.
    Native behaviour is unchanged — the copy's path and stamp don't use these
-   names — and the web file still throws until steps 3–4.
+   names — and the web file still throws until step 4 (step 3 proved the web
+   path outside it, in a throwaway entrypoint).
    [`bundled-database-copy-tests.md`](./bundled-database-copy-tests.md) took the
    new names for the code it tests; its own name and its test files' names
    stay, as they test the native copy out of the bundle. `flutter build web`
    compiles; the unit suite and the search-flow and dictionary integration
    tests pass.
-3. **Prove Drift on web, throwaway.** In a release build with the headers:
-   fetch `bjt.db` into `drift_db/bjt-<sha16>/database` with `createWritable()` —
-   no locks, no stamp, no progress — open it with `probe()` and
-   `open(opfsLocks, …, enableMigrations: false)`, then run one search and one
-   page read. This settles the two web files, the headers, and opening a file
-   we wrote. Time two things there: the pure-Dart zlib decoder (if it is slow,
-   swap just the unpacking call for `DecompressionStream`), and SHA-256 over the
-   whole download (step 4 keeps it only if it is cheap).
+3. **~~Prove Drift on web, throwaway~~ — done 2026-09-20. It works.** In Chrome,
+   in a release build with the headers, the probe `lib/dev/web_drift_probe.dart`
+   streamed `bjt.db` into `drift_db/bjt-<sha16>/database` with
+   `createWritable()`, opened it with `probe()` and
+   `open(opfsLocks, …, enableMigrations: false)`, and ran one search and one
+   page read. `crossOriginIsolated` was true, `availableStorages` offered
+   `opfsLocks`, and the only missing feature was
+   `dedicatedWorkersInSharedWorkers` — the Chrome bug
+   ([crbug 1088481](https://crbug.com/1088481)) that rules out `opfsShared`
+   and nothing else. Results were identical to macOS: `MATCH
+   'එවං*'` 27,850 rows, the same top-5 ids under `ORDER BY score, id`, `dn-1`
+   148 content rows, its page 0 pali 1,629 chars of JSON over 9 entries. The
+   SHA-256 of the bytes that landed in OPFS matched `manifest.json`.
+   The probe copied those two queries out of `fts_local_datasource.dart` and
+   `bjt_content_local_datasource.dart` rather than calling them, so the app's
+   own path — providers, repositories, widgets — is still step 8's to check.
+   `flutter analyze` clean, the unit suite passes, no app code touched.
+
+   **Measured, 2026-09-20, Chrome release, served from localhost:**
+
+   | | |
+   |---|---|
+   | zlib inflate, 148 real page blobs (168,707 → 786,417 bytes) | 19–26 ms, i.e. **132–176 µs per blob** |
+   | SHA-256 over the 179 MB | **2,141 ms**, 74% of the 2,888 ms download-and-write |
+   | OPFS streaming write of 179 MB, hashing subtracted | ~750 ms |
+   | top-50 search | 165–448 ms cold, 102–122 ms warm |
+   | `count(*)` after that search | 10–22 ms — see step 8, this is a warm number |
+
+   **So: the zlib decoder stays as it is.** `DecompressionStream` would buy
+   nothing at 176 µs a page and would cost a web-only branch. **And a
+   per-download SHA-256 is real CPU**, on the main isolate, so step 4 keeps the
+   byte count.
+
+   The probe lives until the end of step 4 — the installer is written against
+   it — then goes. Two things learnt from running it, worth keeping if it is
+   ever rebuilt: its report has to be **on the page** (with `-d web-server` the
+   output goes to the browser, not the terminal), and it needs a button that
+   **deletes the OPFS copy and downloads again**, because a reload otherwise
+   finds the database already installed and the download timings are never
+   taken.
+
+   ```bash
+   flutter run -d web-server --release --no-web-resources-cdn \
+     --web-hostname localhost --web-port 8099 -t lib/dev/web_drift_probe.dart
+   ```
+
+   Then open that URL in your usual Chrome.
 4. **The web installer** (data layer, web only). Each start:
 
    ```
@@ -226,8 +296,34 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
      file, and the stamp goes last — native's rule: no stamp, not finished.
      Fetch with `cache: 'no-store'`, so Chrome keeps no second copy.
    - No `initializeDatabase`: it loads the whole file into memory.
+   - **The size check stays a byte count, not a hash.** Step 3 measured SHA-256
+     over `bjt.db` at 2,141 ms of main-isolate CPU (`package:crypto`, chunked);
+     `dict.db` would cost about as much again. The browser's
+     `crypto.subtle.digest` is faster but takes one buffer, which is the 179 MB
+     allocation this design exists to avoid. That 2,141 ms was measured against
+     localhost, where nothing hides it; on a real connection most of it would
+     overlap with the transfer, but it is still main-isolate CPU.
    - `manifest.json` gains `bytes` per database (`tools/db-finalize.js`), for
      the size check and the progress bar.
+   - **Reuse the probe's shapes** (`lib/dev/web_drift_probe.dart`, deleted at
+     the end of this step). The OPFS walk:
+
+     ```
+     navigator.storage.getDirectory()
+       → getDirectoryHandle('drift_db', create: true)
+       → getDirectoryHandle('<db>-<sha16>', create: true)
+       → getFileHandle('database', create: true)
+       → createWritable()
+     ```
+
+     and the read loop, `ReadableStreamDefaultReader(response.body)` writing
+     each `JSUint8Array` straight to the sink. Writing the JS chunk
+     unconverted is what keeps the peak small. The probe's URIs are
+     root-relative — `sqlite3Uri: Uri.parse('sqlite3.wasm')`,
+     `driftWorkerUri: Uri.parse('drift_worker.js')` — because Flutter copies
+     `web/` to the build root.
+   - **Add `web` to `pubspec.yaml`** — it is transitive today, and `lib/` code
+     importing it trips the `depend_on_referenced_packages` lint.
    - `navigator.storage.persist()` on each start until it returns true: Chrome
      decides from how much the site is used, at the time of asking, so a
      first-visit false can become true later.
@@ -274,12 +370,21 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
    `dict.db` starting once `bjt.db` is done. A deep link opened on a first
    visit still lands after the download (`deep_link_listener.dart` reads
    `Uri.base` after the first frame).
-7. **Web files and scripts.**
-   - `web/sqlite3.wasm` and `web/drift_worker.js` from the `sqlite3` 3.5.2 and
-     `drift` 2.35.0 releases. `pubspec.yaml` pins `drift: 2.35.0` and adds
-     `sqlite3: 3.5.2` as a direct dependency.
-   - `web_dev_config.yaml` at the repo root. The headers must sit under
-     `server:`, or `flutter run` stops with an error:
+7. **Web files and scripts.** The first two arrived with step 3 (2026-09-20).
+   - **~~`web/sqlite3.wasm` and `web/drift_worker.js`~~ — added.** Neither
+     needed a download: `drift` 2.35.0 ships the prebuilt worker at its package
+     root (`~/.pub-cache/hosted/pub.dev/drift-2.35.0/drift_worker.js`), and the
+     same package's DevTools build carries a matching wasm at
+     `extension/devtools/build/sqlite3.wasm` — SQLite 3.53.4 with FTS5, the
+     fingerprint the spike recorded for the `sqlite3-3.5.2` release (`fts5`×35,
+     `fts5vocab`, `bm25`, `trigram`, `unicode61`). **Known limit:** that is
+     drift's DevTools copy, not the official release asset, and it was not
+     compared byte for byte. If that ever matters, replace both from the GitHub
+     releases — nothing else changes. Still to do here: `pubspec.yaml` pins
+     `drift: 2.35.0` and adds `sqlite3: 3.5.2` as a direct dependency.
+   - **~~`web_dev_config.yaml` at the repo root~~ — added**, and verified on the
+     wire: every response carries both headers, `--release` included. The
+     headers must sit under `server:`, or `flutter run` stops with an error:
 
      ```yaml
      server:
@@ -291,28 +396,61 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
      ```
    - The download URL: locally the app's own `assets/assets/databases/<db>.db`,
      uncompressed; with a `DATABASE_BASE_URL` build setting,
-     `<base>/<db>-<sha16>.db.gz` on R2.
+     `<base>/<db>-<sha16>.db.gz` on R2. The local half is confirmed — the dev
+     server answers that path with the whole file (`content-length:
+     179093504`, `application/octet-stream`, and a
+     `cross-origin-resource-policy: cross-origin` it adds itself).
    - `run_mac.sh` stops deleting the databases from the build. Its serving
      moves off the Dart server to `flutter run -d web-server` in
      [`test-all-and-release-all.md`](../test-all-and-release-all.md) step 4; if
-     this plan lands first, that change happens here.
+     this plan lands first, that change happens here. It wants
+     `--web-hostname localhost` (secure context) and, until the CanvasKit
+     question in step 8 is settled, `--no-web-resources-cdn`.
 8. **Verify in Chrome.**
    - Search, the reader and the dictionary against macOS, including the Group 9
-     snippet queries by hand.
-   - A reload downloads nothing. After a new database, the old folder goes at
+     snippet queries by hand. **Compare what is stored, not a re-serialised
+     copy:** step 3's one mismatch was a baseline built by re-encoding a page's
+     JSON in Python, whose separator spacing added 55 characters.
+   - A reload downloads nothing — the probe already showed a second load
+     finding `(opfs, bjt-<sha16>)` in `existingDatabases` and skipping, so this
+     is a re-check, not an unknown. After a new database, the old folder goes at
      the next start with no old tab open, and stays while one is. A tab closed
      mid-download starts clean next time. Two tabs on a first visit download
      once.
    - A dropped connection mid-download offers "try again"; a private window
      works or says there isn't enough space.
    - A deep link on a first visit opens after the download.
-   - Flutter's CanvasKit loads from Google's CDN, which must allow it under
-     `require-corp`. If it doesn't, build with `--no-web-resources-cdn`.
-   - Measure prefix search (the spike had `බුද්ධ*` at ~800 ms). Measure only.
+   - **Still open: Flutter's CanvasKit from Google's CDN under
+     `require-corp`.** Step 3 dodged it with `--no-web-resources-cdn` rather
+     than answering it, so the CDN path is untested. Try without the flag; if
+     it fails, keep the flag — the canvaskit files are already in
+     `flutter/bin/cache/flutter_web_sdk/canvaskit`, so it costs bundle size and
+     nothing else. Whatever this settles applies to the deployed build too
+     ([`web-release.md`](../web-strategy/web-release.md) §6).
+   - Measure prefix search (the spike had `බුද්ධ*` at ~800 ms count + search,
+     §10). Measure only. Use **`බුද්ධ*` and `ද*`**, the spike's own terms, for a
+     like-for-like: step 3 timed `එවං*` (27,850 hits) at 165–448 ms cold and
+     102–122 ms warm for the top 50, which is the first number from the
+     `opfsLocks` mode we actually ship, but a different term — so it neither
+     confirms nor contradicts §10's warning that `opfsLocks` would come out
+     slower than that harness.
+   - **Measure `count(*)` cold**, in its own session before any ranked query.
+     Step 3's 10–22 ms was warm — the ranked query had already pulled those
+     pages in — and the spike (§5) puts counting as the expensive half.
    - Time the dictionary's slow case: a one-letter prefix with a dictionary
      filter. The count then reads `dict_id` from the table, not just the
      index. If it is slow, replace `idx_word` with `(word, dict_id)`.
    - `flutter analyze` clean; the native suites still pass.
+   - Delete `lib/dev/web_drift_probe.dart` — due at the end of step 4; check it
+     has actually gone.
+   - **Then the two reference docs can go.** `drift-fts5-wasm-spike-results.md`
+     and `db-auto-update-prestudy.md` survived the 2026-09-20 cleanup — which
+     took the spike brief, its two scripts and 407 MB of databases — only
+     because this plan still cites them: the spike at §5 and §10 for the
+     numbers step 8 replaces, at §7, §8c and §9c for what it found, and the
+     prestudy under **Decided** for the version rule. Sweep those citations,
+     and the ones in `web-release.md`,
+     `reduce-mobile-size-and-move-to-drift.md` and `README.md`, first.
 
 **Tests:** not written by this work. A test proposal for the test agent, like
 [`bundled-database-copy-tests.md`](./bundled-database-copy-tests.md). Three

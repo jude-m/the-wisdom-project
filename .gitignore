@@ -78,16 +78,8 @@ assets/databases/*.db
 # Their SHA-256s, written by tools/db-finalize.js; travels with the databases
 assets/databases/manifest.json
 
-# Throwaway spikes for steps 2-4 of
-# docs/todo/retiring-dart-server/reduce-mobile-size-and-move-to-drift.md. They produced the
-# numbers in that doc's "What the measurements said" and have no job after it:
-# delete both (and tools/bjt-content-spike.db, ~180 MB, already ignored above)
-# once step 5 lands, and drop these three lines with them. The parts worth
-# keeping move into tools/bjt-populate.js, not here.
-tools/bjt-content-spike.js
-tools/bench_content_read.dart
-
-# Temporary documents that should be deleted
+# A temporary document, kept out of git rather than deleted. The pattern has
+# no slash, so it matches at any depth: the file is docs/general/.
 TEST_AUDIT_REPORT.md
 
 # Intermediate TTF subsets from assets/fonts/subset_fonts.sh, for the two

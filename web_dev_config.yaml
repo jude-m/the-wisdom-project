@@ -1,0 +1,8 @@
+# Headers for `flutter run -d web-server`. Drift's `opfsLocks` storage needs
+# `Atomics.wait`, which only works in a cross-origin-isolated page.
+server:
+  headers:
+    - name: Cross-Origin-Opener-Policy
+      value: same-origin
+    - name: Cross-Origin-Embedder-Policy
+      value: require-corp

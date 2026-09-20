@@ -268,10 +268,13 @@ server takes over the second: `run_mac.sh` runs
 or `--release`; `--skip-build` goes, since `flutter run` always builds. It
 answers unknown paths with `index.html`, so a reloaded `/tipitaka/…` deep link
 works, and port 8080 is already in the Worker's CORS list. Open the URL in your
-usual Chrome: `-d chrome` would start a throwaway profile on every run. Content
-comes back with web Drift, which also adds the COOP/COEP headers in
-`web_dev_config.yaml`
-([`move-web-onto-drift.md`](retiring-dart-server/move-web-onto-drift.md)).
+usual Chrome: `-d chrome` would start a throwaway profile on every run. Add
+`--web-hostname localhost` — cross-origin isolation needs a secure context and
+the default host is `any` (`0.0.0.0`). Content comes back with web Drift;
+`web_dev_config.yaml` already exists at the repo root and the server already
+sends its COOP/COEP headers on every response, `--release` included (verified
+2026-09-20,
+[`move-web-onto-drift.md`](retiring-dart-server/move-web-onto-drift.md)).
 
 Then repoint every live mention of a moved file, `.dev.vars`, `.prod.env`, or
 the Windows box's port 8081:

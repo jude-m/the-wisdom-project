@@ -198,13 +198,13 @@ compressed blob is the reverse.
 ## What the Measurements Said
 
 Steps 2–4 below, run 2026-09-11 on the vendored corpus by two throwaway
-scripts: `tools/bjt-content-spike.js` builds the real table into a copy of the
-bundled DB, `tools/bench_content_read.dart` times reads out of it.
+scripts: `tools/bjt-content-spike.js` built the real table into a copy of the
+bundled DB, `tools/bench_content_read.dart` timed reads out of it.
 
-**Neither is in git** — both are gitignored, with a comment there saying when
-to delete them — so the numbers below are the record, not the scripts. What is
-worth keeping out of them moves into `tools/bjt-populate.js` at step 5 and
-into the datasource at step 6, both noted where they land.
+**Both were deleted on 2026-09-20**, and neither was ever in git, so the
+numbers below are the record, not the scripts. What was worth keeping out of
+them moved into `tools/bjt-populate.js` at step 5 and into the datasource at
+step 6, both noted where they land.
 
 The table it built was checked by the safety net rather than by eye —
 `verify_corpus_invariants.dart --content-db tools/bjt-content-spike.db` —
@@ -607,12 +607,13 @@ the same build pipeline, one in the same datasource.
 
 The speed numbers, the parity contract, per-entry being ruled out, and the
 slice shape for step 6. The spike is about the engine under the table, not the
-table. Its own caveat is worth carrying: it could not run the Dart layer at all
-(pub.dev was blocked in that session), so Drift's worker negotiation, its
-migration behaviour, and iOS/Firefox are unverified by execution — as is this
-document's bench, which read with `File.readAsString` rather than through
-`rootBundle` and sqflite's platform channel. Both sets of numbers are floors,
-from different directions.
+table. Its own caveat has been half answered: it could not run the Dart layer at
+all (pub.dev was blocked in that session), and Drift's worker negotiation and
+its migration behaviour against a prebuilt file were then verified in Chrome on
+2026-09-20 (`move-web-onto-drift.md` step 3). iOS and Firefox remain unverified,
+as does this document's bench, which read with `File.readAsString` rather than
+through `rootBundle` and sqflite's platform channel. Both sets of numbers are
+floors, from different directions.
 
 ## Current Runtime Dependencies on JSON
 
@@ -785,7 +786,7 @@ CREATE TABLE bjt_content (
 2. **Prove the speed win (primary goal) — DONE 2026-09-11. GO.** Snippets 13–586×,
    reader p50 45× with one slice in 1,411 a quarter-millisecond slower than
    today. Numbers and method in **What the measurements said**;
-   `tools/bench_content_read.dart` is the throwaway that produced them.
+   `tools/bench_content_read.dart` was the throwaway that produced them.
 3. **Measure the size bonus — DONE 2026-09-11.** 180 MB bundled against today's
    434 MB, built for real by `tools/bjt-content-spike.js` and verified entry for
    entry by section 5. Two things the estimate got wrong, both above: the table
@@ -876,15 +877,13 @@ CREATE TABLE bjt_content (
      failing file alone before blaming a change.
    - **The decoder traps** are under **Decoder** in step 6.
 
-   **Left open after step 5** — deliberately not done yet (the user's call,
-   2026-09-15); nothing in step 6 waits on them:
-   - **Delete the step 2–4 throwaways**: `tools/bjt-content-spike.js`,
-     `tools/bench_content_read.dart`, `tools/bjt-content-spike.db`, and the
-     `.gitignore` block that names them. Their numbers are recorded in
-     **What the measurements said**; nothing else reads them. They are
-     untracked, so deleting them cannot be undone — ask first.
-   - **Delete the pre-rebuild backup** `tools/bjt-fts.pre-step5.db` (the old
-     95 MB database, gitignored by `tools/*.db`). Also untracked; ask first.
+   **~~Left open after step 5~~ — cleared 2026-09-20.** The step 2–4
+   throwaways (`tools/bjt-content-spike.js`, `tools/bench_content_read.dart`,
+   `tools/bjt-content-spike.db`), the pre-rebuild backup
+   `tools/bjt-fts.pre-step5.db`, the obsolete `tools/bjt-fts4.db` and the
+   `.gitignore` block that named the scripts are all deleted — 407 MB of
+   database and two scripts, none of them ever in git. Their numbers stay in
+   **What the measurements said**.
 6. **Move the app to Drift, then add the content datasource on top — DONE
    2026-09-16.** One branch, two stages, and no `sqflite` version of the
    datasource was ever written. Web keeps its server path and moves at step 11.
