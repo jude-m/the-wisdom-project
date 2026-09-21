@@ -1,13 +1,14 @@
 # Move Web onto Drift
 
 > **Status 2026-09-20: in progress on branch `feat/move-web-onto-drift`; steps
-> 1–5 done.** This was step 11 of
+> 1–7 done, step 8 (verify in Chrome) open.** This was step 11 of
 > [`reduce-mobile-size-and-move-to-drift.md`](./reduce-mobile-size-and-move-to-drift.md),
 > whose steps 1–9 are done: `bjt.db` holds the page text, and native reads both
 > databases through Drift. It is step 3 of the [`README.md`](./README.md) order.
 > Every question it raised is decided — see **Decided**. Checked on 2026-09-18
 > against the Drift 2.35.0, sqlite3 3.5.2 and Flutter 3.44.1 tool sources. The
-> app itself first ran on web without a server on 2026-09-20 (step 5).
+> app itself first ran on web without a server on 2026-09-20 (step 5), and a
+> first visit has driven its own screen since the same day (step 6).
 
 ## Goal
 
@@ -18,7 +19,7 @@ build, the way native reads its copies. No Dart server.
 the reader and the dictionary show what macOS shows. Hosting is not part of
 this plan — it is [`web-release.md`](../web-strategy/web-release.md) §6.
 
-## Where web stands (2026-09-20, after step 5)
+## Where web stands (2026-09-20, after step 7)
 
 - **There is no web-only datasource left.** `getWebOverrides()` and the three
   remote datasources are deleted; every platform reads the same local
@@ -26,16 +27,18 @@ this plan — it is [`web-release.md`](../web-strategy/web-release.md) §6.
 - `local_database_executor_web.dart` opens the browser's own copy through
   `WebDatabaseInstaller`, which downloads it on the first visit. Anything
   outside `lib/data/database/` reaches it through `DatabaseInstallation`, a
-  conditional export with a do-nothing native side (step 4's notes).
+  conditional export with a do-nothing native side (step 4's notes) —
+  `DatabaseInstallGate` at `MaterialApp.home` is its caller, and starts the
+  download with the app's first frame (step 6).
 - `scripts/web/run_mac.sh` serves the app with `flutter run -d web-server`;
   `server/` and the three `scripts/web/` files that only ran or deployed it
   are in `deprecated/`.
 - The update banner polls `/healthz`, which nothing answers now. Local builds
   leave it off (`VERSION_CHECK_ENABLED`); making it a static file is
   [`test-all-and-release-all.md`](../test-all-and-release-all.md)'s.
-- Locked in `pubspec.lock`: Flutter 3.44.1, `drift` 2.35.0, `sqlite3` 3.5.2.
-  `pubspec.yaml` does not pin them yet (step 7): it has `drift: ^2.35.0`, and
-  `sqlite3` only comes in through Drift. `web: ^1.1.0` is direct since step 4.
+- Pinned exactly in `pubspec.yaml` and locked to the same versions:
+  `drift` 2.35.0 and `sqlite3` 3.5.2, beside Flutter 3.44.1. `web: ^1.1.0` is
+  direct since step 4.
 
 ## Decided (2026-09-18; cleanup 2026-09-19)
 
@@ -312,9 +315,10 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
      as it holds a `database` file, so a cut download would look installed
      without it; it ignores the extra file, and `deleteDatabase` removes the
      folder whole.
-   - Nothing starts the download at app start yet — `openLocalExecutor` does,
-     on the first read. That is step 6's job, and until then a first visit sits
-     on a spinner while ~350 MB arrives.
+   - `openLocalExecutor` starts the download on the first read, which was all
+     there was until step 6 gave it a screen that starts it a frame earlier.
+     The call in `openLocalExecutor` stays: it is idempotent, and it is what
+     covers a read that somehow runs before the gate.
    - `databaseSha256` became `databaseManifestEntry`, returning
      `({String sha256, int bytes})`. `tools/db-finalize.js` writes `bytes`;
      `writeManifestEntry` is exported so the manifest can be refreshed without
@@ -331,7 +335,19 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
      `flutter build web` bundles both databases, because they are declared
      assets — stripping them is the deploy's job
      ([`web-release.md`](../web-strategy/web-release.md) §6), and nothing does
-     it today.
+     it today. It stays a private const in the installer rather than joining
+     `BuildInfo`: a deploy reads it from `web-release.md` §6, not off a class.
+   - **A failed install forgets itself; a failed preparation does not**
+     (2026-09-21, from the step 6–7 review). `_runInstall`'s catch drops the
+     entry from `_installs`, so the next caller downloads again instead of
+     being handed the same failure for the rest of the session. That is
+     `dict.db`'s only way back: `retry()` is the screen's button, and the
+     screen only ever covers `bjt.db`. The prepared probe stays cached across a
+     failure on purpose — it stops every database at once, so the screen is up
+     and its `retry()` clears it.
+   - **`storage.persist()` has its own catch** (same review). It is a hint
+     about eviction that nothing here depends on; inside `_runPrepare`'s one
+     try block a refusal would have failed every database at once.
    - **Status is per database, and the screen reads it through a
      platform-neutral name** (both settled 2026-09-20, when steps 4 and 5 were
      reviewed; step 6 depends on them):
@@ -386,14 +402,41 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
    `contentDataSource: null`, so `BJTContentDataSource` joined
    `test/helpers/mocks.dart`. The unit suite is 636 tests, from 639.
 
-6. **First-visit screen,** full screen, driven by `DatabaseInstallation`
-   through a provider: progress, the unsupported-browser message, "try again"
-   after a failed download, "not enough space" (a private window may refuse
-   351 MB), and `dict.db` starting once `bjt.db` is done. It covers the app
-   only while a **blocking** status is unready, so a failed dictionary leaves
-   the reader and search alone — see step 4's notes for the surface. A deep
-   link opened on a first visit still lands after the download
-   (`deep_link_listener.dart` reads `Uri.base` after the first frame).
+6. **~~First-visit screen~~ — done 2026-09-20.** `DatabaseInstallGate`
+   (`lib/presentation/screens/database_install_screen.dart`) wraps `AppShell`
+   at `MaterialApp.home`. It watches `databaseInstallProvider`
+   (`database_install_provider.dart`, a `StateNotifier` over
+   `DatabaseInstallation` filtered to the blocking database) and shows the app
+   as soon as that status is ready. **Reading the provider is what starts the
+   install**, so a first visit now downloads from the app's first frame
+   instead of from the first database read. On native the status is ready in
+   that frame and the shell builds straight away.
+
+   Four shapes, all of the blocking database only — a failed `dict.db` never
+   covers the app: getting ready; downloading, with a bar and `42 MB of
+   179 MB` counted from the manifest's byte count (a gzipped response has no
+   usable `Content-Length`); and the three failures, which reuse
+   `StatusMessageView` — an unsupported browser with no button, "not enough
+   space", and a stopped download with "try again". The last two also print
+   the failure's own message under the card, the line a reader can quote when
+   they report it. Eleven ARB keys, `databaseInstall*`, in both languages.
+
+   **A reload would otherwise flash the screen.** Nothing downloads on a
+   second visit, but the tab still passes through `checking` while the probe
+   runs, the markers are taken and old versions are swept. So the screen holds
+   a blank themed background for the first 400 ms of `checking` and only then
+   says anything; `installing` and the failures show at once.
+
+   Two things the review added (2026-09-21): the progress bar carries a
+   `semanticsLabel` and a `semanticsValue` — the latter a **bare percentage**,
+   because the progress-bar role parses it as a number between 0 and 100 and
+   asserts on anything else — and the failure shape scrolls rather than
+   clipping in a short window.
+
+   It sits at `home:` and not in `builder:`, so `DeepLinkListener` stays
+   mounted above the gate — a link opened on a first visit is still read from
+   `Uri.base` after the first frame, and the tab it opens is waiting when the
+   download finishes.
 7. **Web files and scripts.** The first two arrived with step 3 (2026-09-20).
    - **~~`web/sqlite3.wasm` and `web/drift_worker.js`~~ — added.** Neither
      needed a download: `drift` 2.35.0 ships the prebuilt worker at its package
@@ -404,8 +447,11 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
      `fts5vocab`, `bm25`, `trigram`, `unicode61`). **Known limit:** that is
      drift's DevTools copy, not the official release asset, and it was not
      compared byte for byte. If that ever matters, replace both from the GitHub
-     releases — nothing else changes. Still to do here: `pubspec.yaml` pins
-     `drift: 2.35.0` and adds `sqlite3: 3.5.2` as a direct dependency.
+     releases — nothing else changes. **~~The pins~~ — done 2026-09-20:**
+     `pubspec.yaml` now has `drift: 2.35.0` and `sqlite3: 3.5.2` exactly, with
+     a comment naming those two web files and the mirrored `drift_db` const.
+     Only one line of `pubspec.lock` moved: `sqlite3` from transitive to
+     direct.
    - **~~`web_dev_config.yaml` at the repo root~~ — added**, and verified on the
      wire: every response carries both headers, `--release` included. The
      headers must sit under `server:`, or `flutter run` stops with an error:
@@ -463,8 +509,20 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
    - The reader painted `dn-1` in parallel Pali/Sinhala out of the downloaded
      `bjt.db`.
 
+   And again with step 6's gate in front of it, headless, release build, same
+   host: a first visit installed both databases at exactly the manifest's
+   counts with the download started by the screen rather than by the first
+   read, a reload downloaded nothing, and neither run logged a console error.
+   What headless cannot say is what the screen **looks like**, which is the
+   first item below.
+
    Still to do, and the reason this step is open:
-   - **All of the above again in a real Chrome**, by eye.
+   - **All of the above again in a real Chrome**, by eye — the first-visit
+     screen included: the bar moving, the app appearing behind it, and no
+     flash of it on a reload. If a reload does flash, raise the screen's
+     400 ms quiet start; the only part measured so far is that the blocking
+     database reports ready 2.5 ms after the probe's `persist()` call, which
+     leaves the probe's own worker startup unmeasured.
    - Search, the reader and the dictionary against macOS, including the Group 9
      snippet queries by hand. **Compare what is stored, not a re-serialised
      copy:** step 3's one mismatch was a baseline built by re-encoding a page's
@@ -473,7 +531,10 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
      visit download once. A version an **open second tab** holds is kept —
      only the "nothing holds it" half has been seen.
    - A dropped connection mid-download offers "try again"; a private window
-     works or says there isn't enough space.
+     works or says there isn't enough space. That private window is the only
+     check there is on `_asFailure`'s assumption that a refusal arrives as a
+     `DOMException` named `QuotaExceededError` — the one failure kind no run
+     has produced.
    - **Still open: Flutter's CanvasKit from Google's CDN under
      `require-corp`.** Step 3 dodged it with `--no-web-resources-cdn` rather
      than answering it, so the CDN path is untested. Try without the flag; if
@@ -509,12 +570,16 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
      and the ones in `web-release.md`,
      `reduce-mobile-size-and-move-to-drift.md` and `README.md`, first.
 
-**Tests:** not written by this work, the 2026-09-20 review fixes included. The
-proposal for the test agent is
+**Tests:** steps 1–5 wrote none, the 2026-09-20 review fixes included. Step 6
+did: `test/presentation/screens/database_install_screen_test.dart`, eight
+widget tests over the screen's four shapes and the gate's cover-and-lift —
+the part of this work that *is* reachable from `flutter test` on the VM,
+because the screen takes a `DatabaseInstallStatus` and the native
+`DatabaseInstallation` underneath does nothing. The installer itself still
+has none; the proposal for the test agent is
 [`web-database-installer-tests.md`](./web-database-installer-tests.md) —
-read its "The hard part" section first: none of the installer is reachable
-from `flutter test` on the VM, so what can be tested at all is the first
-question. Three existing tests changed with the code:
+read its "The hard part" section first. Three existing tests changed with the
+code:
 `dictionary_sql_helpers_test.dart` in `wisdom_shared` (step 1),
 `test/data/datasources/fts_language_filter_sql_test.dart` (step 2) and
 `test/data/repositories/text_search_repository_impl_test.dart` (step 5).

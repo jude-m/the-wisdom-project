@@ -52,8 +52,16 @@ dependencies:
   # Persistence
   shared_preferences: ^2.2.2
 
-  # SQLite through Drift (FTS index + dictionary), read with raw SQL
-  drift: ^2.35.0
+  # SQLite through Drift (FTS index + dictionary), read with raw SQL.
+  #
+  # Both pinned exactly, because the web build ships copies of their compiled
+  # halves that a version range would silently outgrow: `web/drift_worker.js`
+  # comes from the drift package root and `web/sqlite3.wasm` from the matching
+  # sqlite3 release. A bump moves all four together — and check a fifth thing
+  # with them: WebDatabaseInstaller mirrors drift's own OPFS folder name
+  # (`drift_db`), which the package does not export.
+  drift: 2.35.0
+  sqlite3: 3.5.2
   path_provider: ^2.1.1
   path: ^1.8.3
 
@@ -110,19 +118,19 @@ flutter:
 
   # Assets
   #
-  # NOTE: databases/ is required by native platforms (iOS, Android, desktop)
-  # but NOT by web, where the Dart server serves the same content via API.
-  # scripts/web/deploy.sh and run_mac.sh strip it from build/web/ after the
-  # build so the web bundle stays small.
+  # NOTE: native reads databases/ out of the bundle; web downloads the same
+  # files on a first visit, from this asset copy locally and from R2 once
+  # DATABASE_BASE_URL is set. A deploy must then strip them from build/web/ —
+  # nothing does that yet (docs/todo/web-strategy/web-release.md §6).
   assets:
     # Navigation tree and metadata (used on ALL platforms including web)
     - assets/data/tree.json
     - assets/data/file-map.json
     - assets/data/footnote-abbreviations.json
     - assets/data/sc-to-bjt.json
-    # Full-text search database - BJT edition (native only; web uses API)
+    # Full-text search database and page text - BJT edition
     - assets/databases/bjt.db
-    # Dictionary database - Pali-English/Sinhala (native only; web uses API)
+    # Dictionary database - Pali-English/Sinhala
     - assets/databases/dict.db
     # SHA-256 of each database above; the app recopies a database when it changes
     - assets/databases/manifest.json

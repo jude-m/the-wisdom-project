@@ -470,4 +470,44 @@ class AppLocalizationsSi extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get databaseInstallTitle => 'පෙළ බාගත වෙමින් පවතී';
+
+  @override
+  String get databaseInstallDescription =>
+      'පෙළ මෙම උපාංගයේ ගබඩා වේ. එවිට ඉක්මනින් විවෘත වන අතර අන්තර්ජාලය නැතිවද භාවිතා කළ හැකිය. මෙය සිදුවන්නේ එක් වරක් පමණි.';
+
+  @override
+  String get databaseInstallPreparing => 'සූදානම් වෙමින්…';
+
+  @override
+  String databaseInstallProgress(int received, int total) {
+    return 'MB $total න් MB $received';
+  }
+
+  @override
+  String get databaseInstallUnsupportedTitle =>
+      'මෙම බ්‍රව්සරයට පෙළ ගබඩා කළ නොහැක';
+
+  @override
+  String get databaseInstallUnsupportedDescription =>
+      'දැනට Chrome සහ Edge සඳහා සහය දක්වයි.';
+
+  @override
+  String get databaseInstallOutOfSpaceTitle => 'ප්‍රමාණවත් ඉඩක් නැත';
+
+  @override
+  String get databaseInstallOutOfSpaceDescription =>
+      'මෙම උපාංගයේ පෙළ සඳහා ප්‍රමාණවත් ඉඩක් නොමැත. ඉඩ නිදහස් කර නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get databaseInstallFailedTitle => 'බාගත කිරීම අවසන් නොවීය';
+
+  @override
+  String get databaseInstallFailedDescription =>
+      'ඔබගේ සම්බන්ධතාවය පරීක්ෂා කර නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get databaseInstallRetry => 'නැවත උත්සාහ කරන්න';
 }

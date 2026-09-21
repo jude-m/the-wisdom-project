@@ -931,6 +931,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, other{{count} days ago}}'**
   String relativeTimeDaysAgo(int count);
+
+  /// Headline of the first-visit screen while the browser downloads the Tipitaka database
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading the texts'**
+  String get databaseInstallTitle;
+
+  /// Explanation under the first-visit progress bar for why the download is happening
+  ///
+  /// In en, this message translates to:
+  /// **'The texts are saved on this device, so they open quickly and work without an internet connection. This happens once.'**
+  String get databaseInstallDescription;
+
+  /// Shown on the first-visit screen while the browser is checked and old copies are swept, before any download starts
+  ///
+  /// In en, this message translates to:
+  /// **'Getting ready…'**
+  String get databaseInstallPreparing;
+
+  /// Progress under the first-visit download bar, in megabytes
+  ///
+  /// In en, this message translates to:
+  /// **'{received} MB of {total} MB'**
+  String databaseInstallProgress(int received, int total);
+
+  /// First-visit failure title when the browser lacks the storage features the databases need
+  ///
+  /// In en, this message translates to:
+  /// **'This browser cannot store the texts'**
+  String get databaseInstallUnsupportedTitle;
+
+  /// First-visit failure message naming the browsers that work
+  ///
+  /// In en, this message translates to:
+  /// **'Chrome and Edge are supported today.'**
+  String get databaseInstallUnsupportedDescription;
+
+  /// First-visit failure title when the browser refuses the storage the texts need
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough space'**
+  String get databaseInstallOutOfSpaceTitle;
+
+  /// First-visit failure message when storage was refused; a private window can also refuse it
+  ///
+  /// In en, this message translates to:
+  /// **'There is not enough space on this device for the texts. Free some space and try again.'**
+  String get databaseInstallOutOfSpaceDescription;
+
+  /// First-visit failure title when the download stopped or arrived incomplete
+  ///
+  /// In en, this message translates to:
+  /// **'The download did not finish'**
+  String get databaseInstallFailedTitle;
+
+  /// First-visit failure message for a stopped download
+  ///
+  /// In en, this message translates to:
+  /// **'Check your connection and try again.'**
+  String get databaseInstallFailedDescription;
+
+  /// Button on the first-visit screen that starts the failed download again
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get databaseInstallRetry;
 }
 
 class _AppLocalizationsDelegate

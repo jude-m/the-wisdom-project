@@ -8,6 +8,7 @@ import 'core/storage/shared_preferences_key_value_store.dart';
 import 'data/database/database_manifest.dart';
 import 'presentation/keyboard/app_shortcuts.dart';
 import 'presentation/screens/app_shell.dart';
+import 'presentation/screens/database_install_screen.dart';
 import 'presentation/providers/search_provider.dart';
 import 'presentation/providers/app_language_provider.dart';
 import 'presentation/providers/tab_provider.dart'
@@ -219,7 +220,13 @@ class _MyAppState extends ConsumerState<MyApp> {
 
       // Top-level shell: navigation rail / bottom bar around the
       // Home / Reader / Research / Notes sections. Launches on Reader.
-      home: const AppShell(),
+      //
+      // DatabaseInstallGate covers it on a browser's first visit, while the
+      // texts download into local storage; on native it is ready at once and
+      // the shell builds straight away. It sits here, under the builder, so
+      // DeepLinkListener stays mounted above it — a link opened on a first
+      // visit lands as soon as the download finishes.
+      home: const DatabaseInstallGate(child: AppShell()),
     );
   }
 }

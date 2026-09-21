@@ -723,5 +723,63 @@
     "placeholders": {
       "count": {"type": "int"}
     }
+  },
+  "databaseInstallTitle": "Downloading the texts",
+  "@databaseInstallTitle": {
+    "description": "Headline of the first-visit screen while the browser downloads the Tipitaka database"
+  },
+
+  "databaseInstallDescription": "The texts are saved on this device, so they open quickly and work without an internet connection. This happens once.",
+  "@databaseInstallDescription": {
+    "description": "Explanation under the first-visit progress bar for why the download is happening"
+  },
+
+  "databaseInstallPreparing": "Getting ready…",
+  "@databaseInstallPreparing": {
+    "description": "Shown on the first-visit screen while the browser is checked and old copies are swept, before any download starts"
+  },
+
+  "databaseInstallProgress": "{received} MB of {total} MB",
+  "@databaseInstallProgress": {
+    "description": "Progress under the first-visit download bar, in megabytes",
+    "placeholders": {
+      "received": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+
+  "databaseInstallUnsupportedTitle": "This browser cannot store the texts",
+  "@databaseInstallUnsupportedTitle": {
+    "description": "First-visit failure title when the browser lacks the storage features the databases need"
+  },
+
+  "databaseInstallUnsupportedDescription": "Chrome and Edge are supported today.",
+  "@databaseInstallUnsupportedDescription": {
+    "description": "First-visit failure message naming the browsers that work"
+  },
+
+  "databaseInstallOutOfSpaceTitle": "Not enough space",
+  "@databaseInstallOutOfSpaceTitle": {
+    "description": "First-visit failure title when the browser refuses the storage the texts need"
+  },
+
+  "databaseInstallOutOfSpaceDescription": "There is not enough space on this device for the texts. Free some space and try again.",
+  "@databaseInstallOutOfSpaceDescription": {
+    "description": "First-visit failure message when storage was refused; a private window can also refuse it"
+  },
+
+  "databaseInstallFailedTitle": "The download did not finish",
+  "@databaseInstallFailedTitle": {
+    "description": "First-visit failure title when the download stopped or arrived incomplete"
+  },
+
+  "databaseInstallFailedDescription": "Check your connection and try again.",
+  "@databaseInstallFailedDescription": {
+    "description": "First-visit failure message for a stopped download"
+  },
+
+  "databaseInstallRetry": "Try again",
+  "@databaseInstallRetry": {
+    "description": "Button on the first-visit screen that starts the failed download again"
   }
 }

@@ -106,7 +106,7 @@ class WebDatabaseInstaller {
     }
   }
 
-  /// Forgets the failed installs and tries them again.
+  /// Tries everything that failed again, preparation included.
   ///
   /// An unsupported browser is not retried — nothing about it would change.
   Future<void> retry() async {
@@ -116,11 +116,9 @@ class WebDatabaseInstaller {
     final retrying = _failed.toList();
     _failed.clear();
     for (final dbName in retrying) {
-      if (dbName == null) {
-        _prepared = null;
-      } else {
-        _installs.remove(dbName);
-      }
+      // A failed install has already forgotten itself (see [_runInstall]);
+      // preparation is the only thing still cached across a failure.
+      if (dbName == null) _prepared = null;
       // Only the failed ones go back to checking: a database that installed
       // before the failure is still installed.
       _emit(_statusFor(dbName, DatabaseInstallPhase.checking));
@@ -130,10 +128,10 @@ class WebDatabaseInstaller {
 
   /// Opens [dbName] from OPFS, waiting for its install to finish first.
   ///
-  /// It never downloads by itself: a failed open is retried on the next query,
-  /// so a download here would start the whole file again every time. A failed
-  /// install throws at once, so a search shows an error and not a spinner;
-  /// after [retry] the wait is for the new attempt.
+  /// It starts no download of its own, but an install that failed has forgotten
+  /// itself ([_runInstall]) — so the wait here can become a fresh download of
+  /// the whole file. That is `dict.db`'s only way back, and it means a caller
+  /// waits as long as a download takes rather than failing straight away.
   Future<QueryExecutor> open(String dbName) async {
     if (!databases.contains(dbName)) {
       // A new edition means a new `<editionId>.db`
@@ -191,10 +189,16 @@ class WebDatabaseInstaller {
         );
       }
 
-      // Chrome decides from how much the site is used, at the time of asking,
-      // so a first-visit `false` can become `true` on a later start.
-      final persisted = await web.window.navigator.storage.persist().toDart;
-      debugPrint('[db] storage persisted: ${persisted.toDart}');
+      // A hint about eviction that nothing here depends on, so its own catch:
+      // a browser that refuses it must not fail the install. Chrome decides
+      // from how much the site is used, at the time of asking, so a
+      // first-visit `false` can become `true` on a later start.
+      try {
+        final persisted = await web.window.navigator.storage.persist().toDart;
+        debugPrint('[db] storage persisted: ${persisted.toDart}');
+      } catch (error) {
+        debugPrint('[db] could not ask for persistent storage: $error');
+      }
 
       await _holdInUseMarkers();
       await _deleteOtherVersions(probe);
@@ -313,8 +317,13 @@ class WebDatabaseInstaller {
           await _writeStamp(folder, entry.sha256);
         },
       );
+      _failed.remove(dbName);
       _emit(_statusFor(dbName, DatabaseInstallPhase.ready));
     } catch (error, stack) {
+      // Forgotten, so the next caller tries again instead of being handed this
+      // same failure for the rest of the session. `dict.db` has no other way
+      // back: [retry] belongs to the screen, which only covers `bjt.db`.
+      _installs.remove(dbName);
       _fail(dbName, error, stack);
       rethrow;
     }

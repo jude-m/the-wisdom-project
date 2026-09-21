@@ -469,4 +469,44 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get databaseInstallTitle => 'Downloading the texts';
+
+  @override
+  String get databaseInstallDescription =>
+      'The texts are saved on this device, so they open quickly and work without an internet connection. This happens once.';
+
+  @override
+  String get databaseInstallPreparing => 'Getting ready…';
+
+  @override
+  String databaseInstallProgress(int received, int total) {
+    return '$received MB of $total MB';
+  }
+
+  @override
+  String get databaseInstallUnsupportedTitle =>
+      'This browser cannot store the texts';
+
+  @override
+  String get databaseInstallUnsupportedDescription =>
+      'Chrome and Edge are supported today.';
+
+  @override
+  String get databaseInstallOutOfSpaceTitle => 'Not enough space';
+
+  @override
+  String get databaseInstallOutOfSpaceDescription =>
+      'There is not enough space on this device for the texts. Free some space and try again.';
+
+  @override
+  String get databaseInstallFailedTitle => 'The download did not finish';
+
+  @override
+  String get databaseInstallFailedDescription =>
+      'Check your connection and try again.';
+
+  @override
+  String get databaseInstallRetry => 'Try again';
 }
