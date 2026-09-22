@@ -35,6 +35,7 @@ class DatabaseInstallStatus {
     this.blocking = true,
     this.received = 0,
     this.total = 0,
+    this.allTotal = 0,
     this.failure,
   });
 
@@ -53,6 +54,12 @@ class DatabaseInstallStatus {
 
   final int received;
   final int total;
+
+  /// Every database a first visit installs, added up — what the whole thing
+  /// costs, which is more than the [total] the bar is tracking. 0 until the
+  /// manifest is read, and on native, which downloads nothing.
+  final int allTotal;
+
   final DatabaseInstallFailure? failure;
 
   /// 0..1 through the current download, or null before its size is known.

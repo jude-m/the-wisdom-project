@@ -181,13 +181,7 @@ class WebDatabaseInstaller {
           'OPFS with synchronous locks',
         if (!_supportsCreateWritable()) 'writable file streams',
       ];
-      if (missing.isNotEmpty) {
-        throw DatabaseInstallFailure(
-          DatabaseInstallFailureKind.unsupportedBrowser,
-          'This browser is missing ${missing.join(' and ')}. '
-          'Chrome and Edge are supported today.',
-        );
-      }
+      if (missing.isNotEmpty) throw await _storageUnavailable(probe, missing);
 
       // A hint about eviction that nothing here depends on, so its own catch:
       // a browser that refuses it must not fail the install. Chrome decides
@@ -206,6 +200,61 @@ class WebDatabaseInstaller {
     } catch (error, stack) {
       _fail(null, error, stack);
       rethrow;
+    }
+  }
+
+  /// Why the storage the databases need is unavailable.
+  ///
+  /// Drift decides OPFS is available by creating a file in it and swallows
+  /// whatever goes wrong, so a worker that never started and a device with no
+  /// room both arrive looking like a browser without OPFS. Only one of the
+  /// three is worth telling someone to change browsers over; the other two are
+  /// worth a retry button.
+  Future<DatabaseInstallFailure> _storageUnavailable(
+    WasmProbeResult probe,
+    List<String> missing,
+  ) async {
+    if (probe.missingFeatures.contains(MissingBrowserFeature.workerError)) {
+      // Our own file rather than the browser's doing: `drift_worker.js` ships
+      // in `web/`, so a cut connection or a deploy that dropped it lands here.
+      // The download kind carries the detail line that names it.
+      return const DatabaseInstallFailure(
+        DatabaseInstallFailureKind.download,
+        'The database worker did not start, so drift_worker.js may not have '
+        'loaded.',
+      );
+    }
+    if (await _outOfSpace()) {
+      return const DatabaseInstallFailure(
+        DatabaseInstallFailureKind.outOfSpace,
+        'There is not enough space on this device for the texts.',
+      );
+    }
+    return DatabaseInstallFailure(
+      DatabaseInstallFailureKind.unsupportedBrowser,
+      'This browser is missing ${missing.join(' and ')}. '
+      'Chrome and Edge are supported today.',
+    );
+  }
+
+  /// Whether the browser has less room left than the databases need.
+  ///
+  /// Advisory, and deliberately used for nothing else: browsers pad the
+  /// estimate and the quota moves with the free disk. It only tells a full
+  /// device apart from a browser that never had OPFS.
+  Future<bool> _outOfSpace() async {
+    final needed = _allBytes;
+    try {
+      final estimate = await web.window.navigator.storage.estimate().toDart;
+      // Both are optional in the spec, and a browser that omits either has
+      // told us nothing.
+      if (!estimate.has('quota') || !estimate.has('usage')) return false;
+      final free = estimate.quota - estimate.usage;
+      debugPrint('[db] $free bytes free, $needed needed');
+      return free < needed;
+    } catch (error) {
+      debugPrint('[db] could not estimate free space: $error');
+      return false;
     }
   }
 
@@ -571,6 +620,12 @@ class WebDatabaseInstaller {
   // Status
   // ---------------------------------------------------------------------------
 
+  /// What a first visit costs in all, or 0 before the manifest is read — the
+  /// screen says it up front, while the bar tracks one database at a time.
+  int get _allBytes => _manifest.length < databases.length
+      ? 0
+      : _manifest.values.fold(0, (sum, entry) => sum + entry.bytes);
+
   /// A status for [dbName], or for every database when it is null.
   DatabaseInstallStatus _statusFor(
     String? dbName,
@@ -585,6 +640,7 @@ class WebDatabaseInstaller {
       blocking: dbName == null || dbName == databases.first,
       received: received,
       total: total,
+      allTotal: _allBytes,
       failure: failure,
     );
   }

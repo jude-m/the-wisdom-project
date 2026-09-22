@@ -474,8 +474,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get databaseInstallTitle => 'Downloading the texts';
 
   @override
-  String get databaseInstallDescription =>
-      'The texts are saved on this device, so they open quickly and work without an internet connection. This happens once.';
+  String databaseInstallDescription(int total) {
+    return 'The texts and the dictionary come to about $total MB. They are saved on this device, so they open quickly and work without an internet connection. This happens once.';
+  }
 
   @override
   String get databaseInstallPreparing => 'Getting ready…';

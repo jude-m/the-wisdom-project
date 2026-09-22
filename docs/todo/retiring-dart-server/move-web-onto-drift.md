@@ -541,9 +541,38 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
      each rather than two.
    - **A tab closed mid-download starts clean**, and leaves nothing behind
      when the browser closes normally.
-   - **A private window installs both databases**, with room to spare — so it
-     produced no `QuotaExceededError`, and `_asFailure`'s assumption about
-     that `DOMException` is still the one failure kind no run has exercised.
+   - **A private window installs both databases**, with room to spare.
+   - **Out of space is the message it should be** (2026-09-22, real Chrome,
+     DevTools → Application → Storage → *Simulate custom storage quota*, 50 MB).
+     The download threw past the quota, `_asFailure` matched the `DOMException`
+     by name, and the screen showed "Not enough space" with a **Try again**
+     button and no detail line. `sink.abort()` discarded the swap file: 510 B
+     of File System was left behind, not the 50 MB written. This was the last
+     failure kind no run had exercised.
+
+     **The trap, for anyone re-running this:** DevTools' *Clear site data*
+     checkboxes do not clear OPFS — there is no File System entry among them,
+     and the usage donut goes on reporting all 351 MB. A quota test run
+     without wiping OPFS first fails in the probe instead of the download, and
+     an origin left over its quota shows the wrong screen entirely (below).
+     Wipe it from the console, with no other tab on the origin:
+
+     ```js
+     await (await navigator.storage.getDirectory()).removeEntry('drift_db', {recursive: true})
+     ```
+   - **A failed probe no longer reads as an unsupported browser** (2026-09-22).
+     Drift decides OPFS is available by creating a file in it and swallows
+     every failure into `canAccessOpfs: false`
+     (`wasm_setup/shared.dart:61`), so three unrelated causes used to arrive as
+     one dead-end screen with no retry. `_storageUnavailable` now separates
+     them: `probe.missingFeatures` carrying `workerError` means our own
+     `drift_worker.js` did not load, which is retryable and names itself in the
+     detail line; `navigator.storage.estimate()` short of what the manifest
+     needs means `outOfSpace`, also retryable; only what is left keeps
+     `unsupportedBrowser`. Quota and a genuinely missing OPFS cannot be told
+     apart from drift's side — `DedicatedWorkerCompatibilityResult` yields
+     `fileSystemAccess` for both (`wasm_setup/protocol.dart:59`) — so the
+     estimate is the only thing that separates them.
    - **CanvasKit from Google's CDN works under `require-corp`, so the flag is
      not needed**; `run_mac.sh` no longer passes it. Both files answer with
      `Cross-Origin-Resource-Policy: cross-origin` and
@@ -608,8 +637,8 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
      the definition count was not isolated from the 343 ms that covers all
      three.
 
-   Still to do, and the only reason this step is open — two checks in Chrome's
-   DevTools, a few minutes each:
+   Still to do, and the only reason this step is open — one pass in Chrome's
+   DevTools, a few minutes:
    - **A dropped connection offers "try again".** Throttle to a few Mb/s so
      the bar is catchable, switch Network to Offline mid-download, then press
      the button: it should start again from zero — `createWritable` truncates
@@ -618,12 +647,12 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
      is the other half: the app should stay usable, and opening the dictionary
      should start its own download, which is `dict.db`'s only route back and
      equally unexercised.
-   - **`QuotaExceededError` is still an assumption.** `_asFailure` reads that
-     name off a `DOMException` to say `outOfSpace`, and no run has produced
-     one, because the private window had room. Application → Storage →
-     *Simulate custom storage quota* at ~50 MB, clear site data, reload: "Not
-     enough space" with no detail line confirms the name; "The download did
-     not finish" means it is the wrong one.
+
+     Worth folding into the same session, since the Network tab is already
+     open: right-click `drift_worker.js` → *Block request URL* and reload.
+     That is the `workerError` branch of `_storageUnavailable`, and it should
+     read "The download did not finish" with the worker named in the detail
+     line — not "This browser cannot store the texts".
 
 **Tests:** steps 1–5 wrote none, the 2026-09-20 review fixes included. Step 6
 did: `test/presentation/screens/database_install_screen_test.dart`, eight

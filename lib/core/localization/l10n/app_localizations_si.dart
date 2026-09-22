@@ -475,8 +475,9 @@ class AppLocalizationsSi extends AppLocalizations {
   String get databaseInstallTitle => 'පෙළ බාගත වෙමින් පවතී';
 
   @override
-  String get databaseInstallDescription =>
-      'පෙළ මෙම උපාංගයේ ගබඩා වේ. එවිට ඉක්මනින් විවෘත වන අතර අන්තර්ජාලය නැතිවද භාවිතා කළ හැකිය. මෙය සිදුවන්නේ එක් වරක් පමණි.';
+  String databaseInstallDescription(int total) {
+    return 'පෙළ සහ ශබ්දකෝෂය සඳහා MB $total ක් පමණ අවශ්‍ය වේ. ඒවා මෙම උපාංගයේ ගබඩා වේ. එවිට ඉක්මනින් විවෘත වන අතර අන්තර්ජාලය නැතිවද භාවිතා කළ හැකිය. මෙය සිදුවන්නේ එක් වරක් පමණි.';
+  }
 
   @override
   String get databaseInstallPreparing => 'සූදානම් වෙමින්…';

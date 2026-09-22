@@ -938,11 +938,11 @@ abstract class AppLocalizations {
   /// **'Downloading the texts'**
   String get databaseInstallTitle;
 
-  /// Explanation under the first-visit progress bar for why the download is happening
+  /// Explanation under the first-visit progress bar: what the whole download costs, and why it is happening. The bar above tracks one database at a time, so this total is larger than the one beside it
   ///
   /// In en, this message translates to:
-  /// **'The texts are saved on this device, so they open quickly and work without an internet connection. This happens once.'**
-  String get databaseInstallDescription;
+  /// **'The texts and the dictionary come to about {total} MB. They are saved on this device, so they open quickly and work without an internet connection. This happens once.'**
+  String databaseInstallDescription(int total);
 
   /// Shown on the first-visit screen while the browser is checked and old copies are swept, before any download starts
   ///

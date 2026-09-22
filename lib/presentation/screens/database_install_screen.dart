@@ -155,7 +155,9 @@ class _Progress extends StatelessWidget {
               ],
               const SizedBox(height: 16),
               Text(
-                l10n.databaseInstallDescription,
+                // Every database together, not the one the bar is on: what a
+                // first visit costs is worth knowing before it is spent.
+                l10n.databaseInstallDescription(status.allTotal ~/ _bytesPerMb),
                 style: typography.resultSubtitle,
                 textAlign: TextAlign.center,
               ),

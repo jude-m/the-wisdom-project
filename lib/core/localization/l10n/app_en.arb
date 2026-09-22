@@ -729,9 +729,12 @@
     "description": "Headline of the first-visit screen while the browser downloads the Tipitaka database"
   },
 
-  "databaseInstallDescription": "The texts are saved on this device, so they open quickly and work without an internet connection. This happens once.",
+  "databaseInstallDescription": "The texts and the dictionary come to about {total} MB. They are saved on this device, so they open quickly and work without an internet connection. This happens once.",
   "@databaseInstallDescription": {
-    "description": "Explanation under the first-visit progress bar for why the download is happening"
+    "description": "Explanation under the first-visit progress bar: what the whole download costs, and why it is happening. The bar above tracks one database at a time, so this total is larger than the one beside it",
+    "placeholders": {
+      "total": {"type": "int"}
+    }
   },
 
   "databaseInstallPreparing": "Getting ready…",
