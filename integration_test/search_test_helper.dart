@@ -84,7 +84,7 @@ extension SearchTestHelpers on WidgetTester {
   /// 2. Wait for the 300 ms debounce
   /// 3. Wait for the async search (FTS + tree + dictionary) to finish
   Future<void> searchFor(String query) async {
-    await enterText(find.byType(TextField), query);
+    await typeText(this, find.byType(TextField), query);
     // Trigger the onChanged callback and UI rebuild.
     await pump();
     // Wait for debounce (300 ms) + a safety margin.
@@ -152,7 +152,7 @@ extension SearchTestHelpers on WidgetTester {
   /// Clear the search field and reset state.
   Future<void> clearSearch() async {
     // Clear the text field.
-    await enterText(find.byType(TextField), '');
+    await typeText(this, find.byType(TextField), '');
     await pump();
     await pumpAndSettle();
   }

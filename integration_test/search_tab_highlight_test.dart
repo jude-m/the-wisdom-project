@@ -193,7 +193,7 @@ void main() {
         // ================================================================
         // STEP 1: Search "mahaasathi" → verify counts
         // ================================================================
-        await tester.enterText(find.byType(TextField), 'mahaasathi');
+        await typeText(tester, find.byType(TextField), 'mahaasathi');
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 400));
         await _waitForSearchResults(tester);

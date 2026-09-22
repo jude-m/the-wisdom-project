@@ -291,7 +291,7 @@ void main() {
         await tester.pump();
 
         // Type Singlish "abhinandhathi"
-        await tester.enterText(findDictionaryTextField(), 'abhinandhathi');
+        await typeText(tester, findDictionaryTextField(), 'abhinandhathi');
         await pumpForSettle(tester, const Duration(seconds: 1));
 
         // ASSERT: Singlish "abhinandhathi" → අභිනන්දති via conversion.

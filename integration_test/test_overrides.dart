@@ -13,7 +13,7 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:the_wisdom_project/core/storage/key_value_store.dart';
@@ -142,6 +142,31 @@ Future<void> pumpForSettle(
     // would hide genuine failures.
     if (!error.message.contains('pumpAndSettle timed out')) rethrow;
   }
+}
+
+/// Types [text] into the field found by [finder]. Use this instead of
+/// [WidgetTester.enterText], which delivers the text over the platform
+/// text-input channel — the harness mocks that channel, and on web the mock
+/// never arrives, so the field stays empty and the test fails for no visible
+/// reason. Calling the field's own [EditableTextState.updateEditingValue] is
+/// the method that channel would have reached, so formatters, the controller
+/// and `onChanged` all run exactly as they do today on macOS.
+Future<void> typeText(WidgetTester tester, Finder finder, String text) {
+  // Guarded like enterText, so a caller that forgets an await is reported as
+  // that and not as an unrelated failure further down the test.
+  return TestAsyncUtils.guard<void>(() async {
+    // Focus first, the same as enterText. showKeyboard resolves [finder] to the
+    // field's state and parks it on the binding, so take it from there rather
+    // than looking the same widget up a second time under different rules.
+    await tester.showKeyboard(finder);
+    tester.binding.focusedEditable!.updateEditingValue(
+      TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      ),
+    );
+    await tester.pump(); // let the onChanged rebuild land
+  });
 }
 
 /// A tab reading the unit rooted at [nodeKey].

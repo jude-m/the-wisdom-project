@@ -94,7 +94,7 @@ void main() {
         of: find.byType(InPageSearchBar),
         matching: find.byType(TextField),
       );
-      await tester.enterText(textField, query);
+      await typeText(tester, textField, query);
       await tester.pump(); // Trigger onChanged
       await tester.pump(const Duration(milliseconds: 400)); // Debounce
       await pumpForSettle(tester);
