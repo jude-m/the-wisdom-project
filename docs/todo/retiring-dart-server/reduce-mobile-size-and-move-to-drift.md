@@ -48,8 +48,7 @@
 >   configurations, including the Sinhala `tokenchars` charlist honoured for
 >   *writes* as well as reads. The spike found a different blocker instead (the
 >   WAL header flag) and three live bugs in this repo: see **What the
->   Drift/wasm spike changed** below, and the full write-up in
->   `drift-fts5-wasm-spike-results.md` in this folder.
+>   Drift/wasm spike changed** below.
 > - Companion: [`serverless-deployment-decision.md`](../serverless-deployment-decision.md)
 >   — now largely moot (zero always-on infra; the research server is the only backend).
 
@@ -458,11 +457,10 @@ the two never blur.
 
 ## What the Drift/wasm spike changed (2026-09-11)
 
-The FTS5-in-wasm spike passed its gate, and its write-up
-(`drift-fts5-wasm-spike-results.md`, copied into this folder) reviewed this
-repo on the way past. Five of its findings land on the work below; each claim
-here was re-verified locally against the shipped databases before being written
-down, because a spike's numbers are its machine's.
+The FTS5-in-wasm spike passed its gate, and reviewed this repo on the way
+past. Five of its findings land on the work below; each claim here was
+re-verified locally against the shipped databases before being written down,
+because a spike's numbers are its machine's.
 
 ### The build pipeline is now three steps, not one — and it was shipping a bug
 
@@ -1167,12 +1165,12 @@ CREATE TABLE bjt_content (
      independent of the file name.
    - **Live references moved** in `lib/`, `pubspec.yaml`, `server/`,
      `tools/`, `scripts/bjt-sync-regen/`, the static site generator's tools,
-     test and `UPSTREAM_DEFECTS.md`, `.agent/`, the live docs, and the
-     manifest key in `db-auto-update-prestudy.md`.
+     test and `UPSTREAM_DEFECTS.md`, `.agent/`, and the live docs.
    - **Records kept the old name**: `docs/done/`, `docs/decisions/` (except
-     one pointer to the generator, now by function name), the wasm spike docs, dated measurements in this plan, the FTS4 file in
-     `performance_test_queries.md`, `tools/bjt-fts-populate-obsolete.js`, and
-     the untracked `tools/bjt-fts*.db` leftovers.
+     one pointer to the generator, now by function name), dated measurements
+     in this plan, the FTS4 file in `performance_test_queries.md`,
+     `tools/bjt-fts-populate-obsolete.js`, and the untracked
+     `tools/bjt-fts*.db` leftovers.
    - **`bjt_suggestions` does not exist** (this step's text said it did). It
      was not in the step-5 backup either — see the spike's §8c.
 
@@ -1520,12 +1518,9 @@ through Drift. It goes with the server; do not repoint it at `bjt_content`.
 ## Related
 
 - [`README.md`](./README.md) — the parent plan: retiring the Dart content server.
-- [`drift-fts5-wasm-spike-results.md`](./drift-fts5-wasm-spike-results.md) — the
-  spike that cleared the FTS5 gate, and found the WAL flag and three live bugs.
 - [`move-web-onto-drift.md`](./move-web-onto-drift.md) — step 11 as its own
-  plan: web reads these databases in the browser.
-- [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md) — how a rebuilt
-  DB reaches a browser that already has the old one (answered: with the build).
+  plan: web reads these databases in the browser, and how a rebuilt DB reaches
+  a browser that already has the old one (answered: with the build).
 - `docs/general/how_search_works.md` — the search pipeline (Step 5 reads JSON).
 - [`perf-fts-snippet-text-loading.md`](../../done/perf-fts-snippet-text-loading.md)
   — the shipped memo-cache fix this migration tears down.

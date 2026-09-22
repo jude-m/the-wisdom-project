@@ -1,7 +1,12 @@
 # Move Web onto Drift
 
-> **Status 2026-09-20: in progress on branch `feat/move-web-onto-drift`; steps
-> 1–7 done, step 8 (verify in Chrome) open.** This was step 11 of
+> **Status 2026-09-21: in progress on branch `feat/move-web-onto-drift`; steps
+> 1–7 done, step 8 (verify in Chrome) all but closed.** The screen, the
+> snippet goldens, both halves of the version sweep, two tabs, a cut download,
+> a private window, the CanvasKit CDN and the three measurements are verified.
+> Two checks are left, both wanting a hand on the browser: a dropped
+> connection offering "try again", and a simulated quota to confirm what
+> `_asFailure` assumes a full disk looks like. This was step 11 of
 > [`reduce-mobile-size-and-move-to-drift.md`](./reduce-mobile-size-and-move-to-drift.md),
 > whose steps 1–9 are done: `bjt.db` holds the page text, and native reads both
 > databases through Drift. It is step 3 of the [`README.md`](./README.md) order.
@@ -67,8 +72,9 @@ this plan — it is [`web-release.md`](../web-strategy/web-release.md) §6.
   difference: web puts each version in its own folder instead of over the old
   file. So a new database reaches the browser with a new web build, as it
   reaches a phone with a new app, and an old app never meets a new database.
-  There is no live manifest on the CDN
-  ([`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md)).
+  There is no live manifest on the CDN: nothing the browser fetches tells it
+  a newer database exists, because the build it is running is what names the
+  version it wants.
 - **One name per version:** `<db>-<first 16 hex of its SHA-256>`, written
   `bjt-<sha16>` below. It names the OPFS folder (`drift_db/bjt-<sha16>/`) and
   the file on R2 (`bjt-<sha16>.db.gz`). A file on R2 is never overwritten.
@@ -219,7 +225,7 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
 
 1. **~~Fix the dictionary query~~ — done 2026-09-19.** The prefix lookup was
    `word LIKE ? ESCAPE '\'`, which never uses `idx_word`: the whole table read
-   per word tap, over OPFS on web (spike §9c). Now prefix is
+   per word tap, over OPFS on web. Now prefix is
    `word >= ? AND word < ?` (the word, and the word followed by U+10FFFF) and
    exact is `word = ?`, built by `appendDictionaryWordMatch`, which replaced
    `buildDictionaryLikePattern` in `wisdom_shared` at all six call sites — the
@@ -442,9 +448,9 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
      needed a download: `drift` 2.35.0 ships the prebuilt worker at its package
      root (`~/.pub-cache/hosted/pub.dev/drift-2.35.0/drift_worker.js`), and the
      same package's DevTools build carries a matching wasm at
-     `extension/devtools/build/sqlite3.wasm` — SQLite 3.53.4 with FTS5, the
-     fingerprint the spike recorded for the `sqlite3-3.5.2` release (`fts5`×35,
-     `fts5vocab`, `bm25`, `trigram`, `unicode61`). **Known limit:** that is
+     `extension/devtools/build/sqlite3.wasm` — SQLite 3.53.4 with FTS5,
+     carrying the fingerprint recorded for the `sqlite3-3.5.2` release
+     (`fts5`×35, `fts5vocab`, `bm25`, `trigram`, `unicode61`). **Known limit:** that is
      drift's DevTools copy, not the official release asset, and it was not
      compared byte for byte. If that ever matters, replace both from the GitHub
      releases — nothing else changes. **~~The pins~~ — done 2026-09-20:**
@@ -471,8 +477,7 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
    - **~~`run_mac.sh`~~ — rewritten 2026-09-20**, bringing forward
      [`test-all-and-release-all.md`](../test-all-and-release-all.md) step 4. It
      is now `flutter run -d web-server` with `--web-hostname localhost`
-     (secure context) and `--no-web-resources-cdn` (until step 8 settles
-     CanvasKit); `--debug|--profile|--release`, `--port` and `--clean` survive,
+     (secure context) and `--debug|--profile|--release`, `--port` and `--clean` survive,
      `--skip-build` does not — `flutter run` always builds. Nothing deletes
      the databases from a build any more, because there is no `build/web` to
      clean: the dev server serves the assets itself.
@@ -516,59 +521,109 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
    What headless cannot say is what the screen **looks like**, which is the
    first item below.
 
-   Still to do, and the reason this step is open:
-   - **All of the above again in a real Chrome**, by eye — the first-visit
-     screen included: the bar moving, the app appearing behind it, and no
-     flash of it on a reload. If a reload does flash, raise the screen's
-     400 ms quiet start; the only part measured so far is that the blocking
-     database reports ready 2.5 ms after the probe's `persist()` call, which
-     leaves the probe's own worker startup unmeasured.
-   - Search, the reader and the dictionary against macOS, including the Group 9
-     snippet queries by hand. **Compare what is stored, not a re-serialised
-     copy:** step 3's one mismatch was a baseline built by re-encoding a page's
-     JSON in Python, whose separator spacing added 55 characters.
-   - A tab closed mid-download starts clean next time. Two tabs on a first
-     visit download once. A version an **open second tab** holds is kept —
-     only the "nothing holds it" half has been seen.
-   - A dropped connection mid-download offers "try again"; a private window
-     works or says there isn't enough space. That private window is the only
-     check there is on `_asFailure`'s assumption that a refusal arrives as a
-     `DOMException` named `QuotaExceededError` — the one failure kind no run
-     has produced.
-   - **Still open: Flutter's CanvasKit from Google's CDN under
-     `require-corp`.** Step 3 dodged it with `--no-web-resources-cdn` rather
-     than answering it, so the CDN path is untested. Try without the flag; if
-     it fails, keep the flag — the canvaskit files are already in
-     `flutter/bin/cache/flutter_web_sdk/canvaskit`, so it costs bundle size and
-     nothing else. Whatever this settles applies to the deployed build too
-     ([`web-release.md`](../web-strategy/web-release.md) §6) and to
-     `run_mac.sh`.
-   - Measure prefix search (the spike had `බුද්ධ*` at ~800 ms count + search,
-     §10). Measure only. Use **`බුද්ධ*` and `ද*`**, the spike's own terms, for a
-     like-for-like: step 3 timed `එවං*` (27,850 hits) at 165–448 ms cold and
-     102–122 ms warm for the top 50, which is the first number from the
-     `opfsLocks` mode we actually ship, but a different term — so it neither
-     confirms nor contradicts §10's warning that `opfsLocks` would come out
-     slower than that harness.
-   - **Measure `count(*)` cold**, in its own session before any ranked query.
-     Step 3's 10–22 ms was warm — the ranked query had already pulled those
-     pages in — and the spike (§5) puts counting as the expensive half.
-   - Time the dictionary's slow case: a one-letter prefix with a dictionary
-     filter. The count then reads `dict_id` from the table, not just the
-     index. If it is slow, replace `idx_word` with `(word, dict_id)`.
-   - `flutter analyze` clean; the native suites still pass. (Both true at the
-     end of step 5, and again after the review fixes: 636 unit tests, plus the
-     search-flow and two dictionary integration files.)
-   - ~~Delete `lib/dev/web_drift_probe.dart`~~ — gone 2026-09-20, once step 5
-     had been verified.
-   - **Then the two reference docs can go.** `drift-fts5-wasm-spike-results.md`
-     and `db-auto-update-prestudy.md` survived the 2026-09-20 cleanup — which
-     took the spike brief, its two scripts and 407 MB of databases — only
-     because this plan still cites them: the spike at §5 and §10 for the
-     numbers this step replaces, at §7 and §9c for what it found, and the
-     prestudy under **Decided** for the version rule. Sweep those citations,
-     and the ones in `web-release.md`,
-     `reduce-mobile-size-and-move-to-drift.md` and `README.md`, first.
+   **Verified 2026-09-21** — the first-visit screen in a real Chrome by eye,
+   the rest headless against a release build on Flutter's own server:
+
+   - **The screen behaves.** No noticeable flash of it on a reload, so the
+     400 ms quiet start is enough as it stands.
+   - **The Group 9 snippet goldens all match on web**, byte for byte — all
+     fourteen, through the app's own search path (the repository call behind
+     `fullResults`, not a copy of its SQL). A throwaway entrypoint read them
+     out of a browser that had downloaded `bjt.db` itself, and went once it
+     had answered. The trap, worth keeping if it is ever rebuilt: the notifier
+     searches `effectiveQueryText`, so a probe handed the raw text loses
+     `waasawa` — Singlish conversion happens above the repository, and the
+     three rows that dropped out looked at first like a corpus change.
+     Top-50 timings on the way past: 1,433 ms for a session's first search,
+     which opens the database, then 53–197 ms.
+   - **Two tabs on a first visit download once.** The second tab logged
+     `already installed` for both databases, and the profile held one copy of
+     each rather than two.
+   - **A tab closed mid-download starts clean**, and leaves nothing behind
+     when the browser closes normally.
+   - **A private window installs both databases**, with room to spare — so it
+     produced no `QuotaExceededError`, and `_asFailure`'s assumption about
+     that `DOMException` is still the one failure kind no run has exercised.
+   - **CanvasKit from Google's CDN works under `require-corp`, so the flag is
+     not needed**; `run_mac.sh` no longer passes it. Both files answer with
+     `Cross-Origin-Resource-Policy: cross-origin` and
+     `Access-Control-Allow-Origin: *`, and a build without
+     `--no-web-resources-cdn` fetched
+     `https://www.gstatic.com/flutter-canvaskit/<engineRevision>/`, logged no
+     COEP block, and installed both databases — which it could not have done
+     had the engine failed to start. This closes the open bullet in
+     [`web-release.md`](../web-strategy/web-release.md) §6 as well.
+   - `flutter analyze` clean; 644 unit tests (636 plus step 6's eight) and the
+     search-flow and two dictionary integration files all pass.
+   - **The two reference docs are gone** (2026-09-22).
+     `drift-fts5-wasm-spike-results.md` and `db-auto-update-prestudy.md`
+     outlived the 2026-09-20 cleanup only because this plan still cited them.
+     The numbers that needed the spike are re-measured above, what the study
+     answered is stated where it is used, and the pointers in `README.md` and
+     `reduce-mobile-size-and-move-to-drift.md` went with the files.
+   - **A hard kill leaks the partial, and nothing reclaims it.** `kill -9` of
+     the browser mid-download left a 17.9 MB file in OPFS that survived the
+     reinstall and two later starts. The installer sweeps only *other*
+     versions, and this is the current version's own orphaned swap file. A
+     graceful close leaves nothing, so this costs space after a crash or a
+     force-quit and never in normal use, bounded by the database's size.
+     Recorded, not fixed.
+
+   - **A version an open second tab holds is kept.** With tab 1 still on the
+     old version, a second tab handed a different manifest hash logged `kept
+     bjt-<sha16> — another tab is still using it`, and both copies sat on disk
+     at once. Closing the browser and starting again logged `deleted old
+     version bjt-<sha16>` and took it back to one. Both halves of the rule,
+     not only the easy one.
+   - **The measurements.** Chrome, `opfsLocks` — the mode we ship — against an
+     installed `bjt.db`; cold means a fresh browser start with the database
+     already in place, so no download is in the number.
+
+     | | cold | warm |
+     |---|---|---|
+     | `count(*)`, `බුද්ධ*` (16,537 hits) | 438 ms | 0–1 ms |
+     | top-50 search, `බුද්ධ*` | 177 ms | 0 ms |
+     | `count(*)`, `ද*` (233,803 hits) | 343 ms | — |
+     | top-50 search, `ද*` | 805 ms | 1 ms |
+     | dictionary `ද*`, no filter | 54 ms | — |
+     | dictionary `ද*`, filter `DPD` | 35 ms | — |
+
+     Three things follow.
+
+     **Counting is the expensive half**, as the spike said: 438 ms against
+     177 ms for the same term.
+
+     **`opfsLocks` came out no worse than the spike's harness, which expected
+     the opposite.** Its reading was that every read routes through
+     `Atomics.wait` to a second worker, so Chrome should lose to the
+     `opfsShared` shape it measured. Count plus search is what one search
+     costs: 615 ms for `බුද්ධ*` against the 809 ms recorded there, and
+     1,148 ms for `ද*` against 2,217 ms. Different machines, so read this as
+     "the mode we ship is not the slower one", not as a speedup.
+
+     **The dictionary's slow case is not slow, and the filter makes it
+     faster** — 35 ms filtered against 54 ms unfiltered. `idx_word` stays;
+     there is no case for replacing it with `(word, dict_id)`. One caveat:
+     this timed the dictionary *search*. The counts run per result type, so
+     the definition count was not isolated from the 343 ms that covers all
+     three.
+
+   Still to do, and the only reason this step is open — two checks in Chrome's
+   DevTools, a few minutes each:
+   - **A dropped connection offers "try again".** Throttle to a few Mb/s so
+     the bar is catchable, switch Network to Offline mid-download, then press
+     the button: it should start again from zero — `createWritable` truncates
+     — and finish. Reaching that button from a script means clicking a canvas
+     by coordinate, which is why it is by hand. The same cut during `dict.db`
+     is the other half: the app should stay usable, and opening the dictionary
+     should start its own download, which is `dict.db`'s only route back and
+     equally unexercised.
+   - **`QuotaExceededError` is still an assumption.** `_asFailure` reads that
+     name off a `DOMException` to say `outOfSpace`, and no run has produced
+     one, because the private window had room. Application → Storage →
+     *Simulate custom storage quota* at ~50 MB, clear site data, reload: "Not
+     enough space" with no detail line confirms the name; "The download did
+     not finish" means it is the wrong one.
 
 **Tests:** steps 1–5 wrote none, the 2026-09-20 review fixes included. Step 6
 did: `test/presentation/screens/database_install_screen_test.dart`, eight

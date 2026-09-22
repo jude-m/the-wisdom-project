@@ -172,7 +172,7 @@ left, and `server/` and the Windows-box deploy are in `deprecated/`. What
 remains here is the host's half, below —
 [`move-web-onto-drift.md`](../retiring-dart-server/move-web-onto-drift.md) (step
 3 of [`retiring-dart-server/README.md`](../retiring-dart-server/README.md)) owns
-the app's, and its step 8 is still open.
+the app's, and its step 8 has two failure paths left to try by hand.
 
 **What web Drift needs from hosting.** The app side is decided in
 `move-web-onto-drift.md`; this is the host's half.
@@ -184,12 +184,14 @@ the app's, and its step 8 is still open.
   app shows its unsupported-browser message. Confirmed to be enough on
   2026-09-20: with exactly these two on Flutter's dev server, `opfsLocks` was
   offered and the real `bjt.db` opened from OPFS.
-- **CanvasKit may need `--no-web-resources-cdn` in the build.** Under
-  `require-corp` a cross-origin subresource has to send
-  `Cross-Origin-Resource-Policy`, and Flutter loads CanvasKit from Google's CDN
-  by default. Untested either way — `move-web-onto-drift.md` step 8 settles it
-  locally first, and the answer carries straight over here. The flag self-hosts
-  the files from the Flutter cache, costing bundle size only.
+- **CanvasKit needs no flag.** Under `require-corp` a cross-origin subresource
+  has to send `Cross-Origin-Resource-Policy`, and Flutter loads CanvasKit from
+  Google's CDN by default — which answers with
+  `Cross-Origin-Resource-Policy: cross-origin` and
+  `Access-Control-Allow-Origin: *`. Settled locally 2026-09-21
+  (`move-web-onto-drift.md` step 8): a build without `--no-web-resources-cdn`
+  loaded CanvasKit from the CDN under both headers and ran, and `run_mac.sh`
+  has dropped the flag. Nothing to do here.
 - **The deploy strips `assets/assets/databases/*.db` and keeps
   `manifest.json`** — the app reads each database's version from it. The
   Windows-box `deploy.sh` deleted the whole folder, and it is in `deprecated/`,

@@ -103,11 +103,11 @@ echo ""
 
 # --web-hostname localhost, because cross-origin isolation needs a secure
 # context and http://localhost is one; the default host is 0.0.0.0, which is
-# not. --no-web-resources-cdn keeps CanvasKit local: Google's CDN copy has not
-# been tried under `Cross-Origin-Embedder-Policy: require-corp`.
+# not. CanvasKit comes from Google's CDN, which answers with
+# `Cross-Origin-Resource-Policy: cross-origin` and so loads fine under
+# `Cross-Origin-Embedder-Policy: require-corp` (verified 2026-09-21).
 exec flutter run -d web-server \
   --"$BUILD_MODE" \
-  --no-web-resources-cdn \
   --web-hostname localhost \
   --web-port "$PORT" \
   --dart-define=RESEARCH_BASE_URL="$RESEARCH_BASE_URL"

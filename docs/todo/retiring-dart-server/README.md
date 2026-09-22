@@ -14,12 +14,9 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
   step, and **What the Drift/wasm spike changed** carries what moved after the
   spike.
 - **`move-web-onto-drift.md`** — web reads the same databases in the browser, with
-  no server. Was step 11 of the content-DB plan.
-- **`drift-fts5-wasm-spike-results.md`** — what the spike found.
-- **`db-auto-update-prestudy.md`** — how a rebuilt database reaches a browser that
-  already has the old one. Answered: the version rides with the web build
-  (`move-web-onto-drift.md`); the brief keeps what the study found about browser
-  storage, and why update, eviction recovery and first install are one path.
+  no server. Was step 11 of the content-DB plan. It also carries how a rebuilt
+  database reaches a browser that already has the old one: the version rides with
+  the web build, so update, eviction recovery and first install are one path.
 
 ## Order of operations
 
