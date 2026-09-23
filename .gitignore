@@ -57,9 +57,10 @@ macos/Podfile.lock
 # Test helpers — only the Mockito output is generated (build_runner)
 test/helpers/mocks.mocks.dart
 
-# Node.js (tools folder)
+# Node.js. research_server's lockfile is committed: `npm ci` needs it, and it
+# pins wrangler for every Cloudflare deploy.
 node_modules/
-package-lock.json
+tools/package-lock.json
 
 # wrangler's local cache, written at the repo root when scripts/static_site/
 # deploy.sh runs from there. Holds the resolved Cloudflare account, so it is

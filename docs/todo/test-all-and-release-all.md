@@ -2,9 +2,10 @@
 
 > **Opened 2026-09-14, reviewed 2026-09-15.** One command tests the whole
 > project, one builds and releases it, and every product can do both on its own.
-> CI then becomes one line per job. Nothing here is built yet. **Implement after**
-> [`reduce-mobile-size-and-move-to-drift.md`](retiring-dart-server/reduce-mobile-size-and-move-to-drift.md)
-> lands.
+> CI then becomes one line per job. **In progress on branch
+> `feat/test-all-and-release-all` (off `main`), one step at a time, you commit:
+> steps 1–3 done 2026-09-23, uncommitted; step 4 next.** Still yours: copy the
+> secrets into `scripts/config/secrets.env` (step 1).
 
 ## The principle
 
@@ -160,40 +161,19 @@ scripts/config/
 Two files in one folder: targets must be committed so a fresh clone and CI know
 where things go; secrets must never be.
 
-```bash
-# targets.env — sketch
-STATIC_SITE_DEV_PROJECT=sammaditthi-dev
-STATIC_SITE_DEV_BRANCH=dev
-STATIC_SITE_PROD_PROJECT=sammaditthi
-STATIC_SITE_PROD_BRANCH=main
-STATIC_SITE_PROD_ORIGIN=https://sammaditthi.net
+The keys themselves are in the files (built in step 1).
 
-APP_WEB_DEV_PROJECT=            # not decided — web-release.md §6
-APP_WEB_PROD_PROJECT=
-APP_WEB_PROD_ORIGIN=https://app.sammaditthi.net
-
-# The run scripts' default (an exported value wins there) and the web deploy's.
-RESEARCH_BASE_URL=https://wisdom-research.bk-anigha.workers.dev
-```
-
-```bash
-# secrets.env.example — sketch
-CLOUDFLARE_PROD_API_TOKEN=      # ops account — today scripts/static_site/.prod.env
-CLOUDFLARE_PROD_ACCOUNT_ID=
-RESEARCH_GEMINI_API_KEY=        # the Worker's GEMINI_API_KEY — today research_server/.dev.vars
-RESEARCH_APP_TOKEN=             # leave empty — see below
-```
-
-- **Deploy scripts read targets from the file only**, keeping the static site's
-  rule that an account, a project and a branch are right or wrong together. Run
-  scripts are local, so an exported `RESEARCH_BASE_URL` still wins there.
+- **Deploy scripts read targets from the file only** (`target NAME`), keeping
+  the static site's rule that an account, a project and a branch are right or
+  wrong together. Run scripts are local, so an exported `RESEARCH_BASE_URL`
+  still wins there.
 - **Every secret name carries a prefix.** `CLOUDFLARE_PROD_API_TOKEN`, not
   `CLOUDFLARE_API_TOKEN`: the prod branch of a deploy maps it to wrangler's name
   at the moment it needs it, so loading the file can never arm the variable the
   dev path refuses to run with. `RESEARCH_GEMINI_API_KEY`, not `GEMINI_API_KEY`:
   the environment outranks the file, and a shell already exporting the generic
   name for another tool would upload that key to the Worker.
-- **Read by key, never loaded whole.** One helper in `lib/common.sh` returns a
+- **Read by key, never loaded whole.** `secret NAME` in `lib/common.sh` returns a
   named secret — from the environment when set (CI repo secrets use the same
   names), else by sourcing `secrets.env` in a subshell that prints only that
   key. A prod token must not reach a dev command, and `wrangler deploy
@@ -206,10 +186,10 @@ RESEARCH_APP_TOKEN=             # leave empty — see below
   the Worker's names, and **leave out every empty key**: a key left out stays on
   the Worker as it is, an empty one may blank it. `.dev.vars` retires, and a key
   change is an edit plus a deploy.
-- **`RESEARCH_APP_TOKEN` stays empty for now.** Once on the Worker it rejects
-  every request without `x-app-token` (`research_server/src/app.ts`), and no run
-  or deploy script passes the app's matching `--dart-define` yet. Turning it on
-  is its own change —
+- **`RESEARCH_APP_TOKEN` isn't wired.** Once on the Worker it rejects every
+  request without `x-app-token` (`research_server/src/app.ts`), and no app build
+  sends one yet. It goes into `secrets.env` with the app's matching
+  `--dart-define`, as its own change —
   [`research-endpoint-security-before-testers.md`](research/research-endpoint-security-before-testers.md).
 - **`run.sh --node` reads `RESEARCH_STUB` and `RESEARCH_STORE` from
   `wrangler.jsonc`.** Today it sources them from `.dev.vars`. Plain Node never
@@ -283,7 +263,6 @@ templates are the one exception — every line in them moves to
 | `scripts/{android,ios,macos}/run.sh`, `scripts/windows/run.bat` | `git mv` → `scripts/app/<platform>/` |
 | `scripts/web/run_mac.sh` | `git mv` → `scripts/app/web/run_mac.sh` — name kept, it says which machine. Serves through Flutter's own server (below) |
 | `scripts/web/test_chrome.sh` | `git mv` → `scripts/app/web/test_chrome.sh`, and its `cd` to the repo root gains a `..` like the run scripts. Called by `app/test.sh` |
-| `scripts/static_site/.prod.env.example`, `research_server/.dev.vars.example` | fold into `scripts/config/secrets.env.example`, then delete |
 
 **`run_mac.sh` keeps a host and loses its content.** The Dart server did two
 jobs: `/api/…` content, and hosting `build/web` (`--web-root`). Flutter's own
@@ -336,13 +315,27 @@ the secrets in step 1.
    config files. Static site and research server read from them; nothing else
    about them changes but the two live changes above. You copy the secrets
    before the next deploy.
-2. **`scripts/static_site/test.sh`**, called by its `deploy.sh`.
+
+   **Done 2026-09-23.** Checked in the pinned wrangler (4.112): an `--env-file`
+   makes `wrangler dev` skip `.dev.vars`, and `--secrets-file` never deletes a
+   secret it isn't given. `.dev.vars.example`'s commented overrides
+   (`RESEARCH_FAST_MODELS` and the rest) did not move: they are settings, not
+   secrets, and `research_server/src/config.ts` documents them.
+   Both old templates (`.prod.env.example`, `.dev.vars.example`) are deleted.
+   `research_server/package-lock.json` is committed, so `npm ci` works on a
+   fresh checkout and wrangler is pinned everywhere; every script gets it
+   through `research_deps` and `$WRANGLER`, never `npx`.
+2. **`scripts/static_site/test.sh`**, called by its `deploy.sh`. **Done
+   2026-09-23.** The step runner and summary (`run_step`, `step_summary`) live
+   in `lib/common.sh` for the other `test.sh` files. The full gate and
+   `deploy.sh --dry-run` both pass.
 3. **`scripts/research_server/test.sh`**, called by its `deploy.sh`; `--prod`
-   placeholder.
+   placeholder. **Done 2026-09-23.** `--quick` is accepted and runs the same
+   typecheck.
 4. **`scripts/app/`.** Move the run scripts, write `app/test.sh`, add the four
    placeholder deploys.
 
-   **Done early, 2026-09-20**, by
+   **Partly done early, 2026-09-20**, by
    [`move-web-onto-drift.md`](../done/retiring-dart-server/move-web-onto-drift.md)
    steps 5 and 7, because retiring the Dart server could not wait for this
    plan: `server/` is in `deprecated/server/` and the three Windows-box files

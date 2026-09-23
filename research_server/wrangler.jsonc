@@ -12,7 +12,8 @@
   "vars": {
     // Stub by default: a fresh deploy answers canned replies with no key.
     // Live needs RESEARCH_STUB=0 + RESEARCH_STORE here and the GEMINI_API_KEY
-    // secret (`wrangler secret put GEMINI_API_KEY`). Locally use .dev.vars.
+    // secret, which the run and deploy scripts take from
+    // scripts/config/secrets.env (RESEARCH_GEMINI_API_KEY).
     "RESEARCH_STUB": "0",
     "RESEARCH_STORE": "fileSearchStores/tipitakapilotsn15-ry6rxdcmw8z7",
     // CORS allow-list (browser-only protection). Exact-match against the
