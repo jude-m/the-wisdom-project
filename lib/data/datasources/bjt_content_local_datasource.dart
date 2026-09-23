@@ -3,10 +3,10 @@ import 'dart:developer' as developer;
 
 import 'package:archive/archive.dart';
 
-import '../database/bundled_database.dart';
+import '../database/local_database.dart';
 import 'bjt_content_datasource.dart';
 
-/// Reads `bjt_content` out of the bundled `bjt.db`, on the same connection
+/// Reads `bjt_content` out of `bjt.db`, on the same connection
 /// as the FTS index.
 class BJTContentLocalDataSourceImpl implements BJTContentDataSource {
   static const String _dbName = 'bjt.db';
@@ -23,7 +23,7 @@ class BJTContentLocalDataSourceImpl implements BJTContentDataSource {
     required int firstPage,
     int? lastPage,
   }) async {
-    final db = await BundledDatabase.open(_dbName);
+    final db = await LocalDatabase.open(_dbName);
 
     // The whole span in one query, not one per page.
     final rows = await db.rawQuery(
@@ -73,7 +73,7 @@ class BJTContentLocalDataSourceImpl implements BJTContentDataSource {
     Set<ContentPageKey> keys,
   ) async {
     if (keys.isEmpty) return {};
-    final db = await BundledDatabase.open(_dbName);
+    final db = await LocalDatabase.open(_dbName);
     final wanted = keys.toList();
 
     // Joined against a VALUES list, so each key is one primary-key seek.

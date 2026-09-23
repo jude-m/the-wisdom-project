@@ -8,7 +8,7 @@
 > and a stamp (step 7). **The JSON no longer ships** (step 9): 340 MiB off the
 > macOS release bundle, 733 → 393 MiB, with the files kept in the repo for the
 > build-time readers. **Next: step 11, web**, which is its own plan now:
-> [`move-web-onto-drift.md`](./move-web-onto-drift.md). Two deletions
+> [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md). Two deletions
 > from step 5 are deliberately still open: see **Left open after step 5**. A
 > compression sample stays optional (**Compression sample — optional, later**).
 >
@@ -48,8 +48,7 @@
 >   configurations, including the Sinhala `tokenchars` charlist honoured for
 >   *writes* as well as reads. The spike found a different blocker instead (the
 >   WAL header flag) and three live bugs in this repo: see **What the
->   Drift/wasm spike changed** below, and the full write-up in
->   `drift-fts5-wasm-spike-results.md` in this folder.
+>   Drift/wasm spike changed** below.
 > - Companion: [`serverless-deployment-decision.md`](../serverless-deployment-decision.md)
 >   — now largely moot (zero always-on infra; the research server is the only backend).
 
@@ -198,13 +197,13 @@ compressed blob is the reverse.
 ## What the Measurements Said
 
 Steps 2–4 below, run 2026-09-11 on the vendored corpus by two throwaway
-scripts: `tools/bjt-content-spike.js` builds the real table into a copy of the
-bundled DB, `tools/bench_content_read.dart` times reads out of it.
+scripts: `tools/bjt-content-spike.js` built the real table into a copy of the
+bundled DB, `tools/bench_content_read.dart` timed reads out of it.
 
-**Neither is in git** — both are gitignored, with a comment there saying when
-to delete them — so the numbers below are the record, not the scripts. What is
-worth keeping out of them moves into `tools/bjt-populate.js` at step 5 and
-into the datasource at step 6, both noted where they land.
+**Both were deleted on 2026-09-20**, and neither was ever in git, so the
+numbers below are the record, not the scripts. What was worth keeping out of
+them moved into `tools/bjt-populate.js` at step 5 and into the datasource at
+step 6, both noted where they land.
 
 The table it built was checked by the safety net rather than by eye —
 `verify_corpus_invariants.dart --content-db tools/bjt-content-spike.db` —
@@ -458,11 +457,10 @@ the two never blur.
 
 ## What the Drift/wasm spike changed (2026-09-11)
 
-The FTS5-in-wasm spike passed its gate, and its write-up
-(`drift-fts5-wasm-spike-results.md`, copied into this folder) reviewed this
-repo on the way past. Five of its findings land on the work below; each claim
-here was re-verified locally against the shipped databases before being written
-down, because a spike's numbers are its machine's.
+The FTS5-in-wasm spike passed its gate, and reviewed this repo on the way
+past. Five of its findings land on the work below; each claim here was
+re-verified locally against the shipped databases before being written down,
+because a spike's numbers are its machine's.
 
 ### The build pipeline is now three steps, not one — and it was shipping a bug
 
@@ -569,12 +567,14 @@ the same build pipeline, one in the same datasource.
    of the set with every snippet still byte-identical"*, is what an unstable
    tie produces under overfetch + `_limitToGroups`, and the engine then changed
    under it.
-2. **Dictionary prefix lookup full-scans 175 MB on every word tap** — the
-   three queries in `lib/data/datasources/dictionary_local_datasource.dart` use
-   `LIKE ? ESCAPE '\'`, which never uses `idx_word`. 133 ms natively; over OPFS
-   it is the whole file through a JS callback. `buildDictionaryLikePattern`
-   only ever builds a prefix, so the semantics survive
-   `word >= :w AND word < :w || char(0x10FFFF)` — 0.4 ms.
+2. **~~Dictionary prefix lookup full-scans 175 MB on every word tap~~ — fixed
+   2026-09-19, step 1 of [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md).**
+   The three queries in `lib/data/datasources/dictionary_local_datasource.dart`
+   used `LIKE ? ESCAPE '\'`, which never uses `idx_word`: 133 ms natively, and
+   over OPFS the whole file through a JS callback. They are now
+   `word >= :w AND word < :w || char(0x10FFFF)` — 0.4 ms — with the same rows,
+   and the ORDER BY ends `word, id` so ties inside a dictionary no longer
+   follow the query plan.
 3. **`idx_bjt_meta_language` earns nothing** — two distinct values over 457k
    rows. Its only demonstrated effect is the misplan above. Consider dropping
    it in the same pipeline pass.
@@ -587,7 +587,7 @@ the same build pipeline, one in the same datasource.
   Use single quotes (identifier quoting is unaffected). Existing SQL is clean.
 - **`enableMigrations: false`** when Drift opens these. `user_version` is 0
   (verified), so the migrator would otherwise write into the shipped DB.
-  Native passes it (`bundled_database_executor_native.dart`); web must too.
+  Native passes it (`local_database_executor_native.dart`); web must too.
 - **No `ATTACH`** between this DB and `dict.db`. Drift's OPFS mode is chosen at
   runtime by browser capability, and one of the two modes stores exactly two
   files. They are already separate files by design; this just forecloses ever
@@ -597,20 +597,22 @@ the same build pipeline, one in the same datasource.
   a silent NULL is what a future caller would get.
 - **`bjt_suggestions` does not exist** (verified), so every autocomplete call
   throws. Not a mystery: `GENERATE_SUGGESTIONS: false` in the populate script's
-  config. Either flip it and pay the size, or delete
-  `_getSuggestionsFromEdition`. Unrelated to this work, but it is in the file
-  step 6 opens.
+  config. **Settled 2026-09-20:** no screen calls `getSuggestions`, so the
+  whole path went — the repositories, the datasources, `FTSSuggestion` and the
+  populate script's word counting — in step 5 of
+  [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md).
 
 ### What it did not change
 
 The speed numbers, the parity contract, per-entry being ruled out, and the
 slice shape for step 6. The spike is about the engine under the table, not the
-table. Its own caveat is worth carrying: it could not run the Dart layer at all
-(pub.dev was blocked in that session), so Drift's worker negotiation, its
-migration behaviour, and iOS/Firefox are unverified by execution — as is this
-document's bench, which read with `File.readAsString` rather than through
-`rootBundle` and sqflite's platform channel. Both sets of numbers are floors,
-from different directions.
+table. Its own caveat has been half answered: it could not run the Dart layer at
+all (pub.dev was blocked in that session), and Drift's worker negotiation and
+its migration behaviour against a prebuilt file were then verified in Chrome on
+2026-09-20 (`move-web-onto-drift.md` step 3). iOS and Firefox remain unverified,
+as does this document's bench, which read with `File.readAsString` rather than
+through `rootBundle` and sqflite's platform channel. Both sets of numbers are
+floors, from different directions.
 
 ## Current Runtime Dependencies on JSON
 
@@ -783,7 +785,7 @@ CREATE TABLE bjt_content (
 2. **Prove the speed win (primary goal) — DONE 2026-09-11. GO.** Snippets 13–586×,
    reader p50 45× with one slice in 1,411 a quarter-millisecond slower than
    today. Numbers and method in **What the measurements said**;
-   `tools/bench_content_read.dart` is the throwaway that produced them.
+   `tools/bench_content_read.dart` was the throwaway that produced them.
 3. **Measure the size bonus — DONE 2026-09-11.** 180 MB bundled against today's
    434 MB, built for real by `tools/bjt-content-spike.js` and verified entry for
    entry by section 5. Two things the estimate got wrong, both above: the table
@@ -874,15 +876,13 @@ CREATE TABLE bjt_content (
      failing file alone before blaming a change.
    - **The decoder traps** are under **Decoder** in step 6.
 
-   **Left open after step 5** — deliberately not done yet (the user's call,
-   2026-09-15); nothing in step 6 waits on them:
-   - **Delete the step 2–4 throwaways**: `tools/bjt-content-spike.js`,
-     `tools/bench_content_read.dart`, `tools/bjt-content-spike.db`, and the
-     `.gitignore` block that names them. Their numbers are recorded in
-     **What the measurements said**; nothing else reads them. They are
-     untracked, so deleting them cannot be undone — ask first.
-   - **Delete the pre-rebuild backup** `tools/bjt-fts.pre-step5.db` (the old
-     95 MB database, gitignored by `tools/*.db`). Also untracked; ask first.
+   **~~Left open after step 5~~ — cleared 2026-09-20.** The step 2–4
+   throwaways (`tools/bjt-content-spike.js`, `tools/bench_content_read.dart`,
+   `tools/bjt-content-spike.db`), the pre-rebuild backup
+   `tools/bjt-fts.pre-step5.db`, the obsolete `tools/bjt-fts4.db` and the
+   `.gitignore` block that named the scripts are all deleted — 407 MB of
+   database and two scripts, none of them ever in git. Their numbers stay in
+   **What the measurements said**.
 6. **Move the app to Drift, then add the content datasource on top — DONE
    2026-09-16.** One branch, two stages, and no `sqflite` version of the
    datasource was ever written. Web keeps its server path and moves at step 11.
@@ -1072,7 +1072,7 @@ CREATE TABLE bjt_content (
      journal (header bytes 18/19 = 1), so SQLite never creates `-wal`, `-shm`
      or `-journal` for them. None existed after the suites ran.
    - **Web uses the same fingerprint.**
-     [`move-web-onto-drift.md`](./move-web-onto-drift.md) reads this manifest
+     [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md) reads this manifest
      in the browser; the hash names each version's OPFS folder and its file on
      R2. No web code now.
    - **Nothing checks the manifest against the files yet.** The app trusts
@@ -1165,12 +1165,12 @@ CREATE TABLE bjt_content (
      independent of the file name.
    - **Live references moved** in `lib/`, `pubspec.yaml`, `server/`,
      `tools/`, `scripts/bjt-sync-regen/`, the static site generator's tools,
-     test and `UPSTREAM_DEFECTS.md`, `.agent/`, the live docs, and the
-     manifest key in `db-auto-update-prestudy.md`.
+     test and `UPSTREAM_DEFECTS.md`, `.agent/`, and the live docs.
    - **Records kept the old name**: `docs/done/`, `docs/decisions/` (except
-     one pointer to the generator, now by function name), the wasm spike docs, dated measurements in this plan, the FTS4 file in
-     `performance_test_queries.md`, `tools/bjt-fts-populate-obsolete.js`, and
-     the untracked `tools/bjt-fts*.db` leftovers.
+     one pointer to the generator, now by function name), dated measurements
+     in this plan, the FTS4 file in `performance_test_queries.md`,
+     `tools/bjt-fts-populate-obsolete.js`, and the untracked
+     `tools/bjt-fts*.db` leftovers.
    - **`bjt_suggestions` does not exist** (this step's text said it did). It
      was not in the step-5 backup either — see the spike's §8c.
 
@@ -1369,7 +1369,7 @@ CREATE TABLE bjt_content (
     [`first-mobile-release.md`](../mobile-release/first-mobile-release.md),
     with everything else a mobile release waits on.
 11. **Web onto Drift — moved 2026-09-18** to
-    [`move-web-onto-drift.md`](./move-web-onto-drift.md), its own plan.
+    [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md), its own plan.
 
 ### What the snippet path lost at step 8
 
@@ -1479,14 +1479,15 @@ through Drift. It goes with the server; do not repoint it at `bjt_content`.
 
   Two things are worth keeping, and neither is size work:
 
-  1. **The lookup never uses its index.** `lookupWord` in
-     `dictionary_local_datasource.dart` plans as `SCAN dictionary` — **41 ms against under 1 ms**, warm. `ESCAPE`
-     is not the blocker; current SQLite handles it. The blocker is `LIKE` being
-     case-insensitive by default against a BINARY `idx_word`. Prefer rewriting
-     the predicate as `word >= ? AND word < ?`, which indexes unconditionally,
-     over `PRAGMA case_sensitive_like=ON`, which changes behaviour globally. On
-     web this is the whole 145 MB table per keystroke. Also spike §9c.
-  2. **First launch allocates the file in RAM.** `openBundledExecutor` loads
+  1. **~~The lookup never uses its index~~ — fixed 2026-09-19** (step 1 of
+     `move-web-onto-drift.md`). `lookupWord` in
+     `dictionary_local_datasource.dart` planned as `SCAN dictionary` — **41 ms against under 1 ms**, warm. `ESCAPE`
+     was not the blocker; current SQLite handles it. The blocker was `LIKE` being
+     case-insensitive by default against a BINARY `idx_word`. The predicate is
+     now `word >= ? AND word < ?`, which indexes unconditionally, rather than
+     `PRAGMA case_sensitive_like=ON`, which changes behaviour globally. Also
+     spike §9c.
+  2. **First launch allocates the file in RAM.** `openLocalExecutor` loads
      all 166 MB into one `ByteData` before writing it out, and does the same
      for `bjt.db`. Step 7 writes it in 8 MB pieces, which removed a second
      copy (peak +342 MB → +211 MB for `bjt.db`); the load itself stays whole.
@@ -1517,12 +1518,9 @@ through Drift. It goes with the server; do not repoint it at `bjt_content`.
 ## Related
 
 - [`README.md`](./README.md) — the parent plan: retiring the Dart content server.
-- [`drift-fts5-wasm-spike-results.md`](./drift-fts5-wasm-spike-results.md) — the
-  spike that cleared the FTS5 gate, and found the WAL flag and three live bugs.
-- [`move-web-onto-drift.md`](./move-web-onto-drift.md) — step 11 as its own
-  plan: web reads these databases in the browser.
-- [`db-auto-update-prestudy.md`](./db-auto-update-prestudy.md) — how a rebuilt
-  DB reaches a browser that already has the old one (answered: with the build).
+- [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md) — step 11 as its own
+  plan: web reads these databases in the browser, and how a rebuilt DB reaches
+  a browser that already has the old one (answered: with the build).
 - `docs/general/how_search_works.md` — the search pipeline (Step 5 reads JSON).
 - [`perf-fts-snippet-text-loading.md`](../../done/perf-fts-snippet-text-loading.md)
   — the shipped memo-cache fix this migration tears down.

@@ -29,7 +29,7 @@ scripts/
 │
 ├── app/                           Flutter app: one codebase, several targets
 │   ├── test.sh
-│   ├── web/       run_mac.sh   deploy.sh (placeholder)
+│   ├── web/       run_mac.sh   test_chrome.sh   deploy.sh (placeholder)
 │   ├── android/   run.sh       deploy.sh (placeholder)
 │   ├── ios/       run.sh       deploy.sh (placeholder)
 │   ├── macos/     run.sh       deploy.sh (placeholder)
@@ -82,10 +82,33 @@ working. `run.bat` cannot source a bash file and keeps its own default.
 | unit + widget | `flutter test` | ✓ |
 | wisdom_shared | `dart test` in `packages/wisdom_shared` | ✓ |
 | shipped databases | exist, SQLite magic, not WAL-flagged (from `validate-release.sh`); each file's SHA-256 equals its entry in `assets/databases/manifest.json`, since phones keep their old copy of a database changed outside `tools/db-finalize.js` | – built, not committed |
-| integration | `flutter test integration_test/all_tests.dart -d macos`, then `integration_test/bundled_database_copy_test.dart` the same way — it swaps a database file, so it can't share the suite's one app launch ([proposal](./retiring-dart-server/bundled-database-copy-tests.md)) | – needs macOS and the databases |
+| integration · macOS | `flutter test integration_test/all_tests.dart -d macos`, then `integration_test/bundled_database_copy_test.dart` the same way — it swaps a database file, so it can't share the suite's one app launch ([proposal](./retiring-dart-server/bundled-database-copy-tests.md)) | – needs macOS and the databases |
+| integration · Chrome | `app/web/test_chrome.sh` — the `all_tests.dart` files, in a browser | – needs Chrome and the databases |
 
 `a3f6c46` formatted every Dart package once. If the format gate is red by step
 4, format in a commit of its own first.
+
+**`test_chrome.sh` is a helper of `app/test.sh`, not a product gate**, which is
+why it is not called `test.sh`: `app/web/` is one of the app's targets, and the
+app has a single gate. It exists because the web cannot run the suite the way
+macOS does. `flutter test` refuses an integration test on a browser device, so
+the only supported path is `flutter drive` through chromedriver, and all eleven
+files in one browser session exhaust the tab (`invalid session id`, around
+1.7 GB) — so it starts one `flutter drive` per file. The file list is read from
+the imports of `integration_test/all_tests.dart`, the same list macOS runs, so
+adding a file there is all it takes for both platforms to pick it up. The one
+file only macOS runs is `bundled_database_copy_test.dart`: it swaps a bundled
+asset, which no browser install does, so it stays outside `all_tests.dart` and
+outside this script — the web's counterpart is
+[`web-database-installer-tests.md`](retiring-dart-server/web-database-installer-tests.md).
+Chromedriver is fetched on demand, matched to the installed Chrome's major
+version, and always run with `--enable-chrome-logs`: on web `flutter drive`
+reports a failure as a bare `Failure in method: <name>`, and the reason is only
+in the browser console. The whole suite passed in Chrome on 2026-09-22
+([`move-web-onto-drift.md`](../done/retiring-dart-server/move-web-onto-drift.md) step 8),
+which needed `tester.enterText` replaced by `typeText` in
+`integration_test/test_overrides.dart` — the platform text-input channel the
+harness mocks never delivers on web.
 
 ### `scripts/static_site/test.sh`
 
@@ -119,7 +142,7 @@ today a type error ships. Writing tests is a separate task.
 |---|---|---|---|
 | static site | `run.sh` | `deploy.sh --dev` → `sammaditthi-dev`, branch `dev` | `deploy.sh --prod` → `sammaditthi.net` |
 | research server | `run.sh` | `deploy.sh --dev` → today's only Worker, personal account | **placeholder** — moves to the ops account ([`web-release.md`](web-strategy/web-release.md) §4) |
-| app · web | `run_mac.sh` — from step 4 through Flutter's own server, with no content until web Drift lands (see **Moves**) | **placeholder** — home not decided | **placeholder** — `app.sammaditthi.net` |
+| app · web | `run_mac.sh` — from step 4 through Flutter's own server; it serves real content on `feat/move-web-onto-drift`, where the browser installs its own databases (see **Moves**) | **placeholder** — home not decided | **placeholder** — `app.sammaditthi.net` |
 | app · android, ios, macos | `run.sh` | **placeholder** | **placeholder** — no signing or store upload; Android release builds use the debug key |
 | app · windows | `run.bat` | – | – |
 
@@ -259,6 +282,7 @@ templates are the one exception — every line in them moves to
 | `server/` | move → `deprecated/server/`, **without waiting for web Drift**. Its `wisdom_shared` path dependency no longer resolves from there; `deprecated/**` is excluded from analysis. No new script tests it. |
 | `scripts/{android,ios,macos}/run.sh`, `scripts/windows/run.bat` | `git mv` → `scripts/app/<platform>/` |
 | `scripts/web/run_mac.sh` | `git mv` → `scripts/app/web/run_mac.sh` — name kept, it says which machine. Serves through Flutter's own server (below) |
+| `scripts/web/test_chrome.sh` | `git mv` → `scripts/app/web/test_chrome.sh`, and its `cd` to the repo root gains a `..` like the run scripts. Called by `app/test.sh` |
 | `scripts/static_site/.prod.env.example`, `research_server/.dev.vars.example` | fold into `scripts/config/secrets.env.example`, then delete |
 
 **`run_mac.sh` keeps a host and loses its content.** The Dart server did two
@@ -268,10 +292,13 @@ server takes over the second: `run_mac.sh` runs
 or `--release`; `--skip-build` goes, since `flutter run` always builds. It
 answers unknown paths with `index.html`, so a reloaded `/tipitaka/…` deep link
 works, and port 8080 is already in the Worker's CORS list. Open the URL in your
-usual Chrome: `-d chrome` would start a throwaway profile on every run. Content
-comes back with web Drift, which also adds the COOP/COEP headers in
-`web_dev_config.yaml`
-([`move-web-onto-drift.md`](retiring-dart-server/move-web-onto-drift.md)).
+usual Chrome: `-d chrome` would start a throwaway profile on every run. Add
+`--web-hostname localhost` — cross-origin isolation needs a secure context and
+the default host is `any` (`0.0.0.0`). Content is back with web Drift on
+`feat/move-web-onto-drift`; `web_dev_config.yaml` already exists at the repo
+root and the server already sends its COOP/COEP headers on every response,
+`--release` included (verified 2026-09-20,
+[`move-web-onto-drift.md`](../done/retiring-dart-server/move-web-onto-drift.md)).
 
 Then repoint every live mention of a moved file, `.dev.vars`, `.prod.env`, or
 the Windows box's port 8081:
@@ -312,12 +339,20 @@ the secrets in step 1.
 2. **`scripts/static_site/test.sh`**, called by its `deploy.sh`.
 3. **`scripts/research_server/test.sh`**, called by its `deploy.sh`; `--prod`
    placeholder.
-4. **`scripts/app/`.** Move the run scripts — `run_mac.sh` now serving through
-   Flutter's own server (**Moves**) — write `app/test.sh`, add the four
-   placeholder deploys, and move the Windows-box files and `server/` to
-   `deprecated/`. In the same step drop the Windows box from the Worker's CORS
-   list, and `server` from `check-dart-packages.sh`, so that gate keeps passing
-   until step 6 moves it.
+4. **`scripts/app/`.** Move the run scripts, write `app/test.sh`, add the four
+   placeholder deploys.
+
+   **Done early, 2026-09-20**, by
+   [`move-web-onto-drift.md`](../done/retiring-dart-server/move-web-onto-drift.md)
+   steps 5 and 7, because retiring the Dart server could not wait for this
+   plan: `server/` is in `deprecated/server/` and the three Windows-box files
+   in `deprecated/scripts-web/`; `server` is out of
+   `check-dart-packages.sh`, which passes again; and `run_mac.sh` is rewritten
+   to serve through Flutter's own server (**Moves**). `run_mac.sh` and
+   `test_chrome.sh` are both still in `scripts/web/` until this step moves them.
+   Left for this step: the move to `scripts/app/`, `app/test.sh` calling
+   `test_chrome.sh` for the browser half of the integration step, the placeholder
+   deploys, and dropping the Windows box from the Worker's CORS list.
 5. **`test_all.sh` and `release_all.sh`.**
 6. **Move** `validate-release.sh` and `check-dart-packages.sh` to
    `deprecated/tools/`; fix `sync-regen.sh`; repoint the paths and docs above.
@@ -328,8 +363,8 @@ which the full `app/test.sh` rightly fails. Then: each `test.sh` passes alone,
 with and without `--quick`; `release_all.sh` sweeps every `deploy.sh` and names
 each placeholder without running a test; `static_site/deploy.sh --dry-run` and
 `research_server/deploy.sh --dry-run` behave as before; `app/web/run_mac.sh`
-serves the app on port 8080, and a reloaded deep link loads it. No live deploy
-without asking.
+serves the app on port 8080, and a reloaded deep link loads it;
+`app/web/test_chrome.sh` passes every file. No live deploy without asking.
 
 ## CI, once the steps land
 

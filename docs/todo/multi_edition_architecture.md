@@ -79,7 +79,7 @@ Each edition has its own FTS database: `{editionId}.db`
 ```sql
 {edition}_fts         -- FTS virtual table
 {edition}_meta        -- Metadata (filename, eind, language, type, level)
-{edition}_suggestions -- Word frequency for auto-complete
+{edition}_content     -- Page text, one zlib blob per page per language
 ```
 
 ### Search Query
@@ -136,7 +136,7 @@ TextLayer supports same Pali text in multiple scripts:
 
 ## Adding a New Edition
 
-1. **Create FTS database**: `{editionId}.db` with tables `{editionId}_fts`, `{editionId}_meta`, `{editionId}_suggestions`
+1. **Create FTS database**: `{editionId}.db` with tables `{editionId}_fts`, `{editionId}_meta`, `{editionId}_content`
 2. **Create datasource**: If edition is segment-based like SC, return `TextLayer` directly. If page-based, create intermediate model.
 3. **Register edition**: Add to edition registry
 4. **Update search**: Edition automatically included via `editionIds` parameter

@@ -2,46 +2,71 @@ import 'package:test/test.dart';
 import 'package:wisdom_shared/wisdom_shared.dart';
 
 /// Guards the shared dictionary SQL helpers. These run on BOTH the client and
-/// the server, so a bug (especially a LIKE-injection hole) would affect both.
+/// the server, so a bug (especially a `?` out of step with its args) would
+/// affect both.
 void main() {
-  group('buildDictionaryLikePattern', () {
-    test('empty word → "%" (match all)', () {
-      expect(buildDictionaryLikePattern(''), '%');
+  group('appendDictionaryWordMatch', () {
+    test('default is a prefix range: [word, word + U+10FFFF)', () {
+      final buffer = StringBuffer('WHERE ');
+      final args = <Object>[];
+
+      appendDictionaryWordMatch(buffer, args, 'abc');
+
+      expect(buffer.toString(), 'WHERE word >= ? AND word < ?');
+      expect(args, ['abc', 'abc\u{10FFFF}']);
     });
 
-    test('default is a prefix pattern (trailing %)', () {
-      expect(buildDictionaryLikePattern('abc'), 'abc%');
+    test('exactMatch is a plain equality', () {
+      final buffer = StringBuffer('WHERE ');
+      final args = <Object>[];
+
+      appendDictionaryWordMatch(buffer, args, 'abc', exactMatch: true);
+
+      expect(buffer.toString(), 'WHERE word = ?');
+      expect(args, ['abc']);
     });
 
-    test('exactMatch drops the trailing wildcard', () {
-      expect(buildDictionaryLikePattern('abc', exactMatch: true), 'abc');
+    test('empty word → the prefix range covers every headword', () {
+      final buffer = StringBuffer();
+      final args = <Object>[];
+
+      appendDictionaryWordMatch(buffer, args, '');
+
+      expect(args, ['', '\u{10FFFF}']);
     });
 
-    test('escapes LIKE wildcards % and _ in the user input', () {
-      // The key case: a user word containing % or _ must NOT act as a LIKE
-      // wildcard. Both are backslash-escaped; the trailing % (the prefix
-      // wildcard WE add) stays live.
-      expect(buildDictionaryLikePattern('50%_off'), r'50\%\_off%');
+    test('% and _ are bound as plain text, not wildcards', () {
+      // The word is a bound value, not a LIKE pattern, so nothing is escaped.
+      final buffer = StringBuffer();
+      final args = <Object>[];
+
+      appendDictionaryWordMatch(buffer, args, '50%_off');
+
+      expect(args, ['50%_off', '50%_off\u{10FFFF}']);
     });
 
-    test('escapes wildcards even in exact mode (no trailing %)', () {
-      expect(
-        buildDictionaryLikePattern('50%_off', exactMatch: true),
-        r'50\%\_off',
-      );
+    test('appends after earlier args, keeping ? and args in step', () {
+      // The SELECT's `CASE WHEN word = ?` binds first, then the match.
+      final buffer = StringBuffer('CASE WHEN word = ? ... WHERE ');
+      final args = <Object>['abc'];
+
+      appendDictionaryWordMatch(buffer, args, 'abc');
+
+      expect('?'.allMatches(buffer.toString()).length, args.length);
+      expect(args, ['abc', 'abc', 'abc\u{10FFFF}']);
     });
   });
 
   group('appendDictionaryFilter', () {
     test('empty id set → nothing appended, no args (means "all dictionaries")',
         () {
-      final buffer = StringBuffer('WHERE word LIKE ?');
-      final args = <Object>['abc%'];
+      final buffer = StringBuffer('WHERE word = ?');
+      final args = <Object>['abc'];
 
       appendDictionaryFilter(buffer, args, <String>{});
 
-      expect(buffer.toString(), 'WHERE word LIKE ?');
-      expect(args, ['abc%']); // unchanged
+      expect(buffer.toString(), 'WHERE word = ?');
+      expect(args, ['abc']); // unchanged
     });
 
     test('non-empty set → IN clause with one placeholder per id, args appended',

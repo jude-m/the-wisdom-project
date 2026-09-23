@@ -3,9 +3,8 @@ import '../../domain/entities/bjt/bjt_document.dart';
 /// Abstract data source for loading BJT documents.
 /// Specific to Buddha Jayanti Tripitaka edition.
 ///
-/// Implemented by:
-/// - [BJTDocumentLocalDataSourceImpl] (native: reads the bundled database)
-/// - [BJTDocumentRemoteDataSourceImpl] (web: fetches from server API)
+/// Implemented by [BJTDocumentLocalDataSourceImpl], which reads `bjt_content`
+/// out of this device's copy of `bjt.db` on every platform.
 abstract class BJTDocumentDataSource {
   /// Load pages [firstPage] to [lastPage] of the file [fileId] (e.g. "dn-1"),
   /// inclusive — to the end of the file when [lastPage] is null.

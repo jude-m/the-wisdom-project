@@ -15,12 +15,14 @@ abstract class SuttaCentralConcordanceDataSource {
 
 class SuttaCentralConcordanceDataSourceImpl
     implements SuttaCentralConcordanceDataSource {
-  static const String _assetPath = 'assets/data/sc-to-bjt.json';
+  /// Web fetches it into `rootBundle`'s string cache before a first visit
+  /// shows the app (`WebDatabaseInstaller`), so it is read from that cache.
+  static const String assetPath = 'assets/data/sc-to-bjt.json';
 
   @override
   Future<Map<String, String>> load() async {
     try {
-      final jsonString = await rootBundle.loadString(_assetPath);
+      final jsonString = await rootBundle.loadString(assetPath);
       final decoded = json.decode(jsonString) as Map<String, dynamic>;
       // The asset wraps the pairs under "map" alongside metadata
       // (description/count), mirroring tools/mahamevnawa_map/.

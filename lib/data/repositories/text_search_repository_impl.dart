@@ -24,17 +24,14 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   final NavigationTreeRepository _treeRepository;
   final DictionaryRepository? _dictionaryRepository;
 
-  /// Where snippet text comes from. Null when there is no local database to
-  /// read, which costs every native snippet — so it is `required` rather than
-  /// optional: a caller that forgets it gets a compile error, not blank
-  /// previews nothing reports.
-  final BJTContentDataSource? _contentDataSource;
+  /// Where snippet text comes from.
+  final BJTContentDataSource _contentDataSource;
 
   TextSearchRepositoryImpl(
     this._ftsDataSource,
     this._treeRepository, {
     DictionaryRepository? dictionaryRepository,
-    required BJTContentDataSource? contentDataSource,
+    required BJTContentDataSource contentDataSource,
   })  : _dictionaryRepository = dictionaryRepository,
         _contentDataSource = contentDataSource;
 
@@ -312,31 +309,6 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     }
   }
 
-  @override
-  Future<Either<Failure, List<String>>> getSuggestions(
-    String prefix, {
-    String? language,
-  }) async {
-    try {
-      final suggestions = await _ftsDataSource.getSuggestions(
-        prefix,
-        editionIds: {'bjt'},
-        language: language,
-        limit: 10,
-      );
-
-      final words = suggestions.map((s) => s.word).toList();
-      return Right(words);
-    } catch (e) {
-      return Left(
-        Failure.dataLoadFailure(
-          message: 'Failed to get suggestions',
-          error: e,
-        ),
-      );
-    }
-  }
-
   // ============================================================================
   // PRIVATE HELPER METHODS - Search Logic
   // ============================================================================
@@ -509,30 +481,22 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     );
 
     // FTS rows carry only metadata (filename, eind, language) — not the snippet
-    // text the result preview needs. On native we read that text out of
-    // `bjt_content`: one batched query for every hit's page here, BEFORE the
-    // loop, so a page of results costs one round trip rather than a file read
-    // each.
+    // text the result preview needs. That text comes out of `bjt_content`: one
+    // batched query for every hit's page here, BEFORE the loop, so a page of
+    // results costs one round trip rather than a file read each.
     //
     // Both language sides of a page are asked for, because a snippet falls
     // back to the other language when the matched one carries no text at that
     // entry — the order the JSON loader used, kept so snippets do not move.
-    //
-    // Hits the server already pre-filled (web: match.matchedText != null) are
-    // skipped — their snippet travels inline in the response.
-    final content = _contentDataSource;
     final wanted = <ContentPageKey>{};
-    if (content != null) {
-      for (final match in ftsMatches) {
-        if (match.matchedText != null) continue;
-        final pageIndex = int.parse(match.eind.split('-')[0]);
-        for (final language in _snippetLanguages) {
-          wanted.add((
-            fileId: match.filename,
-            pageIndex: pageIndex,
-            language: language,
-          ));
-        }
+    for (final match in ftsMatches) {
+      final pageIndex = int.parse(match.eind.split('-')[0]);
+      for (final language in _snippetLanguages) {
+        wanted.add((
+          fileId: match.filename,
+          pageIndex: pageIndex,
+          language: language,
+        ));
       }
     }
     // A whole-query failure — a database that will not open, say — costs the
@@ -540,9 +504,9 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     // results because of them is not, and the JSON loader degraded the same
     // way. Single bad rows are already left out inside loadPageSides.
     var pageSides = const <ContentPageKey, Map<String, dynamic>>{};
-    if (content != null && wanted.isNotEmpty) {
+    if (wanted.isNotEmpty) {
       try {
-        pageSides = await content.loadPageSides(wanted);
+        pageSides = await _contentDataSource.loadPageSides(wanted);
       } catch (e, stackTrace) {
         developer.log(
           'Failed to read snippet text for ${wanted.length} page sides',
@@ -566,14 +530,10 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       final node = nodeMap[match.nodeKey];
 
       if (node != null) {
-        // Snippet text resolution (the same fallback chain as before, sourced
-        // from the rows fetched above instead of a parsed file):
-        //   web    → match.matchedText (server pre-filled).
-        //   native → the entry in one of the two rows for its page.
-        //   either → '' if unavailable, so a missing or corrupt row degrades
-        //            only its own hit and never fails the search.
-        final matchedText = match.matchedText ??
-            _entryTextFrom(
+        // The entry in one of the two rows fetched for its page, or '' when
+        // it is unavailable — a missing or corrupt row degrades only its own
+        // hit and never fails the search.
+        final matchedText = _entryTextFrom(
               pageSides,
               match.filename,
               pageIndex,

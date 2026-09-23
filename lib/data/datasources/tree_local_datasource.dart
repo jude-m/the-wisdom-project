@@ -19,7 +19,9 @@ abstract class TreeLocalDataSource {
 }
 
 class TreeLocalDataSourceImpl implements TreeLocalDataSource {
-  static const String _treeJsonPath = 'assets/data/tree.json';
+  /// Web fetches it into `rootBundle`'s string cache before a first visit
+  /// shows the app (`WebDatabaseInstaller`), so it is read from that cache.
+  static const String treeJsonPath = 'assets/data/tree.json';
 
   /// Decoded once and shared by both accessors — the asset is 4 MB and neither
   /// caller wants a private copy of it. Held as the Future, so two callers
@@ -81,15 +83,17 @@ class TreeLocalDataSourceImpl implements TreeLocalDataSource {
       return await decoding;
     } catch (e, stack) {
       // A failed decode must not stay cached, or every later caller replays
-      // the same error and a retry can never succeed.
+      // the same error and a retry can never succeed. `rootBundle` caches a
+      // failed load too.
       _sharedTree = null;
+      rootBundle.evict(treeJsonPath);
       _log('Failed to decode navigation tree', error: e, stack: stack);
       rethrow;
     }
   }
 
   Future<TipitakaTree> _decodeSharedTree() async {
-    final jsonString = await rootBundle.loadString(_treeJsonPath);
+    final jsonString = await rootBundle.loadString(treeJsonPath);
     final Map<String, dynamic> jsonData = json.decode(jsonString);
     return TipitakaTree.fromJson(jsonData);
   }

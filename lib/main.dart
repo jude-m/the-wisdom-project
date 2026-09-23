@@ -6,11 +6,11 @@ import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/storage/key_value_store_provider.dart';
 import 'core/storage/shared_preferences_key_value_store.dart';
-import 'data/database/bundled_database_manifest.dart';
+import 'data/database/database_manifest.dart';
 import 'presentation/keyboard/app_shortcuts.dart';
 import 'presentation/screens/app_shell.dart';
+import 'presentation/screens/database_install_screen.dart';
 import 'presentation/providers/search_provider.dart';
-import 'presentation/providers/platform_providers.dart';
 import 'presentation/providers/app_language_provider.dart';
 import 'presentation/providers/tab_provider.dart'
     show activeTabIndexPersistenceProvider;
@@ -27,15 +27,15 @@ void main() async {
   // Initialize SharedPreferences for search history
   final sharedPrefs = await SharedPreferences.getInstance();
 
-  // Quick validation: the build's manifest has an entry for bjt.db (a build
-  // missing either file fails to build). Reads the manifest, not the
-  // database: on Android loading the database would inflate the whole file.
-  // Skip on web - web uses remote datasources (server has the databases)
+  // Native only: the manifest ships inside the app, so a missing entry means a
+  // broken build. Reads the manifest, not the database, which on Android would
+  // inflate the whole file. Web fetches the manifest over the network and the
+  // installer reads it first, so a failure there gets the install screen and
+  // its "Try again".
   if (!kIsWeb) {
     try {
-      await bundledDatabaseSha256('bjt.db');
+      await databaseManifestEntry('bjt.db');
     } catch (e) {
-      // No usable entry - show why and exit
       runApp(_DatabaseMissingError('$e'));
       return;
     }
@@ -51,8 +51,6 @@ void main() async {
         keyValueStoreProvider.overrideWithValue(
           SharedPreferencesKeyValueStore(sharedPrefs),
         ),
-        // On web, swap local datasources for remote (HTTP) datasources
-        if (kIsWeb) ...getWebOverrides(),
       ],
       child: const MyApp(),
     ),
@@ -224,7 +222,13 @@ class _MyAppState extends ConsumerState<MyApp> {
 
       // Top-level shell: navigation rail / bottom bar around the
       // Home / Reader / Research / Notes sections. Launches on Reader.
-      home: const AppShell(),
+      //
+      // DatabaseInstallGate covers it on a browser's first visit, while the
+      // texts download into local storage; on native it is ready at once and
+      // the shell builds straight away. It sits here, under the builder, so
+      // DeepLinkListener stays mounted above it — a link opened on a first
+      // visit lands as soon as the download finishes.
+      home: const DatabaseInstallGate(child: AppShell()),
     );
   }
 }

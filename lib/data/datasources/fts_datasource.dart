@@ -18,10 +18,6 @@ class FTSMatch {
   /// null if ranking not available.
   final double? relevanceScore;
 
-  /// Pre-loaded matched text from the server (web only).
-  /// When non-null, the repository can skip loading text from assets.
-  final String? matchedText;
-
   FTSMatch({
     required this.editionId,
     required this.id,
@@ -32,7 +28,6 @@ class FTSMatch {
     required this.level,
     required this.nodeKey,
     this.relevanceScore,
-    this.matchedText,
   });
 
   factory FTSMatch.fromMap(Map<String, dynamic> map, String editionId) {
@@ -46,51 +41,8 @@ class FTSMatch {
       level: map['level'] as int,
       nodeKey: map['nodeKey'] as String,
       relevanceScore: map['score'] as double?,
-      matchedText: map['matchedText'] as String?,
     );
   }
-
-  /// Serialize to JSON (used by server responses and remote datasources)
-  Map<String, dynamic> toJson() => {
-        'editionId': editionId,
-        'id': id,
-        'filename': filename,
-        'eind': eind,
-        'language': language,
-        'type': type,
-        'level': level,
-        'nodeKey': nodeKey,
-        if (relevanceScore != null) 'score': relevanceScore,
-        if (matchedText != null) 'matchedText': matchedText,
-      };
-}
-
-/// Data model for search suggestions
-class FTSSuggestion {
-  final String word;
-  final String language;
-  final int frequency;
-
-  FTSSuggestion({
-    required this.word,
-    required this.language,
-    required this.frequency,
-  });
-
-  factory FTSSuggestion.fromMap(Map<String, dynamic> map) {
-    return FTSSuggestion(
-      word: map['word'] as String,
-      language: map['language'] as String,
-      frequency: map['frequency'] as int,
-    );
-  }
-
-  /// Serialize to JSON (used by server responses and remote datasources)
-  Map<String, dynamic> toJson() => {
-        'word': word,
-        'language': language,
-        'frequency': frequency,
-      };
 }
 
 /// Abstract interface for FTS (Full-Text Search) data source
@@ -157,14 +109,6 @@ abstract class FTSDataSource {
     bool isAnywhereInText = false,
     int proximityDistance = 10,
     String? language,
-  });
-
-  /// Get search suggestions from one or more editions
-  Future<List<FTSSuggestion>> getSuggestions(
-    String prefix, {
-    required Set<String> editionIds,
-    String? language,
-    int limit = 10,
   });
 
   /// Close all database connections

@@ -83,7 +83,7 @@ final dictionaryLookupProvider = FutureProvider.autoDispose
 
 /// Count lookup results for a word (for bottom sheet "Viewing X of Y" footer).
 /// Reuses countDefinitions since lookupWord and searchDefinitions share the
-/// same SQL WHERE clause (word LIKE ? with optional dictionary filter).
+/// same SQL WHERE clause (the word match with optional dictionary filter).
 final dictionaryLookupCountProvider = FutureProvider.autoDispose
     .family<int, DictionaryLookupParams>((ref, params) async {
   final repository = ref.watch(dictionaryRepositoryProvider);

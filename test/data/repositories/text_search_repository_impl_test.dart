@@ -16,108 +16,24 @@ void main() {
   late TextSearchRepositoryImpl repository;
   late MockFTSDataSource mockFTSDataSource;
   late MockNavigationTreeRepository mockTreeRepository;
+  late MockBJTContentDataSource mockContentDataSource;
 
   setUp(() {
     mockFTSDataSource = MockFTSDataSource();
     mockTreeRepository = MockNavigationTreeRepository();
+    mockContentDataSource = MockBJTContentDataSource();
+    // Every page side comes back missing, so every snippet is ''. These tests
+    // assert on metadata and grouping; snippet text is covered by the goldens
+    // in integration_test/search_flow_integration_test.dart.
+    when(mockContentDataSource.loadPageSides(any)).thenAnswer((_) async => {});
     repository = TextSearchRepositoryImpl(
       mockFTSDataSource,
       mockTreeRepository,
-      // No local database here: these tests assert on metadata and grouping,
-      // so every snippet comes back empty. Snippet text is covered by the
-      // goldens in integration_test/search_flow_integration_test.dart.
-      contentDataSource: null,
+      contentDataSource: mockContentDataSource,
     );
   });
 
   group('TextSearchRepositoryImpl -', () {
-    group('getSuggestions', () {
-      final sampleSuggestions = [
-        FTSSuggestion(word: 'dhamma', language: 'pali', frequency: 100),
-        FTSSuggestion(word: 'dhammapada', language: 'pali', frequency: 50),
-      ];
-
-      test('should return suggestions from FTS data source', () async {
-        // ARRANGE
-        when(mockFTSDataSource.getSuggestions(
-          any,
-          editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
-          limit: anyNamed('limit'),
-        )).thenAnswer((_) async => sampleSuggestions);
-
-        // ACT
-        final result = await repository.getSuggestions('dham');
-
-        // ASSERT
-        expect(result.isRight(), true);
-
-        result.fold(
-          (failure) => fail('Expected success but got failure'),
-          (words) {
-            expect(words.length, equals(2));
-            expect(words[0], equals('dhamma'));
-            expect(words[1], equals('dhammapada'));
-          },
-        );
-
-        verify(mockFTSDataSource.getSuggestions(
-          'dham',
-          editionIds: {'bjt'},
-          language: null,
-          limit: 10,
-        )).called(1);
-      });
-
-      test('should filter suggestions by language', () async {
-        // ARRANGE
-        when(mockFTSDataSource.getSuggestions(
-          any,
-          editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
-          limit: anyNamed('limit'),
-        )).thenAnswer((_) async => sampleSuggestions);
-
-        // ACT
-        final result =
-            await repository.getSuggestions('dham', language: 'pali');
-
-        // ASSERT
-        expect(result.isRight(), true);
-
-        verify(mockFTSDataSource.getSuggestions(
-          'dham',
-          editionIds: {'bjt'},
-          language: 'pali',
-          limit: 10,
-        )).called(1);
-      });
-
-      test('should return failure when suggestions fetch throws', () async {
-        // ARRANGE
-        when(mockFTSDataSource.getSuggestions(
-          any,
-          editionIds: anyNamed('editionIds'),
-          language: anyNamed('language'),
-          limit: anyNamed('limit'),
-        )).thenThrow(Exception('Database error'));
-
-        // ACT
-        final result = await repository.getSuggestions('dham');
-
-        // ASSERT
-        expect(result.isLeft(), true);
-
-        result.fold(
-          (failure) {
-            expect(failure, isA<DataLoadFailure>());
-            expect(failure.userMessage, contains('Failed to get suggestions'));
-          },
-          (words) => fail('Expected failure but got success'),
-        );
-      });
-    });
-
     group('searchTopResults', () {
       final sampleTree = [
         const TipitakaTreeNode(

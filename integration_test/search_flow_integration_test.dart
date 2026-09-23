@@ -21,10 +21,12 @@ import 'package:the_wisdom_project/domain/entities/content/content_language.dart
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/presentation/providers/content_language_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
+import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/utils/content_text_formatter.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/dictionary_search_result_tile.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/highlighted_fts_search_text.dart';
+import 'package:the_wisdom_project/presentation/widgets/search/recent_search_overlay.dart';
 
 import 'search_test_helper.dart';
 import 'test_overrides.dart';
@@ -424,6 +426,15 @@ void main() {
   // ==========================================================================
 
   group('Group 5 - Recent search', () {
+    // prefs live for the whole file (setUpAll) and this group is the only one
+    // that writes a recent search. In a tearDown rather than at the end of the
+    // test, so a failed expectation still leaves the store clean for the groups
+    // after it. The key is RecentSearchesRepositoryImpl's private one, copied
+    // here rather than exposed for a test.
+    tearDown(() async {
+      await prefs.remove('recent_searches');
+    });
+
     testWidgets(
       '10.1 search is saved and appears in recent searches',
       (tester) async {
@@ -432,20 +443,34 @@ void main() {
         // Perform a search.
         await tester.searchFor('මහාසති');
 
-        // Tap the first result to save and dismiss.
-        final listTile = find.byType(ListTile);
-        if (listTile.evaluate().isNotEmpty) {
-          await tester.tap(listTile.first);
-          await pumpForSettle(tester);
-        }
-
-        // Clear and refocus the search bar to show recent searches.
-        await tester.clearSearch();
-        await tester.tap(find.byType(TextField));
+        // Selecting a result is what saves the search. That call lives in
+        // ReaderScreen, which this harness does not build, so drive the same
+        // notifier method the screen calls.
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(MaterialApp)),
+        );
+        await container
+            .read(searchStateProvider.notifier)
+            .saveRecentSearchAndDismiss();
         await pumpForSettle(tester);
 
-        // The recent search overlay should show "මහාසති".
-        expect(find.textContaining('මහාසති'), findsWidgets);
+        // Clearing is enough: the bar still holds focus, and an empty query
+        // while focused is what opens the recent-search overlay
+        // (search_bar.dart). Tapping the field here would hit the overlay's
+        // own full-screen dismiss barrier and close it again.
+        await tester.clearSearch();
+        await pumpForSettle(tester);
+
+        // Scoped to the overlay: an unscoped finder also matches the query
+        // still sitting in the search field, so it passes even when no recent
+        // search was ever saved.
+        expect(
+          find.descendant(
+            of: find.byType(RecentSearchOverlay),
+            matching: find.textContaining('මහාසති'),
+          ),
+          findsWidgets,
+        );
       },
     );
   });

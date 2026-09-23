@@ -21,7 +21,7 @@ Section 2 was its step 10.
 
 On both platforms:
 - Reading and search snippets work with no network.
-- Time the first-launch copy. `openBundledExecutor` copies each bundled
+- Time the first-launch copy. `openLocalExecutor` copies each bundled
   database into `databases/`, so the file lives twice on disk from then on.
 - Install over an older build. The database must copy again (plan step 7).
 
@@ -69,7 +69,7 @@ estimate. None came out of an APK or IPA.
   databases ship inside the APK/IPA. Two ways would take the install to a few
   megabytes, with a first-run fetch from R2, where egress is free:
   - the web's installer
-    ([`move-web-onto-drift.md`](../retiring-dart-server/move-web-onto-drift.md)):
+    ([`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md)):
     the build's manifest names each database, fetched once from R2
   - the store-native options, Play Asset Delivery and iOS On-Demand Resources
 

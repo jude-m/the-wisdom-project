@@ -13,16 +13,6 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
   Drift. Now the keystone; the top banner carries the decisions and the current
   step, and **What the Drift/wasm spike changed** carries what moved after the
   spike.
-- **`move-web-onto-drift.md`** — web reads the same databases in the browser, with
-  no server. Was step 11 of the content-DB plan.
-- **`drift-fts5-wasm-spike-results.md`** — what the spike found. Read this one.
-- **`db-auto-update-prestudy.md`** — how a rebuilt database reaches a browser that
-  already has the old one. Answered: the version rides with the web build
-  (`move-web-onto-drift.md`); the brief keeps what the study found about browser
-  storage, and why update, eviction recovery and first install are one path.
-- **`drift-fts5-wasm-spike.md`** — ~~the ONE gate~~ **PASSED 2026-09-11**. The brief
-  as written before the spike ran, kept for what it asked. One section of it is
-  actively wrong and marked so.
 
 ## Order of operations
 
@@ -37,14 +27,14 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
    all done 2026-09-18: the app is on Drift and ships no JSON. The device
    pass that was step 10 is in
    [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
-3. **Move web onto Drift** (wasm + OPFS) — the same datasources, reading a database
-   downloaded once rather than bundled:
-   [`move-web-onto-drift.md`](./move-web-onto-drift.md).
+3. ~~**Move web onto Drift** (wasm + OPFS).~~ **DONE 2026-09-23.** The same
+   datasources, reading a database downloaded once rather than bundled:
+   [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md).
 4. **Host Flutter web statically** —
    [`web-release.md`](../web-strategy/web-release.md) §6. Step 3 already deletes
-   the web remote datasources. `server/` does not wait for this: it moves to
-   `deprecated/` earlier, in
-   [`test-all-and-release-all.md`](../test-all-and-release-all.md).
+   the web remote datasources, and moved `server/` — with the three
+   `scripts/web/` files that only existed to run or deploy it — to
+   `deprecated/` (2026-09-20).
    The static HTML site and the Flutter bundle are separate **Cloudflare Pages**
    projects (one per surface); the canon DBs (~180 MB content+FTS, ~175 MB
    `dict.db`) exceed Pages' 25 MiB per-file limit, so they're hosted on **R2** and
@@ -68,3 +58,8 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
 
 - `../serverless-deployment-decision.md` — hinge now dissolved (banner at top).
 - `../../done/client-server-architecture-for-web.md` — the server being retired.
+- `../../done/retiring-dart-server/move-web-onto-drift.md` — web reads the same
+  databases in the browser, with no server; done 2026-09-23. It also carries how
+  a rebuilt database reaches a browser that already has the old one: the version
+  rides with the web build, so update, eviction recovery and first install are
+  one path.

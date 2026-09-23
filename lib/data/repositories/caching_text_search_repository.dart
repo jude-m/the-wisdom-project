@@ -17,8 +17,6 @@ import '../cache/lru_cache.dart';
 /// - [_fullResultsCache]  — for `searchByResultType` (full per-tab results)
 /// - [_countsCache]       — for `countByResultType` (tab badge numbers)
 ///
-/// Suggestions are NOT cached: they're cheap and per-keystroke.
-///
 /// The cache is transparent to callers — `SearchStateNotifier` is unchanged.
 class CachingTextSearchRepository implements TextSearchRepository {
   final TextSearchRepository _delegate;
@@ -112,15 +110,6 @@ class CachingTextSearchRepository implements TextSearchRepository {
       (data) => cache.put(cacheKey, data),
     );
     return result;
-  }
-
-  @override
-  Future<Either<Failure, List<String>>> getSuggestions(
-    String prefix, {
-    String? language,
-  }) {
-    // Not cached — cheap (in-memory FTS prefix scan) and called per keystroke.
-    return _delegate.getSuggestions(prefix, language: language);
   }
 
   /// Builds a deterministic cache key from a [SearchQuery].

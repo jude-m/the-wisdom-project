@@ -27,10 +27,4 @@ abstract class TextSearchRepository {
   Future<Either<Failure, Map<SearchResultType, int>>> countByResultType(
     SearchQuery query,
   );
-
-  /// Get auto-complete suggestions for the given prefix
-  Future<Either<Failure, List<String>>> getSuggestions(
-    String prefix, {
-    String? language,
-  });
 }

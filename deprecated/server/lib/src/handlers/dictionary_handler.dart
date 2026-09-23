@@ -35,22 +35,19 @@ class DictionaryHandler {
       final dictionaryIds = parseCsvToSet(params['dictionaryIds']);
       final limit = int.tryParse(params['limit'] ?? '') ?? 50;
 
-      final likePattern =
-          buildDictionaryLikePattern(word, exactMatch: exactMatch);
-
       final sql = StringBuffer();
       sql.write('''
         SELECT
           id, word, dict_id, meaning, rank,
           CASE WHEN word = ? THEN 0 ELSE 1 END AS is_exact
         FROM dictionary
-        WHERE word LIKE ? ESCAPE '\\'
-      ''');
+        WHERE ''');
 
-      final args = <Object>[word, likePattern];
+      final args = <Object>[word];
+      appendDictionaryWordMatch(sql, args, word, exactMatch: exactMatch);
       appendDictionaryFilter(sql, args, dictionaryIds);
 
-      sql.write(' ORDER BY is_exact ASC, rank DESC LIMIT ?');
+      sql.write(' $dictionaryOrderBy LIMIT ?');
       args.add(limit);
 
       final results = _db.dictDb.select(sql.toString(), args);
@@ -77,22 +74,19 @@ class DictionaryHandler {
       final limit = int.tryParse(params['limit'] ?? '') ?? 50;
       final offset = int.tryParse(params['offset'] ?? '') ?? 0;
 
-      final likePattern =
-          buildDictionaryLikePattern(query, exactMatch: isExactMatch);
-
       final sql = StringBuffer();
       sql.write('''
         SELECT
           id, word, dict_id, meaning, rank,
           CASE WHEN word = ? THEN 0 ELSE 1 END AS is_exact
         FROM dictionary
-        WHERE word LIKE ? ESCAPE '\\'
-      ''');
+        WHERE ''');
 
-      final args = <Object>[query, likePattern];
+      final args = <Object>[query];
+      appendDictionaryWordMatch(sql, args, query, exactMatch: isExactMatch);
       appendDictionaryFilter(sql, args, dictionaryIds);
 
-      sql.write(' ORDER BY is_exact ASC, rank DESC LIMIT ? OFFSET ?');
+      sql.write(' $dictionaryOrderBy LIMIT ? OFFSET ?');
       args.addAll([limit, offset]);
 
       final results = _db.dictDb.select(sql.toString(), args);
@@ -117,17 +111,14 @@ class DictionaryHandler {
       final isExactMatch = params['isExactMatch'] == 'true';
       final dictionaryIds = parseCsvToSet(params['dictionaryIds']);
 
-      final likePattern =
-          buildDictionaryLikePattern(query, exactMatch: isExactMatch);
-
       final sql = StringBuffer();
       sql.write('''
         SELECT COUNT(*) as count
         FROM dictionary
-        WHERE word LIKE ? ESCAPE '\\'
-      ''');
+        WHERE ''');
 
-      final args = <Object>[likePattern];
+      final args = <Object>[];
+      appendDictionaryWordMatch(sql, args, query, exactMatch: isExactMatch);
       appendDictionaryFilter(sql, args, dictionaryIds);
 
       final results = _db.dictDb.select(sql.toString(), args);

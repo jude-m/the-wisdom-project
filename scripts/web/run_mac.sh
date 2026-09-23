@@ -6,34 +6,48 @@
 #   ./scripts/web/run_mac.sh --debug     # same as above
 #   ./scripts/web/run_mac.sh --profile   # profile build (perf measurement)
 #   ./scripts/web/run_mac.sh --release   # release build (production-equivalent)
-#   ./scripts/web/run_mac.sh [--port 8080] [--skip-build] [--clean]
+#   ./scripts/web/run_mac.sh [--port 8080] [--clean]
 #
-# This script:
-# 1. Builds the Flutter web app (unless --skip-build)
-# 2. Starts the Dart server serving both API + web files
-# 3. Opens http://localhost:PORT in your browser
+# Flutter's own dev server builds and serves in one command; there is no Dart
+# server any more. The app downloads bjt.db and dict.db into the browser's
+# private file system on the first visit, so the first run of a new database
+# takes a while and later runs start at once.
+#
+# Open the printed URL in your usual Chrome — not `flutter run -d chrome`,
+# which starts a throwaway profile and copies the downloaded databases in and
+# out of `.dart_tool/chrome-device` on every run.
+#
+# The cross-origin isolation headers the database storage needs come from
+# `web_dev_config.yaml` at the repo root; `flutter run` reads it by itself.
 #
 # Debug is the default (kDebugMode true, debugPrint visible in the browser
 # DevTools console at F12 → Console), matching the native run scripts.
 #
-# --profile builds with `flutter build web --profile`. Use this for
-# performance measurement: realistic frame timings (debug is far slower and
-# not representative) while still allowing Chrome DevTools profiling. Pair it
-# with Chrome DevTools → Performance → CPU 6× throttle to emulate an older
-# machine.
+# Reloading the browser does not rebuild: it re-serves the JS this run last
+# compiled. Press R here after a Dart change. An "unhandled error in the
+# injected client.js" in the console is dwds' debug channel rather than the
+# app, but a hot restart may stop applying after one — restart this script.
 #
-# --release builds with `flutter build web --release` for a
-# production-equivalent bundle (smaller, fastest) when you need to sanity-check
-# the real deployed build locally.
+# --profile builds with --profile. Use this for performance measurement:
+# realistic frame timings (debug is far slower and not representative) while
+# still allowing Chrome DevTools profiling. Pair it with Chrome DevTools →
+# Performance → CPU 6× throttle to emulate an older machine.
 #
-# --clean runs `flutter clean` + `flutter pub get` before building. Use this
-# when cached build artifacts are stale — e.g. after changing fonts in
-# pubspec.yaml, since the web FontManifest.json is cached aggressively.
+# Startup and reload time belong here too, not in debug: the debug bundle is
+# megabytes of unoptimised JS and source map, served uncached and wrapped in
+# the injected client. A reload that feels slow in debug is usually that.
+#
+# --release is the production-equivalent bundle (smaller, fastest) when you
+# need to sanity-check the real deployed build locally.
+#
+# --clean runs `flutter clean` + `flutter pub get` first. Use this when cached
+# build artifacts are stale — e.g. after changing fonts in pubspec.yaml, since
+# the web FontManifest.json is cached aggressively.
+# END-USAGE
 
 set -e
 
 PORT=8080
-SKIP_BUILD=false
 BUILD_MODE="debug"
 CLEAN=false
 
@@ -48,6 +62,13 @@ CLEAN=false
 # platforms don't hit this — only the browser does.
 RESEARCH_BASE_URL="${RESEARCH_BASE_URL:-https://wisdom-research.bk-anigha.workers.dev}"
 
+# The header above is the --help text, to the sentinel; the idiom the static-site
+# scripts use (docs/decisions/static-web-hosting.md), so an edit can't desync it.
+usage() {
+  sed -n '2,/^# END-USAGE$/p' "$0" | sed 's/^# \{0,1\}//; /^END-USAGE$/d'
+  exit 0
+}
+
 # Parse arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -55,95 +76,47 @@ while [[ $# -gt 0 ]]; do
       PORT="$2"
       shift 2
       ;;
-    --skip-build)
-      SKIP_BUILD=true
-      shift
-      ;;
-    --debug)
-      BUILD_MODE="debug"
-      shift
-      ;;
-    --profile)
-      BUILD_MODE="profile"
-      shift
-      ;;
-    --release)
-      BUILD_MODE="release"
+    --debug|--profile|--release)
+      BUILD_MODE="${1#--}"
       shift
       ;;
     --clean)
       CLEAN=true
       shift
       ;;
+    -h|--help)
+      usage
+      ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: ./scripts/web/run_mac.sh [--port 8080] [--skip-build] [--debug] [--profile] [--release] [--clean]"
+      echo "Run with --help for usage."
       exit 1
       ;;
   esac
 done
 
-# Navigate to project root (two levels up: scripts/web/ → scripts/ → project)
+# Project root is two levels up: scripts/web/ -> scripts/ -> project.
 cd "$(dirname "$0")/../.."
 
-# Step 1: Build Flutter web
-if [ "$SKIP_BUILD" = false ]; then
-  if [ "$CLEAN" = true ]; then
-    echo "Cleaning build artifacts (flutter clean + pub get)..."
-    flutter clean
-    flutter pub get
-    echo ""
-  fi
-
-  case "$BUILD_MODE" in
-    debug)
-      echo "Building Flutter web app (DEBUG — debugPrint enabled)..."
-      flutter build web --debug \
-        --dart-define=RESEARCH_BASE_URL="$RESEARCH_BASE_URL"
-      ;;
-    profile)
-      echo "Building Flutter web app (PROFILE — performance profiling)..."
-      flutter build web --profile \
-        --dart-define=RESEARCH_BASE_URL="$RESEARCH_BASE_URL"
-      ;;
-    release)
-      echo "Building Flutter web app (release)..."
-      flutter build web --release \
-        --dart-define=RESEARCH_BASE_URL="$RESEARCH_BASE_URL"
-      ;;
-  esac
-
-  # Remove the server-only databases from the web build. On web the API serves
-  # this content — bundling the databases only bloats the download.
-  echo "Cleaning server-only assets from web build..."
-  [ -d "build/web/assets/assets/databases" ] && rm -rf build/web/assets/assets/databases
-
-  # Strip the Flutter service worker. Without it, redeploys show fresh
-  # code immediately instead of serving a stale cached bundle until the
-  # user hard-reloads. Losing offline support is fine — this app needs
-  # the server running anyway.
-  [ -f "build/web/flutter_service_worker.js" ] && rm -f build/web/flutter_service_worker.js
-
-  SAVED=$(du -sh build/web | awk '{print $1}')
-  echo "Web build size after cleanup: $SAVED"
+if [ "$CLEAN" = true ]; then
+  echo "Cleaning build artifacts..."
+  flutter clean
+  flutter pub get
   echo ""
 fi
 
-# Step 2: Install server dependencies (if needed)
-if [ ! -d "server/.dart_tool" ]; then
-  echo "Installing server dependencies..."
-  cd server && dart pub get && cd ..
-  echo ""
-fi
-
-# Step 3: Start server
-echo "Starting server on port $PORT..."
+echo "Serving The Wisdom Project for web ($BUILD_MODE)..."
 echo "Open http://localhost:$PORT in your browser"
-echo "Press Ctrl+C to stop"
+echo "Press q in this terminal to stop"
 echo ""
 
-cd server
-dart run bin/server.dart \
-  --assets ../assets \
-  --web-root ../build/web \
-  --port "$PORT"
+# --web-hostname localhost, because cross-origin isolation needs a secure
+# context and http://localhost is one; the default host is 0.0.0.0, which is
+# not. CanvasKit comes from Google's CDN, which answers with
+# `Cross-Origin-Resource-Policy: cross-origin` and so loads fine under
+# `Cross-Origin-Embedder-Policy: require-corp` (verified 2026-09-21).
+exec flutter run -d web-server \
+  --"$BUILD_MODE" \
+  --web-hostname localhost \
+  --web-port "$PORT" \
+  --dart-define=RESEARCH_BASE_URL="$RESEARCH_BASE_URL"

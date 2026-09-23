@@ -6,7 +6,7 @@ how the app keeps its copy of `bjt.db` and `dict.db` current. Read step 7 first.
 
 ## What is under test
 
-- **`bundled_database_executor_native.dart`** — `openBundledExecutor(dbName)`
+- **`local_database_executor_native.dart`** — `openLocalExecutor(dbName)`
   reads the hash for `dbName` from `assets/databases/manifest.json`, then works
   in a `databases/` folder it creates: under `getApplicationSupportDirectory()`
   on Android, under `getApplicationCacheDirectory()` everywhere else.
@@ -16,10 +16,9 @@ how the app keeps its copy of `bjt.db` and `dict.db` current. Read step 7 first.
     straight to `<db>` in 8 MB pieces, and writes the stamp last.
   - If the copy or the stamp write throws, it deletes the partial copy and
     rethrows.
-- **`bundled_database_manifest.dart`** — `bundledDatabaseSha256(dbName)` throws
-  a `StateError` naming `npm run generate-<name>` when the manifest has no
-  entry.
-- **`bundled_database.dart`** — `BundledDatabase.open` shares one connection per
+- **`database_manifest.dart`** — `databaseManifestEntry(dbName)` throws a `StateError`
+  naming `npm run generate-<name>` when the manifest has no entry.
+- **`local_database.dart`** — `LocalDatabase.open` shares one connection per
   file, so two first readers copy once, and a failed open is forgotten so the
   next one retries.
 
@@ -72,10 +71,10 @@ ever run it.
   offset in the piece loop.
 - **A real SQLite file** is needed only where a connection opens (9, 11). Build
   it like `test/data/datasources/fts_language_filter_sql_test.dart` does, but on
-  a file: `BundledDatabase(NativeDatabase(File(...)))`, one `customStatement`,
+  a file: `LocalDatabase(NativeDatabase(File(...)))`, one `customStatement`,
   `close()`, then read its bytes. Elsewhere the executor is lazy, so any bytes
   work and nothing needs closing.
-- **Connections are static.** Call `BundledDatabase.closeShared` for both names
+- **Connections are static.** Call `LocalDatabase.closeShared` for both names
   in `tearDown`.
 
 ## Scenarios, most critical first
@@ -116,7 +115,7 @@ here means old text in a new app, silently.
 9. **The asset request fails.** Start with no copy and a stamp holding the
    current hash (the OS deleted only the copy). The open throws, and afterwards
    neither a stamp nor a partial copy is left. Then, through
-   `BundledDatabase.open`, a later open with the asset served succeeds — the
+   `LocalDatabase.open`, a later open with the asset served succeeds — the
    retry path.
 10. **The stamp can't be written.** Put a *folder* at `<db>.sha256` before
     opening. The copy runs, the stamp write throws, and no `<db>` is left: the
@@ -125,14 +124,14 @@ here means old text in a new app, silently.
 
 ### P3 — Sharing
 
-11. **Two opens, one copy.** Two `BundledDatabase.open('bjt.db')` calls, the
+11. **Two opens, one copy.** Two `LocalDatabase.open('bjt.db')` calls, the
     second started before the first completes, return the same instance and make
     one asset request.
 
 ### Integration (macOS, real app and real assets)
 
 12. **Stale copy replaced end to end.** In its own file: call
-    `BundledDatabase.closeShared('bjt.db')`, write garbage to `bjt.db` and
+    `LocalDatabase.closeShared('bjt.db')`, write garbage to `bjt.db` and
     `"stale"` to `bjt.db.sha256` in `getApplicationCacheDirectory()`'s
     `databases/` folder (create it), pump the search app, and search `ධම්ම`.
     Expect full-text results above zero, and the stamp to equal the `bjt.db`

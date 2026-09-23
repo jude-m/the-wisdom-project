@@ -3,14 +3,14 @@ import 'dart:developer' as developer;
 import 'package:wisdom_shared/wisdom_shared.dart';
 
 import '../../domain/entities/dictionary/dictionary_entry.dart';
-import '../database/bundled_database.dart';
+import '../database/local_database.dart';
 import 'dictionary_datasource.dart';
 
 /// Implementation of dictionary data source
 class DictionaryDataSourceImpl implements DictionaryDataSource {
   static const String _dbName = 'dict.db';
 
-  BundledDatabase? _database;
+  LocalDatabase? _database;
   bool _initialized = false;
 
   /// Log debug messages only in debug mode.
@@ -23,7 +23,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     if (_initialized) return;
 
     try {
-      _database = await BundledDatabase.open(_dbName);
+      _database = await LocalDatabase.open(_dbName);
 
       _initialized = true;
     } catch (e) {
@@ -46,30 +46,21 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     }
 
     try {
-      final likePattern =
-          buildDictionaryLikePattern(word, exactMatch: exactMatch);
-
-      // Build the SQL query
-      // Order by:
-      // 1. Exact match first (word = ?)
-      // 2. Dictionary rank (higher rank = more important)
+      // Build the SQL query (order: see dictionaryOrderBy)
       final buffer = StringBuffer();
       buffer.write('''
         SELECT
           id, word, dict_id, meaning, rank,
           CASE WHEN word = ? THEN 0 ELSE 1 END AS is_exact
         FROM dictionary
-        WHERE word LIKE ? ESCAPE '\\'
-      ''');
+        WHERE ''');
 
-      final args = <Object>[word, likePattern];
+      final args = <Object>[word];
 
+      appendDictionaryWordMatch(buffer, args, word, exactMatch: exactMatch);
       appendDictionaryFilter(buffer, args, dictionaryIds);
 
-      buffer.write('''
-        ORDER BY is_exact ASC, rank DESC
-        LIMIT ?
-      ''');
+      buffer.write(' $dictionaryOrderBy LIMIT ?');
 
       args.add(limit);
 
@@ -101,9 +92,6 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     }
 
     try {
-      final likePattern =
-          buildDictionaryLikePattern(query, exactMatch: isExactMatch);
-
       // Build the SQL query
       final buffer = StringBuffer();
       buffer.write('''
@@ -111,17 +99,14 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
           id, word, dict_id, meaning, rank,
           CASE WHEN word = ? THEN 0 ELSE 1 END AS is_exact
         FROM dictionary
-        WHERE word LIKE ? ESCAPE '\\'
-      ''');
+        WHERE ''');
 
-      final args = <Object>[query, likePattern];
+      final args = <Object>[query];
 
+      appendDictionaryWordMatch(buffer, args, query, exactMatch: isExactMatch);
       appendDictionaryFilter(buffer, args, dictionaryIds);
 
-      buffer.write('''
-        ORDER BY is_exact ASC, rank DESC
-        LIMIT ? OFFSET ?
-      ''');
+      buffer.write(' $dictionaryOrderBy LIMIT ? OFFSET ?');
 
       args.addAll([limit, offset]);
 
@@ -151,19 +136,16 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     }
 
     try {
-      final likePattern =
-          buildDictionaryLikePattern(query, exactMatch: isExactMatch);
-
       // Build count query
       final buffer = StringBuffer();
       buffer.write('''
         SELECT COUNT(*) as count
         FROM dictionary
-        WHERE word LIKE ? ESCAPE '\\'
-      ''');
+        WHERE ''');
 
-      final args = <Object>[likePattern];
+      final args = <Object>[];
 
+      appendDictionaryWordMatch(buffer, args, query, exactMatch: isExactMatch);
       appendDictionaryFilter(buffer, args, dictionaryIds);
 
       final results = await db.rawQuery(buffer.toString(), args);
@@ -199,7 +181,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
   @override
   Future<void> close() async {
     try {
-      if (_database != null) await BundledDatabase.closeShared(_dbName);
+      if (_database != null) await LocalDatabase.closeShared(_dbName);
     } catch (e) {
       _log('Error closing dictionary database: $e');
     } finally {

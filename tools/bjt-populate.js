@@ -15,14 +15,14 @@
  *   - Actively maintained (FTS4 is legacy)
  *
  * Trade-off:
- *   - snippet() function not available in contentless mode - context fetched from JSON files today, from bjt_content once the app is repointed (plan step 8)
+ *   - snippet() function not available in contentless mode - the app builds
+ *     its own snippets from bjt_content
  *   - Queries require JOIN with metadata table
  *
  * Database structure:
  *   - bjt_fts: Contentless FTS5 index (text search with bm25 ranking)
  *   - bjt_meta: Metadata table (filename, eind, language, type, level)
  *   - bjt_content: The text itself, one zlib blob per page per language
- *   - bjt_suggestions: Word frequency for auto-complete (95K+ words)
  *
  * Usage:
  *   cd tools
@@ -68,15 +68,6 @@ const CONFIG = {
 
     // Step 2: Populate data (run after table is created)
     POPULATE_DATA: true,
-
-    // Generate word frequency for auto-suggestions
-    GENERATE_SUGGESTIONS: false,
-
-    // Minimum word frequency to include in suggestions (filters out rare words)
-    MIN_WORD_FREQUENCY: 3,
-
-    // Maximum suggestions to keep per language
-    MAX_SUGGESTIONS: 50000,
 
     // Input folder containing JSON text files
     // Path is relative to this script (tools/)
@@ -128,21 +119,6 @@ function cleanTextForIndexing(text) {
 
     // Trim whitespace
     return cleaned.trim();
-}
-
-/**
- * Extracts words from text for suggestion generation
- * @param {string} text - Text to extract words from
- * @returns {string[]} - Array of words
- */
-function extractWords(text) {
-    if (!text) return [];
-
-    // Replace punctuation and numbers with spaces
-    const cleaned = text.replace(/[\.\:\[\]\(\)\{\}\-–,\d'"''""\?\n\t\r]/g, ' ');
-
-    // Split by whitespace and filter empty strings
-    return cleaned.split(/\s+/).filter(word => word.length > 0);
 }
 
 // =============================================================================
@@ -322,35 +298,6 @@ function createContentTable(db) {
     console.log(`  ✓ ${editionPrefix}_content: Page text (one zlib blob per page per language)`);
 }
 
-/**
- * Creates the suggestions table for auto-complete
- * @param {Database} db - SQLite database instance
- */
-function createSuggestionsTable(db) {
-    const editionPrefix = CONFIG.EDITION_ID;
-    console.log('Creating suggestions table...');
-
-    db.exec(`DROP TABLE IF EXISTS ${editionPrefix}_suggestions`);
-    db.exec(`DROP INDEX IF EXISTS idx_${editionPrefix}_suggestions_word`);
-    db.exec(`DROP INDEX IF EXISTS idx_${editionPrefix}_suggestions_lang`);
-
-    const createSQL = `
-        CREATE TABLE ${editionPrefix}_suggestions (
-            word TEXT PRIMARY KEY,
-            language TEXT NOT NULL,
-            frequency INTEGER NOT NULL
-        )
-    `;
-
-    db.exec(createSQL);
-
-    // Create indexes for fast prefix search
-    db.exec(`CREATE INDEX idx_${editionPrefix}_suggestions_word ON ${editionPrefix}_suggestions(word)`);
-    db.exec(`CREATE INDEX idx_${editionPrefix}_suggestions_lang ON ${editionPrefix}_suggestions(language)`);
-
-    console.log(`  ✓ ${editionPrefix}_suggestions: Word frequency for auto-complete`);
-}
-
 // =============================================================================
 // MAIN PROCESSING
 // =============================================================================
@@ -391,9 +338,6 @@ function main() {
         if (CONFIG.CREATE_TABLE) {
             createFTSTables(db);
             createContentTable(db);
-            if (CONFIG.GENERATE_SUGGESTIONS) {
-                createSuggestionsTable(db);
-            }
             console.log('');
         }
 
@@ -471,10 +415,6 @@ function populateData(db) {
         INSERT INTO ${editionPrefix}_content(filename, pageIndex, language, pageNum, blob)
         VALUES (?, ?, ?, ?, ?)
     `);
-
-    // Word frequency maps for suggestions
-    const wordFrequencyPali = new Map();
-    const wordFrequencySinh = new Map();
 
     // Counters
     let docId = 1;
@@ -569,16 +509,6 @@ function populateData(db) {
                                 nodeKey: nodeKey,
                                 text: text
                             });
-
-                            // Collect words for suggestions
-                            if (CONFIG.GENERATE_SUGGESTIONS) {
-                                for (const word of extractWords(text)) {
-                                    wordFrequencyPali.set(
-                                        word,
-                                        (wordFrequencyPali.get(word) || 0) + 1
-                                    );
-                                }
-                            }
                         }
                     });
                 }
@@ -601,16 +531,6 @@ function populateData(db) {
                                 nodeKey: nodeKey,
                                 text: text
                             });
-
-                            // Collect words for suggestions
-                            if (CONFIG.GENERATE_SUGGESTIONS) {
-                                for (const word of extractWords(text)) {
-                                    wordFrequencySinh.set(
-                                        word,
-                                        (wordFrequencySinh.get(word) || 0) + 1
-                                    );
-                                }
-                            }
                         }
                     });
                 }
@@ -638,56 +558,6 @@ function populateData(db) {
     console.log('');
     console.log(`✓ Indexed ${totalEntries.toLocaleString()} entries from ${processedFiles} files`);
     console.log(`✓ Stored ${totalPages.toLocaleString()} page rows in ${editionPrefix}_content`);
-
-    // Save suggestions if enabled
-    if (CONFIG.GENERATE_SUGGESTIONS) {
-        saveSuggestions(db, wordFrequencyPali, wordFrequencySinh);
-    }
-}
-
-/**
- * Saves word frequency data to suggestions table
- * @param {Database} db - SQLite database instance
- * @param {Map} wordFrequencyPali - Pali word frequencies
- * @param {Map} wordFrequencySinh - Sinhala word frequencies
- */
-function saveSuggestions(db, wordFrequencyPali, wordFrequencySinh) {
-    const editionPrefix = CONFIG.EDITION_ID;
-
-    console.log('');
-    console.log('Generating auto-complete suggestions...');
-
-    const insertSuggestion = db.prepare(`
-        INSERT OR REPLACE INTO ${editionPrefix}_suggestions(word, language, frequency)
-        VALUES (?, ?, ?)
-    `);
-
-    const insertMany = db.transaction((suggestions) => {
-        for (const s of suggestions) {
-            insertSuggestion.run(s.word, s.language, s.frequency);
-        }
-    });
-
-    // Filter and sort Pali words
-    const paliSuggestions = Array.from(wordFrequencyPali.entries())
-        .filter(([word, freq]) => freq >= CONFIG.MIN_WORD_FREQUENCY && word.length > 1)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, CONFIG.MAX_SUGGESTIONS)
-        .map(([word, frequency]) => ({ word, language: 'pali', frequency }));
-
-    // Filter and sort Sinhala words
-    const sinhSuggestions = Array.from(wordFrequencySinh.entries())
-        .filter(([word, freq]) => freq >= CONFIG.MIN_WORD_FREQUENCY && word.length > 1)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, CONFIG.MAX_SUGGESTIONS)
-        .map(([word, frequency]) => ({ word, language: 'sinh', frequency }));
-
-    // Insert into database
-    insertMany([...paliSuggestions, ...sinhSuggestions]);
-
-    console.log(`  ✓ Pali suggestions: ${paliSuggestions.length.toLocaleString()}`);
-    console.log(`  ✓ Sinhala suggestions: ${sinhSuggestions.length.toLocaleString()}`);
-    console.log(`  ✓ Total: ${(paliSuggestions.length + sinhSuggestions.length).toLocaleString()} words`);
 }
 
 // =============================================================================

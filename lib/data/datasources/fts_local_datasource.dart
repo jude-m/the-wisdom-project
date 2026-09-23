@@ -2,7 +2,7 @@ import 'dart:developer' as developer;
 
 import 'package:wisdom_shared/wisdom_shared.dart';
 
-import '../database/bundled_database.dart';
+import '../database/local_database.dart';
 import '../services/scope_filter_service.dart';
 import 'fts_datasource.dart';
 
@@ -10,7 +10,7 @@ import 'fts_datasource.dart';
 /// Each edition has its own SQLite database with edition-specific table names
 class FTSDataSourceImpl implements FTSDataSource {
   /// Map of edition ID to database instance
-  final Map<String, BundledDatabase> _databases = {};
+  final Map<String, LocalDatabase> _databases = {};
 
   /// Log debug messages only in debug mode.
   /// Uses dart:developer.log which is stripped in release builds.
@@ -40,7 +40,7 @@ class FTSDataSourceImpl implements FTSDataSource {
   Future<void> _initializeEdition(String editionId) async {
     try {
       _log('Initializing edition $editionId');
-      _databases[editionId] = await BundledDatabase.open(_dbNameFor(editionId));
+      _databases[editionId] = await LocalDatabase.open(_dbNameFor(editionId));
       _log('Database opened successfully');
     } catch (e) {
       _log('Error initializing $editionId: $e');
@@ -255,111 +255,13 @@ class FTSDataSourceImpl implements FTSDataSource {
   }
 
   @override
-  Future<List<FTSSuggestion>> getSuggestions(
-    String prefix, {
-    required Set<String> editionIds,
-    String? language,
-    int limit = 10,
-  }) async {
-    // Ensure all requested editions are initialized
-    await initializeEditions(editionIds);
-
-    // Get suggestions from all editions in parallel
-    final futures = editionIds.map((editionId) {
-      return _getSuggestionsFromEdition(
-        editionId,
-        prefix,
-        language: language,
-        limit: limit,
-      );
-    });
-
-    final results = await Future.wait(futures);
-
-    // Merge suggestions from all editions
-    // Combine frequencies for duplicate words
-    final Map<String, FTSSuggestion> mergedSuggestions = {};
-
-    for (final suggestions in results) {
-      for (final suggestion in suggestions) {
-        final key = '${suggestion.word}_${suggestion.language}';
-        if (mergedSuggestions.containsKey(key)) {
-          // Add frequencies if word appears in multiple editions
-          final existing = mergedSuggestions[key]!;
-          mergedSuggestions[key] = FTSSuggestion(
-            word: suggestion.word,
-            language: suggestion.language,
-            frequency: existing.frequency + suggestion.frequency,
-          );
-        } else {
-          mergedSuggestions[key] = suggestion;
-        }
-      }
-    }
-
-    // Sort by frequency and return top N
-    final sorted = mergedSuggestions.values.toList()
-      ..sort((a, b) => b.frequency.compareTo(a.frequency));
-
-    return sorted.take(limit).toList();
-  }
-
-  /// Get suggestions from a single edition
-  Future<List<FTSSuggestion>> _getSuggestionsFromEdition(
-    String editionId,
-    String prefix, {
-    String? language,
-    int limit = 10,
-  }) async {
-    final db = _databases[editionId];
-    if (db == null) {
-      throw StateError('Edition $editionId not initialized');
-    }
-
-    try {
-      // Table naming: {editionId}_suggestions
-      final suggestionsTable = '${editionId}_suggestions';
-
-      // Build the SQL query
-      final buffer = StringBuffer();
-      buffer.write('''
-        SELECT word, language, frequency
-        FROM $suggestionsTable
-        WHERE word LIKE ?
-      ''');
-
-      final args = <Object>['$prefix%'];
-
-      // Add language filter
-      if (language != null) {
-        buffer.write(' AND language = ?');
-        args.add(language);
-      }
-
-      // Order by frequency and limit
-      buffer.write(' ORDER BY frequency DESC LIMIT ?');
-      args.add(limit);
-
-      // Execute query
-      final List<Map<String, dynamic>> results = await db.rawQuery(
-        buffer.toString(),
-        args,
-      );
-
-      return results.map((row) => FTSSuggestion.fromMap(row)).toList();
-    } catch (e) {
-      throw Exception('Suggestion search failed for edition $editionId: $e');
-    }
-  }
-
-  @override
   Future<void> close() async {
     // Close all databases, collecting any errors
     final errors = <String, Object>{};
 
     for (final entry in _databases.entries) {
       try {
-        await BundledDatabase.closeShared(_dbNameFor(entry.key));
+        await LocalDatabase.closeShared(_dbNameFor(entry.key));
       } catch (e) {
         errors[entry.key] = e;
         _log('Error closing database ${entry.key}: $e');

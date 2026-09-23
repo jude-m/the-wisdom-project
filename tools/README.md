@@ -57,8 +57,6 @@ The FTS5 index stores no text of its own, so the text is not kept twice. Search 
 - pageNum: The printed page number
 - blob: That page's language side from the JSON, verbatim, plain zlib
 
-**bjt_suggestions** is not built: `GENERATE_SUGGESTIONS` is `false` in `bjt-populate.js`.
-
 ### Technical Details
 
 - **Technology**: Node.js with better-sqlite3
