@@ -279,11 +279,11 @@
   "relativeTimeDaysAgo": "{count, plural, other{දින {count}කට පෙර}}",
   "databaseInstallTitle": "පෙළ බාගත වෙමින් පවතී",
 
-  "databaseInstallDescription": "පෙළ සහ ශබ්දකෝෂය සඳහා MB {total} ක් පමණ අවශ්‍ය වේ. ඒවා මෙම උපාංගයේ ගබඩා වේ. එවිට ඉක්මනින් විවෘත වන අතර අන්තර්ජාලය නැතිවද භාවිතා කළ හැකිය. මෙය සිදුවන්නේ එක් වරක් පමණි.",
+  "databaseInstallDescription": "පෙළ සහ ශබ්දකෝෂය මෙම උපාංගයේ ගබඩා වේ. එවිට ඉක්මනින් විවෘත වන අතර අන්තර්ජාලය නැතිවද භාවිතා කළ හැකිය. බාගත කිරීම අවසන් වූ පසු යෙදුම විවෘත වේ.",
 
   "databaseInstallPreparing": "සූදානම් වෙමින්…",
 
-  "databaseInstallProgress": "MB {total} න් MB {received}",
+  "databaseInstallProgress": "{percent}% · MB {total} න් MB {received}",
 
   "databaseInstallUnsupportedTitle": "මෙම බ්‍රව්සරයට පෙළ ගබඩා කළ නොහැක",
 

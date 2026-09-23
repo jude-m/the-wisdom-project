@@ -5,11 +5,15 @@ import 'dart:js_interop_unsafe';
 import 'package:drift/drift.dart';
 import 'package:drift/wasm.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' show basenameWithoutExtension;
 import 'package:web/web.dart' as web;
 
+import '../datasources/suttacentral_concordance_datasource.dart';
+import '../datasources/tree_local_datasource.dart';
 import 'database_install_status.dart';
 import 'database_manifest.dart';
+import 'local_database.dart';
 
 /// Downloads this build's databases into OPFS and opens them there.
 ///
@@ -23,6 +27,10 @@ import 'database_manifest.dart';
 /// `drift_db/<db>-<first 16 hex of its SHA-256>/`, rather than overwriting the
 /// old file — an old tab may still be reading it.
 ///
+/// All or nothing: [status] turns ready only once every database is installed
+/// and open and the app's other files are in hand, so nothing the app shows
+/// depends on a download that might still fail.
+///
 /// Reached through [DatabaseInstallation] rather than directly, so the
 /// first-visit screen stays platform-neutral.
 class WebDatabaseInstaller {
@@ -30,9 +38,15 @@ class WebDatabaseInstaller {
 
   static final WebDatabaseInstaller instance = WebDatabaseInstaller._();
 
-  /// Installed in this order, and `bjt.db` blocks the app: every book in the
-  /// tree opens its text from it. The dictionary waits for `dict.db` on its own.
+  /// Downloaded one at a time, in this order.
   static const List<String> databases = ['bjt.db', 'dict.db'];
+
+  /// The app's other reads over the network, fetched before the screen lifts.
+  /// `rootBundle` keeps each in its string cache, where the app reads it from.
+  static const List<String> _appFiles = [
+    TreeLocalDataSourceImpl.treeJsonPath,
+    SuttaCentralConcordanceDataSourceImpl.assetPath,
+  ];
 
   /// Where the bytes come from. Empty (the default, and every local run) means
   /// the app's own asset copy; a build sets it to the R2 bucket's public URL.
@@ -54,94 +68,50 @@ class WebDatabaseInstaller {
   final StreamController<DatabaseInstallStatus> _changes =
       StreamController<DatabaseInstallStatus>.broadcast();
 
-  /// One status per database, so a failed dictionary does not read as a failed
-  /// app. [status] hands out the blocking one.
-  final Map<String, DatabaseInstallStatus> _statuses = {
-    for (final dbName in databases)
-      dbName: DatabaseInstallStatus(
-        phase: DatabaseInstallPhase.checking,
-        database: dbName,
-        blocking: dbName == databases.first,
-      ),
-  };
+  DatabaseInstallStatus _status =
+      const DatabaseInstallStatus(phase: DatabaseInstallPhase.checking);
 
-  Future<WasmProbeResult>? _prepared;
-  final Map<String, Future<void>> _installs = {};
+  /// Both kept after a failure, so a query that follows one fails at once
+  /// instead of starting the downloads again. Only [retry] clears them.
+  Future<void>? _started;
+  Future<WasmProbeResult>? _installed;
+
   final Map<String, DatabaseManifestEntry> _manifest = {};
 
   /// The versions this tab holds an in-use marker for. A shared lock taken
-  /// twice is held twice, and [retry] can run preparation again.
+  /// twice is held twice, and [retry] runs preparation again.
   final Set<String> _markersHeld = {};
 
-  /// What failed, `null` standing for the preparation step, which stops every
-  /// database at once. Emptied by [retry].
-  final Set<String?> _failed = {};
+  /// What the first-visit screen shows right now.
+  DatabaseInstallStatus get status => _status;
 
-  /// Only one database downloads at a time, so a first visit does not run two
-  /// hundred-megabyte transfers against each other.
-  Future<void> _queue = Future<void>.value();
-
-  /// What a first-visit screen shows right now: the state of the database the
-  /// app cannot start without.
-  DatabaseInstallStatus get status => _statuses[databases.first]!;
-
-  /// Every change, each naming its own database — read `blocking` to know
-  /// whether it concerns the whole app. Broadcast, and it does not replay.
+  /// Every change to [status]. Broadcast, and it does not replay.
   Stream<DatabaseInstallStatus> get changes => _changes.stream;
 
-  /// Installs every database, `bjt.db` first and the rest behind it.
+  /// Installs every database, then opens them and fetches the app's other
+  /// files.
   ///
-  /// Idempotent, and it never throws: failures land in [status] for the screen
-  /// to show, and in [open] for the caller that needed the database.
-  Future<void> start() async {
-    // Asked before _prepare(), because a reload can answer it in one OPFS read
-    // while preparation costs two workers and a wasm module. Preparation still
-    // runs — open() waits for it — but the app is on screen by then instead of
-    // behind the first-visit screen. Only from `checking`: every later start()
-    // has its answer already.
-    final blocking = databases.first;
-    if (_statuses[blocking]!.phase == DatabaseInstallPhase.checking &&
-        await _alreadyInstalled(blocking)) {
-      _emit(_statusFor(blocking, DatabaseInstallPhase.ready));
-    }
-    try {
-      await _prepare();
-      await _install(databases.first);
-    } catch (_) {
-      // Already recorded in _statuses.
-      return;
-    }
-    for (final dbName in databases.skip(1)) {
-      unawaited(_install(dbName).catchError((Object _) {}));
-    }
-  }
+  /// Idempotent, and it never throws: a failure lands in [status] for the
+  /// screen to show.
+  Future<void> start() => _started ??= _run();
 
-  /// Tries everything that failed again, preparation included.
+  /// Starts again from the top after a failure.
   ///
   /// An unsupported browser is not retried — nothing about it would change.
-  Future<void> retry() async {
-    if (status.failure?.kind == DatabaseInstallFailureKind.unsupportedBrowser) {
-      return;
+  Future<void> retry() {
+    if (_status.phase != DatabaseInstallPhase.failed ||
+        _status.failure?.kind ==
+            DatabaseInstallFailureKind.unsupportedBrowser) {
+      return Future<void>.value();
     }
-    final retrying = _failed.toList();
-    _failed.clear();
-    for (final dbName in retrying) {
-      // A failed install has already forgotten itself (see [_runInstall]);
-      // preparation is the only thing still cached across a failure.
-      if (dbName == null) _prepared = null;
-      // Only the failed ones go back to checking: a database that installed
-      // before the failure is still installed.
-      _emit(_statusFor(dbName, DatabaseInstallPhase.checking));
-    }
-    await start();
+    _installed = null;
+    _emit(const DatabaseInstallStatus(phase: DatabaseInstallPhase.checking));
+    // Never the reload shortcut: the databases may be in and the step that
+    // failed the one after them.
+    return _started = _run(reloadShortcut: false);
   }
 
-  /// Opens [dbName] from OPFS, waiting for its install to finish first.
-  ///
-  /// It starts no download of its own, but an install that failed has forgotten
-  /// itself ([_runInstall]) — so the wait here can become a fresh download of
-  /// the whole file. That is `dict.db`'s only way back, and it means a caller
-  /// waits as long as a download takes rather than failing straight away.
+  /// Opens [dbName] from OPFS, waiting for the install first.
   Future<QueryExecutor> open(String dbName) async {
     if (!databases.contains(dbName)) {
       // A new edition means a new `<editionId>.db`
@@ -154,8 +124,7 @@ class WebDatabaseInstaller {
         'WebDatabaseInstaller.databases and published beside the others.',
       );
     }
-    final probe = await _prepare();
-    await _install(dbName);
+    final probe = await _install();
     return probe.open(
       WasmStorageImplementation.opfsLocks,
       _opfsName(dbName, _manifest[dbName]!.sha256),
@@ -164,53 +133,106 @@ class WebDatabaseInstaller {
     );
   }
 
+  Future<void> _run({bool reloadShortcut = true}) async {
+    try {
+      await _readManifest();
+      // A reload: every database is already here, so the app shows now rather
+      // than after the probe, which costs two workers and a wasm module. The
+      // probe still runs — open() waits for it — and the app's other files
+      // load when it asks for them, as on any reload.
+      final reload = reloadShortcut && (await _missing()).isEmpty;
+      if (reload) {
+        _emit(const DatabaseInstallStatus(phase: DatabaseInstallPhase.ready));
+      }
+      await _install();
+      if (!reload) await _openAndFetch();
+      // Again after a reload too: a tab on another build can delete a version
+      // before this one marks it in use, and the download that follows moves
+      // the screen off ready.
+      _emit(const DatabaseInstallStatus(phase: DatabaseInstallPhase.ready));
+    } catch (error, stack) {
+      final failure = _asFailure(error, 'Installing the databases failed');
+      debugPrint('[db] $failure\n$stack');
+      _emit(DatabaseInstallStatus(
+        phase: DatabaseInstallPhase.failed,
+        failure: failure,
+      ));
+    }
+  }
+
+  Future<void> _readManifest() async {
+    for (final dbName in databases) {
+      _manifest[dbName] ??= await databaseManifestEntry(dbName);
+    }
+  }
+
+  /// Opens every database and fetches [_appFiles].
+  ///
+  /// Opening goes through [LocalDatabase.open], so the connections made here
+  /// are the ones the app goes on to use, `sqlite3.wasm` is already loaded
+  /// into them, and a file that will not open fails here rather than in the
+  /// first book.
+  Future<void> _openAndFetch() async {
+    for (final dbName in databases) {
+      try {
+        await LocalDatabase.open(dbName);
+      } catch (error) {
+        throw DatabaseInstallFailure(
+          DatabaseInstallFailureKind.other,
+          'Opening $dbName failed: $error',
+        );
+      }
+    }
+    for (final path in _appFiles) {
+      try {
+        await rootBundle.loadString(path);
+      } catch (error) {
+        // The cache keeps a failed load too, which would fail every retry.
+        rootBundle.evict(path);
+        throw DatabaseInstallFailure(
+          DatabaseInstallFailureKind.download,
+          'GET $path failed: $error',
+        );
+      }
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Preparing: probe, feature check, tab markers, cleanup
   // ---------------------------------------------------------------------------
 
-  Future<WasmProbeResult> _prepare() => _prepared ??= _runPrepare();
+  Future<WasmProbeResult> _prepare() async {
+    // Relative, because Flutter copies `web/` to the build root.
+    final probe = await WasmDatabase.probe(
+      sqlite3Uri: Uri.parse('sqlite3.wasm'),
+      driftWorkerUri: Uri.parse('drift_worker.js'),
+    );
 
-  Future<WasmProbeResult> _runPrepare() async {
+    // By feature, not by browser name, and before anything is downloaded.
+    // Naming the storage mode also stops drift falling back to IndexedDB with
+    // the whole library in it.
+    final missing = <String>[
+      if (!probe.availableStorages
+          .contains(WasmStorageImplementation.opfsLocks))
+        'OPFS with synchronous locks',
+      if (!_supportsCreateWritable()) 'writable file streams',
+    ];
+    if (missing.isNotEmpty) throw await _storageUnavailable(probe, missing);
+
+    // A hint about eviction that nothing here depends on, so its own catch: a
+    // browser that refuses it must not fail the install. Chrome decides from
+    // how much the site is used, at the time of asking, so a first-visit
+    // `false` can become `true` on a later start.
     try {
-      for (final dbName in databases) {
-        _manifest[dbName] = await databaseManifestEntry(dbName);
-      }
-
-      // Relative, because Flutter copies `web/` to the build root.
-      final probe = await WasmDatabase.probe(
-        sqlite3Uri: Uri.parse('sqlite3.wasm'),
-        driftWorkerUri: Uri.parse('drift_worker.js'),
-      );
-
-      // By feature, not by browser name, and before anything is downloaded.
-      // Naming the storage mode also stops drift falling back to IndexedDB
-      // with the whole library in it.
-      final missing = <String>[
-        if (!probe.availableStorages
-            .contains(WasmStorageImplementation.opfsLocks))
-          'OPFS with synchronous locks',
-        if (!_supportsCreateWritable()) 'writable file streams',
-      ];
-      if (missing.isNotEmpty) throw await _storageUnavailable(probe, missing);
-
-      // A hint about eviction that nothing here depends on, so its own catch:
-      // a browser that refuses it must not fail the install. Chrome decides
-      // from how much the site is used, at the time of asking, so a
-      // first-visit `false` can become `true` on a later start.
-      try {
-        final persisted = await web.window.navigator.storage.persist().toDart;
-        debugPrint('[db] storage persisted: ${persisted.toDart}');
-      } catch (error) {
-        debugPrint('[db] could not ask for persistent storage: $error');
-      }
-
-      await _holdInUseMarkers();
-      await _deleteOtherVersions(probe);
-      return probe;
-    } catch (error, stack) {
-      _fail(null, error, stack);
-      rethrow;
+      final persisted = await web.window.navigator.storage.persist().toDart;
+      debugPrint('[db] storage persisted: ${persisted.toDart}');
+    } catch (error) {
+      debugPrint('[db] could not ask for persistent storage: $error');
     }
+
+    await _holdInUseMarkers();
+    await _deleteOtherVersions(probe);
+    return probe;
   }
 
   /// Why the storage the databases need is unavailable.
@@ -253,7 +275,7 @@ class WebDatabaseInstaller {
   /// estimate and the quota moves with the free disk. It only tells a full
   /// device apart from a browser that never had OPFS.
   Future<bool> _outOfSpace() async {
-    final needed = _allBytes;
+    final needed = _manifest.values.fold(0, (sum, entry) => sum + entry.bytes);
     try {
       final estimate = await web.window.navigator.storage.estimate().toDart;
       // Both are optional in the spec, and a browser that omits either has
@@ -349,41 +371,47 @@ class WebDatabaseInstaller {
   // Installing
   // ---------------------------------------------------------------------------
 
+  /// The databases not yet installed at the version this build wants.
+  Future<List<String>> _missing() async => [
+        for (final dbName in databases)
+          if (!await _isInstalled(dbName)) dbName,
+      ];
+
   /// Whether [dbName] is already installed at the version this build wants.
   ///
   /// The stamp is written last, so it standing for the manifest's hash means
-  /// the download finished — the same test [_runInstall] makes, without the
-  /// preparation in front of it. False on anything unexpected: the full path
-  /// behind this reports what went wrong.
-  Future<bool> _alreadyInstalled(String dbName) async {
+  /// the download finished. False on anything unexpected: the install behind
+  /// this reports what went wrong.
+  Future<bool> _isInstalled(String dbName) async {
     try {
-      final entry = _manifest[dbName] ??= await databaseManifestEntry(dbName);
+      final sha256 = _manifest[dbName]!.sha256;
       final drift = await _driftRoot();
       // Not `create: true`: a missing folder is the answer here, not something
       // to make.
-      final folder = await drift
-          .getDirectoryHandle(_opfsName(dbName, entry.sha256))
-          .toDart;
-      return await _readStamp(folder) == entry.sha256;
+      final folder =
+          await drift.getDirectoryHandle(_opfsName(dbName, sha256)).toDart;
+      return await _readStamp(folder) == sha256;
     } catch (_) {
       return false;
     }
   }
 
-  Future<void> _install(String dbName) {
-    return _installs[dbName] ??= () {
-      final next = _queue.then((_) => _runInstall(dbName));
-      // The queue only orders the downloads; one failure must not block the
-      // database behind it.
-      _queue = next.catchError((Object _) {});
-      return next;
-    }();
-  }
+  Future<WasmProbeResult> _install() => _installed ??= _runInstall();
 
-  Future<void> _runInstall(String dbName) async {
-    final entry = _manifest[dbName]!;
-    final name = _opfsName(dbName, entry.sha256);
-    try {
+  Future<WasmProbeResult> _runInstall() async {
+    // Read here as well as in _run(), because open() can arrive first.
+    await _readManifest();
+    final probe = await _prepare();
+
+    final missing = await _missing();
+    // Only what this start downloads, so a new dictionary on its own counts up
+    // to its own size.
+    final total =
+        missing.fold(0, (sum, dbName) => sum + _manifest[dbName]!.bytes);
+    var done = 0;
+    for (final dbName in missing) {
+      final entry = _manifest[dbName]!;
+      final name = _opfsName(dbName, entry.sha256);
       await _withLock(
         _downloadLock(name),
         // A second tab waits here rather than downloading the same file.
@@ -393,23 +421,17 @@ class WebDatabaseInstaller {
             debugPrint('[db] $dbName already installed as $name');
             return;
           }
-          await _download(dbName, entry, folder);
+          await _download(dbName, entry, folder, done: done, total: total);
           await _writeStamp(folder, entry.sha256);
         },
       );
-      _failed.remove(dbName);
-      _emit(_statusFor(dbName, DatabaseInstallPhase.ready));
-    } catch (error, stack) {
-      // Forgotten, so the next caller tries again instead of being handed this
-      // same failure for the rest of the session. `dict.db` has no other way
-      // back: [retry] belongs to the screen, which only covers `bjt.db`.
-      _installs.remove(dbName);
-      _fail(dbName, error, stack);
-      rethrow;
+      done += entry.bytes;
     }
+    return probe;
   }
 
-  /// Streams the file into `<folder>/database`, counting what arrives.
+  /// Streams the file into `<folder>/database`, counting what arrives on top
+  /// of the [done] bytes of the databases before it.
   ///
   /// The chunks go to the sink as they come off the network, so the peak stays
   /// at one chunk rather than the whole database. `createWritable` commits on
@@ -417,15 +439,13 @@ class WebDatabaseInstaller {
   Future<void> _download(
     String dbName,
     DatabaseManifestEntry entry,
-    web.FileSystemDirectoryHandle folder,
-  ) async {
+    web.FileSystemDirectoryHandle folder, {
+    required int done,
+    required int total,
+  }) async {
     final url = _downloadUrl(dbName, entry.sha256);
     debugPrint('[db] downloading $dbName from $url');
-    _emit(_statusFor(
-      dbName,
-      DatabaseInstallPhase.installing,
-      total: entry.bytes,
-    ));
+    _emitProgress(done, total);
 
     // `no-store`, so Chrome keeps no second copy of the file in its HTTP cache.
     final response = await web.window
@@ -471,22 +491,12 @@ class WebDatabaseInstaller {
         received += data.getProperty<JSNumber>('byteLength'.toJS).toDartInt;
         if (received - reported >= _progressStepBytes) {
           reported = received;
-          _emit(_statusFor(
-            dbName,
-            DatabaseInstallPhase.installing,
-            received: received,
-            total: entry.bytes,
-          ));
+          _emitProgress(done + received, total);
         }
       }
       await sink.close().toDart;
-      // The last part-megabyte, so the bar reaches the end instead of jumping.
-      _emit(_statusFor(
-        dbName,
-        DatabaseInstallPhase.installing,
-        received: received,
-        total: entry.bytes,
-      ));
+      // The last part-megabyte, so the bar does not jump at the next file.
+      _emitProgress(done + received, total);
     } catch (error) {
       // Cancelled as well as aborted: the sink alone leaves the network
       // connection open until the reader is collected.
@@ -651,54 +661,15 @@ class WebDatabaseInstaller {
   // Status
   // ---------------------------------------------------------------------------
 
-  /// What a first visit costs in all, or 0 before the manifest is read — the
-  /// screen says it up front, while the bar tracks one database at a time.
-  int get _allBytes => _manifest.length < databases.length
-      ? 0
-      : _manifest.values.fold(0, (sum, entry) => sum + entry.bytes);
-
-  /// A status for [dbName], or for every database when it is null.
-  DatabaseInstallStatus _statusFor(
-    String? dbName,
-    DatabaseInstallPhase phase, {
-    int received = 0,
-    int total = 0,
-    DatabaseInstallFailure? failure,
-  }) {
-    return DatabaseInstallStatus(
-      phase: phase,
-      database: dbName,
-      blocking: dbName == null || dbName == databases.first,
-      received: received,
-      total: total,
-      allTotal: _allBytes,
-      failure: failure,
-    );
-  }
+  void _emitProgress(int received, int total) => _emit(DatabaseInstallStatus(
+        phase: DatabaseInstallPhase.installing,
+        received: received,
+        total: total,
+      ));
 
   void _emit(DatabaseInstallStatus status) {
-    final dbName = status.database;
-    if (dbName == null) {
-      // The browser check and the cleanup stop, or clear, all of them at once.
-      for (final name in databases) {
-        _statuses[name] = status;
-      }
-    } else {
-      _statuses[dbName] = status;
-    }
+    _status = status;
     _changes.add(status);
-  }
-
-  void _fail(String? dbName, Object error, StackTrace stack) {
-    _failed.add(dbName);
-    final failure = _asFailure(
-      error,
-      dbName == null
-          ? 'Preparing the databases failed'
-          : 'Installing $dbName failed',
-    );
-    debugPrint('[db] $failure\n$stack');
-    _emit(_statusFor(dbName, DatabaseInstallPhase.failed, failure: failure));
   }
 
   static DatabaseInstallFailure _asFailure(Object error, String fallback) {

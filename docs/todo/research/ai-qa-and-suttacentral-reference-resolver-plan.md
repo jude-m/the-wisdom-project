@@ -72,7 +72,7 @@ on every platform: bundled SQLite through Drift, no server in the path. Web was
 the exception until 2026-09-20 — the same features had a second, remote
 datasource pointed at our Dart `server/` — and that server is retired, those
 datasources deleted
-([`move-web-onto-drift.md`](../retiring-dart-server/move-web-onto-drift.md)).
+([`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md)).
 
 **RAG is the one exception.** No client can ever call Gemini directly (the API
 key must stay server-side) and the File Search index lives in Google's cloud.

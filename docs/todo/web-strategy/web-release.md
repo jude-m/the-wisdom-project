@@ -170,7 +170,7 @@ browser downloads `bjt.db` and `dict.db` into its own file system and reads them
 through Drift, the way native reads its copies. There is no web-only datasource
 left, and `server/` and the Windows-box deploy are in `deprecated/`. What
 remains here is the host's half, below —
-[`move-web-onto-drift.md`](../retiring-dart-server/move-web-onto-drift.md) (step
+[`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md) (step
 3 of [`retiring-dart-server/README.md`](../retiring-dart-server/README.md)) owns
 the app's, and its step 8 has two failure paths left to try by hand.
 
@@ -200,7 +200,9 @@ the app's, and its step 8 has two failure paths left to try by hand.
   run does. A build for Pages without this is ~350 MB of assets.
 - **No `immutable` rule on the app's `/assets/*`**, unlike the static site.
   Flutter's asset URLs carry no hash, so a cached old manifest would pair a new
-  app with an old database. Pages' default (revalidate) is right.
+  app with an old database, and a cached old `tree.json` or `sc-to-bjt.json`
+  would outlive the build that changed it. Pages' default (revalidate) is
+  right: a changed file is fetched, an unchanged one costs a 304.
 - **One R2 file per database version**, named like its OPFS folder:
   `bjt-<first 16 hex of SHA-256>.db.gz`. Upload it before deploying the app,
   never overwrite it, and keep old ones — a tab on the old build may still be

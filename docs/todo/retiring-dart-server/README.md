@@ -13,10 +13,6 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
   Drift. Now the keystone; the top banner carries the decisions and the current
   step, and **What the Drift/wasm spike changed** carries what moved after the
   spike.
-- **`move-web-onto-drift.md`** — web reads the same databases in the browser, with
-  no server. Was step 11 of the content-DB plan. It also carries how a rebuilt
-  database reaches a browser that already has the old one: the version rides with
-  the web build, so update, eviction recovery and first install are one path.
 
 ## Order of operations
 
@@ -31,9 +27,9 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
    all done 2026-09-18: the app is on Drift and ships no JSON. The device
    pass that was step 10 is in
    [`first-mobile-release.md`](../mobile-release/first-mobile-release.md).
-3. **Move web onto Drift** (wasm + OPFS) — the same datasources, reading a database
-   downloaded once rather than bundled:
-   [`move-web-onto-drift.md`](./move-web-onto-drift.md).
+3. ~~**Move web onto Drift** (wasm + OPFS).~~ **DONE 2026-09-23.** The same
+   datasources, reading a database downloaded once rather than bundled:
+   [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md).
 4. **Host Flutter web statically** —
    [`web-release.md`](../web-strategy/web-release.md) §6. Step 3 already deletes
    the web remote datasources, and moved `server/` — with the three
@@ -62,3 +58,8 @@ The research (RAG) server stays as the one scale-to-zero backend; notes → Fire
 
 - `../serverless-deployment-decision.md` — hinge now dissolved (banner at top).
 - `../../done/client-server-architecture-for-web.md` — the server being retired.
+- `../../done/retiring-dart-server/move-web-onto-drift.md` — web reads the same
+  databases in the browser, with no server; done 2026-09-23. It also carries how
+  a rebuilt database reaches a browser that already has the old one: the version
+  rides with the web build, so update, eviction recovery and first install are
+  one path.

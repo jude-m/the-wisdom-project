@@ -12,8 +12,8 @@ import '../widgets/common/status_message_view.dart';
 /// How long a start stays blank before the screen says anything.
 ///
 /// A reload has nothing to download, but it still passes through
-/// [DatabaseInstallPhase.checking] while the browser is probed and old
-/// versions are swept. Without this the screen would flash a line it takes
+/// [DatabaseInstallPhase.checking] while the manifest is fetched and the
+/// stamps are read. Without this the screen would flash a line it takes
 /// straight back.
 const Duration _quietStart = Duration(milliseconds: 400);
 
@@ -21,7 +21,7 @@ const Duration _quietStart = Duration(milliseconds: 400);
 /// the browser and the operating system report.
 const int _bytesPerMb = 1000000;
 
-/// Covers the app until the database it cannot start without is installed.
+/// Covers the app until its databases are installed.
 ///
 /// Only web installs anything — it downloads its databases on a first visit.
 /// On native [DatabaseInstallation] is ready from the first frame, so [child]
@@ -33,8 +33,7 @@ class DatabaseInstallGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Reading it starts the install; only the blocking database's status
-    // arrives here, so a dictionary still downloading never covers the app.
+    // Reading it starts the install.
     final status = ref.watch(databaseInstallProvider);
     if (status.phase == DatabaseInstallPhase.ready) return child;
     return DatabaseInstallScreen(
@@ -121,6 +120,9 @@ class _Progress extends StatelessWidget {
     final String? progress = fraction == null
         ? null
         : l10n.databaseInstallProgress(
+            // Floored, so 100% means every byte is in. Opening the databases
+            // and fetching the tree follow, with the bar full.
+            (fraction * 100).floor(),
             status.received ~/ _bytesPerMb,
             status.total ~/ _bytesPerMb,
           );
@@ -155,9 +157,7 @@ class _Progress extends StatelessWidget {
               ],
               const SizedBox(height: 16),
               Text(
-                // Every database together, not the one the bar is on: what a
-                // first visit costs is worth knowing before it is spent.
-                l10n.databaseInstallDescription(status.allTotal ~/ _bytesPerMb),
+                l10n.databaseInstallDescription,
                 style: typography.resultSubtitle,
                 textAlign: TextAlign.center,
               ),

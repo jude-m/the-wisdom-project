@@ -54,36 +54,33 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('shows the download at once, with megabytes and a fraction',
+    testWidgets(
+        'shows the download at once, with the overall percentage and megabytes',
         (tester) async {
       await _pumpScreen(
         tester,
         const DatabaseInstallStatus(
           phase: DatabaseInstallPhase.installing,
-          database: 'bjt.db',
           received: 42000000,
-          total: 179093504,
+          total: 351035392,
         ),
       );
 
       // No quiet start for a download: it has already begun.
       expect(find.text('Downloading the texts'), findsOneWidget);
-      expect(find.text('42 MB of 179 MB'), findsOneWidget);
+      expect(find.text('11% · 42 MB of 351 MB'), findsOneWidget);
 
       final bar = tester.widget<LinearProgressIndicator>(
         find.byType(LinearProgressIndicator),
       );
-      expect(bar.value, closeTo(42000000 / 179093504, 0.0001));
+      expect(bar.value, closeTo(42000000 / 351035392, 0.0001));
     });
 
     testWidgets('leaves the bar indeterminate until the size is known',
         (tester) async {
       await _pumpScreen(
         tester,
-        const DatabaseInstallStatus(
-          phase: DatabaseInstallPhase.installing,
-          database: 'bjt.db',
-        ),
+        const DatabaseInstallStatus(phase: DatabaseInstallPhase.installing),
       );
 
       final bar = tester.widget<LinearProgressIndicator>(
@@ -101,7 +98,6 @@ void main() {
         tester,
         const DatabaseInstallStatus(
           phase: DatabaseInstallPhase.failed,
-          database: 'bjt.db',
           failure: DatabaseInstallFailure(
             DatabaseInstallFailureKind.download,
             'GET bjt.db returned 404 Not Found',
@@ -150,7 +146,6 @@ void main() {
         tester,
         const DatabaseInstallStatus(
           phase: DatabaseInstallPhase.failed,
-          database: 'bjt.db',
           failure: DatabaseInstallFailure(
             DatabaseInstallFailureKind.outOfSpace,
             'There is not enough space on this device for the texts.',
@@ -164,7 +159,7 @@ void main() {
   });
 
   group('DatabaseInstallGate', () {
-    testWidgets('shows the app when the database is ready — native always is',
+    testWidgets('shows the app when the databases are ready — native always is',
         (tester) async {
       await tester.pumpApp(
         const DatabaseInstallGate(child: Text('the app')),
@@ -174,7 +169,7 @@ void main() {
       expect(find.byType(DatabaseInstallScreen), findsNothing);
     });
 
-    testWidgets('covers the app while the database is installing, and lifts',
+    testWidgets('covers the app while the databases install, and lifts',
         (tester) async {
       final notifier = _FakeInstallNotifier();
       await tester.pumpApp(
@@ -185,9 +180,8 @@ void main() {
       notifier.emit(
         const DatabaseInstallStatus(
           phase: DatabaseInstallPhase.installing,
-          database: 'bjt.db',
           received: 1000000,
-          total: 179093504,
+          total: 351035392,
         ),
       );
       await tester.pump();
@@ -196,10 +190,7 @@ void main() {
       expect(find.text('Downloading the texts'), findsOneWidget);
 
       notifier.emit(
-        const DatabaseInstallStatus(
-          phase: DatabaseInstallPhase.ready,
-          database: 'bjt.db',
-        ),
+        const DatabaseInstallStatus(phase: DatabaseInstallPhase.ready),
       );
       await tester.pump();
 

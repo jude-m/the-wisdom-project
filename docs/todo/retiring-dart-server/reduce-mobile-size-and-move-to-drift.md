@@ -8,7 +8,7 @@
 > and a stamp (step 7). **The JSON no longer ships** (step 9): 340 MiB off the
 > macOS release bundle, 733 → 393 MiB, with the files kept in the repo for the
 > build-time readers. **Next: step 11, web**, which is its own plan now:
-> [`move-web-onto-drift.md`](./move-web-onto-drift.md). Two deletions
+> [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md). Two deletions
 > from step 5 are deliberately still open: see **Left open after step 5**. A
 > compression sample stays optional (**Compression sample — optional, later**).
 >
@@ -568,7 +568,7 @@ the same build pipeline, one in the same datasource.
    tie produces under overfetch + `_limitToGroups`, and the engine then changed
    under it.
 2. **~~Dictionary prefix lookup full-scans 175 MB on every word tap~~ — fixed
-   2026-09-19, step 1 of [`move-web-onto-drift.md`](./move-web-onto-drift.md).**
+   2026-09-19, step 1 of [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md).**
    The three queries in `lib/data/datasources/dictionary_local_datasource.dart`
    used `LIKE ? ESCAPE '\'`, which never uses `idx_word`: 133 ms natively, and
    over OPFS the whole file through a JS callback. They are now
@@ -600,7 +600,7 @@ the same build pipeline, one in the same datasource.
   config. **Settled 2026-09-20:** no screen calls `getSuggestions`, so the
   whole path went — the repositories, the datasources, `FTSSuggestion` and the
   populate script's word counting — in step 5 of
-  [`move-web-onto-drift.md`](./move-web-onto-drift.md).
+  [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md).
 
 ### What it did not change
 
@@ -1072,7 +1072,7 @@ CREATE TABLE bjt_content (
      journal (header bytes 18/19 = 1), so SQLite never creates `-wal`, `-shm`
      or `-journal` for them. None existed after the suites ran.
    - **Web uses the same fingerprint.**
-     [`move-web-onto-drift.md`](./move-web-onto-drift.md) reads this manifest
+     [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md) reads this manifest
      in the browser; the hash names each version's OPFS folder and its file on
      R2. No web code now.
    - **Nothing checks the manifest against the files yet.** The app trusts
@@ -1369,7 +1369,7 @@ CREATE TABLE bjt_content (
     [`first-mobile-release.md`](../mobile-release/first-mobile-release.md),
     with everything else a mobile release waits on.
 11. **Web onto Drift — moved 2026-09-18** to
-    [`move-web-onto-drift.md`](./move-web-onto-drift.md), its own plan.
+    [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md), its own plan.
 
 ### What the snippet path lost at step 8
 
@@ -1518,7 +1518,7 @@ through Drift. It goes with the server; do not repoint it at `bjt_content`.
 ## Related
 
 - [`README.md`](./README.md) — the parent plan: retiring the Dart content server.
-- [`move-web-onto-drift.md`](./move-web-onto-drift.md) — step 11 as its own
+- [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md) — step 11 as its own
   plan: web reads these databases in the browser, and how a rebuilt DB reaches
   a browser that already has the old one (answered: with the build).
 - `docs/general/how_search_works.md` — the search pipeline (Step 5 reads JSON).

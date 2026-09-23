@@ -69,7 +69,7 @@ estimate. None came out of an APK or IPA.
   databases ship inside the APK/IPA. Two ways would take the install to a few
   megabytes, with a first-run fetch from R2, where egress is free:
   - the web's installer
-    ([`move-web-onto-drift.md`](../retiring-dart-server/move-web-onto-drift.md)):
+    ([`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md)):
     the build's manifest names each database, fetched once from R2
   - the store-native options, Play Asset Delivery and iOS On-Demand Resources
 

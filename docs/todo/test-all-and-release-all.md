@@ -105,7 +105,7 @@ Chromedriver is fetched on demand, matched to the installed Chrome's major
 version, and always run with `--enable-chrome-logs`: on web `flutter drive`
 reports a failure as a bare `Failure in method: <name>`, and the reason is only
 in the browser console. The whole suite passed in Chrome on 2026-09-22
-([`move-web-onto-drift.md`](retiring-dart-server/move-web-onto-drift.md) step 8),
+([`move-web-onto-drift.md`](../done/retiring-dart-server/move-web-onto-drift.md) step 8),
 which needed `tester.enterText` replaced by `typeText` in
 `integration_test/test_overrides.dart` — the platform text-input channel the
 harness mocks never delivers on web.
@@ -298,7 +298,7 @@ the default host is `any` (`0.0.0.0`). Content is back with web Drift on
 `feat/move-web-onto-drift`; `web_dev_config.yaml` already exists at the repo
 root and the server already sends its COOP/COEP headers on every response,
 `--release` included (verified 2026-09-20,
-[`move-web-onto-drift.md`](retiring-dart-server/move-web-onto-drift.md)).
+[`move-web-onto-drift.md`](../done/retiring-dart-server/move-web-onto-drift.md)).
 
 Then repoint every live mention of a moved file, `.dev.vars`, `.prod.env`, or
 the Windows box's port 8081:
@@ -343,7 +343,7 @@ the secrets in step 1.
    placeholder deploys.
 
    **Done early, 2026-09-20**, by
-   [`move-web-onto-drift.md`](retiring-dart-server/move-web-onto-drift.md)
+   [`move-web-onto-drift.md`](../done/retiring-dart-server/move-web-onto-drift.md)
    steps 5 and 7, because retiring the Dart server could not wait for this
    plan: `server/` is in `deprecated/server/` and the three Windows-box files
    in `deprecated/scripts-web/`; `server` is out of

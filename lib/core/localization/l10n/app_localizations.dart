@@ -932,17 +932,17 @@ abstract class AppLocalizations {
   /// **'{count, plural, other{{count} days ago}}'**
   String relativeTimeDaysAgo(int count);
 
-  /// Headline of the first-visit screen while the browser downloads the Tipitaka database
+  /// Headline of the first-visit screen while the browser downloads the texts and the dictionary
   ///
   /// In en, this message translates to:
   /// **'Downloading the texts'**
   String get databaseInstallTitle;
 
-  /// Explanation under the first-visit progress bar: what the whole download costs, and why it is happening. The bar above tracks one database at a time, so this total is larger than the one beside it
+  /// Explanation under the first-visit progress bar: why the download is happening, and that the app waits for all of it
   ///
   /// In en, this message translates to:
-  /// **'The texts and the dictionary come to about {total} MB. They are saved on this device, so they open quickly and work without an internet connection. This happens once.'**
-  String databaseInstallDescription(int total);
+  /// **'The texts and the dictionary are saved on this device, so they open quickly and work without an internet connection. The app opens when the download finishes.'**
+  String get databaseInstallDescription;
 
   /// Shown on the first-visit screen while the browser is checked and old copies are swept, before any download starts
   ///
@@ -950,11 +950,11 @@ abstract class AppLocalizations {
   /// **'Getting ready…'**
   String get databaseInstallPreparing;
 
-  /// Progress under the first-visit download bar, in megabytes
+  /// Progress under the first-visit download bar, over every database together: a whole percentage, then megabytes
   ///
   /// In en, this message translates to:
-  /// **'{received} MB of {total} MB'**
-  String databaseInstallProgress(int received, int total);
+  /// **'{percent}% · {received} MB of {total} MB'**
+  String databaseInstallProgress(int percent, int received, int total);
 
   /// First-visit failure title when the browser lacks the storage features the databases need
   ///

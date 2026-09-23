@@ -475,16 +475,15 @@ class AppLocalizationsSi extends AppLocalizations {
   String get databaseInstallTitle => 'පෙළ බාගත වෙමින් පවතී';
 
   @override
-  String databaseInstallDescription(int total) {
-    return 'පෙළ සහ ශබ්දකෝෂය සඳහා MB $total ක් පමණ අවශ්‍ය වේ. ඒවා මෙම උපාංගයේ ගබඩා වේ. එවිට ඉක්මනින් විවෘත වන අතර අන්තර්ජාලය නැතිවද භාවිතා කළ හැකිය. මෙය සිදුවන්නේ එක් වරක් පමණි.';
-  }
+  String get databaseInstallDescription =>
+      'පෙළ සහ ශබ්දකෝෂය මෙම උපාංගයේ ගබඩා වේ. එවිට ඉක්මනින් විවෘත වන අතර අන්තර්ජාලය නැතිවද භාවිතා කළ හැකිය. බාගත කිරීම අවසන් වූ පසු යෙදුම විවෘත වේ.';
 
   @override
   String get databaseInstallPreparing => 'සූදානම් වෙමින්…';
 
   @override
-  String databaseInstallProgress(int received, int total) {
-    return 'MB $total න් MB $received';
+  String databaseInstallProgress(int percent, int received, int total) {
+    return '$percent% · MB $total න් MB $received';
   }
 
   @override

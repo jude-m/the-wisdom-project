@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -26,17 +27,18 @@ void main() async {
   // Initialize SharedPreferences for search history
   final sharedPrefs = await SharedPreferences.getInstance();
 
-  // Quick validation: the build's manifest has an entry for bjt.db (a build
-  // missing either file fails to build). Reads the manifest, not the
-  // database: on Android loading the database would inflate the whole file,
-  // and on web the manifest is the only part that ships — the database itself
-  // is downloaded on the first visit.
-  try {
-    await databaseManifestEntry('bjt.db');
-  } catch (e) {
-    // No usable entry - show why and exit
-    runApp(_DatabaseMissingError('$e'));
-    return;
+  // Native only: the manifest ships inside the app, so a missing entry means a
+  // broken build. Reads the manifest, not the database, which on Android would
+  // inflate the whole file. Web fetches the manifest over the network and the
+  // installer reads it first, so a failure there gets the install screen and
+  // its "Try again".
+  if (!kIsWeb) {
+    try {
+      await databaseManifestEntry('bjt.db');
+    } catch (e) {
+      runApp(_DatabaseMissingError('$e'));
+      return;
+    }
   }
 
   runApp(

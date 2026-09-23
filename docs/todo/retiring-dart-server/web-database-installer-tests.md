@@ -1,7 +1,7 @@
 # Web Database Installer — Test Proposal
 
 Handover for a test-writing agent. Covers step 4 of
-[`move-web-onto-drift.md`](./move-web-onto-drift.md): how the browser gets its
+[`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md): how the browser gets its
 copy of `bjt.db` and `dict.db` and opens it. Read step 4 first. It is the web
 twin of
 [`bundled-database-copy-tests.md`](./bundled-database-copy-tests.md), and the
@@ -10,29 +10,39 @@ same rules apply.
 ## What is under test
 
 - **`web_database_installer.dart`** — `WebDatabaseInstaller.instance`.
-  - `_prepare()`, once per tab: reads both manifest entries, probes for
-    `opfsLocks` **and** `FileSystemFileHandle.prototype.createWritable`, throws
-    `DatabaseInstallFailure(unsupportedBrowser)` when either is missing and
-    before anything is downloaded, asks for persistent storage, takes a shared
-    `wisdom-db-in-use:<db>-<sha16>` lock per database for the tab's life, then
-    deletes the versions of `bjt`/`dict` nothing holds.
-  - `_install(db)`: under an exclusive `wisdom-db-download:<db>-<sha16>`,
-    returns at once when `install.sha256` in the folder already holds the
-    build's hash; otherwise streams the response into `database` and writes the
+  - **All or nothing.** `start()` installs every database, then opens both
+    through `LocalDatabase.open` and loads `tree.json` and `sc-to-bjt.json`
+    into `rootBundle`, and only then reports `ready`. A reload whose stamps all
+    match reports `ready` before the probe and skips the opening and loading.
+  - `_prepare()`, once per install: probes for `opfsLocks` **and**
+    `FileSystemFileHandle.prototype.createWritable`, and when either is
+    missing throws before anything is downloaded — `download` if the drift
+    worker did not start, `outOfSpace` if the storage estimate is short of the
+    manifest's bytes, `unsupportedBrowser` otherwise. Then it asks for
+    persistent storage, takes a shared
+    `wisdom-db-in-use:<db>-<sha16>` lock per database for the tab's life (once,
+    even across retries), then deletes the versions of `bjt`/`dict` nothing
+    holds.
+  - `_install()`: after `_prepare()`, downloads each database whose stamp is
+    missing, one at a time, each under an exclusive
+    `wisdom-db-download:<db>-<sha16>`. Inside the lock it returns at once when
+    `install.sha256` already holds the build's hash (another tab finished
+    it); otherwise it streams the response into `database` and writes the
     stamp last. A byte count that does not match the manifest removes the
-    folder and throws. Downloads run one at a time.
-  - `open(db)` refuses a name outside `databases`, then waits for `_prepare()`
-    and that database's install and opens `opfsLocks` with
-    `enableMigrations: false`. A failed install throws on every `open` until
-    `retry()`.
-  - `retry()` forgets the failed installs and starts again, except an
-    unsupported browser, which it leaves alone.
+    folder and throws.
+  - `open(db)` refuses a name outside `databases`, then waits for `_install()`
+    and opens `opfsLocks` with `enableMigrations: false`. A failed install
+    throws on every `open` until `retry()`.
+  - `retry()` starts again from the top, except for an unsupported browser,
+    which it leaves alone. It never takes the reload shortcut.
   - `status` / `changes` report `checking → installing → ready`, or `failed`
     with a `DatabaseInstallFailure` whose `kind` is what a first-visit screen
-    branches on. Status is **per database**: `status` is `bjt.db`'s, and each
-    change carries its own `database` and a `blocking` flag.
-- **`local_database_executor_web.dart`** — `openLocalExecutor` starts the
-  installer and returns `open(dbName)`; it never downloads by itself.
+    branches on. **One status for the whole install:** `received` and `total`
+    count bytes over every database this start downloads.
+- **`local_database_executor_web.dart`** — `openLocalExecutor` returns the
+  installer's `open(dbName)`. `open` starts the downloads itself when nothing
+  has yet; only `start()` (the gate) reports `ready` or `failed`, and opens
+  and fetches.
 - **`database_install_status.dart`** — the status types, platform-neutral, and
   **`database_installation.dart`** — the conditional export the first-visit
   screen imports: `DatabaseInstallation` delegates to the installer on web and
@@ -96,16 +106,19 @@ Numbered so a later doc can cite them.
 8. After a failed install, `open` throws at once rather than downloading
    again; after `retry()` it waits for the new attempt.
 9. `status`/`changes` walk `checking → installing → ready`, `received` never
-   exceeds `total`, and the last `installing` reports the whole file rather
-   than stopping a part-megabyte short.
-10. A failed `dict.db` leaves `status` (`bjt.db`'s) `ready`: only a change with
-    `blocking` true covers the app.
+   exceeds `total`, and the last `installing` reports every byte rather than
+   stopping a part-megabyte short.
+10. With `bjt.db` stamped and `dict.db` not, `total` is `dict.db`'s bytes
+    alone, and `status` is not `ready` until `dict.db` is in.
+11. A failure after the downloads (a `tree.json` fetch that fails) leaves
+    `status` `failed`, and `retry()` fetches it again rather than reporting
+    `ready` off the stamps.
 
 ## Already verified by hand
 
 Chrome 2026-09-20, headless, release build, against the real databases —
 covered here so a test does not have to prove them twice, but not a substitute
-for 1–10:
+for 1–11:
 
 - First visit installed `bjt.db` (179,093,504 bytes) then `dict.db`
   (171,941,888 bytes), both at exactly the manifest counts, and the reader,

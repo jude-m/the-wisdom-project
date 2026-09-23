@@ -19,8 +19,15 @@ typedef DatabaseManifestEntry = ({String sha256, int bytes});
 /// [dbName]'s entry in this build's manifest. Throws a [StateError] naming the
 /// command to run when the manifest has no usable entry.
 Future<DatabaseManifestEntry> databaseManifestEntry(String dbName) async {
-  final manifest =
-      jsonDecode(await rootBundle.loadString(_manifestAsset)) as Map;
+  final String text;
+  try {
+    text = await rootBundle.loadString(_manifestAsset);
+  } catch (_) {
+    // rootBundle caches a failed load too, so "try again" would replay it.
+    rootBundle.evict(_manifestAsset);
+    rethrow;
+  }
+  final manifest = jsonDecode(text) as Map;
   final entry = manifest[dbName] as Map?;
   final sha256 = entry?['sha256'];
   final bytes = entry?['bytes'];

@@ -474,16 +474,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get databaseInstallTitle => 'Downloading the texts';
 
   @override
-  String databaseInstallDescription(int total) {
-    return 'The texts and the dictionary come to about $total MB. They are saved on this device, so they open quickly and work without an internet connection. This happens once.';
-  }
+  String get databaseInstallDescription =>
+      'The texts and the dictionary are saved on this device, so they open quickly and work without an internet connection. The app opens when the download finishes.';
 
   @override
   String get databaseInstallPreparing => 'Getting ready…';
 
   @override
-  String databaseInstallProgress(int received, int total) {
-    return '$received MB of $total MB';
+  String databaseInstallProgress(int percent, int received, int total) {
+    return '$percent% · $received MB of $total MB';
   }
 
   @override
