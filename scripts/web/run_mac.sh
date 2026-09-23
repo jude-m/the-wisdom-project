@@ -23,10 +23,19 @@
 # Debug is the default (kDebugMode true, debugPrint visible in the browser
 # DevTools console at F12 → Console), matching the native run scripts.
 #
+# Reloading the browser does not rebuild: it re-serves the JS this run last
+# compiled. Press R here after a Dart change. An "unhandled error in the
+# injected client.js" in the console is dwds' debug channel rather than the
+# app, but a hot restart may stop applying after one — restart this script.
+#
 # --profile builds with --profile. Use this for performance measurement:
 # realistic frame timings (debug is far slower and not representative) while
 # still allowing Chrome DevTools profiling. Pair it with Chrome DevTools →
 # Performance → CPU 6× throttle to emulate an older machine.
+#
+# Startup and reload time belong here too, not in debug: the debug bundle is
+# megabytes of unoptimised JS and source map, served uncached and wrapped in
+# the injected client. A reload that feels slow in debug is usually that.
 #
 # --release is the production-equivalent bundle (smaller, fastest) when you
 # need to sanity-check the real deployed build locally.

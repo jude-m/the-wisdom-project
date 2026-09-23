@@ -94,6 +94,16 @@ class WebDatabaseInstaller {
   /// Idempotent, and it never throws: failures land in [status] for the screen
   /// to show, and in [open] for the caller that needed the database.
   Future<void> start() async {
+    // Asked before _prepare(), because a reload can answer it in one OPFS read
+    // while preparation costs two workers and a wasm module. Preparation still
+    // runs — open() waits for it — but the app is on screen by then instead of
+    // behind the first-visit screen. Only from `checking`: every later start()
+    // has its answer already.
+    final blocking = databases.first;
+    if (_statuses[blocking]!.phase == DatabaseInstallPhase.checking &&
+        await _alreadyInstalled(blocking)) {
+      _emit(_statusFor(blocking, DatabaseInstallPhase.ready));
+    }
     try {
       await _prepare();
       await _install(databases.first);
@@ -338,6 +348,27 @@ class WebDatabaseInstaller {
   // ---------------------------------------------------------------------------
   // Installing
   // ---------------------------------------------------------------------------
+
+  /// Whether [dbName] is already installed at the version this build wants.
+  ///
+  /// The stamp is written last, so it standing for the manifest's hash means
+  /// the download finished — the same test [_runInstall] makes, without the
+  /// preparation in front of it. False on anything unexpected: the full path
+  /// behind this reports what went wrong.
+  Future<bool> _alreadyInstalled(String dbName) async {
+    try {
+      final entry = _manifest[dbName] ??= await databaseManifestEntry(dbName);
+      final drift = await _driftRoot();
+      // Not `create: true`: a missing folder is the answer here, not something
+      // to make.
+      final folder = await drift
+          .getDirectoryHandle(_opfsName(dbName, entry.sha256))
+          .toDart;
+      return await _readStamp(folder) == entry.sha256;
+    } catch (_) {
+      return false;
+    }
+  }
 
   Future<void> _install(String dbName) {
     return _installs[dbName] ??= () {
