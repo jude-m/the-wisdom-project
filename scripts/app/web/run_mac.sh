@@ -2,11 +2,11 @@
 # Build and serve The Wisdom Project for web testing on macOS.
 #
 # Usage:
-#   ./scripts/web/run_mac.sh             # debug build (default)
-#   ./scripts/web/run_mac.sh --debug     # same as above
-#   ./scripts/web/run_mac.sh --profile   # profile build (perf measurement)
-#   ./scripts/web/run_mac.sh --release   # release build (production-equivalent)
-#   ./scripts/web/run_mac.sh [--port 8080] [--clean]
+#   ./scripts/app/web/run_mac.sh             # debug build (default)
+#   ./scripts/app/web/run_mac.sh --debug     # same as above
+#   ./scripts/app/web/run_mac.sh --profile   # profile build (perf measurement)
+#   ./scripts/app/web/run_mac.sh --release   # release build (production-equivalent)
+#   ./scripts/app/web/run_mac.sh [--port 8080] [--clean]
 #
 # Flutter's own dev server builds and serves in one command; there is no Dart
 # server any more. The app downloads bjt.db and dict.db into the browser's
@@ -51,23 +51,7 @@ PORT=8080
 BUILD_MODE="debug"
 CLEAN=false
 
-# Research backend baked into the web build (a compile-time constant read via
-# String.fromEnvironment). Always the deployed Cloudflare Worker by default; an
-# exported RESEARCH_BASE_URL wins.
-#
-# CORS CAVEAT (web only): the browser enforces the Worker's CORS allow-list
-# (RESEARCH_CORS_ORIGINS in research_server/wrangler.jsonc). It lists
-# http://localhost:8080, the default here; with another --port, research calls
-# are CORS-blocked until that origin is added and the Worker redeployed. Native
-# platforms don't hit this — only the browser does.
-RESEARCH_BASE_URL="${RESEARCH_BASE_URL:-https://wisdom-research.bk-anigha.workers.dev}"
-
-# The header above is the --help text, to the sentinel; the idiom the static-site
-# scripts use (docs/decisions/static-web-hosting.md), so an edit can't desync it.
-usage() {
-  sed -n '2,/^# END-USAGE$/p' "$0" | sed 's/^# \{0,1\}//; /^END-USAGE$/d'
-  exit 0
-}
+. "$(dirname "$0")/../../lib/common.sh"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -88,15 +72,25 @@ while [[ $# -gt 0 ]]; do
       usage
       ;;
     *)
-      echo "Unknown option: $1"
-      echo "Run with --help for usage."
+      echo "Unknown option: $1" >&2
+      echo "Run with -h for help." >&2
       exit 1
       ;;
   esac
 done
 
-# Project root is two levels up: scripts/web/ -> scripts/ -> project.
-cd "$(dirname "$0")/../.."
+# Research backend baked into the web build (a compile-time constant read via
+# String.fromEnvironment). The deployed Worker by default; an exported
+# RESEARCH_BASE_URL wins.
+#
+# CORS CAVEAT (web only): the browser enforces the Worker's CORS allow-list
+# (RESEARCH_CORS_ORIGINS in research_server/wrangler.jsonc). It lists
+# http://localhost:8080, the default here; with another --port, research calls
+# are CORS-blocked until that origin is added and the Worker redeployed. Native
+# platforms don't hit this — only the browser does.
+RESEARCH_BASE_URL="${RESEARCH_BASE_URL:-$(target RESEARCH_BASE_URL)}"
+
+cd "$WISDOM_ROOT"
 
 if [ "$CLEAN" = true ]; then
   echo "Cleaning build artifacts..."

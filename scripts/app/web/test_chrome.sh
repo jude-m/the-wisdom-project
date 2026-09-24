@@ -2,12 +2,12 @@
 # Run the integration test suite against the web build in Chrome, on macOS.
 #
 # Usage:
-#   ./scripts/web/test_chrome.sh                       # every file, release, headless
-#   ./scripts/web/test_chrome.sh in_page_search_test   # one file (name or path)
-#   ./scripts/web/test_chrome.sh --show                # watch it in a visible window
-#   ./scripts/web/test_chrome.sh --debug               # debug build (slower, heavier)
-#   ./scripts/web/test_chrome.sh [--port 8091] [--driver-port 4444]
-#                                [--first-visit] [-h]
+#   ./scripts/app/web/test_chrome.sh                       # every file, release, headless
+#   ./scripts/app/web/test_chrome.sh in_page_search_test   # one file (name or path)
+#   ./scripts/app/web/test_chrome.sh --show                # watch it in a visible window
+#   ./scripts/app/web/test_chrome.sh --debug               # debug build (slower, heavier)
+#   ./scripts/app/web/test_chrome.sh [--port 8091] [--driver-port 4444]
+#                                    [--first-visit] [-h]
 #
 # macOS runs the same suite with `flutter test integration_test/all_tests.dart
 # -d macos` — one app launch for every file. The web cannot do that: `flutter
@@ -47,10 +47,7 @@ DRIVER_PORT=4444
 FIRST_VISIT=false
 ONLY=""
 
-usage() {
-  sed -n '2,/^# END-USAGE$/p' "$0" | sed 's/^# \{0,1\}//; /^END-USAGE$/d'
-  exit 0
-}
+. "$(dirname "$0")/../../lib/common.sh"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -60,13 +57,12 @@ while [[ $# -gt 0 ]]; do
     --show) HEADLESS=""; shift ;;
     --first-visit) FIRST_VISIT=true; shift ;;
     -h|--help) usage ;;
-    -*) echo "Unknown option: $1"; echo "Run with --help for usage."; exit 1 ;;
+    -*) echo "Unknown option: $1" >&2; echo "Run with -h for help." >&2; exit 1 ;;
     *) ONLY="$1"; shift ;;
   esac
 done
 
-# Project root is two levels up: scripts/web/ -> scripts/ -> project.
-cd "$(dirname "$0")/../.."
+cd "$WISDOM_ROOT"
 
 if [ ! -f test_driver/integration_test.dart ]; then
   echo "test_driver/integration_test.dart is missing — flutter drive needs it."

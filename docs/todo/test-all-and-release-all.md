@@ -4,8 +4,8 @@
 > project, one builds and releases it, and every product can do both on its own.
 > CI then becomes one line per job. **In progress on branch
 > `feat/test-all-and-release-all` (off `main`), one step at a time, you commit:
-> steps 1–3 done 2026-09-23, uncommitted; step 4 next.** Still yours: copy the
-> secrets into `scripts/config/secrets.env` (step 1).
+> steps 1–3 committed; step 4 done 2026-09-24, uncommitted; step 5 next.**
+> Still yours: copy the secrets into `scripts/config/secrets.env` (step 1).
 
 ## The principle
 
@@ -77,17 +77,16 @@ working. `run.bat` cannot source a bash file and keeps its own default.
 
 | step | command | `--quick` |
 |---|---|---|
-| format | `dart format --output=none --set-exit-if-changed lib test integration_test tools packages/wisdom_shared` | ✓ |
-| analyze | `flutter analyze` over the same folders | ✓ |
-| generated code is current | hash the generated files, run `build_runner build` and `flutter gen-l10n`, fail if a hash changed. Before/after hashes, not `git diff`, so a fresh but uncommitted regen passes | ✓ |
+| format | `dart format --output=none --set-exit-if-changed lib test integration_test test_driver tools packages/wisdom_shared` | ✓ |
+| generated code is current | hash the generated files git keeps, run `build_runner build` and `flutter gen-l10n`, fail if a hash changed. Before/after hashes, not `git diff`, so a fresh but uncommitted regen passes. The gitignored Mockito output is not hashed, so a fresh clone isn't "stale" | ✓ |
+| analyze | `flutter analyze` over the same folders. After the regen, because the tests import the Mockito output a fresh clone lacks | ✓ |
 | unit + widget | `flutter test` | ✓ |
 | wisdom_shared | `dart test` in `packages/wisdom_shared` | ✓ |
-| shipped databases | exist, SQLite magic, not WAL-flagged (from `validate-release.sh`); each file's SHA-256 equals its entry in `assets/databases/manifest.json`, since phones keep their old copy of a database changed outside `tools/db-finalize.js` | – built, not committed |
+| shipped databases | the manifest names at least one; each exists, SQLite magic, not WAL-flagged (from `validate-release.sh`); each file's SHA-256 equals its entry in `assets/databases/manifest.json`, since phones keep their old copy of a database changed outside `tools/db-finalize.js` | – built, not committed |
 | integration · macOS | `flutter test integration_test/all_tests.dart -d macos`, then `integration_test/bundled_database_copy_test.dart` the same way — it swaps a database file, so it can't share the suite's one app launch ([proposal](./retiring-dart-server/bundled-database-copy-tests.md)) | – needs macOS and the databases |
 | integration · Chrome | `app/web/test_chrome.sh` — the `all_tests.dart` files, in a browser | – needs Chrome and the databases |
 
-`a3f6c46` formatted every Dart package once. If the format gate is red by step
-4, format in a commit of its own first.
+`a3f6c46` formatted every Dart package once.
 
 **`test_chrome.sh` is a helper of `app/test.sh`, not a product gate**, which is
 why it is not called `test.sh`: `app/web/` is one of the app's targets, and the
@@ -204,9 +203,9 @@ The keys themselves are in the files (built in step 1).
   vars, placement and CORS list from it; no secret goes in it. Step 4 drops the
   Windows box from its CORS list and keeps `http://localhost:8080` for the local
   web host.
-- **Two live changes.** The first research deploy after step 1 uploads the
-  Worker's secrets from `secrets.env`; the first after step 4 drops the Windows
-  origin. Deploy knowingly.
+- **Two live changes, one deploy, in step 6.** The research deploy uploads the
+  Worker's secrets from `secrets.env` and drops the Windows origin. It waits for
+  step 6 and your go-ahead.
 
 ## The two project-level scripts
 
@@ -333,7 +332,10 @@ the secrets in step 1.
    placeholder. **Done 2026-09-23.** `--quick` is accepted and runs the same
    typecheck.
 4. **`scripts/app/`.** Move the run scripts, write `app/test.sh`, add the four
-   placeholder deploys.
+   placeholder deploys. **Done 2026-09-24.** The full gate and `--quick` both
+   pass, and each placeholder exits 3. `bundled_database_copy_test.dart` isn't
+   written yet, so the gate skips it and says so under the summary; once it
+   exists, drop that `if`.
 
    **Partly done early, 2026-09-20**, by
    [`move-web-onto-drift.md`](../done/retiring-dart-server/move-web-onto-drift.md)
@@ -341,14 +343,12 @@ the secrets in step 1.
    plan: `server/` is in `deprecated/server/` and the three Windows-box files
    in `deprecated/scripts-web/`; `server` is out of
    `check-dart-packages.sh`, which passes again; and `run_mac.sh` is rewritten
-   to serve through Flutter's own server (**Moves**). `run_mac.sh` and
-   `test_chrome.sh` are both still in `scripts/web/` until this step moves them.
-   Left for this step: the move to `scripts/app/`, `app/test.sh` calling
-   `test_chrome.sh` for the browser half of the integration step, the placeholder
-   deploys, and dropping the Windows box from the Worker's CORS list.
+   to serve through Flutter's own server (**Moves**).
 5. **`test_all.sh` and `release_all.sh`.**
 6. **Move** `validate-release.sh` and `check-dart-packages.sh` to
    `deprecated/tools/`; fix `sync-regen.sh`; repoint the paths and docs above.
+   Last, with your go-ahead: one `research_server/deploy.sh`, which makes both
+   live changes live.
 
 **Verify.** First rebuild both databases from `tools/` — gitignored build
 outputs, safe to regenerate. On 2026-09-15 both on this Mac were WAL-flagged,
