@@ -16,8 +16,6 @@ how the app keeps its copy of `bjt.db` and `dict.db` current. Read step 7 first.
     straight to `<db>` in 8 MB pieces, and writes the stamp last.
   - If the copy or the stamp write throws, it deletes the partial copy and
     rethrows.
-- **`database_manifest.dart`** — `databaseManifestEntry(dbName)` throws a `StateError`
-  naming `npm run generate-<name>` when the manifest has no entry.
 - **`local_database.dart`** — `LocalDatabase.open` shares one connection per
   file, so two first readers copy once, and a failed open is forgotten so the
   next one retries.
@@ -109,9 +107,11 @@ here means old text in a new app, silently.
 
 ### P2 — Errors
 
-8. **No entry in the manifest**, or an entry with no string `sha256`:
-   `StateError` naming `npm run generate-bjt` (or `generate-dict`), and no
-   `databases/` folder created — the hash is read before anything touches disk.
+8. **No entry in the manifest**: the open throws and no `databases/` folder is
+   created — the hash is read before anything touches disk. The error's
+   wording is `databaseManifestEntry`'s, tested once in
+   [`web-database-installer-tests.md`](./web-database-installer-tests.md)
+   (item 12).
 9. **The asset request fails.** Start with no copy and a stamp holding the
    current hash (the OS deleted only the copy). The open throws, and afterwards
    neither a stamp nor a partial copy is left. Then, through

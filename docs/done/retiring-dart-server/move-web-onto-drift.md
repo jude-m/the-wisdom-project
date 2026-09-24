@@ -659,7 +659,7 @@ because the screen takes a `DatabaseInstallStatus` and the native
 `DatabaseInstallation` underneath does nothing. The installer itself still
 has none; the proposal for the test agent is
 [`web-database-installer-tests.md`](../../todo/retiring-dart-server/web-database-installer-tests.md) —
-read its "The hard part" section first. Three existing tests changed with the
+four `flutter drive` files, one visit each. Three existing tests changed with the
 code:
 `dictionary_sql_helpers_test.dart` in `wisdom_shared` (step 1),
 `test/data/datasources/fts_language_filter_sql_test.dart` (step 2) and

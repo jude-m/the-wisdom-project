@@ -172,7 +172,7 @@ left, and `server/` and the Windows-box deploy are in `deprecated/`. What
 remains here is the host's half, below —
 [`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md) (step
 3 of [`retiring-dart-server/README.md`](../retiring-dart-server/README.md)) owns
-the app's, and its step 8 has two failure paths left to try by hand.
+the app's.
 
 **What web Drift needs from hosting.** The app side is decided in
 `move-web-onto-drift.md`; this is the host's half.
@@ -211,13 +211,20 @@ the app's, and its step 8 has two failure paths left to try by hand.
 - **Upload with** `wrangler r2 object put <bucket>/<name> --file <name>
   --content-encoding gzip --content-type application/octet-stream
   --cache-control "public, max-age=31536000, immutable" --remote` (the docs
-  don't state wrangler's default, so pass `--remote`). Check the first one:
-  `curl -sI -H 'Accept-Encoding: gzip' <url>` shows `content-encoding: gzip`,
-  and the app's size check passes — a file gzipped twice arrives still gzipped.
-  There are community reports of R2 doing that.
+  don't state wrangler's default, so pass `--remote`). **The deploy then checks
+  each file it uploaded:** `200`, `content-encoding: gzip`, the CORS header,
+  and a decompressed size equal to the manifest's `bytes` — a file gzipped
+  twice arrives still gzipped, and there are community reports of R2 doing
+  that.
 - **A CORS rule on the bucket** for the app's dev and prod origins (`GET`): the
   database comes from another origin. `r2.dev` is rate-limited and for
   development only; prod needs a custom domain in the bucket's account.
+- **One test run against the bucket**, once the installer tests exist
+  ([`web-database-installer-tests.md`](../retiring-dart-server/web-database-installer-tests.md)):
+  run its file 1 with `--dart-define=DATABASE_BASE_URL=<dev bucket>`. Every
+  other run downloads the app's own asset copy, so this is the only automated
+  check of the gzip and the cross-origin download. Its fetch spy counts URLs
+  ending `.db`; from the bucket they end `.db.gz`, so widen it first.
 - **To confirm at setup:** whether turning R2 on needs a card on file
   (community reports say yes).
 - **Later:** `require-corp` blocks media from another host unless it sends
@@ -231,6 +238,12 @@ the app's, and its step 8 has two failure paths left to try by hand.
   `#0175C2`.
 - The font preload in `index.html` names `NotoSansSinhala-Regular.ttf`, the full
   face. The bundle ships only the `-Subset.ttf`, and not at that path.
+- **A connection lost mid-download shows the error icon, not the offline one.**
+  In `_download` (`web_database_installer.dart`) a `fetch` that throws or a
+  `reader.read()` that fails reaches `_asFailure` and becomes `other`. Wrap
+  each in its own `try` that throws `DatabaseInstallFailure(download, …)`;
+  leave `sink.write` and `sink.close` to `_asFailure`, so a full disk stays
+  `outOfSpace`. Step 4.2 of the installer tests can then check the kind.
 - `X-Robots-Tag: noindex` **plus allow crawl** — not `Disallow`, which would stop
   a crawler ever fetching the response that carries the header.
 - AASA / assetlinks on **both** origins.
