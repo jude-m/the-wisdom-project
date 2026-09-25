@@ -4,7 +4,7 @@
 > project, one builds and releases it, and every product can do both on its own.
 > CI then becomes one line per job. **In progress on branch
 > `feat/test-all-and-release-all` (off `main`), one step at a time, you commit:
-> steps 1–3 committed; step 4 done 2026-09-24, uncommitted; step 5 next.**
+> steps 1–4 committed; step 5 done 2026-09-24, uncommitted; step 6 next.**
 > Still yours: copy the secrets into `scripts/config/secrets.env` (step 1).
 
 ## The principle
@@ -13,8 +13,10 @@
   `test.sh` — that product's release-quality gate — and a `deploy.sh` that runs
   it first. No product script calls another product's script.
 - **The project level only delegates.** `scripts/test_all.sh` and
-  `scripts/release_all.sh` call the product scripts and print one summary. They
-  hold no test logic of their own.
+  `scripts/release_all_dryrun.sh` call the product scripts and print one
+  summary. They hold no test logic of their own.
+- **Only a product's own `deploy.sh` releases.** The project level proves every
+  target still deploys, with dry runs, and never uploads.
 - **Targets and secrets live in `scripts/config/`**, never inside a script.
 - **`tools/` holds build inputs only** — the database builders and the
   font/emblem/theme-token generators. No tests, no deploys.
@@ -24,7 +26,7 @@
 ```
 scripts/
 ├── test_all.sh                    every product's test.sh, one summary
-├── release_all.sh                 every target's deploy.sh, one summary
+├── release_all_dryrun.sh          every target's deploy.sh --dry-run, one summary
 ├── lib/common.sh                  shared helpers — sourced, never run
 ├── config/                        targets + secrets (below)
 │
@@ -40,9 +42,9 @@ scripts/
 └── bjt-sync-regen/sync-regen.sh   maintenance, not a product — verifies with static_site/test.sh
 ```
 
-`test_all` / `release_all` rather than `master_*`: they are the only two files
-at the top of `scripts/`, which is what makes them stand out, and `_all` says
-what they do.
+`test_all` / `release_all_dryrun` rather than `master_*`: they are the only two
+files at the top of `scripts/`, which is what makes them stand out, and `_all`
+says what they do. `_dryrun` says the second never releases.
 
 ## What every product script promises
 
@@ -63,7 +65,12 @@ what they do.
 - `--skip-tests` is dev-only. `--prod` refuses it, as the static site's deploy
   already refuses `--root` and `--skip-build`.
 - A target that does not exist yet prints why and exits **3** at once, before
-  any test. `release_all.sh` reports it as NOT SET UP — never as a pass.
+  any test. `release_all_dryrun.sh` reports it as NOT SET UP — never as a pass.
+- Its header carries `# Status: dev=live|placeholder prod=live|placeholder`,
+  which `release_all_dryrun.sh --list` reads: running a live `deploy.sh` to ask
+  would start its tests. The sweep checks `dev=` against the exit: 0 needs
+  `live`, 3 needs `placeholder`, anything else is a FAIL. Nothing runs prod, so
+  nothing checks `prod=` — edit it by hand when a prod target goes live.
 
 **`run*.sh`** — local only. Moved one folder deeper, with two edits each: the
 `cd` to the repo root gains a `..`, and `RESEARCH_BASE_URL` defaults from
@@ -220,16 +227,29 @@ if anything failed. `wisdom_shared` runs twice, inside `app` and `static_site` �
 seconds, and the price of each product standing alone.
 
 ```text
-./scripts/release_all.sh                       # every deploy.sh once, --dry-run to its dev target
-./scripts/release_all.sh --list                # every target, live or placeholder
-./scripts/release_all.sh static_site --prod    # one target → its deploy.sh
+./scripts/release_all_dryrun.sh            # every deploy.sh once, --dev --dry-run
+./scripts/release_all_dryrun.sh --list     # every target, live or placeholder
 ```
 
-The sweep never dry-runs prod, which needs the release branch, a clean tree and
-prod credentials. `--prod` takes exactly one target: three destinations, two
-accounts and a confirmation each. The summary shows PASS, FAIL or NOT SET UP,
-and the sweep exits 1 only on a FAIL. A named target passes its `deploy.sh` exit
-code through, so CI never reads a placeholder's 3 as released.
+**It never releases.** It takes no target and no flag but `--list`, and hands
+each `deploy.sh` only `--dev --dry-run`, so it cannot reach prod or upload. A
+release is always the target's own `deploy.sh` — `static_site/deploy.sh --prod`
+— which runs its own gate and asks its own confirmation. Prod is never dry-run
+here either: it needs the release branch, a clean tree and prod credentials.
+
+The summary shows PASS, FAIL or NOT SET UP, and exits 1 only on a FAIL. An exit
+that disagrees with the header is a FAIL: a live target that exits 3 has failed,
+and a placeholder that passes has gone live with a stale header. The three-state summary is `sweep_step` in
+the script; `run_step` stays PASS/FAIL so no `test.sh` can read a 3 as a pass.
+
+Never run it while a static-site deploy is uploading. The sweep rebuilds
+`static_site_generator/build/`, and `deploy.sh` has no lock, so the upload fails
+with ENOENT.
+
+A target is named by its folder under `scripts/`: `static_site`,
+`research_server`, `app/web`, `app/android`, `app/ios`, `app/macos`. Both
+scripts hold a fixed list of their products or targets, so a new one is added
+there too.
 
 ## What the web deploy keeps from the Windows-box one
 
@@ -344,7 +364,10 @@ the secrets in step 1.
    in `deprecated/scripts-web/`; `server` is out of
    `check-dart-packages.sh`, which passes again; and `run_mac.sh` is rewritten
    to serve through Flutter's own server (**Moves**).
-5. **`test_all.sh` and `release_all.sh`.**
+5. **`test_all.sh` and `release_all_dryrun.sh`.** **Done 2026-09-24.** The
+   sweep passes `static_site` and `research_server`, shows the four app targets
+   as NOT SET UP without running a test, and exits 0. Any argument but `--list`
+   is refused before anything runs.
 6. **Move** `validate-release.sh` and `check-dart-packages.sh` to
    `deprecated/tools/`; fix `sync-regen.sh`; repoint the paths and docs above.
    Last, with your go-ahead: one `research_server/deploy.sh`, which makes both
@@ -353,7 +376,7 @@ the secrets in step 1.
 **Verify.** First rebuild both databases from `tools/` — gitignored build
 outputs, safe to regenerate. On 2026-09-15 both on this Mac were WAL-flagged,
 which the full `app/test.sh` rightly fails. Then: each `test.sh` passes alone,
-with and without `--quick`; `release_all.sh` sweeps every `deploy.sh` and names
+with and without `--quick`; `release_all_dryrun.sh` sweeps every `deploy.sh` and names
 each placeholder without running a test; `static_site/deploy.sh --dry-run` and
 `research_server/deploy.sh --dry-run` behave as before; `app/web/run_mac.sh`
 serves the app on port 8080, and a reloaded deep link loads it;
@@ -366,7 +389,7 @@ Owned by [`web-release.md`](web-strategy/web-release.md) §5:
 | job | runs |
 |---|---|
 | every push / PR | `scripts/test_all.sh --quick` |
-| release | `scripts/release_all.sh static_site --prod --yes` |
+| release | `scripts/static_site/deploy.sh --prod --yes` |
 | integration (optional, macOS runner) | build the databases (`tools/`), then `scripts/app/test.sh` |
 
 ## Not in this plan

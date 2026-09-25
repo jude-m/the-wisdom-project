@@ -5,10 +5,12 @@
 #   ./scripts/app/android/deploy.sh [--dev | --prod] [--dry-run] [--skip-tests] [--yes]
 #   -h, --help
 #
+# Status: dev=placeholder prod=placeholder
+#
 # A PLACEHOLDER: this target is not set up yet. Every run prints why and exits
-# 3 before any test, so scripts/release_all.sh reports it as NOT SET UP, never
-# as a pass. The flags are the ones every deploy.sh takes, so a caller's
-# command line already works when this becomes real.
+# 3 before any test, so scripts/release_all_dryrun.sh reports it as NOT SET
+# UP, never as a pass. The flags are the ones every deploy.sh takes, so a
+# caller's command line already works when this becomes real.
 # END-USAGE
 
 . "$(dirname "$0")/../../lib/common.sh"

@@ -20,6 +20,8 @@
 #   --yes              Skip the release confirmation prompt (--prod only, for CI)
 #   --skip-tests       dev: don't run scripts/static_site/test.sh first
 #
+# Status: dev=live prod=live
+#
 # Every deploy runs ./scripts/static_site/test.sh after its own refusals and
 # before the build, so a bad flag or a missing credential stops it in seconds
 # and a red test stops it before the whole-corpus build.

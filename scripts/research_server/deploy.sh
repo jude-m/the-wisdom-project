@@ -12,6 +12,8 @@
 #   --skip-tests       dev: don't run scripts/research_server/test.sh first
 #   --yes              Skip a release confirmation (--prod only, for CI)
 #
+# Status: dev=live prod=placeholder
+#
 # DEV IS TODAY'S ONLY WORKER, on the personal account (`wrangler login`). Prod
 # moves to the ops account (docs/todo/web-strategy/web-release.md §4); until
 # then --prod says so and exits 3 before any test, so nothing reads it as a

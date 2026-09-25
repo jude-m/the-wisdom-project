@@ -136,7 +136,7 @@ don't re-derive it:
 | job | runs |
 |---|---|
 | every push / PR | `scripts/test_all.sh --quick` |
-| release | `scripts/release_all.sh static_site --prod --yes` — full `static_site/test.sh`, build, `check_links.dart`, the HTML validator once it exists, upload |
+| release | `scripts/static_site/deploy.sh --prod --yes` — full `static_site/test.sh`, build, `check_links.dart`, the HTML validator once it exists, upload |
 | integration (optional, macOS runner) | build the databases (`tools/`), then `scripts/app/test.sh` |
 
 The push/PR job is the half that catches the silent failures. Build it first,
