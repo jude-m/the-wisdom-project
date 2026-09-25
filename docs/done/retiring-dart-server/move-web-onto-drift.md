@@ -42,7 +42,7 @@ this plan — it is [`web-release.md`](../../todo/web-strategy/web-release.md) �
   are in `deprecated/`.
 - The update banner polls `/healthz`, which nothing answers now. Local builds
   leave it off (`VERSION_CHECK_ENABLED`); making it a static file is
-  [`test-all-and-release-all.md`](../../todo/test-all-and-release-all.md)'s.
+  [`test-all-and-release-all.md`](../test-all-and-release-all.md)'s.
 - Pinned exactly in `pubspec.yaml` and locked to the same versions:
   `drift` 2.35.0 and `sqlite3` 3.5.2, beside Flutter 3.44.1. `web: ^1.1.0` is
   direct since step 4.
@@ -393,7 +393,7 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
 
    **`server/` was not edited. It moved to `deprecated/server/`** (decided
    2026-09-20, bringing forward
-   [`test-all-and-release-all.md`](../../todo/test-all-and-release-all.md) step 4).
+   [`test-all-and-release-all.md`](../test-all-and-release-all.md) step 4).
    With it went `scripts/web/deploy.sh`, `run_win.bat` and `restart_win.bat`,
    to `deprecated/scripts-web/` — all three existed only to deploy or run the
    Dart server. Its `pubspec.yaml` path to `wisdom_shared` was repointed so the
@@ -470,7 +470,7 @@ All steps are on branch `feat/move-web-onto-drift`, step 1 included (chosen
      first visit installed both databases from
      `assets/assets/databases/<db>.db` at the manifest's byte counts.
    - **~~`run_mac.sh`~~ — rewritten 2026-09-20**, bringing forward
-     [`test-all-and-release-all.md`](../../todo/test-all-and-release-all.md) step 4. It
+     [`test-all-and-release-all.md`](../test-all-and-release-all.md) step 4. It
      is now `flutter run -d web-server` with `--web-hostname localhost`
      (secure context) and `--debug|--profile|--release`, `--port` and `--clean` survive,
      `--skip-build` does not — `flutter run` always builds. Nothing deletes
@@ -659,7 +659,7 @@ because the screen takes a `DatabaseInstallStatus` and the native
 `DatabaseInstallation` underneath does nothing. The installer itself still
 has none; the proposal for the test agent is
 [`web-database-installer-tests.md`](../../todo/retiring-dart-server/web-database-installer-tests.md) —
-read its "The hard part" section first. Three existing tests changed with the
+four `flutter drive` files, one visit each. Three existing tests changed with the
 code:
 `dictionary_sql_helpers_test.dart` in `wisdom_shared` (step 1),
 `test/data/datasources/fts_language_filter_sql_test.dart` (step 2) and
@@ -671,7 +671,7 @@ code:
   is listed in [`web-release.md`](../../todo/web-strategy/web-release.md) §6; it waits
   on the production account.
 - **The update banner** — `/healthz` becomes a static version file, planned in
-  [`test-all-and-release-all.md`](../../todo/test-all-and-release-all.md).
+  [`test-all-and-release-all.md`](../test-all-and-release-all.md).
 - **Offline on web.** The databases are stored locally, but the app itself
   still needs a service worker to load with no connection.
 - **Faster prefix search.**

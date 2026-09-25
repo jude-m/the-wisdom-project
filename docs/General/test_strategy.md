@@ -27,7 +27,7 @@ This document outlines the automated testing strategy for The Wisdom Project.
 ### Integration Tests
 **Location:** `integration_test/`  
 **Target:** Full user flows  
-**Run:** `flutter test integration_test`
+**Run:** `scripts/app/test.sh` (runs `integration_test/all_tests.dart` on macOS; `flutter test integration_test/` crashes)
 
 ## Testable Units
 

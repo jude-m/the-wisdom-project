@@ -8,7 +8,7 @@
 #   ./scripts/static_site/run.sh --port 9000            # override the port (default 8083)
 #   -h, --help
 #
-# Dev port map: 8080/8081 Flutter web, 8082 research server, 8083 this.
+# Dev port map: 8080 Flutter web, 8082 research server, 8083 this.
 # 8787 is skipped — it is wrangler's own default.
 #
 # --port reaches the generator too: every page carries a `rel="canonical"`
@@ -25,16 +25,13 @@
 
 set -e
 
+. "$(dirname "$0")/../lib/common.sh"
+
 # --- Parse args -------------------------------------------------------------
 PORT=8083
 ROOTS="all"
 ROOTS_SET=false
 SKIP_BUILD=0
-
-usage() {
-  sed -n '2,/^# END-USAGE$/p' "$0" | sed 's/^# \{0,1\}//; /^END-USAGE$/d'
-  exit 0
-}
 
 while [[ $# -gt 0 ]]; do
   # Values are checked before `shift 2`, which fails under `set -e` and kills
@@ -65,8 +62,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Project root is two levels up: scripts/static_site/ -> scripts/ -> project.
-cd "$(dirname "$0")/../.."
+cd "$WISDOM_ROOT"
 
 ORIGIN="http://localhost:$PORT"
 
@@ -85,20 +81,7 @@ else
 fi
 
 # --- Free the port ----------------------------------------------------------
-# A re-run otherwise hits "address already in use". Kill, then wait until the
-# port is genuinely released — a fixed sleep is racy. -sTCP:LISTEN so a browser
-# tab holding a keep-alive to the preview is not itself a kill target.
-PIDS=$(lsof -ti:"$PORT" -sTCP:LISTEN 2>/dev/null || true)
-if [ -n "$PIDS" ]; then
-  echo "Stopping process on port $PORT (PID: $PIDS)..."
-  echo "$PIDS" | xargs kill 2>/dev/null || true
-  for _ in $(seq 1 10); do
-    sleep 0.5
-    PIDS=$(lsof -ti:"$PORT" -sTCP:LISTEN 2>/dev/null || true)
-    [ -z "$PIDS" ] && break
-    echo "$PIDS" | xargs kill -9 2>/dev/null || true
-  done
-fi
+free_port "$PORT"
 
 # --- Serve ------------------------------------------------------------------
 # exec so Ctrl+C reaches serve.dart directly.

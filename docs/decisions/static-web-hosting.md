@@ -236,9 +236,9 @@ earlier sketch invoked `cloudflare/wrangler-action` with a raw `pages deploy`,
 which skips every guard the script exists for: the 20,000-file and 25 MiB
 preflights, the account-identity check, the clean-tree/on-`main` release rule and
 the whole-corpus rule. Two paths to production that enforce different things is
-one path too many. The secret *names* match the variables `.prod.env` sets, so a
-release by hand and a release by Action authenticate identically — the script's
-own `set -a` sourcing is simply replaced by the runner's `env:` block. (The
+one path too many. The secret *names* match the variables `scripts/config/secrets.env` sets, so a
+release by hand and a release by Action authenticate identically — the script
+reads the environment first, so the runner's `env:` block replaces the file. (The
 script writes `--project-name` itself; the project is fixed per target, so there
 is nothing left for the workflow to name or get wrong.) There is no separate
 generate step either: `--prod` always builds, and `--skip-build` is refused, so
@@ -270,13 +270,13 @@ short only the root index page, which is not generated yet).
 | | Account | Auth | Project | Branch | URL |
 |---|---|---|---|---|---|
 | **dev** (default) | personal | `wrangler login` | `sammaditthi-dev` | `dev` | `dev.sammaditthi-dev.pages.dev` — preview, **noindex** |
-| **prod** (`--prod`) | wisdom.ops | `.prod.env` token | `sammaditthi` | `main` | `sammaditthi.net` — **indexable** (also answers on `sammaditthi.pages.dev`; canonicals name the apex) |
+| **prod** (`--prod`) | wisdom.ops | `CLOUDFLARE_PROD_*` token | `sammaditthi` | `main` | `sammaditthi.net` — **indexable** (also answers on `sammaditthi.pages.dev`; canonicals name the apex) |
 
 **The production project name is `sammaditthi`** (settled 2026-08-02, closing the
 naming half of open-Q #2 below; the custom *domain* is still open). It is fixed
-in the script rather than read from `.prod.env`, so an account and the project it
-deploys into cannot drift apart — `.prod.env` holds credentials only, and a stale
-`CF_PAGES_PROJECT_PROD` line in it is rejected rather than obeyed. There is no
+in `scripts/config/targets.env` next to its branch, never in `secrets.env`, so an
+account and the project it deploys into cannot drift apart — `secrets.env` holds
+credentials only. There is no
 `--project` and no `--branch`: the three settings above are right or wrong
 together, never separately.
 

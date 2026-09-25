@@ -2,9 +2,8 @@
 
 > Status: **Script built (2026-07-23), verify step added 2026-08-06.** The read-only
 > sync source is set up, and `scripts/bjt-sync-regen/sync-regen.sh` does Steps 0–5 + 7
-> for real, plus a closing sync report. Step 6b (FTS regen) is **wired** (real
-> `npm run generate-bjt`); Step 6a (static HTML) stays a **stub** until the generator
-> exists.
+> for real, plus a closing sync report. Both Step 6 rebuilds are wired: 6a builds and
+> link-checks the static site (no upload), 6b regenerates the FTS database.
 > Scope: how the app's vendored canon text stays in step with the upstream
 > tipitaka.lk project, and the script that does it.
 >
@@ -159,11 +158,11 @@ would be deleted", which trips the same gate):
 ### Step 5 — Verify the new corpus (before anything is rebuilt on top of it)
 
 ```bash
-./tools/check-dart-packages.sh
+./scripts/static_site/test.sh
 ```
 
-`dart analyze` + `dart test` across `packages/wisdom_shared`, `static_site_generator`
-and `server` (~35s). It runs **before** the rebuilds on purpose.
+Format, `dart analyze` and `dart test` across `packages/wisdom_shared` and
+`static_site_generator`, corpus checks included. It runs **before** the rebuilds on purpose.
 
 The check that earns its place here is the static site's **grouping snapshot**. Which
 suttas get their own page is frozen in `foldedLeafKeys`
@@ -207,10 +206,10 @@ and the moment to stop citing it here.
 
 Two things rebuild from the corrected JSON, **both asked (y/n), not automatic**:
 
-1. **Static HTML site — ASK FIRST (stub).** Will regenerate from the corrected JSON
-   once the generator exists
-   (see [web-strategy/static-html-site-plan.md](./web-strategy/static-html-site-plan.md)).
-   Prompt wired; body still a stub.
+1. **Static HTML site — ASK FIRST.** Runs
+   `scripts/static_site/deploy.sh --dry-run --skip-tests`: builds the whole site and
+   checks its links, uploads nothing (Step 5 has just run the tests). Releasing is a
+   separate `scripts/static_site/deploy.sh`.
 2. **FTS database — ASK FIRST (wired).** Runs `cd tools && npm run generate-bjt` to
    regenerate `assets/databases/bjt.db` (~114 MB, indexes ~457k entries; it is
    **gitignored**, so it's rebuilt locally, not committed). A heavy rebuild, so it is
@@ -254,9 +253,9 @@ tooling metadata, not canon content, and keeping it out lets `assets/` stay a fa
 | Heartbeat check (Step 0) | ✅ Done — `git ls-remote` vs receipt |
 | Pull + review + copy (Steps 1–2, 4) | ✅ Done |
 | `tree.json` guard (Step 3) | ✅ Done — separate, loud, blocks blind overwrite |
-| Corpus verify (Step 5) | ✅ Done (2026-08-06) — `tools/check-dart-packages.sh`, warns on drift |
+| Corpus verify (Step 5) | ✅ Done (2026-08-06) — `scripts/static_site/test.sh` (since 2026-09-25), warns on drift |
 | Provenance receipt (Step 7) | ✅ Done — `scripts/bjt-sync-regen/bjt-provenance.json` |
-| Static HTML rebuild (Step 6a) | 🔶 Stub — y/n prompt wired, generator not built |
+| Static HTML rebuild (Step 6a) | ✅ Wired (2026-09-25) — y/n prompt runs `scripts/static_site/deploy.sh --dry-run --skip-tests`: build + link check, no upload |
 | FTS rebuild (Step 6b) | ✅ Wired — y/n prompt runs `npm run generate-bjt` |
 | `--dry-run` / `--force` flags | ✅ Done |
 

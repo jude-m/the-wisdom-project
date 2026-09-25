@@ -5,74 +5,59 @@
 #   ./scripts/research_server/run.sh              # wrangler dev (Workers runtime), auto-reload
 #   ./scripts/research_server/run.sh --node       # plain Node entry — shows cpu=/build= debug timers
 #   ./scripts/research_server/run.sh --port 8083  # override the port (default 8082)
+#   -h, --help
 #
-# Dev port map: 8080 = Flutter web (macOS), 8081 = Flutter web (Windows box),
-# 8082 = research server, 8083 = static-site preview
-# (static_site_generator/tool/serve.dart). The Dart content server that used to
-# hold 8081 is retired.
+# Dev port map: 8080 = Flutter web, 8082 = research server, 8083 = static-site
+# preview (static_site_generator/tool/serve.dart).
 #
-# Secrets live in research_server/.dev.vars (copy .dev.vars.example; live mode
-# needs GEMINI_API_KEY + RESEARCH_STORE + RESEARCH_STUB=0). wrangler reads that
-# file automatically; --node mode sources it before starting.
+# The Gemini key comes from scripts/config/secrets.env (RESEARCH_GEMINI_API_KEY;
+# copy secrets.env.example). wrangler gets it through a temporary --env-file,
+# which also stops it reading any old research_server/.dev.vars. RESEARCH_STUB
+# and RESEARCH_STORE come from wrangler.jsonc: wrangler reads them there itself,
+# and --node passes them on, since plain Node never reads that file. It stops
+# first if the key can't open RESEARCH_STORE: both belong to one Google project.
+# END-USAGE
 
 set -e
+
+. "$(dirname "$0")/../lib/common.sh"
 
 # --- Parse args -------------------------------------------------------------
 PORT=8082
 RUNTIME="wrangler"
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --port) PORT="$2";      shift 2 ;;
-    --node) RUNTIME="node"; shift ;;
+    --port)
+      # Checked before `shift 2`, which fails under `set -e` with no message.
+      case "${2:-}" in
+        ''|*[!0-9]*|0*|??????*)
+          echo "error: --port needs a number, e.g. --port 8082." >&2
+          exit 1 ;;
+      esac
+      PORT="$2"; shift 2 ;;
+    --node)    RUNTIME="node"; shift ;;
+    -h|--help) usage ;;
     *)
-      echo "Unknown option: $1"
-      echo "Usage: ./scripts/research_server/run.sh [--port 8082] [--node]"
+      echo "Unknown option: $1" >&2
+      echo "Run with -h for help." >&2
       exit 1
       ;;
   esac
 done
 
-# Project root is two levels up: scripts/research_server/ -> scripts/ -> project.
-cd "$(dirname "$0")/../.."
-cd research_server
+cd "$WISDOM_ROOT/research_server"
 
-# wrangler 4.112 requires Node >= 22 (its package.json `engines`); the system
-# default may be older, so fall back to the newest nvm-installed Node and then
-# re-check, because the newest installed one may still be too old.
-# (Same guard as deploy.sh and scripts/static_site/deploy.sh.)
-NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')
-if [ "${NODE_MAJOR:-0}" -lt 22 ]; then
-  NVM_BIN=$(ls -d "$HOME/.nvm/versions/node"/v*/bin 2>/dev/null | sort -V | tail -1)
-  [ -n "$NVM_BIN" ] && export PATH="$NVM_BIN:$PATH"
-  NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')
-  if [ "${NODE_MAJOR:-0}" -lt 22 ]; then
-    echo "error: wrangler needs Node >= 22 (found ${NODE_MAJOR:-none})." >&2
-    echo "       Install one, e.g. \`nvm install 22\`." >&2
-    exit 1
-  fi
-fi
+require_node22
 
-if [ ! -f .dev.vars ]; then
-  echo "error: research_server/.dev.vars not found — copy .dev.vars.example and set your key."
+if [ -z "$(secret RESEARCH_GEMINI_API_KEY)" ]; then
+  echo "error: RESEARCH_GEMINI_API_KEY is not set (environment or" >&2
+  echo "       scripts/config/secrets.env) — research needs a Gemini key." >&2
   exit 1
 fi
 
-[ -d node_modules ] || npm install
-
-# Free the port so a re-run doesn't hit "address already in use" (wrangler dev
-# and stale servers both linger). Kill, then wait until the port is genuinely
-# released, escalating to SIGKILL — a fixed sleep is racy.
-PIDS=$(lsof -ti:"$PORT" 2>/dev/null || true)
-if [ -n "$PIDS" ]; then
-  echo "Stopping process on port $PORT (PID: $PIDS)..."
-  echo "$PIDS" | xargs kill 2>/dev/null || true
-  for _ in $(seq 1 10); do
-    sleep 0.5
-    PIDS=$(lsof -ti:"$PORT" 2>/dev/null || true)
-    [ -z "$PIDS" ] && break          # port free → done
-    echo "$PIDS" | xargs kill -9 2>/dev/null || true
-  done
-fi
+research_deps
+check_research_store
+free_port "$PORT"
 
 echo "Starting research_server on http://localhost:$PORT ($RUNTIME)"
 echo "Health check: curl localhost:$PORT/health"
@@ -81,8 +66,15 @@ echo ""
 
 if [ "$RUNTIME" = "node" ]; then
   npm run build
-  set -a; source .dev.vars; set +a
-  PORT="$PORT" exec node dist/src/node.js
+  STUB=$(research_var RESEARCH_STUB)
+  STORE=$(research_var RESEARCH_STORE)
+  PORT="$PORT" RESEARCH_STUB="$STUB" RESEARCH_STORE="$STORE" \
+    GEMINI_API_KEY="$(secret RESEARCH_GEMINI_API_KEY)" \
+    exec node dist/src/node.js
 else
-  exec npx wrangler dev --port "$PORT"
+  ENV_TMP=$(mktemp "${TMPDIR:-/tmp}/wisdom-research-env.XXXXXX")
+  trap 'rm -f "$ENV_TMP"' EXIT
+  write_worker_secrets "$ENV_TMP" GEMINI_API_KEY=RESEARCH_GEMINI_API_KEY
+  # Not exec'd, so the trap can delete the file when wrangler stops.
+  "$WRANGLER" dev --port "$PORT" --env-file "$ENV_TMP"
 fi

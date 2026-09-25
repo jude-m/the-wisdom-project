@@ -2,9 +2,9 @@
 /// pipeline.
 ///
 /// Values are supplied via `--dart-define` flags during
-/// `flutter build web` (see `scripts/web/deploy.sh`). When the app is run
-/// locally with `flutter run`, both values fall back to safe defaults
-/// that disable the update-banner feature.
+/// `flutter build web` (`scripts/app/web/deploy.sh`, once it's built).
+/// When the app is run locally with `flutter run`, both values fall back
+/// to safe defaults that disable the update-banner feature.
 ///
 /// Read via `String.fromEnvironment` / `bool.fromEnvironment`, both of
 /// which are evaluated at compile time and tree-shake away unused code
@@ -31,8 +31,9 @@ class BuildInfo {
   /// Default 300s (5 min) — the steady-state cadence for production.
   /// During rapid dev days, override at build time to shorten the loop:
   ///   --dart-define=VERSION_CHECK_POLL_SECONDS=60
-  /// Set in `scripts/web/deploy.sh`. Local debug builds ignore this —
-  /// the feature is gated off by [canCheckForUpdates] regardless.
+  /// Set in `scripts/app/web/deploy.sh`, once it's built. Local debug
+  /// builds ignore this — the feature is gated off by
+  /// [canCheckForUpdates] regardless.
   static const int pollIntervalSeconds =
       int.fromEnvironment('VERSION_CHECK_POLL_SECONDS', defaultValue: 300);
 

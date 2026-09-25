@@ -129,7 +129,7 @@ function writeManifestEntry(dbPath) {
  *
  * Bytes 18/19 are the write/read format versions: 1 = rollback journal, 2 = WAL.
  * A 2 in either is the `SQLITE_NOTADB` described in finalizeDatabase. The same
- * two conditions are checked again in `validate-release.sh`, which is the gate
+ * two conditions are checked again in `scripts/app/test.sh`, which is the gate
  * for databases that arrive without going through this script.
  *
  * @param {string} dbPath - File to check

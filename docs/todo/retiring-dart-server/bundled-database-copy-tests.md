@@ -16,8 +16,6 @@ how the app keeps its copy of `bjt.db` and `dict.db` current. Read step 7 first.
     straight to `<db>` in 8 MB pieces, and writes the stamp last.
   - If the copy or the stamp write throws, it deletes the partial copy and
     rethrows.
-- **`database_manifest.dart`** — `databaseManifestEntry(dbName)` throws a `StateError`
-  naming `npm run generate-<name>` when the manifest has no entry.
 - **`local_database.dart`** — `LocalDatabase.open` shares one connection per
   file, so two first readers copy once, and a failed open is forgotten so the
   next one retries.
@@ -44,7 +42,7 @@ how the app keeps its copy of `bjt.db` and `dict.db` current. Read step 7 first.
 Keep the integration file **out of `all_tests.dart`**: it closes the shared
 connection and swaps the database file, which would disturb the files sharing
 that app launch. It needs its own line in the integration row of
-[`test-all-and-release-all.md`](../test-all-and-release-all.md), or nothing will
+[`test-all-and-release-all.md`](../../done/test-all-and-release-all.md), or nothing will
 ever run it.
 
 ## Harness (unit tests)
@@ -109,9 +107,11 @@ here means old text in a new app, silently.
 
 ### P2 — Errors
 
-8. **No entry in the manifest**, or an entry with no string `sha256`:
-   `StateError` naming `npm run generate-bjt` (or `generate-dict`), and no
-   `databases/` folder created — the hash is read before anything touches disk.
+8. **No entry in the manifest**: the open throws and no `databases/` folder is
+   created — the hash is read before anything touches disk. The error's
+   wording is `databaseManifestEntry`'s, tested once in
+   [`web-database-installer-tests.md`](./web-database-installer-tests.md)
+   (item 12).
 9. **The asset request fails.** Start with no copy and a stamp holding the
    current hash (the OS deleted only the copy). The open throws, and afterwards
    neither a stamp nor a partial copy is left. Then, through
@@ -144,7 +144,7 @@ here means old text in a new app, silently.
     `tools/db-finalize.js` leaves the manifest stale, and existing installs
     silently keep their old copy. That check belongs to `scripts/app/test.sh`'s
     "shipped databases" row in
-    [`test-all-and-release-all.md`](../test-all-and-release-all.md).
+    [`test-all-and-release-all.md`](../../done/test-all-and-release-all.md).
 14. **Devices ([`first-mobile-release.md`](../mobile-release/first-mobile-release.md)).** Installing over an older build; on Android,
     clear-cache versus clear-storage, `adb shell bmgr backupnow <package>`, and
     the full-phone case.

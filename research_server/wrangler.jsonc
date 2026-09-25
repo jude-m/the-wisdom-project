@@ -2,25 +2,23 @@
   "name": "wisdom-research",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-01",
-  // Dev port map: 8080 = Flutter web (macOS), 8081 = Flutter web (Windows box),
-  // 8082 = research server, 8083 = static-site preview
-  // (static_site_generator/tool/serve.dart). The Dart content server that used
-  // to hold 8081 is retired — see docs/todo/serverless-deployment-decision.md.
+  // Dev port map: 8080 = Flutter web, 8082 = research server, 8083 = static-site
+  // preview (static_site_generator/tool/serve.dart).
   "dev": {
     "port": 8082
   },
   "vars": {
     // Stub by default: a fresh deploy answers canned replies with no key.
     // Live needs RESEARCH_STUB=0 + RESEARCH_STORE here and the GEMINI_API_KEY
-    // secret (`wrangler secret put GEMINI_API_KEY`). Locally use .dev.vars.
+    // secret, which the run and deploy scripts take from
+    // scripts/config/secrets.env (RESEARCH_GEMINI_API_KEY).
     "RESEARCH_STUB": "0",
     "RESEARCH_STORE": "fileSearchStores/tipitakapilotsn15-ry6rxdcmw8z7",
     // CORS allow-list (browser-only protection). Exact-match against the
     // browser's Origin header — scheme+host+port, NO trailing slash, NO path.
     // Add the real public domain/IP alongside (comma-separated) when hosted.
-    //   192.168.1.200:8081 = deployed Flutter web (Windows content server)
-    //   localhost:8080      = local Flutter web dev (scripts/web/run_mac.sh)
-    "RESEARCH_CORS_ORIGINS": "http://192.168.1.200:8081,http://localhost:8080"
+    //   localhost:8080      = local Flutter web dev (scripts/app/web/run_mac.sh)
+    "RESEARCH_CORS_ORIGINS": "http://localhost:8080"
   },
   // Pin the Worker to a US region so outbound Gemini calls egress from a
   // Gemini-supported location. Cloudflare's global anycast egress otherwise

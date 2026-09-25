@@ -15,7 +15,7 @@ Section 2 was its step 10.
 - **Signing.** Android release builds still use the debug key
   (`android/app/build.gradle`). iOS needs a signed export.
 - **Store upload** isn't scripted: the mobile `deploy.sh` scripts are
-  placeholders in [`test-all-and-release-all.md`](../test-all-and-release-all.md).
+  placeholders in [`test-all-and-release-all.md`](../../done/test-all-and-release-all.md).
 
 ## 2. Check on a real device
 

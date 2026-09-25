@@ -9,9 +9,9 @@ import '../../core/version/version_check_service.dart';
 ///
 /// Sourced from [BuildInfo.pollIntervalSeconds] — a compile-time constant
 /// baked in by `--dart-define=VERSION_CHECK_POLL_SECONDS=...` in
-/// `scripts/web/deploy.sh`. Default 300s (5 min) is the steady-state
-/// cadence; drop to 60s during rapid dev days to see the banner sooner
-/// after a deploy.
+/// `scripts/app/web/deploy.sh`, once it's built. Default 300s (5 min) is
+/// the steady-state cadence; drop to 60s during rapid dev days to see the
+/// banner sooner after a deploy.
 Duration get _pollInterval =>
     const Duration(seconds: BuildInfo.pollIntervalSeconds);
 

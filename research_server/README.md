@@ -16,19 +16,21 @@ only; its `ingest/` job still handles File Search store uploads).
 ## Run
 
 ```sh
-npm install
+npm ci
 npm run dev          # wrangler dev on :8082 (stub mode by default)
 npm run start:node   # same app on plain Node :8082
 npm run bench        # CPU worst-case benchmark vs the 10ms budget
 ```
 
-Dev port map: 8081 = Dart content server, **8082 = research server**.
+Dev port map: 8080 = Flutter web, **8082 = research server**, 8083 = static-site preview.
 
-Live mode locally: copy `.dev.vars.example` → `.dev.vars` and fill
-`GEMINI_API_KEY` + `RESEARCH_STORE` (values are in the old server's `.env`).
+Live mode locally: `./scripts/research_server/run.sh`, with
+`RESEARCH_GEMINI_API_KEY` in `scripts/config/secrets.env`.
 
-Deploy: `wrangler deploy`, then `wrangler secret put GEMINI_API_KEY` and set
-`RESEARCH_STUB=0` + `RESEARCH_STORE` in `wrangler.jsonc` vars.
+Deploy: `./scripts/research_server/deploy.sh`. It uploads
+`RESEARCH_GEMINI_API_KEY` from `scripts/config/secrets.env` as the Worker's
+`GEMINI_API_KEY`; `RESEARCH_STUB` and `RESEARCH_STORE` are vars in
+`wrangler.jsonc`.
 
 ## Design notes
 
@@ -46,6 +48,6 @@ Deploy: `wrangler deploy`, then `wrangler secret put GEMINI_API_KEY` and set
   post-processing that scales, i.e. snippets). Workers hides the CPU clock
   from scripts, so there the field is absent — read per-request CPU from the
   dashboard invocation logs instead. Live-on-Node run:
-  `set -a; source .dev.vars; set +a; RESEARCH_STUB=0 npm run start:node`.
+  `./scripts/research_server/run.sh --node`.
 - Thinking-tier rungs can take ~170s; verify platform limits on long-await
   subrequests when first deploying to Workers.

@@ -258,7 +258,7 @@ shared-DB contention — if a run hangs on a spinner, re-run the file **alone** 
 | E2E-8 | **Per-chat tier restored on reopen** | Ask in A under Thinking → New chat (header back to Fast) → ask B under Fast → reopen A from Recent → header shows **Thinking** again (each chat remembers its own tier) | rev 07-25 | P1 |
 
 **Optional (manual/smoke, not in CI):** one run against the real `research_server` in stub mode
-(`RESEARCH_STUB=1`, `RESEARCH_BASE_URL=http://localhost:8081`) to validate the HTTP contract
+(`RESEARCH_STUB=1`, `RESEARCH_BASE_URL=http://localhost:8082`) to validate the HTTP contract
 end-to-end. Keep out of `all_tests.dart`.
 
 ---

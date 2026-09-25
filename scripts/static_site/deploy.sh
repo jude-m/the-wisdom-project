@@ -18,15 +18,22 @@
 #   ./scripts/static_site/deploy.sh --dry-run              # build + check, DON'T upload
 #
 #   --yes              Skip the release confirmation prompt (--prod only, for CI)
+#   --skip-tests       dev: don't run scripts/static_site/test.sh first
+#
+# Status: dev=live prod=live
+#
+# Every deploy runs ./scripts/static_site/test.sh after its own refusals and
+# before the build, so a bad flag or a missing credential stops it in seconds
+# and a red test stops it before the whole-corpus build.
 #
 # EXACTLY TWO TARGETS, ONE PER ACCOUNT — and no third path. There is no --branch
 # and no --project: each target's account, project and branch are fixed together
-# in the config block below, so the three can never disagree with each other.
+# in scripts/config/targets.env, so the three can never disagree with each other.
 #
-#   dev    personal account, `wrangler login`    sammaditthi-dev, branch dev
-#          -> dev.sammaditthi-dev.pages.dev      (preview, noindex)
-#   prod   ops account, .prod.env token          sammaditthi,     branch main
-#          -> sammaditthi.net                    (production, INDEXABLE)
+#   dev    personal account, `wrangler login`    STATIC_SITE_DEV_*
+#          -> <branch>.<project>.pages.dev       (preview, noindex)
+#   prod   ops account, CLOUDFLARE_PROD_* token  STATIC_SITE_PROD_*
+#          -> STATIC_SITE_PROD_ORIGIN            (production, INDEXABLE)
 #
 # Dev and prod are separate Cloudflare ACCOUNTS — prod under wisdom.ops so a
 # handover can transfer prod alone. A Pages project belongs to exactly ONE
@@ -52,26 +59,25 @@
 # which deployments are indexable and which are noindex.
 #
 # Requires `wrangler login` done once for dev (CLI auth — separate from the
-# dashboard sign-in), and scripts/static_site/.prod.env for prod (copy
-# .prod.env.example).
+# dashboard sign-in), and CLOUDFLARE_PROD_API_TOKEN + CLOUDFLARE_PROD_ACCOUNT_ID
+# in scripts/config/secrets.env for prod (copy secrets.env.example).
 # END-USAGE
 
 set -e
 
 # --- Config -----------------------------------------------------------------
-# Fixed per target, deliberately not overridable. An account, a project and a
+# Fixed per target in scripts/config/targets.env, deliberately not overridable:
+# `target` reads the file, never the environment. An account, a project and a
 # branch that can only ever be right or wrong together is the whole design.
-DEV_PROJECT="sammaditthi-dev"
-DEV_BRANCH="dev"
-PROD_PROJECT="sammaditthi"
-PROD_BRANCH="main"
-PROD_ENV_FILE="scripts/static_site/.prod.env"
+. "$(dirname "$0")/../lib/common.sh"
+DEV_PROJECT=$(target STATIC_SITE_DEV_PROJECT)
+DEV_BRANCH=$(target STATIC_SITE_DEV_BRANCH)
+PROD_PROJECT=$(target STATIC_SITE_PROD_PROJECT)
+PROD_BRANCH=$(target STATIC_SITE_PROD_BRANCH)
 
-# The custom domain, attached to $PROD_PROJECT in the ops account. Registered
-# 2026-09-01; `.net` because `.app` was the docs' guess and never bought. This
-# is the only place a domain is written down on the way to Cloudflare — the
-# generator holds none, it is handed one as --origin (build plan P5).
-PROD_ORIGIN="https://sammaditthi.net"
+# The custom domain, attached to $PROD_PROJECT in the ops account. The generator
+# holds no domain; it is handed this one as --origin (build plan P5).
+PROD_ORIGIN=$(target STATIC_SITE_PROD_ORIGIN)
 
 # $PROD_BRANCH does double duty: it is both the Pages branch a release deploys
 # to and the git branch a release must be cut from. They are the same name
@@ -106,15 +112,11 @@ TARGET="dev"
 ROOTS="all"
 ROOTS_SET=false
 SKIP_BUILD=false
+SKIP_TESTS=false
 DRY_RUN=false
 ASSUME_YES=false
 
 # --- Parse args -------------------------------------------------------------
-usage() {
-  sed -n '2,/^# END-USAGE$/p' "$0" | sed 's/^# \{0,1\}//; /^END-USAGE$/d'
-  exit 0
-}
-
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dev)        TARGET="dev";  shift ;;
@@ -129,6 +131,7 @@ while [[ $# -gt 0 ]]; do
       fi
       ROOTS="$2"; ROOTS_SET=true;  shift 2 ;;
     --skip-build) SKIP_BUILD=true;  shift ;;
+    --skip-tests) SKIP_TESTS=true;  shift ;;
     --dry-run)    DRY_RUN=true;     shift ;;
     --yes|-y)     ASSUME_YES=true;  shift ;;
     -h|--help)    usage ;;
@@ -140,8 +143,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Project root is two levels up: scripts/static_site/ -> scripts/ -> project.
-cd "$(dirname "$0")/../.."
+cd "$WISDOM_ROOT"
 OUT="static_site_generator/build"
 
 # --- Resolve the target -----------------------------------------------------
@@ -161,37 +163,24 @@ if [ "$TARGET" = "prod" ]; then
     echo "       from the last dev test." >&2
     exit 1
   fi
-
-  if [ ! -f "$PROD_ENV_FILE" ]; then
-    echo "error: $PROD_ENV_FILE not found." >&2
-    echo "       cp ${PROD_ENV_FILE}.example $PROD_ENV_FILE and fill it in." >&2
+  if [ "$SKIP_TESTS" = true ]; then
+    echo "error: --skip-tests is dev-only. A release always runs the tests." >&2
     exit 1
   fi
 
   # Prod credentials arrive as environment variables, which is how wrangler
-  # selects an account non-interactively. It is also what the planned GitHub
-  # Action will use via repo secrets, so CI later is this path rather than a
-  # rewrite — and it leaves the personal `wrangler login` untouched.
+  # selects an account non-interactively. CI sets the same CLOUDFLARE_PROD_*
+  # names as repo secrets, so CI is this path rather than a rewrite — and it
+  # leaves the personal `wrangler login` untouched.
   #
-  # `set -a` exports everything the file defines, so wrangler inherits it. The
-  # file may fetch the token from a secret store rather than hold it literally,
-  # which is why it is sourced rather than parsed.
-  set -a
-  # shellcheck source=/dev/null
-  . "$PROD_ENV_FILE"
-  set +a
-
-  : "${CLOUDFLARE_API_TOKEN:?not set in $PROD_ENV_FILE — create one in the ops account}"
-  : "${CLOUDFLARE_ACCOUNT_ID:?not set in $PROD_ENV_FILE — the ops account ID}"
-
-  # The project name is fixed in this script now rather than read from .prod.env.
-  # An older copy of that file still naming one is a stale config, not a second
-  # opinion — say so instead of ignoring it.
-  if [ -n "${CF_PAGES_PROJECT_PROD:-}" ] && [ "$CF_PAGES_PROJECT_PROD" != "$PROD_PROJECT" ]; then
-    echo "error: $PROD_ENV_FILE sets CF_PAGES_PROJECT_PROD=$CF_PAGES_PROJECT_PROD," >&2
-    echo "       but this script deploys to '$PROD_PROJECT'. Delete that line." >&2
-    exit 1
-  fi
+  # Mapped to wrangler's names only here, on the prod path: the file's own
+  # names are prefixed so that loading it can never arm the variables the dev
+  # path below refuses to run with.
+  CLOUDFLARE_API_TOKEN=$(secret CLOUDFLARE_PROD_API_TOKEN)
+  CLOUDFLARE_ACCOUNT_ID=$(secret CLOUDFLARE_PROD_ACCOUNT_ID)
+  : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_PROD_API_TOKEN is not set (environment or scripts/config/secrets.env) — create one in the ops account}"
+  : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_PROD_ACCOUNT_ID is not set (environment or scripts/config/secrets.env) — the ops account ID}"
+  export CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID
 
   # --- The apex is actually attached ------------------------------------------
   # Asked HERE, before the build, because the build is the whole corpus and this
@@ -220,7 +209,7 @@ if [ "$TARGET" = "prod" ]; then
 
   if ! printf '%s' "$DOMAIN_JSON" | tr -d ' \n' | grep -q '"success":true'; then
     echo "error: could not list the custom domains on $PROD_PROJECT." >&2
-    echo "       Either the network is down, or the $PROD_ENV_FILE token is" >&2
+    echo "       Either the network is down, or CLOUDFLARE_PROD_API_TOKEN is" >&2
     echo "       expired or missing the 'Cloudflare Pages: Read' permission." >&2
     echo "       Refusing to upload to production unverified." >&2
     exit 1
@@ -314,6 +303,19 @@ if [ "$TARGET" = "prod" ]; then
     git status --short >&2
     exit 1
   fi
+fi
+
+# --- Tests ------------------------------------------------------------------
+# After every refusal above, before the build: the refusals take seconds and
+# the build is the whole corpus.
+if [ "$SKIP_TESTS" = false ]; then
+  if ! ./scripts/static_site/test.sh; then
+    echo "" >&2
+    echo "error: scripts/static_site/test.sh failed (summary above)." >&2
+    echo "       Nothing built, nothing uploaded." >&2
+    exit 1
+  fi
+  echo ""
 fi
 
 # --- Origin -----------------------------------------------------------------
@@ -586,43 +588,21 @@ fi
 # moved above the banner.
 ACCOUNT_LINE="(not checked — dry run)"
 if [ "$DRY_RUN" = false ]; then
-  # wrangler 4.112 requires Node >= 22 (its package.json `engines`); the system
-  # default may be older, so fall back to the newest nvm-installed Node and then
-  # re-check, because the newest installed one may still be too old.
-  # (Same guard as scripts/research_server/*.sh.)
-  NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')
-  if [ "${NODE_MAJOR:-0}" -lt 22 ]; then
-    NVM_BIN=$(ls -d "$HOME/.nvm/versions/node"/v*/bin 2>/dev/null | sort -V | tail -1)
-    [ -n "$NVM_BIN" ] && export PATH="$NVM_BIN:$PATH"
-    NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')
-    if [ "${NODE_MAJOR:-0}" -lt 22 ]; then
-      echo "error: wrangler needs Node >= 22 (found ${NODE_MAJOR:-none})." >&2
-      echo "       Install one, e.g. \`nvm install 22\`." >&2
-      exit 1
-    fi
-  fi
+  require_node22
 
-  # research_server's pinned wrangler (package.json, ^4.0.0) is the only copy in
-  # the repo, so both Cloudflare surfaces deploy with one version. Install it the
-  # way research_server's own scripts do rather than falling back to an `npx`
-  # download, which would fetch whatever 4.x happens to be newest today and quietly
-  # break that guarantee. The static site has no package.json of its own on purpose
-  # — it is a Dart generator with no Node dependencies, and wrangler is a CLI it
-  # invokes, not something it builds against.
-  WRANGLER="research_server/node_modules/.bin/wrangler"
-  if [ ! -x "$WRANGLER" ]; then
-    echo "Installing research_server dependencies (for wrangler)..."
-    npm install --prefix research_server
-    echo ""
-  fi
+  # $WRANGLER is research_server's (lib/common.sh). The static site has no
+  # package.json of its own on purpose — it is a Dart generator with no Node
+  # dependencies, and wrangler is a CLI it invokes, not something it builds
+  # against.
+  research_deps
 
   # Drop the stale account cache BEFORE wrangler is asked anything, so the account
   # is resolved from this run's credentials and not from the last run's target.
   rm -f "$PAGES_ACCOUNT_CACHE"
 
   # Show which Cloudflare account is actually about to receive the upload, and for
-  # prod insist it is the one .prod.env names. Two accounts only buy separation if
-  # something checks.
+  # prod insist it is the one CLOUDFLARE_PROD_ACCOUNT_ID names. Two accounts only
+  # buy separation if something checks.
   #
   # --json, not the human table: that table is drawn with box characters which
   # pick up ANSI colour whenever wrangler thinks the output wants it, and the
@@ -644,7 +624,7 @@ if [ "$DRY_RUN" = false ]; then
     # simply no network.
     if [ "$TARGET" = "prod" ]; then
       echo "error: could not verify the Cloudflare account — \`wrangler whoami\`" >&2
-      echo "       returned nothing. Likely the $PROD_ENV_FILE token is expired," >&2
+      echo "       returned nothing. Likely CLOUDFLARE_PROD_API_TOKEN is expired," >&2
       echo "       or is missing the 'Account Settings: Read' permission." >&2
       echo "       Refusing to upload to production unverified." >&2
       exit 1
@@ -656,9 +636,9 @@ if [ "$DRY_RUN" = false ]; then
       *" $EXPECTED_ACCOUNT "*) ;;
       *)
         echo "error: wrangler resolved account(s) [$ACCOUNT_IDS]," >&2
-        echo "       but $PROD_ENV_FILE names $EXPECTED_ACCOUNT." >&2
-        echo "       Refusing to upload — check CLOUDFLARE_API_TOKEN and" >&2
-        echo "       CLOUDFLARE_ACCOUNT_ID." >&2
+        echo "       but CLOUDFLARE_PROD_ACCOUNT_ID names $EXPECTED_ACCOUNT." >&2
+        echo "       Refusing to upload — check the CLOUDFLARE_PROD_* pair in" >&2
+        echo "       scripts/config/secrets.env." >&2
         exit 1
         ;;
     esac
