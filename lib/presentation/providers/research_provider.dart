@@ -15,11 +15,10 @@ import '../../domain/repositories/research_repository.dart';
 import 'research_chat_state.dart';
 import 'research_mode_provider.dart';
 
-/// Where the `/research` backend lives. Native needs an absolute URL (unlike the
-/// web content server's same-origin '').
+/// Where the `/research` backend lives, as an absolute URL.
 ///
-/// Defaults to the local `research_server` dev instance on :8082 (8081 is taken
-/// by the Dart content server). Override at build/run time with
+/// Defaults to the local `research_server` dev instance on :8082. Override at
+/// build/run time with
 /// `--dart-define=RESEARCH_BASE_URL=https://research.thewisdomproject.app`.
 /// On the Android emulator, the host machine is reachable as 10.0.2.2.
 final researchBaseUrlProvider = Provider<String>(

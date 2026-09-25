@@ -42,7 +42,7 @@ how the app keeps its copy of `bjt.db` and `dict.db` current. Read step 7 first.
 Keep the integration file **out of `all_tests.dart`**: it closes the shared
 connection and swaps the database file, which would disturb the files sharing
 that app launch. It needs its own line in the integration row of
-[`test-all-and-release-all.md`](../test-all-and-release-all.md), or nothing will
+[`test-all-and-release-all.md`](../../done/test-all-and-release-all.md), or nothing will
 ever run it.
 
 ## Harness (unit tests)
@@ -144,7 +144,7 @@ here means old text in a new app, silently.
     `tools/db-finalize.js` leaves the manifest stale, and existing installs
     silently keep their old copy. That check belongs to `scripts/app/test.sh`'s
     "shipped databases" row in
-    [`test-all-and-release-all.md`](../test-all-and-release-all.md).
+    [`test-all-and-release-all.md`](../../done/test-all-and-release-all.md).
 14. **Devices ([`first-mobile-release.md`](../mobile-release/first-mobile-release.md)).** Installing over an older build; on Android,
     clear-cache versus clear-storage, `adb shell bmgr backupnow <package>`, and
     the full-phone case.

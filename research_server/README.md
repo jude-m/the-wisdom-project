@@ -22,7 +22,7 @@ npm run start:node   # same app on plain Node :8082
 npm run bench        # CPU worst-case benchmark vs the 10ms budget
 ```
 
-Dev port map: 8081 = Dart content server, **8082 = research server**.
+Dev port map: 8080 = Flutter web, **8082 = research server**, 8083 = static-site preview.
 
 Live mode locally: `./scripts/research_server/run.sh`, with
 `RESEARCH_GEMINI_API_KEY` in `scripts/config/secrets.env`.

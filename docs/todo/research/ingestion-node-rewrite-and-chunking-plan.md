@@ -36,7 +36,8 @@ delete the last Python from the repo.
 ## Where we are (2026-09-25)
 
 - **Done:** the research server is TypeScript on Cloudflare Workers, live on
-  dev (personal Cloudflare account), reading the pilot store — SN 15 only
+  dev (personal Cloudflare account, CORS `localhost:8080` only since
+  2026-09-25), reading the pilot store — SN 15 only
   (`tipitakapilotsn15-…`), made by the Python ingest with default chunking.
 - **Not done:** the ingest job itself is still Python (the port below).
 - **Ops Google account:** `wisdom-research` project and its key exist; no
@@ -45,8 +46,9 @@ delete the last Python from the repo.
 - **Ops Cloudflare account:** exists, keys in `secrets.env`; no Worker
   deployed there yet (`deploy.sh --prod` still refuses).
 - **Next:** full-corpus ingest into one new store in the ops project, then
-  move the Worker to ops. Dev and prod Workers share that one store — both
-  read `RESEARCH_STORE` from the same `wrangler.jsonc`.
+  move research to the ops accounts and retire the personal ones. Dev and prod
+  Workers share that one store — both read `RESEARCH_STORE` from the same
+  `wrangler.jsonc`.
 
 ## New home: the ops Google account
 
@@ -94,10 +96,14 @@ Keep the Python script's behaviour 1:1, it is all still right:
    didn't regress (all 20 suttas still enumerated in thinking mode).
 4. Once 3 passes, ingest the full corpus into the same store (re-runs skip
    uids already there).
-5. Move the Worker to the ops Cloudflare account (`deploy.sh --prod`), reading
-   the same store.
-6. Delete the old personal Google project: the old store and the old key go
-   with it. Delete `deprecated/research_server/` — **repo is Python-free**.
+5. Move research to the ops Cloudflare account: a dev and a prod Worker, both
+   reading the same store. Make `deploy.sh --dev` and `--prod` target them,
+   repoint `RESEARCH_BASE_URL` in `scripts/config/targets.env` and the app's
+   `--dart-define`, and probe both.
+6. Retire the personal accounts' research pieces: delete the personal
+   `wisdom-research` Worker, and the old personal Google project (the old
+   store and the old key go with it). Delete `deprecated/research_server/` —
+   **repo is Python-free**.
 7. Update the knowledge doc's CPU map with the new measured `body=`/CPU numbers.
 
 ## Risks

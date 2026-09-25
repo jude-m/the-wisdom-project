@@ -2,11 +2,10 @@
 
 > **Opened 2026-09-14, reviewed 2026-09-15.** One command tests the whole
 > project, one builds and releases it, and every product can do both on its own.
-> CI then becomes one line per job. **In progress on branch
-> `feat/test-all-and-release-all` (off `main`), one step at a time, you commit:
-> steps 1–5 committed; step 6 next.**
+> CI then becomes one line per job. **Done 2026-09-25, all seven steps, on
+> branch `feat/test-all-and-release-all` (off `main`).**
 > The research Gemini key waits for the store switch in
-> [`ingestion-node-rewrite-and-chunking-plan.md`](research/ingestion-node-rewrite-and-chunking-plan.md).
+> [`ingestion-node-rewrite-and-chunking-plan.md`](../todo/research/ingestion-node-rewrite-and-chunking-plan.md).
 
 ## The principle
 
@@ -91,7 +90,7 @@ working. `run.bat` cannot source a bash file and keeps its own default.
 | unit + widget | `flutter test` | ✓ |
 | wisdom_shared | `dart test` in `packages/wisdom_shared` | ✓ |
 | shipped databases | the manifest names at least one; each exists, SQLite magic, not WAL-flagged (from `validate-release.sh`); each file's SHA-256 equals its entry in `assets/databases/manifest.json`, since phones keep their old copy of a database changed outside `tools/db-finalize.js` | – built, not committed |
-| integration · macOS | `flutter test integration_test/all_tests.dart -d macos`, then `integration_test/bundled_database_copy_test.dart` the same way — it swaps a database file, so it can't share the suite's one app launch ([proposal](./retiring-dart-server/bundled-database-copy-tests.md)) | – needs macOS and the databases |
+| integration · macOS | `flutter test integration_test/all_tests.dart -d macos`, then `integration_test/bundled_database_copy_test.dart` the same way — it swaps a database file, so it can't share the suite's one app launch ([proposal](../todo/retiring-dart-server/bundled-database-copy-tests.md)) | – needs macOS and the databases |
 | integration · Chrome | `app/web/test_chrome.sh` — the `all_tests.dart` files, in a browser | – needs Chrome and the databases |
 
 `a3f6c46` formatted every Dart package once.
@@ -108,12 +107,12 @@ adding a file there is all it takes for both platforms to pick it up. The one
 file only macOS runs is `bundled_database_copy_test.dart`: it swaps a bundled
 asset, which no browser install does, so it stays outside `all_tests.dart` and
 outside this script — the web's counterpart is
-[`web-database-installer-tests.md`](retiring-dart-server/web-database-installer-tests.md).
+[`web-database-installer-tests.md`](../todo/retiring-dart-server/web-database-installer-tests.md).
 Chromedriver is fetched on demand, matched to the installed Chrome's major
 version, and always run with `--enable-chrome-logs`: on web `flutter drive`
 reports a failure as a bare `Failure in method: <name>`, and the reason is only
 in the browser console. The whole suite passed in Chrome on 2026-09-22
-([`move-web-onto-drift.md`](../done/retiring-dart-server/move-web-onto-drift.md) step 8),
+([`move-web-onto-drift.md`](retiring-dart-server/move-web-onto-drift.md) step 8),
 which needed `tester.enterText` replaced by `typeText` in
 `integration_test/test_overrides.dart` — the platform text-input channel the
 harness mocks never delivers on web.
@@ -149,12 +148,12 @@ today a type error ships. Writing tests is a separate task.
 | product | local | dev | prod |
 |---|---|---|---|
 | static site | `run.sh` | `deploy.sh --dev` → `sammaditthi-dev`, branch `dev` | `deploy.sh --prod` → `sammaditthi.net` |
-| research server | `run.sh` | `deploy.sh --dev` → today's only Worker, personal account | **placeholder** — moves to the ops account ([`web-release.md`](web-strategy/web-release.md) §4) |
+| research server | `run.sh` | `deploy.sh --dev` → today's only Worker, personal account | **placeholder** — moves to the ops account ([`web-release.md`](../todo/web-strategy/web-release.md) §4) |
 | app · web | `run_mac.sh` — from step 4 through Flutter's own server; it serves real content on `feat/move-web-onto-drift`, where the browser installs its own databases (see **Moves**) | **placeholder** — home not decided | **placeholder** — `app.sammaditthi.net` |
 | app · android, ios, macos | `run.sh` | **placeholder** | **placeholder** — no signing or store upload; Android release builds use the debug key |
 | app · windows | `run.bat` | – | – |
 
-Where Flutter web lives on Cloudflare is open — [`web-release.md`](web-strategy/web-release.md) §6.
+Where Flutter web lives on Cloudflare is open — [`web-release.md`](../todo/web-strategy/web-release.md) §6.
 
 ## Targets and secrets — `scripts/config/`
 
@@ -197,7 +196,7 @@ The keys themselves are in the files (built in step 1).
   request without `x-app-token` (`research_server/src/app.ts`), and no app build
   sends one yet. It goes into `secrets.env` with the app's matching
   `--dart-define`, as its own change —
-  [`research-endpoint-security-before-testers.md`](research/research-endpoint-security-before-testers.md).
+  [`research-endpoint-security-before-testers.md`](../todo/research/research-endpoint-security-before-testers.md).
 - **`run.sh --node` reads `RESEARCH_STUB` and `RESEARCH_STORE` from
   `wrangler.jsonc`** (`research_var` in `lib/common.sh`). Plain Node never
   reads `wrangler.jsonc`, and without them it quietly serves stub replies.
@@ -220,9 +219,8 @@ The keys themselves are in the files (built in step 1).
   vars, placement and CORS list from it; no secret goes in it. Step 4 drops the
   Windows box from its CORS list and keeps `http://localhost:8080` for the local
   web host.
-- **One live change, in step 6.** The research deploy drops the Windows origin.
+- **One live change, in step 7.** The research deploy drops the Windows origin.
   It uploads no key: `RESEARCH_GEMINI_API_KEY` is empty until the store switch.
-  It waits for step 6 and your go-ahead.
 
 ## The two project-level scripts
 
@@ -274,7 +272,7 @@ there too.
 | **keep** | waiting after the upload until the live site reports the new SHA |
 | **change** | rsync + SSH → a wrangler Pages upload, with the static site's dev/prod and account guards moved into `lib/common.sh` rather than copied |
 | **change** | `/healthz` is served by the Dart server, which Pages does not have: the build writes a static version file and `version_check_provider.dart` polls that — a small app change |
-| **change** | strip only `assets/assets/databases/*.db`: `manifest.json` stays, because the app reads each database's version from it. The databases go to R2 ([`web-release.md`](web-strategy/web-release.md) §6) |
+| **change** | strip only `assets/assets/databases/*.db`: `manifest.json` stays, because the app reads each database's version from it. The databases go to R2 ([`web-release.md`](../todo/web-strategy/web-release.md) §6) |
 | **drop** | the SMB mount and the SSH restart |
 
 ## Moves — confirmed 2026-09-14
@@ -306,7 +304,7 @@ the default host is `any` (`0.0.0.0`). Content is back with web Drift on
 `feat/move-web-onto-drift`; `web_dev_config.yaml` already exists at the repo
 root and the server already sends its COOP/COEP headers on every response,
 `--release` included (verified 2026-09-20,
-[`move-web-onto-drift.md`](../done/retiring-dart-server/move-web-onto-drift.md)).
+[`move-web-onto-drift.md`](retiring-dart-server/move-web-onto-drift.md)).
 
 Then repoint every live mention of a moved file, `.dev.vars`, `.prod.env`, or
 the Windows box's port 8081:
@@ -368,7 +366,7 @@ the secrets in step 1.
    exists, drop that `if`.
 
    **Partly done early, 2026-09-20**, by
-   [`move-web-onto-drift.md`](../done/retiring-dart-server/move-web-onto-drift.md)
+   [`move-web-onto-drift.md`](retiring-dart-server/move-web-onto-drift.md)
    steps 5 and 7, because retiring the Dart server could not wait for this
    plan: `server/` is in `deprecated/server/` and the three Windows-box files
    in `deprecated/scripts-web/`; `server` is out of
@@ -380,8 +378,17 @@ the secrets in step 1.
    is refused before anything runs.
 6. **Move** `validate-release.sh` and `check-dart-packages.sh` to
    `deprecated/tools/`; fix `sync-regen.sh`; repoint the paths and docs above.
-   Last, with your go-ahead: one `research_server/deploy.sh`, which makes the
-   CORS change live.
+   **Done 2026-09-25.** What the grep still finds is deliberate: dated records
+   in older plans and reviews, the two `.gitignore` lines, the old secret file
+   itself, and `scripts/research_server/run.sh` saying it ignores `.dev.vars`.
+   Verify passed the same day, except that `all_tests.dart` on macOS hung in
+   `layout_switch_test.dart`. Every file passes alone, which is the known
+   shared-launch flake.
+7. **One live `research_server/deploy.sh --dev`**: it makes the CORS change
+   live. It uploads no key, so the Worker keeps its key and store. **Done
+   2026-09-25**, version `4b91ce85`. The live list had held both the Windows
+   origin and `localhost:8080`; now `localhost:8080` alone is allowed, and
+   `/health` still reports live mode with a store.
 
 **Verify.** First rebuild both databases from `tools/` — gitignored build
 outputs, safe to regenerate. On 2026-09-15 both on this Mac were WAL-flagged,
@@ -394,7 +401,7 @@ serves the app on port 8080, and a reloaded deep link loads it;
 
 ## CI, once the steps land
 
-Owned by [`web-release.md`](web-strategy/web-release.md) §5:
+Owned by [`web-release.md`](../todo/web-strategy/web-release.md) §5:
 
 | job | runs |
 |---|---|
@@ -412,4 +419,4 @@ Gaps the investigation found, each its own item:
 - The HTML validator (backlog C9).
 - `research_server` has no tests.
 - Mobile release: signing, iOS export, store upload — tracked in
-  [`first-mobile-release.md`](mobile-release/first-mobile-release.md).
+  [`first-mobile-release.md`](../todo/mobile-release/first-mobile-release.md).

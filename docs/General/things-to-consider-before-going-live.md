@@ -62,7 +62,7 @@ Flow:
 
 Flutter web does NOT hash `main.dart.js` or `flutter.js` by default. Options:
 
-- **Post-build step in `scripts/web/deploy.sh`**: after `flutter build web`, rename
+- **Post-build step in `scripts/app/web/deploy.sh`**: after `flutter build web`, rename
   `main.dart.js` → `main.<sha256-prefix>.js`, same for `flutter.js`, then
   rewrite references inside `flutter_bootstrap.js` and `index.html`. ~20
   lines of bash. Deterministic, no runtime changes.
@@ -155,8 +155,8 @@ string. Incomplete fix; skip.
 
 ## 3. Service worker strategy
 
-`scripts/web/deploy.sh` currently strips `flutter_service_worker.js` from the
-build. Reasoning: without it, redeploys are served fresh immediately via
+The retired Windows-box deploy stripped `flutter_service_worker.js` from the
+build; `scripts/app/web/deploy.sh` (a placeholder today) should do the same. Reasoning: without it, redeploys are served fresh immediately via
 the `no-cache` mechanism above.
 
 ### When to reintroduce a service worker
@@ -193,19 +193,22 @@ deployment with far less complexity.
 
 Not caching-related but same "LAN is forgiving, public isn't" theme.
 
-- **HTTPS termination**: the Windows server runs plain HTTP on port 8081.
-  Browsers increasingly refuse features (clipboard, fullscreen, some APIs)
-  on `http://`. Put a proper TLS-terminating proxy (nginx, Caddy,
-  Cloudflare) in front before exposing publicly.
-- **CORS**: `_corsMiddleware` sends `Access-Control-Allow-Origin: *`. Fine
-  for local dev; on public internet, restrict to the real origin(s).
-- **Rate limiting**: no middleware today. Public search endpoints are
-  cheap but FTS queries can be expensive. Add a simple per-IP bucket at
-  the proxy layer.
-- **Request size / timeout limits**: shelf uses defaults. For a public
-  server, cap body size and set request/response timeouts.
-- **Logging PII**: `_requestLogger` logs paths. Verify no user-identifying
-  query params get written to disk.
+- **CORS**: the research Worker allows only the origins in
+  `RESEARCH_CORS_ORIGINS` (`research_server/wrangler.jsonc`), today just
+  `http://localhost:8080`. Add the app's public origin when it is hosted.
+- **Rate limiting**: the research Worker is the only endpoint left (search
+  runs in the app), and nothing limits it today. CORS stops browsers, not
+  scripts, so anyone with the URL can use up the Gemini quota. The planned
+  fix is App Check; see
+  [`research-endpoint-security-before-testers.md`](../todo/research/research-endpoint-security-before-testers.md).
+- **Request size / timeout limits**: done. The Worker caps question and
+  history size (`research_server/src/contracts.ts`) and gives up at a
+  deadline for each mode (`config.ts`).
+- **Logging PII**: the Worker's own log lines hold a request id, mode,
+  model, status and timings, never the question. Before launch, check
+  what Cloudflare's Workers Logs (`observability` in `wrangler.jsonc`)
+  keeps for each request, and what the `unhandled:` error dump in
+  `app.ts` can contain.
 
 ---
 

@@ -211,7 +211,7 @@ tests the same function; it should point here rather than test it twice.
   exist, the way `database_copy` is. It calls
   `./scripts/app/web/test_chrome.sh <file>` once per file, in the order above.
   It needs a line in
-  [`test-all-and-release-all.md`](../test-all-and-release-all.md) too.
+  [`test-all-and-release-all.md`](../../done/test-all-and-release-all.md) too.
 - Each file is its own build, and files 1, 3 and 4 download for real.
 
 ## What the tests should cover

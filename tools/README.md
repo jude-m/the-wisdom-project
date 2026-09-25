@@ -78,35 +78,10 @@ Check that the script completed without errors. It writes the database there dir
 
 ---
 
-## Release Validation Script
+## Release checks
 
-### Purpose
-
-The `validate-release.sh` script runs comprehensive pre-release checks to ensure your code is ready for production.
-
-### Usage
-
-```bash
-./validate-release.sh
-```
-
-### What It Checks
-
-1. ✅ **FTS Database** - Exists and is valid size (~114 MB)
-2. ✅ **pubspec.yaml** - Includes the database in assets
-3. ✅ **Code Generation** - Freezed models are up to date
-4. ✅ **Flutter Analyzer** - No issues or warnings
-5. ✅ **Code Formatting** - Follows 2-space indentation
-6. ✅ **Unit & Widget Tests** - All tests pass
-7. ✅ **Integration Tests** - All integration tests pass
-
-If any check fails, the script exits with an error message showing which check failed.
-
-### When to Run
-
-- Before building a release (required)
-- Before creating a pull request (recommended)
-- In CI/CD pipelines
+`validate-release.sh` is retired (`deprecated/tools/`). The app's release gate is
+`scripts/app/test.sh`; `scripts/test_all.sh` runs every product's gate.
 
 ---
 
@@ -114,7 +89,6 @@ If any check fails, the script exits with an error message showing which check f
 
 - `bjt-populate.js` - Database generation script (writes `../assets/databases/bjt.db`, gitignored)
 - `package.json` - Node.js dependencies
-- `validate-release.sh` - Pre-release validation script
 - `README.md` - This file
 
 ### Credits

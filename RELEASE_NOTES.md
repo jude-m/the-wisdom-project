@@ -1,7 +1,8 @@
 # Release Notes
 
 <!--
-  Edit this file BEFORE running `scripts/web/deploy.sh`.
+  Edit this file BEFORE running `scripts/app/web/deploy.sh` (once it's built —
+  it's a placeholder today, so nothing reads this file yet).
 
   Only lines under the `## Current release` heading are read by the deploy
   script — everything above it is documentation and is ignored.

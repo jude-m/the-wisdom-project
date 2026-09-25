@@ -2,10 +2,8 @@
   "name": "wisdom-research",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-01",
-  // Dev port map: 8080 = Flutter web (macOS), 8081 = Flutter web (Windows box),
-  // 8082 = research server, 8083 = static-site preview
-  // (static_site_generator/tool/serve.dart). The Dart content server that used
-  // to hold 8081 is retired — see docs/todo/serverless-deployment-decision.md.
+  // Dev port map: 8080 = Flutter web, 8082 = research server, 8083 = static-site
+  // preview (static_site_generator/tool/serve.dart).
   "dev": {
     "port": 8082
   },

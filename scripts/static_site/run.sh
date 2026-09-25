@@ -8,7 +8,7 @@
 #   ./scripts/static_site/run.sh --port 9000            # override the port (default 8083)
 #   -h, --help
 #
-# Dev port map: 8080/8081 Flutter web, 8082 research server, 8083 this.
+# Dev port map: 8080 Flutter web, 8082 research server, 8083 this.
 # 8787 is skipped — it is wrangler's own default.
 #
 # --port reaches the generator too: every page carries a `rel="canonical"`

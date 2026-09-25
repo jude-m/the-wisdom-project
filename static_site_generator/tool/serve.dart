@@ -306,8 +306,8 @@ class _Options {
 
     // 8083, not 8787: 8787 is wrangler's own default port, and this repo now
     // runs wrangler regularly (scripts/static_site/deploy.sh, research_server).
-    // 8083 is the next free slot in the dev port map — 8080 Flutter web on
-    // macOS, 8081 Flutter web on the Windows box, 8082 research server.
+    // 8083 is the next free slot in the dev port map — 8080 Flutter web,
+    // 8082 research server.
     //
     // `bin/generate.dart`'s `_defaultOrigin` is this number: a build run with
     // no `--origin` writes `http://localhost:8083` into every canonical, so

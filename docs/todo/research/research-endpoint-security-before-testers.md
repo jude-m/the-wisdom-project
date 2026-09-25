@@ -14,7 +14,7 @@ nothing here is urgent (dev-only exposure).
   finds the URL can still burn our Gemini free-tier quota (feature goes 429 for
   real users; no money at risk). Tolerable for a small LAN tester group, not
   for a public release.
-- CORS is **pinned** to the tester origin `http://192.168.1.200:8081`
+- CORS is **pinned** to local Flutter web, `http://localhost:8080`
   (`RESEARCH_CORS_ORIGINS` in `wrangler.jsonc`; no trailing slash — must match
   the browser's `Origin` header exactly). Add the real domain/IP alongside it
   (comma-separated) once the web build is hosted somewhere public.
@@ -44,7 +44,7 @@ nothing here is urgent (dev-only exposure).
    `--dart-define=RESEARCH_APP_TOKEN=<token>`. Keep the token in a gitignored
    place (env file a run script sources, or `.vscode/launch.json`) — never
    commit it. Local dev against `run.sh` is unaffected (no token in
-   `.dev.vars` → gate off on localhost).
+   `scripts/config/secrets.env` → gate off on localhost).
 4. Pin CORS: set `RESEARCH_CORS_ORIGINS=<web origin>` in `wrangler.jsonc`
    vars and redeploy. Browser-only protection — the token covers
    curl/scripts.

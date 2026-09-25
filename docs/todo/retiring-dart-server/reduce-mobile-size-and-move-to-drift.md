@@ -781,7 +781,7 @@ CREATE TABLE bjt_content (
      will derive ids from absolute coordinates instead.
 
    **Unrelated TODO, moved out 2026-09-14:** one entry point for every test path
-   is its own plan now — [`test-all-and-release-all.md`](../test-all-and-release-all.md).
+   is its own plan now — [`test-all-and-release-all.md`](../../done/test-all-and-release-all.md).
 2. **Prove the speed win (primary goal) — DONE 2026-09-11. GO.** Snippets 13–586×,
    reader p50 45× with one slice in 1,411 a quarter-millisecond slower than
    today. Numbers and method in **What the measurements said**;
@@ -1080,9 +1080,9 @@ CREATE TABLE bjt_content (
      repaired with `sqlite3`, or left half-written by a failed generator run)
      would leave existing installs on their old copy. The check belongs to
      `scripts/app/test.sh`'s "shipped databases" row in
-     [`test-all-and-release-all.md`](../test-all-and-release-all.md).
+     [`test-all-and-release-all.md`](../../done/test-all-and-release-all.md).
    - **`validate-release.sh` is not taught the manifest.** It is being
-     retired ([`test-all-and-release-all.md`](../test-all-and-release-all.md));
+     retired ([`test-all-and-release-all.md`](../../done/test-all-and-release-all.md));
      one comment line there says the omission is deliberate.
 
    **Done by hand first:** deleted the old copies in

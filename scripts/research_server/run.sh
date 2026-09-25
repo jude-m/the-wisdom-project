@@ -7,10 +7,8 @@
 #   ./scripts/research_server/run.sh --port 8083  # override the port (default 8082)
 #   -h, --help
 #
-# Dev port map: 8080 = Flutter web (macOS), 8081 = Flutter web (Windows box),
-# 8082 = research server, 8083 = static-site preview
-# (static_site_generator/tool/serve.dart). The Dart content server that used to
-# hold 8081 is retired.
+# Dev port map: 8080 = Flutter web, 8082 = research server, 8083 = static-site
+# preview (static_site_generator/tool/serve.dart).
 #
 # The Gemini key comes from scripts/config/secrets.env (RESEARCH_GEMINI_API_KEY;
 # copy secrets.env.example). wrangler gets it through a temporary --env-file,

@@ -86,7 +86,7 @@ both, so what ships is always the whole corpus and always checked:**
    the index by `X-Robots-Tag: noindex`, which is free on previews.
 2. **Prod** — `./scripts/static_site/deploy.sh --prod --yes`.
 
-Both project names are hardcoded in `deploy.sh`; `.prod.env` is credentials only.
+Both project names are in `scripts/config/targets.env`; `secrets.env` is credentials only.
 If a deploy dies with `Error: {})` and no message, the real cause is only in
 `~/Library/Preferences/.wrangler/logs/`. Never run two deploys at once — there is
 no lock, and the second wipes `build/` mid-upload.
@@ -116,7 +116,7 @@ no lock, and the second wipes `build/` mid-upload.
 with the release. `.github/workflows/` is empty; every test is run by hand today.
 
 **A workflow calls the project's scripts and holds no logic of its own** — plan
-in [`test-all-and-release-all.md`](../test-all-and-release-all.md). Each
+in [`test-all-and-release-all.md`](../../done/test-all-and-release-all.md). Each
 product's `scripts/<product>/test.sh` is its release gate and its `deploy.sh`
 runs that first, so what was decided here now lives inside those scripts —
 don't re-derive it:
@@ -154,7 +154,7 @@ first-come, so check before creating. `docs/decisions/static-web-hosting.md`
 still records a single reserved project; revise it once this is settled.
 
 **Three targets**, all in `scripts/app/web/`
-([`test-all-and-release-all.md`](../test-all-and-release-all.md)):
+([`test-all-and-release-all.md`](../../done/test-all-and-release-all.md)):
 
 | target | command | today |
 |---|---|---|

@@ -14,8 +14,8 @@
 #   Step 2  Review     — show the correction commits since our last sync.
 #   Step 3  tree.json  — diff the navigation map SEPARATELY & LOUDLY (nodeKeys!).
 #   Step 4  Copy       — copy the new text + tree.json into assets/.
-#   Step 5  Verify     — run the Dart package tests against the text just copied.
-#   Step 6  Rebuild    — ask y/n to regenerate the static HTML (stub) and FTS db (real).
+#   Step 5  Verify     — run the static site's tests against the text just copied.
+#   Step 6  Rebuild    — ask y/n to build + link-check the static site, and the FTS db.
 #   Step 7  Receipt    — record upstream SHA + date + file count next to this script.
 #
 # Usage:
@@ -381,9 +381,11 @@ echo "Copied. assets/text now has $DEST_COUNT JSON files; tree.json + data files
 #
 # `if`, not bare, so a failure warns instead of aborting a half-done sync.
 step "Step 5 — Verify the new corpus"
-echo "Running the Dart package checks against the text you just copied..."
+echo "Running the static site's tests against the text you just copied..."
 echo
-if "$ROOT/tools/check-dart-packages.sh"; then
+VERIFY_OK=false
+if "$ROOT/scripts/static_site/test.sh"; then
+  VERIFY_OK=true
   echo
   echo "  Corpus verified — the frozen grouping snapshot still describes this tree."
   echo
@@ -393,8 +395,11 @@ if "$ROOT/tools/check-dart-packages.sh"; then
   echo "    dart run static_site_generator/tool/plan_corpus.dart"
 else
   echo
-  echo "  ${HILITE}WARNING: the corpus tests FAILED after this sync.${RESET}"
-  echo "  The tool names the offending nodeKeys. Re-run it on its own to read them:"
+  echo "  ${HILITE}WARNING: the static site tests FAILED after this sync.${RESET}"
+  echo "  The summary above names the failed step. Only \`corpus\` is about the text;"
+  echo "  any other step failing is a code problem, not this sync."
+  echo
+  echo "  For \`corpus\`: the tool names the offending nodeKeys. Re-run it to read them:"
   echo "    dart run static_site_generator/tool/plan_corpus.dart --check"
   echo
   echo "  Read the failure before assuming it is about grouping. These checks decode"
@@ -412,24 +417,30 @@ fi
 echo
 
 # ---------------------------------------------------------------------------
-# Step 6 — Rebuild what depends on the text  (STUBS — not wired up yet)
+# Step 6 — Rebuild what depends on the text
 # ---------------------------------------------------------------------------
 step "Step 6 — Rebuild downstream (optional)"
 echo "The text changed, so two things MAY need regenerating. Both are asked, not automatic."
 echo
 
-# --- 5a. Static HTML site (stub) ---
-if confirm "Regenerate the static HTML site?"; then
-  # TODO: wire this once the generator exists.
-  #       See docs/todo/web-strategy/static-html-site-plan.md
-  echo "  [stub] Static HTML generator is not built yet — skipping."
-  echo "  [stub] Track it in docs/todo/web-strategy/static-html-site-plan.md"
+# --- 6a. Static HTML site ---
+# A dry run: builds the whole site and checks its links, uploads nothing.
+# --skip-tests because Step 5 has just run them, so it is skipped when they
+# failed. Releasing stays a separate, deliberate ./scripts/static_site/deploy.sh.
+if [ "$VERIFY_OK" = false ]; then
+  echo "  Skipped the static site build: Step 5's tests failed. Fix them first."
+elif confirm "Build and link-check the static HTML site (no upload)?"; then
+  if "$ROOT/scripts/static_site/deploy.sh" --dry-run --skip-tests; then
+    echo "  Static site built and checked. Deploy it with ./scripts/static_site/deploy.sh"
+  else
+    echo "  WARNING: the static site dry run stopped (reason above)."
+  fi
 else
-  echo "  Skipped static HTML regeneration."
+  echo "  Skipped the static site build."
 fi
 echo
 
-# --- 5b. FTS database (real) ---
+# --- 6b. FTS database ---
 if confirm "Regenerate the FTS database (bjt.db, ~114 MB heavy rebuild)?"; then
   echo "  Regenerating bjt.db — indexing ~457k entries into assets/databases/;"
   echo "  this takes a few minutes..."
