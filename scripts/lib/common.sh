@@ -149,6 +149,62 @@ research_deps() {
   (cd "$WISDOM_ROOT/research_server" && npm ci)
 }
 
+# `research_var NAME` — one var from research_server/wrangler.jsonc. TypeScript's
+# parser, because the file has comments and URLs, so stripping `//` with sed
+# would cut the URLs too. Call research_deps first.
+research_var() {
+  if ! (cd "$WISDOM_ROOT/research_server" && node -e '
+    const ts = require("typescript");
+    const text = require("fs").readFileSync("wrangler.jsonc", "utf8");
+    const { config, error } = ts.parseConfigFileTextToJson("wrangler.jsonc", text);
+    if (error || !config || !config.vars) process.exit(1);
+    process.stdout.write(String(config.vars[process.argv[1]] ?? ""));
+  ' "$1"); then
+    echo "error: can't read $1 from research_server/wrangler.jsonc." >&2
+    return 1
+  fi
+}
+
+# `check_research_store` — fails unless RESEARCH_GEMINI_API_KEY can open
+# RESEARCH_STORE. A store belongs to the Google project that made it, and so
+# does a key, so the two switch together or research breaks. One metadata
+# lookup, no generation. With no key it only warns: the Worker keeps the key it
+# has, which no script can read.
+check_research_store() {
+  local key store resp code message
+  store=$(research_var RESEARCH_STORE) || return 1
+  if [ -z "$store" ]; then
+    echo "error: RESEARCH_STORE is empty in research_server/wrangler.jsonc." >&2
+    return 1
+  fi
+  key=$(secret RESEARCH_GEMINI_API_KEY) || return 1
+  if [ -z "$key" ]; then
+    echo "warning: no RESEARCH_GEMINI_API_KEY, so $store is not checked." >&2
+    echo "         The key already on the Worker must be able to open it." >&2
+    return 0
+  fi
+  echo "Checking RESEARCH_GEMINI_API_KEY can open $store..."
+  # The key goes in on stdin (-H @-), so it never shows in the process list.
+  resp=$(printf 'x-goog-api-key: %s\n' "$key" | curl -sS --max-time 15 -H @- \
+    -w '\n%{http_code}' "https://generativelanguage.googleapis.com/v1beta/$store" \
+    2>/dev/null) || true
+  code=${resp##*$'\n'}
+  [ "$code" = 200 ] && return 0
+  if [ "$code" = 000 ] || [ -z "$code" ]; then
+    echo "error: could not reach Google to check $store (network?)." >&2
+    return 1
+  fi
+  message=$(printf '%s' "$resp" | sed -n 's/.*"message": *"\([^"]*\)".*/\1/p' | head -1)
+  echo "error: RESEARCH_GEMINI_API_KEY cannot open $store" >&2
+  echo "       (HTTP $code${message:+: $message})." >&2
+  # 403/404 is "this key can't see that store". A 400 is the key itself, or
+  # Google's location block, where a project hint would mislead.
+  case "$code" in
+    403|404) echo "       The key and RESEARCH_STORE must come from the same Google project." >&2 ;;
+  esac
+  return 1
+}
+
 # `free_port PORT` — stops whatever listens on PORT, so a re-run doesn't hit
 # "address already in use". Waits until the port is really free, escalating to
 # SIGKILL; a fixed sleep is racy. -sTCP:LISTEN so a browser tab or app holding

@@ -23,7 +23,9 @@
 # secrets come from scripts/config/secrets.env and are uploaded with every
 # deploy (--secrets-file): RESEARCH_GEMINI_API_KEY as GEMINI_API_KEY. An empty
 # one is left out of the upload, and a secret left out stays on the Worker as it
-# is — so a key change is an edit to secrets.env plus a deploy.
+# is — so a key change is an edit to secrets.env plus a deploy. A key that can't
+# open RESEARCH_STORE (wrangler.jsonc) stops the upload: both belong to one
+# Google project, so they change together, in one deploy.
 #
 # Requires `wrangler login` done once (CLI auth — separate from dashboard sign-in).
 # END-USAGE
@@ -64,6 +66,16 @@ URL=$(target RESEARCH_BASE_URL)
 
 cd "$WISDOM_ROOT"
 
+require_node22
+research_deps
+
+# Before the tests, so a key that can't open the store fails in seconds. Only
+# for a real upload: a dry run sends no key and stays offline.
+if [ "$DRY_RUN" = false ] && ! check_research_store; then
+  echo "       Nothing uploaded." >&2
+  exit 1
+fi
+
 # --- Tests ------------------------------------------------------------------
 if [ "$SKIP_TESTS" = false ]; then
   if ! ./scripts/research_server/test.sh; then
@@ -76,9 +88,6 @@ if [ "$SKIP_TESTS" = false ]; then
 fi
 
 cd research_server
-
-require_node22
-research_deps
 
 # Secrets only for a real upload: a dry run uploads nothing, so it needs none
 # and keeps working on a checkout with no secrets.env.

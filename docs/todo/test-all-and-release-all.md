@@ -4,8 +4,9 @@
 > project, one builds and releases it, and every product can do both on its own.
 > CI then becomes one line per job. **In progress on branch
 > `feat/test-all-and-release-all` (off `main`), one step at a time, you commit:
-> steps 1–4 committed; step 5 done 2026-09-24, uncommitted; step 6 next.**
-> Still yours: copy the secrets into `scripts/config/secrets.env` (step 1).
+> steps 1–5 committed; step 6 next.**
+> The research Gemini key waits for the store switch in
+> [`ingestion-node-rewrite-and-chunking-plan.md`](research/ingestion-node-rewrite-and-chunking-plan.md).
 
 ## The principle
 
@@ -198,21 +199,30 @@ The keys themselves are in the files (built in step 1).
   `--dart-define`, as its own change —
   [`research-endpoint-security-before-testers.md`](research/research-endpoint-security-before-testers.md).
 - **`run.sh --node` reads `RESEARCH_STUB` and `RESEARCH_STORE` from
-  `wrangler.jsonc`.** Today it sources them from `.dev.vars`. Plain Node never
+  `wrangler.jsonc`** (`research_var` in `lib/common.sh`). Plain Node never
   reads `wrangler.jsonc`, and without them it quietly serves stub replies.
-- **You move the values by hand, in step 1.** Copy `.prod.env` and `.dev.vars`
-  into `secrets.env` before the next deploy — until then a prod static-site
-  deploy stops at "not set" and the local research server has no Gemini key. No
-  script or agent reads the old files. Leave them where they are, still
-  gitignored, and delete them when you are ready; never move them into
-  `deprecated/`, where nothing ignores them.
+- **The Gemini key and the store are a pair.** A File Search store belongs to
+  the Google project that made it, and so does a key. `check_research_store`
+  asks Google whether `RESEARCH_GEMINI_API_KEY` can open `RESEARCH_STORE`
+  before a real research upload (ahead of the tests) and before `run.sh`
+  starts, and stops if not. With no key a deploy only warns: the key already on
+  the Worker must open the store, and no script can read it.
+  `RESEARCH_STORE` stays in `wrangler.jsonc`: it is not a secret, and its git
+  history is the rollback.
+- **Secrets copied by hand, 2026-09-25.** The Cloudflare pair from `.prod.env`
+  is in `secrets.env`. The Gemini key is a new one, from the ops Google
+  account's `wisdom-research` project, and stays out of `secrets.env` until a
+  store made with it exists: the store switch in the ingestion plan. Until
+  then a research deploy leaves the Worker's key as it is, and `run.sh` stops
+  for want of a key. No script reads `.prod.env` or `.dev.vars`; delete them by
+  hand, never into `deprecated/`, where nothing ignores them.
 - **`research_server/wrangler.jsonc` stays.** wrangler reads the Worker's name,
   vars, placement and CORS list from it; no secret goes in it. Step 4 drops the
   Windows box from its CORS list and keeps `http://localhost:8080` for the local
   web host.
-- **Two live changes, one deploy, in step 6.** The research deploy uploads the
-  Worker's secrets from `secrets.env` and drops the Windows origin. It waits for
-  step 6 and your go-ahead.
+- **One live change, in step 6.** The research deploy drops the Windows origin.
+  It uploads no key: `RESEARCH_GEMINI_API_KEY` is empty until the store switch.
+  It waits for step 6 and your go-ahead.
 
 ## The two project-level scripts
 
@@ -332,7 +342,7 @@ the secrets in step 1.
 1. **`scripts/lib/common.sh` and `scripts/config/`.** The helpers — the Node ≥ 22
    guard copied in three scripts today, colours, the secret lookup — and the
    config files. Static site and research server read from them; nothing else
-   about them changes but the two live changes above. You copy the secrets
+   about them changes but the live change above. You copy the secrets
    before the next deploy.
 
    **Done 2026-09-23.** Checked in the pinned wrangler (4.112): an `--env-file`
@@ -370,8 +380,8 @@ the secrets in step 1.
    is refused before anything runs.
 6. **Move** `validate-release.sh` and `check-dart-packages.sh` to
    `deprecated/tools/`; fix `sync-regen.sh`; repoint the paths and docs above.
-   Last, with your go-ahead: one `research_server/deploy.sh`, which makes both
-   live changes live.
+   Last, with your go-ahead: one `research_server/deploy.sh`, which makes the
+   CORS change live.
 
 **Verify.** First rebuild both databases from `tools/` — gitignored build
 outputs, safe to regenerate. On 2026-09-15 both on this Mac were WAL-flagged,

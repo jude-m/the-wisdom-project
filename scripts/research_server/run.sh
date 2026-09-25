@@ -16,7 +16,8 @@
 # copy secrets.env.example). wrangler gets it through a temporary --env-file,
 # which also stops it reading any old research_server/.dev.vars. RESEARCH_STUB
 # and RESEARCH_STORE come from wrangler.jsonc: wrangler reads them there itself,
-# and --node passes them on, since plain Node never reads that file.
+# and --node passes them on, since plain Node never reads that file. It stops
+# first if the key can't open RESEARCH_STORE: both belong to one Google project.
 # END-USAGE
 
 set -e
@@ -57,6 +58,7 @@ if [ -z "$(secret RESEARCH_GEMINI_API_KEY)" ]; then
 fi
 
 research_deps
+check_research_store
 free_port "$PORT"
 
 echo "Starting research_server on http://localhost:$PORT ($RUNTIME)"
@@ -64,22 +66,10 @@ echo "Health check: curl localhost:$PORT/health"
 echo "Press Ctrl+C to stop"
 echo ""
 
-# One var from wrangler.jsonc. TypeScript's parser, because the file has
-# comments and URLs, so stripping `//` with sed would cut the URLs too.
-jsonc_var() {
-  node -e '
-    const ts = require("typescript");
-    const text = require("fs").readFileSync("wrangler.jsonc", "utf8");
-    const { config, error } = ts.parseConfigFileTextToJson("wrangler.jsonc", text);
-    if (error || !config || !config.vars) process.exit(1);
-    process.stdout.write(String(config.vars[process.argv[1]] ?? ""));
-  ' "$1"
-}
-
 if [ "$RUNTIME" = "node" ]; then
   npm run build
-  STUB=$(jsonc_var RESEARCH_STUB)
-  STORE=$(jsonc_var RESEARCH_STORE)
+  STUB=$(research_var RESEARCH_STUB)
+  STORE=$(research_var RESEARCH_STORE)
   PORT="$PORT" RESEARCH_STUB="$STUB" RESEARCH_STORE="$STORE" \
     GEMINI_API_KEY="$(secret RESEARCH_GEMINI_API_KEY)" \
     exec node dist/src/node.js
