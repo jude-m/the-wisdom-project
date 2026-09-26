@@ -26,7 +26,12 @@ migrate_working_dir/
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
-.dart_tool/
+# One per Dart package. Listed, not a bare `.dart_tool/`, so one made by
+# running dart from the wrong folder shows up in `git status`.
+/.dart_tool/
+/static_site_generator/.dart_tool/
+/packages/*/.dart_tool/
+/deprecated/web_client_prototype/.dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
@@ -48,7 +53,6 @@ app.*.map.json
 
 # Claude Code local settings
 .claude/settings.local.json
-.claude/build/
 
 # Pod lock files (generated)
 ios/Podfile.lock
@@ -78,10 +82,6 @@ tools/*.csv
 assets/databases/*.db
 # Their SHA-256s, written by tools/db-finalize.js; travels with the databases
 assets/databases/manifest.json
-
-# A temporary document, kept out of git rather than deleted. The pattern has
-# no slash, so it matches at any depth: the file is docs/general/.
-TEST_AUDIT_REPORT.md
 
 # Intermediate TTF subsets from assets/fonts/subset_fonts.sh, for the two
 # Latin-only families ONLY. Those two are app-only chrome fonts: no @font-face

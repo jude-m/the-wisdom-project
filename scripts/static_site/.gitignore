@@ -1,3 +1,0 @@
-# Production Cloudflare credentials — never committed. Retired: they live in
-# scripts/config/secrets.env now. Kept until the old file is deleted by hand.
-.prod.env
