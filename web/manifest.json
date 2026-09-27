@@ -1,11 +1,11 @@
 {
-    "name": "the_wisdom_project",
-    "short_name": "the_wisdom_project",
+    "name": "The Wisdom Project",
+    "short_name": "Wisdom",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#5A3A18",
+    "theme_color": "#5A3A18",
+    "description": "Read the Tipitaka and its commentaries in Pali and Sinhala.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

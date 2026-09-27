@@ -16,6 +16,21 @@ Section 2 was its step 10.
   (`android/app/build.gradle`). iOS needs a signed export.
 - **Store upload** isn't scripted: the mobile `deploy.sh` scripts are
   placeholders in [`test-all-and-release-all.md`](../../done/test-all-and-release-all.md).
+- **App names** are still `flutter create` leftovers. Use the name the app
+  shows (`appTitle`), and a short one under the home-screen icon, where only
+  about 12 characters fit. The web app uses "The Wisdom Project" and "Wisdom".
+  - Android: `android:label` in `android/app/src/main/AndroidManifest.xml` is
+    `the_wisdom_project`.
+  - iOS: `CFBundleDisplayName` in `ios/Runner/Info.plist` is "The Wisdom
+    Project", too long for the home screen. `CFBundleName` is
+    `the_wisdom_project`.
+  - macOS, same fix: `PRODUCT_NAME` in `macos/Runner/Configs/AppInfo.xcconfig`
+    is `the_wisdom_project` and shows in the menu bar.
+- **App icons** are still the Flutter logo on Android, iOS and macOS. The
+  web app's icons come from `assets/icons/app_logo.png`: the
+  disc as is, and a maskable version with the disc inside the safe zone on
+  `LightThemeColors.primary`. Do the same for the native icons. iOS needs the
+  version with a background: the App Store rejects icons with transparency.
 
 ## 2. Check on a real device
 
