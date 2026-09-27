@@ -408,4 +408,5 @@ Newest last. Each step adds: date, store names/ids, numbers, surprises.
   3-flash-preview, 2.5-flash; fast = 3.5-flash-lite, 3.1-flash-lite,
   2.5-flash-lite. `gemini-2.5-flash` is still listed but 404s for this
   project, so it's kept as the last rung (the user's call). The 404's
-  `unhandled` / `retriable: true` is unchanged. Next: B5.
+  `unhandled` / `retriable: true` is unchanged. Deployed from `f2707a5`,
+  Worker version `7d026bed`; `/health` lists the new ladders. Next: B5.
