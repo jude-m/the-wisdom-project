@@ -276,3 +276,11 @@ Newest last. Each step adds: date, store names/ids, numbers, surprises.
   Worker's old key deleted; `/health` → `key_configured:false`. Dry runs:
   SN 6 → 15 uids, DN 16 → 1. Plan rewritten to phases A–C; Node port
   dropped, the Python ingest stays. Next: A1.
+- **2026-09-28, A1–A2** — Store `tipitaka-pilot-sn6` =
+  `fileSearchStores/tipitakapilotsn6-f0aqkxv2244r` (ops project). SN 6: 15
+  uploaded, DN 16: 1 uploaded, 0 failed. Indexed by the first check: 16
+  active, none pending or failed, 162,106 bytes, `gemini-embedding-001`.
+  No surprises.
+- **2026-09-28, A3 (edits only)** — `RESEARCH_STORE` switched and the README
+  bullet updated, left uncommitted on the user's instruction. The deploy
+  refuses a dirty tree, so it waits for the user's commit.
