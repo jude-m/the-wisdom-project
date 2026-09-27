@@ -93,7 +93,7 @@ fi
 # status is its last command's: chain its commands with `&&`. `step_summary`
 # prints them all.
 _STEP_LINES=()
-_STEP_FAILED=0
+_STEP_FAILS=0
 run_step() {
   local name="$1" start status
   shift
@@ -105,20 +105,27 @@ run_step() {
     _STEP_LINES+=("$(printf '%-28s %sPASS%s  %4ss' "$name" "$GREEN" "$NC" $((SECONDS - start)))")
   else
     _STEP_LINES+=("$(printf '%-28s %sFAIL%s  %4ss' "$name" "$RED" "$NC" $((SECONDS - start)))")
-    _STEP_FAILED=1
+    _STEP_FAILS=$((_STEP_FAILS + 1))
   fi
 }
 
-# `step_summary TITLE` — the table of every run_step so far; returns 1 if any
-# failed, so a test.sh can end with `step_summary "…"; exit $?`.
+# `step_summary TITLE` — the table of every run_step so far, then a one-line
+# verdict as the last thing printed; returns 1 if any failed, so a test.sh can
+# end with it.
 step_summary() {
-  local line
+  local line total=${#_STEP_LINES[@]}
   echo ""
   echo "${BOLD}── $1${NC}"
   for line in "${_STEP_LINES[@]}"; do
     echo "$line"
   done
-  return $_STEP_FAILED
+  echo ""
+  if [ $_STEP_FAILS -eq 0 ]; then
+    echo "${GREEN}${BOLD}$1: $total of $total steps passed.${NC}"
+    return 0
+  fi
+  echo "${RED}${BOLD}$1: $_STEP_FAILS of $total steps FAILED.${NC}"
+  return 1
 }
 
 # wrangler 4.112 requires Node >= 22 (its package.json `engines`); the system

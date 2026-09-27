@@ -21,6 +21,7 @@
 . "$(dirname "$0")/../lib/common.sh"
 
 QUICK=false
+COPY_TEST_MISSING=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -180,17 +181,16 @@ if [ "$QUICK" = false ]; then
   run_step "integration · Chrome" integration_chrome
 fi
 
-if [ "$QUICK" = true ]; then
-  step_summary "app (--quick)"
-else
-  step_summary "app"
-fi
-status=$?
-
-# After the summary, where the Chrome step's output can't bury it.
+# After every step, where the Chrome step's output can't bury it; before the
+# summary, so its verdict is the last line.
 if [ "$COPY_TEST_MISSING" = true ]; then
   echo ""
   echo "${BOLD}Note:${NC} integration_test/bundled_database_copy_test.dart is not written yet;"
   echo "      this gate runs it once it exists."
 fi
-exit $status
+
+if [ "$QUICK" = true ]; then
+  step_summary "app (--quick)"
+else
+  step_summary "app"
+fi

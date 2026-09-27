@@ -362,7 +362,7 @@ the secrets in step 1.
 4. **`scripts/app/`.** Move the run scripts, write `app/test.sh`, add the four
    placeholder deploys. **Done 2026-09-24.** The full gate and `--quick` both
    pass, and each placeholder exits 3. `bundled_database_copy_test.dart` isn't
-   written yet, so the gate skips it and says so under the summary; once it
+   written yet, so the gate skips it and says so; once it
    exists, drop that `if`.
 
    **Partly done early, 2026-09-20**, by

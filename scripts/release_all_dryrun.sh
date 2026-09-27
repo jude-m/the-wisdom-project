@@ -18,8 +18,8 @@
 # placeholder's exit 3) for each target; exits 1 only on a FAIL. An exit that
 # disagrees with the header for the side it ran is a FAIL.
 #
-# Never run it while a static-site or app/web deploy is uploading: it rebuilds
-# static_site_generator/build/ and build/web/ under that upload.
+# Never run it while a static-site deploy is uploading: it rebuilds
+# static_site_generator/build/ under that upload.
 #
 # --list reads the `# Status: dev=… prod=…` line in each deploy.sh header,
 # because running a live deploy.sh to ask would start its tests.
@@ -95,6 +95,12 @@ sweep() {
   for line in "${_LINES[@]}"; do
     echo "$line"
   done
+  echo ""
+  if [ $_FAILED -eq 0 ]; then
+    echo "${GREEN}${BOLD}release_all_dryrun: no dry run failed.${NC}"
+  else
+    echo "${RED}${BOLD}release_all_dryrun: a dry run FAILED (table above).${NC}"
+  fi
   exit $_FAILED
 }
 

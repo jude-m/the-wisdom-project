@@ -74,7 +74,13 @@ DATABASE_BASE_URL=$(target DATABASE_BASE_URL)
 RESEARCH_BASE_URL=$(target RESEARCH_BASE_URL)
 ORIGIN="https://$PROJECT.pages.dev"
 
-OUT="build/web"
+# The build, and the databases taken out of it, in folders of this run's own
+# outside build/: nothing else (a local flutter run, run_mac.sh --clean, a
+# dry-run sweep) can write into the upload. One started mid-deploy once put
+# both databases back into it.
+OUT=$(mktemp -d "${TMPDIR:-/tmp}/wisdom-web-build.XXXXXX")
+STAGE=$(mktemp -d "${TMPDIR:-/tmp}/wisdom-web-dbs.XXXXXX")
+trap 'rm -rf "$OUT" "$STAGE"' EXIT
 DB_DIR="$OUT/assets/assets/databases"
 
 # `r2_list BUCKET PREFIX` — the API's listing of BUCKET's objects under PREFIX,
@@ -119,11 +125,11 @@ if [ "$SKIP_TESTS" = false ]; then
 fi
 
 # --- Build ------------------------------------------------------------------
-# From empty, so no file of an older build rides along. Without the deploy
-# tokens, like the tests.
+# Into an empty folder, so no file of an older build rides along. Without the
+# deploy tokens, like the tests.
 echo "Building the app for the web (release)..."
-rm -rf "$OUT"
 env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID flutter build web --release \
+  --output "$OUT" \
   --dart-define=RESEARCH_BASE_URL="$RESEARCH_BASE_URL" \
   --dart-define=DATABASE_BASE_URL="$DATABASE_BASE_URL"
 echo ""
@@ -144,9 +150,7 @@ if [ ! -f "$MANIFEST" ]; then
   echo "       generate-bjt && npm run generate-dict" >&2
   exit 1
 fi
-# Kept outside the build so Pages never sees them, and gzipped from here.
-STAGE=$(mktemp -d "${TMPDIR:-/tmp}/wisdom-web-dbs.XXXXXX")
-trap 'rm -rf "$STAGE"' EXIT
+# Moved to STAGE so Pages never sees them, and gzipped from there.
 
 DB_KEYS=()    # <db>-<sha16>.db.gz, the R2 object and the app's URL
 DB_FILES=()   # the staged .db
@@ -230,8 +234,8 @@ for i in "${!DB_KEYS[@]}"; do
     *) PROBLEM="it answers '$STATUS_LINE', not 200" ;;
   esac
   if [ -z "$PROBLEM" ] && ! printf '%s' "$HEADERS" \
-      | grep -qiE "^access-control-allow-origin: *(\*|$ORIGIN)$"; then
-    PROBLEM="it has no CORS header for $ORIGIN (the bucket's CORS rule)"
+      | grep -qi '^access-control-allow-origin: *\*$'; then
+    PROBLEM="it doesn't send Access-Control-Allow-Origin: * (README, step 5)"
   fi
   if [ -z "$PROBLEM" ] && ! printf '%s' "$HEADERS" \
       | grep -qi '^content-encoding: *gzip$'; then
