@@ -107,7 +107,11 @@ void main() {
       );
 
       expect(find.text('The download did not finish'), findsOneWidget);
-      expect(find.text('Check your connection and try again.'), findsOneWidget);
+      expect(
+        find.text('Check your connection and try again. To reset, open '
+            "Chrome's site settings → Delete data."),
+        findsOneWidget,
+      );
       expect(find.text('GET bjt.db returned 404 Not Found'), findsOneWidget);
 
       await tester.tap(find.text('Try again'));
