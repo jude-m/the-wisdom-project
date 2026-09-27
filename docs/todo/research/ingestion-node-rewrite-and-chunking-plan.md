@@ -37,7 +37,7 @@ delete the last Python from the repo.
 
 - **Done:** the research server is TypeScript on Cloudflare Workers, one
   Worker in the ops Cloudflare account at `research.sammaditthi.net`, called by
-  every build (`docs/todo/retire-personal-cloudflare-account.md`, step 2). It
+  every build (`docs/done/retire-personal-cloudflare-account.md`, step 2). It
   reads the pilot store — SN 15 only (`tipitakapilotsn15-…`), made by the
   Python ingest with default chunking — with a key from the personal Google
   project.

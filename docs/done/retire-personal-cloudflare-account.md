@@ -1,8 +1,9 @@
 # Retire the personal Cloudflare account
 
-> **Opened 2026-09-26.** Branch `chore/retire-personal-cloudflare-account`.
-> Moves everything off the personal bk.anigha account onto two project
-> accounts, then deletes what is left there.
+> **Opened 2026-09-26, done 2026-09-27.** Branch
+> `chore/retire-personal-cloudflare-account`, merged to `main` (`baef405`).
+> Moved everything off the personal bk.anigha account onto two project
+> accounts, then deleted what was left there.
 
 ## The shape
 
@@ -36,27 +37,33 @@ from the root `README.md`. This doc is the dated record of the move.
 
 ---
 
-## Finish line
+## Finish line — done 2026-09-27
 
-Decided 2026-09-27: **merge at the end**, not before step 3. Only the research
-release needs `main`; until it runs, research calls from the dev app are
-CORS-blocked, which is fine.
+Merged at the end, not before the research release: only that release needs
+`main`.
 
-1. From a fast connection, on this branch: `./scripts/static_site/deploy.sh
-   --dev` (a full build), then `./scripts/app/web/deploy.sh --dev`.
-2. Commit, merge to `main`.
-3. `./scripts/research_server/deploy.sh --prod` — must end with `OK: …/health
-   is live, with a key.` It swaps the CORS list to the new app origin, and is
-   the first proof a deploy leaves the dashboard-attached domain alone.
-4. Delete everything in bk.anigha, `wrangler logout`, move this doc to
-   `docs/done/`. Not before the merge: `main` points research at the bk-anigha
-   Worker until then.
+1. First uploads, on the branch: `./scripts/static_site/deploy.sh --dev` (a
+   full build), then `./scripts/app/web/deploy.sh --dev`. Both sites answer 200
+   with `noindex`; the app also sends COOP/COEP.
+2. Merged to `main`.
+3. `./scripts/research_server/deploy.sh --prod` from `main`. It swapped the
+   CORS list to the new app origin: a preflight from
+   `https://app-sammaditthi-test.pages.dev` gets 204 with that origin allowed,
+   and `/health` answers `mode: live`, `key_configured: true`. It was the first
+   deploy after the custom domain was attached in the dashboard, so wrangler
+   warned the remote config "differs" and listed the domain as removed. That
+   warning is only a diff: wrangler 4.112 touches routes and custom domains
+   only when the config lists some, and ours lists none. The domain stayed.
+4. bk.anigha emptied by hand, `wrangler logout` on this Mac, and the stale
+   `.wrangler/cache/wrangler-account.json` (it named bk.anigha) deleted. Both
+   accounts checked afterwards with `use_cloudflare dev` and `use_cloudflare
+   prod`.
 
 ---
 
 ## Steps
 
-### 1. Static site dev → wisdomproject.dev — code done, first upload pending
+### 1. Static site dev → wisdomproject.dev — done 2026-09-27
 
 Code: `use_cloudflare` helper; `static_site/deploy.sh` uses it for both targets
 (no `wrangler login` path, no `pages.json` cache handling); dev target is
@@ -66,22 +73,19 @@ noindex from the generator's `https://:project.pages.dev/*` rule in `_headers`.
 Your part:
 - [x] Token (`pages-deploy-dev`), secrets, project — done 2026-09-26; production
       branch confirmed `main` through the API.
-- [ ] **First upload — from a fast connection.**
-      `./scripts/static_site/deploy.sh --dev`; it checks the site answers 200
-      with `noindex` itself.
+- [x] First upload, from a fast connection: `./scripts/static_site/deploy.sh
+      --dev` (2026-09-27). The site answers 200 with `noindex`.
 
-**Handover (2026-09-26):** the first `--dev` deploy got through everything but
-the upload — account verified (`Wisdomproject.dev@gmail.com's Account`), build
-and every preflight passed — then failed twice at `Uploading... (0/10302)` with
-`Error: {})`. The wrangler log says `UND_ERR_HEADERS_TIMEOUT` / `EPIPE` on
-`pages/assets/upload`. Cause: home upload measured at **~80 KB/s**; wrangler
-sends ~50 MB batches, three at a time, and gives up on a batch with no reply
-after ~5 min, so no batch can finish. A new project needs the whole build once
-(~400 MB); after that, deploys send only changed files, as they did on the old
-project. So: run the first upload from a line with several MB/s up (or retry
-if the line was just slow that day). Seeding by small `--root` deploys was
-considered and not done — it assumes a page is byte-identical in a subtree
-build and a full one, which is unchecked. Until then the site answers `522`.
+**Why the first upload needed a fast line (2026-09-26):** the first `--dev`
+deploy got through everything but the upload, then failed twice at
+`Uploading... (0/10302)` with `Error: {})`. The wrangler log said
+`UND_ERR_HEADERS_TIMEOUT` / `EPIPE` on `pages/assets/upload`. Home upload
+measured **~80 KB/s**; wrangler sends ~50 MB batches, three at a time, and gives
+up on a batch with no reply after ~5 min, so no batch could finish. A new
+project needs the whole build once (~400 MB); after that, deploys send only
+changed files. Seeding by small `--root` deploys was considered and not done:
+it assumes a page is byte-identical in a subtree build and a full one, which is
+unchecked.
 
 ### 2. Research Worker → prod (ops) — done 2026-09-27
 
@@ -161,15 +165,7 @@ one deploy, and the personal project can go.
 - Rollback steps in both READMEs; stale wording fixed; "test copy" → "dev copy".
 - **Decided: one ops token** for Pages and Workers, not split per product.
 
-Pending:
-- [ ] **Research release after the merge** — Finish line, item 3.
-- [ ] `release_all_dryrun.sh` sends `--prod --dry-run` to a prod-only target,
-      and the placeholder deploys (`scripts/app/{android,ios,macos}/deploy.sh`)
-      swallow `--dry-run`. Safe while none is live; a placeholder that flips
-      to live must honour `--dry-run` first, or the sweep releases it.
-      (`app/web` does since step 3.)
-
-### 3. R2 bucket (ops) + Flutter web dev — code done, first upload pending
+### 3. R2 bucket (ops) + Flutter web dev — done 2026-09-27
 
 Code: `scripts/app/web/deploy.sh --dev` is live (`--prod` still a placeholder).
 It checks both tokens, the Pages project's branch and the bucket before the
@@ -190,9 +186,8 @@ site. Setup and rollback: `scripts/app/web/README.md`.
 
 - [x] Pages project `app-sammaditthi-test` created in the dev account with a
       Hello World, production branch `main` (2026-09-27). The first `--dev`
-      deploy replaces it. **The live Worker still allows the old, unclaimed
-      `sammaditthi-app-test.pages.dev`** until the next research release, which
-      picks up the new name from `wrangler.jsonc`.
+      deploy replaced it; the research release then moved the Worker's CORS
+      list from the old, unclaimed `sammaditthi-app-test.pages.dev` to it.
 
 - [x] R2 on in ops; bucket `wisdom-databases`; custom domain
       `db.sammaditthi.net` (active) (2026-09-27).
@@ -207,26 +202,15 @@ site. Setup and rollback: `scripts/app/web/README.md`.
       check (2026-09-27).
 - [x] Canon synced to upstream `8d7eefc` and both databases rebuilt
       (2026-09-27): `bjt-c0bbb2894d88edda`, `dict-ee389b00f5ab1f26`.
-- [ ] **First upload — from a fast connection**, with the static site's
-      (Finish line, item 1). Must end with `OK:
-      https://app-sammaditthi-test.pages.dev/ answers 200, isolated and
-      noindex.`
+- [x] First upload, with the static site's (2026-09-27): both database
+      versions are on R2 (`bjt-c0bbb2894d88edda.db.gz`,
+      `dict-ee389b00f5ab1f26.db.gz`), and the app answers 200, isolated
+      (COOP/COEP) and noindex.
 
-**Handover (2026-09-27):** `--dev --dry-run --skip-tests` passed: built,
-named both objects from the manifest, left only `manifest.json` in the build's
-database folder, and baked both URLs in. Read-only checks passed against both
-accounts: both dev Pages projects on `main`, the bucket listable, its domain
-active, its CORS rule in place. Nothing has been uploaded to R2 yet. Two notes:
-- **`dict.db` is not byte-reproducible**: rebuilt with unchanged inputs, it got
-  a new hash. Each rebuild is a new version every visitor downloads again. Not
-  fixed here.
-- `flutter build web` writes the Flutter SDK's cache, so from Claude it runs
-  outside the sandbox.
-- The first deploy's last check may read the Hello World for a few seconds and
-  fail on COOP/COEP. If so, `curl -sI https://app-sammaditthi-test.pages.dev/`
-  again; nothing to redo.
+Note: `flutter build web` writes the Flutter SDK's cache, so from Claude the
+app deploy runs outside the sandbox.
 
-### 4. Sweep and delete bk.anigha — code done, deletion pending
+### 4. Sweep and delete bk.anigha — done 2026-09-27
 
 Code done 2026-09-27. `static-web-hosting.md`: the targets table, "dev is noindex
 because the build says so" in place of the preview-branch decision, and the
@@ -236,7 +220,17 @@ target, and §6 rewritten (dev live). The deep-linking doc's C2 sheet points at
 purpose: the `curl` output in `static-web-hosting.md`'s caching section, a dated
 measurement on the old host. `docs/done/` stays as it was — dated records.
 
-Your part (Finish line, item 4): delete the Worker, `sammaditthi-dev` and
-anything else in bk.anigha; `wrangler logout` on this machine.
+- [x] The old Worker, `sammaditthi-dev` and everything else in bk.anigha
+      deleted by hand; `wrangler logout` on this Mac (2026-09-27).
 
-**Handover:** —
+---
+
+## Left open
+
+Not part of the move; tracked only here.
+
+- **The Google side of research is still personal** — see step 2.
+- `release_all_dryrun.sh` sends `--prod --dry-run` to a prod-only target, and
+  the placeholder deploys (`scripts/app/{android,ios,macos}/deploy.sh`) swallow
+  `--dry-run`. Safe while none is live; a placeholder that flips to live must
+  honour `--dry-run` first, or the sweep releases it. (`app/web` does.)
