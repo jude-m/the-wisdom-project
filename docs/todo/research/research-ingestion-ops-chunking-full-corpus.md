@@ -410,3 +410,40 @@ Newest last. Each step adds: date, store names/ids, numbers, surprises.
   project, so it's kept as the last rung (the user's call). The 404's
   `unhandled` / `retriable: true` is unchanged. Deployed from `f2707a5`,
   Worker version `7d026bed`; `/health` lists the new ladders. Next: B5.
+- **2026-09-28, B5 first try (stopped, no answers)** — Worker `7d026bed`,
+  c200 store. 9 calls, every rung failed, stopped for the day.
+
+  | | rungs (time to fail) | total | cpu |
+  |---|---|---|---|
+  | P1 thinking | 3.8-flash 503 (3.7s), 3.7-flash 503 (4.5s), 3.6-flash **429** (4.8s), 3.5-flash 503 (4.8s), 3-flash-preview 503 (46.0s), 2.5-flash 404 | 502 in 64.0s | 10 ms |
+  | P1 fast | 3.5-flash-lite 503 (3.0s), 3.1-flash-lite 503 (2.8s), 2.5-flash-lite **404** | 502 in 5.9s | 13 ms |
+
+  After the thinking failure the user moved the gate to **fast** mode.
+
+  Surprises:
+  - **Both ladders end in a dead model.** `gemini-2.5-flash-lite` also
+    returns 404 "no longer available to new users" for this project, so the
+    fast ladder has two live rungs. Both 404s log `unhandled` /
+    `retriable: true`.
+  - **3.6-flash's first ever call got a 429** (quota), not a 503. Cause
+    unknown.
+  - **No 400 from 3.7/3.8:** they 503'd, so `thinkingLevel: LOW` wasn't
+    rejected up front. 3.6 is still unknown.
+  - The busy rungs now fail in 3–5s (B4: 24–35s), so the ladder falls
+    through fast, but a busy spell spends every rung: 6 calls per thinking
+    question, 3 per fast one.
+  - Whether 3.5-flash-lite searches the store in fast mode is still open.
+
+  Next: B5 again as **6 probes in fast mode**, P1–P3 on each store, 1 min
+  apart, stopping at the first failure:
+  1. Commit `RESEARCH_STORE` → the A store
+     (`fileSearchStores/tipitakapilotsn6-f0aqkxv2244r`), deploy, fresh
+     tail, P1–P3.
+  2. `git revert` that commit (back to the c200 store), deploy, fresh
+     tail, P1–P3.
+  3. Compare A with c200 per probe: model, grounding chunks, citations,
+     cpu, body.
+
+  The switch is a commit because `deploy.sh` only releases a clean,
+  committed tree. Cost: 6 calls, +1 per 503 (worst case 18), 2 prod
+  deploys, 2 commits on `main`. Then C.
