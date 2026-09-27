@@ -1,8 +1,15 @@
 // Model tiers for the app's Fast/Thinking switch. Each tier is a fallback
 // ladder, highest capability first; the pipeline falls to the next rung on a
 // transient error (429 rate limit / 503 high demand) only.
-export const FAST_MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite'];
+export const FAST_MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-2.5-flash-lite',
+];
 export const THINKING_MODELS = [
+  'gemini-3.8-flash',
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
   'gemini-3.5-flash',
   'gemini-3-flash-preview',
   'gemini-2.5-flash',

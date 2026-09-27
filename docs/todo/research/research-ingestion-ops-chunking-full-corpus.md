@@ -20,14 +20,14 @@ Three phases, each ending in a live switch of the one Worker:
 A and B hold the same texts in the same project, so the only difference
 between their probe results is the chunk size.
 
-## Where we are (2026-09-28, after B3)
+## Where we are (2026-09-28, after B4)
 
 - **Worker:** ops Cloudflare account, `research.sammaditthi.net`, every build
-  calls it. Live on the ops key and the A store `tipitaka-pilot-sn6`. There
-  is no rollback to the SN 15 store.
+  calls it. Live on the ops key and the B store `tipitaka-pilot-sn6-c200`.
+  There is no rollback to the SN 15 store.
 - **Ops Google project** `wisdom-research`: its key is in
-  `scripts/config/secrets.env` as `RESEARCH_GEMINI_API_KEY`. One store so
-  far, the A store.
+  `scripts/config/secrets.env` as `RESEARCH_GEMINI_API_KEY`. Two stores:
+  the A store and the B store.
 - **Personal Google project:** nothing needs it any more. The user deletes it
   in the Google dashboard whenever convenient; the SN 15 store goes with it.
 - **Ingest:** `scripts/research_server/ingest.sh` runs
@@ -37,7 +37,8 @@ between their probe results is the chunk size.
   (2026-06-15).
 - **Git:** work happens on `main` directly; `feat/research-ingestion` is
   merged.
-- **Next:** B4.
+- **Next:** B5, then C. B4 was a weak pass, so the chunk size for C is
+  still open.
 
 ## Why smaller chunks
 
@@ -201,6 +202,22 @@ mode (3 calls), compare.
   compare again.
 - **No gain at all:** use default chunking in C (leave the flags out).
 
+**B5. Re-run the gate on the new model ladder.** Before C. The ladders in
+`research_server/src/config.ts` changed after B4 (3.6–3.8 flash and
+3.5-flash-lite on top), so B4's figures came from other models. Same
+store, same tail, P1–P3 in thinking mode (3 calls, +1 per 503), and
+compare with B4's c200 round:
+
+| | model (rung) | citations | cpu | body | time |
+|---|---|---|---|---|---|
+| P1 | gemini-3-flash-preview (2) | 16 | 14 ms | 11KB | 115.4s |
+| P2 | gemini-3.5-flash (1) | 1 | 12 ms | 8KB | 32.4s |
+| P3 | gemini-3-flash-preview (2) | 2 | 8 ms | 11KB | 51.5s |
+
+Watch the tail for a 400 on a new rung: the pipeline sends every
+`gemini-3*` model `thinkingLevel`, and a model that rejects it fails fast
+instead of falling back. P1 must still list all 15.
+
 ## Phase C — latest SuttaCentral, full corpus
 
 **C1. Limits and cost.** Read the current Gemini File Search pricing and
@@ -353,3 +370,42 @@ Newest last. Each step adds: date, store names/ids, numbers, surprises.
   or failed, 162,106 bytes (source bytes, same as A). The documents API
   doesn't show a document's chunk config, so only the probes can confirm
   it took. `RESEARCH_STORE` switched to it.
+- **2026-09-28, B4 probes (thinking, c200 store)** — Deployed from
+  `a2a73ac`, Worker version `ecfc580b`. All three answers right; P1 lists
+  all 15.
+
+  | | model (rung) | citations | cpu | body | time |
+  |---|---|---|---|---|---|
+  | P1 thinking | gemini-3-flash-preview (2) | 16 | 14 ms | 11KB | 115.4s |
+  | P2 thinking | gemini-3.5-flash (1) | 1 | 12 ms | 8KB | 32.4s |
+  | P3 thinking | gemini-3-flash-preview (2) | 2 | 8 ms | 11KB | 51.5s |
+
+  Against A (default chunking):
+  - **P3**, the only like-for-like pair (same model, both searched):
+    body 13KB → 11KB, CPU 10 → 8 ms. Same two citations, same snippets.
+  - **P1:** body 12KB → 11KB; A has no CPU figure. 5 grounding chunks
+    either way (c200: sn6.1, sn6.3, sn6.8, sn6.10, sn6.15).
+  - **P2** doesn't compare: A's run didn't search, this one did (sn6.1,
+    mid-sutta chunk, `title: null`, snippet on the passage).
+  - Cards read well. The only `title: null` cards are mid-sutta chunks and
+    show the ref. P1's snippets highlight "one" and "each" from the
+    question: that's query-term matching, not chunk size.
+  - One sample each, and a couple of ms of CPU is within run-to-run noise.
+    By the rules it's a Pass: body and CPU drop, most on P3, and quality
+    holds. But the gain is small.
+
+  Calls: 8 attempts. P1's first try failed with a 502: rung 1 503 (29.4s),
+  rung 2 503 (13.7s), rung 3 `gemini-2.5-flash` **404: "no longer
+  available to new users"**. The ops project is new, so the thinking
+  ladder's last rung (`research_server/src/config.ts`) is dead there.
+  The fast ladder's `gemini-2.5-flash-lite` wasn't tested. The 404 logs as
+  `unhandled` and returns `retriable: true`. P1's retry worked on rung 2.
+  Rung 1 (gemini-3.5-flash) 503'd on 4 of today's 6 thinking requests,
+  after 24–35s each.
+- **2026-09-28, model ladders** — Google now lists 3.6/3.7/3.8-flash and
+  3.5-flash-lite for the ops project. New ladders, newest first, nothing
+  removed: thinking = 3.8-flash, 3.7-flash, 3.6-flash, 3.5-flash,
+  3-flash-preview, 2.5-flash; fast = 3.5-flash-lite, 3.1-flash-lite,
+  2.5-flash-lite. `gemini-2.5-flash` is still listed but 404s for this
+  project, so it's kept as the last rung (the user's call). The 404's
+  `unhandled` / `retriable: true` is unchanged. Next: B5.
