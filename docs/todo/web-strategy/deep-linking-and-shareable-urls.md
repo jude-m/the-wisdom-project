@@ -543,6 +543,6 @@ Root `flutter test` still does not recurse into `packages/`, so this was once
 "only if someone types `dart test` inside the package". Today every product's
 `scripts/<product>/test.sh` covers its packages: `scripts/app/test.sh` runs
 `wisdom_shared` too, and `scripts/static_site/test.sh` runs `wisdom_shared` and
-`static_site_generator`, called by its `deploy.sh` and by `sync-regen.sh` (Step 5,
-straight after a corpus re-sync). `scripts/test_all.sh` runs them all
+`static_site_generator`, called by its `deploy.sh` and by `sync-regen.sh` (Step 6,
+straight after a corpus re-sync and the `bjt.db` rebuild). `scripts/test_all.sh` runs them all
 ([`test-all-and-release-all.md`](../../done/test-all-and-release-all.md)).
