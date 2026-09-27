@@ -73,7 +73,7 @@ bash -c '. scripts/lib/common.sh && use_cloudflare prod \
 
 - **The Google side is still the personal project.** The key and the File
   Search store move to the ops `wisdom-research` Google project with the ingest
-  plan (`docs/todo/research/ingestion-node-rewrite-and-chunking-plan.md`); the
+  plan (`docs/todo/research/research-ingestion-ops-chunking-full-corpus.md`); the
   store and the key then change together, in one deploy.
 - **CORS.** A browser app can only call the Worker from an origin listed in
   `RESEARCH_CORS_ORIGINS` (`wrangler.jsonc`). Add the prod app's origin there

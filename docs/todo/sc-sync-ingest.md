@@ -1,9 +1,10 @@
 # SC Sync + Ingest — RAG Corpus Re-ingest Plan
 
 > Status: **Plan / not started.** The read-only mirror is **not set up yet** (unlike
-> the BJT one), and the ingest is mid-port from Python → Node — that ingest work is
-> tracked in [`docs/todo/research/`](./research/), esp.
-> [ingestion-node-rewrite-and-chunking-plan.md](./research/ingestion-node-rewrite-and-chunking-plan.md).
+> the BJT one). The ingest stays Python, moving from `deprecated/` to
+> `tools/research_ingest/` — that ingest work is tracked in
+> [`docs/todo/research/`](./research/), esp.
+> [research-ingestion-ops-chunking-full-corpus.md](./research/research-ingestion-ops-chunking-full-corpus.md).
 > Captured 2026-07-23.
 > Scope: how the **research (RAG) corpus** stays in step with SuttaCentral, and the
 > script that re-ingests it. Sibling of [bjt-sync-regen.md](./bjt-sync-regen.md) —
@@ -119,12 +120,12 @@ though the repo moved.
 
 ### Step 3 — Re-ingest into a NEW store (never mutate the live one)
 
-Run the ingest (being ported to `research_server/ingest/ingest.ts`, `npm run ingest` —
-see [research/ingestion-node-rewrite-and-chunking-plan.md](./research/ingestion-node-rewrite-and-chunking-plan.md)):
+Run the ingest (`scripts/research_server/ingest.sh` —
+see [research/research-ingestion-ops-chunking-full-corpus.md](./research/research-ingestion-ops-chunking-full-corpus.md)):
 
 - Upload into a **new** File Search store, leaving the current one untouched.
-- Keep the **chunking config explicit** (`max_tokens_per_chunk` ~200, overlap ~20) —
-  default chunking produced the huge 100k-char chunks behind the heavy payloads.
+- Use the **chunk flags recorded beside `RESEARCH_STORE`** (`--chunk-tokens`,
+  `--overlap-tokens`) — the size the ingestion plan's pilot settled.
 - This is **quota-sensitive** (Gemini upload) — always a deliberate, prompted action,
   **never automatic**. (See [feedback: quota-conscious probing].)
 
@@ -160,8 +161,8 @@ exactly which SuttaCentral snapshot any given store id represents.
 | Piece | State |
 |-------|-------|
 | Read-only bilara-data mirror | ⬜ TODO — not created (Step 4 above) |
-| Ingest job (Python → Node port) | 🔶 In progress — see ingestion-node-rewrite plan |
-| Explicit chunking config | ⬜ TODO — part of the port / re-ingest |
+| Ingest job (Python, `tools/research_ingest/`) | 🔶 In progress — ingestion plan step B2 |
+| Explicit chunking config | ⬜ TODO — ingestion plan phase B |
 | Heartbeat check (Step 0) | ⬜ TODO |
 | New-store + flip flow (Steps 3–4) | ⬜ TODO |
 | Provenance receipt (Step 5) | ⬜ TODO |

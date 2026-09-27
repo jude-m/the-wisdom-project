@@ -130,7 +130,7 @@ needs Workers **Admin**. Nothing was created or uploaded.
 
 **The Google side is still personal.** This step moves only the Cloudflare half
 of research. The key and the store stay in the personal Google project until
-`research/ingestion-node-rewrite-and-chunking-plan.md` ingests into the ops
+`research/research-ingestion-ops-chunking-full-corpus.md` ingests into the ops
 `wisdom-research` project; then `RESEARCH_STORE` and the key change together in
 one deploy, and the personal project can go.
 
