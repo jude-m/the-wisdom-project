@@ -2,6 +2,15 @@
   "name": "wisdom-research",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-01",
+  // Lives in the prod (ops) account only; dev builds call it too. One address:
+  // the custom domain research.sammaditthi.net, attached once in the dashboard
+  // (Worker -> Settings -> Domains & Routes), and no workers.dev or preview
+  // URLs beside it. Not declared here as a route: that would need a zone
+  // permission on the deploy token, and wrangler leaves an attached domain be.
+  // Keep workers_dev off: the /research rate limit is a rule on the
+  // sammaditthi.net zone, and a workers.dev address would skip it.
+  "workers_dev": false,
+  "preview_urls": false,
   // Dev port map: 8080 = Flutter web, 8082 = research server, 8083 = static-site
   // preview (static_site_generator/tool/serve.dart).
   "dev": {
@@ -16,9 +25,10 @@
     "RESEARCH_STORE": "fileSearchStores/tipitakapilotsn15-ry6rxdcmw8z7",
     // CORS allow-list (browser-only protection). Exact-match against the
     // browser's Origin header — scheme+host+port, NO trailing slash, NO path.
-    // Add the real public domain/IP alongside (comma-separated) when hosted.
-    //   localhost:8080      = local Flutter web dev (scripts/app/web/run_mac.sh)
-    "RESEARCH_CORS_ORIGINS": "http://localhost:8080"
+    //   localhost:8080                 = local Flutter web (scripts/app/web/run_mac.sh)
+    //   app-sammaditthi-test.pages.dev = dev Flutter web (scripts/app/web/README.md)
+    // Add the prod app's origin when Flutter web prod goes live.
+    "RESEARCH_CORS_ORIGINS": "http://localhost:8080,https://app-sammaditthi-test.pages.dev"
   },
   // Pin the Worker to a US region so outbound Gemini calls egress from a
   // Gemini-supported location. Cloudflare's global anycast egress otherwise

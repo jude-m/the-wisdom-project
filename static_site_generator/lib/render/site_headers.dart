@@ -38,7 +38,7 @@
 /// them retired the compromise and, with it, the second tier and the three
 /// exact-path rules that kept the two apart.
 ///
-/// ## The two rules that are not about caching
+/// ## The two file rules that are not about caching
 ///
 /// Both say the same thing about a root-level file written for a machine: it
 /// belongs in the upload, and it does not belong in a result page.
@@ -59,6 +59,15 @@
 /// result for a site: query, which is a page of raw XML offered to a reader
 /// who wanted the canon.
 ///
+/// ## Every `*.pages.dev` host is noindex
+///
+/// A production deployment carries no `X-Robots-Tag`, so without this rule the
+/// dev project (deployed to its production branch) and prod's own
+/// `<project>.pages.dev` twin would be indexable copies of the canon. The host
+/// pattern `https://:project.pages.dev/*` matches both and never the custom
+/// domain, so the apex stays the only indexable address.
+/// `scripts/static_site/deploy.sh` checks both sides after an upload.
+///
 /// ## Rules must not overlap
 ///
 /// > An incoming request which matches multiple rules' URL patterns will
@@ -71,7 +80,9 @@
 /// and leave the real policy to whatever the browser makes of that. The two
 /// patterns below are disjoint, which is the only reason the file is this
 /// short. A future rule setting a *different* header (`Content-Security-Policy`
-/// on `/*`, say) can safely span both.
+/// on `/*`, say) can safely span both. One overlap is deliberate: on a
+/// `pages.dev` host the host rule and the two file rules all set
+/// `X-Robots-Tag: noindex`, and `noindex, noindex` means the same thing.
 library;
 
 import '../manifest/build_manifest.dart';
@@ -104,6 +115,7 @@ String buildSiteHeaders() {
     '/$fontsOutputDir/*': ['Cache-Control: $_immutable'],
     '/$manifestOutputPath': ['X-Robots-Tag: noindex'],
     '/$sitemapOutputPath': ['X-Robots-Tag: noindex'],
+    'https://:project.pages.dev/*': ['X-Robots-Tag: noindex'],
   };
 
   final out = StringBuffer();

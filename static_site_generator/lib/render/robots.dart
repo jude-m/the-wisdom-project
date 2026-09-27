@@ -15,12 +15,12 @@ const String robotsOutputPath = 'robots.txt';
 /// cannot be said any other way: where `sitemap.xml` is. Google Search Console
 /// can be told directly, and Bing and the rest cannot.
 ///
-/// ## Allow, never Disallow — including on the previews
+/// ## Allow, never Disallow — including on the dev copy
 ///
-/// This file is written on every build shape, dev preview included, and it says
-/// the same thing on all of them. That is deliberate and it is the same
-/// reasoning `static-web-hosting.md` records for the app origin: a preview is
-/// kept out of the index by Cloudflare's automatic `X-Robots-Tag: noindex`,
+/// This file is written on every build shape, dev included, and it says the
+/// same thing on all of them. That is deliberate and it is the same reasoning
+/// `static-web-hosting.md` records for the app origin: a `pages.dev` copy is
+/// kept out of the index by `X-Robots-Tag: noindex` (`site_headers.dart`),
 /// which is a header on the *response* — and a crawler that has been told
 /// `Disallow` never fetches the response, so it never reads the header. A
 /// blocked URL can still be indexed from its inbound links, with no title and

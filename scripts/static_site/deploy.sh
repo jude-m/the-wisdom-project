@@ -30,37 +30,35 @@
 # and no --project: each target's account, project and branch are fixed together
 # in scripts/config/targets.env, so the three can never disagree with each other.
 #
-#   dev    personal account, `wrangler login`    STATIC_SITE_DEV_*
-#          -> <branch>.<project>.pages.dev       (preview, noindex)
-#   prod   ops account, CLOUDFLARE_PROD_* token  STATIC_SITE_PROD_*
-#          -> STATIC_SITE_PROD_ORIGIN            (production, INDEXABLE)
+#   dev    dev account, CLOUDFLARE_DEV_* token    STATIC_SITE_DEV_*
+#          -> https://<project>.pages.dev         (noindex, from _headers)
+#   prod   prod (ops) account, CLOUDFLARE_PROD_*  STATIC_SITE_PROD_*
+#          -> STATIC_SITE_PROD_ORIGIN             (production, INDEXABLE)
 #
-# Dev and prod are separate Cloudflare ACCOUNTS — prod under wisdom.ops so a
-# handover can transfer prod alone. A Pages project belongs to exactly ONE
-# account, and `<project>.pages.dev` is a single GLOBAL first-come namespace, so
-# the two environments cannot share a base name. The `-dev` suffix is topology,
-# not decoration.
+# Dev and prod are separate Cloudflare ACCOUNTS, so a handover can transfer
+# prod alone. A Pages project belongs to exactly ONE account, and
+# `<project>.pages.dev` is a single GLOBAL first-come namespace, so the two
+# environments cannot share a base name.
 #
-# PREVIEW ON DEV, ON PURPOSE. Cloudflare adds `X-Robots-Tag: noindex` to every
-# *preview* deployment; a production one carries no such header and is crawlable.
-# A dev copy of the canon getting indexed would compete with the real site for
-# the exact queries the whole static-site effort exists to win — so dev deploys
-# to a preview branch and prod is the only indexable target.
+# DEV IS NOINDEX BECAUSE THE BUILD SAYS SO. Dev deploys to its project's
+# production branch, for the clean `<project>.pages.dev` URL, and a production
+# deployment carries no `X-Robots-Tag` of its own. The generated `_headers`
+# noindexes every `*.pages.dev` host (lib/render/site_headers.dart), so prod's
+# apex is the only indexable address: a dev copy of the canon getting indexed
+# would compete with the real site for the exact queries the whole static-site
+# effort exists to win. The check after the upload proves both sides.
 #
 # BUILD OPTIONS ARE DEV-ONLY. Direct upload REPLACES the whole deployment, so a
 # `--root` subtree or a stale `build/` shipped to prod does not add a partial
 # site — it takes the full canon offline. A release always rebuilds everything.
 #
-# Both Pages projects already exist, each created with `--production-branch
-# main`. If one ever has to be recreated, create it explicitly from the owning
-# account — `wrangler pages project create <name> --production-branch main` —
-# and never by letting `pages deploy` prompt for it: that prompt defaults to
-# whatever git branch you happen to be on, and getting it wrong silently swaps
-# which deployments are indexable and which are noindex.
+# Both Pages projects are made by hand, production branch `main`
+# (scripts/static_site/README.md) — never by letting `pages deploy` prompt for
+# one: that prompt picks whatever git branch you happen to be on.
 #
-# Requires `wrangler login` done once for dev (CLI auth — separate from the
-# dashboard sign-in), and CLOUDFLARE_PROD_API_TOKEN + CLOUDFLARE_PROD_ACCOUNT_ID
-# in scripts/config/secrets.env for prod (copy secrets.env.example).
+# Requires CLOUDFLARE_<DEV|PROD>_API_TOKEN + _ACCOUNT_ID in
+# scripts/config/secrets.env (copy secrets.env.example). A dry run needs
+# neither for dev.
 # END-USAGE
 
 set -e
@@ -82,25 +80,6 @@ PROD_ORIGIN=$(target STATIC_SITE_PROD_ORIGIN)
 # $PROD_BRANCH does double duty: it is both the Pages branch a release deploys
 # to and the git branch a release must be cut from. They are the same name
 # because they describe the same thing — what is live.
-
-# wrangler caches resolved accounts per repo in .wrangler/cache. Two files live
-# there and they behave differently, which is worth writing down because the
-# difference is the entire reason this script clears one and not the other:
-#
-#   pages.json             written by `pages deploy` as {account_id, project_name}
-#                          and read back as `config.account_id`. CLOUDFLARE_ACCOUNT_ID
-#                          outranks it (wrangler 4.112 merges the env var over the
-#                          cache), so it cannot misroute a --prod run. But DEV sets
-#                          no such variable, so on the dev path this cache IS the
-#                          answer — and left behind by a prod deploy it points dev
-#                          straight at the ops account. Cleared before and after
-#                          every run for exactly that reason.
-#
-#   wrangler-account.json  the `wrangler login` account. Consulted only when there
-#                          is no env var and no pages.json — which is precisely the
-#                          dev path, where it is the RIGHT answer. Deliberately
-#                          left alone.
-PAGES_ACCOUNT_CACHE=".wrangler/cache/pages.json"
 
 # Cloudflare Pages refuses a project with more than this many files. The whole
 # corpus is ~14.8 K today and its size is fixed by the canon, but the P5 gate may
@@ -147,7 +126,10 @@ cd "$WISDOM_ROOT"
 OUT="static_site_generator/build"
 
 # --- Resolve the target -----------------------------------------------------
-EXPECTED_ACCOUNT=""
+# The account is checked here, before the tests and the build, so a missing or
+# wrong credential stops the deploy in seconds. A dev dry run skips it: it keeps
+# working with no network and no credentials.
+ACCOUNT_LINE="(not checked — dry run)"
 if [ "$TARGET" = "prod" ]; then
   # Refuse the build shortcuts before anything else happens. Both would publish
   # something other than "the whole corpus at this commit", and because direct
@@ -167,20 +149,20 @@ if [ "$TARGET" = "prod" ]; then
     echo "error: --skip-tests is dev-only. A release always runs the tests." >&2
     exit 1
   fi
+  # Direct upload has no Git integration: merging to main deploys nothing.
+  # Only this ties a release to a commit. build/ is gitignored, so the
+  # generator's own output does not trip it.
+  require_release_commit "$PROD_BRANCH" || exit 1
 
-  # Prod credentials arrive as environment variables, which is how wrangler
-  # selects an account non-interactively. CI sets the same CLOUDFLARE_PROD_*
-  # names as repo secrets, so CI is this path rather than a rewrite — and it
-  # leaves the personal `wrangler login` untouched.
-  #
-  # Mapped to wrangler's names only here, on the prod path: the file's own
-  # names are prefixed so that loading it can never arm the variables the dev
-  # path below refuses to run with.
-  CLOUDFLARE_API_TOKEN=$(secret CLOUDFLARE_PROD_API_TOKEN)
-  CLOUDFLARE_ACCOUNT_ID=$(secret CLOUDFLARE_PROD_ACCOUNT_ID)
-  : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_PROD_API_TOKEN is not set (environment or scripts/config/secrets.env) — create one in the ops account}"
-  : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_PROD_ACCOUNT_ID is not set (environment or scripts/config/secrets.env) — the ops account ID}"
-  export CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID
+  # Dry run or not: the domain check below needs the token, and a release
+  # against an account nobody verified is not worth a build. CI sets the same
+  # CLOUDFLARE_PROD_* names as repo secrets.
+  if ! use_cloudflare prod; then
+    echo "       Refusing to release to production unverified." >&2
+    exit 1
+  fi
+  ACCOUNT_LINE="$CLOUDFLARE_ACCOUNT_LINE"
+  echo ""
 
   # --- The apex is actually attached ------------------------------------------
   # Asked HERE, before the build, because the build is the whole corpus and this
@@ -202,15 +184,16 @@ if [ "$TARGET" = "prod" ]; then
   # way and the exact question costs nothing extra to ask.
   PROD_HOST=${PROD_ORIGIN#https://}
   echo "Checking $PROD_HOST is attached to $PROD_PROJECT..."
-  DOMAIN_JSON=$(curl -sS --max-time 15 \
-    -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+  # The token goes in on stdin (-H @-), so it never shows in the process list.
+  DOMAIN_JSON=$(printf 'Authorization: Bearer %s\n' "$CLOUDFLARE_API_TOKEN" \
+    | curl -sS --max-time 15 -H @- \
     "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROD_PROJECT/domains" \
     2>/dev/null || true)
 
   if ! printf '%s' "$DOMAIN_JSON" | tr -d ' \n' | grep -q '"success":true'; then
     echo "error: could not list the custom domains on $PROD_PROJECT." >&2
     echo "       Either the network is down, or CLOUDFLARE_PROD_API_TOKEN is" >&2
-    echo "       expired or missing the 'Cloudflare Pages: Read' permission." >&2
+    echo "       expired or missing the 'Cloudflare Pages: Edit' permission." >&2
     echo "       Refusing to upload to production unverified." >&2
     exit 1
   fi
@@ -255,61 +238,57 @@ if [ "$TARGET" = "prod" ]; then
 
   PROJECT="$PROD_PROJECT"
   BRANCH="$PROD_BRANCH"
-  EXPECTED_ACCOUNT="$CLOUDFLARE_ACCOUNT_ID"
 else
   PROJECT="$DEV_PROJECT"
   BRANCH="$DEV_BRANCH"
-
-  # Dev authenticates by `wrangler login` and nothing else. An API token exported
-  # in the calling shell silently outranks that login, and the way it goes wrong
-  # is not a clean failure: pointed at the ops account, an interactive wrangler
-  # would OFFER TO CREATE `sammaditthi-dev` there, quietly undoing the account
-  # separation this whole layout exists to keep. Refuse rather than warn — the
-  # fix is a fresh shell, which costs nothing.
-  if [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
-    echo "error: CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID are set in this shell" >&2
-    echo "       and would override your wrangler login, aiming dev at whichever" >&2
-    echo "       account that token belongs to." >&2
-    echo "       Dev deploys with \`wrangler login\` only — start a fresh shell." >&2
-    exit 1
+  if [ "$DRY_RUN" = false ]; then
+    use_cloudflare dev || exit 1
+    ACCOUNT_LINE="$CLOUDFLARE_ACCOUNT_LINE"
+    echo ""
   fi
 fi
 
-# --- Release guards (prod only) ---------------------------------------------
-# Direct upload has no Git integration: merging to main deploys nothing, and the
-# branch name is only a label. Nothing therefore ties a release to the state of
-# the repo unless it is checked right here.
-#
-# `git status --porcelain` rather than `git diff`, so staged AND untracked files
-# both count. A never-added template is invisible to `git diff` yet very much
-# part of the build, and stamping such a deployment --commit-dirty=false would
-# attribute it to a commit that cannot reproduce it. build/ is gitignored, so
-# the generator's own output does not trip this.
-GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+# --- The branch is the project's production branch --------------------------
+# Pages serves a deploy to any other branch as a preview, at
+# <branch>.<project>.pages.dev: $ORIGIN below would not show it, and the check
+# after the upload would read the old deployment and pass. Also catches a
+# missing project, which `pages deploy` would offer to create. Whenever there is
+# a token to ask with.
+if [ "$TARGET" = "prod" ] || [ "$DRY_RUN" = false ]; then
+  echo "Checking $BRANCH is the production branch of $PROJECT..."
+  PROJECT_JSON=$(printf 'Authorization: Bearer %s\n' "$CLOUDFLARE_API_TOKEN" \
+    | curl -sS --max-time 15 -H @- \
+    "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROJECT" \
+    2>/dev/null | tr -d ' \n' || true)
+  if ! printf '%s' "$PROJECT_JSON" | grep -q '"success":true'; then
+    echo "error: could not read the Pages project '$PROJECT' in account" >&2
+    echo "       $CLOUDFLARE_ACCOUNT_ID — network down, or the project does not" >&2
+    echo "       exist there (scripts/static_site/README.md). Nothing uploaded." >&2
+    exit 1
+  fi
+  PRODUCTION_BRANCH=$(printf '%s' "$PROJECT_JSON" \
+    | sed -n 's/.*"production_branch":"\([^"]*\)".*/\1/p')
+  if [ "$PRODUCTION_BRANCH" != "$BRANCH" ]; then
+    echo "error: $PROJECT's production branch is '${PRODUCTION_BRANCH:-unreadable}'," >&2
+    echo "       but targets.env deploys to '$BRANCH'. Make them agree. Nothing uploaded." >&2
+    exit 1
+  fi
+  echo ""
+fi
+
+# Dev stamps its deployment with this, since uncommitted work is normal there.
 if [ -z "$(git status --porcelain 2>/dev/null)" ]; then
   DIRTY=false
 else
   DIRTY=true
 fi
 
-if [ "$TARGET" = "prod" ]; then
-  if [ "$GIT_BRANCH" != "$PROD_BRANCH" ]; then
-    echo "error: a release must be cut from '$PROD_BRANCH' (on '$GIT_BRANCH')." >&2
-    echo "       Merge first, then release." >&2
-    exit 1
-  fi
-  if [ "$DIRTY" = true ]; then
-    echo "error: working tree is dirty — a release must be reproducible from a commit." >&2
-    git status --short >&2
-    exit 1
-  fi
-fi
-
 # --- Tests ------------------------------------------------------------------
 # After every refusal above, before the build: the refusals take seconds and
-# the build is the whole corpus.
+# the build is the whole corpus. Without the deploy token: no test needs it.
 if [ "$SKIP_TESTS" = false ]; then
-  if ! ./scripts/static_site/test.sh; then
+  if ! env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID \
+      ./scripts/static_site/test.sh; then
     echo "" >&2
     echo "error: scripts/static_site/test.sh failed (summary above)." >&2
     echo "       Nothing built, nothing uploaded." >&2
@@ -339,10 +318,12 @@ fi
 # would ship canonicals nobody can resolve. That is enforced, not merely warned
 # about: the prod branch above asks the Pages API whether $PROD_ORIGIN is an
 # active custom domain on $PROD_PROJECT and refuses the deploy if it is not.
+# Dev's is the project's own `.pages.dev` name, which is what a deploy to its
+# production branch answers on (checked above).
 if [ "$TARGET" = "prod" ]; then
   ORIGIN="$PROD_ORIGIN"
 else
-  ORIGIN="https://$BRANCH.$PROJECT.pages.dev"
+  ORIGIN="https://$PROJECT.pages.dev"
 fi
 
 # --- Build ------------------------------------------------------------------
@@ -362,8 +343,8 @@ else
     echo "" >&2
   fi
   # --origin only reaches the generator too, and it is baked into every page.
-  # Dev-only, and both dev origins are noindex, so the cost is a preview whose
-  # canonicals name whatever host the last build was told about. No warning
+  # Dev-only, and dev is noindex, so the cost is a dev copy whose canonicals
+  # name whatever host the last build was told about. No warning
   # here: the preflight below reads the baked origin off disk, so it can name
   # the host and stay quiet on the runs where it already matches.
 fi
@@ -582,72 +563,6 @@ else
   echo ""
 fi
 
-# --- wrangler + account check -----------------------------------------------
-# Skipped entirely on a dry run: --dry-run means build and check, so it should
-# keep working with no network and no auth, the way it did before this section
-# moved above the banner.
-ACCOUNT_LINE="(not checked — dry run)"
-if [ "$DRY_RUN" = false ]; then
-  require_node22
-
-  # $WRANGLER is research_server's (lib/common.sh). The static site has no
-  # package.json of its own on purpose — it is a Dart generator with no Node
-  # dependencies, and wrangler is a CLI it invokes, not something it builds
-  # against.
-  research_deps
-
-  # Drop the stale account cache BEFORE wrangler is asked anything, so the account
-  # is resolved from this run's credentials and not from the last run's target.
-  rm -f "$PAGES_ACCOUNT_CACHE"
-
-  # Show which Cloudflare account is actually about to receive the upload, and for
-  # prod insist it is the one CLOUDFLARE_PROD_ACCOUNT_ID names. Two accounts only
-  # buy separation if something checks.
-  #
-  # --json, not the human table: that table is drawn with box characters which
-  # pick up ANSI colour whenever wrangler thinks the output wants it, and the
-  # account name then parses out empty. The announcement is not decoration — this
-  # call reaches the network, and without it a slow or unreachable API looks like
-  # the script having hung before doing anything at all.
-  echo "Checking Cloudflare account..."
-  ACCOUNT_JSON=$("$WRANGLER" whoami --json 2>/dev/null || true)
-  ACCOUNT_IDS=$(printf '%s' "$ACCOUNT_JSON" \
-    | grep -oE '"id" *: *"[0-9a-f]{32}"' | grep -oE '[0-9a-f]{32}' \
-    | sort -u | tr '\n' ' ' || true)
-  ACCOUNT_NAME=$(printf '%s' "$ACCOUNT_JSON" \
-    | grep -oE '"name" *: *"[^"]*"' | head -1 | sed -E 's/.*: *"//; s/"$//' || true)
-
-  if [ -z "$ACCOUNT_IDS" ]; then
-    # Could not verify — not the same thing as verified wrong, and it must not
-    # read like it. Usually an expired token, a token missing the
-    # `Account Settings: Read` permission it needs to list accounts at all, or
-    # simply no network.
-    if [ "$TARGET" = "prod" ]; then
-      echo "error: could not verify the Cloudflare account — \`wrangler whoami\`" >&2
-      echo "       returned nothing. Likely CLOUDFLARE_PROD_API_TOKEN is expired," >&2
-      echo "       or is missing the 'Account Settings: Read' permission." >&2
-      echo "       Refusing to upload to production unverified." >&2
-      exit 1
-    fi
-    echo "warning: could not verify the Cloudflare account (whoami failed)." >&2
-    echo "" >&2
-  elif [ -n "$EXPECTED_ACCOUNT" ]; then
-    case " $ACCOUNT_IDS " in
-      *" $EXPECTED_ACCOUNT "*) ;;
-      *)
-        echo "error: wrangler resolved account(s) [$ACCOUNT_IDS]," >&2
-        echo "       but CLOUDFLARE_PROD_ACCOUNT_ID names $EXPECTED_ACCOUNT." >&2
-        echo "       Refusing to upload — check the CLOUDFLARE_PROD_* pair in" >&2
-        echo "       scripts/config/secrets.env." >&2
-        exit 1
-        ;;
-    esac
-  fi
-
-  ACCOUNT_LINE="${ACCOUNT_NAME:-unknown}   (${ACCOUNT_IDS:-unresolved})"
-  echo ""
-fi
-
 echo "target     $TARGET"
 echo "account    $ACCOUNT_LINE"
 echo "files      $FILE_COUNT / $MAX_FILES   ($(du -sh "$OUT" | awk '{print $1}'))"
@@ -655,7 +570,7 @@ echo "project    $PROJECT"
 if [ "$TARGET" = "prod" ]; then
   echo "branch     $BRANCH   ** PRODUCTION — this deployment is INDEXABLE **"
 else
-  echo "branch     $BRANCH   (preview — Cloudflare adds X-Robots-Tag: noindex)"
+  echo "branch     $BRANCH   (dev project — noindex from _headers)"
 fi
 echo "url        $ORIGIN"
 echo ""
@@ -667,23 +582,13 @@ fi
 
 # A release is public and hard to walk back, so it asks once. --yes for CI.
 if [ "$TARGET" = "prod" ] && [ "$ASSUME_YES" = false ]; then
-  if [ ! -t 0 ]; then
-    echo "error: a release needs a terminal to confirm. Pass --yes in automation." >&2
-    exit 1
-  fi
-  read -r -p "Release the canon to PRODUCTION ($PROJECT)? [y/N] " REPLY
-  case "$REPLY" in
-    y|Y|yes|YES) ;;
-    *) echo "Aborted."; exit 1 ;;
-  esac
-  echo ""
+  confirm_release "Release the canon to PRODUCTION ($PROJECT)?"
 fi
 
 # Stamp the deployment so the Pages dashboard says which commit produced it.
 # --commit-dirty is passed explicitly because uncommitted work is normal on dev;
 # a release is already guaranteed clean by the guard above.
-GIT_SHA=$(git rev-parse --short HEAD)
-GIT_MSG=$(git log -1 --pretty=%s)
+git_stamp
 
 echo "Deploying $OUT -> Cloudflare Pages ($PROJECT, branch $BRANCH)"
 echo ""
@@ -699,10 +604,25 @@ set +e
 STATUS=$?
 set -e
 
-# Leave nothing behind: the account cache wrangler just rewrote (the footgun
-# this script exists to defuse) and the empty pages-XXXXXX staging directories
-# it does not always clean up itself.
-rm -f "$PAGES_ACCOUNT_CACHE"
+# Leave nothing behind: the empty pages-XXXXXX staging directories wrangler
+# does not always clean up itself. (Its .wrangler/cache/pages.json account
+# cache is harmless now: CLOUDFLARE_ACCOUNT_ID is always set, and outranks it.)
 find .wrangler/tmp -maxdepth 1 -type d -name 'pages-*' -empty -delete 2>/dev/null || true
 
-exit $STATUS
+[ $STATUS -eq 0 ] || exit $STATUS
+
+# --- After the upload: the site answers, noindex on dev only ----------------
+echo ""
+echo "Checking $ORIGIN/..."
+if ! expect_http "$ORIGIN/"; then
+  echo "       Uploaded; to go back, see Rollback in scripts/static_site/README.md." >&2
+  exit 1
+fi
+NOINDEX=false
+printf '%s' "$HTTP_RESPONSE" | tr -d '\r' | sed '/^$/q' \
+  | grep -qi '^x-robots-tag:.*noindex' && NOINDEX=true
+case "$TARGET:$NOINDEX" in
+  dev:false)  echo "error: uploaded, but the dev copy answers without noindex." >&2; exit 1 ;;
+  prod:true)  echo "error: the release answers noindex — roll back now (README)." >&2; exit 1 ;;
+esac
+echo "OK: $ORIGIN/ answers 200."

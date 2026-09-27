@@ -31,7 +31,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-echo "app web --$TARGET is not set up yet:"
-echo "  where Flutter web lives on Cloudflare is not decided — dev has no home,"
-echo "  prod will be app.sammaditthi.net (docs/todo/web-strategy/web-release.md §6)."
+echo "app web --$TARGET is not set up yet: dev will be the app-sammaditthi-test"
+echo "  Pages project, prod app.sammaditthi.net. See scripts/app/web/README.md."
 exit 3

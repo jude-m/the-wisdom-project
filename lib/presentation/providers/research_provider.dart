@@ -19,7 +19,7 @@ import 'research_mode_provider.dart';
 ///
 /// Defaults to the local `research_server` dev instance on :8082. Override at
 /// build/run time with
-/// `--dart-define=RESEARCH_BASE_URL=https://research.thewisdomproject.app`.
+/// `--dart-define=RESEARCH_BASE_URL=https://research.sammaditthi.net`.
 /// On the Android emulator, the host machine is reachable as 10.0.2.2.
 final researchBaseUrlProvider = Provider<String>(
   (ref) => const String.fromEnvironment(

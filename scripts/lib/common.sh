@@ -149,6 +149,114 @@ research_deps() {
   (cd "$WISDOM_ROOT/research_server" && npm ci)
 }
 
+# `use_cloudflare dev|prod` — points wrangler at that target's account: maps
+# CLOUDFLARE_<DEV|PROD>_API_TOKEN/_ACCOUNT_ID to wrangler's own names, then asks
+# `wrangler whoami` and fails unless the token reaches that account. Both
+# accounts work this way; there is no `wrangler login` path. Sets
+# CLOUDFLARE_ACCOUNT_LINE for the deploy banner.
+use_cloudflare() {
+  local upper token account json ids name
+  case "$1" in
+    dev|prod) upper=$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]') ;;
+    *) echo "error: use_cloudflare takes dev or prod, not '$1'." >&2; return 1 ;;
+  esac
+  require_node22
+  research_deps || return 1
+  token=$(secret "CLOUDFLARE_${upper}_API_TOKEN") || return 1
+  account=$(secret "CLOUDFLARE_${upper}_ACCOUNT_ID") || return 1
+  if [ -z "$token" ] || [ -z "$account" ]; then
+    echo "error: CLOUDFLARE_${upper}_API_TOKEN and CLOUDFLARE_${upper}_ACCOUNT_ID must" >&2
+    echo "       both be set (environment or scripts/config/secrets.env)." >&2
+    return 1
+  fi
+  export CLOUDFLARE_API_TOKEN="$token" CLOUDFLARE_ACCOUNT_ID="$account"
+  # wrangler prefers a global key + email over the token, so a pair left in the
+  # shell would deploy as someone else.
+  unset CLOUDFLARE_API_KEY CLOUDFLARE_EMAIL
+
+  # --json, not the human table: its box characters pick up ANSI colour and the
+  # name then parses out empty.
+  echo "Checking Cloudflare account ($1)..."
+  json=$("$WRANGLER" whoami --json 2>/dev/null || true)
+  ids=$(printf '%s' "$json" | grep -oE '"id" *: *"[0-9a-f]{32}"' \
+    | grep -oE '[0-9a-f]{32}' | sort -u | tr '\n' ' ' || true)
+  name=$(printf '%s' "$json" | grep -oE '"name" *: *"[^"]*"' | head -1 \
+    | sed -E 's/.*: *"//; s/"$//' || true)
+  if [ -z "$ids" ]; then
+    echo "error: could not verify the Cloudflare account — \`wrangler whoami\`" >&2
+    echo "       returned nothing. Likely CLOUDFLARE_${upper}_API_TOKEN is expired," >&2
+    echo "       is missing 'Account Settings: Read', or there is no network." >&2
+    return 1
+  fi
+  case " $ids " in
+    *" $account "*) ;;
+    *)
+      echo "error: the token reaches account(s) [$ids]," >&2
+      echo "       but CLOUDFLARE_${upper}_ACCOUNT_ID names $account." >&2
+      return 1 ;;
+  esac
+  CLOUDFLARE_ACCOUNT_LINE="${name:-unknown}   ($account)"
+}
+
+# `expect_http URL` — GETs URL until it answers 200, a few tries apart (a fresh
+# deploy can take a moment to arrive). Leaves headers + body in HTTP_RESPONSE.
+# --suppress-connect-headers: behind a proxy, `curl -i` otherwise prints the
+# proxy's own "200 Connection Established" before the site's reply.
+expect_http() {
+  local try
+  for try in 1 2 3 4 5 6; do
+    HTTP_RESPONSE=$(curl -sS -i --suppress-connect-headers --max-time 15 "$1" \
+      2>/dev/null || true)
+    case "$(printf '%s' "$HTTP_RESPONSE" | head -1)" in
+      HTTP/*" 200"*) return 0 ;;
+    esac
+    [ $try -lt 6 ] && sleep 5
+  done
+  echo "error: $1 did not answer 200." >&2
+  return 1
+}
+
+# `require_release_commit BRANCH` — fails unless HEAD is BRANCH and the tree is
+# clean, so a release can be rebuilt from its commit. `git status --porcelain`
+# rather than `git diff`, so staged and untracked files count too: a
+# never-added file is invisible to `git diff` yet part of the build.
+require_release_commit() {
+  local branch
+  branch=$(git -C "$WISDOM_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)
+  if [ "$branch" != "$1" ]; then
+    echo "error: a release must be cut from '$1' (on '$branch')." >&2
+    echo "       Merge first, then release." >&2
+    return 1
+  fi
+  if [ -n "$(git -C "$WISDOM_ROOT" status --porcelain 2>/dev/null)" ]; then
+    echo "error: working tree is dirty — a release must be reproducible from a commit." >&2
+    git -C "$WISDOM_ROOT" status --short >&2
+    return 1
+  fi
+}
+
+# `confirm_release QUESTION` — asks QUESTION [y/N] and exits unless the answer
+# is yes. Needs a terminal; automation passes --yes instead of calling this.
+confirm_release() {
+  local reply
+  if [ ! -t 0 ]; then
+    echo "error: a release needs a terminal to confirm. Pass --yes in automation." >&2
+    exit 1
+  fi
+  read -r -p "$1 [y/N] " reply
+  case "$reply" in
+    y|Y|yes|YES) echo "" ;;
+    *) echo "Aborted."; exit 1 ;;
+  esac
+}
+
+# `git_stamp` — sets GIT_SHA (short) and GIT_MSG (subject) of HEAD, to tag a
+# deployment with the commit it came from.
+git_stamp() {
+  GIT_SHA=$(git -C "$WISDOM_ROOT" rev-parse --short HEAD)
+  GIT_MSG=$(git -C "$WISDOM_ROOT" log -1 --pretty=%s)
+}
+
 # `research_var NAME` — one var from research_server/wrangler.jsonc. TypeScript's
 # parser, because the file has comments and URLs, so stripping `//` with sed
 # would cut the URLs too. Call research_deps first.

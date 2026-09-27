@@ -27,10 +27,8 @@ Dev port map: 8080 = Flutter web, **8082 = research server**, 8083 = static-site
 Live mode locally: `./scripts/research_server/run.sh`, with
 `RESEARCH_GEMINI_API_KEY` in `scripts/config/secrets.env`.
 
-Deploy: `./scripts/research_server/deploy.sh`. It uploads
-`RESEARCH_GEMINI_API_KEY` from `scripts/config/secrets.env` as the Worker's
-`GEMINI_API_KEY`; `RESEARCH_STUB` and `RESEARCH_STORE` are vars in
-`wrangler.jsonc`.
+Deploy: `./scripts/research_server/deploy.sh --prod`. One-time setup and where
+it lives: [`scripts/research_server/README.md`](../scripts/research_server/README.md).
 
 ## Design notes
 
