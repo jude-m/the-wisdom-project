@@ -329,3 +329,27 @@ Newest last. Each step adds: date, store names/ids, numbers, surprises.
   stops if it's empty, because the SDK prefers `GOOGLE_API_KEY` (another
   project's key could win). Branch merged to `main`; work continues on
   `main` directly.
+- **2026-09-28, B4 baseline (thinking, A store)** — Both answers right.
+  3 calls: P3's rung 1 (gemini-3.5-flash) returned 503 after 25.1s.
+
+  | | model (rung) | citations | cpu | body | time |
+  |---|---|---|---|---|---|
+  | P2 thinking | gemini-3.5-flash (1) | 0 | 7 ms | 3KB | 37.1s |
+  | P3 thinking | gemini-3-flash-preview (2) | 2 | 10 ms | 13KB | 58.4s |
+
+  Surprises:
+  - **P2 retrieved no grounding chunks** even in thinking mode, and wrote
+    its refs as raw uids (`[sn6.1]`). `REF_IN_PROSE` only matches the
+    `SN 6.1` form, so it got 0 citations and the answer shows `[sn6.1]` as
+    plain text. Outside B4; not fixed.
+  - **P3 searched:** dn16 and sn6.15 both came from grounding chunks, with
+    snippets. dn16 already had `title: null` under default chunking, so
+    Google's default split DN 16 mid-sutta. 10 ms CPU is the Worker's
+    budget.
+- **2026-09-28, B4 upload** — Store `tipitaka-pilot-sn6-c200` =
+  `fileSearchStores/tipitakapilotsn6c200-hjbekylfbhzd` (ops project),
+  chunks 200 / 20 overlap on both runs. SN 6: 15 uploaded, DN 16: 1
+  uploaded, 0 failed. Indexed by the first check: 16 active, none pending
+  or failed, 162,106 bytes (source bytes, same as A). The documents API
+  doesn't show a document's chunk config, so only the probes can confirm
+  it took. `RESEARCH_STORE` switched to it.
