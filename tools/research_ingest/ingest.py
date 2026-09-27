@@ -8,16 +8,21 @@ from the uid — never hand-annotated onto the JSON (design §5.2).
 Idempotent + resumable: uids already in the store are skipped, so a re-run after a
 failure picks up where it stopped.
 
-Usage:
+Usage, from the repo root (the wrapper loads the key from scripts/config/secrets.env):
     # Validate discovery + metadata WITHOUT a key or any upload:
-    python -m ingest.ingest --dry-run --limit 5
+    ./scripts/research_server/ingest.sh --dry-run --limit 5
 
-    # Real run (needs GEMINI_API_KEY; creates the store if --store omitted):
-    python -m ingest.ingest --store fileSearchStores/tipitaka-en-xxxx
-    python -m ingest.ingest                 # creates a fresh store, prints its name
+    # Real run (creates the store if --store omitted, prints its name):
+    ./scripts/research_server/ingest.sh --display-name tipitaka-en-c200 \
+        --chunk-tokens 200 --overlap-tokens 20
+    ./scripts/research_server/ingest.sh --store fileSearchStores/<id> \
+        --chunk-tokens 200 --overlap-tokens 20
 
-Point --bilara-dir (or BILARA_DATA_DIR) at a local checkout of
-github.com/suttacentral/bilara-data (the `published` branch).
+Without the wrapper: tools/research_ingest/.venv/bin/python
+tools/research_ingest/ingest.py …, with GEMINI_API_KEY set.
+
+--bilara-dir defaults to BILARA_DATA_DIR, else ~/Desktop/Dev/bilara-data-readonly:
+a checkout of github.com/suttacentral/bilara-data (the `published` branch).
 """
 from __future__ import annotations
 
@@ -99,6 +104,17 @@ def run(args: argparse.Namespace) -> int:
     scope = f" matching {args.filter!r}" if args.filter else ""
     print(f"discovered {len(paths)} unit files{scope} under {bilara_dir}")
 
+    # Left out = Google's default chunking. Each upload carries its own config.
+    chunking = {
+        k: v
+        for k, v in (
+            ("max_tokens_per_chunk", args.chunk_tokens),
+            ("max_overlap_tokens", args.overlap_tokens),
+        )
+        if v is not None
+    }
+    print(f"chunking: {chunking or 'Google default'}")
+
     if args.dry_run:
         for path in paths:
             unit = load_unit(path)
@@ -114,7 +130,13 @@ def run(args: argparse.Namespace) -> int:
     # ---- live upload ----
     from google import genai  # lazy: dry-run needs no SDK
 
-    client = genai.Client()
+    # Passed explicitly: the SDK would prefer GOOGLE_API_KEY, which may belong
+    # to another Google project. Empty would fall back to it too.
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        print("error: GEMINI_API_KEY is not set.", file=sys.stderr)
+        return 2
+    client = genai.Client(api_key=key)
     store_name = args.store
     if not store_name:
         store = client.file_search_stores.create(
@@ -138,7 +160,7 @@ def run(args: argparse.Namespace) -> int:
             skipped += 1
             continue
         try:
-            _upload(client, store_name, uid, text, meta_from_uid(uid))
+            _upload(client, store_name, uid, text, meta_from_uid(uid), chunking)
             uploaded += 1
         except Exception as exc:  # noqa: BLE001 — keep going, log, back off
             failed += 1
@@ -146,7 +168,7 @@ def run(args: argparse.Namespace) -> int:
             time.sleep(args.backoff)
 
     print(f"done: {uploaded} uploaded, {skipped} skipped, {failed} failed")
-    print(f"\nSet RESEARCH_STORE={store_name} in the service environment.")
+    print(f"\nSet RESEARCH_STORE={store_name} in research_server/wrangler.jsonc.")
     return 0 if failed == 0 else 1
 
 
@@ -169,22 +191,27 @@ def _existing_uids(client, store_name: str) -> set[str]:
     return uids
 
 
-def _upload(client, store_name: str, uid: str, text: str, md: dict) -> None:
+def _upload(
+    client, store_name: str, uid: str, text: str, md: dict, chunking: dict
+) -> None:
     with tempfile.NamedTemporaryFile(
         "w", suffix=f"_{uid}.txt", delete=False, encoding="utf-8"
     ) as f:
         f.write(text)
         tmp = f.name
+    config = {
+        "display_name": uid,
+        "custom_metadata": [
+            {"key": k, "string_value": v} for k, v in md.items()
+        ],
+    }
+    if chunking:
+        config["chunking_config"] = {"white_space_config": chunking}
     try:
         client.file_search_stores.upload_to_file_search_store(
             file_search_store_name=store_name,
             file=tmp,
-            config={
-                "display_name": uid,
-                "custom_metadata": [
-                    {"key": k, "string_value": v} for k, v in md.items()
-                ],
-            },
+            config=config,
         )
     finally:
         os.unlink(tmp)
@@ -194,7 +221,10 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Ingest bilara-data → File Search.")
     ap.add_argument(
         "--bilara-dir",
-        default=os.environ.get("BILARA_DATA_DIR", "../bilara-data"),
+        default=os.environ.get(
+            "BILARA_DATA_DIR",
+            os.path.expanduser("~/Desktop/Dev/bilara-data-readonly"),
+        ),
     )
     ap.add_argument(
         "--store",
@@ -219,6 +249,18 @@ def main() -> int:
         default=None,
         help="only ingest unit files whose path contains this substring, e.g. "
         "'sn/sn15/' for the Anamatagga Saṁyutta (SN 15) pilot",
+    )
+    ap.add_argument(
+        "--chunk-tokens",
+        type=int,
+        default=None,
+        help="max tokens per chunk; omit for Google's default chunking",
+    )
+    ap.add_argument(
+        "--overlap-tokens",
+        type=int,
+        default=None,
+        help="tokens shared by neighbouring chunks; omit for Google's default",
     )
     ap.add_argument(
         "--backoff",

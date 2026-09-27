@@ -74,6 +74,8 @@ bash -c '. scripts/lib/common.sh && use_cloudflare prod \
 - **The Google side is the ops `wisdom-research` project.** Its key and its
   File Search store belong together: a store opens only with a key from the
   project that made it, so switch both in one deploy.
+- **Filling a store:** `ingest.sh` uploads SuttaCentral's texts into a File
+  Search store with that key; its header has the usage and the one-time venv.
 - **CORS.** A browser app can only call the Worker from an origin listed in
   `RESEARCH_CORS_ORIGINS` (`wrangler.jsonc`). Add the prod app's origin there
   when the app goes live on the web, then deploy.

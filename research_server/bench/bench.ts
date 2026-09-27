@@ -5,8 +5,8 @@
 // over the full in-process request work: parse + buildResponse + stringify.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { parseRequest } from '../src/contracts.js';
 import { GenerateResponse } from '../src/gemini.js';
 import { buildResponse } from '../src/pipeline.js';
@@ -17,10 +17,7 @@ const CHUNKS = 22;
 
 const bilaraDir =
   process.env.BILARA_DATA_DIR ??
-  join(
-    fileURLToPath(new URL('.', import.meta.url)),
-    '../../../deprecated/research_server/bilara-data',
-  );
+  join(homedir(), 'Desktop/Dev/bilara-data-readonly');
 
 function walk(dir: string, out: { path: string; size: number }[]): void {
   for (const name of readdirSync(dir)) {

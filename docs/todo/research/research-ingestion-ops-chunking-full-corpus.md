@@ -20,24 +20,24 @@ Three phases, each ending in a live switch of the one Worker:
 A and B hold the same texts in the same project, so the only difference
 between their probe results is the chunk size.
 
-## Where we are (2026-09-28)
+## Where we are (2026-09-28, after B3)
 
 - **Worker:** ops Cloudflare account, `research.sammaditthi.net`, every build
-  calls it. `RESEARCH_STORE` still names the personal SN 15 pilot store.
-- **Ops Google project** `wisdom-research`: its key is in
-  `scripts/config/secrets.env` as `RESEARCH_GEMINI_API_KEY`. Verified: it
-  sees no stores, so it is not the personal project's key. No store yet.
-- **The Worker has no key.** The old personal key was deleted on purpose
-  (`wrangler secret delete`, 2026-09-28): `/health` says
-  `key_configured:false` and every research call fails until step A3. There
+  calls it. Live on the ops key and the A store `tipitaka-pilot-sn6`. There
   is no rollback to the SN 15 store.
+- **Ops Google project** `wisdom-research`: its key is in
+  `scripts/config/secrets.env` as `RESEARCH_GEMINI_API_KEY`. One store so
+  far, the A store.
 - **Personal Google project:** nothing needs it any more. The user deletes it
   in the Google dashboard whenever convenient; the SN 15 store goes with it.
-- **Python ingest works as-is:** `deprecated/research_server/.venv`
-  (google-genai 2.10.0) and a bilara-data checkout in
-  `deprecated/research_server/bilara-data` — shallow, blobless, sparse on the
-  two translation trees, `published` @ `9b1a954` (2026-06-15). Dry runs done:
-  `--filter sn/sn6/` → 15 uids, `--filter dn/dn16_` → 1.
+- **Ingest:** `scripts/research_server/ingest.sh` runs
+  `tools/research_ingest/ingest.py` (its own venv, google-genai 2.25.0).
+  bilara-data is at `~/Desktop/Dev/bilara-data-readonly` — shallow,
+  blobless, sparse on the two translation trees, `published` @ `9b1a954`
+  (2026-06-15).
+- **Git:** work happens on `main` directly; `feat/research-ingestion` is
+  merged.
+- **Next:** B4.
 
 ## Why smaller chunks
 
@@ -75,15 +75,17 @@ tier, so don't loop.
 | P4 | fast, `"filters":{"basket":"vinaya"}` | Can a monk accept money? | Vinaya uids (C only) |
 
 Run the tail in one terminal (repo root; a child bash, so the prod token
-doesn't stay in the shell):
+doesn't stay in the shell). JSON, because CPU time is only in the JSON
+event. It prints no "Connected" line: give it ~10 s before the first probe.
 
 ```sh
 bash -c '. scripts/lib/common.sh && use_cloudflare prod \
-  && cd research_server && "$WRANGLER" tail --format pretty'
+  && cd research_server && "$WRANGLER" tail --format json' \
+  > "$TMPDIR/research-tail.json"
 ```
 
 …and each probe in another, a few seconds apart (the zone rate limit is
-6 requests / 10 s):
+6 requests / 10 s). `"mode":"thinking"` for a thinking probe:
 
 ```sh
 curl -sS https://research.sammaditthi.net/research \
@@ -91,8 +93,10 @@ curl -sS https://research.sammaditthi.net/research \
   -d '{"question":"What were the Buddha'\''s last words?","history":[],"mode":"fast"}'
 ```
 
-Record per probe, in the handover notes: `citations=`, `cpu=`, `build=`,
-`body=` from the tail line, and whether the answer is right.
+Record per probe, in the handover notes: `cpuTime` and `wallTime` from the
+event; `model=`, `rung=`, `citations=` and `body=` from its `research[…]`
+log line; and whether the answer is right. (`cpu=` and `build=` print only
+under Node, never on Workers.)
 
 Citations outside SN 15 show no "open in reader" link: the SC→BJT
 concordance (`assets/data/sc-to-bjt.json`) covers SN 15 only. Expected, not
@@ -183,10 +187,14 @@ carries its own config.
   --chunk-tokens 200 --overlap-tokens 20 --filter dn/dn16_
 ```
 
-Wait for indexing (A2), switch and deploy as in A3 (no README change), probe
-P1–P3, compare with A4.
+The gate runs every probe in **thinking** mode: fast mode doesn't search
+(A4 notes), so a fast probe shows nothing about chunk size. Before the
+switch, rerun P2 and P3 in thinking mode on the A store, as their baseline
+(2 calls). Then wait for indexing (A2), switch and deploy as in A3 (no
+README change; the commit carries this doc too), probe P1–P3 in thinking
+mode (3 calls), compare.
 
-- **Pass:** `body=` and `cpu=` drop, most on P3; P1 still lists all 15; the
+- **Pass:** `body=` and `cpuTime` drop, most on P3; P1 still lists all 15; the
   answers are as good; citation cards read well (mid-sutta chunks give
   `title: null` — already handled, but look at them).
 - **Quality drops:** re-ingest into a new store at 300, then 500, and
@@ -261,7 +269,6 @@ SN 15 only. Growing it is its own job —
 
 ## Risks
 
-- **Research is down** from 2026-09-28 until A3.
 - **Retrieval quality** with small chunks: the B4 gate.
 - **Free-tier daily cap mid-ingest:** the run resumes, but an upload that
   failed may still have spent quota.
@@ -281,6 +288,44 @@ Newest last. Each step adds: date, store names/ids, numbers, surprises.
   uploaded, DN 16: 1 uploaded, 0 failed. Indexed by the first check: 16
   active, none pending or failed, 162,106 bytes, `gemini-embedding-001`.
   No surprises.
-- **2026-09-28, A3 (edits only)** — `RESEARCH_STORE` switched and the README
-  bullet updated, left uncommitted on the user's instruction. The deploy
-  refuses a dirty tree, so it waits for the user's commit.
+- **2026-09-28, A3** — Committed on branch `feat/research-ingestion`
+  (`9ddf045`); `main` fast-forwarded to it, because the deploy only
+  releases from `main`. Deployed: the store check passed, `GEMINI_API_KEY`
+  uploaded, `/health` live with a key. Worker version `d192fb5a`. Research
+  is live again.
+- **2026-09-28, A4 baseline** — All three answers right.
+
+  | | model (rung) | citations | cpu | body | time |
+  |---|---|---|---|---|---|
+  | P1 thinking | gemini-3-flash-preview (2) | 17 | not captured | 12KB | 87.7s |
+  | P2 fast | gemini-3.1-flash-lite (1) | 1 | 6 ms | 2KB | 4.4s |
+  | P3 fast | gemini-3.1-flash-lite (1) | 2 | 5 ms | 1KB | 3.5s |
+
+  Surprises:
+  - **Fast mode didn't search.** P2 and P3 came back with no grounding
+    chunks: every citation was built from a ref the model wrote in the
+    text (`title: null`, `snippet: null`), and `body=` is tiny because no
+    chunk text came back. Chunk size can't show up in a probe that
+    retrieves nothing, so P3 as it stands can't carry the B4 gate.
+  - **P1 did search:** 5 of its 17 citations came from grounding chunks
+    (sn6.3, sn6.10, sn6.14, sn6.15, dn16), each with a snippet; the other
+    12 came from refs in the text. Rung 1 (gemini-3.5-flash) returned 503
+    after 37.8s.
+  - **`cpu=` and `build=` never print on Workers** (`cpuMs()` is null
+    there). CPU time is only in the tail's JSON event (`cpuTime`), so
+    P2/P3 used `--format json`; P1 ran under `--format pretty` and has no
+    CPU figure.
+- **2026-09-28, B1–B3** — bilara-data moved intact to
+  `~/Desktop/Dev/bilara-data-readonly` (`published` @ `9b1a954`). Script in
+  `tools/research_ingest/`, wrapper `scripts/research_server/ingest.sh`.
+  pip installed google-genai **2.25.0**, not 2.10; the chunk fields are
+  unchanged there, and the SDK sends them as `chunkingConfig`. Dry runs
+  through the wrapper: SN 6 → 15, DN 16 → 1.
+  `research_server/bench/bench.ts` pointed at the old bilara-data path; it
+  now has the script's default (bench passes, 6.96 ms worst case).
+  Decided for B4: every gate probe in thinking mode, with a thinking
+  baseline for P2/P3 first; the tail uses `--format json`.
+  Review fix: the script passes `GEMINI_API_KEY` to the SDK explicitly and
+  stops if it's empty, because the SDK prefers `GOOGLE_API_KEY` (another
+  project's key could win). Branch merged to `main`; work continues on
+  `main` directly.
