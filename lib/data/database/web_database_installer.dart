@@ -521,11 +521,8 @@ class WebDatabaseInstaller {
   String _downloadUrl(String dbName, String sha256) {
     if (_baseUrl.isEmpty) {
       // The app's own asset copy, uncompressed — what every local run uses.
-      // Which also means `flutter build web` bundles both databases, ~350 MB,
-      // unless the deploy strips them and sets DATABASE_BASE_URL. Nothing does
-      // that yet: the script that used to strip them is in `deprecated/`, and
-      // the requirement is recorded in `docs/todo/web-strategy/web-release.md`
-      // §6.
+      // `flutter build web` bundles both databases for it; the deploy
+      // (`scripts/app/web/deploy.sh`) strips them and sets DATABASE_BASE_URL.
       return 'assets/$databaseAssetFolder/$dbName';
     }
     final base = _baseUrl.endsWith('/')

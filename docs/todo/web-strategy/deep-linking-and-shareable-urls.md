@@ -477,10 +477,10 @@ corpus rather than a synthetic tree (§ A2).
 
 C's `id="<nodeKey>"` anchors are no longer "future" targets — they are live and
 working on the dev deploy. These five URLs are the manual check, verified
-2026-08-14 against that build (14,752 pages, 146 grouped).
+2026-08-14 against the dev build of that day (14,752 pages, 146 grouped).
 
-Origin `https://dev.sammaditthi-dev.pages.dev` — Pages project `sammaditthi-dev`,
-preview branch `dev`. Production is `https://sammaditthi.net`; swap the host and
+Origin `https://sammaditthi-test.pages.dev` — Pages project `sammaditthi-test`
+in the dev account. Production is `https://sammaditthi.net`; swap the host and
 every path below still holds.
 
 Open each **with** the fragment (one sutta showing) and **without** it (the whole
@@ -489,22 +489,20 @@ only the browser can prove it.
 
 | Link | Covers |
 |---|---|
-| [`/tipitaka/sn-1-1-7#sn-1-1-7-3`](https://dev.sammaditthi-dev.pages.dev/tipitaka/sn-1-1-7#sn-1-1-7-3) | Baseline. SN Devatāsaṃyutta, 7. අන්වවග්ගො, 10 prose suttas, middle anchor. |
-| [`/tipitaka/atta-sn-1-1-7#atta-sn-1-1-7-3`](https://dev.sammaditthi-dev.pages.dev/tipitaka/atta-sn-1-1-7#atta-sn-1-1-7-3) | Commentary twin of the row above — same vagga, aṭṭhakathā side, 10 anchors. The pair to open side by side. |
-| [`/tipitaka/sn-4-1-17#sn-4-1-17-30`](https://dev.sammaditthi-dev.pages.dev/tipitaka/sn-4-1-17#sn-4-1-17-30) | Most anchors in the corpus: 30 suttas, 47 KB, a peyyāla run. Also the **last** anchor. |
-| [`/tipitaka/kn-thig-1#kn-thig-1-18`](https://dev.sammaditthi-dev.pages.dev/tipitaka/kn-thig-1#kn-thig-1-18) | Verse, not prose — Therīgāthā ekakanipāta, 18 gāthā entries, last anchor. |
-| [`/tipitaka/vp-pct-1-3-1#vp-pct-1-3-1-1`](https://dev.sammaditthi-dev.pages.dev/tipitaka/vp-pct-1-3-1#vp-pct-1-3-1-1) | Different piṭaka — Vinaya sekhiya rules, 10 entries, **first** anchor. |
+| [`/tipitaka/sn-1-1-7#sn-1-1-7-3`](https://sammaditthi-test.pages.dev/tipitaka/sn-1-1-7#sn-1-1-7-3) | Baseline. SN Devatāsaṃyutta, 7. අන්වවග්ගො, 10 prose suttas, middle anchor. |
+| [`/tipitaka/atta-sn-1-1-7#atta-sn-1-1-7-3`](https://sammaditthi-test.pages.dev/tipitaka/atta-sn-1-1-7#atta-sn-1-1-7-3) | Commentary twin of the row above — same vagga, aṭṭhakathā side, 10 anchors. The pair to open side by side. |
+| [`/tipitaka/sn-4-1-17#sn-4-1-17-30`](https://sammaditthi-test.pages.dev/tipitaka/sn-4-1-17#sn-4-1-17-30) | Most anchors in the corpus: 30 suttas, 47 KB, a peyyāla run. Also the **last** anchor. |
+| [`/tipitaka/kn-thig-1#kn-thig-1-18`](https://sammaditthi-test.pages.dev/tipitaka/kn-thig-1#kn-thig-1-18) | Verse, not prose — Therīgāthā ekakanipāta, 18 gāthā entries, last anchor. |
+| [`/tipitaka/vp-pct-1-3-1#vp-pct-1-3-1-1`](https://sammaditthi-test.pages.dev/tipitaka/vp-pct-1-3-1#vp-pct-1-3-1-1) | Different piṭaka — Vinaya sekhiya rules, 10 entries, **first** anchor. |
 
 Between them: canon and commentary, prose and verse, Sutta and Vinaya, first /
 middle / last anchor, and the largest grouped page there is.
 
-Two gotchas, both found the hard way:
+One gotcha, found the hard way:
 
 - **Drop the `.html`.** `/tipitaka/sn-1-1-7.html` 308-redirects to
   `/tipitaka/sn-1-1-7`. The fragment survives the redirect (browsers reapply it
   to the target), but the extensionless form is the real URL.
-- **Keep the `dev.` prefix.** `sammaditthi-dev.pages.dev` without it addresses the
-  project's *production* branch and 404s on these paths.
 
 **This proves the browser half only** — `:has(:target)` single-view is
 browser-side and nothing but a browser can show it. The app half of these same

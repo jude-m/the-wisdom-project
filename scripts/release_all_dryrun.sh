@@ -18,8 +18,8 @@
 # placeholder's exit 3) for each target; exits 1 only on a FAIL. An exit that
 # disagrees with the header for the side it ran is a FAIL.
 #
-# Never run it while a static-site deploy is uploading: it rebuilds
-# static_site_generator/build/ under that upload.
+# Never run it while a static-site or app/web deploy is uploading: it rebuilds
+# static_site_generator/build/ and build/web/ under that upload.
 #
 # --list reads the `# Status: dev=… prod=…` line in each deploy.sh header,
 # because running a live deploy.sh to ask would start its tests.

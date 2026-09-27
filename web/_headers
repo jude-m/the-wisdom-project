@@ -1,0 +1,9 @@
+# Cloudflare Pages headers for the app's web build; `flutter build web` copies
+# this file in. Every file is cross-origin isolated, not just the page: Drift's
+# OPFS storage needs it, and it starts its worker from drift_worker.js (local
+# runs get the same two from web_dev_config.yaml). The app is noindex on every
+# host, dev and prod — docs/decisions/static-web-hosting.md.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+  X-Robots-Tag: noindex

@@ -184,13 +184,7 @@ if [ "$TARGET" = "prod" ]; then
   # way and the exact question costs nothing extra to ask.
   PROD_HOST=${PROD_ORIGIN#https://}
   echo "Checking $PROD_HOST is attached to $PROD_PROJECT..."
-  # The token goes in on stdin (-H @-), so it never shows in the process list.
-  DOMAIN_JSON=$(printf 'Authorization: Bearer %s\n' "$CLOUDFLARE_API_TOKEN" \
-    | curl -sS --max-time 15 -H @- \
-    "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROD_PROJECT/domains" \
-    2>/dev/null || true)
-
-  if ! printf '%s' "$DOMAIN_JSON" | tr -d ' \n' | grep -q '"success":true'; then
+  if ! DOMAIN_JSON=$(cf_api "pages/projects/$PROD_PROJECT/domains"); then
     echo "error: could not list the custom domains on $PROD_PROJECT." >&2
     echo "       Either the network is down, or CLOUDFLARE_PROD_API_TOKEN is" >&2
     echo "       expired or missing the 'Cloudflare Pages: Edit' permission." >&2
@@ -201,7 +195,7 @@ if [ "$TARGET" = "prod" ]; then
   # One record per domain, so the name and the status have to be read off the
   # SAME one: a project may carry several (apex and www), and a grep for
   # "active" anywhere in the payload would happily accept a sibling's.
-  DOMAIN_RECORD=$(printf '%s' "$DOMAIN_JSON" | tr -d ' \n' | tr '{' '\n' \
+  DOMAIN_RECORD=$(printf '%s' "$DOMAIN_JSON" | tr '{' '\n' \
     | grep -F "\"name\":\"$PROD_HOST\"" | head -1)
   if [ -z "$DOMAIN_RECORD" ]; then
     echo "error: $PROD_HOST is not attached to the Pages project" >&2
@@ -249,38 +243,10 @@ else
 fi
 
 # --- The branch is the project's production branch --------------------------
-# Pages serves a deploy to any other branch as a preview, at
-# <branch>.<project>.pages.dev: $ORIGIN below would not show it, and the check
-# after the upload would read the old deployment and pass. Also catches a
-# missing project, which `pages deploy` would offer to create. Whenever there is
-# a token to ask with.
+# Whenever there is a token to ask with.
 if [ "$TARGET" = "prod" ] || [ "$DRY_RUN" = false ]; then
-  echo "Checking $BRANCH is the production branch of $PROJECT..."
-  PROJECT_JSON=$(printf 'Authorization: Bearer %s\n' "$CLOUDFLARE_API_TOKEN" \
-    | curl -sS --max-time 15 -H @- \
-    "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROJECT" \
-    2>/dev/null | tr -d ' \n' || true)
-  if ! printf '%s' "$PROJECT_JSON" | grep -q '"success":true'; then
-    echo "error: could not read the Pages project '$PROJECT' in account" >&2
-    echo "       $CLOUDFLARE_ACCOUNT_ID — network down, or the project does not" >&2
-    echo "       exist there (scripts/static_site/README.md). Nothing uploaded." >&2
-    exit 1
-  fi
-  PRODUCTION_BRANCH=$(printf '%s' "$PROJECT_JSON" \
-    | sed -n 's/.*"production_branch":"\([^"]*\)".*/\1/p')
-  if [ "$PRODUCTION_BRANCH" != "$BRANCH" ]; then
-    echo "error: $PROJECT's production branch is '${PRODUCTION_BRANCH:-unreadable}'," >&2
-    echo "       but targets.env deploys to '$BRANCH'. Make them agree. Nothing uploaded." >&2
-    exit 1
-  fi
+  check_pages_branch "$PROJECT" "$BRANCH" || exit 1
   echo ""
-fi
-
-# Dev stamps its deployment with this, since uncommitted work is normal there.
-if [ -z "$(git status --porcelain 2>/dev/null)" ]; then
-  DIRTY=false
-else
-  DIRTY=true
 fi
 
 # --- Tests ------------------------------------------------------------------
@@ -600,7 +566,7 @@ set +e
   --branch="$BRANCH" \
   --commit-hash="$GIT_SHA" \
   --commit-message="$GIT_MSG" \
-  --commit-dirty="$DIRTY"
+  --commit-dirty="$GIT_DIRTY"
 STATUS=$?
 set -e
 

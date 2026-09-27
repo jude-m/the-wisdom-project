@@ -198,6 +198,44 @@ use_cloudflare() {
   CLOUDFLARE_ACCOUNT_LINE="${name:-unknown}   ($account)"
 }
 
+# `cf_api PATH` — GETs PATH under the selected account's Cloudflare API and
+# prints the reply without spaces or newlines; fails unless it reports success.
+# The token goes to curl on stdin, so it never shows in the process list.
+cf_api() {
+  local json
+  json=$(printf 'Authorization: Bearer %s\n' "$CLOUDFLARE_API_TOKEN" \
+    | curl -sS --max-time 15 -H @- \
+    "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/$1" \
+    2>/dev/null | tr -d ' \n' || true)
+  case "$json" in
+    *'"success":true'*) printf '%s' "$json" ;;
+    *) return 1 ;;
+  esac
+}
+
+# `check_pages_branch PROJECT BRANCH` — fails unless the Pages project exists
+# in the account use_cloudflare selected and BRANCH is its production branch.
+# A deploy to any other branch is a preview at <branch>.<project>.pages.dev, so
+# the check after the upload would read the old deployment and pass; and
+# `pages deploy` offers to create a missing project.
+check_pages_branch() {
+  local json production
+  echo "Checking $2 is the production branch of $1..."
+  if ! json=$(cf_api "pages/projects/$1"); then
+    echo "error: could not read the Pages project '$1' in account" >&2
+    echo "       $CLOUDFLARE_ACCOUNT_ID — network down, or the project does not" >&2
+    echo "       exist there (see the product's README). Nothing uploaded." >&2
+    return 1
+  fi
+  production=$(printf '%s' "$json" \
+    | sed -n 's/.*"production_branch":"\([^"]*\)".*/\1/p')
+  if [ "$production" != "$2" ]; then
+    echo "error: $1's production branch is '${production:-unreadable}'," >&2
+    echo "       but targets.env deploys to '$2'. Make them agree. Nothing uploaded." >&2
+    return 1
+  fi
+}
+
 # `expect_http URL` — GETs URL until it answers 200, a few tries apart (a fresh
 # deploy can take a moment to arrive). Leaves headers + body in HTTP_RESPONSE.
 # --suppress-connect-headers: behind a proxy, `curl -i` otherwise prints the
@@ -250,11 +288,17 @@ confirm_release() {
   esac
 }
 
-# `git_stamp` — sets GIT_SHA (short) and GIT_MSG (subject) of HEAD, to tag a
-# deployment with the commit it came from.
+# `git_stamp` — sets GIT_SHA (short) and GIT_MSG (subject) of HEAD, and
+# GIT_DIRTY (true/false: uncommitted work), to tag a deployment with the
+# commit it came from.
 git_stamp() {
   GIT_SHA=$(git -C "$WISDOM_ROOT" rev-parse --short HEAD)
   GIT_MSG=$(git -C "$WISDOM_ROOT" log -1 --pretty=%s)
+  if [ -z "$(git -C "$WISDOM_ROOT" status --porcelain 2>/dev/null)" ]; then
+    GIT_DIRTY=false
+  else
+    GIT_DIRTY=true
+  fi
 }
 
 # `research_var NAME` — one var from research_server/wrangler.jsonc. TypeScript's

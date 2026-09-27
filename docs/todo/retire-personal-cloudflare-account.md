@@ -36,6 +36,24 @@ from the root `README.md`. This doc is the dated record of the move.
 
 ---
 
+## Finish line
+
+Decided 2026-09-27: **merge at the end**, not before step 3. Only the research
+release needs `main`; until it runs, research calls from the dev app are
+CORS-blocked, which is fine.
+
+1. From a fast connection, on this branch: `./scripts/static_site/deploy.sh
+   --dev` (a full build), then `./scripts/app/web/deploy.sh --dev`.
+2. Commit, merge to `main`.
+3. `./scripts/research_server/deploy.sh --prod` — must end with `OK: …/health
+   is live, with a key.` It swaps the CORS list to the new app origin, and is
+   the first proof a deploy leaves the dashboard-attached domain alone.
+4. Delete everything in bk.anigha, `wrangler logout`, move this doc to
+   `docs/done/`. Not before the merge: `main` points research at the bk-anigha
+   Worker until then.
+
+---
+
 ## Steps
 
 ### 1. Static site dev → wisdomproject.dev — code done, first upload pending
@@ -144,23 +162,31 @@ one deploy, and the personal project can go.
 - **Decided: one ops token** for Pages and Workers, not split per product.
 
 Pending:
-- [ ] **Research release right after merging** (releases need `main`): it drops
-      the unclaimed `sammaditthi-app-test.pages.dev` from the live Worker's CORS
-      list, and must pass the new `/health` check — the first proof that a
-      deploy leaves the dashboard-attached domain alone.
+- [ ] **Research release after the merge** — Finish line, item 3.
 - [ ] `release_all_dryrun.sh` sends `--prod --dry-run` to a prod-only target,
-      and the placeholder deploys (`scripts/app/*/deploy.sh`) swallow
-      `--dry-run`. Safe while none is live; a placeholder that flips to
-      `prod=live` must honour `--dry-run` first, or the sweep releases it.
+      and the placeholder deploys (`scripts/app/{android,ios,macos}/deploy.sh`)
+      swallow `--dry-run`. Safe while none is live; a placeholder that flips
+      to live must honour `--dry-run` first, or the sweep releases it.
+      (`app/web` does since step 3.)
 
-### 3. R2 bucket (ops) + Flutter web dev
+### 3. R2 bucket (ops) + Flutter web dev — code done, first upload pending
 
-Code, planned (`deploy.sh` is still a placeholder):
-`scripts/app/web/deploy.sh --dev` — release build with
-`RESEARCH_BASE_URL` + `DATABASE_BASE_URL`, strip the `.db` files (keep
-`manifest.json`), write `_headers` (COOP/COEP + noindex), upload any missing
-`<db>-<16 hex>.db.gz` to the bucket, deploy to `app-sammaditthi-test`. `--prod`
-stays a placeholder with empty keys.
+Code: `scripts/app/web/deploy.sh --dev` is live (`--prod` still a placeholder).
+It checks both tokens, the Pages project's branch and the bucket before the
+tests; runs `scripts/app/test.sh`; builds with `RESEARCH_BASE_URL` +
+`DATABASE_BASE_URL`; checks each `.db` in the build against `manifest.json` and
+takes it out; uploads each version the bucket lacks as `<db>-<16 hex>.db.gz`;
+asks every version's headers from the app's origin on every deploy (200, CORS
+header, gzip — the size the app checks itself); deploys to
+`app-sammaditthi-test` and checks 200,
+COOP/COEP and noindex. Whether a version is on R2 is asked through the API, not
+the public URL, so Cloudflare can't cache a 404 the after-upload check reads.
+`--dry-run` builds and checks, uploads nothing and needs no credentials.
+`_headers` is a committed `web/_headers`: the app is noindex on every host, so
+one file serves both targets. `targets.env` has `DATABASE_BUCKET`,
+`DATABASE_BASE_URL`, `APP_WEB_DEV_PROJECT`, `APP_WEB_DEV_BRANCH`. The Pages
+branch check is `check_pages_branch` in `common.sh`, shared with the static
+site. Setup and rollback: `scripts/app/web/README.md`.
 
 - [x] Pages project `app-sammaditthi-test` created in the dev account with a
       Hello World, production branch `main` (2026-09-27). The first `--dev`
@@ -168,23 +194,49 @@ stays a placeholder with empty keys.
       `sammaditthi-app-test.pages.dev`** until the next research release, which
       picks up the new name from `wrangler.jsonc`.
 
-Your part, all dashboard, one-time (prompted when the code is in): turn on R2
-in ops, bucket, custom domain `db.sammaditthi.net`, CORS rule, a bucket-only
-upload token. Only uploading a new database version is scripted — it
-recurs.
+- [x] R2 on in ops; bucket `wisdom-databases`; custom domain
+      `db.sammaditthi.net` (active) (2026-09-27).
+- [x] **CORS for any origin**, never a list: Cloudflare caches each file with
+      the first request's CORS header. The bucket's rule allows `*` (GET/HEAD),
+      and a response-header rule on `db.sammaditthi.net` sets
+      `Access-Control-Allow-Origin: *` on every answer, since R2 sends none to a
+      request without `Origin`. Checked: `*` with and without `Origin`; the
+      research Worker keeps its own list (2026-09-27).
+- [x] Token: *Workers R2 Storage Write* added to the one ops token, not a
+      bucket-only token — that can't pass `use_cloudflare`'s `wrangler whoami`
+      check (2026-09-27).
+- [x] Canon synced to upstream `8d7eefc` and both databases rebuilt
+      (2026-09-27): `bjt-c0bbb2894d88edda`, `dict-ee389b00f5ab1f26`.
+- [ ] **First upload — from a fast connection**, with the static site's
+      (Finish line, item 1). Must end with `OK:
+      https://app-sammaditthi-test.pages.dev/ answers 200, isolated and
+      noindex.`
 
-**Handover:** —
+**Handover (2026-09-27):** `--dev --dry-run --skip-tests` passed: built,
+named both objects from the manifest, left only `manifest.json` in the build's
+database folder, and baked both URLs in. Read-only checks passed against both
+accounts: both dev Pages projects on `main`, the bucket listable, its domain
+active, its CORS rule in place. Nothing has been uploaded to R2 yet. Two notes:
+- **`dict.db` is not byte-reproducible**: rebuilt with unchanged inputs, it got
+  a new hash. Each rebuild is a new version every visitor downloads again. Not
+  fixed here.
+- `flutter build web` writes the Flutter SDK's cache, so from Claude it runs
+  outside the sandbox.
+- The first deploy's last check may read the Hello World for a few seconds and
+  fail on COOP/COEP. If so, `curl -sI https://app-sammaditthi-test.pages.dev/`
+  again; nothing to redo.
 
-### 4. Sweep and delete bk.anigha
+### 4. Sweep and delete bk.anigha — code done, deletion pending
 
-Code: every remaining bk-anigha / personal-account reference in scripts, live
-docs (`static-web-hosting.md`, `web-release.md`, research plans) and memory.
-In `static-web-hosting.md`, rewrite the decision "dev is a preview branch on
-purpose" itself — dev is now a production deploy, noindexed by the generated
-`_headers` — not just the names.
-`docs/done/` stays as it was — dated records.
+Code done 2026-09-27. `static-web-hosting.md`: the targets table, "dev is noindex
+because the build says so" in place of the preview-branch decision, and the
+stale deferred-standardization list. `web-release.md`: the blocker, the dev
+target, and §6 rewritten (dev live). The deep-linking doc's C2 sheet points at
+`sammaditthi-test.pages.dev`. Memory updated. Scripts had none left. Kept on
+purpose: the `curl` output in `static-web-hosting.md`'s caching section, a dated
+measurement on the old host. `docs/done/` stays as it was — dated records.
 
-Your part: delete the Worker, `sammaditthi-dev` and anything else in
-bk.anigha; `wrangler logout` on this machine.
+Your part (Finish line, item 4): delete the Worker, `sammaditthi-dev` and
+anything else in bk.anigha; `wrangler logout` on this machine.
 
 **Handover:** —
