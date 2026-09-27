@@ -80,8 +80,30 @@ ORIGIN="https://$PROJECT.pages.dev"
 # both databases back into it.
 OUT=$(mktemp -d "${TMPDIR:-/tmp}/wisdom-web-build.XXXXXX")
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/wisdom-web-dbs.XXXXXX")
-trap 'rm -rf "$OUT" "$STAGE"' EXIT
 DB_DIR="$OUT/assets/assets/databases"
+
+# Flutter keys its build cache (.dart_tool/flutter_build/<hash>) on the output
+# folder, and OUT is new every run, so no later build reuses this one's: the
+# cache folders the build adds are removed as soon as it ends, or every run
+# would leave one. Not at exit: another build started during the uploads would
+# lose its cache too.
+CACHE="$WISDOM_ROOT/.dart_tool/flutter_build"
+CACHE_BEFORE=""      # the cache's folders just before the build
+BUILD_STARTED=false  # true only while the build runs
+cleanup_cache() {
+  local dir
+  for dir in "$CACHE"/*; do
+    [ -d "$dir" ] || continue
+    printf '%s\n' "$CACHE_BEFORE" | grep -qxF "${dir##*/}" || rm -rf "$dir"
+  done
+}
+cleanup() {
+  rm -rf "$OUT" "$STAGE"
+  # Still true only if the build failed or was interrupted.
+  [ "$BUILD_STARTED" = true ] || return 0
+  cleanup_cache
+}
+trap cleanup EXIT
 
 # `r2_list BUCKET PREFIX` — the API's listing of BUCKET's objects under PREFIX,
 # in the account use_cloudflare selected. The API rather than a request to
@@ -128,10 +150,14 @@ fi
 # Into an empty folder, so no file of an older build rides along. Without the
 # deploy tokens, like the tests.
 echo "Building the app for the web (release)..."
+CACHE_BEFORE=$(ls "$CACHE" 2>/dev/null || true)
+BUILD_STARTED=true
 env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID flutter build web --release \
   --output "$OUT" \
   --dart-define=RESEARCH_BASE_URL="$RESEARCH_BASE_URL" \
   --dart-define=DATABASE_BASE_URL="$DATABASE_BASE_URL"
+cleanup_cache
+BUILD_STARTED=false
 echo ""
 
 if [ ! -f "$OUT/_headers" ]; then
