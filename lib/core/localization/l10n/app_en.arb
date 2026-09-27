@@ -774,9 +774,9 @@
     "description": "First-visit failure title when the download stopped or arrived incomplete"
   },
 
-  "databaseInstallFailedDescription": "Check your connection and try again.",
+  "databaseInstallFailedDescription": "Check your connection and try again. To reset, open Chrome's site settings → Delete data.",
   "@databaseInstallFailedDescription": {
-    "description": "First-visit failure message for a stopped download"
+    "description": "First-visit failure message for a stopped download or a saved copy that will not open. 'Site settings' and 'Delete data' are Chrome's own labels; deleting the site's data is the only way to clear a broken copy"
   },
 
   "databaseInstallRetry": "Try again",

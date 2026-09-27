@@ -505,7 +505,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get databaseInstallFailedDescription =>
-      'Check your connection and try again.';
+      'Check your connection and try again. To reset, open Chrome\'s site settings → Delete data.';
 
   @override
   String get databaseInstallRetry => 'Try again';

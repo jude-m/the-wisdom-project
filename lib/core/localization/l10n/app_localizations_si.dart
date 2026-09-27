@@ -506,7 +506,7 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get databaseInstallFailedDescription =>
-      'ඔබගේ සම්බන්ධතාවය පරීක්ෂා කර නැවත උත්සාහ කරන්න.';
+      'ඔබගේ සම්බන්ධතාවය පරීක්ෂා කර නැවත උත්සාහ කරන්න. යළි පිහිටුවීමට, Chrome හි site settings → Delete data විවෘත කරන්න.';
 
   @override
   String get databaseInstallRetry => 'නැවත උත්සාහ කරන්න';

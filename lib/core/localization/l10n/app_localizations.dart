@@ -986,10 +986,10 @@ abstract class AppLocalizations {
   /// **'The download did not finish'**
   String get databaseInstallFailedTitle;
 
-  /// First-visit failure message for a stopped download
+  /// First-visit failure message for a stopped download or a saved copy that will not open. 'Site settings' and 'Delete data' are Chrome's own labels; deleting the site's data is the only way to clear a broken copy
   ///
   /// In en, this message translates to:
-  /// **'Check your connection and try again.'**
+  /// **'Check your connection and try again. To reset, open Chrome\'s site settings → Delete data.'**
   String get databaseInstallFailedDescription;
 
   /// Button on the first-visit screen that starts the failed download again
