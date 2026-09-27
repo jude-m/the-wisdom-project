@@ -33,22 +33,20 @@ delete the last Python from the repo.
   store**, then flip `RESEARCH_STORE` in `wrangler.jsonc`. Rolling back is
   flipping back, with a key from the old store's project (below).
 
-## Where we are (2026-09-25)
+## Where we are (2026-09-27)
 
-- **Done:** the research server is TypeScript on Cloudflare Workers, live on
-  dev (personal Cloudflare account, CORS `localhost:8080` only since
-  2026-09-25), reading the pilot store — SN 15 only
-  (`tipitakapilotsn15-…`), made by the Python ingest with default chunking.
+- **Done:** the research server is TypeScript on Cloudflare Workers, one
+  Worker in the ops Cloudflare account at `research.sammaditthi.net`, called by
+  every build (`docs/todo/retire-personal-cloudflare-account.md`, step 2). It
+  reads the pilot store — SN 15 only (`tipitakapilotsn15-…`), made by the
+  Python ingest with default chunking — with a key from the personal Google
+  project.
 - **Not done:** the ingest job itself is still Python (the port below).
 - **Ops Google account:** `wisdom-research` project and its key exist; no
   store yet. Likely needs the paid tier for a full-corpus ingest — check
   Gemini pricing and store-size limits first.
-- **Ops Cloudflare account:** exists, keys in `secrets.env`; no Worker
-  deployed there yet (`deploy.sh --prod` still refuses).
-- **Next:** full-corpus ingest into one new store in the ops project, then
-  move research to the ops accounts and retire the personal ones. Dev and prod
-  Workers share that one store — both read `RESEARCH_STORE` from the same
-  `wrangler.jsonc`.
+- **Next:** full-corpus ingest into one new store in the ops Google project,
+  switch the Worker to it, and retire the personal Google project.
 
 ## New home: the ops Google account
 
@@ -60,7 +58,7 @@ delete the last Python from the repo.
   (`check_research_store` in `scripts/lib/common.sh`).
 - The old store and the Worker's current key live in the old personal
   project. The key's value is lost, so a rollback needs a fresh key made
-  there — keep that project until step 6.
+  there — keep that project until step 5.
 
 ## Port plan
 
@@ -87,24 +85,19 @@ Keep the Python script's behaviour 1:1, it is all still right:
    bilara-data must list the same uids as the Python script.
 2. With the `wisdom-research` key, create the new store (name it for the
    chunking, e.g. `...-c200`) and ingest SN 15.
-3. Together, point `RESEARCH_STORE` at the new store (committed) and put the
-   key in `secrets.env` (not committed); deploy with
-   `scripts/research_server/deploy.sh --dev` (it must print `Secrets uploaded
-   with this deploy: GEMINI_API_KEY`); run the two standard live probes
+3. Together, point `RESEARCH_STORE` at the new store (committed, on `main`)
+   and put the key in `secrets.env` (not committed); release with
+   `scripts/research_server/deploy.sh --prod` (it must print `Secrets uploaded
+   with this deploy: GEMINI_API_KEY`). It is the one Worker every build calls,
+   so probe straight after: run the two standard live probes
    (fast + thinking, the SN 15 catalogue question) and compare `body=`
    KB and `cpu=` in the tail — expect a large drop; verify answer quality
    didn't regress (all 20 suttas still enumerated in thinking mode).
 4. Once 3 passes, ingest the full corpus into the same store (re-runs skip
    uids already there).
-5. Move research to the ops Cloudflare account: a dev and a prod Worker, both
-   reading the same store. Make `deploy.sh --dev` and `--prod` target them,
-   repoint `RESEARCH_BASE_URL` in `scripts/config/targets.env` and the app's
-   `--dart-define`, and probe both.
-6. Retire the personal accounts' research pieces: delete the personal
-   `wisdom-research` Worker, and the old personal Google project (the old
-   store and the old key go with it). Delete `deprecated/research_server/` —
-   **repo is Python-free**.
-7. Update the knowledge doc's CPU map with the new measured `body=`/CPU numbers.
+5. Delete the old personal Google project (the old store and the old key go
+   with it). Delete `deprecated/research_server/` — **repo is Python-free**.
+6. Update the knowledge doc's CPU map with the new measured `body=`/CPU numbers.
 
 ## Risks
 

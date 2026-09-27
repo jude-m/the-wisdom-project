@@ -28,9 +28,9 @@ REM     it the app defaults to http://localhost:8082 and shows "Couldn't
 REM     connect". Override: set RESEARCH_BASE_URL before running this script.
 REM     Kept in step with RESEARCH_BASE_URL in scripts\config\targets.env,
 REM     which a .bat cannot read.
-REM       deployed: https://wisdom-research.bk-anigha.workers.dev
+REM       deployed: https://research.sammaditthi.net
 REM       local:    http://localhost:8082 (scripts\research_server\run.sh)
-if not defined RESEARCH_BASE_URL set "RESEARCH_BASE_URL=https://wisdom-research.bk-anigha.workers.dev"
+if not defined RESEARCH_BASE_URL set "RESEARCH_BASE_URL=https://research.sammaditthi.net"
 
 echo Running on Windows (%MODE%)...
 echo Research backend: %RESEARCH_BASE_URL%

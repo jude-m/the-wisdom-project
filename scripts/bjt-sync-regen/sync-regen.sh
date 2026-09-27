@@ -14,9 +14,10 @@
 #   Step 2  Review     — show the correction commits since our last sync.
 #   Step 3  tree.json  — diff the navigation map SEPARATELY & LOUDLY (nodeKeys!).
 #   Step 4  Copy       — copy the new text + tree.json into assets/.
-#   Step 5  Verify     — run the static site's tests against the text just copied.
-#   Step 6  Rebuild    — ask y/n to build + link-check the static site, and the FTS db.
-#   Step 7  Receipt    — record upstream SHA + date + file count next to this script.
+#   Step 5  bjt.db     — rebuild the content database the app reads its text from.
+#   Step 6  Verify     — run the static site's tests against the text + bjt.db.
+#   Step 7  Site       — ask y/n to build + link-check the static site.
+#   Step 8  Receipt    — record upstream SHA + date + file count next to this script.
 #
 # Usage:
 #   ./scripts/bjt-sync-regen/sync-regen.sh              # interactive sync
@@ -32,7 +33,7 @@
 # Exit codes:  0 = synced OK (or --dry-run / --help completed)
 #             10 = already up to date, nothing to do
 #             20 = aborted by you (deletion gate, or copy declined)
-#              1 = error (bad mirror, no network, bad option)
+#              1 = error (bad mirror, no network, bad option, bjt.db rebuild failed)
 
 set -euo pipefail
 
@@ -103,7 +104,7 @@ fi
 # Reads from the controlling terminal (/dev/tty), NOT the script's stdin. If we read
 # from stdin and it is a pipe / IDE run-box / already exhausted, `read` hits EOF and
 # silently answers "No" to every remaining prompt — which is how a "no" to one question
-# could skip the next (e.g. FTS). /dev/tty always points at the real keyboard.
+# could skip the next. /dev/tty always points at the real keyboard.
 confirm() {
   local reply=""
   if [ -e /dev/tty ]; then
@@ -248,7 +249,7 @@ if [ "$TREE_CHANGED" = 1 ]; then
   echo "the site (TipitakaTree.fromJson). It rejects a malformed row or a node naming"
   echo "a parent that isn't there, where the old app parser silently dropped that"
   echo "subtree — so a structurally bad tree.json is now a visible tree-load failure"
-  echo "in the app, not just a site-build one. Step 5 below is the smoke check for"
+  echo "in the app, not just a site-build one. Step 6 below is the smoke check for"
   echo "both surfaces; do not skip it after a tree.json change."
   echo
   if [ "$HAVE_BASELINE" = 1 ]; then
@@ -370,9 +371,28 @@ DEST_COUNT="$(find "$DEST_TEXT" -maxdepth 1 -name '*.json' | wc -l | tr -d ' ')"
 echo "Copied. assets/text now has $DEST_COUNT JSON files; tree.json + data files updated."
 
 # ---------------------------------------------------------------------------
-# Step 5 — Verify the new corpus before rebuilding anything on top of it
+# Step 5 — Rebuild bjt.db from the text just copied
 # ---------------------------------------------------------------------------
-# Before the rebuilds on purpose. The site's page structure is frozen in
+# Not optional: the app reads its text from bjt.db. It is gitignored and the app's
+# own tests don't compare it to the text, so a failure here withholds the receipt
+# (Step 8) — the next run then syncs again instead of saying "up to date".
+# Run from tools/ (the generator reads ../assets/text and writes assets/databases/bjt.db).
+# `if` so a failure warns instead of aborting the script (set -e).
+step "Step 5 — Rebuild the content database (bjt.db)"
+echo "Regenerating bjt.db into assets/databases/ — this takes a few minutes..."
+BJT_OK=true
+if ( cd tools && { [ -d node_modules ] || npm install; } && npm run generate-bjt ); then
+  echo "  bjt.db rebuilt: assets/databases/bjt.db"
+else
+  BJT_OK=false
+  echo "  ${HILITE}WARNING: bjt.db rebuild FAILED — bjt.db is stale or missing.${RESET}"
+  echo "           Run it by hand to see the error: cd tools && npm run generate-bjt"
+fi
+
+# ---------------------------------------------------------------------------
+# Step 6 — Verify the new corpus before building the site on top of it
+# ---------------------------------------------------------------------------
+# Before the site build on purpose. The site's page structure is frozen in
 # `foldedLeafKeys` (packages/wisdom_shared/lib/src/grouping/grouping_snapshot.dart),
 # so upstream text corrections can no longer regroup a vagga on their own. What
 # they can still do is rename the nodeKeys those frozen verdicts point at, which
@@ -380,8 +400,8 @@ echo "Copied. assets/text now has $DEST_COUNT JSON files; tree.json + data files
 # because the build still succeeds and every link still resolves.
 #
 # `if`, not bare, so a failure warns instead of aborting a half-done sync.
-step "Step 5 — Verify the new corpus"
-echo "Running the static site's tests against the text you just copied..."
+step "Step 6 — Verify the new corpus"
+echo "Running the static site's tests against the text you just copied and bjt.db..."
 echo
 VERIFY_OK=false
 if "$ROOT/scripts/static_site/test.sh"; then
@@ -390,7 +410,7 @@ if "$ROOT/scripts/static_site/test.sh"; then
   echo "  Corpus verified — the frozen grouping snapshot still describes this tree."
   echo
   echo "  Page COUNTS are deliberately not locked: new upstream content should add"
-  echo "  pages. If the text changed, read the advisor before rebuilding — it says"
+  echo "  pages. If the text changed, read the advisor before building the site — it says"
   echo "  where the grouping rule now disagrees with the frozen verdicts:"
   echo "    dart run static_site_generator/tool/plan_corpus.dart"
 else
@@ -417,18 +437,14 @@ fi
 echo
 
 # ---------------------------------------------------------------------------
-# Step 6 — Rebuild what depends on the text
+# Step 7 — Build the static site (optional)
 # ---------------------------------------------------------------------------
-step "Step 6 — Rebuild downstream (optional)"
-echo "The text changed, so two things MAY need regenerating. Both are asked, not automatic."
-echo
-
-# --- 6a. Static HTML site ---
 # A dry run: builds the whole site and checks its links, uploads nothing.
-# --skip-tests because Step 5 has just run them, so it is skipped when they
+# --skip-tests because Step 6 has just run them, so it is skipped when they
 # failed. Releasing stays a separate, deliberate ./scripts/static_site/deploy.sh.
+step "Step 7 — Build the static site (optional)"
 if [ "$VERIFY_OK" = false ]; then
-  echo "  Skipped the static site build: Step 5's tests failed. Fix them first."
+  echo "  Skipped the static site build: Step 6's tests failed. Fix them first."
 elif confirm "Build and link-check the static HTML site (no upload)?"; then
   if "$ROOT/scripts/static_site/deploy.sh" --dry-run --skip-tests; then
     echo "  Static site built and checked. Deploy it with ./scripts/static_site/deploy.sh"
@@ -438,30 +454,16 @@ elif confirm "Build and link-check the static HTML site (no upload)?"; then
 else
   echo "  Skipped the static site build."
 fi
-echo
 
-# --- 6b. FTS database ---
-if confirm "Regenerate the FTS database (bjt.db, ~114 MB heavy rebuild)?"; then
-  echo "  Regenerating bjt.db — indexing ~457k entries into assets/databases/;"
-  echo "  this takes a few minutes..."
-  # Run from tools/ (the generator reads ../assets/text and writes assets/databases/bjt.db).
-  # Wrapped in `if` so a failure only warns instead of aborting the script (set -e).
-  if ( cd tools && { [ -d node_modules ] || npm install; } && npm run generate-bjt ); then
-    echo "  FTS database rebuilt: assets/databases/bjt.db"
-  else
-    echo "  WARNING: FTS regeneration FAILED — bjt.db may be stale."
-    echo "           Run it by hand to see the error: cd tools && npm run generate-bjt"
-  fi
+# ---------------------------------------------------------------------------
+# Step 8 — Write the provenance receipt (so Step 0 has something to compare)
+# ---------------------------------------------------------------------------
+step "Step 8 — Write the provenance receipt"
+if [ "$BJT_OK" = false ]; then
+  echo "  Receipt NOT written — bjt.db is stale (Step 5). Fix it and re-run this script."
 else
-  echo "  Skipped FTS regeneration — bjt.db is now STALE until you run: cd tools && npm run generate-bjt"
-fi
-
-# ---------------------------------------------------------------------------
-# Step 7 — Write the provenance receipt (so Step 0 has something to compare)
-# ---------------------------------------------------------------------------
-step "Step 7 — Write the provenance receipt"
-SYNCED_ON="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-cat > "$RECEIPT" <<EOF
+  SYNCED_ON="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  cat > "$RECEIPT" <<EOF
 {
   "source": "$UPSTREAM_URL",
   "branch": "$UPSTREAM_BRANCH",
@@ -470,10 +472,11 @@ cat > "$RECEIPT" <<EOF
   "text_file_count": $DEST_COUNT
 }
 EOF
-echo "Wrote $RECEIPT"
-echo "  upstream_sha : $NEW_SHA"
-echo "  synced_on    : $SYNCED_ON"
-echo "  text_files   : $DEST_COUNT"
+  echo "Wrote $RECEIPT"
+  echo "  upstream_sha : $NEW_SHA"
+  echo "  synced_on    : $SYNCED_ON"
+  echo "  text_files   : $DEST_COUNT"
+fi
 
 # ---------------------------------------------------------------------------
 # Sync report — what this run actually did
@@ -520,6 +523,11 @@ fi
 echo
 
 hr
+if [ "$BJT_OK" = false ]; then
+  echo "${HILITE}NOT done: bjt.db is stale (Step 5 failed). Don't commit or release yet.${RESET}"
+  hr
+  exit 1
+fi
 echo "Done. Review the report above, then commit when happy:"
 echo "  git add assets/ scripts/bjt-sync-regen/bjt-provenance.json && git commit -m \"chore(canon): sync BJT text to ${NEW_SHA:0:12}\""
 hr

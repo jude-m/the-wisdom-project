@@ -120,8 +120,8 @@ flutter:
   #
   # NOTE: native reads databases/ out of the bundle; web downloads the same
   # files on a first visit, from this asset copy locally and from R2 once
-  # DATABASE_BASE_URL is set. A deploy must then strip them from build/web/ —
-  # nothing does that yet (docs/todo/web-strategy/web-release.md §6).
+  # DATABASE_BASE_URL is set. The web deploy (scripts/app/web/deploy.sh)
+  # strips them from its build and uploads them to R2.
   assets:
     # Navigation tree and metadata (used on ALL platforms including web)
     - assets/data/tree.json

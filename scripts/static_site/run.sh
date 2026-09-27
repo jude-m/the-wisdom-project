@@ -19,8 +19,8 @@
 # Pages serves it. A naive server renders the pages and 404s every link.
 #
 # --root is preview-only: a subtree links outside itself, so those links 404.
-# For a check against real Cloudflare behaviour, deploy a preview instead:
-# ./scripts/static_site/deploy.sh
+# For a check against real Cloudflare behaviour, deploy to dev instead:
+# ./scripts/static_site/deploy.sh --dev
 # END-USAGE
 
 set -e

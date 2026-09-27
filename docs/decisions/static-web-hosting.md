@@ -269,8 +269,8 @@ short only the root index page, which is not generated yet).
 
 | | Account | Auth | Project | Branch | URL |
 |---|---|---|---|---|---|
-| **dev** (default) | personal | `wrangler login` | `sammaditthi-dev` | `dev` | `dev.sammaditthi-dev.pages.dev` — preview, **noindex** |
-| **prod** (`--prod`) | wisdom.ops | `CLOUDFLARE_PROD_*` token | `sammaditthi` | `main` | `sammaditthi.net` — **indexable** (also answers on `sammaditthi.pages.dev`; canonicals name the apex) |
+| **dev** (default) | wisdomproject.dev | `CLOUDFLARE_DEV_*` token | `sammaditthi-test` | `main` | `sammaditthi-test.pages.dev` — **noindex** |
+| **prod** (`--prod`) | ops | `CLOUDFLARE_PROD_*` token | `sammaditthi` | `main` | `sammaditthi.net` — **indexable** (also answers on `sammaditthi.pages.dev`, noindex; canonicals name the apex) |
 
 **The production project name is `sammaditthi`** (settled 2026-08-02, closing the
 naming half of open-Q #2 below; the custom *domain* is still open). It is fixed
@@ -280,10 +280,14 @@ credentials only. There is no
 `--project` and no `--branch`: the three settings above are right or wrong
 together, never separately.
 
-**Dev is a preview branch on purpose.** Cloudflare noindexes every preview
-deployment and does not noindex the production alias — a dev copy of the canon
-must not compete with the real site for the exact queries this whole effort
-exists to win. `--prod` is opt-in, prompts once, and is the only indexable target.
+**Dev is noindex because the build says so** (2026-09-26). Dev deploys to its
+project's production branch, for the clean `<project>.pages.dev` URL, and a
+production deployment carries no `X-Robots-Tag` of its own. So the generated
+`_headers` noindexes every `*.pages.dev` host (`lib/render/site_headers.dart`) —
+dev, and prod's own `sammaditthi.pages.dev` twin. A dev copy of the canon must
+not compete with the real site for the exact queries this whole effort exists
+to win. `--prod` is opt-in, prompts once, and the apex is the only indexable
+address.
 
 **A release is the whole corpus at a commit.** `--root` and `--skip-build` are
 refused on `--prod`, which must also run from a clean `main`. Direct upload
@@ -291,25 +295,10 @@ refused on `--prod`, which must also run from a clean `main`. Direct upload
 site — it would take the rest of the canon offline. (On dev that same replacement
 is the point: `--root an-1,atta-an-1` is the fast iteration loop.)
 
-**Deferred — script standardization** (worth doing after the first green prod
-release, not before; it touches both remaining deploy paths at once):
-
-1. One shared `scripts/lib/` for the Node ≥ 22 guard — copy-pasted verbatim in
-   `research_server/{deploy,run}.sh` and `static_site/deploy.sh` today, so a
-   wrangler `engines` bump is three edits.
-2. One wrangler idiom in that lib: `research_server/deploy.sh` uses `exec npx
-   wrangler`, `static_site/deploy.sh` the explicit pinned `node_modules/.bin`
-   path. Same binary today, but only one reasoning can be right.
-3. Give `research_server/deploy.sh` the same `whoami` account check. Account
-   separation is now an invariant that only one of the two Cloudflare scripts
-   enforces — the Worker deploy still lands wherever the login points.
-4. `set -euo pipefail` in both wrangler scripts — they are bare `set -e` today,
-   so pipeline failures are masked.
-
-Also parked: a dev deploy from CI is currently impossible by design — the dev
-path refuses an exported `CLOUDFLARE_API_TOKEN`, which is the only way an Action
-can authenticate. That guard is right for a laptop; a "push to `dev` → preview"
-workflow would need an explicit dev-CI door rather than a loosened one.
+**Deferred:** `set -euo pipefail` in the wrangler scripts — they are bare
+`set -e` today, so pipeline failures are masked. (The shared Node guard, the
+pinned wrangler and the account check now live in `scripts/lib/common.sh`, used
+by every deploy.)
 
 **The file cap does not move on migration.** 20,000 files free is the *same* number
 on [Workers static assets](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/)
@@ -332,7 +321,7 @@ and the surfaces gain nothing from sharing an origin:
 | Project | Domain | Files (budget of 20 K each) |
 |---|---|---|
 | Static content site | apex (`sammaditthi.net`) | ~16.4 K — corpus is fixed, never grows |
-| Flutter web app | `app.sammaditthi.net` | a few hundred (until/if retired) |
+| Flutter web app | `app.sammaditthi.net` (dev: `app-sammaditthi-test.pages.dev`) | a few hundred (until/if retired) |
 | ටීකා (sub-commentaries), when digitized | `tika.sammaditthi.net` | ~6–7 K projected (≈ `atta-*` scale) |
 
 Why (recorded from the 2026-07-23 discussion):
@@ -553,8 +542,8 @@ The SSG emits all of it as static files:
   bullet: `X-Robots-Tag` is a response header, and a crawler told `Disallow`
   never fetches the response to read it.
 - **Keep the app out of the index — `noindex`, NOT `Disallow` (fixed 2026-07-23):**
-  the app project sends `X-Robots-Tag: noindex` on every response (one
-  `_headers` rule: `/*` → `X-Robots-Tag: noindex`) and its `robots.txt`
+  the app project sends `X-Robots-Tag: noindex` on every response, dev and
+  prod alike (one rule in `web/_headers`: `/*` → `X-Robots-Tag: noindex`) and its `robots.txt`
   **allows** crawling. The earlier `Disallow: /` idea backfires: a robots.txt
   block stops Google from ever *fetching* the page, so it never sees a noindex —
   yet every static page links `https://app.sammaditthi.net/tipitaka/…` ("Open in app"),

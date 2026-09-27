@@ -1,9 +1,10 @@
 # BJT Sync + Regen — Update Script Plan
 
-> Status: **Script built (2026-07-23), verify step added 2026-08-06.** The read-only
-> sync source is set up, and `scripts/bjt-sync-regen/sync-regen.sh` does Steps 0–5 + 7
-> for real, plus a closing sync report. Both Step 6 rebuilds are wired: 6a builds and
-> link-checks the static site (no upload), 6b regenerates the FTS database.
+> Status: **Built.** Script 2026-07-23, verify step 2026-08-06, `bjt.db` rebuild made
+> required and moved ahead of verify 2026-09-27. The read-only sync source is set up,
+> and `scripts/bjt-sync-regen/sync-regen.sh` does Steps 0–8 for real, plus a closing
+> sync report. Of the rebuilds, only Step 7 (build + link-check the static site, no
+> upload) is asked.
 > Scope: how the app's vendored canon text stays in step with the upstream
 > tipitaka.lk project, and the script that does it.
 >
@@ -85,7 +86,7 @@ git ls-remote https://github.com/pathnirvana/tipitaka.lk.git master
 ```
 
 Returns one line: the current upstream commit SHA. Compare it to the SHA in our
-**receipt** (Step 7). Same → we are up to date, stop. Different → continue.
+**receipt** (Step 8). Same → we are up to date, stop. Different → continue.
 
 This needs **no clone** — it is the cheap check that can run often.
 
@@ -155,14 +156,31 @@ would be deleted", which trips the same gate):
 (TTS material, when that work starts, lives in the mirror's `dev/tts/` and
 `dev/audio/` — see [tipitaka-tts-implementation-plan.md](./tipitaka-tts-implementation-plan.md).)
 
-### Step 5 — Verify the new corpus (before anything is rebuilt on top of it)
+### Step 5 — Rebuild `bjt.db` (always)
+
+```bash
+cd tools && npm run generate-bjt
+```
+
+Regenerates `assets/databases/bjt.db` from the new text. Not asked: the app reads its
+text from `bjt.db`, so a stale one ships old text. It runs **before** verify because
+Step 6's corpus check compares `bjt.db` against `assets/text` — verify-then-rebuild
+failed every sync that changed any text.
+
+`bjt.db` is gitignored and the app's own tests don't compare it to the text, so nothing
+else notices a stale one (and the Step 6 parity check reports SKIPPED, not FAIL, when
+there is no `bjt.db` at all). So a failed rebuild **withholds the receipt** (Step 8) and
+the script exits 1: the next run syncs again instead of saying "up to date".
+
+### Step 6 — Verify the new corpus (before the site is built on top of it)
 
 ```bash
 ./scripts/static_site/test.sh
 ```
 
 Format, `dart analyze` and `dart test` across `packages/wisdom_shared` and
-`static_site_generator`, corpus checks included. It runs **before** the rebuilds on purpose.
+`static_site_generator`, corpus checks included — one of them that `bjt.db` matches the
+text. It runs after the `bjt.db` rebuild and **before** the site build, on purpose.
 
 The check that earns its place here is the static site's **grouping snapshot**. Which
 suttas get their own page is frozen in `foldedLeafKeys`
@@ -182,10 +200,10 @@ isn't lost. The tool names the offending keys — re-run
 `dart run static_site_generator/tool/plan_corpus.dart --check` to read them. A frozen
 verdict pointing at a key that moved is a decision, not a flake: either regenerate with
 `--write-snapshot` and review the git diff (one line per sutta whose URL moves) along
-with the plan docs, or find out why it moved before rebuilding.
+with the plan docs, or find out why it moved before building the site.
 
 If the text changed but the check passed, still run the tool with no arguments before
-rebuilding. That mode re-runs the grouping rule and prints where it now disagrees with
+building the site. That mode re-runs the grouping rule and prints where it now disagrees with
 the frozen verdicts — informational by design, and the only place that drift is
 visible.
 
@@ -202,29 +220,21 @@ report back to tipitaka.lk, so a **new** entry is a data defect that arrived wit
 sync. And a **disappeared** entry means upstream fixed one — which is the good outcome,
 and the moment to stop citing it here.
 
-### Step 6 — Rebuild what depends on the text
+### Step 7 — Build the static site (asked, y/n)
 
-Two things rebuild from the corrected JSON, **both asked (y/n), not automatic**:
-
-1. **Static HTML site — ASK FIRST.** Runs
-   `scripts/static_site/deploy.sh --dry-run --skip-tests`: builds the whole site and
-   checks its links, uploads nothing (Step 5 has just run the tests). Releasing is a
-   separate `scripts/static_site/deploy.sh`.
-2. **FTS database — ASK FIRST (wired).** Runs `cd tools && npm run generate-bjt` to
-   regenerate `assets/databases/bjt.db` (~114 MB, indexes ~457k entries; it is
-   **gitignored**, so it's rebuilt locally, not committed). A heavy rebuild, so it is
-   prompted rather than silent — corrections are often tiny and may not be worth a full
-   re-index every time. A failure warns instead of aborting the sync.
+Runs `scripts/static_site/deploy.sh --dry-run --skip-tests`: builds the whole site and
+checks its links, uploads nothing (Step 6 has just run the tests, and this step is
+skipped when they failed). Releasing is a separate `scripts/static_site/deploy.sh`.
 
 > The **RAG / research corpus is NOT rebuilt here.** It comes from a *different
 > source* (SuttaCentral `bilara-data`, not the tipitaka.lk canon), so it has its own
 > sync source and its own script — see
 > [sc-sync-ingest.md](./sc-sync-ingest.md).
 
-### Step 7 — Write the provenance receipt (the missing piece)
+### Step 8 — Write the provenance receipt (the missing piece)
 
 The script writes a small JSON file, `scripts/bjt-sync-regen/bjt-provenance.json`,
-recording **exactly what we synced**:
+recording **exactly what we synced** — unless the Step 5 rebuild failed:
 
 ```json
 {
@@ -253,10 +263,10 @@ tooling metadata, not canon content, and keeping it out lets `assets/` stay a fa
 | Heartbeat check (Step 0) | ✅ Done — `git ls-remote` vs receipt |
 | Pull + review + copy (Steps 1–2, 4) | ✅ Done |
 | `tree.json` guard (Step 3) | ✅ Done — separate, loud, blocks blind overwrite |
-| Corpus verify (Step 5) | ✅ Done (2026-08-06) — `scripts/static_site/test.sh` (since 2026-09-25), warns on drift |
-| Provenance receipt (Step 7) | ✅ Done — `scripts/bjt-sync-regen/bjt-provenance.json` |
-| Static HTML rebuild (Step 6a) | ✅ Wired (2026-09-25) — y/n prompt runs `scripts/static_site/deploy.sh --dry-run --skip-tests`: build + link check, no upload |
-| FTS rebuild (Step 6b) | ✅ Wired — y/n prompt runs `npm run generate-bjt` |
+| `bjt.db` rebuild (Step 5) | ✅ Always runs (2026-09-27) — `npm run generate-bjt`; a failure withholds the receipt and exits 1 |
+| Corpus verify (Step 6) | ✅ Done (2026-08-06) — `scripts/static_site/test.sh` (since 2026-09-25), warns on drift |
+| Static HTML rebuild (Step 7) | ✅ Wired (2026-09-25) — y/n prompt runs `scripts/static_site/deploy.sh --dry-run --skip-tests`: build + link check, no upload |
+| Provenance receipt (Step 8) | ✅ Done — `scripts/bjt-sync-regen/bjt-provenance.json` |
 | `--dry-run` / `--force` flags | ✅ Done |
 
 ---

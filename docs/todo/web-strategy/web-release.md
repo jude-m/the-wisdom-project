@@ -16,18 +16,14 @@
 
 ## The blocker
 
-**The production Cloudflare account does not exist yet.** A separate account
-under wisdom.ops is planned; today's personal account stays dev (it runs the
-research Worker).
-
-Everything production must land in that **one** account — the Pages projects, the
-`sammaditthi.net` zone, R2, and the research Worker. Bulk Redirects only fire on
-a zone in the same account, and the Worker needs a re-deploy plus a CORS re-pin
-from there. Pages projects **cannot be moved between accounts**.
-
 **Attaching the apex to the `sammaditthi` project is the next physical step, and
 it must happen before the first `--prod`.** Until then a release bakes
 canonicals, `og:url`s and every sitemap entry with an origin nobody can resolve.
+
+Everything production lives in the **ops** account — the Pages projects, the
+`sammaditthi.net` zone, R2, and the research Worker. Bulk Redirects only fire on
+a zone in the same account, and Pages projects **cannot be moved between
+accounts**.
 
 ---
 
@@ -82,8 +78,9 @@ both, so what ships is always the whole corpus and always checked:**
 
 ## 3. Deploy
 
-1. **Dev preview first** — `sammaditthi-dev`, preview branch `dev`. Kept out of
-   the index by `X-Robots-Tag: noindex`, which is free on previews.
+1. **Dev first** — `./scripts/static_site/deploy.sh --dev`: `sammaditthi-test`
+   in the dev account, its production branch `main`. Kept out of the index by
+   the generated `_headers`, which noindexes every `*.pages.dev` host.
 2. **Prod** — `./scripts/static_site/deploy.sh --prod --yes`.
 
 Both project names are in `scripts/config/targets.env`; `secrets.env` is credentials only.
@@ -144,14 +141,15 @@ once the product scripts exist; it does not wait on the release job.
 
 ---
 
-## 6. Flutter web — not in this release
+## 6. Flutter web — dev live, prod later
 
-Placeholder. **Where it lives on Cloudflare is not decided** — reopened
-2026-09-14. The likely shape is the static site's: two new Pages projects, one in
-the dev (personal) account and one in the prod (ops) account, the prod one
-serving `app.sammaditthi.net`. Names are not chosen, and `.pages.dev` names are
-first-come, so check before creating. `docs/decisions/static-web-hosting.md`
-still records a single reserved project; revise it once this is settled.
+**Dev is live since 2026-09-27.** `./scripts/app/web/deploy.sh --dev` uploads
+each new database version to R2 in the ops account (`db.sammaditthi.net`), then
+the app to the `app-sammaditthi-test` Pages project in the dev account. What it
+does, the one-time setup and rollback are in
+[`scripts/app/web/README.md`](../../../scripts/app/web/README.md). Prod —
+`app-sammaditthi` in ops, at `app.sammaditthi.net` — is not created yet, and
+`--prod` is a placeholder.
 
 **Three targets**, all in `scripts/app/web/`
 ([`test-all-and-release-all.md`](../../done/test-all-and-release-all.md)):
@@ -159,79 +157,53 @@ still records a single reserved project; revise it once this is settled.
 | target | command | today |
 |---|---|---|
 | local | `run_mac.sh` | works: `flutter run -d web-server`, with the databases downloaded into the browser |
-| dev | `deploy.sh --dev` | placeholder |
+| dev | `deploy.sh --dev` | live |
 | prod | `deploy.sh --prod` | placeholder |
 
-Project names and origins go in `scripts/config/targets.env`, credentials in
-`scripts/config/secrets.env` — never in the deploy script.
+Project names, the bucket and origins are in `scripts/config/targets.env`,
+credentials in `scripts/config/secrets.env` — never in the deploy script.
 
-**The gate is met locally, 2026-09-20.** Web no longer needs a server: the
-browser downloads `bjt.db` and `dict.db` into its own file system and reads them
-through Drift, the way native reads its copies. There is no web-only datasource
-left, and `server/` and the Windows-box deploy are in `deprecated/`. What
-remains here is the host's half, below —
-[`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md) (step
-3 of [`retiring-dart-server/README.md`](../retiring-dart-server/README.md)) owns
-the app's.
+[`move-web-onto-drift.md`](../../done/retiring-dart-server/move-web-onto-drift.md)
+owns the app's half: the browser downloads `bjt.db` and `dict.db` into its own
+file system and reads them through Drift, the way native reads its copies. The
+host's half, all in place for dev:
 
-**What web Drift needs from hosting.** The app side is decided in
-`move-web-onto-drift.md`; this is the host's half.
-
-- **COOP/COEP on every file** — `/*` in `_headers`:
+- **COOP/COEP on every file** — `web/_headers`:
   `Cross-Origin-Opener-Policy: same-origin` and
   `Cross-Origin-Embedder-Policy: require-corp`. Not just the page: Drift starts
   its worker from `drift_worker.js`. Without them Chrome can't use OPFS, and the
-  app shows its unsupported-browser message. Confirmed to be enough on
-  2026-09-20: with exactly these two on Flutter's dev server, `opfsLocks` was
-  offered and the real `bjt.db` opened from OPFS.
+  app shows its unsupported-browser message.
 - **CanvasKit needs no flag.** Under `require-corp` a cross-origin subresource
-  has to send `Cross-Origin-Resource-Policy`, and Flutter loads CanvasKit from
-  Google's CDN by default — which answers with
-  `Cross-Origin-Resource-Policy: cross-origin` and
-  `Access-Control-Allow-Origin: *`. Settled locally 2026-09-21
-  (`move-web-onto-drift.md` step 8): a build without `--no-web-resources-cdn`
-  loaded CanvasKit from the CDN under both headers and ran, and `run_mac.sh`
-  has dropped the flag. Nothing to do here.
-- **The deploy strips `assets/assets/databases/*.db` and keeps
-  `manifest.json`** — the app reads each database's version from it. The
-  Windows-box `deploy.sh` deleted the whole folder, and it is in `deprecated/`,
-  so **nothing strips them today**: an unset `DATABASE_BASE_URL` makes the app
-  read the databases straight out of its own bundle, which is what every local
-  run does. A build for Pages without this is ~350 MB of assets.
+  has to send `Cross-Origin-Resource-Policy`, and Google's CDN, where Flutter
+  loads CanvasKit from by default, sends `cross-origin` (settled 2026-09-21,
+  `move-web-onto-drift.md` step 8).
+- **The build carries no `.db`.** The deploy takes both out and keeps
+  `manifest.json`, which names each version the app downloads.
 - **No `immutable` rule on the app's `/assets/*`**, unlike the static site.
   Flutter's asset URLs carry no hash, so a cached old manifest would pair a new
   app with an old database, and a cached old `tree.json` or `sc-to-bjt.json`
   would outlive the build that changed it. Pages' default (revalidate) is
-  right: a changed file is fetched, an unchanged one costs a 304.
-- **One R2 file per database version**, named like its OPFS folder:
-  `bjt-<first 16 hex of SHA-256>.db.gz`. Upload it before deploying the app,
-  never overwrite it, and keep old ones — a tab on the old build may still be
-  downloading its version; delete them by hand now and then. The base URL is
-  the build's `DATABASE_BASE_URL`, per target in `scripts/config/targets.env`.
-- **Upload with** `wrangler r2 object put <bucket>/<name> --file <name>
-  --content-encoding gzip --content-type application/octet-stream
-  --cache-control "public, max-age=31536000, immutable" --remote` (the docs
-  don't state wrangler's default, so pass `--remote`). **The deploy then checks
-  each file it uploaded:** `200`, `content-encoding: gzip`, the CORS header,
-  and a decompressed size equal to the manifest's `bytes` — a file gzipped
-  twice arrives still gzipped, and there are community reports of R2 doing
-  that.
-- **A CORS rule on the bucket** for the app's dev and prod origins (`GET`): the
-  database comes from another origin. `r2.dev` is rate-limited and for
-  development only; prod needs a custom domain in the bucket's account.
+  right.
+- **One R2 file per database version**, never overwritten, old ones kept until
+  deleted by hand — a tab on an older build may still be downloading one.
+- **CORS for any origin**: the bucket's rule, plus a response-header rule on
+  `db.sammaditthi.net` for requests without `Origin`. Cloudflare caches each
+  file with the CORS header of the first request, so a list of origins would
+  lock out all but the first.
+
+Still open:
+
 - **One test run against the bucket**, once the installer tests exist
   ([`web-database-installer-tests.md`](../retiring-dart-server/web-database-installer-tests.md)):
-  run its file 1 with `--dart-define=DATABASE_BASE_URL=<dev bucket>`. Every
-  other run downloads the app's own asset copy, so this is the only automated
-  check of the gzip and the cross-origin download. Its fetch spy counts URLs
-  ending `.db`; from the bucket they end `.db.gz`, so widen it first.
-- **To confirm at setup:** whether turning R2 on needs a card on file
-  (community reports say yes).
+  run its file 1 with `--dart-define=DATABASE_BASE_URL=https://db.sammaditthi.net`.
+  Every other run downloads the app's own asset copy, so this is the only
+  automated check of the gzip and the cross-origin download. Its fetch spy
+  counts URLs ending `.db`; from the bucket they end `.db.gz`, so widen it first.
 - **Later:** `require-corp` blocks media from another host unless it sends
   `Cross-Origin-Resource-Policy` (e.g. recordings for the TTS plan), and COOP
   `same-origin` breaks popup sign-in. Nothing in the app today.
 
-**Banked for when it is live** — cheap, and currently wrong:
+**Banked for prod** — cheap, and currently wrong:
 
 - `web/index.html` and `web/manifest.json` are untouched Flutter scaffolding —
   title `the_wisdom_project`, description "A new Flutter project.", theme colour
@@ -244,10 +216,9 @@ the app's.
   each in its own `try` that throws `DatabaseInstallFailure(download, …)`;
   leave `sink.write` and `sink.close` to `_asFailure`, so a full disk stays
   `outOfSpace`. Step 4.2 of the installer tests can then check the kind.
-- `X-Robots-Tag: noindex` **plus allow crawl** — not `Disallow`, which would stop
-  a crawler ever fetching the response that carries the header.
 - AASA / assetlinks on **both** origins.
-- Research Worker CORS must include the app's dev and prod origins.
+- Research Worker CORS must include the app's prod origin (dev's is in
+  `research_server/wrangler.jsonc`).
 - **Buttons linking the two products, both ways** — the site's "Open in the full
   reader" (planned in `static-web-hosting.md`) and a matching one in the app back
   to the site.

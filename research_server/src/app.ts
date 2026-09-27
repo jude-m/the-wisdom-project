@@ -43,6 +43,7 @@ app.get('/health', (c) => {
     fast_models: cfg.stub ? null : cfg.fastModels,
     thinking_models: cfg.stub ? null : cfg.thinkingModels,
     store_configured: Boolean(cfg.store),
+    key_configured: Boolean(cfg.apiKey),
   });
 });
 
