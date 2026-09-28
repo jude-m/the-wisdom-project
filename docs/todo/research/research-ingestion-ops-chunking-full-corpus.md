@@ -15,16 +15,16 @@ Three phases, each ending in a live switch of the one Worker:
 |---|---|---|---|---|
 | A | Python, unchanged, from `deprecated/` | `tipitaka-pilot-sn6` | SN 6 + DN 16, June snapshot | Google default |
 | B | Python in `tools/research_ingest/` + chunk flags | `tipitaka-pilot-sn6-c200` | same as A | 200 / 20 overlap |
-| C | same as B | `tipitaka-en-c200` | whole corpus, **latest** snapshot | what B settled |
+| C | same as B | `tipitaka-en` (default) or `tipitaka-en-c200` | whole corpus, **latest** snapshot | the user's pick (B5 recommends default) |
 
 A and B hold the same texts in the same project, so the only difference
 between their probe results is the chunk size.
 
-## Where we are (2026-09-28, after B4)
+## Where we are (2026-09-28, after B5)
 
 - **Worker:** ops Cloudflare account, `research.sammaditthi.net`, every build
-  calls it. Live on the ops key and the B store `tipitaka-pilot-sn6-c200`.
-  There is no rollback to the SN 15 store.
+  calls it. Live on the ops key and the B store `tipitaka-pilot-sn6-c200`
+  (Worker `529a474d`). There is no rollback to the SN 15 store.
 - **Ops Google project** `wisdom-research`: its key is in
   `scripts/config/secrets.env` as `RESEARCH_GEMINI_API_KEY`. Two stores:
   the A store and the B store.
@@ -37,8 +37,8 @@ between their probe results is the chunk size.
   (2026-06-15).
 - **Git:** work happens on `main` directly; `feat/research-ingestion` is
   merged.
-- **Next:** B5, then C. B4 was a weak pass, so the chunk size for C is
-  still open.
+- **Next:** the user picks C's chunking, then C. B5 recommends Google's
+  default (see B5).
 
 ## Why smaller chunks
 
@@ -188,8 +188,9 @@ carries its own config.
   --chunk-tokens 200 --overlap-tokens 20 --filter dn/dn16_
 ```
 
-The gate runs every probe in **thinking** mode: fast mode doesn't search
-(A4 notes), so a fast probe shows nothing about chunk size. Before the
+The gate runs every probe in **thinking** mode: fast mode on 3.1-flash-lite
+didn't search (A4 notes), so a fast probe showed nothing about chunk size
+(3.5-flash-lite does search: B5). Before the
 switch, rerun P2 and P3 in thinking mode on the A store, as their baseline
 (2 calls). Then wait for indexing (A2), switch and deploy as in A3 (no
 README change; the commit carries this doc too), probe P1–P3 in thinking
@@ -202,21 +203,23 @@ mode (3 calls), compare.
   compare again.
 - **No gain at all:** use default chunking in C (leave the flags out).
 
-**B5. Re-run the gate on the new model ladder.** Before C. The ladders in
-`research_server/src/config.ts` changed after B4 (3.6–3.8 flash and
-3.5-flash-lite on top), so B4's figures came from other models. Same
-store, same tail, P1–P3 in thinking mode (3 calls, +1 per 503), and
-compare with B4's c200 round:
+**B5. Re-run the gate on the new model ladder.** Done 2026-09-28. The
+ladders changed after B4, so B4's figures came from other models. The
+thinking run 503'd on every rung, so the gate moved to **fast** mode:
+P1–P3 on the A store, then on c200 (6 calls, all on 3.5-flash-lite).
+Numbers in the handover notes.
 
-| | model (rung) | citations | cpu | body | time |
-|---|---|---|---|---|---|
-| P1 | gemini-3-flash-preview (2) | 16 | 14 ms | 11KB | 115.4s |
-| P2 | gemini-3.5-flash (1) | 1 | 12 ms | 8KB | 32.4s |
-| P3 | gemini-3-flash-preview (2) | 2 | 8 ms | 11KB | 51.5s |
-
-Watch the tail for a 400 on a new rung: the pipeline sends every
-`gemini-3*` model `thinkingLevel`, and a model that rejects it fails fast
-instead of falling back. P1 must still list all 15.
+- **No Pass.** P3, the only like-for-like pair, had the same body (5KB)
+  on both stores and no CPU gain. P1 missed suttas on both, and more on
+  c200 (10 of 15, against A's 14). CPU at this size is noise.
+- **Default chunks are already small.** `body=` is Gemini's raw response,
+  and A's P3 came back at 5KB with a DN 16 chunk in it: the default
+  doesn't hand back whole long suttas.
+- **Recommendation: Google's default in C** (leave the flags out), by the
+  "No gain" rule above. The gain c200 was meant to bring doesn't show, and
+  on a list question it covers fewer suttas. 300 or 500 would cost another
+  ingest, 2 deploys and ~6 calls for a gain that may not exist. The user
+  decides.
 
 ## Phase C — latest SuttaCentral, full corpus
 
@@ -252,15 +255,17 @@ git diff --name-status 9b1a954 HEAD -- \
 Note added / removed files in the handover notes, then run a full
 `ingest.sh --dry-run` and note any `(empty)` files.
 
-**C4. Full ingest into a fresh store** `tipitaka-en-c200`, with the chunk
-flags B4 settled. Not the pilot store: its SN 6 + DN 16 came from the June
+**C4. Full ingest into a fresh store**: `tipitaka-en` on the default
+chunking (no flags), or `tipitaka-en-c200` with the 200/20 flags, per the
+user's pick after B5. Not the pilot store: its SN 6 + DN 16 came from the June
 snapshot, and a resumed run skips uids already present, so they'd stay
 stale. Re-run until `0 failed`. Done when active = the dry-run count and
 nothing is pending or failed (A2's check).
 
 **C5. Switch + probe.** `RESEARCH_STORE` → the new store, with a comment on
 the line above it:
-`// bilara-data published@<sha> (<date>), chunks <tokens>/<overlap>` — the
+`// bilara-data published@<sha> (<date>), chunks <tokens>/<overlap>` (or
+`chunks default`) — the
 store's source, kept beside its id. Deploy, probe P1–P4 (4 calls).
 
 **C6. Clean up.**
@@ -286,7 +291,11 @@ SN 15 only. Growing it is its own job —
 
 ## Risks
 
-- **Retrieval quality** with small chunks: the B4 gate.
+- **Retrieval quality** with small chunks: the B4 and B5 gates. In B5's
+  fast P1, c200 brought back fewer suttas than the default.
+- **`thinkingLevel` on a new rung:** the pipeline sends it to every
+  `gemini-3*` model, and one that rejects it (400) fails fast instead of
+  falling back. 3.7/3.8 didn't reject it; 3.6 is untested. Watch C5's P1.
 - **Free-tier daily cap mid-ingest:** the run resumes, but an upload that
   failed may still have spent quota.
 - **Snippet titles:** `splitHeading` reads the heading off the chunk's first
@@ -447,3 +456,38 @@ Newest last. Each step adds: date, store names/ids, numbers, surprises.
   The switch is a commit because `deploy.sh` only releases a clean,
   committed tree. Cost: 6 calls, +1 per 503 (worst case 18), 2 prod
   deploys, 2 commits on `main`. Then C.
+- **2026-09-28, B5 second try (6 fast probes)** — A store: switch
+  `6b67f1f`, Worker `12b40acc`. c200: revert `3c29b9d`, Worker `529a474d`
+  (live now). 6 calls, all 200 on rung 1 (`gemini-3.5-flash-lite`), no
+  503s. "Chunks" = suttas that came back as grounding chunks (citations
+  are deduped by uid, so the raw chunk count isn't logged).
+
+  | | store | chunks | citations | cpu | body | time | answer |
+  |---|---|---|---|---|---|---|---|
+  | P1 | A | 14 (sn6.1–6.14) | 15 | 10 ms | 28KB | 14.7s | 14 of 15, no SN 6.15 |
+  | P1 | c200 | 10 (sn6.1–6.8, 6.10, 6.11) | 11 | 6 ms | 20KB | 15.0s | 10 of 15, says coverage "may be partial" |
+  | P2 | A | 0 | 1 | 7 ms | 2KB | 4.2s | right (SN 6.1) |
+  | P2 | c200 | 2 (sn6.1, sn6.2, `title: null`) | 2 | 6 ms | 10KB | 20.2s | right (SN 6.1, + SN 6.2) |
+  | P3 | A | 2 (dn16, sn6.15) | 2 | 4 ms | 5KB | 3.4s | right |
+  | P3 | c200 | 2 (same, same snippets) | 2 | 8 ms | 5KB | 7.4s | right |
+
+  Surprises:
+  - **Fast mode searches now.** 3.5-flash-lite retrieved on 5 of 6 probes
+    (A4's 3.1-flash-lite: 0 of 2). Only A's P2 didn't search.
+  - **P1 fails on both stores.** Thinking mode listed all 15 (B4); the
+    fast model lists only what came back, and c200 brought back fewer
+    suttas. A guess, not measured: if the retriever returns a fixed number
+    of chunks, small chunks cover fewer suttas.
+  - **CPU is noise at this size.** P3 had the same body on both stores and
+    still went 4 → 8 ms, so P1's 10 → 6 ms can't be credited to chunk
+    size. The first try's failures used 10–13 ms with no chunks at all.
+  - **P2 doesn't compare, again:** A didn't search, c200 did. Whether the
+    model searches is its choice, made before any chunk comes back.
+  - **Default chunks are already small.** A's P3 came back at 5KB with a
+    DN 16 chunk in it (`body=` is Gemini's raw response).
+  - c200 was slower on P2 and P3 (one sample each).
+
+  Verdict: no Pass in fast mode. P3, the only like-for-like pair, shows
+  the same body and no CPU gain; P1 got worse on c200. With B4's weak
+  pass, chunk size shows no clear gain. Recommendation: Google's default
+  in C. The user picks.
