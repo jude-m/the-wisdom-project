@@ -22,7 +22,7 @@
     // secret, which the run and deploy scripts take from
     // scripts/config/secrets.env (RESEARCH_GEMINI_API_KEY).
     "RESEARCH_STUB": "0",
-    "RESEARCH_STORE": "fileSearchStores/tipitakapilotsn6c200-hjbekylfbhzd",
+    "RESEARCH_STORE": "fileSearchStores/tipitakapilotsn6-f0aqkxv2244r",
     // CORS allow-list (browser-only protection). Exact-match against the
     // browser's Origin header — scheme+host+port, NO trailing slash, NO path.
     //   localhost:8080                 = local Flutter web (scripts/app/web/run_mac.sh)
