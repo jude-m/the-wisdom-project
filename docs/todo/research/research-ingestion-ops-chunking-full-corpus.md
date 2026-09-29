@@ -15,30 +15,32 @@ Three phases, each ending in a live switch of the one Worker:
 |---|---|---|---|---|
 | A | Python, unchanged, from `deprecated/` | `tipitaka-pilot-sn6` | SN 6 + DN 16, June snapshot | Google default |
 | B | Python in `tools/research_ingest/` + chunk flags | `tipitaka-pilot-sn6-c200` | same as A | 200 / 20 overlap |
-| C | same as B | `tipitaka-en` (default) or `tipitaka-en-c200` | whole corpus, **latest** snapshot | the user's pick (B5 recommends default) |
+| C | same as B | `tipitaka-en` | whole corpus, **latest** snapshot | Google default |
 
 A and B hold the same texts in the same project, so the only difference
 between their probe results is the chunk size.
 
-## Where we are (2026-09-28, after B5)
+## Where we are (2026-09-29, C4 batch 3 done)
 
 - **Worker:** ops Cloudflare account, `research.sammaditthi.net`, every build
   calls it. Live on the ops key and the B store `tipitaka-pilot-sn6-c200`
   (Worker `529a474d`). There is no rollback to the SN 15 store.
 - **Ops Google project** `wisdom-research`: its key is in
-  `scripts/config/secrets.env` as `RESEARCH_GEMINI_API_KEY`. Two stores:
-  the A store and the B store.
+  `scripts/config/secrets.env` as `RESEARCH_GEMINI_API_KEY`. Three stores:
+  the A store, the B store, and C's `tipitaka-en` =
+  `fileSearchStores/tipitakaen-j02s31fl1p4q` (DN, MN and Vinaya so far).
 - **Personal Google project:** nothing needs it any more. The user deletes it
   in the Google dashboard whenever convenient; the SN 15 store goes with it.
 - **Ingest:** `scripts/research_server/ingest.sh` runs
   `tools/research_ingest/ingest.py` (its own venv, google-genai 2.25.0).
   bilara-data is at `~/Desktop/Dev/bilara-data-readonly` — shallow,
-  blobless, sparse on the two translation trees, `published` @ `9b1a954`
-  (2026-06-15).
+  blobless, sparse on the two translation trees, `published` @ `ce5b98f`
+  (2026-09-28).
 - **Git:** work happens on `main` directly; `feat/research-ingestion` is
   merged.
-- **Next:** the user picks C's chunking, then C. B5 recommends Google's
-  default (see B5).
+- **Next:** C4 batch 4 (`sutta/kn/`) into `tipitaka-en`, by the launcher in
+  C4 (15 s per upload), which the user runs. Decided for C:
+  Google's default chunking, the free tier, and the ingest in batches.
 
 ## Why smaller chunks
 
@@ -215,21 +217,37 @@ Numbers in the handover notes.
 - **Default chunks are already small.** `body=` is Gemini's raw response,
   and A's P3 came back at 5KB with a DN 16 chunk in it: the default
   doesn't hand back whole long suttas.
-- **Recommendation: Google's default in C** (leave the flags out), by the
-  "No gain" rule above. The gain c200 was meant to bring doesn't show, and
-  on a list question it covers fewer suttas. 300 or 500 would cost another
-  ingest, 2 deploys and ~6 calls for a gain that may not exist. The user
-  decides.
+- **Decision: Google's default in C** (leave the flags out), by the
+  "No gain" rule above; the user picked it 2026-09-28. The gain c200 was
+  meant to bring doesn't show, and on a list question it covers fewer
+  suttas. 300 or 500 would cost another ingest, 2 deploys and ~6 calls for
+  a gain that may not exist.
 
 ## Phase C — latest SuttaCentral, full corpus
 
-**C1. Limits and cost.** Read the current Gemini File Search pricing and
-free-tier limits: indexing spends the embedding model's quota, and stores
-have a size cap per tier. The corpus is 13.45M chars, about 3.4M tokens
-(measured 2026-09-28, June snapshot). Decide: free tier over several days
-(the ingest resumes) or paid. Turning on billing for `wisdom-research` is
-the user's dashboard step — and on paid, Google also drops the datacenter
-geo-block.
+**C1. Limits and cost.** Decided 2026-09-28: **free tier, no billing.**
+
+- **Cost:** on the free tier File Search is free: indexing, storage and
+  query embeddings.
+- **Size:** the free cap is 1 GB per project, counted as about 3× the
+  text. The corpus is 13.8 MB, about 3.4M tokens (measured 2026-09-28, June
+  snapshot), so it fits.
+- **Speed is the limit.** Google no longer publishes free-tier limits. A
+  third-party measurement (2026-09-02) gives the embedding model 100
+  requests a minute and 1,000 a day. Unknown whether indexing counts
+  against that: A's, B's and C4's uploads didn't show on the usage page.
+  Hence the batches in C4.
+- **Why not paid:** the whole corpus would cost about $0.51, but paid needs
+  a $5 prepay, and the card can't be removed without closing the billing
+  account.
+- **Billing comes back before release,** for the live feature. On the free
+  tier each thinking model allows about 20 requests a day (same
+  measurement), and Google may use users' questions to improve its
+  products.
+- **Embedding model:** Google's default, `gemini-embedding-001`, as in A
+  and B. It's fixed per store. `gemini-embedding-2` has no documented gain
+  on English text, and Sinhala questions are translated to English before
+  the search.
 
 **C2. Update SuttaCentral to the latest `published`.**
 
@@ -255,18 +273,89 @@ git diff --name-status 9b1a954 HEAD -- \
 Note added / removed files in the handover notes, then run a full
 `ingest.sh --dry-run` and note any `(empty)` files.
 
-**C4. Full ingest into a fresh store**: `tipitaka-en` on the default
-chunking (no flags), or `tipitaka-en-c200` with the 200/20 flags, per the
-user's pick after B5. Not the pilot store: its SN 6 + DN 16 came from the June
-snapshot, and a resumed run skips uids already present, so they'd stay
-stale. Re-run until `0 failed`. Done when active = the dry-run count and
-nothing is pending or failed (A2's check).
+**C4. Full ingest into a fresh store, in batches**: `tipitaka-en`, on
+Google's default chunking (no chunk flags). Not the pilot store: its SN 6 +
+DN 16 came from the June snapshot, and a resumed run skips uids already
+present, so they'd stay stale.
+
+One collection per run, smallest first. Counts are from C3 (`ce5b98f`). The
+six filters cover every file once.
+
+| Batch | `--filter` | Documents |
+|---|---|---|
+| 1 | `sutta/dn/` | 34 |
+| 2 | `sutta/mn/` | 152 |
+| 3 | `vinaya/` | 422 |
+| 4 | `sutta/kn/` | 755 |
+| 5 | `sutta/an/` | 1,408 |
+| 6 | `sutta/sn/` | 1,819 |
+
+Batch 1 created the store (`--display-name tipitaka-en`); every later batch
+adds to it. The script has no pause option, so each batch runs through this
+launcher, pasted as is from the repo root. It waits **15 s before each
+upload** (batch 3: 20 s; the user's choice), stops by itself at the first
+429, and stops if listing the store fails: the script's own fallback would
+then re-upload everything as duplicates. `caffeinate -i` keeps the Mac awake
+for the whole run.
+
+```sh
+# Batch 4. For batch 5: --filter sutta/an/. Batch 6: --filter sutta/sn/.
+GEMINI_API_KEY=$(sed -n 's/^RESEARCH_GEMINI_API_KEY=//p' scripts/config/secrets.env) \
+caffeinate -i tools/research_ingest/.venv/bin/python - \
+  --store fileSearchStores/tipitakaen-j02s31fl1p4q --filter sutta/kn/ <<'PY'
+import sys, time
+sys.path.insert(0, "tools/research_ingest")
+import ingest
+
+upload = ingest._upload
+
+
+def paced(*args, **kwargs):
+    time.sleep(15)  # 15 s before each upload
+    try:
+        upload(*args, **kwargs)
+    except Exception as exc:
+        if getattr(exc, "code", None) == 429:
+            raise SystemExit(f"429 at {args[2]}: stop; re-run after midnight Pacific")
+        raise
+
+
+def existing(client, store):
+    # A failed listing stops the run; the script's own would re-upload everything.
+    return {d.display_name for d in client.file_search_stores.documents.list(parent=store)}
+
+
+ingest._upload = paced
+ingest._existing_uids = existing
+sys.exit(ingest.main())
+PY
+```
+
+- **Stop rule:** the launcher stops at the first 429. Re-run the same
+  command the next day (quota resets at midnight Pacific); it skips what's
+  already in. Batches 5 and 6 each hold over 1,000 documents: if the 1,000
+  a day counts uploads, each simply finishes over two days this way.
+- Batch with `--filter`, never `--limit`: `--limit` cuts the list before the
+  skip, so every run picks the same first N.
+- `skipped` counts only files that match the filter, so a new batch shows
+  `0 skipped`.
+- AI Studio → Usage shows nothing for uploads (A, B and C4 alike), so it
+  can't tell whether indexing spends the embedding quota. A 429, or
+  documents left failed in A2's check, are the only signals.
+- Re-run until `0 failed`. Done when active = the dry-run count and nothing
+  is pending or failed (A2's check). A document that failed indexing still
+  has its name in the store, so a re-run would skip it: delete it first.
+- After a batch that had failures, also check by name: list the store's
+  documents and compare their display names with the dry-run uids of the
+  batches so far — no duplicates, none missing, none extra, all
+  `STATE_ACTIVE`. A one-off script (`ingest.discover` +
+  `ingest.load_unit` for the expected side, `documents.list` for the
+  store).
 
 **C5. Switch + probe.** `RESEARCH_STORE` → the new store, with a comment on
 the line above it:
-`// bilara-data published@<sha> (<date>), chunks <tokens>/<overlap>` (or
-`chunks default`) — the
-store's source, kept beside its id. Deploy, probe P1–P4 (4 calls).
+`// bilara-data published@<sha> (<date>), chunks default` — the store's
+source, kept beside its id. Deploy, probe P1–P4 (4 calls).
 
 **C6. Clean up.**
 - Delete both pilot stores: `DELETE v1beta/fileSearchStores/<id>?force=true`,
@@ -277,8 +366,8 @@ store's source, kept beside its id. Deploy, probe P1–P4 (4 calls).
 
 **C7. Docs.**
 - `docs/knowledge/research-server-from-question-to-cited-answer.md`: new
-  `body=` / CPU numbers in the CPU map; drop the chunk-size claim if B
-  disproved it.
+  `body=` / CPU numbers in the CPU map; drop the "one chunk can be 100k+
+  chars" claim (B5: default chunks are already small).
 - `docs/todo/sc-sync-ingest.md`: the mirror exists, the source is recorded
   beside `RESEARCH_STORE`, the ingest is `scripts/research_server/ingest.sh`.
 - Move this doc to `docs/done/research/`.
@@ -291,8 +380,6 @@ SN 15 only. Growing it is its own job —
 
 ## Risks
 
-- **Retrieval quality** with small chunks: the B4 and B5 gates. In B5's
-  fast P1, c200 brought back fewer suttas than the default.
 - **`thinkingLevel` on a new rung:** the pipeline sends it to every
   `gemini-3*` model, and one that rejects it (400) fails fast instead of
   falling back. 3.7/3.8 didn't reject it; 3.6 is untested. Watch C5's P1.
@@ -491,3 +578,94 @@ Newest last. Each step adds: date, store names/ids, numbers, surprises.
   the same body and no CPU gain; P1 got worse on c200. With B4's weak
   pass, chunk size shows no clear gain. Recommendation: Google's default
   in C. The user picks.
+- **2026-09-28, C1** — Free tier, no billing (see C1). Measured on the June
+  snapshot: 4,589 documents, 13.8 MB of text. The embedding model stays
+  `gemini-embedding-001`. C4 runs in six batches, one per collection.
+  Chunking: Google's default (the user's pick). Next: C2.
+- **2026-09-28, C2 (half) + C3's diff** — Fetched `published` @ `ce5b98f`
+  (2026-09-28). The checkout's files are still June's: auto mode blocked
+  `git reset --hard`, so the user runs it (no local edits to lose; only
+  untracked `.DS_Store`).
+
+  747 commits since June, 71 of them in our two trees.
+  `git diff --name-status 9b1a954 ce5b98f`: 1 added (`kn/ja/ja534`), 0
+  removed, 4,355 modified. Most of the modified count is `91ddece` "align
+  segment id 2.", which adds empty segments to line up with the Pali root.
+  The ingest drops empty segments, so it changes nothing we upload.
+
+  On the uploaded text (measured on a scratch copy of `ce5b98f`, not the
+  checkout): 2,704 documents identical, 15 whitespace only, 1,871 with new
+  wording (median 3 words), plus ja534 = 4,590. The wording comes from:
+  - Sujato revising the suttas, e.g. MN 6:19.1 moves "in this very life"
+    from after "freedom by wisdom" to after "with my own insight".
+  - Brahmali revising the Vinaya, mostly the nuns' rules.
+  - `aba21d6` "remove title numbers": 342 Vinaya rule headings lost their
+    number ("10. Exchanging…" → "Exchanging…").
+
+  **Surprise:** `splitHeading` (`research_server/src/snippet.ts:137`)
+  keeps a title only if the heading line holds the ref's number. So after
+  C, 342 of the 344 Vinaya documents that had a card title in June show
+  `title: null` (the card shows the uid). Suttas: 0 lost. Not a blocker for
+  C; a small follow-up in `splitHeading`, the user's call.
+
+  Next:
+  1. User: `git -C ~/Desktop/Dev/bilara-data-readonly reset --hard ce5b98f`,
+     then `git -C ~/Desktop/Dev/bilara-data-readonly log -1 --format='%h %cd'`
+     → `ce5b98f`.
+  2. C3's dry run: `./scripts/research_server/ingest.sh --dry-run`. Expect
+     `discovered 4590 unit files`; note any `(empty)`.
+  3. C4 batch 1 (`--display-name tipitaka-en --filter sutta/dn/`), then
+     check AI Studio → Usage to see whether indexing counts against the
+     embedding quota.
+- **2026-09-28, C2 + C3** — The user ran the reset; the checkout is at
+  `ce5b98f` (2026-09-28), no local edits. Full dry run: `discovered 4590
+  unit files`, 0 `(empty)`. Per batch: dn 34, mn 152, vinaya 422, kn 755
+  (+ja534), an 1,408, sn 1,819 = 4,590; each file matches exactly one
+  filter. Rechecked the Vinaya headings offline (June vs Sept blobs): 381
+  held a rule number in June, 39 now, so 342 lost it, as the C2 note says.
+  Next: C4 batch 1.
+- **2026-09-28, C4 batch 1 (DN)** — Store `tipitaka-en` =
+  `fileSearchStores/tipitakaen-j02s31fl1p4q` (ops project), created
+  13:29 UTC. 34 uploaded, 0 skipped, 0 failed, no 429. A2's check right
+  after: 34 active, none pending or failed, 1,141,641 bytes,
+  `gemini-embedding-001`. 37 calls in all (create, list, 34 uploads, one
+  check).
+
+  Paced at 15 s before each upload by a one-off launcher that ran
+  `ingest.py`'s `main()` and stopped at the first 429. The script has no
+  pause option; the plain command uploads back to back.
+
+  The script's closing line says to set `RESEARCH_STORE` now. Not yet:
+  that's C5, after all six batches.
+
+  AI Studio → Usage shows nothing, as after A and B, so it can't answer
+  whether indexing spends the embedding quota. Next: batch 2 (`sutta/mn/`,
+  152).
+- **2026-09-28, C4 batch 2 (MN)** — 152 uploaded, 0 skipped, 0 failed, no
+  429. Paced at 15 s per upload by the same kind of one-off launcher (see
+  C4). The user ran it in their own terminal because auto mode's
+  classifier was down. Account check: the key lists exactly the three ops
+  stores (A, B, `tipitaka-en`), so it's the ops project. A2's check: 186
+  active, none pending or failed, 3,035,426 bytes, `gemini-embedding-001`.
+  AI Studio → Usage still shows nothing.
+
+  Today's uploads: 186. If the reported 1,000 a day counts indexing, batch
+  3 (422 → 608 total) still fits today and batch 4 (755) doesn't. Next:
+  batch 3 (`vinaya/`, 422), at 20 s per upload.
+- **2026-09-29, C4 batch 3 (Vinaya)** — Paced at 20 s. First run: 411
+  uploaded, 11 failed, no 429. The failures were network errors (one
+  "Server disconnected", ten "[Errno 60] Operation timed out"): 6 spread
+  through the monks' rules, 5 at the very end (`pli-tv-pvr4`, `pvr6`–`9`).
+  None of the 11 reached the store (597 active after). The re-run: 11
+  uploaded, 411 skipped, 0 failed.
+
+  Check by name (the new C4 bullet): 608 documents, 608 distinct uids, 0
+  duplicates, 0 missing, 0 extra, all active. A2's check: 608 active,
+  7,818,985 bytes. So a timed-out upload leaves nothing behind, and a
+  re-run is enough.
+
+  Uploads so far: 608, all on 2026-09-28 Pacific time. If the reported
+  1,000 a day counts indexing, batch 4 (755 → 1,363) won't fit in one
+  Pacific day: start it after midnight Pacific (07:00 UTC). Next: batch 4
+  (`sutta/kn/`, 755), at 15 s per upload (the user's call, 2026-09-29), by
+  the launcher now written out in C4.
