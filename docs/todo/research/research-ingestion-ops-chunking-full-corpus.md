@@ -20,15 +20,17 @@ Three phases, each ending in a live switch of the one Worker:
 A and B hold the same texts in the same project, so the only difference
 between their probe results is the chunk size.
 
-## Where we are (2026-09-29, C4 batch 3 done)
+## Where we are (2026-09-30, C4 batch 4 done)
 
 - **Worker:** ops Cloudflare account, `research.sammaditthi.net`, every build
-  calls it. Live on the ops key and the B store `tipitaka-pilot-sn6-c200`
-  (Worker `529a474d`). There is no rollback to the SN 15 store.
+  calls it. `wrangler.jsonc` points at `tipitaka-en`, but the deployed
+  Worker (`529a474d`) still points at the deleted B store: research
+  answers fail until the next deploy. Nothing is live yet, so that's
+  accepted.
 - **Ops Google project** `wisdom-research`: its key is in
-  `scripts/config/secrets.env` as `RESEARCH_GEMINI_API_KEY`. Three stores:
-  the A store, the B store, and C's `tipitaka-en` =
-  `fileSearchStores/tipitakaen-j02s31fl1p4q` (DN, MN and Vinaya so far).
+  `scripts/config/secrets.env` as `RESEARCH_GEMINI_API_KEY`. One store,
+  C's `tipitaka-en` = `fileSearchStores/tipitakaen-j02s31fl1p4q` (DN, MN,
+  Vinaya and KN so far). The A and B pilot stores are deleted.
 - **Personal Google project:** nothing needs it any more. The user deletes it
   in the Google dashboard whenever convenient; the SN 15 store goes with it.
 - **Ingest:** `scripts/research_server/ingest.sh` runs
@@ -38,9 +40,11 @@ between their probe results is the chunk size.
   (2026-09-28).
 - **Git:** work happens on `main` directly; `feat/research-ingestion` is
   merged.
-- **Next:** C4 batch 4 (`sutta/kn/`) into `tipitaka-en`, by the launcher in
-  C4 (15 s per upload), which the user runs. Decided for C:
-  Google's default chunking, the free tier, and the ingest in batches.
+- **Next:** C4 batch 5 (`--collection an`) into `tipitaka-en`, by the
+  command in C4, which the user runs, after midnight Pacific (07:00 UTC);
+  commit and deploy (C5), which the user also runs. Decided
+  for C: Google's default chunking, the free tier, and the ingest in
+  batches.
 
 ## Why smaller chunks
 
@@ -279,65 +283,37 @@ DN 16 came from the June snapshot, and a resumed run skips uids already
 present, so they'd stay stale.
 
 One collection per run, smallest first. Counts are from C3 (`ce5b98f`). The
-six filters cover every file once.
+six collections cover every file once.
 
-| Batch | `--filter` | Documents |
+| Batch | `--collection` | Documents |
 |---|---|---|
-| 1 | `sutta/dn/` | 34 |
-| 2 | `sutta/mn/` | 152 |
-| 3 | `vinaya/` | 422 |
-| 4 | `sutta/kn/` | 755 |
-| 5 | `sutta/an/` | 1,408 |
-| 6 | `sutta/sn/` | 1,819 |
+| 1 | `dn` | 34 |
+| 2 | `mn` | 152 |
+| 3 | `vinaya` | 422 |
+| 4 | `kn` | 755 |
+| 5 | `an` | 1,408 |
+| 6 | `sn` | 1,819 |
 
 Batch 1 created the store (`--display-name tipitaka-en`); every later batch
-adds to it. The script has no pause option, so each batch runs through this
-launcher, pasted as is from the repo root. It waits **15 s before each
-upload** (batch 3: 20 s; the user's choice), stops by itself at the first
-429, and stops if listing the store fails: the script's own fallback would
-then re-upload everything as duplicates. `caffeinate -i` keeps the Mac awake
-for the whole run.
+adds to it. From the repo root, with the batch's collection:
 
 ```sh
-# Batch 4. For batch 5: --filter sutta/an/. Batch 6: --filter sutta/sn/.
-GEMINI_API_KEY=$(sed -n 's/^RESEARCH_GEMINI_API_KEY=//p' scripts/config/secrets.env) \
-caffeinate -i tools/research_ingest/.venv/bin/python - \
-  --store fileSearchStores/tipitakaen-j02s31fl1p4q --filter sutta/kn/ <<'PY'
-import sys, time
-sys.path.insert(0, "tools/research_ingest")
-import ingest
-
-upload = ingest._upload
-
-
-def paced(*args, **kwargs):
-    time.sleep(15)  # 15 s before each upload
-    try:
-        upload(*args, **kwargs)
-    except Exception as exc:
-        if getattr(exc, "code", None) == 429:
-            raise SystemExit(f"429 at {args[2]}: stop; re-run after midnight Pacific")
-        raise
-
-
-def existing(client, store):
-    # A failed listing stops the run; the script's own would re-upload everything.
-    return {d.display_name for d in client.file_search_stores.documents.list(parent=store)}
-
-
-ingest._upload = paced
-ingest._existing_uids = existing
-sys.exit(ingest.main())
-PY
+./scripts/research_server/ingest.sh \
+  --store fileSearchStores/tipitakaen-j02s31fl1p4q --collection an
 ```
 
-- **Stop rule:** the launcher stops at the first 429. Re-run the same
-  command the next day (quota resets at midnight Pacific); it skips what's
-  already in. Batches 5 and 6 each hold over 1,000 documents: if the 1,000
-  a day counts uploads, each simply finishes over two days this way.
-- Batch with `--filter`, never `--limit`: `--limit` cuts the list before the
-  skip, so every run picks the same first N.
-- `skipped` counts only files that match the filter, so a new batch shows
+It waits **15 s before each upload** (`--pace`; batch 3 used 20), prints a
+line per upload (`[13:05:12] #1/733 cp17`), stops at the first 429, and
+stops if listing the store fails (going on would upload every document a
+second time).
+
+- **Stop rule:** a 429 stops the run. Re-run the same command the next day
+  (quota resets at midnight Pacific); it skips what's already in. Batches 5
+  and 6 each hold over 1,000 documents: if the 1,000 a day counts uploads,
+  each simply finishes over two days this way.
+- Batch with `--collection`, never `--limit`: `--limit` cuts the list before
+  the skip, so every run picks the same first N.
+- `skipped` counts only files in the collection, so a new batch shows
   `0 skipped`.
 - AI Studio → Usage shows nothing for uploads (A, B and C4 alike), so it
   can't tell whether indexing spends the embedding quota. A 429, or
@@ -352,14 +328,13 @@ PY
   `ingest.load_unit` for the expected side, `documents.list` for the
   store).
 
-**C5. Switch + probe.** `RESEARCH_STORE` → the new store, with a comment on
-the line above it:
-`// bilara-data published@<sha> (<date>), chunks default` — the store's
-source, kept beside its id. Deploy, probe P1–P4 (4 calls).
+**C5. Switch + probe.** `RESEARCH_STORE` in `wrangler.jsonc` →
+`tipitaka-en`, with the store's source on the line above it
+(`// bilara-data published@ce5b98f (2026-09-28), chunks default`): done
+2026-09-29, mid-C4. Left: commit and deploy (`deploy.sh --prod` releases
+only a clean, committed tree); after batch 6, probe P1–P4 (4 calls).
 
 **C6. Clean up.**
-- Delete both pilot stores: `DELETE v1beta/fileSearchStores/<id>?force=true`,
-  key in the header as in A2.
 - Delete `deprecated/research_server/` — the ingest left it in B2; what's
   left is the retired FastAPI server.
 - User: delete the personal Google project, if not done already.
@@ -396,8 +371,8 @@ Newest last. Each step adds: date, store names/ids, numbers, surprises.
   Worker's old key deleted; `/health` → `key_configured:false`. Dry runs:
   SN 6 → 15 uids, DN 16 → 1. Plan rewritten to phases A–C; Node port
   dropped, the Python ingest stays. Next: A1.
-- **2026-09-28, A1–A2** — Store `tipitaka-pilot-sn6` =
-  `fileSearchStores/tipitakapilotsn6-f0aqkxv2244r` (ops project). SN 6: 15
+- **2026-09-28, A1–A2** — Store `tipitaka-pilot-sn6` (ops project; deleted
+  2026-09-29). SN 6: 15
   uploaded, DN 16: 1 uploaded, 0 failed. Indexed by the first check: 16
   active, none pending or failed, 162,106 bytes, `gemini-embedding-001`.
   No surprises.
@@ -459,9 +434,8 @@ Newest last. Each step adds: date, store names/ids, numbers, surprises.
     snippets. dn16 already had `title: null` under default chunking, so
     Google's default split DN 16 mid-sutta. 10 ms CPU is the Worker's
     budget.
-- **2026-09-28, B4 upload** — Store `tipitaka-pilot-sn6-c200` =
-  `fileSearchStores/tipitakapilotsn6c200-hjbekylfbhzd` (ops project),
-  chunks 200 / 20 overlap on both runs. SN 6: 15 uploaded, DN 16: 1
+- **2026-09-28, B4 upload** — Store `tipitaka-pilot-sn6-c200` (ops
+  project; deleted 2026-09-29), chunks 200 / 20 overlap on both runs. SN 6: 15 uploaded, DN 16: 1
   uploaded, 0 failed. Indexed by the first check: 16 active, none pending
   or failed, 162,106 bytes (source bytes, same as A). The documents API
   doesn't show a document's chunk config, so only the probes can confirm
@@ -532,9 +506,7 @@ Newest last. Each step adds: date, store names/ids, numbers, surprises.
 
   Next: B5 again as **6 probes in fast mode**, P1–P3 on each store, 1 min
   apart, stopping at the first failure:
-  1. Commit `RESEARCH_STORE` → the A store
-     (`fileSearchStores/tipitakapilotsn6-f0aqkxv2244r`), deploy, fresh
-     tail, P1–P3.
+  1. Commit `RESEARCH_STORE` → the A store, deploy, fresh tail, P1–P3.
   2. `git revert` that commit (back to the c200 store), deploy, fresh
      tail, P1–P3.
   3. Compare A with c200 per probe: model, grounding chunks, citations,
@@ -669,3 +641,37 @@ Newest last. Each step adds: date, store names/ids, numbers, surprises.
   Pacific day: start it after midnight Pacific (07:00 UTC). Next: batch 4
   (`sutta/kn/`, 755), at 15 s per upload (the user's call, 2026-09-29), by
   the launcher now written out in C4.
+- **2026-09-29, C4 batch 4 (KN), first part** — Started after midnight
+  Pacific. The first try pasted the launcher and the terminal dropped part
+  of a line (`client.file_search_stores.documents` arrived as `clienents`):
+  a NameError at the listing, before any upload. The second ran 26 uploads
+  in about 7 minutes, then was stopped by hand (Ctrl+C) because the
+  launcher printed nothing and looked stuck. `cp17` failed on a network
+  error ("Server disconnected"); `cp33` was cut off mid-upload.
+
+  Check by name: 632 documents = 608 + 24 KN (`cp1`–`cp32` less `cp17`),
+  0 duplicates, all active. Neither `cp17` nor `cp33` reached the store.
+
+  The launcher is retired: `ingest.py` now has `--collection`, `--pace`
+  (default 15 s), a line per upload, a stop at the first 429, and a stop
+  when listing the store fails. `ingest.sh` runs it under `caffeinate -i`.
+  Next: finish batch 4 with the command in C4.
+- **2026-09-29, pilot stores deleted, C5 switch in config** — Mid-batch 4,
+  the user's call: nothing is live, and `tipitaka-en` already holds far
+  more than the pilots. Deleted A (`tipitaka-pilot-sn6`) and B
+  (`tipitaka-pilot-sn6-c200`), 16 documents each; the ops project now
+  lists only `tipitaka-en`. `RESEARCH_STORE` → `tipitaka-en` in
+  `wrangler.jsonc`, not yet deployed, so the Worker fails until then.
+  `--store` stays explicit (left out, a run creates a new store); the
+  command is in `ingest.sh`'s usage.
+- **2026-09-29, C4 batch 4 (KN), done** — The new `ingest.sh
+  --collection kn`: 731 uploaded, 24 skipped, 0 failed, no 429. Check by
+  name (DN + MN + Vinaya + KN): 1,363 documents, 1,363 distinct uids, 0
+  duplicates, 0 missing, 0 extra, all active. A2's check: 1,363 active,
+  none pending or failed, 8,759,164 bytes.
+
+  Uploads on 2026-09-29 Pacific: 757 (26 + 731), still no 429, so whether
+  a 1,000-a-day limit exists is still open. Batch 5 (1,408) is over 1,000
+  either way: start it after midnight Pacific (07:00 UTC); if it stops at
+  a 429, re-run the next day. Next: batch 5 (`--collection an`), and the
+  user's commit + deploy (C5).

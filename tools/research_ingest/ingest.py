@@ -6,11 +6,15 @@ uid (it rides into every citation as the chunk title). custom_metadata is DERIVE
 from the uid — never hand-annotated onto the JSON (design §5.2).
 
 Idempotent + resumable: uids already in the store are skipped, so a re-run after a
-failure picks up where it stopped.
+failure picks up where it stopped. Paced for the free tier (--pace, before each
+upload); stops at the first 429.
 
 Usage, from the repo root (the wrapper loads the key from scripts/config/secrets.env):
     # Validate discovery + metadata WITHOUT a key or any upload:
     ./scripts/research_server/ingest.sh --dry-run --limit 5
+
+    # One collection into an existing store:
+    ./scripts/research_server/ingest.sh --store fileSearchStores/<id> --collection kn
 
     # Real run (creates the store if --store omitted, prints its name):
     ./scripts/research_server/ingest.sh --display-name tipitaka-en-c200 \
@@ -41,6 +45,16 @@ GLOBS = (
     "translation/en/sujato/sutta/**/*-sujato.json",
     "translation/en/brahmali/vinaya/**/*-brahmali.json",
 )
+
+# --collection → path filter. The six cover every file once.
+COLLECTIONS = {
+    "dn": "sutta/dn/",
+    "mn": "sutta/mn/",
+    "sn": "sutta/sn/",
+    "an": "sutta/an/",
+    "kn": "sutta/kn/",
+    "vinaya": "vinaya/",
+}
 
 
 def meta_from_uid(uid: str) -> dict:
@@ -96,6 +110,8 @@ def run(args: argparse.Namespace) -> int:
         )
         return 2
 
+    if args.collection:
+        args.filter = COLLECTIONS[args.collection]
     paths = discover(bilara_dir)
     if args.filter:
         paths = [p for p in paths if args.filter in p]
@@ -150,22 +166,29 @@ def run(args: argparse.Namespace) -> int:
     existing = _existing_uids(client, store_name)
     print(f"{len(existing)} uids already in store — will skip those")
 
-    uploaded = skipped = failed = 0
-    for path in paths:
-        unit = load_unit(path)
-        if not unit:
-            continue
-        uid, text = unit
-        if uid in existing:
-            skipped += 1
-            continue
+    units = [unit for unit in map(load_unit, paths) if unit]
+    todo = [(uid, text) for uid, text in units if uid not in existing]
+    skipped = len(units) - len(todo)
+    print(f"pace: {args.pace:g} s before each upload; {len(todo)} to upload")
+
+    uploaded = failed = 0
+    for n, (uid, text) in enumerate(todo, 1):
+        time.sleep(args.pace)
         try:
             _upload(client, store_name, uid, text, meta_from_uid(uid), chunking)
-            uploaded += 1
         except Exception as exc:  # noqa: BLE001 — keep going, log, back off
             failed += 1
+            if getattr(exc, "code", None) == 429:
+                # Quota spent: every upload after this one would fail too.
+                print(f"  ! 429 at {uid}: stopped. Re-run once the quota "
+                      "resets; it skips what's in.", file=sys.stderr)
+                break
             print(f"  ! failed {uid}: {exc}", file=sys.stderr)
             time.sleep(args.backoff)
+            continue
+        uploaded += 1
+        print(f"  [{time.strftime('%H:%M:%S')}] #{n}/{len(todo)} {uid}",
+              flush=True)
 
     print(f"done: {uploaded} uploaded, {skipped} skipped, {failed} failed")
     print(f"\nSet RESEARCH_STORE={store_name} in research_server/wrangler.jsonc.")
@@ -175,20 +198,14 @@ def run(args: argparse.Namespace) -> int:
 def _existing_uids(client, store_name: str) -> set[str]:
     """display_names (= uids) already in the store, for resumable runs.
 
-    The list API shape can differ by SDK version (Appendix A); on any error we
-    simply don't skip — at worst a re-run re-uploads, which the store dedupes by
-    display_name.
+    A failed listing stops the run: the store doesn't dedupe by display_name,
+    so going on would upload every document a second time.
     """
-    uids: set[str] = set()
-    try:
-        for doc in client.file_search_stores.documents.list(parent=store_name):
-            name = getattr(doc, "display_name", None)
-            if name:
-                uids.add(name)
-    except Exception as exc:  # noqa: BLE001
-        print(f"  (could not list existing docs; not skipping: {exc})",
-              file=sys.stderr)
-    return uids
+    return {
+        doc.display_name
+        for doc in client.file_search_stores.documents.list(parent=store_name)
+        if doc.display_name
+    }
 
 
 def _upload(
@@ -244,7 +261,13 @@ def main() -> int:
     ap.add_argument(
         "--limit", type=int, default=0, help="process at most N files (0 = all)"
     )
-    ap.add_argument(
+    scope = ap.add_mutually_exclusive_group()
+    scope.add_argument(
+        "--collection",
+        choices=COLLECTIONS,
+        help="only ingest this collection; the six cover every file once",
+    )
+    scope.add_argument(
         "--filter",
         default=None,
         help="only ingest unit files whose path contains this substring, e.g. "
@@ -261,6 +284,12 @@ def main() -> int:
         type=int,
         default=None,
         help="tokens shared by neighbouring chunks; omit for Google's default",
+    )
+    ap.add_argument(
+        "--pace",
+        type=float,
+        default=15.0,
+        help="seconds to wait before each upload (free-tier pacing)",
     )
     ap.add_argument(
         "--backoff",

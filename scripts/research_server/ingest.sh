@@ -5,10 +5,15 @@
 # argument through: `--help` lists them. A dry run needs no key.
 #
 # Usage:
-#   ./scripts/research_server/ingest.sh --dry-run --filter sn/sn6/
-#   ./scripts/research_server/ingest.sh --display-name <name> \
-#       --chunk-tokens 200 --overlap-tokens 20        # new store, prints its id
-#   ./scripts/research_server/ingest.sh --store fileSearchStores/<id> ...
+#   # Into the live store (RESEARCH_STORE in research_server/wrangler.jsonc),
+#   # one collection per run: dn mn sn an kn vinaya.
+#   ./scripts/research_server/ingest.sh \
+#     --store fileSearchStores/tipitakaen-j02s31fl1p4q --collection kn
+#
+#   ./scripts/research_server/ingest.sh --dry-run --collection kn  # no key, no upload
+#   ./scripts/research_server/ingest.sh --display-name <name> ...  # new store, prints its id
+#
+# --store stays explicit: left out, a run creates a new store.
 #
 # The venv, once, by hand:
 #   python3 -m venv tools/research_ingest/.venv
