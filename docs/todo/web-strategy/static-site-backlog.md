@@ -832,6 +832,23 @@ Not in scope:
   literal: it must match the tree's own node names, and that key is a filter
   chip the app could rename.
 
+## C11. The zero-width list is written out three times
+
+**Opened 2026-10-01**, with the fix that made search work while Helakuru is
+still composing (it puts a U+200B in front of the syllable being typed).
+
+Search strips the same four characters — U+200B, U+200C, U+200D, U+FEFF — from
+a query and a stored name, and the list is spelled out three times: the
+`normalizeText` chain and `_zeroWidthChars`, both in
+`lib/core/utils/text_utils.dart`, and `ZERO_WIDTH` in `assets/site.js`. The
+wiring test checks `site.js` against a list it types out itself, so a fifth
+character added in the app goes unnoticed.
+
+**The fix:** one constant in `wisdom_shared`, since the generator cannot import
+the Flutter app. `text_utils.dart` builds both of its copies from it, and the
+wiring test checks `ZERO_WIDTH` against it instead of its own list. The two
+copies inside `text_utils.dart` can be merged on their own, ahead of that.
+
 ---
 
 # Part D — Deferred decisions, no owner
@@ -968,8 +985,8 @@ wants to build it. Ranking it against a font preload would only make that
 comparison look real.
 
 No action: **B3** (keep the provenance), **B4** (no fix exists), **B5**
-(recorded only), **B6** (needs a Worker). **C4**, **C5** and **C8** are hygiene —
-do them when touching the code they cover, not as a campaign. C8 in particular
+(recorded only), **B6** (needs a Worker). **C4**, **C5**, **C8** and **C11** are
+hygiene — do them when touching the code they cover, not as a campaign. C8 in particular
 should ride along with the next change to `SitePage`, since its whole diff is one
 clause on `hasPreamble`.
 

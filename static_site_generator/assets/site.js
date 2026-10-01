@@ -175,13 +175,17 @@
    *     carry the long vowels — and insurance against an upstream re-sync that
    *     introduces them, since the app's own Pali rendering folds them and a
    *     reader would then be typing what they saw.
+   *   - strip ZWSP (U+200B) and BOM (U+FEFF) too, as the app's `normalizeText`
+   *     does. The Helakuru input method puts a ZWSP in front of the syllable
+   *     still being typed and drops it only on Enter, so without this nothing
+   *     matches until then.
    *
-   * The zero-width pair is written as escapes. As literals they are invisible
-   * in the source and in every diff of it, so a deletion would look like no
-   * change at all — and the failure it causes (search quietly missing welded
+   * The zero-width characters are written as escapes. As literals they are
+   * invisible in the source and in every diff of it, so a deletion would look
+   * like no change at all — and the failure it causes (search quietly missing
    * names) looks like a data problem, not a one-character edit.
    */
-  var ZERO_WIDTH = /[\u200c\u200d]/g;
+  var ZERO_WIDTH = /[\u200b\u200c\u200d\ufeff]/g;
   var LONG_E = /ේ/g;
   var LONG_O = /ෝ/g;
 

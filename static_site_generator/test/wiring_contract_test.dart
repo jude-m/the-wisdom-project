@@ -761,6 +761,23 @@ void main() {
     test('a leaf with its own file carries no chapter', () {
       expect(rows[keys.indexOf('sp-mid-1')][chapter], -1);
     });
+
+    test('the search fold strips the zero-width space an IME types', () {
+      // Helakuru shows the syllable still being typed as `ZWSP + syllable` and
+      // drops the ZWSP only when Enter commits it. A fold that keeps it matches
+      // nothing until Enter: search-as-you-type silently becomes
+      // search-on-Enter. The other three are the rest of what the app's
+      // `normalizeText` strips.
+      final zeroWidth = _readJsZeroWidth();
+      // Escapes, not literals: an invisible character dropped by an edit would
+      // leave this passing against a broken site.js.
+      expect('මඞ්ග\u200Bල'.replaceAll(zeroWidth, ''), 'මඞ්ගල');
+      for (final char in const ['\u200B', '\u200C', '\u200D', '\uFEFF']) {
+        expect(char.replaceAll(zeroWidth, ''), isEmpty,
+            reason: 'site.js no longer strips '
+                'U+${char.codeUnitAt(0).toRadixString(16).toUpperCase()}');
+      }
+    });
   });
 }
 
@@ -1077,6 +1094,17 @@ Map<String, int> _readJsRowColumns() {
     for (final match in RegExp(r'(\w+)\s*=\s*(\d+)').allMatches(line))
       match.group(1)!: int.parse(match.group(2)!),
   };
+}
+
+/// `site.js`'s `ZERO_WIDTH` pattern, compiled as a Dart [RegExp] — both take
+/// the same `[\u…]` class syntax.
+RegExp _readJsZeroWidth() {
+  final match = RegExp(r'var ZERO_WIDTH = /(.+)/g;')
+      .firstMatch(File('assets/site.js').readAsStringSync());
+  if (match == null) {
+    fail('site.js no longer declares `var ZERO_WIDTH = /…/g;`.');
+  }
+  return RegExp(match.group(1)!);
 }
 
 /// The body of `site.js`'s `hrefFor`, on one line with runs of whitespace
