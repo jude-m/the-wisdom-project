@@ -20,7 +20,7 @@ Three phases, each ending in a live switch of the one Worker:
 A and B hold the same texts in the same project, so the only difference
 between their probe results is the chunk size.
 
-## Where we are (2026-09-30, C4 batch 4 done)
+## Where we are (2026-10-01, C4 done)
 
 - **Worker:** ops Cloudflare account, `research.sammaditthi.net`, every build
   calls it. `wrangler.jsonc` points at `tipitaka-en`, but the deployed
@@ -29,8 +29,8 @@ between their probe results is the chunk size.
   accepted.
 - **Ops Google project** `wisdom-research`: its key is in
   `scripts/config/secrets.env` as `RESEARCH_GEMINI_API_KEY`. One store,
-  C's `tipitaka-en` = `fileSearchStores/tipitakaen-j02s31fl1p4q` (DN, MN,
-  Vinaya and KN so far). The A and B pilot stores are deleted.
+  C's `tipitaka-en` = `fileSearchStores/tipitakaen-j02s31fl1p4q`, the
+  full corpus (all six collections). The A and B pilot stores are deleted.
 - **Personal Google project:** nothing needs it any more. The user deletes it
   in the Google dashboard whenever convenient; the SN 15 store goes with it.
 - **Ingest:** `scripts/research_server/ingest.sh` runs
@@ -40,9 +40,7 @@ between their probe results is the chunk size.
   (2026-09-28).
 - **Git:** work happens on `main` directly; `feat/research-ingestion` is
   merged.
-- **Next:** C4 batch 5 (`--collection an`) into `tipitaka-en`, by the
-  command in C4, which the user runs, after midnight Pacific (07:00 UTC);
-  commit and deploy (C5), which the user also runs. Decided
+- **Next:** C5: the user's deploy, then probes P1–P4. Decided
   for C: Google's default chunking, the free tier, and the ingest in
   batches.
 
@@ -299,7 +297,7 @@ adds to it. From the repo root, with the batch's collection:
 
 ```sh
 ./scripts/research_server/ingest.sh \
-  --store fileSearchStores/tipitakaen-j02s31fl1p4q --collection an
+  --store fileSearchStores/tipitakaen-j02s31fl1p4q --collection sn
 ```
 
 It waits **15 s before each upload** (`--pace`; batch 3 used 20), prints a
@@ -308,9 +306,14 @@ stops if listing the store fails (going on would upload every document a
 second time).
 
 - **Stop rule:** a 429 stops the run. Re-run the same command the next day
-  (quota resets at midnight Pacific); it skips what's already in. Batches 5
-  and 6 each hold over 1,000 documents: if the 1,000 a day counts uploads,
-  each simply finishes over two days this way.
+  (quota resets at midnight Pacific); it skips what's already in. No 429
+  so far, even at 1,229 uploads in one Pacific day (batch 5), so uploads
+  have no 1,000-a-day cap.
+- Other failures (network errors, a 503) are logged and skipped; a re-run
+  uploads just those. They left nothing behind in the store.
+- An upload can hang waiting for Google's reply: the SDK sets no timeout.
+  Ctrl+C and re-run. The hung upload may still land (batch 6's did, 15
+  min later), so check by name after the re-run.
 - Batch with `--collection`, never `--limit`: `--limit` cuts the list before
   the skip, so every run picks the same first N.
 - `skipped` counts only files in the collection, so a new batch shows
@@ -331,8 +334,9 @@ second time).
 **C5. Switch + probe.** `RESEARCH_STORE` in `wrangler.jsonc` →
 `tipitaka-en`, with the store's source on the line above it
 (`// bilara-data published@ce5b98f (2026-09-28), chunks default`): done
-2026-09-29, mid-C4. Left: commit and deploy (`deploy.sh --prod` releases
-only a clean, committed tree); after batch 6, probe P1–P4 (4 calls).
+2026-09-29, mid-C4; committed in `493e1f8`. Left: deploy (`deploy.sh
+--prod` releases only a clean, committed tree), then probe P1–P4 (4
+calls).
 
 **C6. Clean up.**
 - Delete `deprecated/research_server/` — the ingest left it in B2; what's
@@ -358,8 +362,6 @@ SN 15 only. Growing it is its own job —
 - **`thinkingLevel` on a new rung:** the pipeline sends it to every
   `gemini-3*` model, and one that rejects it (400) fails fast instead of
   falling back. 3.7/3.8 didn't reject it; 3.6 is untested. Watch C5's P1.
-- **Free-tier daily cap mid-ingest:** the run resumes, but an upload that
-  failed may still have spent quota.
 - **Snippet titles:** `splitHeading` reads the heading off the chunk's first
   line; small chunks mostly have none (`title: null`). Look at the cards.
 
@@ -675,3 +677,30 @@ Newest last. Each step adds: date, store names/ids, numbers, surprises.
   either way: start it after midnight Pacific (07:00 UTC); if it stops at
   a 429, re-run the next day. Next: batch 5 (`--collection an`), and the
   user's commit + deploy (C5).
+- **2026-09-30, C4 batch 5 (AN), done** — `ingest.sh --collection an`:
+  1,407 uploaded, 0 skipped, 1 failed (`an9.60`: 503 Service Unavailable),
+  no 429. The re-run: 1 uploaded, 1,407 skipped, 0 failed. Check by name
+  (DN + MN + Vinaya + KN + AN): 2,771 documents, 2,771 distinct uids, 0
+  duplicates, 0 missing, 0 extra, all active. A2's check: 2,771 active,
+  none pending or failed, 11,489,917 bytes.
+
+  Uploads per Pacific day, from the documents' `create_time`: 2026-09-28
+  608, 2026-09-29 934, 2026-09-30 1,229. Batch 5 started at 05:55 UTC,
+  before midnight Pacific, so 179 of its uploads fell on 09-29. No 429 on
+  any day, so the 1,000-a-day limit doesn't cap uploads: batch 6 (1,819)
+  can start any time. Next: batch 6 (`--collection sn`), check by name,
+  then C5's probes.
+- **2026-10-01, C4 batch 6 (SN), done; C4 done** — `ingest.sh
+  --collection sn`. The first run reached #1743 (`sn56.85`); the next
+  upload, `sn56.86`, hung waiting for Google's reply and the user stopped
+  it with Ctrl+C. It landed anyway, 15 min after it was sent, and the
+  re-run skipped it. `sn35.58` was missing after the first run (its error
+  line wasn't kept). The re-run: 4,514 uids already in the store, 76
+  uploaded (`sn35.58` and the rest from `sn56.87`), 1,743 skipped, 0
+  failed. Check by name (all six collections): 4,590 documents, 4,590
+  distinct uids, 0 duplicates, 0 missing, 0 extra, all active. A2's
+  check: 4,590 active, none pending or failed, 13,795,093 bytes.
+
+  Uploads per Pacific day, from `create_time`: 2026-09-28 608, 2026-09-29
+  934, 2026-09-30 3,048. No 429 on any day. Next: C5, the user's deploy,
+  then probes P1–P4.
