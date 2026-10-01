@@ -27,38 +27,12 @@ library;
 import 'package:wisdom_shared/wisdom_shared.dart';
 import 'entry_renderer.dart';
 import 'node_labels.dart';
+import 'site_build.dart';
 
-/// Accessible name of the trigger, and of the dialog it opens.
-///
-/// The app's `searchPlaceholder` (`app_si.arb:30`) — "search the Tipitaka".
-/// The trailing ellipsis is the app's and is kept: on a control it is the
-/// long-standing convention for "this opens something rather than doing it",
-/// which is exactly true here.
-const String searchLabel = 'ත්‍රිපිටකයේ සොයන්න...';
-
-/// Placeholder inside the field. The app's `searchHint` (`app_si.arb:68`), in
-/// the same role — `search_bar.dart:278` passes it as `hintText`.
-const String searchFieldHint = 'සෙවුම් පදය ඇතුළත් කරන්න';
-
-/// The app's `noResultsFound` (`app_si.arb:32`).
-const String searchNoResults = 'ප්‍රතිඵල හමු නොවීය';
-
-/// The app's `close` (`app_si.arb:66`).
-const String searchCloseLabel = 'වසන්න';
-
-/// Shown while the index is in flight.
-///
-/// The app's `loading` (`app_si.arb:22`). It earns its place here in a way it
-/// does not in the app: the index is a real download over whatever connection
-/// the reader has, and a modal that opens to an empty list reads as a broken
-/// modal rather than a busy one.
-const String searchLoading = 'පූරණය වෙමින්...';
-
-/// Shown when the index cannot be fetched at all.
-///
-/// The app's `errorLoadingSearch` (`app_si.arb:178`) — same failure, same
-/// words: the results could not be loaded.
-const String searchError = 'ප්‍රතිඵල පූරණය කිරීමේ දෝෂයකි';
+/// ARB key of the accessible name of the trigger and of the dialog it opens —
+/// "search the Tipitaka". Its trailing ellipsis is kept: on a control it says
+/// "this opens something rather than doing it".
+const String _searchLabelKey = 'searchPlaceholder';
 
 /// How many names matched; `{n}` is the number. `role="status"` announced a
 /// bare "50" without it — no noun, and no way to tell an answer from a ceiling.
@@ -87,10 +61,9 @@ const String searchCloseId = 'search-close';
 /// Shares its box with `.up` — one CSS rule names both — and sits beside it, so
 /// the two read as one set of controls. `hidden` until the script runs.
 ///
-/// It carries no `data-` attributes. The two it used to hold — the index URL
-/// and the link prefix — are the dialog's business, not the button's, and
-/// keeping them here would mean threading a build-time URL through `toolbar`
-/// and `breadcrumb` to reach a control that never uses it.
+/// It carries no `data-` attributes: the index URL and the link prefix are the
+/// dialog's business, and [searchDialog] hands `site.js` everything on one
+/// element.
 ///
 /// `aria-haspopup="dialog"` so the label is not the only thing saying what the
 /// button does: it is announced as opening something, which is the difference
@@ -98,10 +71,12 @@ const String searchCloseId = 'search-close';
 /// away from the sutta they are on. No `aria-expanded` beside it — that is for
 /// a control that also closes what it opened, and this one does not; the
 /// dialog owns its own close.
-String searchTrigger() =>
-    '<button class="search-trigger" id="$searchTriggerId" type="button" '
-    'hidden aria-haspopup="dialog" '
-    'title="$searchLabel" aria-label="$searchLabel">$_searchGlyph</button>';
+String searchTrigger(SiteBuild build) {
+  final label = build.strings.html(_searchLabelKey);
+  return '<button class="search-trigger" id="$searchTriggerId" type="button" '
+      'hidden aria-haspopup="dialog" '
+      'title="$label" aria-label="$label">$_searchGlyph</button>';
+}
 
 /// The modal itself, emitted at the end of every page's body.
 ///
@@ -124,7 +99,7 @@ String searchTrigger() =>
 /// welded (D1) to match the `<h1>` of the page it links to; which rows take it
 /// is the index's column 6.
 ///
-/// [indexUrl] is `SiteAssets.searchIndex`, carrying the hash that pairs this
+/// `data-index` is `SiteAssets.searchIndex`, carrying the hash that pairs this
 /// index with the script that reads it. `data-base` is
 /// [TipitakaLink.pathSegment]'s one spelling, which is what keeps a result link
 /// from drifting off the URL grammar the rest of the site — and the app's
@@ -132,30 +107,41 @@ String searchTrigger() =>
 ///
 /// Both sit on the dialog rather than the trigger so that everything `site.js`
 /// is handed comes off one element.
-String searchDialog(String indexUrl) => '<dialog class="search" '
-    'id="$searchDialogId" '
-    'aria-label="$searchLabel" '
-    'data-index="$indexUrl" data-base="${tipitakaUrl('')}" '
-    'data-loading="$searchLoading" data-empty="$searchNoResults" '
-    'data-error="$searchError" '
-    'data-count="$searchResultCount" '
-    'data-count-capped="$searchResultCountCapped" '
-    'data-marker="${weldTitle(commentaryMarker)}">'
-    '<div class="search-head">'
-    // `type="search"` for the platform clear button and the right virtual
-    // keyboard. Autocomplete and the browser's own history are off: they offer
-    // Latin form-filling suggestions over a Sinhala field, covering the results
-    // the dialog is drawing underneath.
-    '<input class="search-field" id="$searchFieldId" type="search" '
-    'placeholder="$searchFieldHint" aria-label="$searchFieldHint" '
-    'autocomplete="off" autocorrect="off" spellcheck="false">'
-    '<button class="search-close" id="$searchCloseId" type="button" '
-    'title="$searchCloseLabel" aria-label="$searchCloseLabel">'
-    '$_closeGlyph</button>'
-    '</div>'
-    '<p class="search-status" id="$searchStatusId" role="status"></p>'
-    '<ul class="search-results" id="$searchResultsId"></ul>'
-    '</dialog>';
+String searchDialog(SiteBuild build) {
+  final strings = build.strings;
+  final label = strings.html(_searchLabelKey);
+  // The app's `searchHint`, in the same role: its search bar's `hintText`.
+  final hint = strings.html('searchHint');
+  final close = strings.html('close');
+  return '<dialog class="search" '
+      'id="$searchDialogId" '
+      'aria-label="$label" '
+      'data-index="${build.assets.searchIndex}" '
+      'data-base="${tipitakaUrl('')}" '
+      // `loading` matters more here than in the app: the index is a real
+      // download, and a modal that opens empty reads as broken, not busy.
+      'data-loading="${strings.html('loading')}" '
+      'data-empty="${strings.html('noResultsFound')}" '
+      'data-error="${strings.html('errorLoadingSearch')}" '
+      'data-count="$searchResultCount" '
+      'data-count-capped="$searchResultCountCapped" '
+      'data-marker="${weldTitle(commentaryMarker)}">'
+      '<div class="search-head">'
+      // `type="search"` for the platform clear button and the right virtual
+      // keyboard. Autocomplete and the browser's own history are off: they
+      // offer Latin form-filling suggestions over a Sinhala field, covering the
+      // results the dialog is drawing underneath.
+      '<input class="search-field" id="$searchFieldId" type="search" '
+      'placeholder="$hint" aria-label="$hint" '
+      'autocomplete="off" autocorrect="off" spellcheck="false">'
+      '<button class="search-close" id="$searchCloseId" type="button" '
+      'title="$close" aria-label="$close">'
+      '$_closeGlyph</button>'
+      '</div>'
+      '<p class="search-status" id="$searchStatusId" role="status"></p>'
+      '<ul class="search-results" id="$searchResultsId"></ul>'
+      '</dialog>';
+}
 
 /// Inline SVG on the same terms as the layout and up icons: `currentColor`, no
 /// second request, drawn to the same 1.6 stroke so the bar reads as one set.

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:static_site_generator/data/corpus_reader.dart';
+import 'package:static_site_generator/domain/app_strings.dart';
 import 'package:static_site_generator/domain/theme_tokens.dart';
 import 'package:static_site_generator/sitegen.dart';
 
@@ -69,6 +70,8 @@ void main(List<String> args) {
       reader: reader,
       tree: tree,
       tokens: _readThemeTokens('$packageAssetsPath/theme_tokens.json'),
+      strings: _readAppStrings('${Directory(_packageRoot).parent.path}/'
+          'lib/core/localization/l10n/app_si.arb'),
       outputDir: outputDir,
       origin: options.origin,
       packageAssetsPath: packageAssetsPath,
@@ -136,6 +139,21 @@ ThemeTokens _readThemeTokens(String path) {
   return ThemeTokens(
     json.decode(file.readAsStringSync()) as Map<String, dynamic>,
   );
+}
+
+/// Reads the app's Sinhala ARB, the source of every UI string the site shares
+/// with the app. Plain JSON, so unlike the theme there is no export step.
+AppStrings _readAppStrings(String path) {
+  final file = File(path);
+  if (!file.existsSync()) throw StateError('Missing $path.');
+  // Hand-edited, so a typo is likely: a StateError gets main's one-line report.
+  try {
+    return AppStrings(
+      json.decode(file.readAsStringSync()) as Map<String, dynamic>,
+    );
+  } on FormatException catch (error) {
+    throw StateError('$path is not valid JSON: ${error.message}');
+  }
 }
 
 /// Directory holding this package's `pubspec.yaml`, so `build/` and

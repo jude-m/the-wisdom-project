@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// The title of the application
   ///
   /// In en, this message translates to:
-  /// **'The Wisdom Project'**
+  /// **'Sammaditthi'**
   String get appTitle;
 
   /// Title for the tree navigation screen
@@ -176,7 +176,7 @@ abstract class AppLocalizations {
   /// **'Select a sutta from the navigator to begin reading'**
   String get selectNodeToRead;
 
-  /// Placeholder text for search input
+  /// Not shown in the app. The static site's search button reads the Sinhala value from app_si.arb, so do not delete it as unused.
   ///
   /// In en, this message translates to:
   /// **'Search Tipitaka...'**

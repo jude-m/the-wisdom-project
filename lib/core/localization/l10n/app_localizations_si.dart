@@ -9,7 +9,7 @@ class AppLocalizationsSi extends AppLocalizations {
   AppLocalizationsSi([String locale = 'si']) : super(locale);
 
   @override
-  String get appTitle => 'ප්‍රඥා ව්‍යාපෘතිය';
+  String get appTitle => 'Sammaditthi';
 
   @override
   String get treeNavigatorTitle => 'ත්‍රිපිටක සංචාලකය';

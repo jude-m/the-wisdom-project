@@ -65,7 +65,7 @@ String breadcrumbJsonLd({
   final items = <Map<String, Object>>[
     // `/` is segment zero — the real parent of the seven roots, and the same
     // thing the emblem is at the left of every trail.
-    _item(1, homeLabel, build.absolute(LandingPage.url)),
+    _item(1, build.strings[homeLabelKey], build.absolute(LandingPage.url)),
     for (final (index, ancestor) in trail.indexed)
       _item(
         index + 2,

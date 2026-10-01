@@ -25,10 +25,10 @@ import 'node_labels.dart';
 import 'reading_layouts.dart';
 import 'search_dialog.dart';
 import 'site_assets.dart';
+import 'site_build.dart';
 
-/// Accessible name for the home link. The app's `navHome` (`app_si.arb:198`),
-/// not new wording — two names for one thing is how surfaces drift.
-const String homeLabel = 'මුල් පිටුව';
+/// ARB key of the home link's name — the app's `navHome`, not new wording.
+const String homeLabelKey = 'navHome';
 
 /// Accessible name for the trail itself.
 ///
@@ -63,9 +63,13 @@ const String upLabel = 'ඉහළ';
 /// The emblem's URL arrives from [SiteAssets] rather than being written here:
 /// it carries a hash of the image, which only the build that read the bytes can
 /// know.
-String homeLink(SiteAssets assets) => '<a class="home" href="/" '
-    'title="$homeLabel">'
-    '<img src="${assets.emblem}" width="28" height="28" alt="$homeLabel"></a>';
+String homeLink(SiteBuild build) {
+  final label = build.strings.html(homeLabelKey);
+  return '<a class="home" href="/" '
+      'title="$label">'
+      '<img src="${build.assets.emblem}" width="28" height="28" '
+      'alt="$label"></a>';
+}
 
 /// The trail: home, the ancestors, and the page itself.
 ///
@@ -120,13 +124,13 @@ String homeLink(SiteAssets assets) => '<a class="home" href="/" '
 /// `title` — so this arrives as a description, and it is the same string either
 /// way.
 String breadcrumb({
-  required SiteAssets assets,
+  required SiteBuild build,
   List<TipitakaNode> trail = const <TipitakaNode>[],
   TipitakaNode? current,
 }) {
   final buffer =
       StringBuffer('<nav class="breadcrumb" aria-label="$breadcrumbLabel">');
-  buffer.write(homeLink(assets));
+  buffer.write(homeLink(build));
   for (final ancestor in trail) {
     // `nodeLabelHtml` escapes `"`, which is what lets one string be both the
     // text and the attribute.
@@ -243,7 +247,7 @@ String tocList(Iterable<TipitakaNode> nodes, {required UrlResolver urlFor}) {
 /// the group after it does not.
 String toolbar({
   required bool withLayouts,
-  required SiteAssets assets,
+  required SiteBuild build,
   List<TipitakaNode> trail = const <TipitakaNode>[],
   TipitakaNode? current,
   TipitakaNode? parent,
@@ -252,9 +256,9 @@ String toolbar({
   // Defaults render `/`'s bar: the emblem alone in a trail with nowhere to
   // climb. That is the same markup every other page carries, minus segments —
   // not a second bar shape with a branch guarding it.
-  buffer.write(breadcrumb(assets: assets, trail: trail, current: current));
+  buffer.write(breadcrumb(build: build, trail: trail, current: current));
   if (parent != null) buffer.write(upLink(parent));
-  buffer.write(searchTrigger());
+  buffer.write(searchTrigger(build));
   if (withLayouts) {
     buffer.write('<div class="layouts">');
     for (final layout in readingLayouts) {
@@ -262,7 +266,8 @@ String toolbar({
       // only "P" or an icon. It is not a duplicate announcement: the input's
       // accessible name comes from its own `aria-label`, and a `<label>` is not
       // focusable, so this string never reaches the a11y tree twice.
-      buffer.write('<label for="${layout.id}" title="${layout.label}">'
+      final label = build.strings.html(layout.labelKey);
+      buffer.write('<label for="${layout.id}" title="$label">'
           '${layout.glyph}</label>');
     }
     buffer.write('</div>');

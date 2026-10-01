@@ -163,7 +163,8 @@ class _MyAppState extends ConsumerState<MyApp> {
     final appLanguage = ref.watch(appLanguageProvider);
 
     return MaterialApp(
-      title: 'The Wisdom Project',
+      // From the ARB `appTitle`, so it follows the App Language.
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       debugShowCheckedModeBanner: false,
 
       // Localization

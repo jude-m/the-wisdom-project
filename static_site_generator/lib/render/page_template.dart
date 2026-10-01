@@ -100,7 +100,7 @@ class PageTemplate {
     final trail = tree.ancestorsOf(page.nodeKey).reversed.toList();
     body.writeln(toolbar(
       withLayouts: withLayouts,
-      assets: build.assets,
+      build: build,
       trail: trail,
       current: page.node,
       parent: tree.parentOf(page.nodeKey),
@@ -364,7 +364,7 @@ class PageTemplate {
       buffer.write('<input class="layout-input" type="radio" name="layout"'
           ' id="${layout.id}" value="${layout.token}"');
       if (layout.id == defaultLayoutId) buffer.write(' checked');
-      buffer.write(' aria-label="${layout.label}">');
+      buffer.write(' aria-label="${build.strings.html(layout.labelKey)}">');
     }
     return buffer.toString();
   }
@@ -709,6 +709,8 @@ class PageTemplate {
   /// up with the text below. `aria-hidden` because the cells themselves carry
   /// `lang`, which is how a screen reader already announces the switch.
   ///
+  /// The captions are the app's names for the two languages.
+  ///
   /// **Emitted only when the page really has both languages** — see
   /// [_hasBothLanguages], which is the same fact that decides whether the page
   /// gets a layout switcher at all. Captioning a column that is empty from top
@@ -716,8 +718,8 @@ class PageTemplate {
   String _columnHeads(bool bothLanguages) {
     if (!bothLanguages) return '';
     return '<div class="row col-heads" aria-hidden="true">'
-        '<div class="pali">පාළි</div>'
-        '<div class="si">සිංහල</div>'
+        '<div class="pali">${build.strings.html('paliLanguageLabel')}</div>'
+        '<div class="si">${build.strings.html('sinhalaLanguageLabel')}</div>'
         '</div>';
   }
 

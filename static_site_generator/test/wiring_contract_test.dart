@@ -49,6 +49,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:static_site_generator/domain/app_strings.dart';
 import 'package:static_site_generator/domain/content_file.dart';
 import 'package:static_site_generator/domain/document.dart';
 import 'package:static_site_generator/domain/theme_tokens.dart';
@@ -305,6 +306,7 @@ void main() {
           assets: _assets,
           urlFor: _foldedPlan.urlFor,
           speaksForRun: _foldedPlan.speaksForRun,
+          strings: _strings,
         ),
       );
       final html = template.render(_chapterPage,
@@ -725,7 +727,7 @@ void main() {
       // bare URL 404s, a mid-vagga anchor sent to its bare URL returns 200
       // showing the suttas either side of the one the reader clicked.
       final base = RegExp(r'data-base="([^"]*)"')
-          .firstMatch(searchDialog('/assets/search-index.json'))!
+          .firstMatch(searchDialog(_build))!
           .group(1)!;
 
       String hrefFor(List<dynamic> row) {
@@ -891,7 +893,11 @@ final SiteBuild _build = SiteBuild(
   // what [SitePlan] emits.
   urlFor: _plan.urlFor,
   speaksForRun: _plan.speaksForRun,
+  strings: _strings,
 );
+
+/// The app's real `app_si.arb`, read the same way as the theme tokens.
+final AppStrings _strings = _readAppStrings();
 
 /// A plan over [_tree], held only so the pages above can be asked
 /// [SitePlan.speaksForRun]; its page list is unused. Nothing folds here, so the
@@ -1036,6 +1042,16 @@ ThemeTokens _readThemeTokens() {
         'static_site_generator/ package root — the path is relative to it.');
   }
   return ThemeTokens(
+      jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
+}
+
+AppStrings _readAppStrings() {
+  final file = File('../lib/core/localization/l10n/app_si.arb');
+  if (!file.existsSync()) {
+    fail('app_si.arb not found. Run `dart test` from the '
+        'static_site_generator/ package root — the path is relative to it.');
+  }
+  return AppStrings(
       jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
 }
 

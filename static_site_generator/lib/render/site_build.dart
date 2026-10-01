@@ -1,4 +1,6 @@
 import 'package:wisdom_shared/wisdom_shared.dart';
+import '../domain/app_strings.dart';
+import 'entry_renderer.dart';
 import 'site_assets.dart';
 
 /// What every template needs and no template can work out for itself.
@@ -61,12 +63,16 @@ class SiteBuild {
   /// [SitePlan.speaksForRun]. Threaded for the same reason [urlFor] is.
   final RunLinkPredicate speaksForRun;
 
+  /// The app's Sinhala UI strings — every label on the site the app also shows.
+  final AppStrings strings;
+
   const SiteBuild({
     required this.origin,
     required this.generatorVersion,
     required this.assets,
     required this.urlFor,
     required this.speaksForRun,
+    required this.strings,
   });
 
   /// [origin] with a root-relative [path] on the end — the absolute form
@@ -77,4 +83,12 @@ class SiteBuild {
   /// must agree about the join, and the day the origin gains a trailing slash
   /// or loses one there is a single place that decides what that means.
   String absolute(String path) => '$origin$path';
+}
+
+/// App strings ready to write into HTML, as `nodeLabelHtml` is for node names.
+///
+/// Use `[]` instead only where the value is escaped later — a page title
+/// (`htmlDocument`) or JSON-LD — or it is escaped twice.
+extension AppStringsHtml on AppStrings {
+  String html(String key) => escapeHtml(this[key]);
 }

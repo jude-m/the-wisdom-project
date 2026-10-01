@@ -26,8 +26,9 @@ typedef ReadingLayout = ({
   /// rather than needing a second table mapping tokens to ids.
   String token,
 
-  /// Accessible name. Sighted readers get [glyph]; this is what is announced.
-  String label,
+  /// ARB key of the accessible name — the app's own label for this layout.
+  /// Sighted readers get [glyph]; this is what is announced.
+  String labelKey,
 
   /// What the button shows: a letter, or an inline SVG.
   String glyph,
@@ -46,34 +47,34 @@ const String stackedLayoutId = 'L-stack';
 
 /// In the order the app's `ReaderLayout` enum declares them.
 ///
-/// Labels are the app's shipped Sinhala strings from
-/// `lib/core/localization/l10n/app_si.arb` — `layoutPaliOnly` and friends — not
-/// new wording invented for this surface. The static-site plan's §7 sketch
-/// suggested "පාළි / සිංහල / පාළි + සිංහල / තට්ටු"; those were never in the app,
-/// and two names for one control is how the two surfaces start to drift.
+/// Labels are the app's shipped Sinhala strings, looked up in `app_si.arb` by
+/// `labelKey` — not new wording invented for this surface. The static-site
+/// plan's §7 sketch suggested "පාළි / සිංහල / පාළි + සිංහල / තට්ටු"; those were
+/// never in the app, and two names for one control is how the two surfaces
+/// start to drift.
 const List<ReadingLayout> readingLayouts = [
   (
     id: paliOnlyLayoutId,
     token: 'paliOnly',
-    label: 'පාළි පමණයි',
+    labelKey: 'layoutPaliOnly',
     glyph: 'P',
   ),
   (
     id: sinhalaOnlyLayoutId,
     token: 'sinhalaOnly',
-    label: 'සිංහල පමණයි',
+    labelKey: 'layoutSinhalaOnly',
     glyph: 'S',
   ),
   (
     id: sideBySideLayoutId,
     token: 'sideBySide',
-    label: 'දෙකම',
+    labelKey: 'layoutSideBySide',
     glyph: '$_iconFrame<line x1="12" y1="4" x2="12" y2="20"/></svg>',
   ),
   (
     id: stackedLayoutId,
     token: 'stacked',
-    label: 'ගොඩගැසූ',
+    labelKey: 'layoutStacked',
     glyph: '$_iconFrame<line x1="3" y1="12" x2="21" y2="12"/></svg>',
   ),
 ];

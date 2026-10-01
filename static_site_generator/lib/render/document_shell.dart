@@ -128,18 +128,18 @@ $meta
 <meta name="generator" content="wisdom-ssg ${build.generatorVersion}">
 $head</head>
 <body>
-$body${searchDialog(assets.searchIndex)}
+$body${searchDialog(build)}
 ${siteScript(assets.script)}
 </body>
 </html>
 ''';
 }
 
-/// The site's own name, for `og:site_name` and for `/`'s `<title>`.
+/// The site's own name, for `og:site_name` and `/`'s title.
 ///
-/// The app's `appTitle` (`app_si.arb`), under the rule every string on this
-/// surface follows: a name the app already says is not re-invented here.
-const String siteName = 'ප්‍රඥා ව්‍යාපෘතිය';
+/// Deliberately not the app's `appTitle`: this site is the Buddha Jayanti
+/// edition, while the app (Sammaditthi) may carry other editions too.
+const String siteName = 'බුද්ධ ජයන්ති ත්‍රිපිටකය හා අට්ඨකථා';
 
 /// Open Graph — what a pasted link looks like in a message.
 ///

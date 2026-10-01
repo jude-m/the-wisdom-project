@@ -1,6 +1,7 @@
 import 'package:wisdom_shared/wisdom_shared.dart';
 
 import 'document_shell.dart';
+import 'entry_renderer.dart';
 import 'page_description.dart';
 import 'site_build.dart';
 import 'site_chrome.dart';
@@ -106,7 +107,7 @@ class LandingPage {
     // No layout radios — nothing here is readable text, and per P2's mechanism
     // that absence needs no CSS: with no radio checked, none of the
     // `#L-x:checked ~` rules match.
-    body.writeln(toolbar(withLayouts: false, assets: build.assets));
+    body.writeln(toolbar(withLayouts: false, build: build));
     // `nav`, for the same reason a container TOC gets it: a heading, a hint and
     // a list of links, with no running text to set a measure for.
     body.writeln('<main class="content nav">');
@@ -119,12 +120,15 @@ class LandingPage {
     // `FIGURES.realPages` pages; `/` has no ancestors to disambiguate it
     // against, and is the one page whose name *is* the whole site's name — the
     // same string `og:site_name` carries everywhere else.
-    final title = isNotFound ? _notFoundTitle : siteName;
-    body.writeln('<h1 class="page-title">$title</h1>');
+    final title = isNotFound ? build.strings[_notFoundTitleKey] : siteName;
+    // Welded like the root names under it (D1); `<title>` stays unwelded (D2).
+    // The not-found heading is an app string, shown as the app shows it.
+    final heading = isNotFound ? title : weldTitle(title);
+    body.writeln('<h1 class="page-title">${escapeHtml(heading)}</h1>');
     // The same hint under both headings, and it is the right sentence twice:
     // what follows is the list of roots either way, and the reader's next move
     // is the same one.
-    body.writeln('<p class="landing-hint">$_hint</p>');
+    body.writeln('<p class="landing-hint">${build.strings.html(_hintKey)}</p>');
     // Roots, not `childrenOf` — `/` has no node above it. On a whole-corpus
     // build these are `vp` `sp` `ap` `atta-vp` `atta-sp` `atta-ap` `anya`, in
     // the order `tree.json` declares them, which is pinned by document order
@@ -152,38 +156,23 @@ class LandingPage {
   }
 }
 
-/// The app's `statusSelectSuttaToRead` (`app_si.arb:186`).
+/// ARB key of the hint under the heading.
 ///
-/// **Not** the near-identical `selectNodeToRead` (`app_si.arb:28`), which says
-/// සංචාලකයෙන් where this says ව්‍යූහයෙන් and belongs to a different empty state.
-/// Two strings one word apart is exactly the trap the "strings come from the
-/// app" rule exists to catch, so the wrong one would have looked right.
-const String _hint = 'කියවීම ආරම්භ කිරීමට ව්‍යූහයෙන් සූත්‍රයක් තෝරන්න';
+/// **Not** the near-identical `selectNodeToRead`, which says සංචාලකයෙන් where
+/// this says ව්‍යූහයෙන් and belongs to a different empty state — one word apart,
+/// so the wrong one would have looked right.
+const String _hintKey = 'statusSelectSuttaToRead';
 
-/// The one description on the site that is written rather than generated.
-///
-/// `/` is the highest-value page here for search — it is what `sitemap.xml`
-/// names as the entry and what an unqualified query for the site should land
-/// on — so it gets a sentence about the whole corpus instead of the
-/// per-page grammar in `page_description.dart`, which has a node to describe
-/// and this page does not.
-///
-/// Assembled from what tipitaka.lk's Welcome page says about this exact
-/// material — *"ශ්‍රී ලංකා තිපිටක පෙළ, අටුවා සහ සිංහල පරිවර්තනය"*
-/// (`src/views/Welcome.vue`) — because the two sites are describing the same
-/// books and should not invent separate vocabulary for them. `අට්ඨකථා` rather
-/// than upstream's `අටුවා`, per the site-wide rule that every node is named by
-/// the tree's Pali field.
-const String _description = 'බුද්ධ ජයන්ති තිපිටකයේ පාළි පෙළ, අට්ඨකථා සහ '
+/// `/`'s description, written because it has no node to generate one from.
+/// Worded after tipitaka.lk's `Welcome.vue`, with the tree's `අට්ඨකථා` and the
+/// site name's `ත්‍රිපිටකය`. No edition: the commentaries are not Buddha Jayanti.
+const String _description = 'ත්‍රිපිටකයේ පාළි පෙළ, අට්ඨකථා සහ '
     'සිංහල පරිවර්තනය. සම්පූර්ණ ත්‍රිපිටකය සහ අට්ඨකථා නොමිලේ කියවන්න.';
 
-/// The app's `statusNoTreeContent` (`app_si.arb:190`) — "no content available",
-/// which is what a missing address has.
+/// ARB key of the not-found heading — "no content available", which is what a
+/// missing address has.
 ///
-/// Taken from the app rather than composed, under the same rule as [_hint]: a
-/// string this site shows a reader is one the app already says somewhere, so
-/// the two surfaces cannot end up phrasing the same idea two ways. Nothing in
-/// the app or in the tipitaka.lk source says "page not found" — neither has an
-/// address bar to get wrong — so this is the nearest thing either of them
-/// asserts, and it is true of a wrong URL.
-const String _notFoundTitle = 'අන්තර්ගතයක් නොමැත';
+/// Nothing in the app or in the tipitaka.lk source says "page not found" —
+/// neither has an address bar to get wrong — so this is the nearest thing
+/// either of them asserts, and it is true of a wrong URL.
+const String _notFoundTitleKey = 'statusNoTreeContent';

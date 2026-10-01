@@ -5,6 +5,7 @@ import 'package:wisdom_shared/wisdom_shared.dart';
 
 import 'data/corpus_reader.dart';
 import 'data/slicer_cache.dart';
+import 'domain/app_strings.dart';
 import 'domain/document.dart';
 import 'domain/preamble_planner.dart';
 import 'domain/slice_alignment.dart';
@@ -60,6 +61,9 @@ class SiteGenerator {
   final TipitakaTree tree;
   final ThemeTokens tokens;
 
+  /// The app's Sinhala UI strings, from its `app_si.arb`.
+  final AppStrings strings;
+
   /// Directory that receives `tipitaka/`, `assets/`, `fonts/`.
   final String outputDir;
 
@@ -86,6 +90,7 @@ class SiteGenerator {
     required this.reader,
     required this.tree,
     required this.tokens,
+    required this.strings,
     required this.outputDir,
     required this.origin,
     required this.packageAssetsPath,
@@ -156,6 +161,7 @@ class SiteGenerator {
       assets: assets,
       urlFor: plan.urlFor,
       speaksForRun: plan.speaksForRun,
+      strings: strings,
     );
 
     final template = PageTemplate(tree: tree, build: build);

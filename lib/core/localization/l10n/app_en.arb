@@ -1,7 +1,7 @@
 {
   "@@locale": "en",
 
-  "appTitle": "The Wisdom Project",
+  "appTitle": "Sammaditthi",
   "@appTitle": {
     "description": "The title of the application"
   },
@@ -68,7 +68,7 @@
 
   "searchPlaceholder": "Search Tipitaka...",
   "@searchPlaceholder": {
-    "description": "Placeholder text for search input"
+    "description": "Not shown in the app. The static site's search button reads the Sinhala value from app_si.arb, so do not delete it as unused."
   },
 
   "noResultsFound": "No results found",

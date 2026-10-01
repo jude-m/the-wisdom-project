@@ -1,11 +1,11 @@
 {
-    "name": "The Wisdom Project",
-    "short_name": "Wisdom",
+    "name": "Sammaditthi",
+    "short_name": "Sammaditthi",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#5A3A18",
     "theme_color": "#5A3A18",
-    "description": "Read the Tipitaka and its commentaries in Pali and Sinhala.",
+    "description": "Read the Buddha Jayanti Tipitaka and its commentaries in Pali and Sinhala.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

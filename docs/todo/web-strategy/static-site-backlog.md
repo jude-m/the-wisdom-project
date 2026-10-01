@@ -793,6 +793,45 @@ beside `check_links.dart` in `deploy.sh`, not in `dart test`.
 so a markup defect is never on one page — it is on all `FIGURES.realPages`.
 Cheap now; a full re-push later.
 
+## C10. The app's strings came hand-copied from `app_si.arb` ✅ **shipped 2026-09-30**
+
+**Opened and shipped 2026-09-30**, when `appTitle` changed and `siteName` had to
+be edited by hand to follow it. Each app string on the site was a Dart literal
+with a comment naming its ARB key — the hand-copy the build plan's §3 refused
+for colours.
+
+Now `bin/generate.dart` reads `lib/core/localization/l10n/app_si.arb` and
+`SiteBuild.strings` (`domain/app_strings.dart`) looks each one up by key. The
+keys the site reads are `appStringKeys` in that file, all checked when the ARB
+is loaded — before `build/` is cleared, so a bad key never leaves a half-built
+directory with no `.manifest.json`. A missing key stops the build, and so does
+a value with a `{placeholder}` — the app fills those at runtime, the site would
+print them raw. The layout list stays `const` by naming its keys (`labelKey`).
+A string written into HTML goes through `strings.html(key)`, which escapes it;
+plain `strings[key]` is only for the places that escape later (the page title,
+JSON-LD).
+
+`searchPlaceholder` is read only by the site — the app does not show it — so
+its `@searchPlaceholder` description in `app_en.arb` says so, to stop it being
+deleted as unused.
+
+Checked by building the whole corpus before and after the move to the ARB:
+every file identical except `index.html`, whose description changed on purpose
+(`බුද්ධ ජයන්ති තිපිටකයේ` → `ත්‍රිපිටකයේ`: the title's spelling, and no edition
+claimed for the commentaries, which are not Buddha Jayanti). The same commit
+renamed `siteName` (below), which every page carries in `og:site_name` and `/`
+in its title and heading — so against the commit before, every page changes.
+
+Not in scope:
+- `siteName` (`document_shell.dart`) is the site's own name, not the app's
+  `appTitle`: the site is the Buddha Jayanti edition, the app is Sammaditthi and
+  may carry other editions. Split 2026-09-30, when the app took that name.
+- `කොටස්` in `page_description.dart` is one word lifted from
+  `researchMatchedPassage`, not a whole value.
+- `commentaryMarker` (`node_labels.dart`) equals `scopeCommentaries` but stays a
+  literal: it must match the tree's own node names, and that key is a filter
+  chip the app could rename.
+
 ---
 
 # Part D — Deferred decisions, no owner
