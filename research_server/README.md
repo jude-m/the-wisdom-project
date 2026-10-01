@@ -4,8 +4,7 @@ TypeScript rewrite of the `/research` backend, targeting Cloudflare Workers
 (free plan, 10ms CPU/request) but runnable on any Node host — the core is
 Web-standard `fetch`/`Request`/`Response` only.
 
-The retired Python prototype lives in `deprecated/research_server/` (reference
-only; its `ingest/` job still handles File Search store uploads).
+File Search store uploads: `scripts/research_server/ingest.sh`.
 
 ## Endpoints
 

@@ -1,5 +1,8 @@
 # Research ingestion: ops store, chunking, full corpus
 
+**Done 2026-10-01**, phases A–C. Re-syncs from SuttaCentral:
+`docs/todo/sc-sync-ingest.md`.
+
 **Goal:** research reads a File Search store in the ops Google project, built
 from the latest SuttaCentral texts, with a chunk size we chose on evidence.
 The ingest is the Python script, brought back from `deprecated/` to
@@ -20,19 +23,15 @@ Three phases, each ending in a live switch of the one Worker:
 A and B hold the same texts in the same project, so the only difference
 between their probe results is the chunk size.
 
-## Where we are (2026-10-01, C4 done)
+## Where we are (2026-10-01, done)
 
 - **Worker:** ops Cloudflare account, `research.sammaditthi.net`, every build
-  calls it. `wrangler.jsonc` points at `tipitaka-en`, but the deployed
-  Worker (`529a474d`) still points at the deleted B store: research
-  answers fail until the next deploy. Nothing is live yet, so that's
-  accepted.
+  calls it. Worker version `88b38439` answers from `tipitaka-en`.
 - **Ops Google project** `wisdom-research`: its key is in
   `scripts/config/secrets.env` as `RESEARCH_GEMINI_API_KEY`. One store,
   C's `tipitaka-en` = `fileSearchStores/tipitakaen-j02s31fl1p4q`, the
   full corpus (all six collections). The A and B pilot stores are deleted.
-- **Personal Google project:** nothing needs it any more. The user deletes it
-  in the Google dashboard whenever convenient; the SN 15 store goes with it.
+- **Personal Google project:** deleted by the user, with its SN 15 store.
 - **Ingest:** `scripts/research_server/ingest.sh` runs
   `tools/research_ingest/ingest.py` (its own venv, google-genai 2.25.0).
   bilara-data is at `~/Desktop/Dev/bilara-data-readonly` — shallow,
@@ -40,9 +39,8 @@ between their probe results is the chunk size.
   (2026-09-28).
 - **Git:** work happens on `main` directly; `feat/research-ingestion` is
   merged.
-- **Next:** C5: the user's deploy, then probes P1–P4. Decided
-  for C: Google's default chunking, the free tier, and the ingest in
-  batches.
+- **Decided for C:** Google's default chunking, the free tier, and the
+  ingest in batches.
 
 ## Why smaller chunks
 
@@ -334,22 +332,17 @@ second time).
 **C5. Switch + probe.** `RESEARCH_STORE` in `wrangler.jsonc` →
 `tipitaka-en`, with the store's source on the line above it
 (`// bilara-data published@ce5b98f (2026-09-28), chunks default`): done
-2026-09-29, mid-C4; committed in `493e1f8`. Left: deploy (`deploy.sh
---prod` releases only a clean, committed tree), then probe P1–P4 (4
-calls).
+2026-09-29, mid-C4; committed in `493e1f8`. Deployed and probed
+2026-10-01: done (see the handover notes).
 
-**C6. Clean up.**
-- Delete `deprecated/research_server/` — the ingest left it in B2; what's
-  left is the retired FastAPI server.
-- User: delete the personal Google project, if not done already.
+**C6. Clean up.** Done 2026-10-01: `deprecated/research_server/` (the
+retired FastAPI server) deleted; the user deleted the personal Google
+project.
 
-**C7. Docs.**
-- `docs/knowledge/research-server-from-question-to-cited-answer.md`: new
-  `body=` / CPU numbers in the CPU map; drop the "one chunk can be 100k+
-  chars" claim (B5: default chunks are already small).
-- `docs/todo/sc-sync-ingest.md`: the mirror exists, the source is recorded
-  beside `RESEARCH_STORE`, the ingest is `scripts/research_server/ingest.sh`.
-- Move this doc to `docs/done/research/`.
+**C7. Docs.** Done 2026-10-01: the knowledge doc
+(`docs/knowledge/research-server-from-question-to-cited-answer.md`) and
+`docs/todo/sc-sync-ingest.md` updated; this doc moved to
+`docs/done/research/`.
 
 ## Separate job, not a blocker
 
@@ -361,7 +354,7 @@ SN 15 only. Growing it is its own job —
 
 - **`thinkingLevel` on a new rung:** the pipeline sends it to every
   `gemini-3*` model, and one that rejects it (400) fails fast instead of
-  falling back. 3.7/3.8 didn't reject it; 3.6 is untested. Watch C5's P1.
+  falling back. 3.6/3.7/3.8 don't reject it (3.6 answered C5's P1).
 - **Snippet titles:** `splitHeading` reads the heading off the chunk's first
   line; small chunks mostly have none (`title: null`). Look at the cards.
 
@@ -704,3 +697,44 @@ Newest last. Each step adds: date, store names/ids, numbers, surprises.
   Uploads per Pacific day, from `create_time`: 2026-09-28 608, 2026-09-29
   934, 2026-09-30 3,048. No 429 on any day. Next: C5, the user's deploy,
   then probes P1–P4.
+- **2026-10-01, C5 done** — The user deployed: Worker `88b38439`, store
+  `tipitaka-en`. Probes P1–P4, 1–2 min apart, with a JSON tail. 6 Gemini
+  calls (P1's first two rungs 503'd), all four 200.
+
+  | | mode | model (rung) | citations | cpu | body | time | answer |
+  |---|---|---|---|---|---|---|---|
+  | P1 | thinking | 3.6-flash (3; 3.8 and 3.7 503'd) | 5 (sn6.1–6.3, 6.10, `sn6`) | 9 ms | 10KB | 43.9s | 4 of 15, says coverage is partial |
+  | P2 | fast | 3.5-flash-lite (1) | 0 | 2 ms | 2KB | 4.9s | right in substance; names `pli-tv-kd1` in plain text, no card |
+  | P3 | fast | 3.5-flash-lite (1) | 2 (dn16, sn6.15) | 2 ms | 5KB | 3.9s | right |
+  | P4 | fast, basket `vinaya` | 3.5-flash-lite (1) | 1 (pli-tv-bu-vb-np18) | 8 ms | 9KB | 8.6s | right (NP 18) |
+
+  Surprises:
+  - **P1 is now a weak spot.** The pilot stores held only SN 6 and DN 16,
+    so every chunk came from SN 6 (B4: all 15). In the full corpus the
+    retriever returns a few chunks, so a "list every sutta" question only
+    sees part of the chapter. A limit of retrieval, not of the ingest.
+  - **`sn6` is a citation with no title or snippet:** the model cited the
+    chapter, which isn't a document in the store.
+  - **P2 didn't search** (body 2KB, as A's P2 in B5) and named the Vinaya
+    telling of the same story (`pli-tv-kd1`) from memory, outside a cite
+    marker, so the user gets no card.
+  - **3.6-flash takes `thinkingLevel`:** the open risk is closed.
+  - **Snippet titles:** 5 of 8 cards have one; chunks that start
+    mid-document have no heading (`dn16`, `np18`).
+  - CPU 2–9 ms on every probe, so the full corpus costs no more CPU than
+    the pilots did.
+
+  Next: C6, C7.
+- **2026-10-01, C6 done, C7 in part** — Deleted `deprecated/research_server/`
+  (16 tracked files, plus its old `.env` and venv; the `.env` held only the
+  personal key and an empty app token). `research_server/README.md` pointed
+  at it; it now points at `ingest.sh`. The user deleted the personal Google
+  project. C7: `sc-sync-ingest.md` updated (mirror, ingest, chunking and
+  receipt exist; the heartbeat doesn't). Next: the knowledge doc, then
+  move this doc.
+- **2026-10-01, C7 done; plan done** — The knowledge doc: the log-line
+  example is a real C5 line (`body=5KB`); the "one chunk can be 100k+
+  chars" claim is gone (live bodies are 2–28KB); the CPU map gains the live
+  whole-request figure (2–9ms), and parsing is no longer called the driver
+  (B5's failed calls used 10–13ms with no chunks). This doc moved to
+  `docs/done/research/`.

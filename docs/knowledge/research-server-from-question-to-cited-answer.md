@@ -28,7 +28,9 @@ Waiting on Gemini costs zero CPU — only our own compute counts.
 5. **Post-processing** — the CPU our own code spends: build citations +
    snippets, place chips (below).
 6. Respond. One log line:
-   `research[a1d26f] POST /research mode=fast lang=en model=… rung=1 citations=2 200 in 6.2s cpu=3.4ms build=0.3ms body=780KB`
+   `research[5f20d1] POST /research mode=fast lang=en model=gemini-3.5-flash-lite rung=1 citations=2 200 in 3.9s body=5KB`
+   Under Node it also prints `cpu=` and `build=`; on Workers, CPU time is
+   in the tail's event instead.
 
 Response shape (one citation shown):
 
@@ -117,9 +119,12 @@ everything *except* that: it points at whole chunks and says "somewhere in
 here". Only the server can cut the quote (the client would need the full
 chunk texts — megabytes per request).
 
-**Why it was the hotspot.** It is the only stage whose input is books, not
-pages. Question ~100 chars, answer ~5k — but one chunk can be 100k+ chars,
-times ~14 distinct sources. Finding terms also means *folding* first
+**Why it was the hotspot.** It is the only stage that reads the retrieved
+texts, not just the question (~100 chars) and the answer (~5k): up to ~14
+distinct sources, each a chunk of unknown size. Live chunks turned out
+small — on Google's default chunking, Gemini's whole response is 2–28KB
+(2026-09-28 to 10-01) — but the code is bounded for a whole sutta per
+chunk. Finding terms also means *folding* first
 (lowercase + strip diacritics, so "savatthi" matches "Sāvatthī") — a pass
 over every character before any searching starts. Done naively this cost
 27ms (Python) — nearly 3× the whole budget.
@@ -144,7 +149,8 @@ the retrieved chunk, which retrieval already aimed at the relevant region.
 **The kill switch.** Two rungs, if the 10ms budget is ever threatened —
 and live-store measurements say it isn't (`build=0.2–0.4ms` warm; a bigger
 store changes *which* chunks come back, not how many or how large, so
-per-request cost doesn't grow with the store):
+per-request cost doesn't grow with the store — confirmed 2026-10-01: the
+full corpus costs 2–9ms a request, as the two-sutta pilots did):
 
 - **Rung 1 — snippets for chipped sources only.** Reorder `buildResponse`
   so the answer text is finalized first, then snippet only the uids that
@@ -164,23 +170,25 @@ lines. (Note in `src/snippet.ts` header.)
 |---|---|---|---|
 | Parse client request | ~1 KB | ~0 | ~0 |
 | Await Gemini | I/O — free | 0 | 0 |
-| `JSON.parse` upstream payload | total chunk text | **~1–12ms live** | ~1–12ms |
+| `JSON.parse` upstream payload | total chunk text | small: bodies are 2–28KB live | same |
 | Snippets | sources × 12k bound | ~3–6ms bench; 0.2–0.4ms live | **0** |
 | Titles (`splitHeading`) | first lines | ~free | ~free |
 | Chip placement (either path) | answer ~5k | ~0.1ms | ~0.1ms |
 | Stringify response | few KB | ~0 | ~0 |
 | **Worst case (our stages, bench)** | | **~6.7ms** | **~1–2ms** |
+| **Whole request, live on Workers (2026-10-01)** | | **2–9ms** | |
 
 The one cost that survives the kill switch is parsing Gemini's response —
 native-speed and unavoidable (the answer lives in the same JSON as the chunk
-texts). **Live data (2026-07-18) says this is the real driver**: totals
-ranged 3–14ms across calls while `build=` stayed sub-ms, uncorrelated with
-citation count — what varies is how much chunk text Gemini ships back, plus
-cold-isolate noise (calls minutes apart each wake a cold Worker). The log's
-`body=` field records the payload size per request to track this. One 14ms
-call completed fine — Cloudflare tolerates occasional spikes past 10ms;
-sustained overage is what draws 1102 errors. If that ever happens, the kill
-switch won't help (it trims a sub-ms stage): the levers are a smaller
-payload from Gemini (fewer/smaller retrieved chunks) or the paid tier.
+texts). In July it looked like the driver: totals ranged 3–14ms while
+`build=` stayed sub-ms. It isn't, at today's sizes: on Google's default
+chunking, bodies are 2–28KB, yet answered calls still range 2–14ms on
+Workers (2026-09-28 to 10-01), and calls that failed with no chunks at all
+used 10–13ms. The spread is cold-isolate noise (calls minutes apart each wake a
+cold Worker). The log's `body=` field records the payload size per request.
+One 14ms call completed fine — Cloudflare tolerates occasional spikes past
+10ms; sustained overage is what draws 1102 errors. If that ever happens,
+the kill switch won't help (it trims a sub-ms stage): the lever is the paid
+tier.
 Bench: `npm run bench` rebuilds the paranoid worst case (chunk = entire
 123k-char sutta) and fails the build at ≥10ms.

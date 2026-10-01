@@ -13,14 +13,13 @@ Usage, from the repo root (the wrapper loads the key from scripts/config/secrets
     # Validate discovery + metadata WITHOUT a key or any upload:
     ./scripts/research_server/ingest.sh --dry-run --limit 5
 
+    # New store (created when --store is omitted; prints its name), first collection:
+    ./scripts/research_server/ingest.sh --display-name <name> --collection dn
+
     # One collection into an existing store:
     ./scripts/research_server/ingest.sh --store fileSearchStores/<id> --collection kn
 
-    # Real run (creates the store if --store omitted, prints its name):
-    ./scripts/research_server/ingest.sh --display-name tipitaka-en-c200 \
-        --chunk-tokens 200 --overlap-tokens 20
-    ./scripts/research_server/ingest.sh --store fileSearchStores/<id> \
-        --chunk-tokens 200 --overlap-tokens 20
+No chunk flags: the live store uses Google's default chunking.
 
 Without the wrapper: tools/research_ingest/.venv/bin/python
 tools/research_ingest/ingest.py …, with GEMINI_API_KEY set.

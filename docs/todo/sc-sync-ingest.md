@@ -1,11 +1,10 @@
 # SC Sync + Ingest — RAG Corpus Re-ingest Plan
 
-> Status: **Plan / not started.** The read-only mirror is **not set up yet** (unlike
-> the BJT one). The ingest stays Python, moving from `deprecated/` to
-> `tools/research_ingest/` — that ingest work is tracked in
-> [`docs/todo/research/`](./research/), esp.
-> [research-ingestion-ops-chunking-full-corpus.md](./research/research-ingestion-ops-chunking-full-corpus.md).
-> Captured 2026-07-23.
+> Status: **Plan. The pieces exist; the re-sync itself doesn't.** The read-only
+> mirror, the ingest (`scripts/research_server/ingest.sh`) and the receipt beside
+> `RESEARCH_STORE` came from the first full ingest, done 2026-10-01 in
+> [research-ingestion-ops-chunking-full-corpus.md](../done/research/research-ingestion-ops-chunking-full-corpus.md).
+> Left: the heartbeat (Step 0) and a re-sync run. Captured 2026-07-23.
 > Scope: how the **research (RAG) corpus** stays in step with SuttaCentral, and the
 > script that re-ingests it. Sibling of [bjt-sync-regen.md](./bjt-sync-regen.md) —
 > **different source, different destination, different cadence.**
@@ -60,31 +59,25 @@ never annotated onto the JSON. (Commentary and Sujato's notes/introductions are
 
 ---
 
-## 4. The read-only sync source (TODO — not created yet)
+## 4. The read-only sync source
 
-Mirror the BJT pattern, but **sparse** — bilara-data is large (every language), and we
-need only two subtrees. This is exactly the case where blobless **+ sparse** pays off
-(the opposite of BJT, where we kept everything).
+`~/Desktop/Dev/bilara-data-readonly`, set up 2026-09-28: branch `published`, shallow,
+blobless, and sparse on the two trees we ingest — bilara-data holds every language,
+and we need two subtrees. The ingest reads it by default (`--bilara-dir` /
+`BILARA_DATA_DIR` override). To recreate it:
 
 ```bash
-cd Desktop/Dev
-git clone --filter=blob:none --sparse \
+cd ~/Desktop/Dev
+git clone --depth 1 --filter=blob:none --sparse --branch published \
   https://github.com/suttacentral/bilara-data.git bilara-data-readonly
 cd bilara-data-readonly
-git checkout published                       # the branch we ingest
 git sparse-checkout set \
   translation/en/sujato/sutta \
   translation/en/brahmali/vinaya
 # (add root/pli/ms/... later if/when Pali display is ingested — not v1)
 ```
 
-House rules, same as the BJT mirror: **pull only, never commit, never add a remote.**
-Point the ingest's `bilara_dir` config at this folder.
-
-> Placement note: the old Python setup expected a checkout inside
-> `research_server/bilara-data/` (see its `.gitignore`). For consistency with the BJT
-> mirror, prefer `Desktop/Dev/bilara-data-readonly` and set `bilara_dir` to it. Pick
-> one; don't keep two checkouts.
+House rules, same as the BJT mirror: **fetch only, never commit, never add a remote.**
 
 ---
 
@@ -101,8 +94,9 @@ One SHA. Compare to the receipt (Step 5). Same → nothing to do. Different → 
 ### Step 1 — Refresh the mirror
 
 ```bash
-cd Desktop/Dev/bilara-data-readonly
-git pull
+cd ~/Desktop/Dev/bilara-data-readonly
+git fetch --depth 1 origin published
+git reset --hard FETCH_HEAD
 ```
 
 ### Step 2 — Review what changed **inside our globs only**
@@ -121,11 +115,13 @@ though the repo moved.
 ### Step 3 — Re-ingest into a NEW store (never mutate the live one)
 
 Run the ingest (`scripts/research_server/ingest.sh` —
-see [research/research-ingestion-ops-chunking-full-corpus.md](./research/research-ingestion-ops-chunking-full-corpus.md)):
+see [research-ingestion-ops-chunking-full-corpus.md](../done/research/research-ingestion-ops-chunking-full-corpus.md)):
 
-- Upload into a **new** File Search store, leaving the current one untouched.
-- Use the **chunk flags recorded beside `RESEARCH_STORE`** (`--chunk-tokens`,
-  `--overlap-tokens`) — the size the ingestion plan's pilot settled.
+- Upload into a **new** File Search store, leaving the current one untouched:
+  `--display-name <name>` creates it and prints its id; then `--store <id>
+  --collection <c>`, one collection per run, as in the ingestion plan's C4.
+- Chunking: Google's default, no chunk flags (`chunks default` in the receipt).
+- Check the store by name after the last run (C4: no duplicates, none missing).
 - This is **quota-sensitive** (Gemini upload) — always a deliberate, prompted action,
   **never automatic**. (See [feedback: quota-conscious probing].)
 
@@ -142,13 +138,12 @@ store around until the new one is verified.
 
 ### Step 5 — Write the provenance receipt
 
-Record which snapshot is live:
+Record which snapshot is live, on the line above `RESEARCH_STORE` in
+`research_server/wrangler.jsonc`, in the same commit as the switch:
 
 ```
-bilara_sha    : <new-sha>       # bilara-data published commit
-ingested_on   : <date>
-store_id      : <new store id>
-chunk_config  : max_tokens=200, overlap=20
+// bilara-data published@ce5b98f (2026-09-28), chunks default
+"RESEARCH_STORE": "fileSearchStores/tipitakaen-j02s31fl1p4q",
 ```
 
 Same idea as the BJT receipt — turns Step 0 into a one-line compare, and tells us
@@ -160,12 +155,12 @@ exactly which SuttaCentral snapshot any given store id represents.
 
 | Piece | State |
 |-------|-------|
-| Read-only bilara-data mirror | ⬜ TODO — not created (Step 4 above) |
-| Ingest job (Python, `tools/research_ingest/`) | 🔶 In progress — ingestion plan step B2 |
-| Explicit chunking config | ⬜ TODO — ingestion plan phase B |
+| Read-only bilara-data mirror | ✅ `~/Desktop/Dev/bilara-data-readonly` (§4) |
+| Ingest job (Python, `tools/research_ingest/`) | ✅ via `scripts/research_server/ingest.sh` |
+| Chunking config | ✅ Google's default (ingestion plan, B5) |
 | Heartbeat check (Step 0) | ⬜ TODO |
-| New-store + flip flow (Steps 3–4) | ⬜ TODO |
-| Provenance receipt (Step 5) | ⬜ TODO |
+| New-store + flip flow (Steps 3–4) | 🔶 done by hand once (ingestion plan C4–C5) |
+| Provenance receipt (Step 5) | ✅ the comment above `RESEARCH_STORE` |
 
 ---
 
@@ -175,8 +170,6 @@ exactly which SuttaCentral snapshot any given store id represents.
   SC↔BJT concordance (see [suttacentral-bjt-concordance-findings.md](./suttacentral-bjt-concordance-findings.md)).
   A bilara-data update could shift SC enumeration, so a re-sync may need a concordance
   re-check too — not just a re-ingest.
-- **Mirror location** — `Desktop/Dev/bilara-data-readonly` vs. inside `research_server/`
-  (§4 note). Decide one.
 - **Detecting "meaningful" change** — Sujato revises wording often; do we re-ingest on
   any diff in-globs, or only when segment **ids** change (which is what breaks
   citations/deep-links)? Probably: always safe to re-ingest, but urgent only on id

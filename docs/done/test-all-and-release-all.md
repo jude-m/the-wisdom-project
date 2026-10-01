@@ -5,7 +5,7 @@
 > CI then becomes one line per job. **Done 2026-09-25, all seven steps, on
 > branch `feat/test-all-and-release-all` (off `main`).**
 > The research Gemini key waits for the store switch in
-> [`research-ingestion-ops-chunking-full-corpus.md`](../todo/research/research-ingestion-ops-chunking-full-corpus.md).
+> [`research-ingestion-ops-chunking-full-corpus.md`](research/research-ingestion-ops-chunking-full-corpus.md).
 
 ## The principle
 
