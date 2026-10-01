@@ -462,14 +462,39 @@
       });
   }
 
-  trigger.hidden = false;
-  trigger.addEventListener('click', function () {
-    dialog.showModal();
+  /* Already open is not an error: the shortcut can fire from inside the
+   * dialog, and then it only puts the cursor back in the field — as the app's
+   * shortcut does. */
+  function openSearch() {
+    if (!dialog.open) dialog.showModal();
     field.focus();
     /* Opening again is asking again. Nothing else clears this, so one dropped
      * connection used to mean a permanent error message. */
     failed = false;
     load();
+  }
+
+  trigger.hidden = false;
+  trigger.addEventListener('click', openSearch);
+
+  /* Cmd/Ctrl+Shift+F, the app's main-search shortcut (`keyboard_bindings.dart`),
+   * so a reader who knows one surface knows the other. The trigger announces it
+   * through `aria-keyshortcuts`, written in `search_dialog.dart`.
+   *
+   * The typed letter on a Latin layout, as the app's `LogicalKeyboardKey` does
+   * — so on Dvorak it is the key marked F, not the one in F's place. With a
+   * Sinhala layout on, `key` is a Sinhala letter, so fall back to the physical
+   * key, or the shortcut would die for exactly the readers this site is for.
+   * `preventDefault` because the browser has its own use for the combo —
+   * Chrome on macOS toggles the toolbar in full screen.
+   */
+  document.addEventListener('keydown', function (event) {
+    if (!event.shiftKey || event.altKey) return;
+    if (!event.metaKey && !event.ctrlKey) return;
+    var latin = /^[a-z]$/i.test(event.key);
+    if (latin ? event.key.toLowerCase() !== 'f' : event.code !== 'KeyF') return;
+    event.preventDefault();
+    openSearch();
   });
 
   field.addEventListener('input', run);

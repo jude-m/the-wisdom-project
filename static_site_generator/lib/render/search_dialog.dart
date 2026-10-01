@@ -71,10 +71,14 @@ const String searchCloseId = 'search-close';
 /// away from the sutta they are on. No `aria-expanded` beside it — that is for
 /// a control that also closes what it opened, and this one does not; the
 /// dialog owns its own close.
+///
+/// `aria-keyshortcuts` names the shortcut `site.js` binds — the app's
+/// Cmd/Ctrl+Shift+F — so a screen reader announces it with the button.
 String searchTrigger(SiteBuild build) {
   final label = build.strings.html(_searchLabelKey);
   return '<button class="search-trigger" id="$searchTriggerId" type="button" '
       'hidden aria-haspopup="dialog" '
+      'aria-keyshortcuts="Control+Shift+F Meta+Shift+F" '
       'title="$label" aria-label="$label">$_searchGlyph</button>';
 }
 
