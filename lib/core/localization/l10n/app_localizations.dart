@@ -188,6 +188,12 @@ abstract class AppLocalizations {
   /// **'No results found'**
   String get noResultsFound;
 
+  /// Divider before search results that match a similar spelling of a Singlish (romanized) query, not the typed spelling exactly
+  ///
+  /// In en, this message translates to:
+  /// **'Similar spellings'**
+  String get similarSpellings;
+
   /// Button label to expand all tree nodes
   ///
   /// In en, this message translates to:

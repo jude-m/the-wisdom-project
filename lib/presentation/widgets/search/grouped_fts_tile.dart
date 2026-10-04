@@ -31,6 +31,9 @@ class GroupedFTSTile extends ConsumerWidget {
   /// Whether exact match mode is active
   final bool isExactMatch;
 
+  /// Similar spellings of each query word, highlighted too
+  final List<List<String>> looseAlternatives;
+
   /// Callback when the primary result is tapped (navigates to first match)
   final void Function(SearchResult result)? onPrimaryTap;
 
@@ -43,6 +46,7 @@ class GroupedFTSTile extends ConsumerWidget {
     required this.effectiveQuery,
     required this.isPhraseSearch,
     required this.isExactMatch,
+    this.looseAlternatives = const [],
     this.onPrimaryTap,
     this.onSecondaryTap,
   });
@@ -121,6 +125,7 @@ class GroupedFTSTile extends ConsumerWidget {
               effectiveQuery: effectiveQuery,
               isPhraseSearch: isPhraseSearch,
               isExactMatch: isExactMatch,
+              looseAlternatives: looseAlternatives,
               language: result.language,
             ),
           ],
@@ -189,6 +194,7 @@ class GroupedFTSTile extends ConsumerWidget {
               effectiveQuery: effectiveQuery,
               isPhraseSearch: isPhraseSearch,
               isExactMatch: isExactMatch,
+              looseAlternatives: looseAlternatives,
               onTap: () => onSecondaryTap?.call(group.secondaryMatches[i]),
             ),
             // Divider between secondary matches (not after the last one)

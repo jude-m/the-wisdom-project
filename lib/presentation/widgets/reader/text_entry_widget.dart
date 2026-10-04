@@ -327,6 +327,7 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
       queryText: searchHighlight.queryText,
       isPhraseSearch: searchHighlight.isPhraseSearch,
       isExactMatch: searchHighlight.isExactMatch,
+      looseAlternatives: searchHighlight.looseAlternatives,
     );
 
     return finder.findMatchRanges(_displayText);

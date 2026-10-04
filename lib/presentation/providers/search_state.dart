@@ -2,14 +2,16 @@ import 'dart:async';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/search_query_utils.dart'
-    show computeEffectiveQuery, querySinglishConverted;
+    show computeEffectiveQuery, querySinglishConverted, singlishTextFor;
 import '../../domain/entities/search/grouped_search_result.dart';
+import '../../domain/entities/search/loose_spellings.dart';
 import '../../domain/entities/search/recent_search.dart';
 import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_query.dart';
 import '../../domain/entities/search/search_result.dart';
 import '../../domain/entities/dictionary/dictionary_filter_operations.dart';
 import '../../domain/entities/search/scope_operations.dart';
+import '../../domain/repositories/loose_spelling_repository.dart';
 import '../../domain/repositories/recent_searches_repository.dart';
 import '../../domain/repositories/text_search_repository.dart';
 
@@ -36,6 +38,10 @@ class SearchState with _$SearchState {
     /// - Repository searches (via SearchQuery)
     /// - UI highlighting (avoids re-conversion per result row)
     @Default('') String effectiveQueryText,
+
+    /// Similar spellings of a Singlish query (the loose tier), to highlight
+    /// the results they found. Empty = strict only.
+    @Default(LooseSpellings()) LooseSpellings looseSpellings,
 
     /// Recent search history
     @Default([]) List<RecentSearch> recentSearches,
@@ -134,6 +140,9 @@ class SearchState with _$SearchState {
 class SearchStateNotifier extends StateNotifier<SearchState> {
   final TextSearchRepository _searchRepository;
   final RecentSearchesRepository _recentSearchesRepository;
+
+  /// Sound-alike spellings for highlighting; without it, strict only.
+  final LooseSpellingRepository? _looseSpellingRepository;
   Timer? _debounceTimer;
 
   /// Request ID for tracking in-flight searches.
@@ -142,8 +151,10 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
   SearchStateNotifier(
     this._searchRepository,
-    this._recentSearchesRepository,
-  ) : super(const SearchState());
+    this._recentSearchesRepository, {
+    LooseSpellingRepository? looseSpellingRepository,
+  })  : _looseSpellingRepository = looseSpellingRepository,
+        super(const SearchState());
 
   /// Called when search bar receives focus
   /// Loads recent searches and reopens panel if there's a query
@@ -179,6 +190,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
       state = state.copyWith(
         rawQueryText: query,
         effectiveQueryText: effectiveQuery,
+        looseSpellings: const LooseSpellings(),
         groupedResults: null,
         fullResults: const AsyncValue.data(null), // null = didn't search
         countByResultType: {},
@@ -194,6 +206,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     state = state.copyWith(
       rawQueryText: query,
       effectiveQueryText: effectiveQuery,
+      looseSpellings: const LooseSpellings(),
       isLoading: true,
       fullResults: const AsyncValue.loading(),
     );
@@ -212,6 +225,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     // Fire-and-forget counts (UX feature, not critical path)
     // _loadCounts only updates countByResultType - never touches loading/results
     unawaited(_loadCounts(currentRequestId));
+    unawaited(_loadLooseSpellings(currentRequestId));
 
     // Await the main results (owns isLoading lifecycle)
     if (state.selectedResultType == SearchResultType.topResults) {
@@ -243,6 +257,33 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
       },
       (counts) {
         state = state.copyWith(countByResultType: counts);
+      },
+    );
+  }
+
+  /// Load the similar spellings the loose tier searched with, to highlight
+  /// the results they found. The repository caches them, so the search and
+  /// this share one lookup.
+  /// FIELD OWNERSHIP: Only updates [looseSpellings].
+  Future<void> _loadLooseSpellings(int requestId) async {
+    final repository = _looseSpellingRepository;
+    final singlish = singlishTextFor(state.rawQueryText);
+    if (repository == null || singlish.isEmpty) return;
+
+    final result = await repository.corpusSpellings(
+      singlish,
+      isExactMatch: state.isExactMatch,
+    );
+
+    // Validate: discard if newer search started
+    if (_searchRequestId != requestId) return;
+
+    result.fold(
+      (failure) {
+        // No highlight for the loose tier; its results still show
+      },
+      (spellings) {
+        state = state.copyWith(looseSpellings: spellings);
       },
     );
   }
@@ -353,6 +394,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     state = state.copyWith(
       rawQueryText: query,
       effectiveQueryText: effectiveQuery,
+      looseSpellings: const LooseSpellings(),
       isLoading: true,
       fullResults: const AsyncValue.loading(),
     );
@@ -390,6 +432,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
     return SearchQuery(
       queryText: state.effectiveQueryText,
+      singlishText: singlishTextFor(state.rawQueryText),
       isExactMatch: state.isExactMatch,
       editionIds: state.selectedEditions,
       searchInPali: state.searchInPali,

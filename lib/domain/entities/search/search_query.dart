@@ -9,6 +9,10 @@ class SearchQuery with _$SearchQuery {
     /// The search query text
     required String queryText,
 
+    /// The Roman text as typed, when the query is Singlish. Drives the loose
+    /// "similar spellings" tier after the strict results; empty = strict only.
+    @Default('') String singlishText,
+
     /// Whether to require exact word match (no prefix matching)
     /// Default false = prefix matching enabled (e.g., "සති" matches "සතිපට්ඨානය")
     @Default(false) bool isExactMatch,

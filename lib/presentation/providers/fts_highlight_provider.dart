@@ -19,10 +19,14 @@ class FtsHighlightState {
   /// Exact mode: exact token match. Otherwise prefix matching.
   final bool isExactMatch;
 
+  /// Similar spellings of each query word (loose Singlish), highlighted too.
+  final List<List<String>> looseAlternatives;
+
   const FtsHighlightState({
     required this.queryText,
     required this.isPhraseSearch,
     required this.isExactMatch,
+    this.looseAlternatives = const [],
   });
 }
 

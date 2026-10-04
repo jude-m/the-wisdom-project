@@ -52,6 +52,7 @@ same database.
 | State / debounce | `lib/presentation/providers/search_state.dart` |
 | Providers (DI wiring) | `lib/presentation/providers/search_provider.dart` |
 | Query normalization | `lib/core/utils/search_query_utils.dart` |
+| Loose Singlish (similar spellings) | `lib/core/utils/loose_singlish.dart`, `lib/data/repositories/loose_spelling_repository_impl.dart` |
 | Cache decorator | `lib/data/repositories/caching_text_search_repository.dart` |
 | Orchestration repo | `lib/data/repositories/text_search_repository_impl.dart` |
 | FTS datasource | `lib/data/datasources/fts_local_datasource.dart` |
@@ -103,6 +104,29 @@ The ZWJ/ZWNJ stripping is critical: the FTS database stores text **without**
 those invisible joining characters, so the query must match the same way.
 (See the shared pipeline note: the Singlish transliterator re-introduces ZWJ for
 rakaransha `්‍ර` and yansaya `‍ය`, which `normalizeText` then strips again.)
+
+### Singlish: strict first, then similar spellings
+
+The conversion above is **strict**: one typed spelling, one Sinhala spelling
+(`dhaanaya` → දානය, but `daanaya` → ඩානය). A Roman-only query of 3+ letters
+also gets a lower **loose tier**: the spellings that *sound like* it.
+
+```dart
+singlishTextFor('daanaya')   // 'daanaya'  → SearchQuery.singlishText
+// LooseSinglishExpander finds, checked against the index's own word list:
+//   [[දානය, දානාය, ධානය]]   one list per typed word
+```
+
+- Capitals don't matter. Sound-alikes match (t/th, d/dh, n/ණ/ඤ, l/ළ, s/ශ/ෂ…).
+- A single `a`/`i`/`u` may be long, but `aa`/`ii`/`uu` must be.
+- A spelling is kept only if real words start with it (`fts5vocab`), so the list
+  stays short. Dictionary searches check against headwords instead, which are a
+  different list.
+
+Every list shows the strict results first, then the loose ones under a
+"Similar spellings" divider. Top Results keeps room for 2 loose items per
+category. The rules, and the measurements behind them:
+`docs/todo/loose-singlish-search.md`.
 
 ---
 
@@ -223,6 +247,11 @@ pointing to *where* the match lives. Each row becomes an `FTSMatch`
 joins `bjt_meta` when a scope or language filter is active) to populate the tab
 badge numbers cheaply.
 
+With similar spellings (Singlish, see Step 1), the CTE gets a second arm:
+`MATCH '(loose) NOT (strict)'` with `1 AS tier`, joined by `UNION ALL` and
+ordered `ORDER BY tier, score, id`. Strict rows come first and no row appears
+twice. The count matches `(strict) OR (loose)`.
+
 ---
 
 ## Step 5 — Fetching the snippet text
@@ -297,6 +326,9 @@ Within each group, matches are sorted by appearance order (`pageIndex`, then
 - **`primaryMatch`** — the first match, shown in the collapsed tile.
 - **`secondaryMatches`** — the rest, hidden behind a **"See X more"** link.
 
+Strict matches lead their group. A group made only of similar spellings is
+loose, and sits under the "Similar spellings" divider.
+
 `grouped_fts_tile.dart` renders the primary like a normal result tile, plus the
 expandable link that reveals the secondary matches as `SecondaryMatchTile`s. Each
 sub-match taps through to its own exact `pageIndex`/`entryIndex` in the sutta.
@@ -343,7 +375,8 @@ final matchedText = match.matchedText                    // web: already loaded
 
 ## The whole thing in one sentence
 
-> You type → it's debounced and normalized (Singlish→Sinhala, ZWJ stripped) →
+> You type → it's debounced and normalized (Singlish→Sinhala, ZWJ stripped;
+> Singlish also gets its similar spellings as a lower tier) →
 > checked against an LRU cache → the FTS5 `MATCH` query finds *which entries*
 > contain the word (ranked by BM25, returning only metadata: `filename` +
 > `eind` + `nodeKey`) → those coordinates go into one batched read of the

@@ -19,6 +19,10 @@ mixin _$SearchQuery {
   /// The search query text
   String get queryText => throw _privateConstructorUsedError;
 
+  /// The Roman text as typed, when the query is Singlish. Drives the loose
+  /// "similar spellings" tier after the strict results; empty = strict only.
+  String get singlishText => throw _privateConstructorUsedError;
+
   /// Whether to require exact word match (no prefix matching)
   /// Default false = prefix matching enabled (e.g., "සති" matches "සතිපට්ඨානය")
   bool get isExactMatch => throw _privateConstructorUsedError;
@@ -87,6 +91,7 @@ abstract class $SearchQueryCopyWith<$Res> {
   @useResult
   $Res call(
       {String queryText,
+      String singlishText,
       bool isExactMatch,
       Set<String> editionIds,
       bool searchInPali,
@@ -116,6 +121,7 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
   @override
   $Res call({
     Object? queryText = null,
+    Object? singlishText = null,
     Object? isExactMatch = null,
     Object? editionIds = null,
     Object? searchInPali = null,
@@ -132,6 +138,10 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
       queryText: null == queryText
           ? _value.queryText
           : queryText // ignore: cast_nullable_to_non_nullable
+              as String,
+      singlishText: null == singlishText
+          ? _value.singlishText
+          : singlishText // ignore: cast_nullable_to_non_nullable
               as String,
       isExactMatch: null == isExactMatch
           ? _value.isExactMatch
@@ -191,6 +201,7 @@ abstract class _$$SearchQueryImplCopyWith<$Res>
   @useResult
   $Res call(
       {String queryText,
+      String singlishText,
       bool isExactMatch,
       Set<String> editionIds,
       bool searchInPali,
@@ -218,6 +229,7 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? queryText = null,
+    Object? singlishText = null,
     Object? isExactMatch = null,
     Object? editionIds = null,
     Object? searchInPali = null,
@@ -234,6 +246,10 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
       queryText: null == queryText
           ? _value.queryText
           : queryText // ignore: cast_nullable_to_non_nullable
+              as String,
+      singlishText: null == singlishText
+          ? _value.singlishText
+          : singlishText // ignore: cast_nullable_to_non_nullable
               as String,
       isExactMatch: null == isExactMatch
           ? _value.isExactMatch
@@ -288,6 +304,7 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
 class _$SearchQueryImpl implements _SearchQuery {
   const _$SearchQueryImpl(
       {required this.queryText,
+      this.singlishText = '',
       this.isExactMatch = false,
       final Set<String> editionIds = const {},
       this.searchInPali = true,
@@ -306,6 +323,12 @@ class _$SearchQueryImpl implements _SearchQuery {
   /// The search query text
   @override
   final String queryText;
+
+  /// The Roman text as typed, when the query is Singlish. Drives the loose
+  /// "similar spellings" tier after the strict results; empty = strict only.
+  @override
+  @JsonKey()
+  final String singlishText;
 
   /// Whether to require exact word match (no prefix matching)
   /// Default false = prefix matching enabled (e.g., "සති" matches "සතිපට්ඨානය")
@@ -417,7 +440,7 @@ class _$SearchQueryImpl implements _SearchQuery {
 
   @override
   String toString() {
-    return 'SearchQuery(queryText: $queryText, isExactMatch: $isExactMatch, editionIds: $editionIds, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, isPhraseSearch: $isPhraseSearch, isAnywhereInText: $isAnywhereInText, proximityDistance: $proximityDistance, selectedDictionaryIds: $selectedDictionaryIds, limit: $limit, offset: $offset)';
+    return 'SearchQuery(queryText: $queryText, singlishText: $singlishText, isExactMatch: $isExactMatch, editionIds: $editionIds, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, isPhraseSearch: $isPhraseSearch, isAnywhereInText: $isAnywhereInText, proximityDistance: $proximityDistance, selectedDictionaryIds: $selectedDictionaryIds, limit: $limit, offset: $offset)';
   }
 
   @override
@@ -427,6 +450,8 @@ class _$SearchQueryImpl implements _SearchQuery {
             other is _$SearchQueryImpl &&
             (identical(other.queryText, queryText) ||
                 other.queryText == queryText) &&
+            (identical(other.singlishText, singlishText) ||
+                other.singlishText == singlishText) &&
             (identical(other.isExactMatch, isExactMatch) ||
                 other.isExactMatch == isExactMatch) &&
             const DeepCollectionEquality()
@@ -452,6 +477,7 @@ class _$SearchQueryImpl implements _SearchQuery {
   int get hashCode => Object.hash(
       runtimeType,
       queryText,
+      singlishText,
       isExactMatch,
       const DeepCollectionEquality().hash(_editionIds),
       searchInPali,
@@ -476,6 +502,7 @@ class _$SearchQueryImpl implements _SearchQuery {
 abstract class _SearchQuery implements SearchQuery {
   const factory _SearchQuery(
       {required final String queryText,
+      final String singlishText,
       final bool isExactMatch,
       final Set<String> editionIds,
       final bool searchInPali,
@@ -491,6 +518,11 @@ abstract class _SearchQuery implements SearchQuery {
   /// The search query text
   @override
   String get queryText;
+
+  /// The Roman text as typed, when the query is Singlish. Drives the loose
+  /// "similar spellings" tier after the strict results; empty = strict only.
+  @override
+  String get singlishText;
 
   /// Whether to require exact word match (no prefix matching)
   /// Default false = prefix matching enabled (e.g., "සති" matches "සතිපට්ඨානය")

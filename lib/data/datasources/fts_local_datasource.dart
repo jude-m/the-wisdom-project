@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:wisdom_shared/wisdom_shared.dart';
@@ -21,8 +22,15 @@ class FTSDataSourceImpl implements FTSDataSource {
   /// Track which editions are initialized
   final Set<String> _initializedEditions = {};
 
+  /// Per edition, the creation of its word-list table — kept so concurrent
+  /// [existingTerms] calls wait on one, and dropped on failure to retry.
+  final Map<String, Future<void>> _vocabTables = {};
+
   /// Database naming: {editionId}.db (e.g., bjt.db, sc.db)
   static String _dbNameFor(String editionId) => '$editionId.db';
+
+  /// The `fts5vocab` view of `{editionId}_fts`, one row per distinct word.
+  static String _vocabTableFor(String editionId) => '${editionId}_vocab';
 
   @override
   Future<void> initializeEditions(Set<String> editionIds) async {
@@ -59,6 +67,8 @@ class FTSDataSourceImpl implements FTSDataSource {
     bool isAnywhereInText = false,
     int proximityDistance = 10,
     String? language,
+    List<List<String>> looseAlternatives = const [],
+    bool looseOnly = false,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -76,6 +86,8 @@ class FTSDataSourceImpl implements FTSDataSource {
         isAnywhereInText: isAnywhereInText,
         proximityDistance: proximityDistance,
         language: language,
+        looseAlternatives: looseAlternatives,
+        looseOnly: looseOnly,
         limit: limit,
         offset: offset,
       );
@@ -97,6 +109,8 @@ class FTSDataSourceImpl implements FTSDataSource {
     bool isAnywhereInText = false,
     int proximityDistance = 10,
     String? language,
+    List<List<String>> looseAlternatives = const [],
+    bool looseOnly = false,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -119,51 +133,62 @@ class FTSDataSourceImpl implements FTSDataSource {
         proximityDistance: proximityDistance,
       );
 
-      // Build the SQL query using CTE for proper bm25() usage
-      // The CTE approach ensures bm25() is called in the correct context
-      // with the FTS table directly referenced (not aliased)
+      // Strict rows are tier 0. Rows that only a similar spelling finds are
+      // tier 1: `(loose) NOT (strict)`, so no row is listed twice.
+      final looseQuery = _looseFtsQuery(
+        looseAlternatives,
+        isExactMatch: isExactMatch,
+        isPhraseSearch: isPhraseSearch,
+        isAnywhereInText: isAnywhereInText,
+        proximityDistance: proximityDistance,
+      );
+      final tiers = [
+        if (!looseOnly) (tier: 0, match: ftsQuery),
+        if (looseQuery != null) (tier: 1, match: '($looseQuery) NOT ($ftsQuery)'),
+      ];
+      if (tiers.isEmpty) return const [];
 
       // Build scope filter clause
       final scopeWhereClause = ScopeFilterService.buildWhereClause(scope);
       final scopeArgs = ScopeFilterService.getWhereParams(scope);
-
-      // Build query with BM25 ranking using CTE
-      // The CTE computes bm25() in the correct FTS context (direct table reference)
-      // ORDER BY and LIMIT are in the outer query for proper pagination
-      final buffer = StringBuffer();
-      buffer.write('''
-        WITH ranked AS (
-          SELECT
-            m.id, m.filename, m.eind, m.language, m.type, m.level, m.nodeKey,
-            bm25($ftsTable) AS score
-          FROM $ftsTable
-          JOIN $metaTable m ON $ftsTable.rowid = m.id
-          WHERE $ftsTable MATCH ?
-      ''');
-      if (scopeWhereClause != null) {
-        buffer.write(' AND $scopeWhereClause');
-      }
       // Optional language filter (පාළි / සිංහල toggle). Same shared builder as
       // scope above; 'language' lives on the meta table, already joined as `m`.
       final languageClause = ScopeFilterService.buildLanguageClause(language);
-      if (languageClause != null) {
-        buffer.write(' AND $languageClause');
+
+      // Build query with BM25 ranking using CTE
+      // The CTE computes bm25() in the correct FTS context (direct table
+      // reference) — once per tier, each its own MATCH. ORDER BY and LIMIT
+      // are in the outer query for proper pagination.
+      // Args MUST follow the '?' placeholders: per tier MATCH, [scope...],
+      // [language]; then LIMIT, OFFSET.
+      final buffer = StringBuffer('WITH ranked AS (');
+      final args = <Object>[];
+      for (final (index, tier) in tiers.indexed) {
+        if (index > 0) buffer.write(' UNION ALL ');
+        buffer.write('''
+          SELECT
+            m.id, m.filename, m.eind, m.language, m.type, m.level, m.nodeKey,
+            bm25($ftsTable) AS score, ${tier.tier} AS tier
+          FROM $ftsTable
+          JOIN $metaTable m ON $ftsTable.rowid = m.id
+          WHERE $ftsTable MATCH ?
+        ''');
+        args.add(tier.match);
+        if (scopeWhereClause != null) {
+          buffer.write(' AND $scopeWhereClause');
+          args.addAll(scopeArgs);
+        }
+        if (languageClause != null) {
+          buffer.write(' AND $languageClause');
+          args.addAll(ScopeFilterService.getLanguageParams(language));
+        }
       }
       // `id` breaks bm25 ties, so paging can't repeat or drop a tied row.
       buffer.write('''
         )
-        SELECT * FROM ranked ORDER BY score, id LIMIT ? OFFSET ?
+        SELECT * FROM ranked ORDER BY tier, score, id LIMIT ? OFFSET ?
       ''');
-
-      // Build args — order MUST match the '?' placeholders above:
-      // MATCH, [scope...], [language], LIMIT, OFFSET.
-      final args = <Object>[
-        ftsQuery,
-        if (scopeWhereClause != null) ...scopeArgs,
-        ...ScopeFilterService.getLanguageParams(language),
-        limit,
-        offset,
-      ];
+      args.addAll([limit, offset]);
 
       // Execute query
       final List<Map<String, dynamic>> results = await db.rawQuery(
@@ -189,6 +214,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     bool isAnywhereInText = false,
     int proximityDistance = 10,
     String? language,
+    List<List<String>> looseAlternatives = const [],
   }) async {
     await initializeEditions({editionId});
 
@@ -202,13 +228,24 @@ class FTSDataSourceImpl implements FTSDataSource {
       final metaTable = '${editionId}_meta';
 
       // Build FTS query syntax (query already validated by repository)
-      final ftsQuery = buildFtsQuery(
+      final strictQuery = buildFtsQuery(
         query,
         isExactMatch: isExactMatch,
         isPhraseSearch: isPhraseSearch,
         isAnywhereInText: isAnywhereInText,
         proximityDistance: proximityDistance,
       );
+      // Both tiers, as searchFullText lists them.
+      final looseQuery = _looseFtsQuery(
+        looseAlternatives,
+        isExactMatch: isExactMatch,
+        isPhraseSearch: isPhraseSearch,
+        isAnywhereInText: isAnywhereInText,
+        proximityDistance: proximityDistance,
+      );
+      final ftsQuery = looseQuery == null
+          ? strictQuery
+          : '($strictQuery) OR ($looseQuery)';
 
       // Build query with optional scope and/or language filters.
       // Either filter lives on the meta table, so we only join `m` when needed
@@ -254,6 +291,71 @@ class FTSDataSourceImpl implements FTSDataSource {
     }
   }
 
+  /// The FTS5 query for the loose tier, or null when there is none.
+  static String? _looseFtsQuery(
+    List<List<String>> alternatives, {
+    required bool isExactMatch,
+    required bool isPhraseSearch,
+    required bool isAnywhereInText,
+    required int proximityDistance,
+  }) =>
+      alternatives.isEmpty
+          ? null
+          : buildLooseFtsQuery(
+              alternatives,
+              isExactMatch: isExactMatch,
+              isPhraseSearch: isPhraseSearch,
+              isAnywhereInText: isAnywhereInText,
+              proximityDistance: proximityDistance,
+            );
+
+  @override
+  Future<Set<String>> existingTerms(
+    String editionId,
+    Set<String> candidates, {
+    required bool wholeWords,
+  }) async {
+    if (candidates.isEmpty) return const {};
+    await initializeEditions({editionId});
+
+    final db = _databases[editionId];
+    if (db == null) {
+      throw StateError('Edition $editionId not initialized');
+    }
+
+    try {
+      // The index's own word list. Made here, not on open, so strict search
+      // never depends on it; in `temp`, so the file is untouched, and it lives
+      // as long as the shared connection does.
+      final vocab = _vocabTables[editionId] ??= db.customStatement(
+        'CREATE VIRTUAL TABLE IF NOT EXISTS temp.${_vocabTableFor(editionId)} '
+        'USING fts5vocab(main, ${editionId}_fts, row)',
+      );
+      try {
+        await vocab;
+      } catch (_) {
+        _vocabTables.remove(editionId);
+        rethrow;
+      }
+
+      // One statement per batch: json_each turns the list into rows, and each
+      // row costs one seek in the word list. U+10FFFF sorts after anything
+      // that can follow a prefix.
+      final match = wholeWords
+          ? 'v.term = j.value'
+          : 'v.term >= j.value AND v.term < j.value || char(1114111)';
+      final rows = await db.rawQuery(
+        'SELECT j.value AS candidate FROM json_each(?) j '
+        'WHERE EXISTS (SELECT 1 FROM temp.${_vocabTableFor(editionId)} v '
+        'WHERE $match)',
+        [jsonEncode(candidates.toList())],
+      );
+      return {for (final row in rows) row['candidate'] as String};
+    } catch (e) {
+      throw Exception('Word list lookup failed for edition $editionId: $e');
+    }
+  }
+
   @override
   Future<void> close() async {
     // Close all databases, collecting any errors
@@ -271,6 +373,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     // Always clear state, even if some closes failed
     _databases.clear();
     _initializedEditions.clear();
+    _vocabTables.clear(); // temp tables go with their connection
 
     // Report if any errors occurred
     if (errors.isNotEmpty) {

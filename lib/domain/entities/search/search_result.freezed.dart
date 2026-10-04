@@ -58,6 +58,10 @@ mixin _$SearchResult {
   /// Relevance score for ranking (optional)
   double? get relevanceScore => throw _privateConstructorUsedError;
 
+  /// From the loose tier: a similar spelling of a Singlish query, listed
+  /// after the strict results.
+  bool get isLooseMatch => throw _privateConstructorUsedError;
+
   /// Create a copy of SearchResult
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -85,7 +89,8 @@ abstract class $SearchResultCopyWith<$Res> {
       int entryIndex,
       String nodeKey,
       String language,
-      double? relevanceScore});
+      double? relevanceScore,
+      bool isLooseMatch});
 }
 
 /// @nodoc
@@ -117,6 +122,7 @@ class _$SearchResultCopyWithImpl<$Res, $Val extends SearchResult>
     Object? nodeKey = null,
     Object? language = null,
     Object? relevanceScore = freezed,
+    Object? isLooseMatch = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -175,6 +181,10 @@ class _$SearchResultCopyWithImpl<$Res, $Val extends SearchResult>
           ? _value.relevanceScore
           : relevanceScore // ignore: cast_nullable_to_non_nullable
               as double?,
+      isLooseMatch: null == isLooseMatch
+          ? _value.isLooseMatch
+          : isLooseMatch // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -201,7 +211,8 @@ abstract class _$$SearchResultImplCopyWith<$Res>
       int entryIndex,
       String nodeKey,
       String language,
-      double? relevanceScore});
+      double? relevanceScore,
+      bool isLooseMatch});
 }
 
 /// @nodoc
@@ -231,6 +242,7 @@ class __$$SearchResultImplCopyWithImpl<$Res>
     Object? nodeKey = null,
     Object? language = null,
     Object? relevanceScore = freezed,
+    Object? isLooseMatch = null,
   }) {
     return _then(_$SearchResultImpl(
       id: null == id
@@ -289,6 +301,10 @@ class __$$SearchResultImplCopyWithImpl<$Res>
           ? _value.relevanceScore
           : relevanceScore // ignore: cast_nullable_to_non_nullable
               as double?,
+      isLooseMatch: null == isLooseMatch
+          ? _value.isLooseMatch
+          : isLooseMatch // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -310,7 +326,8 @@ class _$SearchResultImpl implements _SearchResult {
       required this.entryIndex,
       required this.nodeKey,
       required this.language,
-      this.relevanceScore});
+      this.relevanceScore,
+      this.isLooseMatch = false});
 
   /// Unique identifier for this result
   @override
@@ -370,9 +387,15 @@ class _$SearchResultImpl implements _SearchResult {
   @override
   final double? relevanceScore;
 
+  /// From the loose tier: a similar spelling of a Singlish query, listed
+  /// after the strict results.
+  @override
+  @JsonKey()
+  final bool isLooseMatch;
+
   @override
   String toString() {
-    return 'SearchResult(id: $id, editionId: $editionId, resultType: $resultType, title: $title, subtitle: $subtitle, matchedText: $matchedText, contextBefore: $contextBefore, contextAfter: $contextAfter, contentFileId: $contentFileId, pageIndex: $pageIndex, entryIndex: $entryIndex, nodeKey: $nodeKey, language: $language, relevanceScore: $relevanceScore)';
+    return 'SearchResult(id: $id, editionId: $editionId, resultType: $resultType, title: $title, subtitle: $subtitle, matchedText: $matchedText, contextBefore: $contextBefore, contextAfter: $contextAfter, contentFileId: $contentFileId, pageIndex: $pageIndex, entryIndex: $entryIndex, nodeKey: $nodeKey, language: $language, relevanceScore: $relevanceScore, isLooseMatch: $isLooseMatch)';
   }
 
   @override
@@ -404,7 +427,9 @@ class _$SearchResultImpl implements _SearchResult {
             (identical(other.language, language) ||
                 other.language == language) &&
             (identical(other.relevanceScore, relevanceScore) ||
-                other.relevanceScore == relevanceScore));
+                other.relevanceScore == relevanceScore) &&
+            (identical(other.isLooseMatch, isLooseMatch) ||
+                other.isLooseMatch == isLooseMatch));
   }
 
   @override
@@ -423,7 +448,8 @@ class _$SearchResultImpl implements _SearchResult {
       entryIndex,
       nodeKey,
       language,
-      relevanceScore);
+      relevanceScore,
+      isLooseMatch);
 
   /// Create a copy of SearchResult
   /// with the given fields replaced by the non-null parameter values.
@@ -449,7 +475,8 @@ abstract class _SearchResult implements SearchResult {
       required final int entryIndex,
       required final String nodeKey,
       required final String language,
-      final double? relevanceScore}) = _$SearchResultImpl;
+      final double? relevanceScore,
+      final bool isLooseMatch}) = _$SearchResultImpl;
 
   /// Unique identifier for this result
   @override
@@ -506,6 +533,11 @@ abstract class _SearchResult implements SearchResult {
   /// Relevance score for ranking (optional)
   @override
   double? get relevanceScore;
+
+  /// From the loose tier: a similar spelling of a Singlish query, listed
+  /// after the strict results.
+  @override
+  bool get isLooseMatch;
 
   /// Create a copy of SearchResult
   /// with the given fields replaced by the non-null parameter values.

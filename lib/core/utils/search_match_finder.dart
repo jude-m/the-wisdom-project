@@ -1,3 +1,5 @@
+import 'package:wisdom_shared/wisdom_shared.dart' show spellingCombinations;
+
 import 'text_utils.dart';
 
 /// Utility for finding search matches in text with ZWJ normalization.
@@ -23,18 +25,42 @@ class SearchMatchFinder {
   /// Gap allowed between words in phrase search (in normalized characters).
   final int maxGap;
 
+  /// Similar spellings of each query word (loose Singlish), matched as the
+  /// word itself is. Empty = the query only.
+  final List<List<String>> looseAlternatives;
+
   /// Cached normalized query and words for reuse.
   late final String _normalizedQuery;
-  late final List<String> _queryWords;
+
+  /// What each query word may read as: the word first, then its spellings.
+  late final List<List<String>> _queryWords;
+
+  /// Whole-query forms for exact phrases: the query, then each combination of
+  /// spellings.
+  late final List<String> _phrases;
 
   SearchMatchFinder({
     required this.queryText,
     required this.isPhraseSearch,
     required this.isExactMatch,
     this.maxGap = 20,
+    this.looseAlternatives = const [],
   }) {
     _normalizedQuery = normalizeText(queryText, toLowerCase: true);
-    _queryWords = splitQueryWords(queryText);
+    final words = splitQueryWords(queryText);
+    // Spellings are per typed word, so they only line up word for word.
+    final aligned =
+        looseAlternatives.isNotEmpty && looseAlternatives.length == words.length;
+    _queryWords = [
+      for (var i = 0; i < words.length; i++)
+        [words[i], if (aligned) ...looseAlternatives[i]],
+    ];
+    _phrases = [
+      _normalizedQuery,
+      if (aligned)
+        for (final spellings in spellingCombinations(looseAlternatives))
+          spellings.join(' '),
+    ];
   }
 
   /// Find all highlight ranges in the given text.
@@ -59,16 +85,17 @@ class SearchMatchFinder {
   /// Finds all exact query matches.
   List<({int start, int end})> _findExactRanges(NormalizedTextMatcher matcher) {
     final ranges = <({int start, int end})>[];
-    int searchStart = 0;
+    for (final phrase in _phrases) {
+      int searchStart = 0;
 
-    while (true) {
-      final normIndex =
-          matcher.normalized.indexOf(_normalizedQuery, searchStart);
-      if (normIndex == -1) break;
+      while (true) {
+        final normIndex = matcher.normalized.indexOf(phrase, searchStart);
+        if (normIndex == -1) break;
 
-      ranges.add(matcher.mapToOriginal(
-          normIndex, normIndex + _normalizedQuery.length));
-      searchStart = normIndex + _normalizedQuery.length;
+        ranges.add(
+            matcher.mapToOriginal(normIndex, normIndex + phrase.length));
+        searchStart = normIndex + phrase.length;
+      }
     }
 
     // Fallback: FTS returns hyphenated text for space-separated query
@@ -80,7 +107,10 @@ class SearchMatchFinder {
       return _findPhraseRanges(matcher);
     }
 
-    return ranges;
+    // One phrase is found in order already; several need sorting and merging.
+    if (_phrases.length == 1) return ranges;
+    ranges.sort((a, b) => a.start.compareTo(b.start));
+    return mergeOverlappingRanges(ranges);
   }
 
   /// Finds all phrase occurrences (words adjacent).
@@ -93,12 +123,13 @@ class SearchMatchFinder {
     int searchStart = 0;
 
     while (searchStart < matcher.normalized.length) {
-      final firstWordIndex =
-          matcher.normalized.indexOf(_queryWords.first, searchStart);
-      if (firstWordIndex == -1) break;
+      final firstWord =
+          _earliest(matcher.normalized, _queryWords.first, searchStart);
+      if (firstWord == null) break;
+      final firstWordIndex = firstWord.index;
 
       bool allWordsFound = true;
-      int currentPos = firstWordIndex + _queryWords.first.length;
+      int currentPos = firstWordIndex + firstWord.length;
       int phraseEndPos = currentPos;
 
       for (int i = 1; i < _queryWords.length; i++) {
@@ -106,13 +137,13 @@ class SearchMatchFinder {
             (currentPos + maxGap).clamp(0, matcher.normalized.length);
         final searchWindow =
             matcher.normalized.substring(currentPos, searchEnd);
-        final nextWordIndex = searchWindow.indexOf(_queryWords[i]);
+        final nextWord = _earliest(searchWindow, _queryWords[i], 0);
 
-        if (nextWordIndex == -1) {
+        if (nextWord == null) {
           allWordsFound = false;
           break;
         }
-        currentPos = currentPos + nextWordIndex + _queryWords[i].length;
+        currentPos = currentPos + nextWord.index + nextWord.length;
         phraseEndPos = currentPos;
       }
 
@@ -130,7 +161,7 @@ class SearchMatchFinder {
 
     final allRanges = <({int start, int end})>[];
 
-    for (final word in _queryWords) {
+    for (final word in _queryWords.expand((options) => options)) {
       allRanges.addAll(_findSingleWordRanges(matcher, word));
     }
 
@@ -139,6 +170,22 @@ class SearchMatchFinder {
     // Sort and merge overlapping ranges
     allRanges.sort((a, b) => a.start.compareTo(b.start));
     return mergeOverlappingRanges(allRanges);
+  }
+
+  /// The first occurrence in [text] from [start] of any of [options].
+  static ({int index, int length})? _earliest(
+    String text,
+    List<String> options,
+    int start,
+  ) {
+    ({int index, int length})? first;
+    for (final option in options) {
+      final index = text.indexOf(option, start);
+      if (index != -1 && (first == null || index < first.index)) {
+        first = (index: index, length: option.length);
+      }
+    }
+    return first;
   }
 
   /// Finds all occurrences of a single word.

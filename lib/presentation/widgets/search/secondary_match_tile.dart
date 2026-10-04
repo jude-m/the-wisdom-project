@@ -24,6 +24,9 @@ class SecondaryMatchTile extends StatelessWidget {
   /// Whether exact match mode is active
   final bool isExactMatch;
 
+  /// Similar spellings of each query word, highlighted too
+  final List<List<String>> looseAlternatives;
+
   /// Callback when the tile is tapped
   final VoidCallback? onTap;
 
@@ -33,6 +36,7 @@ class SecondaryMatchTile extends StatelessWidget {
     required this.effectiveQuery,
     required this.isPhraseSearch,
     required this.isExactMatch,
+    this.looseAlternatives = const [],
     this.onTap,
   });
 
@@ -54,6 +58,7 @@ class SecondaryMatchTile extends StatelessWidget {
                 effectiveQuery: effectiveQuery,
                 isPhraseSearch: isPhraseSearch,
                 isExactMatch: isExactMatch,
+                looseAlternatives: looseAlternatives,
                 language: result.language,
               ),
           ],

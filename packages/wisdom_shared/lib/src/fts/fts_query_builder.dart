@@ -73,3 +73,50 @@ String buildFtsQuery(
     }
   }
 }
+
+/// Builds the FTS5 query for the loose-Singlish tier. [alternatives] holds the
+/// Sinhala spellings of each typed word, in typed order.
+///
+/// Each mode means what it does in [buildFtsQuery]. FTS5 allows no OR inside a
+/// phrase or a NEAR group, so those modes list the combinations instead.
+String buildLooseFtsQuery(
+  List<List<String>> alternatives, {
+  bool isExactMatch = false,
+  bool isPhraseSearch = true,
+  bool isAnywhereInText = false,
+  int proximityDistance = 10,
+}) {
+  if (alternatives.isEmpty) return '""';
+
+  String anyOf(List<String> spellings) =>
+      '(${spellings.map((s) => isExactMatch ? s : '$s*').join(' OR ')})';
+
+  if (alternatives.length == 1) return anyOf(alternatives.single);
+  if (!isPhraseSearch && isAnywhereInText) {
+    return alternatives.map(anyOf).join(' AND ');
+  }
+  return spellingCombinations(alternatives)
+      .map((words) => buildFtsQuery(
+            words.join(' '),
+            isExactMatch: isExactMatch,
+            isPhraseSearch: isPhraseSearch,
+            isAnywhereInText: isAnywhereInText,
+            proximityDistance: proximityDistance,
+          ))
+      .join(' OR ');
+}
+
+/// Every way to pick one spelling per word, in order, at most [max] of them.
+List<List<String>> spellingCombinations(
+  List<List<String>> alternatives, {
+  int max = 64,
+}) {
+  var combinations = [<String>[]];
+  for (final spellings in alternatives) {
+    combinations = [
+      for (final head in combinations)
+        for (final spelling in spellings) [...head, spelling],
+    ].take(max).toList();
+  }
+  return combinations;
+}

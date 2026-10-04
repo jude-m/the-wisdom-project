@@ -1,7 +1,9 @@
 import 'dart:developer' as developer;
 import 'package:dartz/dartz.dart';
+import 'package:wisdom_shared/wisdom_shared.dart' show spellingCombinations;
 import '../../domain/entities/failure.dart';
 import '../../domain/entities/search/grouped_search_result.dart';
+import '../../domain/entities/search/loose_spellings.dart';
 import '../../domain/entities/search/search_result_type.dart';
 import '../../domain/entities/search/search_query.dart';
 import '../../domain/entities/search/search_language_scope.dart';
@@ -12,6 +14,7 @@ import '../../domain/entities/dictionary/dictionary_entry.dart';
 import '../../domain/entities/dictionary/dictionary_info.dart';
 import '../../domain/repositories/navigation_tree_repository.dart';
 import '../../domain/repositories/dictionary_repository.dart';
+import '../../domain/repositories/loose_spelling_repository.dart';
 import '../../core/utils/text_utils.dart';
 import '../../domain/repositories/text_search_repository.dart';
 import '../datasources/bjt_content_datasource.dart';
@@ -27,13 +30,18 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   /// Where snippet text comes from.
   final BJTContentDataSource _contentDataSource;
 
+  /// Sound-alike spellings for Singlish queries; without it, strict only.
+  final LooseSpellingRepository? _looseSpellingRepository;
+
   TextSearchRepositoryImpl(
     this._ftsDataSource,
     this._treeRepository, {
     DictionaryRepository? dictionaryRepository,
     required BJTContentDataSource contentDataSource,
+    LooseSpellingRepository? looseSpellingRepository,
   })  : _dictionaryRepository = dictionaryRepository,
-        _contentDataSource = contentDataSource;
+        _contentDataSource = contentDataSource,
+        _looseSpellingRepository = looseSpellingRepository;
 
   /// Overfetch multiplier for grouped results.
   /// We fetch more records than needed to ensure enough unique groups (nodeKeys).
@@ -51,6 +59,10 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   /// ```
   /// Overfetching chosen for better performance (single query, no window functions).
   static const int _groupedSearchOverfetchMultiplier = 7;
+
+  /// Room Top Results keeps per category for the loose tier, so similar
+  /// spellings stay visible however many strict results there are.
+  static const int _maxLooseInTopResults = 2;
 
   // ============================================================================
   // PUBLIC API
@@ -88,17 +100,24 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             searchInPali: query.searchInPali,
             searchInSinhala: query.searchInSinhala,
           );
+          // Similar spellings of a Singlish query, for the loose tier. Each
+          // category below keeps room for a few after its strict results.
+          final looseSpellings = await _corpusSpellings(query);
 
           // 1. Title matches (from navigation tree - in memory, fast)
-          resultsByType[SearchResultType.title] = _searchTitles(
+          final titles = _searchTitles(
             nodeMap: nodeMap,
             queryText: query.queryText,
             editionId: 'bjt', // TODO: Support multiple editions
             scope: query.scope,
             isExactMatch: query.isExactMatch,
             languageScope: languageScope,
-            limit: maxPerCategory,
+            looseSpellings: looseSpellings,
           );
+          resultsByType[SearchResultType.title] = [
+            ...titles.where((r) => !r.isLooseMatch).take(maxPerCategory),
+            ...titles.where((r) => r.isLooseMatch).take(_maxLooseInTopResults),
+          ];
 
           // 2. Content matches (from FTS)
           // Overfetch to ensure enough unique groups (suttas) after grouping
@@ -119,18 +138,64 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
           );
 
           // Group by nodeKey and limit to maxPerCategory groups
-          resultsByType[SearchResultType.fullText] = _limitToGroups(
+          final strictGroups = _limitToGroups(
             ftsResults,
             maxGroups: maxPerCategory,
           );
 
+          // The loose tier asked for separately: with many strict rows it
+          // would never reach the overfetch window. Suttas already shown above
+          // are left out, so the room goes to new ones.
+          var looseGroups = const <SearchResult>[];
+          if (!looseSpellings.isEmpty) {
+            final shown = {for (final r in strictGroups) r.nodeKey};
+            final looseResults = await _searchFullText(
+              nodeMap: nodeMap,
+              queryText: query.queryText,
+              editionIds: editionsToSearch,
+              scope: query.scope,
+              isExactMatch: query.isExactMatch,
+              isPhraseSearch: query.isPhraseSearch,
+              isAnywhereInText: query.isAnywhereInText,
+              proximityDistance: query.proximityDistance,
+              language: _ftsLanguageFilter(languageScope),
+              looseAlternatives: looseSpellings.words,
+              looseOnly: true,
+              limit: _maxLooseInTopResults * _groupedSearchOverfetchMultiplier,
+              offset: 0,
+            );
+            looseGroups = _limitToGroups(
+              [
+                for (final r in looseResults)
+                  if (!shown.contains(r.nodeKey)) r,
+              ],
+              maxGroups: _maxLooseInTopResults,
+            );
+          }
+          resultsByType[SearchResultType.fullText] = [
+            ...strictGroups,
+            ...looseGroups,
+          ];
+
           // 3. Definition matches (from dictionary)
-          resultsByType[SearchResultType.definition] = await _searchDefinitions(
-            query.queryText,
-            isExactMatch: query.isExactMatch,
-            dictionaryIds: query.selectedDictionaryIds,
-            limit: maxPerCategory,
-          );
+          final looseWords = await _dictionarySpellings(query);
+          resultsByType[SearchResultType.definition] = [
+            ...await _searchDefinitions(
+              query.queryText,
+              isExactMatch: query.isExactMatch,
+              dictionaryIds: query.selectedDictionaryIds,
+              limit: maxPerCategory,
+            ),
+            if (looseWords.isNotEmpty)
+              ...await _searchDefinitions(
+                query.queryText,
+                isExactMatch: query.isExactMatch,
+                dictionaryIds: query.selectedDictionaryIds,
+                looseWords: looseWords,
+                looseOnly: true,
+                limit: _maxLooseInTopResults,
+              ),
+          ];
 
           return Right(GroupedSearchResult(
             resultsByType: resultsByType,
@@ -172,6 +237,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             searchInSinhala: query.searchInSinhala,
           );
 
+          // Every tab lists the strict results, then the similar spellings.
           switch (resultType) {
             case SearchResultType.topResults:
               // "All" category should use searchCategorizedPreview instead
@@ -194,6 +260,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 scope: query.scope,
                 isExactMatch: query.isExactMatch,
                 languageScope: languageScope,
+                looseSpellings: await _corpusSpellings(query),
                 limit: query.limit,
               ));
 
@@ -208,6 +275,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 isAnywhereInText: query.isAnywhereInText,
                 proximityDistance: query.proximityDistance,
                 language: _ftsLanguageFilter(languageScope),
+                looseAlternatives: (await _corpusSpellings(query)).words,
                 limit: query.limit,
                 offset: query.offset,
               );
@@ -219,6 +287,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
                 query.queryText,
                 isExactMatch: query.isExactMatch,
                 dictionaryIds: query.selectedDictionaryIds,
+                looseWords: await _dictionarySpellings(query),
                 limit: query.limit,
                 offset: query.offset,
               );
@@ -264,6 +333,8 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             searchInPali: query.searchInPali,
             searchInSinhala: query.searchInSinhala,
           );
+          // Counts cover both tiers, as the tabs list them.
+          final looseSpellings = await _corpusSpellings(query);
 
           // Title count (from navigation tree - in memory, fast)
           count[SearchResultType.title] = _searchTitles(
@@ -273,6 +344,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             scope: query.scope,
             isExactMatch: query.isExactMatch,
             languageScope: languageScope,
+            looseSpellings: looseSpellings,
           ).length;
 
           // Content count (efficient SQL COUNT) — same language filter as the
@@ -287,6 +359,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             isAnywhereInText: query.isAnywhereInText,
             proximityDistance: query.proximityDistance,
             language: _ftsLanguageFilter(languageScope),
+            looseAlternatives: looseSpellings.words,
           );
 
           // Definition count (from dictionary)
@@ -294,6 +367,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             query.queryText,
             isExactMatch: query.isExactMatch,
             dictionaryIds: query.selectedDictionaryIds,
+            looseWords: await _dictionarySpellings(query),
           );
 
           return Right(count);
@@ -327,6 +401,9 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
   /// [languageScope] - The පාළි / සිංහල toggle as a single derived scope. A name
   /// field is only tested when the scope includes that language, so narrowing to
   /// one language drops results that matched only the *other* language's name.
+  ///
+  /// [looseSpellings] - Similar spellings of a Singlish query. Names only they
+  /// match follow the strict results, flagged `isLooseMatch`.
   List<SearchResult> _searchTitles({
     required Map<String, TipitakaTreeNode> nodeMap,
     required String queryText,
@@ -334,6 +411,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     Set<String> scope = const {},
     bool isExactMatch = false,
     SearchLanguageScope languageScope = SearchLanguageScope.both,
+    LooseSpellings looseSpellings = const LooseSpellings(),
     int? limit,
   }) {
     final results = <SearchResult>[];
@@ -341,23 +419,35 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     // Normalize query for matching (caller handles Singlish conversion)
     final searchQuery = normalizeText(queryText, toLowerCase: true);
 
+    // The loose tier's queries: each combination of spellings, as one string
+    // like the strict query.
+    final looseQueries = looseSpellings.isEmpty
+        ? const <String>[]
+        : [
+            for (final words in spellingCombinations(looseSpellings.words))
+              normalizeText(words.join(' '), toLowerCase: true),
+          ];
+
     // Get scope patterns for filtering
     final scopePatterns = ScopeOperations.getPatternsForScope(scope);
 
-    // Helper function to check if a name matches the query
+    // Helper function to check if a name matches a query
     // isExactMatch=false: contains matching (includes startsWith)
     // isExactMatch=true: word boundary match (query appears as complete word)
-    bool matchesQuery(String name) {
+    bool matchesQuery(String name, String query) {
       if (isExactMatch) {
         // Word boundary match: query must appear as a complete word
-        return name == searchQuery ||
-            name.startsWith('$searchQuery ') ||
-            name.endsWith(' $searchQuery') ||
-            name.contains(' $searchQuery ');
+        return name == query ||
+            name.startsWith('$query ') ||
+            name.endsWith(' $query') ||
+            name.contains(' $query ');
       } else {
-        return name.contains(searchQuery);
+        return name.contains(query);
       }
     }
+
+    bool matchesLoose(String name) =>
+        looseQueries.any((query) => matchesQuery(name, query));
 
     // Helper function to check if contentFileId matches any scope pattern
     // Patterns from getPatternsForScope are prefix-only (e.g., 'dn-')
@@ -380,8 +470,17 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       // (both → both true; pali → only pali; sinhala → only sinhala.)
       final searchPali = languageScope != SearchLanguageScope.sinhala;
       final searchSinhala = languageScope != SearchLanguageScope.pali;
-      final paliMatched = searchPali && matchesQuery(paliName);
-      final sinhalaMatched = searchSinhala && matchesQuery(sinhalaName);
+      var paliMatched = searchPali && matchesQuery(paliName, searchQuery);
+      var sinhalaMatched =
+          searchSinhala && matchesQuery(sinhalaName, searchQuery);
+
+      // No strict match: try the similar spellings (the loose tier).
+      var isLooseMatch = false;
+      if (!paliMatched && !sinhalaMatched && looseQueries.isNotEmpty) {
+        paliMatched = searchPali && matchesLoose(paliName);
+        sinhalaMatched = searchSinhala && matchesLoose(sinhalaName);
+        isLooseMatch = paliMatched || sinhalaMatched;
+      }
 
       // Check both name match AND scope match
       if ((paliMatched || sinhalaMatched) &&
@@ -406,22 +505,32 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             entryIndex: node.entryIndexInPage,
             nodeKey: node.nodeKey,
             language: matchedLanguage,
+            isLooseMatch: isLooseMatch,
           ),
         );
       }
     }
 
-    // Sort with dual criteria:
-    // 1. Primary: startsWith matches before contains-only matches
-    // 2. Secondary: leaf nodes (individual suttas) before parent nodes
+    // Whether the title starts with what it matched: the query, or (loose
+    // tier) one of its similar spellings.
+    bool startsWithQuery(SearchResult result) {
+      final title =
+          normalizeText(result.title, toLowerCase: true).replaceAll('.', '');
+      return result.isLooseMatch
+          ? looseQueries.any(title.startsWith)
+          : title.startsWith(searchQuery);
+    }
+
+    // Sort with three criteria:
+    // 1. Strict matches before similar spellings (the loose tier)
+    // 2. startsWith matches before contains-only matches
+    // 3. Leaf nodes (individual suttas) before parent nodes
     results.sort((a, b) {
-      // Primary sort: startsWith first
-      final titleA =
-          normalizeText(a.title, toLowerCase: true).replaceAll('.', '');
-      final titleB =
-          normalizeText(b.title, toLowerCase: true).replaceAll('.', '');
-      final aStartsWith = titleA.startsWith(searchQuery);
-      final bStartsWith = titleB.startsWith(searchQuery);
+      if (a.isLooseMatch != b.isLooseMatch) return a.isLooseMatch ? 1 : -1;
+
+      // Then startsWith first
+      final aStartsWith = startsWithQuery(a);
+      final bStartsWith = startsWithQuery(b);
 
       if (aStartsWith && !bStartsWith) return -1;
       if (!aStartsWith && bStartsWith) return 1;
@@ -464,6 +573,8 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     bool isAnywhereInText = false,
     int proximityDistance = 10,
     String? language,
+    List<List<String>> looseAlternatives = const [],
+    bool looseOnly = false,
     int? limit,
     int offset = 0,
   }) async {
@@ -476,6 +587,8 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       isAnywhereInText: isAnywhereInText,
       proximityDistance: proximityDistance,
       language: language,
+      looseAlternatives: looseAlternatives,
+      looseOnly: looseOnly,
       limit: limit ?? 50,
       offset: offset,
     );
@@ -565,6 +678,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
             nodeKey: node.nodeKey,
             language: normalizedLanguage,
             relevanceScore: match.relevanceScore,
+            isLooseMatch: match.isLooseMatch,
           ),
         );
       }
@@ -705,6 +819,8 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     String queryText, {
     bool isExactMatch = false,
     Set<String> dictionaryIds = const {},
+    List<String> looseWords = const [],
+    bool looseOnly = false,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -716,6 +832,8 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       queryText,
       isExactMatch: isExactMatch,
       dictionaryIds: dictionaryIds,
+      looseWords: looseWords,
+      looseOnly: looseOnly,
       limit: limit,
       offset: offset,
     );
@@ -737,6 +855,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
     String queryText, {
     bool isExactMatch = false,
     Set<String> dictionaryIds = const {},
+    List<String> looseWords = const [],
   }) async {
     if (_dictionaryRepository == null) {
       return 0;
@@ -746,6 +865,7 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       queryText,
       isExactMatch: isExactMatch,
       dictionaryIds: dictionaryIds,
+      looseWords: looseWords,
     );
 
     return result.fold(
@@ -775,6 +895,59 @@ class TextSearchRepositoryImpl implements TextSearchRepository {
       nodeKey: '', // Dictionary entries don't have node keys
       language: entry.sourceLanguage,
       relevanceScore: entry.relevanceScore,
+      isLooseMatch: entry.isLooseMatch,
+    );
+  }
+
+  // ============================================================================
+  // PRIVATE HELPER METHODS - Similar spellings (loose Singlish)
+  // ============================================================================
+
+  /// The loose tier's spellings, checked against the text. None for a query
+  /// that isn't Singlish; a failed lookup costs the loose tier, never the
+  /// strict results.
+  Future<LooseSpellings> _corpusSpellings(SearchQuery query) async {
+    final repository = _looseSpellingRepository;
+    if (repository == null || query.singlishText.isEmpty) {
+      return const LooseSpellings();
+    }
+    final result = await repository.corpusSpellings(
+      query.singlishText,
+      isExactMatch: query.isExactMatch,
+    );
+    return result.fold(
+      (failure) {
+        developer.log(
+          'Similar spellings failed: ${failure.userMessage}',
+          name: 'TextSearchRepository',
+        );
+        return const LooseSpellings();
+      },
+      (spellings) => spellings,
+    );
+  }
+
+  /// The headword spellings of a one-word Singlish query, or none.
+  Future<List<String>> _dictionarySpellings(SearchQuery query) async {
+    final repository = _looseSpellingRepository;
+    if (repository == null ||
+        _dictionaryRepository == null ||
+        query.singlishText.isEmpty) {
+      return const [];
+    }
+    final result = await repository.dictionarySpellings(
+      query.singlishText,
+      isExactMatch: query.isExactMatch,
+    );
+    return result.fold(
+      (failure) {
+        developer.log(
+          'Similar headword spellings failed: ${failure.userMessage}',
+          name: 'TextSearchRepository',
+        );
+        return const [];
+      },
+      (spellings) => spellings.singleWord,
     );
   }
 }

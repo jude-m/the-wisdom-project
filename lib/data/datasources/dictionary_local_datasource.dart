@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:wisdom_shared/wisdom_shared.dart';
@@ -36,41 +37,17 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     String word, {
     bool exactMatch = false,
     Set<String> dictionaryIds = const {},
+    List<String> looseWords = const [],
     int limit = 50,
   }) async {
-    await initialize();
-
-    final db = _database;
-    if (db == null) {
-      throw StateError('Dictionary database not initialized');
-    }
-
     try {
-      // Build the SQL query (order: see dictionaryOrderBy)
-      final buffer = StringBuffer();
-      buffer.write('''
-        SELECT
-          id, word, dict_id, meaning, rank,
-          CASE WHEN word = ? THEN 0 ELSE 1 END AS is_exact
-        FROM dictionary
-        WHERE ''');
-
-      final args = <Object>[word];
-
-      appendDictionaryWordMatch(buffer, args, word, exactMatch: exactMatch);
-      appendDictionaryFilter(buffer, args, dictionaryIds);
-
-      buffer.write(' $dictionaryOrderBy LIMIT ?');
-
-      args.add(limit);
-
-      // Execute query
-      final List<Map<String, dynamic>> results = await db.rawQuery(
-        buffer.toString(),
-        args,
+      return await _selectEntries(
+        word,
+        exactMatch: exactMatch,
+        dictionaryIds: dictionaryIds,
+        looseWords: looseWords,
+        limit: limit,
       );
-
-      return results.map((row) => _mapRowToEntry(row)).toList();
     } catch (e) {
       throw Exception('Dictionary lookup failed: $e');
     }
@@ -81,7 +58,35 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     String query, {
     bool isExactMatch = false,
     Set<String> dictionaryIds = const {},
+    List<String> looseWords = const [],
+    bool looseOnly = false,
     int limit = 50,
+    int offset = 0,
+  }) async {
+    try {
+      return await _selectEntries(
+        query,
+        exactMatch: isExactMatch,
+        dictionaryIds: dictionaryIds,
+        looseWords: looseWords,
+        looseOnly: looseOnly,
+        limit: limit,
+        offset: offset,
+      );
+    } catch (e) {
+      throw Exception('Dictionary search failed: $e');
+    }
+  }
+
+  /// The entries for [word] (order: see dictionaryOrderBy), then — with
+  /// [looseWords] — those only its similar spellings find.
+  Future<List<DictionaryEntry>> _selectEntries(
+    String word, {
+    required bool exactMatch,
+    required Set<String> dictionaryIds,
+    required List<String> looseWords,
+    bool looseOnly = false,
+    required int limit,
     int offset = 0,
   }) async {
     await initialize();
@@ -91,35 +96,73 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
       throw StateError('Dictionary database not initialized');
     }
 
-    try {
-      // Build the SQL query
-      final buffer = StringBuffer();
-      buffer.write('''
-        SELECT
-          id, word, dict_id, meaning, rank,
-          CASE WHEN word = ? THEN 0 ELSE 1 END AS is_exact
-        FROM dictionary
-        WHERE ''');
-
-      final args = <Object>[query];
-
-      appendDictionaryWordMatch(buffer, args, query, exactMatch: isExactMatch);
-      appendDictionaryFilter(buffer, args, dictionaryIds);
-
-      buffer.write(' $dictionaryOrderBy LIMIT ? OFFSET ?');
-
-      args.addAll([limit, offset]);
-
-      // Execute query
-      final List<Map<String, dynamic>> results = await db.rawQuery(
-        buffer.toString(),
-        args,
-      );
-
-      return results.map((row) => _mapRowToEntry(row)).toList();
-    } catch (e) {
-      throw Exception('Dictionary search failed: $e');
+    final tiered = looseWords.isNotEmpty;
+    final buffer = StringBuffer();
+    buffer.write("""
+      SELECT
+        id, word, dict_id, meaning, rank,
+        CASE WHEN word = ? THEN 0 ELSE 1 END AS is_exact""");
+    final args = <Object>[word];
+    if (tiered) {
+      buffer.write(', CASE WHEN ');
+      appendDictionaryWordMatch(buffer, args, word, exactMatch: exactMatch);
+      buffer.write(' THEN 0 ELSE 1 END AS tier');
     }
+    buffer.write("""
+
+      FROM dictionary
+      WHERE """);
+    _appendMatch(
+      buffer,
+      args,
+      word,
+      exactMatch: exactMatch,
+      looseWords: looseWords,
+      looseOnly: looseOnly,
+    );
+    appendDictionaryFilter(buffer, args, dictionaryIds);
+    buffer.write(
+      ' ${tiered ? dictionaryTieredOrderBy : dictionaryOrderBy} '
+      'LIMIT ? OFFSET ?',
+    );
+    args.addAll([limit, offset]);
+
+    final results = await db.rawQuery(buffer.toString(), args);
+    return results.map(_mapRowToEntry).toList();
+  }
+
+  /// The WHERE condition for [word] — and, with [looseWords], for its similar
+  /// spellings too, or ([looseOnly]) for only the rows they add.
+  static void _appendMatch(
+    StringBuffer buffer,
+    List<Object> args,
+    String word, {
+    required bool exactMatch,
+    List<String> looseWords = const [],
+    bool looseOnly = false,
+  }) {
+    if (looseWords.isEmpty) {
+      appendDictionaryWordMatch(buffer, args, word, exactMatch: exactMatch);
+      return;
+    }
+    buffer.write('(');
+    if (!looseOnly) {
+      buffer.write('(');
+      appendDictionaryWordMatch(buffer, args, word, exactMatch: exactMatch);
+      buffer.write(') OR ');
+    }
+    appendDictionaryAnyWordMatch(
+      buffer,
+      args,
+      looseWords,
+      exactMatch: exactMatch,
+    );
+    if (looseOnly) {
+      buffer.write(' AND NOT (');
+      appendDictionaryWordMatch(buffer, args, word, exactMatch: exactMatch);
+      buffer.write(')');
+    }
+    buffer.write(')');
   }
 
   @override
@@ -127,6 +170,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     String query, {
     bool isExactMatch = false,
     Set<String> dictionaryIds = const {},
+    List<String> looseWords = const [],
   }) async {
     await initialize();
 
@@ -145,13 +189,49 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
 
       final args = <Object>[];
 
-      appendDictionaryWordMatch(buffer, args, query, exactMatch: isExactMatch);
+      _appendMatch(
+        buffer,
+        args,
+        query,
+        exactMatch: isExactMatch,
+        looseWords: looseWords,
+      );
       appendDictionaryFilter(buffer, args, dictionaryIds);
 
       final results = await db.rawQuery(buffer.toString(), args);
       return results.first['count'] as int;
     } catch (e) {
       throw Exception('Dictionary count failed: $e');
+    }
+  }
+
+  @override
+  Future<Set<String>> existingHeadwords(
+    Set<String> candidates, {
+    required bool wholeWords,
+  }) async {
+    if (candidates.isEmpty) return const {};
+    await initialize();
+
+    final db = _database;
+    if (db == null) {
+      throw StateError('Dictionary database not initialized');
+    }
+
+    try {
+      // One statement per batch, one `idx_word` seek per candidate — the same
+      // range as appendDictionaryWordMatch.
+      final match = wholeWords
+          ? 'd.word = j.value'
+          : 'd.word >= j.value AND d.word < j.value || char(1114111)';
+      final rows = await db.rawQuery(
+        'SELECT j.value AS candidate FROM json_each(?) j '
+        'WHERE EXISTS (SELECT 1 FROM dictionary d WHERE $match)',
+        [jsonEncode(candidates.toList())],
+      );
+      return {for (final row in rows) row['candidate'] as String};
+    } catch (e) {
+      throw Exception('Headword lookup failed: $e');
     }
   }
 
@@ -175,6 +255,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
       sourceLanguage: 'pali', // All entries are Pali source
       rank: row['rank'] as int,
       relevanceScore: score,
+      isLooseMatch: row['tier'] == 1,
     );
   }
 

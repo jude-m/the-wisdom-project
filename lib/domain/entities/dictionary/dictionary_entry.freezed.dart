@@ -40,6 +40,10 @@ mixin _$DictionaryEntry {
   /// Optional relevance score from FTS search
   double? get relevanceScore => throw _privateConstructorUsedError;
 
+  /// From the loose tier: a similar spelling of a Singlish query, listed
+  /// after the strict results.
+  bool get isLooseMatch => throw _privateConstructorUsedError;
+
   /// Create a copy of DictionaryEntry
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -61,7 +65,8 @@ abstract class $DictionaryEntryCopyWith<$Res> {
       String targetLanguage,
       String sourceLanguage,
       int rank,
-      double? relevanceScore});
+      double? relevanceScore,
+      bool isLooseMatch});
 }
 
 /// @nodoc
@@ -87,6 +92,7 @@ class _$DictionaryEntryCopyWithImpl<$Res, $Val extends DictionaryEntry>
     Object? sourceLanguage = null,
     Object? rank = null,
     Object? relevanceScore = freezed,
+    Object? isLooseMatch = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -121,6 +127,10 @@ class _$DictionaryEntryCopyWithImpl<$Res, $Val extends DictionaryEntry>
           ? _value.relevanceScore
           : relevanceScore // ignore: cast_nullable_to_non_nullable
               as double?,
+      isLooseMatch: null == isLooseMatch
+          ? _value.isLooseMatch
+          : isLooseMatch // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -141,7 +151,8 @@ abstract class _$$DictionaryEntryImplCopyWith<$Res>
       String targetLanguage,
       String sourceLanguage,
       int rank,
-      double? relevanceScore});
+      double? relevanceScore,
+      bool isLooseMatch});
 }
 
 /// @nodoc
@@ -165,6 +176,7 @@ class __$$DictionaryEntryImplCopyWithImpl<$Res>
     Object? sourceLanguage = null,
     Object? rank = null,
     Object? relevanceScore = freezed,
+    Object? isLooseMatch = null,
   }) {
     return _then(_$DictionaryEntryImpl(
       id: null == id
@@ -199,6 +211,10 @@ class __$$DictionaryEntryImplCopyWithImpl<$Res>
           ? _value.relevanceScore
           : relevanceScore // ignore: cast_nullable_to_non_nullable
               as double?,
+      isLooseMatch: null == isLooseMatch
+          ? _value.isLooseMatch
+          : isLooseMatch // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -214,7 +230,8 @@ class _$DictionaryEntryImpl implements _DictionaryEntry {
       required this.targetLanguage,
       required this.sourceLanguage,
       this.rank = 0,
-      this.relevanceScore});
+      this.relevanceScore,
+      this.isLooseMatch = false});
 
   /// Database row ID
   @override
@@ -249,9 +266,15 @@ class _$DictionaryEntryImpl implements _DictionaryEntry {
   @override
   final double? relevanceScore;
 
+  /// From the loose tier: a similar spelling of a Singlish query, listed
+  /// after the strict results.
+  @override
+  @JsonKey()
+  final bool isLooseMatch;
+
   @override
   String toString() {
-    return 'DictionaryEntry(id: $id, word: $word, dictionaryId: $dictionaryId, meaning: $meaning, targetLanguage: $targetLanguage, sourceLanguage: $sourceLanguage, rank: $rank, relevanceScore: $relevanceScore)';
+    return 'DictionaryEntry(id: $id, word: $word, dictionaryId: $dictionaryId, meaning: $meaning, targetLanguage: $targetLanguage, sourceLanguage: $sourceLanguage, rank: $rank, relevanceScore: $relevanceScore, isLooseMatch: $isLooseMatch)';
   }
 
   @override
@@ -270,12 +293,14 @@ class _$DictionaryEntryImpl implements _DictionaryEntry {
                 other.sourceLanguage == sourceLanguage) &&
             (identical(other.rank, rank) || other.rank == rank) &&
             (identical(other.relevanceScore, relevanceScore) ||
-                other.relevanceScore == relevanceScore));
+                other.relevanceScore == relevanceScore) &&
+            (identical(other.isLooseMatch, isLooseMatch) ||
+                other.isLooseMatch == isLooseMatch));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, id, word, dictionaryId, meaning,
-      targetLanguage, sourceLanguage, rank, relevanceScore);
+      targetLanguage, sourceLanguage, rank, relevanceScore, isLooseMatch);
 
   /// Create a copy of DictionaryEntry
   /// with the given fields replaced by the non-null parameter values.
@@ -296,7 +321,8 @@ abstract class _DictionaryEntry implements DictionaryEntry {
       required final String targetLanguage,
       required final String sourceLanguage,
       final int rank,
-      final double? relevanceScore}) = _$DictionaryEntryImpl;
+      final double? relevanceScore,
+      final bool isLooseMatch}) = _$DictionaryEntryImpl;
 
   /// Database row ID
   @override
@@ -329,6 +355,11 @@ abstract class _DictionaryEntry implements DictionaryEntry {
   /// Optional relevance score from FTS search
   @override
   double? get relevanceScore;
+
+  /// From the loose tier: a similar spelling of a Singlish query, listed
+  /// after the strict results.
+  @override
+  bool get isLooseMatch;
 
   /// Create a copy of DictionaryEntry
   /// with the given fields replaced by the non-null parameter values.

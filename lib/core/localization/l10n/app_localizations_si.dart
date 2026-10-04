@@ -55,6 +55,9 @@ class AppLocalizationsSi extends AppLocalizations {
   String get noResultsFound => 'ප්‍රතිඵල හමු නොවීය';
 
   @override
+  String get similarSpellings => 'සමාන අක්ෂර වින්‍යාස';
+
+  @override
   String get expandAll => 'සියල්ල විශාල කරන්න';
 
   @override

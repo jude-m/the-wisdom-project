@@ -48,5 +48,9 @@ class SearchResult with _$SearchResult {
 
     /// Relevance score for ranking (optional)
     double? relevanceScore,
+
+    /// From the loose tier: a similar spelling of a Singlish query, listed
+    /// after the strict results.
+    @Default(false) bool isLooseMatch,
   }) = _SearchResult;
 }

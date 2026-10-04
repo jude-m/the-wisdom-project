@@ -4,8 +4,10 @@ import '../../data/cache/cache_config.dart';
 import '../../data/datasources/fts_datasource.dart';
 import '../../data/datasources/fts_local_datasource.dart';
 import '../../data/repositories/caching_text_search_repository.dart';
+import '../../data/repositories/loose_spelling_repository_impl.dart';
 import '../../data/repositories/recent_searches_repository_impl.dart';
 import '../../data/repositories/text_search_repository_impl.dart';
+import '../../domain/repositories/loose_spelling_repository.dart';
 import '../../domain/repositories/recent_searches_repository.dart';
 import '../../domain/repositories/text_search_repository.dart';
 import 'dictionary_provider.dart';
@@ -25,6 +27,15 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
 final ftsDataSourceProvider = Provider<FTSDataSource>((ref) {
   // Editions are initialized on-demand when search is performed
   return FTSDataSourceImpl();
+});
+
+/// Sound-alike Sinhala spellings for Singlish queries (the loose tier).
+final looseSpellingRepositoryProvider =
+    Provider<LooseSpellingRepository>((ref) {
+  return LooseSpellingRepositoryImpl(
+    ref.watch(ftsDataSourceProvider),
+    ref.watch(dictionaryDataSourceProvider),
+  );
 });
 
 /// Feature flag for the search-results cache.
@@ -47,6 +58,7 @@ final cachingSearchRepositoryProvider =
     ref.watch(navigationTreeRepositoryProvider),
     dictionaryRepository: ref.watch(dictionaryRepositoryProvider),
     contentDataSource: ref.watch(bjtContentDataSourceProvider),
+    looseSpellingRepository: ref.watch(looseSpellingRepositoryProvider),
   );
   return CachingTextSearchRepository(
     base,
@@ -66,6 +78,7 @@ final textSearchRepositoryProvider = Provider<TextSearchRepository>((ref) {
     ref.watch(navigationTreeRepositoryProvider),
     dictionaryRepository: ref.watch(dictionaryRepositoryProvider),
     contentDataSource: ref.watch(bjtContentDataSourceProvider),
+    looseSpellingRepository: ref.watch(looseSpellingRepositoryProvider),
   );
 });
 
@@ -81,5 +94,6 @@ final searchStateProvider =
   return SearchStateNotifier(
     ref.watch(textSearchRepositoryProvider),
     ref.watch(recentSearchesRepositoryProvider),
+    looseSpellingRepository: ref.watch(looseSpellingRepositoryProvider),
   );
 });

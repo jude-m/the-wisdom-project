@@ -47,6 +47,9 @@ class LRUCache<K, V> {
     _map[key] = value;
   }
 
+  /// Drops [key], if present — e.g. a pending answer that failed.
+  void remove(K key) => _map.remove(key);
+
   /// Empties the cache and resets all counters.
   void clear() {
     _map.clear();

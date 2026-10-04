@@ -11,11 +11,14 @@ abstract class DictionaryRepository {
   /// [word] - The Pali word to lookup (in Sinhala script)
   /// [exactMatch] - If true, only return exact matches; if false, also match prefixes
   /// [dictionaryIds] - Filter to specific dict IDs, empty = all
+  /// [looseWords] - Similar spellings of a Singlish query; the entries only
+  /// they find follow the strict ones, flagged `isLooseMatch`
   /// [limit] - Maximum number of results to return
   Future<Either<Failure, List<DictionaryEntry>>> lookupWord(
     String word, {
     bool exactMatch = false,
     Set<String> dictionaryIds = const {},
+    List<String> looseWords = const [],
     int limit = 50,
   });
 
@@ -26,10 +29,13 @@ abstract class DictionaryRepository {
   /// [dictionaryIds] - Filter to specific dict IDs, empty = all
   /// [limit] - Maximum number of results to return
   /// [offset] - Offset for pagination
+  /// [looseWords] - As in [lookupWord]; [looseOnly] returns just those entries
   Future<Either<Failure, List<DictionaryEntry>>> searchDefinitions(
     String query, {
     bool isExactMatch = false,
     Set<String> dictionaryIds = const {},
+    List<String> looseWords = const [],
+    bool looseOnly = false,
     int limit = 50,
     int offset = 0,
   });
@@ -39,9 +45,11 @@ abstract class DictionaryRepository {
   /// [query] - The search query
   /// [isExactMatch] - If true, only count exact matches
   /// [dictionaryIds] - Filter to specific dict IDs, empty = all
+  /// [looseWords] - As in [lookupWord]; both tiers are counted
   Future<Either<Failure, int>> countDefinitions(
     String query, {
     bool isExactMatch = false,
     Set<String> dictionaryIds = const {},
+    List<String> looseWords = const [],
   });
 }

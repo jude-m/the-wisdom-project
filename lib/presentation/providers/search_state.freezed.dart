@@ -25,6 +25,10 @@ mixin _$SearchState {
   /// - UI highlighting (avoids re-conversion per result row)
   String get effectiveQueryText => throw _privateConstructorUsedError;
 
+  /// Similar spellings of a Singlish query (the loose tier), to highlight
+  /// the results they found. Empty = strict only.
+  LooseSpellings get looseSpellings => throw _privateConstructorUsedError;
+
   /// Recent search history
   List<RecentSearch> get recentSearches => throw _privateConstructorUsedError;
 
@@ -119,6 +123,7 @@ abstract class $SearchStateCopyWith<$Res> {
   $Res call(
       {String rawQueryText,
       String effectiveQueryText,
+      LooseSpellings looseSpellings,
       List<RecentSearch> recentSearches,
       SearchResultType selectedResultType,
       GroupedSearchResult? groupedResults,
@@ -137,6 +142,7 @@ abstract class $SearchStateCopyWith<$Res> {
       Set<String> expandedFTSGroups,
       Set<String> selectedDictionaryIds});
 
+  $LooseSpellingsCopyWith<$Res> get looseSpellings;
   $GroupedSearchResultCopyWith<$Res>? get groupedResults;
 }
 
@@ -157,6 +163,7 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
   $Res call({
     Object? rawQueryText = null,
     Object? effectiveQueryText = null,
+    Object? looseSpellings = null,
     Object? recentSearches = null,
     Object? selectedResultType = null,
     Object? groupedResults = freezed,
@@ -184,6 +191,10 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
           ? _value.effectiveQueryText
           : effectiveQueryText // ignore: cast_nullable_to_non_nullable
               as String,
+      looseSpellings: null == looseSpellings
+          ? _value.looseSpellings
+          : looseSpellings // ignore: cast_nullable_to_non_nullable
+              as LooseSpellings,
       recentSearches: null == recentSearches
           ? _value.recentSearches
           : recentSearches // ignore: cast_nullable_to_non_nullable
@@ -259,6 +270,16 @@ class _$SearchStateCopyWithImpl<$Res, $Val extends SearchState>
   /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
+  $LooseSpellingsCopyWith<$Res> get looseSpellings {
+    return $LooseSpellingsCopyWith<$Res>(_value.looseSpellings, (value) {
+      return _then(_value.copyWith(looseSpellings: value) as $Val);
+    });
+  }
+
+  /// Create a copy of SearchState
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
   $GroupedSearchResultCopyWith<$Res>? get groupedResults {
     if (_value.groupedResults == null) {
       return null;
@@ -281,6 +302,7 @@ abstract class _$$SearchStateImplCopyWith<$Res>
   $Res call(
       {String rawQueryText,
       String effectiveQueryText,
+      LooseSpellings looseSpellings,
       List<RecentSearch> recentSearches,
       SearchResultType selectedResultType,
       GroupedSearchResult? groupedResults,
@@ -300,6 +322,8 @@ abstract class _$$SearchStateImplCopyWith<$Res>
       Set<String> selectedDictionaryIds});
 
   @override
+  $LooseSpellingsCopyWith<$Res> get looseSpellings;
+  @override
   $GroupedSearchResultCopyWith<$Res>? get groupedResults;
 }
 
@@ -318,6 +342,7 @@ class __$$SearchStateImplCopyWithImpl<$Res>
   $Res call({
     Object? rawQueryText = null,
     Object? effectiveQueryText = null,
+    Object? looseSpellings = null,
     Object? recentSearches = null,
     Object? selectedResultType = null,
     Object? groupedResults = freezed,
@@ -345,6 +370,10 @@ class __$$SearchStateImplCopyWithImpl<$Res>
           ? _value.effectiveQueryText
           : effectiveQueryText // ignore: cast_nullable_to_non_nullable
               as String,
+      looseSpellings: null == looseSpellings
+          ? _value.looseSpellings
+          : looseSpellings // ignore: cast_nullable_to_non_nullable
+              as LooseSpellings,
       recentSearches: null == recentSearches
           ? _value._recentSearches
           : recentSearches // ignore: cast_nullable_to_non_nullable
@@ -423,6 +452,7 @@ class _$SearchStateImpl extends _SearchState {
   const _$SearchStateImpl(
       {this.rawQueryText = '',
       this.effectiveQueryText = '',
+      this.looseSpellings = const LooseSpellings(),
       final List<RecentSearch> recentSearches = const [],
       this.selectedResultType = SearchResultType.topResults,
       this.groupedResults,
@@ -460,6 +490,12 @@ class _$SearchStateImpl extends _SearchState {
   @override
   @JsonKey()
   final String effectiveQueryText;
+
+  /// Similar spellings of a Singlish query (the loose tier), to highlight
+  /// the results they found. Empty = strict only.
+  @override
+  @JsonKey()
+  final LooseSpellings looseSpellings;
 
   /// Recent search history
   final List<RecentSearch> _recentSearches;
@@ -630,7 +666,7 @@ class _$SearchStateImpl extends _SearchState {
 
   @override
   String toString() {
-    return 'SearchState(rawQueryText: $rawQueryText, effectiveQueryText: $effectiveQueryText, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, isPhraseSearch: $isPhraseSearch, isAnywhereInText: $isAnywhereInText, proximityDistance: $proximityDistance, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType, expandedFTSGroups: $expandedFTSGroups, selectedDictionaryIds: $selectedDictionaryIds)';
+    return 'SearchState(rawQueryText: $rawQueryText, effectiveQueryText: $effectiveQueryText, looseSpellings: $looseSpellings, recentSearches: $recentSearches, selectedResultType: $selectedResultType, groupedResults: $groupedResults, fullResults: $fullResults, isLoading: $isLoading, selectedEditions: $selectedEditions, searchInPali: $searchInPali, searchInSinhala: $searchInSinhala, scope: $scope, isPhraseSearch: $isPhraseSearch, isAnywhereInText: $isAnywhereInText, proximityDistance: $proximityDistance, isPanelDismissed: $isPanelDismissed, isExactMatch: $isExactMatch, countByResultType: $countByResultType, expandedFTSGroups: $expandedFTSGroups, selectedDictionaryIds: $selectedDictionaryIds)';
   }
 
   @override
@@ -642,6 +678,8 @@ class _$SearchStateImpl extends _SearchState {
                 other.rawQueryText == rawQueryText) &&
             (identical(other.effectiveQueryText, effectiveQueryText) ||
                 other.effectiveQueryText == effectiveQueryText) &&
+            (identical(other.looseSpellings, looseSpellings) ||
+                other.looseSpellings == looseSpellings) &&
             const DeepCollectionEquality()
                 .equals(other._recentSearches, _recentSearches) &&
             (identical(other.selectedResultType, selectedResultType) ||
@@ -682,6 +720,7 @@ class _$SearchStateImpl extends _SearchState {
         runtimeType,
         rawQueryText,
         effectiveQueryText,
+        looseSpellings,
         const DeepCollectionEquality().hash(_recentSearches),
         selectedResultType,
         groupedResults,
@@ -714,6 +753,7 @@ abstract class _SearchState extends SearchState {
   const factory _SearchState(
       {final String rawQueryText,
       final String effectiveQueryText,
+      final LooseSpellings looseSpellings,
       final List<RecentSearch> recentSearches,
       final SearchResultType selectedResultType,
       final GroupedSearchResult? groupedResults,
@@ -743,6 +783,11 @@ abstract class _SearchState extends SearchState {
   /// - UI highlighting (avoids re-conversion per result row)
   @override
   String get effectiveQueryText;
+
+  /// Similar spellings of a Singlish query (the loose tier), to highlight
+  /// the results they found. Empty = strict only.
+  @override
+  LooseSpellings get looseSpellings;
 
   /// Recent search history
   @override

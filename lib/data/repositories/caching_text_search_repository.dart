@@ -137,6 +137,8 @@ class CachingTextSearchRepository implements TextSearchRepository {
     // Booleans rendered as 0/1 keep keys compact and unambiguous.
     final parts = <String>[
       query.queryText,
+      // The loose tier follows the typed Roman text, not the converted query.
+      query.singlishText,
       query.isExactMatch ? '1' : '0',
       editionsPart,
       query.searchInPali ? '1' : '0',

@@ -55,6 +55,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noResultsFound => 'No results found';
 
   @override
+  String get similarSpellings => 'Similar spellings';
+
+  @override
   String get expandAll => 'Expand All';
 
   @override

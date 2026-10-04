@@ -22,7 +22,13 @@ void appendDictionaryWordMatch(
 /// then alphabetical. `rank` is the same for a whole dictionary, so without
 /// the last two the order inside one would depend on the query plan; `id`
 /// breaks the last ties. Needs `is_exact` in the SELECT.
-const String dictionaryOrderBy = 'ORDER BY is_exact ASC, rank DESC, word, id';
+const String dictionaryOrderBy = 'ORDER BY $_dictionaryRowOrder';
+
+/// [dictionaryOrderBy] after the strict rows (`tier` 0) come the similar
+/// spellings of a Singlish query (`tier` 1). Needs `tier` in the SELECT too.
+const String dictionaryTieredOrderBy = 'ORDER BY tier ASC, $_dictionaryRowOrder';
+
+const String _dictionaryRowOrder = 'is_exact ASC, rank DESC, word, id';
 
 /// Appends SQL WHERE clause fragment for dictionary ID filtering.
 ///
@@ -37,4 +43,22 @@ void appendDictionaryFilter(
     buffer.write(' AND dict_id IN ($placeholders)');
     args.addAll(dictionaryIds);
   }
+}
+
+/// Appends one condition matching any of [words], each as in
+/// [appendDictionaryWordMatch].
+void appendDictionaryAnyWordMatch(
+  StringBuffer buffer,
+  List<Object> args,
+  List<String> words, {
+  bool exactMatch = false,
+}) {
+  buffer.write('(');
+  for (var i = 0; i < words.length; i++) {
+    if (i > 0) buffer.write(' OR ');
+    buffer.write('(');
+    appendDictionaryWordMatch(buffer, args, words[i], exactMatch: exactMatch);
+    buffer.write(')');
+  }
+  buffer.write(')');
 }

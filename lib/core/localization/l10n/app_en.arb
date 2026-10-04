@@ -76,6 +76,11 @@
     "description": "Message shown when search returns no results"
   },
 
+  "similarSpellings": "Similar spellings",
+  "@similarSpellings": {
+    "description": "Divider before search results that match a similar spelling of a Singlish (romanized) query, not the typed spelling exactly"
+  },
+
   "expandAll": "Expand All",
   "@expandAll": {
     "description": "Button label to expand all tree nodes"

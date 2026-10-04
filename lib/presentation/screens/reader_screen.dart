@@ -56,6 +56,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               queryText: searchState.effectiveQueryText,
               isPhraseSearch: searchState.isPhraseSearch,
               isExactMatch: searchState.isExactMatch,
+              looseAlternatives: searchState.looseSpellings.words,
             ),
           );
     }

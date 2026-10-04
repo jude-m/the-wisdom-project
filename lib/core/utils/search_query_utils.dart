@@ -1,3 +1,4 @@
+import 'loose_singlish.dart';
 import 'singlish_transliterator.dart';
 import 'text_utils.dart';
 
@@ -42,3 +43,13 @@ bool querySinglishConverted(String rawQuery, String effectiveQuery) =>
     rawQuery.isNotEmpty &&
     effectiveQuery.isNotEmpty &&
     rawQuery != effectiveQuery;
+
+/// The typed Roman text when [rawQuery] gets a loose "similar spellings" tier
+/// (see [LooseSinglishExpander.appliesTo]), sanitized like the query; empty
+/// otherwise.
+String singlishTextFor(String rawQuery) {
+  final sanitized = sanitizeSearchQuery(rawQuery);
+  return sanitized != null && LooseSinglishExpander.appliesTo(sanitized)
+      ? sanitized
+      : '';
+}

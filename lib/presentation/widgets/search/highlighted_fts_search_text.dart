@@ -26,6 +26,9 @@ class HighlightedFtsSearchText extends ConsumerWidget {
   /// Exact mode: exact token match. Otherwise prefix matching.
   final bool isExactMatch;
 
+  /// Similar spellings of each query word (loose Singlish), highlighted too.
+  final List<List<String>> looseAlternatives;
+
   /// Language of the matched text ('pali' or 'sinhala').
   /// When 'pali', conjunct consonant transformation is applied for display.
   final String language;
@@ -40,6 +43,7 @@ class HighlightedFtsSearchText extends ConsumerWidget {
     required this.isPhraseSearch,
     required this.isExactMatch,
     required this.language,
+    this.looseAlternatives = const [],
     this.maxLines = 2,
   });
 
@@ -74,6 +78,7 @@ class HighlightedFtsSearchText extends ConsumerWidget {
       queryText: effectiveQuery,
       isPhraseSearch: isPhraseSearch,
       isExactMatch: isExactMatch,
+      looseAlternatives: looseAlternatives,
     );
     final rawRanges = finder.findMatchRanges(snippet);
 
@@ -146,8 +151,18 @@ class HighlightedFtsSearchText extends ConsumerWidget {
     // Snap snippet boundaries to grapheme cluster boundaries so we don't
     // split Sinhala combining characters (virama, vowel signs) and produce
     // garbled text at the "..." edges.
-    final range =
-        textMatcher.mapToOriginal(matchIndex, matchIndex + matchLength);
+    //
+    // A loose result holds a similar spelling, not the query itself: centre on
+    // the first match of any spelling instead, or the start if none shows.
+    final range = matchIndex != -1
+        ? textMatcher.mapToOriginal(matchIndex, matchIndex + matchLength)
+        : SearchMatchFinder(
+              queryText: query,
+              isPhraseSearch: isPhraseSearch,
+              isExactMatch: isExactMatch,
+              looseAlternatives: looseAlternatives,
+            ).findMatchRanges(text).firstOrNull ??
+            (start: 0, end: 0);
     final rawStart = (range.start - contextBefore).clamp(0, text.length);
     final rawEnd = (range.end + contextAfter).clamp(0, text.length);
     final snippetStart = snapToGraphemeBoundary(text, rawStart);

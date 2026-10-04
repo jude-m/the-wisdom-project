@@ -29,5 +29,9 @@ class DictionaryEntry with _$DictionaryEntry {
 
     /// Optional relevance score from FTS search
     double? relevanceScore,
+
+    /// From the loose tier: a similar spelling of a Singlish query, listed
+    /// after the strict results.
+    @Default(false) bool isLooseMatch,
   }) = _DictionaryEntry;
 }

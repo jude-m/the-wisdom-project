@@ -18,6 +18,9 @@ class FTSMatch {
   /// null if ranking not available.
   final double? relevanceScore;
 
+  /// Found only by a similar spelling of a Singlish query (the loose tier).
+  final bool isLooseMatch;
+
   FTSMatch({
     required this.editionId,
     required this.id,
@@ -28,6 +31,7 @@ class FTSMatch {
     required this.level,
     required this.nodeKey,
     this.relevanceScore,
+    this.isLooseMatch = false,
   });
 
   factory FTSMatch.fromMap(Map<String, dynamic> map, String editionId) {
@@ -41,6 +45,7 @@ class FTSMatch {
       level: map['level'] as int,
       nodeKey: map['nodeKey'] as String,
       relevanceScore: map['score'] as double?,
+      isLooseMatch: map['tier'] == 1,
     );
   }
 }
@@ -70,6 +75,10 @@ abstract class FTSDataSource {
   /// [language] - When non-null ('pali' or 'sinh'), restricts matches to that
   /// language's text only. Null (default) searches both languages. Driven by
   /// the පාළි / සිංහල search toggles in the refine dialog.
+  ///
+  /// [looseAlternatives] - Sinhala spellings per typed word of a Singlish
+  /// query. The rows only they find follow the strict rows, flagged
+  /// [FTSMatch.isLooseMatch]; [looseOnly] returns just those.
   Future<List<FTSMatch>> searchFullText(
     String query, {
     required Set<String> editionIds,
@@ -79,6 +88,8 @@ abstract class FTSDataSource {
     bool isAnywhereInText = false,
     int proximityDistance = 10,
     String? language,
+    List<List<String>> looseAlternatives = const [],
+    bool looseOnly = false,
     int limit = 50,
     int offset = 0,
   });
@@ -100,6 +111,8 @@ abstract class FTSDataSource {
   /// [language] - When non-null ('pali' or 'sinh'), counts only that language's
   /// matches. Null (default) counts both. Must mirror the filter used by
   /// [searchFullText] so the tab badge matches the visible rows.
+  ///
+  /// [looseAlternatives] - as in [searchFullText]; both tiers are counted.
   Future<int> countFullTextMatches(
     String query, {
     required String editionId,
@@ -109,6 +122,15 @@ abstract class FTSDataSource {
     bool isAnywhereInText = false,
     int proximityDistance = 10,
     String? language,
+    List<List<String>> looseAlternatives = const [],
+  });
+
+  /// Which [candidates] begin a word of [editionId]'s index — or, with
+  /// [wholeWords], are words of it. Loose Singlish keeps only these.
+  Future<Set<String>> existingTerms(
+    String editionId,
+    Set<String> candidates, {
+    required bool wholeWords,
   });
 
   /// Close all database connections
