@@ -52,7 +52,7 @@ same database.
 | State / debounce | `lib/presentation/providers/search_state.dart` |
 | Providers (DI wiring) | `lib/presentation/providers/search_provider.dart` |
 | Query normalization | `lib/core/utils/search_query_utils.dart` |
-| Loose Singlish (similar spellings) | `lib/core/utils/loose_singlish.dart`, `lib/data/repositories/loose_spelling_repository_impl.dart` |
+| Loose Singlish (similar spellings) | `lib/core/utils/loose_singlish_expander.dart`, `lib/data/repositories/loose_spelling_repository_impl.dart` |
 | Cache decorator | `lib/data/repositories/caching_text_search_repository.dart` |
 | Orchestration repo | `lib/data/repositories/text_search_repository_impl.dart` |
 | FTS datasource | `lib/data/datasources/fts_local_datasource.dart` |
@@ -112,9 +112,11 @@ The conversion above is **strict**: one typed spelling, one Sinhala spelling
 also gets a lower **loose tier**: the spellings that *sound like* it.
 
 ```dart
-singlishTextFor('daanaya')   // 'daanaya'  → SearchQuery.singlishText
+// After the debounce, once per search, before any query runs:
+looseSpellingRepository.spellingsFor('daanaya', editionIds: {'bjt'})
 // LooseSinglishExpander finds, checked against the index's own word list:
-//   [[දානය, දානාය, ධානය]]   one list per typed word
+//   words: [[දානය, දානාය, ධානය]]   one list per typed word
+// → SearchState.looseSpellings, and every SearchQuery.looseSpellings
 ```
 
 - Capitals don't matter. Sound-alikes match (t/th, d/dh, n/ණ/ඤ, l/ළ, s/ශ/ෂ…).
@@ -123,9 +125,14 @@ singlishTextFor('daanaya')   // 'daanaya'  → SearchQuery.singlishText
   stays short. Dictionary searches check against headwords instead, which are a
   different list.
 
-Every list shows the strict results first, then the loose ones under a
-"Similar spellings" divider. Top Results keeps room for 2 loose items per
-category. The rules, and the measurements behind them:
+The spellings are ranked by how many rows of the text use them; those under
+10% of the top one are dropped. Each list shows the lead spelling's results
+first (`SearchQuery.leadText`): the strict spelling, unless the text uses
+another over 10 times as often (switch `kMostUsedSpellingLeads`). The rest
+follow under a "Similar spellings" divider, spelling by spelling. Definitions
+always lead with the strict query. Top Results keeps room for 2 loose items per
+category, or 3 when the lead finds nothing. A loose title must start a word of
+the name. The rules, and the measurements behind them:
 `docs/todo/loose-singlish-search.md`.
 
 ---
@@ -247,10 +254,12 @@ pointing to *where* the match lives. Each row becomes an `FTSMatch`
 joins `bjt_meta` when a scope or language filter is active) to populate the tab
 badge numbers cheaply.
 
-With similar spellings (Singlish, see Step 1), the CTE gets a second arm:
-`MATCH '(loose) NOT (strict)'` with `1 AS tier`, joined by `UNION ALL` and
-ordered `ORDER BY tier, score, id`. Strict rows come first and no row appears
-twice. The count matches `(strict) OR (loose)`.
+With similar spellings (Singlish, see Step 1), the CTE gets more arms: the
+lead spelling is tier 0, then each other spelling is
+`MATCH 'spelling* NOT (earlier spellings)'` with its own tier (a phrase gets one
+loose tier for all its combinations), joined by `UNION ALL` and ordered
+`ORDER BY tier, score, id`. No row appears twice. The count matches
+`(lead) OR (loose)`.
 
 ---
 

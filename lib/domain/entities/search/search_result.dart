@@ -50,7 +50,8 @@ class SearchResult with _$SearchResult {
     double? relevanceScore,
 
     /// From the loose tier: a similar spelling of a Singlish query, listed
-    /// after the strict results.
+    /// under the divider after the lead spelling's results (see
+    /// SearchQuery.leadText).
     @Default(false) bool isLooseMatch,
   }) = _SearchResult;
 }

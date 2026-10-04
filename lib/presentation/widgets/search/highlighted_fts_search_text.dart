@@ -5,6 +5,7 @@ import '../../../core/utils/pali_conjunct_transformer.dart';
 import '../../../core/utils/pali_letter_options.dart';
 import '../../../core/utils/search_match_finder.dart';
 import '../../../core/utils/text_utils.dart';
+import '../../providers/fts_highlight_provider.dart';
 import '../../providers/pali_letter_options_provider.dart';
 
 /// Displays text with search query matches highlighted.
@@ -17,17 +18,9 @@ class HighlightedFtsSearchText extends ConsumerWidget {
   /// The text content to display and highlight matches within.
   final String matchedText;
 
-  /// Pre-computed effective query (sanitized + Singlish converted).
-  final String effectiveQuery;
-
-  /// Phrase mode: words must appear adjacent. Otherwise within proximity.
-  final bool isPhraseSearch;
-
-  /// Exact mode: exact token match. Otherwise prefix matching.
-  final bool isExactMatch;
-
-  /// Similar spellings of each query word (loose Singlish), highlighted too.
-  final List<List<String>> looseAlternatives;
+  /// What to highlight: the effective query, its search modes and similar
+  /// spellings.
+  final FtsHighlightState highlight;
 
   /// Language of the matched text ('pali' or 'sinhala').
   /// When 'pali', conjunct consonant transformation is applied for display.
@@ -39,11 +32,8 @@ class HighlightedFtsSearchText extends ConsumerWidget {
   const HighlightedFtsSearchText({
     super.key,
     required this.matchedText,
-    required this.effectiveQuery,
-    required this.isPhraseSearch,
-    required this.isExactMatch,
+    required this.highlight,
     required this.language,
-    this.looseAlternatives = const [],
     this.maxLines = 2,
   });
 
@@ -65,21 +55,16 @@ class HighlightedFtsSearchText extends ConsumerWidget {
   ) {
     final baseStyle = context.typography.resultMatchedText;
 
-    // Create snippet centered around match
-    final snippet = _createSnippet(text: matchedText, query: effectiveQuery);
+    // One finder centres the snippet on the first match and then highlights
+    // the matches inside it.
+    final finder = highlight.finder;
+    final snippet = _createSnippet(text: matchedText, finder: finder);
 
     final highlightStyle = TextStyle(
       backgroundColor: theme.colorScheme.tertiaryContainer,
       color: theme.colorScheme.onPrimaryContainer,
     );
 
-    // Use shared SearchMatchFinder to find highlight ranges on raw snippet
-    final finder = SearchMatchFinder(
-      queryText: effectiveQuery,
-      isPhraseSearch: isPhraseSearch,
-      isExactMatch: isExactMatch,
-      looseAlternatives: looseAlternatives,
-    );
     final rawRanges = finder.findMatchRanges(snippet);
 
     // For Pali text, apply conjunct transformation and remap highlight ranges
@@ -111,58 +96,17 @@ class HighlightedFtsSearchText extends ConsumerWidget {
   /// Creates text snippet centered around first match.
   String _createSnippet({
     required String text,
-    required String query,
+    required SearchMatchFinder finder,
     int contextBefore = 50,
     int contextAfter = 100,
   }) {
-    final textMatcher = NormalizedTextMatcher(text);
-    final normalizedQuery = normalizeText(query, toLowerCase: true);
-    final words = splitQueryWords(query);
+    // The first match, or the start of the text when none shows.
+    final range =
+        finder.findMatchRanges(text).firstOrNull ?? (start: 0, end: 0);
 
-    // Find match position
-    int matchIndex;
-    int matchLength;
-
-    if (isPhraseSearch && isExactMatch) {
-      matchIndex = textMatcher.normalized.indexOf(normalizedQuery);
-      matchLength = normalizedQuery.length;
-
-      // Fallback: FTS returns hyphenated text for space-separated query
-      // e.g., "සීල-සමාධි" matches query "සීල සමාධි"
-      if (matchIndex == -1 &&
-          words.length >= 2 &&
-          (textMatcher.normalized.contains('-') ||
-              textMatcher.normalized.contains(','))) {
-        final result = _findPhrasePosition(textMatcher.normalized, words);
-        matchIndex = result.index;
-        matchLength = result.length;
-      }
-    } else if (words.length >= 2) {
-      final result = _findPhrasePosition(textMatcher.normalized, words);
-      matchIndex = result.index;
-      matchLength = result.length;
-    } else {
-      matchIndex =
-          words.isNotEmpty ? textMatcher.normalized.indexOf(words.first) : -1;
-      matchLength = words.isNotEmpty ? words.first.length : 0;
-    }
-
-    // Map to original positions and extract snippet.
     // Snap snippet boundaries to grapheme cluster boundaries so we don't
     // split Sinhala combining characters (virama, vowel signs) and produce
     // garbled text at the "..." edges.
-    //
-    // A loose result holds a similar spelling, not the query itself: centre on
-    // the first match of any spelling instead, or the start if none shows.
-    final range = matchIndex != -1
-        ? textMatcher.mapToOriginal(matchIndex, matchIndex + matchLength)
-        : SearchMatchFinder(
-              queryText: query,
-              isPhraseSearch: isPhraseSearch,
-              isExactMatch: isExactMatch,
-              looseAlternatives: looseAlternatives,
-            ).findMatchRanges(text).firstOrNull ??
-            (start: 0, end: 0);
     final rawStart = (range.start - contextBefore).clamp(0, text.length);
     final rawEnd = (range.end + contextAfter).clamp(0, text.length);
     final snippetStart = snapToGraphemeBoundary(text, rawStart);
@@ -173,57 +117,6 @@ class HighlightedFtsSearchText extends ConsumerWidget {
     if (snippetEnd < text.length) snippet = '$snippet...';
 
     return snippet;
-  }
-
-  /// Finds position where words appear adjacent/close together.
-  ({int index, int length}) _findPhrasePosition(
-    String normalizedText,
-    List<String> words,
-  ) {
-    if (words.isEmpty) return (index: -1, length: 0);
-    if (words.length == 1) {
-      final idx = normalizedText.indexOf(words.first);
-      return (index: idx, length: idx != -1 ? words.first.length : 0);
-    }
-
-    final firstWord = words.first;
-    int searchStart = 0;
-
-    while (searchStart < normalizedText.length) {
-      final firstWordIndex = normalizedText.indexOf(firstWord, searchStart);
-      if (firstWordIndex == -1) break;
-
-      bool allWordsFound = true;
-      int currentPos = firstWordIndex + firstWord.length;
-      int phraseEndPos = currentPos;
-
-      for (int i = 1; i < words.length; i++) {
-        final maxGap = isPhraseSearch ? 20 : 100;
-        final searchEnd = (currentPos + maxGap).clamp(0, normalizedText.length);
-        final searchWindow = normalizedText.substring(currentPos, searchEnd);
-        final nextWordIndex = searchWindow.indexOf(words[i]);
-
-        if (nextWordIndex == -1) {
-          allWordsFound = false;
-          break;
-        }
-
-        currentPos = currentPos + nextWordIndex + words[i].length;
-        phraseEndPos = currentPos;
-      }
-
-      if (allWordsFound) {
-        return (index: firstWordIndex, length: phraseEndPos - firstWordIndex);
-      }
-      searchStart = firstWordIndex + 1;
-    }
-
-    // Fallback: return first word position
-    final fallbackIndex = normalizedText.indexOf(firstWord);
-    return (
-      index: fallbackIndex,
-      length: fallbackIndex != -1 ? firstWord.length : 0,
-    );
   }
 
   // ===========================================================================

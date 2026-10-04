@@ -27,7 +27,7 @@ class SearchMatchFinder {
 
   /// Similar spellings of each query word (loose Singlish), matched as the
   /// word itself is. Empty = the query only.
-  final List<List<String>> looseAlternatives;
+  final List<List<String>> looseSpellings;
 
   /// Cached normalized query and words for reuse.
   late final String _normalizedQuery;
@@ -44,21 +44,21 @@ class SearchMatchFinder {
     required this.isPhraseSearch,
     required this.isExactMatch,
     this.maxGap = 20,
-    this.looseAlternatives = const [],
+    this.looseSpellings = const [],
   }) {
     _normalizedQuery = normalizeText(queryText, toLowerCase: true);
     final words = splitQueryWords(queryText);
     // Spellings are per typed word, so they only line up word for word.
     final aligned =
-        looseAlternatives.isNotEmpty && looseAlternatives.length == words.length;
+        looseSpellings.isNotEmpty && looseSpellings.length == words.length;
     _queryWords = [
       for (var i = 0; i < words.length; i++)
-        [words[i], if (aligned) ...looseAlternatives[i]],
+        [words[i], if (aligned) ...looseSpellings[i]],
     ];
     _phrases = [
       _normalizedQuery,
       if (aligned)
-        for (final spellings in spellingCombinations(looseAlternatives))
+        for (final spellings in spellingCombinations(looseSpellings))
           spellings.join(' '),
     ];
   }
@@ -92,8 +92,7 @@ class SearchMatchFinder {
         final normIndex = matcher.normalized.indexOf(phrase, searchStart);
         if (normIndex == -1) break;
 
-        ranges.add(
-            matcher.mapToOriginal(normIndex, normIndex + phrase.length));
+        ranges.add(matcher.mapToOriginal(normIndex, normIndex + phrase.length));
         searchStart = normIndex + phrase.length;
       }
     }

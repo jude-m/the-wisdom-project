@@ -74,28 +74,28 @@ String buildFtsQuery(
   }
 }
 
-/// Builds the FTS5 query for the loose-Singlish tier. [alternatives] holds the
+/// Builds the FTS5 query for the loose-Singlish tier. [spellings] holds the
 /// Sinhala spellings of each typed word, in typed order.
 ///
 /// Each mode means what it does in [buildFtsQuery]. FTS5 allows no OR inside a
 /// phrase or a NEAR group, so those modes list the combinations instead.
 String buildLooseFtsQuery(
-  List<List<String>> alternatives, {
+  List<List<String>> spellings, {
   bool isExactMatch = false,
   bool isPhraseSearch = true,
   bool isAnywhereInText = false,
   int proximityDistance = 10,
 }) {
-  if (alternatives.isEmpty) return '""';
+  if (spellings.isEmpty) return '""';
 
-  String anyOf(List<String> spellings) =>
-      '(${spellings.map((s) => isExactMatch ? s : '$s*').join(' OR ')})';
+  String anyOf(List<String> forWord) =>
+      '(${forWord.map((s) => isExactMatch ? s : '$s*').join(' OR ')})';
 
-  if (alternatives.length == 1) return anyOf(alternatives.single);
+  if (spellings.length == 1) return anyOf(spellings.single);
   if (!isPhraseSearch && isAnywhereInText) {
-    return alternatives.map(anyOf).join(' AND ');
+    return spellings.map(anyOf).join(' AND ');
   }
-  return spellingCombinations(alternatives)
+  return spellingCombinations(spellings)
       .map((words) => buildFtsQuery(
             words.join(' '),
             isExactMatch: isExactMatch,
@@ -107,16 +107,34 @@ String buildLooseFtsQuery(
 }
 
 /// Every way to pick one spelling per word, in order, at most [max] of them.
+///
+/// When there are more, each word keeps its first few spellings, the room
+/// shared evenly (two words: 8 × 8), so no word loses all but one.
 List<List<String>> spellingCombinations(
-  List<List<String>> alternatives, {
+  List<List<String>> spellings, {
   int max = 64,
 }) {
+  // Grow each word's share by one in turn while the product still fits.
+  final keep = [for (final forWord in spellings) forWord.isEmpty ? 0 : 1];
+  var product = keep.fold(1, (a, b) => a * b);
+  for (var grew = product > 0; grew;) {
+    grew = false;
+    for (var i = 0; i < spellings.length; i++) {
+      if (keep[i] >= spellings[i].length) continue;
+      final next = product ~/ keep[i] * (keep[i] + 1);
+      if (next > max) continue;
+      product = next;
+      keep[i]++;
+      grew = true;
+    }
+  }
+
   var combinations = [<String>[]];
-  for (final spellings in alternatives) {
+  for (var i = 0; i < spellings.length; i++) {
     combinations = [
       for (final head in combinations)
-        for (final spelling in spellings) [...head, spelling],
-    ].take(max).toList();
+        for (final spelling in spellings[i].take(keep[i])) [...head, spelling],
+    ];
   }
   return combinations;
 }

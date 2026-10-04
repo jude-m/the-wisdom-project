@@ -9,6 +9,7 @@ import '../../../domain/entities/search/search_result_type.dart';
 import '../../../domain/entities/search/search_result.dart';
 import '../../providers/dictionary_provider.dart'
     show selectedDictionaryWordProvider;
+import '../../providers/fts_highlight_provider.dart';
 import '../../providers/reader_unit_provider.dart';
 import '../../providers/reference_search_provider.dart';
 import '../../providers/search_provider.dart';
@@ -76,10 +77,7 @@ class SearchResultsPanel extends ConsumerWidget {
                     theme,
                     searchState.isLoading,
                     searchState.groupedResults,
-                    searchState.effectiveQueryText,
-                    searchState.isPhraseSearch,
-                    searchState.isExactMatch,
-                    searchState.looseSpellings.words,
+                    searchState.ftsHighlight,
                     resolver,
                   )
                 : _buildResultTypeTabContent(
@@ -88,12 +86,9 @@ class SearchResultsPanel extends ConsumerWidget {
                     theme,
                     searchState.fullResults,
                     searchState.selectedResultType,
-                    searchState.effectiveQueryText,
                     searchState
                         .countByResultType[searchState.selectedResultType],
-                    searchState.isPhraseSearch,
-                    searchState.isExactMatch,
-                    searchState.looseSpellings.words,
+                    searchState.ftsHighlight,
                     resolver,
                   ),
           ),
@@ -109,10 +104,7 @@ class SearchResultsPanel extends ConsumerWidget {
     ThemeData theme,
     bool isLoading,
     GroupedSearchResult? categorizedResults,
-    String effectiveQuery,
-    bool isPhraseSearch,
-    bool isExactMatch,
-    List<List<String>> looseAlternatives,
+    FtsHighlightState highlight,
     ReaderUnitResolver? resolver,
   ) {
     // Loading state
@@ -156,10 +148,7 @@ class SearchResultsPanel extends ConsumerWidget {
                       if (resultType == SearchResultType.fullText)
                         ..._buildGroupedFTSResults(
                           categorizedResults.getResultsByType(resultType),
-                          effectiveQuery,
-                          isPhraseSearch,
-                          isExactMatch,
-                          looseAlternatives,
+                          highlight,
                           resolver,
                         )
                       else if (resultType == SearchResultType.definition)
@@ -178,10 +167,7 @@ class SearchResultsPanel extends ConsumerWidget {
                           (result) => result.isLooseMatch,
                           (result) => _SearchResultTile(
                             searchResult: result,
-                            effectiveQuery: effectiveQuery,
-                            isPhraseSearch: isPhraseSearch,
-                            isExactMatch: isExactMatch,
-                            looseAlternatives: looseAlternatives,
+                            highlight: highlight,
                             onTap: () => onResultTap?.call(result),
                           ),
                         ),
@@ -201,10 +187,7 @@ class SearchResultsPanel extends ConsumerWidget {
   /// Builds grouped FTS result tiles from a list of search results
   List<Widget> _buildGroupedFTSResults(
     List<SearchResult> results,
-    String effectiveQuery,
-    bool isPhraseSearch,
-    bool isExactMatch,
-    List<List<String>> looseAlternatives,
+    FtsHighlightState highlight,
     ReaderUnitResolver? resolver,
   ) {
     final groupedResults =
@@ -214,10 +197,7 @@ class SearchResultsPanel extends ConsumerWidget {
       (group) => group.isLooseMatch,
       (group) => GroupedFTSTile(
         group: group,
-        effectiveQuery: effectiveQuery,
-        isPhraseSearch: isPhraseSearch,
-        isExactMatch: isExactMatch,
-        looseAlternatives: looseAlternatives,
+        highlight: highlight,
         onPrimaryTap: (result) => onResultTap?.call(result),
         onSecondaryTap: (result) => onResultTap?.call(result),
       ),
@@ -232,29 +212,10 @@ class SearchResultsPanel extends ConsumerWidget {
     Widget Function(T item) tile,
   ) =>
       [
-        for (var i = 0; i < items.length; i++) ...[
-          if (_startsLooseTier(items, i, isLoose))
-            const SimilarSpellingsDivider(),
-          tile(items[i]),
-        ],
+        for (var i = 0; i < items.length; i++)
+          SimilarSpellingsDivider.aboveFirstLoose(
+              items, i, isLoose, tile(items[i])),
       ];
-
-  /// Whether the item at [index] is the first of the loose tier.
-  static bool _startsLooseTier<T>(
-    List<T> items,
-    int index,
-    bool Function(T item) isLoose,
-  ) =>
-      isLoose(items[index]) && (index == 0 || !isLoose(items[index - 1]));
-
-  /// [tile], below the similar-spellings divider when it starts the loose tier.
-  static Widget _belowLooseDivider(Widget tile, {required bool startsLoose}) =>
-      startsLoose
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [const SimilarSpellingsDivider(), tile],
-            )
-          : tile;
 
   /// Builds the content for specific category tabs (Title, Content, Definition)
   Widget _buildResultTypeTabContent(
@@ -263,11 +224,8 @@ class SearchResultsPanel extends ConsumerWidget {
     ThemeData theme,
     AsyncValue<List<SearchResult>?> fullResults,
     SearchResultType selectedResultType,
-    String effectiveQuery,
     int? totalCount,
-    bool isPhraseSearch,
-    bool isExactMatch,
-    List<List<String>> looseAlternatives,
+    FtsHighlightState highlight,
     ReaderUnitResolver? resolver,
   ) {
     return fullResults.when(
@@ -333,18 +291,16 @@ class SearchResultsPanel extends ConsumerWidget {
                 return _footer(context, results.length, totalCount);
               }
 
-              return _belowLooseDivider(
+              return SimilarSpellingsDivider.aboveFirstLoose(
+                groupedResults,
+                index,
+                (group) => group.isLooseMatch,
                 GroupedFTSTile(
                   group: groupedResults[index],
-                  effectiveQuery: effectiveQuery,
-                  isPhraseSearch: isPhraseSearch,
-                  isExactMatch: isExactMatch,
-                  looseAlternatives: looseAlternatives,
+                  highlight: highlight,
                   onPrimaryTap: (result) => onResultTap?.call(result),
                   onSecondaryTap: (result) => onResultTap?.call(result),
                 ),
-                startsLoose: _startsLooseTier(
-                    groupedResults, index, (group) => group.isLooseMatch),
               );
             },
           );
@@ -365,13 +321,14 @@ class SearchResultsPanel extends ConsumerWidget {
                 return _footer(context, results.length, totalCount);
               }
 
-              return _belowLooseDivider(
+              return SimilarSpellingsDivider.aboveFirstLoose(
+                results,
+                index,
+                (result) => result.isLooseMatch,
                 DictionarySearchResultTile(
                   result: results[index],
                   onTap: () => _showDictionaryBottomSheet(ref, results[index]),
                 ),
-                startsLoose: _startsLooseTier(
-                    results, index, (result) => result.isLooseMatch),
               );
             },
           );
@@ -393,17 +350,15 @@ class SearchResultsPanel extends ConsumerWidget {
               return _footer(context, results.length, totalCount);
             }
 
-            return _belowLooseDivider(
+            return SimilarSpellingsDivider.aboveFirstLoose(
+              results,
+              index,
+              (result) => result.isLooseMatch,
               _SearchResultTile(
                 searchResult: results[index],
-                effectiveQuery: effectiveQuery,
-                isPhraseSearch: isPhraseSearch,
-                isExactMatch: isExactMatch,
-                looseAlternatives: looseAlternatives,
+                highlight: highlight,
                 onTap: () => onResultTap?.call(results[index]),
               ),
-              startsLoose: _startsLooseTier(
-                  results, index, (result) => result.isLooseMatch),
             );
           },
         );
@@ -651,29 +606,15 @@ class _CountBadge extends StatelessWidget {
 class _SearchResultTile extends ConsumerWidget {
   final SearchResult searchResult;
 
-  /// Pre-computed effective query (sanitized + Singlish→Sinhala converted)
-  /// from SearchState. No per-row conversion needed.
-  final String effectiveQuery;
-
-  /// Whether phrase search mode is active.
-  /// Affects how multi-word queries are highlighted.
-  final bool isPhraseSearch;
-
-  /// Whether exact match mode is active.
-  /// When false (default), uses prefix matching for highlighting.
-  final bool isExactMatch;
-
-  /// Similar spellings of each query word, highlighted too.
-  final List<List<String>> looseAlternatives;
+  /// What to highlight in the matched text, from SearchState (the effective
+  /// query is converted once there, not per row).
+  final FtsHighlightState highlight;
 
   final VoidCallback? onTap;
 
   const _SearchResultTile({
     required this.searchResult,
-    required this.effectiveQuery,
-    required this.isPhraseSearch,
-    required this.isExactMatch,
-    required this.looseAlternatives,
+    required this.highlight,
     this.onTap,
   });
 
@@ -725,10 +666,7 @@ class _SearchResultTile extends ConsumerWidget {
             const SizedBox(height: 4),
             HighlightedFtsSearchText(
               matchedText: searchResult.matchedText,
-              effectiveQuery: effectiveQuery,
-              isPhraseSearch: isPhraseSearch,
-              isExactMatch: isExactMatch,
-              looseAlternatives: looseAlternatives,
+              highlight: highlight,
               language: searchResult.language,
             ),
           ],

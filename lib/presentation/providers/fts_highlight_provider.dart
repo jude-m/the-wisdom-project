@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/search_match_finder.dart';
 import 'tab_provider.dart';
 
-/// State for highlighting search terms in the reader after clicking an FTS result.
+/// What to highlight for an FTS search: in result snippets, and in the reader
+/// after clicking an FTS result.
 ///
-/// This is transient UI state that is:
+/// In the reader this is transient UI state that is:
 /// - Set when opening a tab from a search result
 /// - Cleared when the user taps anywhere in the reader
 ///
@@ -20,14 +22,22 @@ class FtsHighlightState {
   final bool isExactMatch;
 
   /// Similar spellings of each query word (loose Singlish), highlighted too.
-  final List<List<String>> looseAlternatives;
+  final List<List<String>> looseSpellings;
 
   const FtsHighlightState({
     required this.queryText,
     required this.isPhraseSearch,
     required this.isExactMatch,
-    this.looseAlternatives = const [],
+    this.looseSpellings = const [],
   });
+
+  /// The finder that locates these matches in a text.
+  SearchMatchFinder get finder => SearchMatchFinder(
+        queryText: queryText,
+        isPhraseSearch: isPhraseSearch,
+        isExactMatch: isExactMatch,
+        looseSpellings: looseSpellings,
+      );
 }
 
 /// Manages per-tab FTS highlight state.

@@ -25,8 +25,9 @@ mixin _$SearchState {
   /// - UI highlighting (avoids re-conversion per result row)
   String get effectiveQueryText => throw _privateConstructorUsedError;
 
-  /// Similar spellings of a Singlish query (the loose tier), to highlight
-  /// the results they found. Empty = strict only.
+  /// Similar spellings of a Singlish query (the loose tier). Looked up once
+  /// per search; the queries and the highlights use them. Empty = strict
+  /// only.
   LooseSpellings get looseSpellings => throw _privateConstructorUsedError;
 
   /// Recent search history
@@ -491,8 +492,9 @@ class _$SearchStateImpl extends _SearchState {
   @JsonKey()
   final String effectiveQueryText;
 
-  /// Similar spellings of a Singlish query (the loose tier), to highlight
-  /// the results they found. Empty = strict only.
+  /// Similar spellings of a Singlish query (the loose tier). Looked up once
+  /// per search; the queries and the highlights use them. Empty = strict
+  /// only.
   @override
   @JsonKey()
   final LooseSpellings looseSpellings;
@@ -784,8 +786,9 @@ abstract class _SearchState extends SearchState {
   @override
   String get effectiveQueryText;
 
-  /// Similar spellings of a Singlish query (the loose tier), to highlight
-  /// the results they found. Empty = strict only.
+  /// Similar spellings of a Singlish query (the loose tier). Looked up once
+  /// per search; the queries and the highlights use them. Empty = strict
+  /// only.
   @override
   LooseSpellings get looseSpellings;
 

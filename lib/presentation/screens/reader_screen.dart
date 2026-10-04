@@ -49,15 +49,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     // Non-FTS tabs (Title, Definition) simply won't have a map entry,
     // so they won't show highlights — no explicit clearing needed.
     if (tabIndex >= 0 && result.resultType == SearchResultType.fullText) {
-      final searchState = ref.read(searchStateProvider);
       ref.read(ftsHighlightProvider.notifier).setForTab(
             tabIndex,
-            FtsHighlightState(
-              queryText: searchState.effectiveQueryText,
-              isPhraseSearch: searchState.isPhraseSearch,
-              isExactMatch: searchState.isExactMatch,
-              looseAlternatives: searchState.looseSpellings.words,
-            ),
+            ref.read(searchStateProvider).ftsHighlight,
           );
     }
 

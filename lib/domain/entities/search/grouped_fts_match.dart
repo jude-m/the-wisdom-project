@@ -35,8 +35,8 @@ class GroupedFTSMatch with _$GroupedFTSMatch {
   /// Whether there are additional matches beyond the primary
   bool get hasSecondaryMatches => secondaryMatches.isNotEmpty;
 
-  /// Found only by similar spellings (the loose tier). Strict matches lead
-  /// their group, so a loose primary means no match in it is strict.
+  /// Found only by similar spellings (the loose tier). Lead-spelling matches
+  /// lead their group, so a loose primary means the group has none.
   bool get isLooseMatch => primaryMatch.isLooseMatch;
 
   /// Count of secondary matches (for "See X more" text)
@@ -48,7 +48,8 @@ class GroupedFTSMatch with _$GroupedFTSMatch {
   /// Groups flat search results by the sutta each match's *row* belongs to.
   ///
   /// Results within each group are sorted by appearance order in the text
-  /// (pageIndex, then entryIndex), strict matches before similar spellings.
+  /// (pageIndex, then entryIndex), lead-spelling matches before similar
+  /// spellings.
   /// The first match becomes primaryMatch, the rest become secondaryMatches.
   ///
   /// [resolver] is what answers which sutta owns a row — see
@@ -80,7 +81,7 @@ class GroupedFTSMatch with _$GroupedFTSMatch {
       final matches = entry.value;
 
       // Sort by appearance order in text (pageIndex, then entryIndex), the
-      // loose tier after the strict one
+      // loose tier after the lead one
       matches.sort((a, b) {
         if (a.isLooseMatch != b.isLooseMatch) return a.isLooseMatch ? 1 : -1;
         final pageCompare = a.pageIndex.compareTo(b.pageIndex);

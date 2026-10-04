@@ -1,17 +1,21 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'loose_spellings.dart';
+
 part 'search_query.freezed.dart';
 
 /// Represents a search query with filters
 @freezed
 class SearchQuery with _$SearchQuery {
+  const SearchQuery._();
+
   const factory SearchQuery({
     /// The search query text
     required String queryText,
 
-    /// The Roman text as typed, when the query is Singlish. Drives the loose
-    /// "similar spellings" tier after the strict results; empty = strict only.
-    @Default('') String singlishText,
+    /// Spellings that sound like a Singlish query: the "similar spellings"
+    /// tier after the strict results. Empty = strict only.
+    @Default(LooseSpellings()) LooseSpellings looseSpellings,
 
     /// Whether to require exact word match (no prefix matching)
     /// Default false = prefix matching enabled (e.g., "සති" matches "සතිපට්ඨානය")
@@ -66,4 +70,17 @@ class SearchQuery with _$SearchQuery {
     /// Offset for pagination
     @Default(0) int offset,
   }) = _SearchQuery;
+
+  /// The editions to search: [editionIds], or BJT when none is chosen.
+  Set<String> get editionsToSearch =>
+      editionIds.isEmpty ? const {'bjt'} : editionIds;
+
+  /// What titles and full text list first, above the similar-spellings
+  /// divider: each typed word's lead spelling — the strict one, unless a far
+  /// more common one outranks it — or [queryText] itself when there are no
+  /// similar spellings. Definitions keep [queryText] first.
+  String get leadText => looseSpellings.words.isEmpty
+      ? queryText
+      : [for (final spellings in looseSpellings.words) spellings.first]
+          .join(' ');
 }

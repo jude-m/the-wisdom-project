@@ -25,8 +25,17 @@ void appendDictionaryWordMatch(
 const String dictionaryOrderBy = 'ORDER BY $_dictionaryRowOrder';
 
 /// [dictionaryOrderBy] after the strict rows (`tier` 0) come the similar
-/// spellings of a Singlish query (`tier` 1). Needs `tier` in the SELECT too.
-const String dictionaryTieredOrderBy = 'ORDER BY tier ASC, $_dictionaryRowOrder';
+/// spellings of a Singlish query (`tier` 1 and up, one per spelling). In
+/// each, the spelling as a whole word (`is_reading` 0) comes before longer
+/// words, and the headword with the most entries first: the word every
+/// dictionary has (පඤ්ඤා) before a stem (පඤ්ඤ), each word's entries
+/// together. Needs `tier` and `is_reading` in the SELECT too.
+const String dictionaryTieredOrderBy = 'ORDER BY tier ASC, '
+    'CASE WHEN tier > 0 THEN is_reading END, '
+    'CASE WHEN tier > 0 THEN (SELECT count(*) FROM dictionary e '
+    'WHERE e.word = dictionary.word) END DESC, '
+    'CASE WHEN tier > 0 THEN word END, '
+    '$_dictionaryRowOrder';
 
 const String _dictionaryRowOrder = 'is_exact ASC, rank DESC, word, id';
 

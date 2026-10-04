@@ -18,7 +18,8 @@ class FTSMatch {
   /// null if ranking not available.
   final double? relevanceScore;
 
-  /// Found only by a similar spelling of a Singlish query (the loose tier).
+  /// Found only by a spelling after the query's lead one (the similar
+  /// spellings of a Singlish query).
   final bool isLooseMatch;
 
   FTSMatch({
@@ -45,7 +46,7 @@ class FTSMatch {
       level: map['level'] as int,
       nodeKey: map['nodeKey'] as String,
       relevanceScore: map['score'] as double?,
-      isLooseMatch: map['tier'] == 1,
+      isLooseMatch: ((map['tier'] as int?) ?? 0) > 0,
     );
   }
 }
@@ -76,9 +77,10 @@ abstract class FTSDataSource {
   /// language's text only. Null (default) searches both languages. Driven by
   /// the පාළි / සිංහල search toggles in the refine dialog.
   ///
-  /// [looseAlternatives] - Sinhala spellings per typed word of a Singlish
-  /// query. The rows only they find follow the strict rows, flagged
-  /// [FTSMatch.isLooseMatch]; [looseOnly] returns just those.
+  /// [looseSpellings] - Sinhala spellings per typed word of a Singlish
+  /// query, in search order. The rows only they find follow the rows of
+  /// [query], flagged [FTSMatch.isLooseMatch]; with one typed word, each
+  /// spelling's rows follow the one before it. [looseOnly] returns just those.
   Future<List<FTSMatch>> searchFullText(
     String query, {
     required Set<String> editionIds,
@@ -88,7 +90,7 @@ abstract class FTSDataSource {
     bool isAnywhereInText = false,
     int proximityDistance = 10,
     String? language,
-    List<List<String>> looseAlternatives = const [],
+    List<List<String>> looseSpellings = const [],
     bool looseOnly = false,
     int limit = 50,
     int offset = 0,
@@ -112,7 +114,7 @@ abstract class FTSDataSource {
   /// matches. Null (default) counts both. Must mirror the filter used by
   /// [searchFullText] so the tab badge matches the visible rows.
   ///
-  /// [looseAlternatives] - as in [searchFullText]; both tiers are counted.
+  /// [looseSpellings] - as in [searchFullText]; both tiers are counted.
   Future<int> countFullTextMatches(
     String query, {
     required String editionId,
@@ -122,7 +124,7 @@ abstract class FTSDataSource {
     bool isAnywhereInText = false,
     int proximityDistance = 10,
     String? language,
-    List<List<String>> looseAlternatives = const [],
+    List<List<String>> looseSpellings = const [],
   });
 
   /// Which [candidates] begin a word of [editionId]'s index — or, with
@@ -130,6 +132,15 @@ abstract class FTSDataSource {
   Future<Set<String>> existingTerms(
     String editionId,
     Set<String> candidates, {
+    required bool wholeWords,
+  });
+
+  /// How many rows of [editionId]'s index use each of [spellings]: the rows
+  /// of each word it begins (or, with [wholeWords], of the word itself),
+  /// added up. Loose Singlish ranks its spellings by this.
+  Future<Map<String, int>> termUsage(
+    String editionId,
+    Set<String> spellings, {
     required bool wholeWords,
   });
 

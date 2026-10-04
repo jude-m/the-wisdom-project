@@ -16,7 +16,17 @@ final _privateConstructorUsedError = UnsupportedError(
 
 /// @nodoc
 mixin _$LooseSpellings {
+  /// Per typed word, in typed order: the spellings the Tipitaka text holds,
+  /// in search order. The strict search's own spelling leads unless a far
+  /// more common one outranks it; the rest follow by how often the text
+  /// uses them, the rarest dropped. Titles, full text and highlights search
+  /// with these (see SearchQuery.leadText).
   List<List<String>> get words => throw _privateConstructorUsedError;
+
+  /// The spellings dictionary headwords hold, for definitions, the ones the
+  /// text uses most first. A headword is one word, so only a one-word query
+  /// has any.
+  List<String> get headwords => throw _privateConstructorUsedError;
 
   /// Create a copy of LooseSpellings
   /// with the given fields replaced by the non-null parameter values.
@@ -31,7 +41,7 @@ abstract class $LooseSpellingsCopyWith<$Res> {
           LooseSpellings value, $Res Function(LooseSpellings) then) =
       _$LooseSpellingsCopyWithImpl<$Res, LooseSpellings>;
   @useResult
-  $Res call({List<List<String>> words});
+  $Res call({List<List<String>> words, List<String> headwords});
 }
 
 /// @nodoc
@@ -50,12 +60,17 @@ class _$LooseSpellingsCopyWithImpl<$Res, $Val extends LooseSpellings>
   @override
   $Res call({
     Object? words = null,
+    Object? headwords = null,
   }) {
     return _then(_value.copyWith(
       words: null == words
           ? _value.words
           : words // ignore: cast_nullable_to_non_nullable
               as List<List<String>>,
+      headwords: null == headwords
+          ? _value.headwords
+          : headwords // ignore: cast_nullable_to_non_nullable
+              as List<String>,
     ) as $Val);
   }
 }
@@ -68,7 +83,7 @@ abstract class _$$LooseSpellingsImplCopyWith<$Res>
       __$$LooseSpellingsImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({List<List<String>> words});
+  $Res call({List<List<String>> words, List<String> headwords});
 }
 
 /// @nodoc
@@ -85,24 +100,42 @@ class __$$LooseSpellingsImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? words = null,
+    Object? headwords = null,
   }) {
     return _then(_$LooseSpellingsImpl(
       words: null == words
           ? _value._words
           : words // ignore: cast_nullable_to_non_nullable
               as List<List<String>>,
+      headwords: null == headwords
+          ? _value._headwords
+          : headwords // ignore: cast_nullable_to_non_nullable
+              as List<String>,
     ));
   }
 }
 
 /// @nodoc
 
-class _$LooseSpellingsImpl extends _LooseSpellings {
-  const _$LooseSpellingsImpl({final List<List<String>> words = const []})
+class _$LooseSpellingsImpl implements _LooseSpellings {
+  const _$LooseSpellingsImpl(
+      {final List<List<String>> words = const [],
+      final List<String> headwords = const []})
       : _words = words,
-        super._();
+        _headwords = headwords;
 
+  /// Per typed word, in typed order: the spellings the Tipitaka text holds,
+  /// in search order. The strict search's own spelling leads unless a far
+  /// more common one outranks it; the rest follow by how often the text
+  /// uses them, the rarest dropped. Titles, full text and highlights search
+  /// with these (see SearchQuery.leadText).
   final List<List<String>> _words;
+
+  /// Per typed word, in typed order: the spellings the Tipitaka text holds,
+  /// in search order. The strict search's own spelling leads unless a far
+  /// more common one outranks it; the rest follow by how often the text
+  /// uses them, the rarest dropped. Titles, full text and highlights search
+  /// with these (see SearchQuery.leadText).
   @override
   @JsonKey()
   List<List<String>> get words {
@@ -111,9 +144,25 @@ class _$LooseSpellingsImpl extends _LooseSpellings {
     return EqualUnmodifiableListView(_words);
   }
 
+  /// The spellings dictionary headwords hold, for definitions, the ones the
+  /// text uses most first. A headword is one word, so only a one-word query
+  /// has any.
+  final List<String> _headwords;
+
+  /// The spellings dictionary headwords hold, for definitions, the ones the
+  /// text uses most first. A headword is one word, so only a one-word query
+  /// has any.
+  @override
+  @JsonKey()
+  List<String> get headwords {
+    if (_headwords is EqualUnmodifiableListView) return _headwords;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_headwords);
+  }
+
   @override
   String toString() {
-    return 'LooseSpellings(words: $words)';
+    return 'LooseSpellings(words: $words, headwords: $headwords)';
   }
 
   @override
@@ -121,12 +170,16 @@ class _$LooseSpellingsImpl extends _LooseSpellings {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$LooseSpellingsImpl &&
-            const DeepCollectionEquality().equals(other._words, _words));
+            const DeepCollectionEquality().equals(other._words, _words) &&
+            const DeepCollectionEquality()
+                .equals(other._headwords, _headwords));
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, const DeepCollectionEquality().hash(_words));
+  int get hashCode => Object.hash(
+      runtimeType,
+      const DeepCollectionEquality().hash(_words),
+      const DeepCollectionEquality().hash(_headwords));
 
   /// Create a copy of LooseSpellings
   /// with the given fields replaced by the non-null parameter values.
@@ -138,13 +191,24 @@ class _$LooseSpellingsImpl extends _LooseSpellings {
           this, _$identity);
 }
 
-abstract class _LooseSpellings extends LooseSpellings {
-  const factory _LooseSpellings({final List<List<String>> words}) =
-      _$LooseSpellingsImpl;
-  const _LooseSpellings._() : super._();
+abstract class _LooseSpellings implements LooseSpellings {
+  const factory _LooseSpellings(
+      {final List<List<String>> words,
+      final List<String> headwords}) = _$LooseSpellingsImpl;
 
+  /// Per typed word, in typed order: the spellings the Tipitaka text holds,
+  /// in search order. The strict search's own spelling leads unless a far
+  /// more common one outranks it; the rest follow by how often the text
+  /// uses them, the rarest dropped. Titles, full text and highlights search
+  /// with these (see SearchQuery.leadText).
   @override
   List<List<String>> get words;
+
+  /// The spellings dictionary headwords hold, for definitions, the ones the
+  /// text uses most first. A headword is one word, so only a one-word query
+  /// has any.
+  @override
+  List<String> get headwords;
 
   /// Create a copy of LooseSpellings
   /// with the given fields replaced by the non-null parameter values.

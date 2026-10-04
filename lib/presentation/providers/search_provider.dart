@@ -29,12 +29,19 @@ final ftsDataSourceProvider = Provider<FTSDataSource>((ref) {
   return FTSDataSourceImpl();
 });
 
+/// A/B switch for what a Singlish search shows first. true: a spelling the
+/// text uses more than 10 times as often as the strict one leads (`dhamma` →
+/// ධම්ම, with දම්ම under the "Similar spellings" divider). false: the strict
+/// spelling always leads, as before. Flip, then hot-restart.
+const bool kMostUsedSpellingLeads = true;
+
 /// Sound-alike Sinhala spellings for Singlish queries (the loose tier).
 final looseSpellingRepositoryProvider =
     Provider<LooseSpellingRepository>((ref) {
   return LooseSpellingRepositoryImpl(
     ref.watch(ftsDataSourceProvider),
     ref.watch(dictionaryDataSourceProvider),
+    mostUsedLeads: kMostUsedSpellingLeads,
   );
 });
 
@@ -58,7 +65,6 @@ final cachingSearchRepositoryProvider =
     ref.watch(navigationTreeRepositoryProvider),
     dictionaryRepository: ref.watch(dictionaryRepositoryProvider),
     contentDataSource: ref.watch(bjtContentDataSourceProvider),
-    looseSpellingRepository: ref.watch(looseSpellingRepositoryProvider),
   );
   return CachingTextSearchRepository(
     base,
@@ -78,7 +84,6 @@ final textSearchRepositoryProvider = Provider<TextSearchRepository>((ref) {
     ref.watch(navigationTreeRepositoryProvider),
     dictionaryRepository: ref.watch(dictionaryRepositoryProvider),
     contentDataSource: ref.watch(bjtContentDataSourceProvider),
-    looseSpellingRepository: ref.watch(looseSpellingRepositoryProvider),
   );
 });
 

@@ -6,6 +6,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/search_result.dart';
 import '../../../domain/entities/search/search_result_type.dart';
+import '../../providers/fts_highlight_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../utils/search_result_labels.dart';
 import 'highlighted_fts_search_text.dart';
@@ -22,17 +23,8 @@ class GroupedFTSTile extends ConsumerWidget {
   /// The grouped FTS match to display
   final GroupedFTSMatch group;
 
-  /// Pre-computed effective query for highlighting
-  final String effectiveQuery;
-
-  /// Whether phrase search mode is active
-  final bool isPhraseSearch;
-
-  /// Whether exact match mode is active
-  final bool isExactMatch;
-
-  /// Similar spellings of each query word, highlighted too
-  final List<List<String>> looseAlternatives;
+  /// What to highlight in the matched text
+  final FtsHighlightState highlight;
 
   /// Callback when the primary result is tapped (navigates to first match)
   final void Function(SearchResult result)? onPrimaryTap;
@@ -43,10 +35,7 @@ class GroupedFTSTile extends ConsumerWidget {
   const GroupedFTSTile({
     super.key,
     required this.group,
-    required this.effectiveQuery,
-    required this.isPhraseSearch,
-    required this.isExactMatch,
-    this.looseAlternatives = const [],
+    required this.highlight,
     this.onPrimaryTap,
     this.onSecondaryTap,
   });
@@ -122,10 +111,7 @@ class GroupedFTSTile extends ConsumerWidget {
             const SizedBox(height: 4),
             HighlightedFtsSearchText(
               matchedText: result.matchedText,
-              effectiveQuery: effectiveQuery,
-              isPhraseSearch: isPhraseSearch,
-              isExactMatch: isExactMatch,
-              looseAlternatives: looseAlternatives,
+              highlight: highlight,
               language: result.language,
             ),
           ],
@@ -191,10 +177,7 @@ class GroupedFTSTile extends ConsumerWidget {
           for (int i = 0; i < group.secondaryMatches.length; i++) ...[
             SecondaryMatchTile(
               result: group.secondaryMatches[i],
-              effectiveQuery: effectiveQuery,
-              isPhraseSearch: isPhraseSearch,
-              isExactMatch: isExactMatch,
-              looseAlternatives: looseAlternatives,
+              highlight: highlight,
               onTap: () => onSecondaryTap?.call(group.secondaryMatches[i]),
             ),
             // Divider between secondary matches (not after the last one)

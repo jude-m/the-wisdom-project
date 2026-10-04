@@ -6,6 +6,8 @@
 /// rules and the measurements behind them: docs/todo/loose-singlish-search.md.
 library;
 
+import 'dart:math' as math;
+
 /// Answers which [candidates] begin at least one word of a word list — or,
 /// with [wholeWords], which are words of it.
 typedef PrefixOracle = Future<Set<String>> Function(
@@ -23,15 +25,65 @@ class LooseSinglishExpander {
   static const int maxSpellingsPerWord = 16;
   static const int maxStatesPerStep = 512;
 
-  static final _singlishPattern = RegExp(r'^[a-zA-Z\s]+$');
-  static final _letterPattern = RegExp('[a-zA-Z]');
-  static final _spaces = RegExp(r'\s+');
+  /// In [rank], a spelling used less than this share of the most-used one
+  /// is dropped, and the strict one loses first place.
+  static const double minUsageShare = 0.1;
 
-  /// Whether [text] gets a loose tier: Roman letters only, [minLetters] or
-  /// more. Anything else (Sinhala, digits, the strict `~` codes) stays strict.
-  static bool appliesTo(String text) =>
-      _singlishPattern.hasMatch(text) &&
-      _letterPattern.allMatches(text).length >= minLetters;
+  static final _singlishPattern = RegExp(r'^[a-z\s]+$');
+  static final _letterPattern = RegExp('[a-z]');
+  static final _spaces = RegExp(r'\s+');
+  static final _iastLetters = RegExp('[${_iast.keys.join()}]');
+
+  /// Whether [text] gets a loose tier: Roman letters only (IAST included),
+  /// [minLetters] or more. Anything else (Sinhala, digits, the strict `~`
+  /// codes) stays strict.
+  static bool appliesTo(String text) {
+    final letters = _plainLetters(text);
+    return _singlishPattern.hasMatch(letters) &&
+        _letterPattern.allMatches(letters).length >= minLetters;
+  }
+
+  /// [text] lowercased, with IAST letters (text copied from SuttaCentral,
+  /// say) as typed Singlish spells them: `nibbāna` → `nibbaana`.
+  static String _plainLetters(String text) => text
+      .toLowerCase()
+      .replaceAllMapped(_iastLetters, (letter) => _iast[letter[0]]!);
+
+  /// Puts one typed word's [spellings] in search order: by [usage] (how many
+  /// rows of the text use each), most used first, without those under
+  /// [minUsageShare] of the top one — rare spellings are mostly misreadings.
+  /// The [strict] spelling is always kept: first while it holds that share
+  /// (or always, with [strictFirst]), else last.
+  static List<String> rank(
+    List<String> spellings, {
+    required String strict,
+    required Map<String, int> usage,
+    bool strictFirst = false,
+  }) {
+    int usageOf(String spelling) => usage[spelling] ?? 0;
+    final top = [strict, ...spellings].map(usageOf).reduce(math.max);
+    bool common(String spelling) => usageOf(spelling) >= top * minUsageShare;
+
+    final others = byUsage([
+      for (final spelling in spellings)
+        if (spelling != strict && common(spelling)) spelling,
+    ], usage);
+    return strictFirst || common(strict)
+        ? [strict, ...others]
+        : [...others, strict];
+  }
+
+  /// [spellings] by [usage], most used first. Ties keep the walk's order,
+  /// which reads the strict letters first.
+  static List<String> byUsage(List<String> spellings, Map<String, int> usage) {
+    final walkOrder = {
+      for (final (i, spelling) in spellings.indexed) spelling: i
+    };
+    return [...spellings]..sort((a, b) {
+        final byCount = (usage[b] ?? 0).compareTo(usage[a] ?? 0);
+        return byCount != 0 ? byCount : walkOrder[a]!.compareTo(walkOrder[b]!);
+      });
+  }
 
   /// The Sinhala spellings of each typed word of [singlish], in typed order:
   /// prefixes for prefix search, or whole words when [exact].
@@ -44,8 +96,7 @@ class LooseSinglishExpander {
     bool exact = false,
   }) async {
     if (!appliesTo(singlish)) return const [];
-    final words = singlish
-        .toLowerCase()
+    final words = _plainLetters(singlish)
         .split(_spaces)
         .where((word) => word.isNotEmpty)
         .toList();
@@ -200,21 +251,39 @@ const Map<String, (List<String>, List<String>)> _vowels = {
   'o': (['ො', 'ෝ'], ['ඔ', 'ඕ']),
 };
 
+/// IAST letters → the Roman letters typed for them: a long vowel doubled, the
+/// dots and the tilde dropped.
+const Map<String, String> _iast = {
+  'ā': 'aa',
+  'ī': 'ii',
+  'ū': 'uu',
+  'ṭ': 't',
+  'ḍ': 'd',
+  'ṇ': 'n',
+  'ḷ': 'l',
+  'ñ': 'n',
+  'ṅ': 'n',
+  'ṃ': 'm',
+  'ṁ': 'm',
+};
+
 /// Typed consonants → the letters they may stand for, longest first, the
 /// strict reading first. Sound-alikes share a list: aspirated or not, dental
-/// or retroflex, and the three s letters.
+/// or retroflex, and the three s letters. A typed `h` after k, g, j, p or b
+/// means the aspirate only; `th`/`dh` stay open, as Singlish writes the
+/// plain dental ත/ද with them.
 const Map<String, List<String>> _consonants = {
   'ngh': ['ඟ'],
   'ndh': ['ඳ', 'ඬ'],
   'mbh': ['ඹ'],
-  'kh': ['ඛ', 'ක'],
-  'gh': ['ඝ', 'ග'],
+  'kh': ['ඛ'],
+  'gh': ['ඝ'],
   'ch': ['ච', 'ඡ'],
-  'jh': ['ඣ', 'ජ'],
+  'jh': ['ඣ'],
   'th': ['ත', 'ථ', 'ට', 'ඨ'],
   'dh': ['ද', 'ධ', 'ඩ', 'ඪ'],
-  'ph': ['ඵ', 'ප'],
-  'bh': ['භ', 'බ'],
+  'ph': ['ඵ'],
+  'bh': ['භ'],
   'sh': ['ශ', 'ෂ', 'ස'],
   'ng': ['ඟ'],
   'nd': ['ඬ', 'ඳ'],

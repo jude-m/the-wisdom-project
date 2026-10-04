@@ -37,7 +37,6 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     String word, {
     bool exactMatch = false,
     Set<String> dictionaryIds = const {},
-    List<String> looseWords = const [],
     int limit = 50,
   }) async {
     try {
@@ -45,7 +44,6 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
         word,
         exactMatch: exactMatch,
         dictionaryIds: dictionaryIds,
-        looseWords: looseWords,
         limit: limit,
       );
     } catch (e) {
@@ -58,7 +56,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     String query, {
     bool isExactMatch = false,
     Set<String> dictionaryIds = const {},
-    List<String> looseWords = const [],
+    List<String> looseSpellings = const [],
     bool looseOnly = false,
     int limit = 50,
     int offset = 0,
@@ -68,7 +66,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
         query,
         exactMatch: isExactMatch,
         dictionaryIds: dictionaryIds,
-        looseWords: looseWords,
+        looseSpellings: looseSpellings,
         looseOnly: looseOnly,
         limit: limit,
         offset: offset,
@@ -79,12 +77,12 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
   }
 
   /// The entries for [word] (order: see dictionaryOrderBy), then — with
-  /// [looseWords] — those only its similar spellings find.
+  /// [looseSpellings] — those only its similar spellings find.
   Future<List<DictionaryEntry>> _selectEntries(
     String word, {
     required bool exactMatch,
     required Set<String> dictionaryIds,
-    required List<String> looseWords,
+    List<String> looseSpellings = const [],
     bool looseOnly = false,
     required int limit,
     int offset = 0,
@@ -96,7 +94,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
       throw StateError('Dictionary database not initialized');
     }
 
-    final tiered = looseWords.isNotEmpty;
+    final tiered = looseSpellings.isNotEmpty;
     final buffer = StringBuffer();
     buffer.write("""
       SELECT
@@ -104,9 +102,26 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
         CASE WHEN word = ? THEN 0 ELSE 1 END AS is_exact""");
     final args = <Object>[word];
     if (tiered) {
+      // [word]'s rows are tier 0, then each similar spelling's in turn.
       buffer.write(', CASE WHEN ');
       appendDictionaryWordMatch(buffer, args, word, exactMatch: exactMatch);
-      buffer.write(' THEN 0 ELSE 1 END AS tier');
+      buffer.write(' THEN 0');
+      for (final (index, spelling) in looseSpellings.indexed) {
+        buffer.write(' WHEN ');
+        appendDictionaryWordMatch(buffer, args, spelling,
+            exactMatch: exactMatch);
+        buffer.write(' THEN ${index + 1}');
+      }
+      // A headword that is a whole spelling, not a longer word. The walk
+      // keeps a long final a under the short spelling (පඤ්ඤ for පඤ්ඤා too),
+      // so that form is a whole one as well.
+      final readings = [
+        for (final spelling in looseSpellings) ...[spelling, '$spellingා'],
+      ];
+      buffer.write(' END AS tier, CASE WHEN word IN '
+          '(${List.filled(readings.length, '?').join(', ')}) '
+          'THEN 0 ELSE 1 END AS is_reading');
+      args.addAll(readings);
     }
     buffer.write("""
 
@@ -117,7 +132,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
       args,
       word,
       exactMatch: exactMatch,
-      looseWords: looseWords,
+      looseSpellings: looseSpellings,
       looseOnly: looseOnly,
     );
     appendDictionaryFilter(buffer, args, dictionaryIds);
@@ -131,17 +146,17 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     return results.map(_mapRowToEntry).toList();
   }
 
-  /// The WHERE condition for [word] — and, with [looseWords], for its similar
+  /// The WHERE condition for [word] — and, with [looseSpellings], for its similar
   /// spellings too, or ([looseOnly]) for only the rows they add.
   static void _appendMatch(
     StringBuffer buffer,
     List<Object> args,
     String word, {
     required bool exactMatch,
-    List<String> looseWords = const [],
+    List<String> looseSpellings = const [],
     bool looseOnly = false,
   }) {
-    if (looseWords.isEmpty) {
+    if (looseSpellings.isEmpty) {
       appendDictionaryWordMatch(buffer, args, word, exactMatch: exactMatch);
       return;
     }
@@ -154,7 +169,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     appendDictionaryAnyWordMatch(
       buffer,
       args,
-      looseWords,
+      looseSpellings,
       exactMatch: exactMatch,
     );
     if (looseOnly) {
@@ -170,7 +185,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
     String query, {
     bool isExactMatch = false,
     Set<String> dictionaryIds = const {},
-    List<String> looseWords = const [],
+    List<String> looseSpellings = const [],
   }) async {
     await initialize();
 
@@ -194,7 +209,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
         args,
         query,
         exactMatch: isExactMatch,
-        looseWords: looseWords,
+        looseSpellings: looseSpellings,
       );
       appendDictionaryFilter(buffer, args, dictionaryIds);
 
@@ -255,7 +270,7 @@ class DictionaryDataSourceImpl implements DictionaryDataSource {
       sourceLanguage: 'pali', // All entries are Pali source
       rank: row['rank'] as int,
       relevanceScore: score,
-      isLooseMatch: row['tier'] == 1,
+      isLooseMatch: ((row['tier'] as int?) ?? 0) > 0,
     );
   }
 

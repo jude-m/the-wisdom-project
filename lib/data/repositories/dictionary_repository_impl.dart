@@ -16,7 +16,6 @@ class DictionaryRepositoryImpl implements DictionaryRepository {
     String word, {
     bool exactMatch = false,
     Set<String> dictionaryIds = const {},
-    List<String> looseWords = const [],
     int limit = 50,
   }) async {
     try {
@@ -29,7 +28,6 @@ class DictionaryRepositoryImpl implements DictionaryRepository {
         word.trim(),
         exactMatch: exactMatch,
         dictionaryIds: dictionaryIds,
-        looseWords: looseWords,
         limit: limit,
       );
 
@@ -49,7 +47,7 @@ class DictionaryRepositoryImpl implements DictionaryRepository {
     String query, {
     bool isExactMatch = false,
     Set<String> dictionaryIds = const {},
-    List<String> looseWords = const [],
+    List<String> looseSpellings = const [],
     bool looseOnly = false,
     int limit = 50,
     int offset = 0,
@@ -64,7 +62,7 @@ class DictionaryRepositoryImpl implements DictionaryRepository {
         query.trim(),
         isExactMatch: isExactMatch,
         dictionaryIds: dictionaryIds,
-        looseWords: looseWords,
+        looseSpellings: looseSpellings,
         looseOnly: looseOnly,
         limit: limit,
         offset: offset,
@@ -86,7 +84,7 @@ class DictionaryRepositoryImpl implements DictionaryRepository {
     String query, {
     bool isExactMatch = false,
     Set<String> dictionaryIds = const {},
-    List<String> looseWords = const [],
+    List<String> looseSpellings = const [],
   }) async {
     try {
       // Defensive guard - return 0 for empty/whitespace query

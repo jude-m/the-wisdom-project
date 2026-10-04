@@ -323,14 +323,7 @@ class _TextEntryWidgetState extends ConsumerState<TextEntryWidget> {
       return [];
     }
 
-    final finder = SearchMatchFinder(
-      queryText: searchHighlight.queryText,
-      isPhraseSearch: searchHighlight.isPhraseSearch,
-      isExactMatch: searchHighlight.isExactMatch,
-      looseAlternatives: searchHighlight.looseAlternatives,
-    );
-
-    return finder.findMatchRanges(_displayText);
+    return searchHighlight.finder.findMatchRanges(_displayText);
   }
 
   /// Builds a TextSpan with tappable words and optional highlighting.

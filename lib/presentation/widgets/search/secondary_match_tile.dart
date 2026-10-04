@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/entities/search/search_result.dart';
 import '../../../domain/entities/search/search_result_type.dart';
+import '../../providers/fts_highlight_provider.dart';
 import 'highlighted_fts_search_text.dart';
 
 /// A compact, muted tile for displaying secondary FTS matches.
@@ -15,17 +16,8 @@ class SecondaryMatchTile extends StatelessWidget {
   /// The search result to display
   final SearchResult result;
 
-  /// Pre-computed effective query for highlighting
-  final String effectiveQuery;
-
-  /// Whether phrase search mode is active
-  final bool isPhraseSearch;
-
-  /// Whether exact match mode is active
-  final bool isExactMatch;
-
-  /// Similar spellings of each query word, highlighted too
-  final List<List<String>> looseAlternatives;
+  /// What to highlight in the matched text
+  final FtsHighlightState highlight;
 
   /// Callback when the tile is tapped
   final VoidCallback? onTap;
@@ -33,10 +25,7 @@ class SecondaryMatchTile extends StatelessWidget {
   const SecondaryMatchTile({
     super.key,
     required this.result,
-    required this.effectiveQuery,
-    required this.isPhraseSearch,
-    required this.isExactMatch,
-    this.looseAlternatives = const [],
+    required this.highlight,
     this.onTap,
   });
 
@@ -55,10 +44,7 @@ class SecondaryMatchTile extends StatelessWidget {
                 result.matchedText.isNotEmpty)
               HighlightedFtsSearchText(
                 matchedText: result.matchedText,
-                effectiveQuery: effectiveQuery,
-                isPhraseSearch: isPhraseSearch,
-                isExactMatch: isExactMatch,
-                looseAlternatives: looseAlternatives,
+                highlight: highlight,
                 language: result.language,
               ),
           ],

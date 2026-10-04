@@ -67,7 +67,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     bool isAnywhereInText = false,
     int proximityDistance = 10,
     String? language,
-    List<List<String>> looseAlternatives = const [],
+    List<List<String>> looseSpellings = const [],
     bool looseOnly = false,
     int limit = 50,
     int offset = 0,
@@ -86,7 +86,7 @@ class FTSDataSourceImpl implements FTSDataSource {
         isAnywhereInText: isAnywhereInText,
         proximityDistance: proximityDistance,
         language: language,
-        looseAlternatives: looseAlternatives,
+        looseSpellings: looseSpellings,
         looseOnly: looseOnly,
         limit: limit,
         offset: offset,
@@ -109,7 +109,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     bool isAnywhereInText = false,
     int proximityDistance = 10,
     String? language,
-    List<List<String>> looseAlternatives = const [],
+    List<List<String>> looseSpellings = const [],
     bool looseOnly = false,
     int limit = 50,
     int offset = 0,
@@ -133,18 +133,19 @@ class FTSDataSourceImpl implements FTSDataSource {
         proximityDistance: proximityDistance,
       );
 
-      // Strict rows are tier 0. Rows that only a similar spelling finds are
-      // tier 1: `(loose) NOT (strict)`, so no row is listed twice.
-      final looseQuery = _looseFtsQuery(
-        looseAlternatives,
-        isExactMatch: isExactMatch,
-        isPhraseSearch: isPhraseSearch,
-        isAnywhereInText: isAnywhereInText,
-        proximityDistance: proximityDistance,
-      );
+      // The rows of [query] are tier 0; the similar spellings' rows follow.
       final tiers = [
         if (!looseOnly) (tier: 0, match: ftsQuery),
-        if (looseQuery != null) (tier: 1, match: '($looseQuery) NOT ($ftsQuery)'),
+        for (final (index, match) in _looseTierMatches(
+          query,
+          ftsQuery,
+          looseSpellings,
+          isExactMatch: isExactMatch,
+          isPhraseSearch: isPhraseSearch,
+          isAnywhereInText: isAnywhereInText,
+          proximityDistance: proximityDistance,
+        ).indexed)
+          (tier: index + 1, match: match),
       ];
       if (tiers.isEmpty) return const [];
 
@@ -214,7 +215,7 @@ class FTSDataSourceImpl implements FTSDataSource {
     bool isAnywhereInText = false,
     int proximityDistance = 10,
     String? language,
-    List<List<String>> looseAlternatives = const [],
+    List<List<String>> looseSpellings = const [],
   }) async {
     await initializeEditions({editionId});
 
@@ -237,15 +238,14 @@ class FTSDataSourceImpl implements FTSDataSource {
       );
       // Both tiers, as searchFullText lists them.
       final looseQuery = _looseFtsQuery(
-        looseAlternatives,
+        looseSpellings,
         isExactMatch: isExactMatch,
         isPhraseSearch: isPhraseSearch,
         isAnywhereInText: isAnywhereInText,
         proximityDistance: proximityDistance,
       );
-      final ftsQuery = looseQuery == null
-          ? strictQuery
-          : '($strictQuery) OR ($looseQuery)';
+      final ftsQuery =
+          looseQuery == null ? strictQuery : '($strictQuery) OR ($looseQuery)';
 
       // Build query with optional scope and/or language filters.
       // Either filter lives on the meta table, so we only join `m` when needed
@@ -291,18 +291,60 @@ class FTSDataSourceImpl implements FTSDataSource {
     }
   }
 
+  /// The MATCH of each tier after the one of [query] ([leadMatch]), each
+  /// leaving out the rows listed before it. One typed word gets a tier per
+  /// spelling, in search order, so a rare spelling's rows never jump ahead of
+  /// a common one's. A phrase gets one tier for all its combinations: a tier
+  /// per combination would repeat the costly NEAR matching up to 64 times.
+  static List<String> _looseTierMatches(
+    String query,
+    String leadMatch,
+    List<List<String>> spellings, {
+    required bool isExactMatch,
+    required bool isPhraseSearch,
+    required bool isAnywhereInText,
+    required int proximityDistance,
+  }) {
+    if (spellings.length != 1) {
+      final looseQuery = _looseFtsQuery(
+        spellings,
+        isExactMatch: isExactMatch,
+        isPhraseSearch: isPhraseSearch,
+        isAnywhereInText: isAnywhereInText,
+        proximityDistance: proximityDistance,
+      );
+      return [if (looseQuery != null) '($looseQuery) NOT ($leadMatch)'];
+    }
+
+    String match(String spelling) =>
+        buildFtsQuery(spelling, isExactMatch: isExactMatch);
+    final listed = [query];
+    final tiers = <String>[];
+    for (final spelling in spellings.single) {
+      // Nothing to add when listed already, or — prefix search — when it
+      // begins with a spelling listed before it (කර covers කර්).
+      final covered = isExactMatch
+          ? listed.contains(spelling)
+          : listed.any(spelling.startsWith);
+      if (covered) continue;
+      tiers.add('${match(spelling)} NOT (${listed.map(match).join(' OR ')})');
+      listed.add(spelling);
+    }
+    return tiers;
+  }
+
   /// The FTS5 query for the loose tier, or null when there is none.
   static String? _looseFtsQuery(
-    List<List<String>> alternatives, {
+    List<List<String>> spellings, {
     required bool isExactMatch,
     required bool isPhraseSearch,
     required bool isAnywhereInText,
     required int proximityDistance,
   }) =>
-      alternatives.isEmpty
+      spellings.isEmpty
           ? null
           : buildLooseFtsQuery(
-              alternatives,
+              spellings,
               isExactMatch: isExactMatch,
               isPhraseSearch: isPhraseSearch,
               isAnywhereInText: isAnywhereInText,
@@ -316,38 +358,15 @@ class FTSDataSourceImpl implements FTSDataSource {
     required bool wholeWords,
   }) async {
     if (candidates.isEmpty) return const {};
-    await initializeEditions({editionId});
-
-    final db = _databases[editionId];
-    if (db == null) {
-      throw StateError('Edition $editionId not initialized');
-    }
+    final db = await _openWordList(editionId);
 
     try {
-      // The index's own word list. Made here, not on open, so strict search
-      // never depends on it; in `temp`, so the file is untouched, and it lives
-      // as long as the shared connection does.
-      final vocab = _vocabTables[editionId] ??= db.customStatement(
-        'CREATE VIRTUAL TABLE IF NOT EXISTS temp.${_vocabTableFor(editionId)} '
-        'USING fts5vocab(main, ${editionId}_fts, row)',
-      );
-      try {
-        await vocab;
-      } catch (_) {
-        _vocabTables.remove(editionId);
-        rethrow;
-      }
-
       // One statement per batch: json_each turns the list into rows, and each
-      // row costs one seek in the word list. U+10FFFF sorts after anything
-      // that can follow a prefix.
-      final match = wholeWords
-          ? 'v.term = j.value'
-          : 'v.term >= j.value AND v.term < j.value || char(1114111)';
+      // row costs one seek in the word list.
       final rows = await db.rawQuery(
         'SELECT j.value AS candidate FROM json_each(?) j '
         'WHERE EXISTS (SELECT 1 FROM temp.${_vocabTableFor(editionId)} v '
-        'WHERE $match)',
+        'WHERE ${_wordListMatch(wholeWords)})',
         [jsonEncode(candidates.toList())],
       );
       return {for (final row in rows) row['candidate'] as String};
@@ -355,6 +374,66 @@ class FTSDataSourceImpl implements FTSDataSource {
       throw Exception('Word list lookup failed for edition $editionId: $e');
     }
   }
+
+  @override
+  Future<Map<String, int>> termUsage(
+    String editionId,
+    Set<String> spellings, {
+    required bool wholeWords,
+  }) async {
+    if (spellings.isEmpty) return const {};
+    final db = await _openWordList(editionId);
+
+    try {
+      // `doc` is the rows a word is in. Not `cnt`, its occurrences: one
+      // passage repeating a word hundreds of times would outweigh it.
+      final rows = await db.rawQuery(
+        'SELECT j.value AS spelling, '
+        '(SELECT coalesce(sum(v.doc), 0) '
+        'FROM temp.${_vocabTableFor(editionId)} v '
+        'WHERE ${_wordListMatch(wholeWords)}) AS usage '
+        'FROM json_each(?) j',
+        [jsonEncode(spellings.toList())],
+      );
+      return {
+        for (final row in rows) row['spelling'] as String: row['usage'] as int,
+      };
+    } catch (e) {
+      throw Exception('Word usage lookup failed for edition $editionId: $e');
+    }
+  }
+
+  /// [editionId]'s database, its word list ready: the index's own, as an
+  /// `fts5vocab` table. Made here, not on open, so strict search never
+  /// depends on it; in `temp`, so the file is untouched, and it lives as long
+  /// as the shared connection does.
+  Future<LocalDatabase> _openWordList(String editionId) async {
+    await initializeEditions({editionId});
+
+    final db = _databases[editionId];
+    if (db == null) {
+      throw StateError('Edition $editionId not initialized');
+    }
+
+    final vocab = _vocabTables[editionId] ??= db.customStatement(
+      'CREATE VIRTUAL TABLE IF NOT EXISTS temp.${_vocabTableFor(editionId)} '
+      'USING fts5vocab(main, ${editionId}_fts, row)',
+    );
+    try {
+      await vocab;
+    } catch (e) {
+      _vocabTables.remove(editionId);
+      throw Exception('Word list setup failed for edition $editionId: $e');
+    }
+    return db;
+  }
+
+  /// A word `v.term` of the word list that candidate `j.value` begins — or,
+  /// with [wholeWords], equals. U+10FFFF sorts after anything that can
+  /// follow a prefix.
+  static String _wordListMatch(bool wholeWords) => wholeWords
+      ? 'v.term = j.value'
+      : 'v.term >= j.value AND v.term < j.value || char(1114111)';
 
   @override
   Future<void> close() async {

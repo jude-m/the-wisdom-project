@@ -59,7 +59,8 @@ mixin _$SearchResult {
   double? get relevanceScore => throw _privateConstructorUsedError;
 
   /// From the loose tier: a similar spelling of a Singlish query, listed
-  /// after the strict results.
+  /// under the divider after the lead spelling's results (see
+  /// SearchQuery.leadText).
   bool get isLooseMatch => throw _privateConstructorUsedError;
 
   /// Create a copy of SearchResult
@@ -388,7 +389,8 @@ class _$SearchResultImpl implements _SearchResult {
   final double? relevanceScore;
 
   /// From the loose tier: a similar spelling of a Singlish query, listed
-  /// after the strict results.
+  /// under the divider after the lead spelling's results (see
+  /// SearchQuery.leadText).
   @override
   @JsonKey()
   final bool isLooseMatch;
@@ -535,7 +537,8 @@ abstract class _SearchResult implements SearchResult {
   double? get relevanceScore;
 
   /// From the loose tier: a similar spelling of a Singlish query, listed
-  /// after the strict results.
+  /// under the divider after the lead spelling's results (see
+  /// SearchQuery.leadText).
   @override
   bool get isLooseMatch;
 
