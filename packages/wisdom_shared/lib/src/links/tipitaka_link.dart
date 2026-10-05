@@ -3,7 +3,7 @@ import 'commentary_link.dart';
 /// A shareable / universal link to a location in the canon.
 ///
 /// One URL grammar serves every surface (app, static site, OS deep links —
-/// see `docs/todo/deep-linking-and-shareable-urls.md`):
+/// see `docs/todo/web-strategy/deep-linking-and-shareable-urls.md`):
 ///
 ///     https://<host>[/app]/tipitaka/<nodeKey>[?e=<page>[.<entry>]][#<nodeKey>]
 ///     sammaditthi://tipitaka/<nodeKey>[?e=<page>[.<entry>]][#<nodeKey>]

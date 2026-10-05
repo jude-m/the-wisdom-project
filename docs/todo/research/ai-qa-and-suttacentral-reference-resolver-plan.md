@@ -564,5 +564,5 @@ Net: chat → `shared_preferences`; resolver → in-memory JSON map; hybrid (lat
 | Cross-edition concordance (proven) | `tools/mahamevnawa_map/build_map.py`, `docs/todo/mahamevnawa-link-mapping.md` |
 | Cross-edition alignment slot | `lib/domain/entities/content/entry.dart` (`segmentId`) |
 | Search result → navigation | `lib/domain/entities/search/search_result.dart` (`nodeKey`) |
-| Routing target for deep-links | `docs/todo/deep-linking-and-shareable-urls.md` (`/tipitaka/<nodeKey>`) |
+| Routing target for deep-links | `docs/todo/web-strategy/deep-linking-and-shareable-urls.md` (`/tipitaka/<nodeKey>`) |
 | Shared client/server logic home | `packages/wisdom_shared/` |

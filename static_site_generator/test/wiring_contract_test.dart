@@ -609,6 +609,106 @@ void main() {
       expect(_countOf(pages['toc']!, 'class="layout-input"'), 0);
       expect(_countOf(pages['landing']!, 'class="layout-input"'), 0);
     });
+
+    test('a reading page links to itself in the app; a TOC and / do not', () {
+      // Found by the class site.js looks for, since site.js adds the page's `#`
+      // to these links. A rename on one side only still opens the app, but on
+      // the whole chapter instead of the sutta being read.
+      final jsClass = _readJsAppLinkClass();
+      // Records, not a map: the last two share a path.
+      final reading = [
+        (
+          '/tipitaka/sp-grp',
+          _render(_chapterPage,
+              slices: {'sp-grp-1': _bothLanguages('sp-grp-1')}),
+        ),
+        (
+          '/tipitaka/sp-toc',
+          _render(_readableTocPage, preamble: _bothLanguages('sp-toc')),
+        ),
+        (
+          '/tipitaka/sp-toc-1',
+          _render(_suttaPage, slices: {'sp-toc-1': _bothLanguages()}),
+        ),
+        // One language: no layout buttons, but still a page to read.
+        (
+          '/tipitaka/sp-toc-1',
+          _render(_suttaPage, slices: {
+            'sp-toc-1': _slice('sp-toc-1', [_row(pali: _entry('පාළි'))]),
+          }),
+        ),
+      ];
+
+      for (final (path, html) in reading) {
+        final hrefs = _hrefsOfClass(html, jsClass);
+        // The pill and the ⋮ menu's copy: the stylesheet shows one per width,
+        // so site.js has to find both.
+        expect(hrefs, hasLength(2),
+            reason: '$path needs both copies of the link, found by site.js.');
+        // The same path on the app's host, with no `#`: site.js adds that.
+        expect(hrefs, everyElement('$_appOrigin$path'));
+      }
+
+      for (final html in [
+        _render(_tocPage),
+        LandingPage(roots: _tree.roots, build: _build).render(),
+      ]) {
+        expect(_hrefsOfClass(html, jsClass), isEmpty,
+            reason: 'Only a page with text to read links to the app.');
+      }
+    });
+
+    test('wherever the layout buttons are, the ⋮ menu holds a copy', () {
+      // On a phone the stylesheet hides the bar's layout buttons and shows the
+      // menu's copy instead. A page without the copy leaves a phone reader
+      // stuck on one layout, and nothing else would notice.
+      for (final html in [
+        _render(_suttaPage, slices: {'sp-toc-1': _bothLanguages()}),
+        _render(_chapterPage, slices: {'sp-grp-1': _bothLanguages('sp-grp-1')}),
+        _render(_readableTocPage, preamble: _bothLanguages('sp-toc')),
+      ]) {
+        // Each fixture must have the buttons, or this passes vacuously.
+        expect(_countOf(html, 'class="layout-input"'), readingLayouts.length);
+        final menu = _moreMenuOf(html);
+        for (final layout in readingLayouts) {
+          expect(menu, contains('for="${layout.id}"'),
+              reason: 'The ⋮ menu has no button for ${layout.id}.');
+        }
+      }
+    });
+
+    test('no layout button without its radio, in the bar or the ⋮', () {
+      // A label whose radio is not on the page is a button that does nothing.
+      // The trap is a page in one language: no radios, but still a ⋮, for the
+      // link to the app.
+      final html = _render(_suttaPage, slices: {
+        'sp-toc-1': _slice('sp-toc-1', [_row(pali: _entry('පාළි'))]),
+      });
+      expect(_attributeValues(html, 'id'),
+          containsAll(_attributeValues(html, 'for')));
+    });
+
+    test('the app link and ⋮ rules select on classes the template emits', () {
+      // The pill and the ⋮ swap by width by these rules, and on a phone the ⋮
+      // shows its copy of the layout buttons. A class renamed on one side only
+      // breaks that at one width, with nothing red.
+      final selectors =
+          _rulesSelectingOn(css, RegExp(r'\.(app-|more|new-tab-)'));
+      expect(selectors, isNotEmpty,
+          reason: 'No CSS rule styles the app link or the ⋮ at all.');
+
+      final acted = <String>{
+        for (final selector in selectors)
+          ...RegExp(r'\.([\w-]+)')
+              .allMatches(selector)
+              .map((match) => match.group(1)!),
+      };
+      final emitted = _classNamesIn(
+          _render(_suttaPage, slices: {'sp-toc-1': _bothLanguages()}));
+      expect(emitted, containsAll(acted),
+          reason: 'These rules act on ${acted.difference(emitted)}, which a '
+              'reading page does not emit.');
+    });
   });
 
   // The same class of bug as the stylesheet contract above, in the other
@@ -981,6 +1081,14 @@ SitePage get _commentaryChapterPage => SitePage(
 SitePage get _tocPage =>
     SitePage(kind: PageKind.toc, node: _tree['sp-toc']!, suttas: const []);
 
+/// A TOC whose preamble is an introduction, which makes it a reading page.
+SitePage get _readableTocPage => SitePage(
+      kind: PageKind.toc,
+      node: _tree['sp-toc']!,
+      suttas: const [],
+      ownsRunningText: true,
+    );
+
 /// A second tree, for the search index alone — deliberately not [_tree], which
 /// builds its [SitePage]s by hand and so has no run starting below a container.
 ///
@@ -1148,6 +1256,40 @@ String _readJsHrefFor() {
   }
   fail('site.js: `hrefFor` is never closed.');
 }
+
+/// The class `site.js` finds the "read in the app" links by: `a.app-link`.
+String _readJsAppLinkClass() {
+  final match =
+      RegExp(r"var appLinks = document\.querySelectorAll\('a\.([\w-]+)'\);")
+          .firstMatch(File('assets/site.js').readAsStringSync());
+  if (match == null) {
+    fail("site.js no longer declares "
+        "`var appLinks = document.querySelectorAll('a.…');`.");
+  }
+  return match.group(1)!;
+}
+
+/// The href of every `<a>` in [html] whose class list holds [cssClass].
+List<String> _hrefsOfClass(String html, String cssClass) => [
+      for (final match
+          in RegExp(r'<a class="([^"]*)" href="([^"]*)"').allMatches(html))
+        if (match.group(1)!.split(' ').contains(cssClass)) match.group(2)!,
+    ];
+
+/// The ⋮ menu's contents, up to the `</details>` that closes it.
+String _moreMenuOf(String html) {
+  final start = html.indexOf('<div class="more-menu">');
+  if (start < 0) fail('No ⋮ menu on the page.');
+  final end = html.indexOf('</details>', start);
+  if (end < 0) fail('The ⋮ menu is never closed.');
+  return html.substring(start, end);
+}
+
+/// Every value [name] takes on the page — every `id`, every `for`.
+Set<String> _attributeValues(String html, String name) => {
+      for (final match in RegExp('\\s$name="([^"]*)"').allMatches(html))
+        match.group(1)!,
+    };
 
 /// Every individual class name the markup uses.
 ///

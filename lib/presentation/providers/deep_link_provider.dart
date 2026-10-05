@@ -17,7 +17,8 @@ import 'tab_provider.dart';
 /// build/run time with `--dart-define=LINK_BASE_URL=…` — pointing a dev build
 /// at a local server, or at `app.sammaditthi.net` for a reading the static site
 /// cannot render (non-BJT editions).
-/// See `docs/todo/deep-linking-and-shareable-urls.md` for the URL grammar.
+/// See `docs/todo/web-strategy/deep-linking-and-shareable-urls.md` for the URL
+/// grammar.
 final linkBaseUrlProvider = Provider<String>(
   (ref) => const String.fromEnvironment(
     'LINK_BASE_URL',
