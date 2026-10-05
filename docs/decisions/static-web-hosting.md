@@ -60,6 +60,12 @@ canvas, not "Brahmajāla Sutta… එවං මෙ සුතං…". Real static
 **slow-device reading** (no multi-MB WASM cold-start). We *route around* Flutter's
 SEO gap rather than fixing Flutter web itself.
 
+Flutter's own [web FAQ](https://docs.flutter.dev/platform-integration/web/faq)
+recommends this split: the app in Flutter, landing and help content in
+search-optimized HTML. **The app being the main product doesn't change which
+surface ranks** — only this one can. Its job is to rank, then hand readers to
+the app.
+
 > **Watch-item — Option C (HTML-in-Canvas).** A Chrome origin trial that would let
 > Flutter web embed real HTML (crawlable text, native selection) *without leaving
 > Flutter* — the single-codebase endgame that could make both the static site and
@@ -324,6 +330,19 @@ and the surfaces gain nothing from sharing an origin:
 | Flutter web app | `app.sammaditthi.net` (dev: `app-sammaditthi-test.pages.dev`) | a few hundred (until/if retired) |
 | ටීකා (sub-commentaries), when digitized | `tika.sammaditthi.net` | ~6–7 K projected (≈ `atta-*` scale) |
 
+**Subdomain, not `/app` — re-checked 2026-10-05.** Two reasons the original
+discussion didn't record:
+
+- **SEO doesn't choose.** The subdomain-vs-subfolder debate is about ranking
+  passing between two indexed halves. The app is a noindexed canvas, so nothing
+  passes either way; the choice is engineering only.
+- **Only a separate host lets "read in app" open the native app.** iOS ignores a
+  Universal Link tapped to the same domain as the page being read: it opens the
+  link "in Safari"; to a different domain, "in your app"
+  ([Apple](https://developer.apple.com/library/archive/documentation/General/Conceptual/AppSearch/UniversalLinks.html)).
+  A `/app` link on the apex would load the web app in Safari even with the
+  native app installed.
+
 Why (recorded from the 2026-07-23 discussion):
 
 - **URL ownership is unambiguous.** The locked shareable URLs
@@ -540,7 +559,11 @@ The SSG emits all of it as static files:
   sitemap (no `/app/` rule needed anymore). Written on dev previews too, saying
   the same thing, for the crawl-then-noindex reason spelled out in the next
   bullet: `X-Robots-Tag` is a response header, and a crawler told `Disallow`
-  never fetches the response to read it.
+  never fetches the response to read it. **The zone must not add to it**
+  (2026-10-05): Cloudflare's managed robots.txt prepends `Disallow: /` for named
+  AI crawlers (GPTBot, ClaudeBot, CCBot, Google-Extended…), and a named crawler
+  obeys its own group over `User-agent: *` — undoing the allow for exactly the
+  crawlers this site is for. Checked at release (`web-release.md`).
 - **Keep the app out of the index — `noindex`, NOT `Disallow` (fixed 2026-07-23):**
   the app project sends `X-Robots-Tag: noindex` on every response, dev and
   prod alike (one rule in `web/_headers`: `/*` → `X-Robots-Tag: noindex`) and its `robots.txt`

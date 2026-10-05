@@ -25,6 +25,20 @@ Everything production lives in the **ops** account — the Pages projects, the
 a zone in the same account, and Pages projects **cannot be moved between
 accounts**.
 
+**Same visit, same zone — two settings** (found 2026-10-05; why in
+[`static-web-hosting.md`](../../decisions/static-web-hosting.md), SEO plumbing →
+`robots.txt`):
+
+- **Let AI crawlers in.** Cloudflare changed its AI-crawler defaults in July
+  2025 (new domains blocked them) and on 15 Sept 2026 (separate search, training
+  and agent settings). The domain was registered between the two, so check AI
+  Crawl Control: allow search *and* training — search is how assistants cite
+  the site, training is how models learn the text. If **managed robots.txt** is
+  on, turn it off: it puts `Disallow: /` for GPTBot, ClaudeBot, CCBot,
+  Google-Extended and others in front of the generated file.
+- **`www` → apex**: a proxied `www` record and one permanent redirect rule.
+  Nothing in the plan covers `www`, and people type it.
+
 ---
 
 ## 1. Before the release build
@@ -99,8 +113,13 @@ no lock, and the second wipes `build/` mid-upload.
 - [ ] `curl -I` an asset → `immutable`; a page → revalidating. The preview server
       does not apply `_headers` (backlog C4), so this is the first honest test.
 - [ ] A canonical, an `og:url` and a sitemap `<loc>` all name `sammaditthi.net`.
+- [ ] `curl -s https://sammaditthi.net/robots.txt` → exactly the generated file,
+      nothing prepended by the zone.
+- [ ] `curl -I https://www.sammaditthi.net/tipitaka/sp` → `301` to the same path
+      on the apex.
 - [ ] CSP present, if C2 shipped.
-- [ ] Search Console: submit `sitemap.xml`.
+- [ ] Search Console **and** Bing Webmaster Tools: submit `sitemap.xml`. Copilot,
+      and partly ChatGPT search, read Bing's index rather than Google's.
 - [ ] Research Worker: re-deploy from the prod account, CORS re-pinned.
 - [ ] Start watching the 404 logs — they are the trigger for backlog **D3**
       (stub files vs Bulk Redirects). Decide from traffic, not projection.
@@ -205,9 +224,10 @@ Still open:
 
 **Banked for prod** — cheap, and currently wrong:
 
-- `web/index.html` and `web/manifest.json` are untouched Flutter scaffolding —
-  title `the_wisdom_project`, description "A new Flutter project.", theme colour
-  `#0175C2`.
+- **No Open Graph tags in `web/index.html`**, so a shared `app.` link previews as
+  a bare "Sammaditthi" card with English text. One generic Sinhala card (title,
+  description, image) is enough — the bundle is static, so a card per page would
+  need an edge function. BJT shares go to the static page, which has its own.
 - The font preload in `index.html` names `NotoSansSinhala-Regular.ttf`, the full
   face. The bundle ships only the `-Subset.ttf`, and not at that path.
 - **A connection lost mid-download shows the error icon, not the offline one.**
@@ -219,6 +239,9 @@ Still open:
 - AASA / assetlinks on **both** origins.
 - Research Worker CORS must include the app's prod origin (dev's is in
   `research_server/wrangler.jsonc`).
-- **Buttons linking the two products, both ways** — the site's "Open in the full
-  reader" (planned in `static-web-hosting.md`) and a matching one in the app back
-  to the site.
+- **Links between the two products.** Site → app is built on sutta and chapter
+  pages (`deep-linking-and-shareable-urls.md`, first task §A) but missing from
+  `/` and the TOC pages, and the site never names the app: "Sammaditthi" appears
+  only in the domain. `/` should introduce it, under the BJT site name — the app
+  CTA `static-web-hosting.md` gives `/`. Store badges and the iOS Smart App
+  Banner come with the native release. App → site: §B there.
