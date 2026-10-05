@@ -77,6 +77,11 @@ PROD_BRANCH=$(target STATIC_SITE_PROD_BRANCH)
 # holds no domain; it is handed this one as --origin (build plan P5).
 PROD_ORIGIN=$(target STATIC_SITE_PROD_ORIGIN)
 
+# Where "read in the app" points on each target: the app on the web. Dev's is
+# its project's own `.pages.dev` name, derived as scripts/app/web/deploy.sh does.
+DEV_APP_ORIGIN="https://$(target APP_WEB_DEV_PROJECT).pages.dev"
+PROD_APP_ORIGIN=$(target APP_WEB_PROD_ORIGIN)
+
 # $PROD_BRANCH does double duty: it is both the Pages branch a release deploys
 # to and the git branch a release must be cut from. They are the same name
 # because they describe the same thing — what is live.
@@ -288,14 +293,17 @@ fi
 # production branch answers on (checked above).
 if [ "$TARGET" = "prod" ]; then
   ORIGIN="$PROD_ORIGIN"
+  APP_ORIGIN="$PROD_APP_ORIGIN"
 else
   ORIGIN="https://$PROJECT.pages.dev"
+  APP_ORIGIN="$DEV_APP_ORIGIN"
 fi
 
 # --- Build ------------------------------------------------------------------
 if [ "$SKIP_BUILD" = false ]; then
   echo "Building static site (--root $ROOTS)..."
-  dart run static_site_generator/bin/generate.dart --root "$ROOTS" --origin "$ORIGIN"
+  dart run static_site_generator/bin/generate.dart --root "$ROOTS" \
+    --origin "$ORIGIN" --app-origin "$APP_ORIGIN"
   echo ""
 else
   if [ ! -d "$OUT" ]; then

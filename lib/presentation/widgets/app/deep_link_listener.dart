@@ -10,15 +10,17 @@ import '../../providers/deep_link_provider.dart';
 
 /// Receives incoming links and routes them into the reader.
 ///
-/// Two sources, one sink (see `docs/todo/deep-linking-and-shareable-urls.md`):
+/// Two sources, one sink (see
+/// `docs/todo/web-strategy/deep-linking-and-shareable-urls.md`):
 ///
 /// - **Mobile/desktop**: the [AppLinks] stream delivers OS-handed URIs —
 ///   `sammaditthi://` (dev scheme) today, Universal/App Links (https) once the
 ///   production domain is live. Covers both cold start (initial link) and
 ///   links arriving while the app runs.
 /// - **Web**: only the URL the app was opened with matters (`Uri.base`) — the
-///   host answers an unknown `/tipitaka/*` path with `index.html`, and without a
-///   router the address bar never changes afterwards.
+///   host answers an unknown `/tipitaka/*` path with `index.html`. Without a
+///   router the address bar never follows the reader; Flutter rewrites it once,
+///   at start-up, dropping the `#`.
 ///
 /// Wraps the app (inside MaterialApp's builder) so MediaQuery is available for
 /// the orientation-based layout seed. Non-link URIs are silently ignored.
@@ -38,8 +40,11 @@ class _DeepLinkListenerState extends ConsumerState<DeepLinkListener> {
   void initState() {
     super.initState();
     if (kIsWeb) {
-      // Post-frame so MediaQuery/providers are fully in place at cold start.
-      WidgetsBinding.instance.addPostFrameCallback((_) => _handleUri(Uri.base));
+      // Read the URL now, handle it post-frame (MediaQuery/providers in place).
+      // By then Flutter web has rewritten the address bar and dropped the
+      // `#fragment`, which can name the sutta.
+      final startUri = Uri.base;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _handleUri(startUri));
     } else {
       // The stream includes the initial (cold-start) link on app_links ≥6.
       // onError: a platform-channel hiccup must never surface as an unhandled

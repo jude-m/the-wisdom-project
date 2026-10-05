@@ -997,6 +997,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try again'**
   String get databaseInstallRetry;
+
+  /// Static web site only: link in a sutta or chapter page's toolbar that opens the same page in the app (Flutter web), in a new tab
+  ///
+  /// In en, this message translates to:
+  /// **'Read in the app'**
+  String get readInApp;
+
+  /// Static web site only: accessible name of the toolbar's ⋮ menu on narrow screens
+  ///
+  /// In en, this message translates to:
+  /// **'More options'**
+  String get moreOptions;
 }
 
 class _AppLocalizationsDelegate

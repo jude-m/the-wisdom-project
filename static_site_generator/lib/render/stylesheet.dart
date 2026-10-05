@@ -39,6 +39,7 @@ String buildStylesheet(ThemeTokens tokens, {required String fontVersion}) {
   _writeEntryStyles(css, tokens);
   _writeLayouts(css, tokens);
   _writeToolbarNav(css);
+  _writeToolbarApp(css);
   _writeSearch(css);
   _writeLandingPage(css);
   _writeGroupedChapter(css);
@@ -123,22 +124,39 @@ double _readingColumnRem(ThemeTokens tokens) =>
 /// 768) and bought a 13px band where six ancestors sat under 45px. Up costs at
 /// most 16px of a step arriving early, which nobody can see.
 ///
-/// ## What it costs on a phone, stated plainly
+/// ## The ⋮ menu moved them again
 ///
-/// At 390px the trail gets 125px where it used to get 172. Emblem 28 and the
-/// leaf's own 14px of padding leave **83px for the page's own name against a
-/// 126px median**, so the median leaf name now ellipsizes on a phone where it
-/// used to just fit. Accepted, not designed around: the `<h1>` one line below
-/// carries the name in full and `title` carries it on hover, and the only way
-/// to buy the room back was to drop the up button or a layout button. Search
-/// reaches the whole corpus; those two reach one node and one rendering.
+/// Below [_appPillMinWidth] the bar carries the "read in the app" ⋮: one more
+/// 36px control and its `gap`, exactly the search button's delta. Same method:
+/// 814.8 → 861.6 → **54rem**, 622.8 → 669.6 → **42rem**. The third step was
+/// 526.8 → 573.6, but at that width ([_layoutsFoldWidth]) the layout group
+/// folds into the ⋮ instead, taking 124px and its `gap` out of the bar:
+/// 573.6 − 134.8 = 438.8 → **28rem**.
+///
+/// ## What it costs on a phone
+///
+/// A tap: the layout buttons are in the ⋮ menu. In return the trail gets ~214px
+/// at 390px; emblem 28 and the leaf's 14px of padding leave ~172px for the
+/// page's own name against a 126px median.
 ///
 /// [_trailKeepThree] no longer coincides with [_twoColumnMinWidth], as it did
 /// at 48rem through P3. That was arithmetic, not sharing — the two answer
 /// different questions, and this is the first of them to move.
-const String _trailKeepThree = '51rem';
-const String _trailKeepOne = '39rem';
-const String _trailKeepNone = '33rem';
+const String _trailKeepThree = '54rem';
+const String _trailKeepOne = '42rem';
+const String _trailKeepNone = '28rem';
+
+/// At and below this the layout group moves into the ⋮ menu — where the trail
+/// would otherwise drop its last ancestor. See [_trailKeepThree].
+const String _layoutsFoldWidth = '36rem';
+
+/// From here up the bar shows the "read in the app" pill; below it, a ⋮ menu.
+///
+/// Set so the trail never has less room with the pill than it had with the ⋮
+/// at [_trailKeepThree]. Measured in Chrome: the pill is 187.4px, so hairline,
+/// pill and two `gap`s pin 210px where the ⋮ pinned 46.8. 861.6 + 163.2 =
+/// 1024.8px, rounded up to the next whole rem (16px in a media query).
+const String _appPillMinWidth = '65rem';
 
 /// Height of the sticky reader toolbar.
 ///
@@ -929,7 +947,7 @@ void _writeToolbarNav(StringBuffer css) {
   // `text-decoration` for the anchor, which sits outside `.breadcrumb` and so
   // keeps the UA underline; `padding` and `cursor` for the button's UA
   // defaults. Neither needs a font reset — both hold an SVG and no text.
-  css.writeln('.up, .search-trigger {');
+  css.writeln('.up, .search-trigger, .more-trigger {');
   css.writeln('  display: flex;');
   css.writeln('  flex: none;');
   css.writeln('  align-items: center;');
@@ -944,16 +962,97 @@ void _writeToolbarNav(StringBuffer css) {
   css.writeln('  text-decoration: none;');
   css.writeln('  cursor: pointer;');
   css.writeln('}');
-  css.writeln('.up:hover, .search-trigger:hover '
+  css.writeln('.up:hover, .search-trigger:hover, .more-trigger:hover '
       '{ background: var(--c-surface-container-low); }');
-  css.writeln('.up:focus-visible, .search-trigger:focus-visible '
-      '{ ${_focusRing()} }');
+  css.writeln('.up:focus-visible, .search-trigger:focus-visible, '
+      '.more-trigger:focus-visible { ${_focusRing()} }');
   // `[hidden]` needs saying, and saying *after* the shared rule: its UA
   // `display: none` loses to the `display: flex` above on specificity, and
   // without this the search button shows for every reader with JS off — the
   // dead control C8 forbids.
   css.writeln('.search-trigger[hidden] { display: none; }');
-  css.writeln('.up-icon, .search-icon { width: 18px; height: 18px; }');
+  css.writeln('.up-icon, .search-icon, .more-icon '
+      '{ width: 18px; height: 18px; }');
+  css.writeln();
+}
+
+/// "Read in the app": a filled pill at the bar's end from [_appPillMinWidth]
+/// up, a ⋮ menu holding the same link below it. One shows at a time.
+void _writeToolbarApp(StringBuffer css) {
+  css.writeln('/* Toolbar: read in the app. */');
+  css.writeln('.app-link {');
+  css.writeln('  display: flex;');
+  css.writeln('  flex: none;');
+  css.writeln('  align-items: center;');
+  css.writeln('  gap: 0.5rem;');
+  css.writeln('  font-family: var(--font-ui);');
+  css.writeln('  font-size: 0.875em;');
+  css.writeln('  font-weight: 500;');
+  css.writeln('  white-space: nowrap;');
+  css.writeln('  text-decoration: none;');
+  css.writeln('}');
+  css.writeln('.app-icon { width: 18px; height: 18px; flex: none; }');
+  css.writeln('.new-tab-icon { width: 14px; height: 14px; flex: none; }');
+  // Same height as the bar's other controls; filled, as its one action.
+  css.writeln('.app-pill {');
+  css.writeln('  box-sizing: border-box;');
+  css.writeln('  height: 34px;');
+  css.writeln('  padding: 0 0.75rem 0 0.625rem;');
+  css.writeln('  border-radius: 8px;');
+  css.writeln('  background: var(--c-primary);');
+  css.writeln('  color: var(--c-on-primary);');
+  css.writeln('}');
+  css.writeln('.app-pill:hover { background: var(--c-heading); }');
+  // Outset: an inset ring in the fill's own colour would not show.
+  css.writeln('.app-pill:focus-visible { ${_focusRing(offset: 2)} }');
+  css.writeln('.app-sep {');
+  css.writeln('  flex: none;');
+  css.writeln('  width: 1px;');
+  css.writeln('  height: 24px;');
+  css.writeln('  background: var(--c-outline);');
+  css.writeln('}');
+  // The ⋮ is a `<summary>` in `.up`'s box (see [_writeToolbarNav]); these
+  // drop the UA's disclosure triangle.
+  css.writeln('.more { position: relative; flex: none; }');
+  css.writeln('.more-trigger { list-style: none; }');
+  css.writeln('.more-trigger::-webkit-details-marker { display: none; }');
+  css.writeln('.more[open] .more-trigger '
+      '{ background: var(--c-surface-container-low); }');
+  css.writeln('.more-menu {');
+  css.writeln('  display: flex;');
+  css.writeln('  flex-direction: column;');
+  css.writeln('  gap: 4px;');
+  css.writeln('  position: absolute;');
+  css.writeln('  top: calc(100% + 6px);');
+  css.writeln('  right: 0;');
+  css.writeln('  padding: 4px;');
+  css.writeln('  border: 1px solid var(--c-outline);');
+  css.writeln('  border-radius: 8px;');
+  css.writeln('  background: var(--c-background);');
+  css.writeln('  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);');
+  css.writeln('}');
+  css.writeln('.more-menu .app-link {');
+  css.writeln('  min-height: 44px;');
+  css.writeln('  padding: 0 0.75rem;');
+  css.writeln('  border-radius: 6px;');
+  css.writeln('  color: var(--c-on-surface);');
+  css.writeln('}');
+  css.writeln('.more-menu .app-link:hover '
+      '{ background: var(--c-surface-container-low); }');
+  css.writeln('.more-menu .app-link:focus-visible { ${_focusRing()} }');
+  // The menu's copy of the layout group, full width, for phones only.
+  css.writeln('.more-menu .layouts { display: none; }');
+  css.writeln('.more-menu .layouts label { flex: 1; }');
+  css.writeln('@media (max-width: $_layoutsFoldWidth) {');
+  css.writeln('  .toolbar > .layouts { display: none; }');
+  css.writeln('  .more-menu .layouts { display: flex; }');
+  css.writeln('}');
+  css.writeln('.app-sep, .app-pill { display: none; }');
+  css.writeln('@media (min-width: $_appPillMinWidth) {');
+  css.writeln('  .app-sep { display: block; }');
+  css.writeln('  .app-pill { display: flex; }');
+  css.writeln('  .more { display: none; }');
+  css.writeln('}');
   css.writeln();
 }
 

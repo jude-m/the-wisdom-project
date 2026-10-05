@@ -74,6 +74,7 @@ void main(List<String> args) {
           'lib/core/localization/l10n/app_si.arb'),
       outputDir: outputDir,
       origin: options.origin,
+      appOrigin: options.appOrigin,
       packageAssetsPath: packageAssetsPath,
     ).generate(rootKeys);
   } on StateError catch (error) {
@@ -169,7 +170,7 @@ AppStrings _readAppStrings(String path) {
 final String _packageRoot = File.fromUri(Platform.script).parent.parent.path;
 
 /// Parsed command line. Hand-rolled rather than pulling in `package:args` —
-/// four flags is not worth a dependency in a package whose whole point is that
+/// five flags is not worth a dependency in a package whose whole point is that
 /// `dart pub deps` shows nothing but `wisdom_shared`.
 class _Options {
   /// Subtrees to build, in walk order. Empty when [rootsAreAll] is set.
@@ -187,6 +188,10 @@ class _Options {
   /// canonical and there is no shape of this build that can skip one.
   final String origin;
 
+  /// The app's scheme and host, held to the same rules as [origin]. Never null:
+  /// an absent flag means [_defaultAppOrigin].
+  final String appOrigin;
+
   final bool showHelp;
 
   const _Options({
@@ -195,6 +200,7 @@ class _Options {
     required this.assetsPath,
     required this.outputDir,
     required this.origin,
+    required this.appOrigin,
     required this.showHelp,
   });
 
@@ -203,6 +209,7 @@ class _Options {
     '--assets',
     '--out',
     '--origin',
+    '--app-origin',
   };
 
   /// Accepts both `--flag value` and `--flag=value`.
@@ -241,7 +248,10 @@ class _Options {
       values[name] = value;
     }
 
-    final origin = _parseOrigin(values['--origin'] ?? _defaultOrigin);
+    final origin =
+        _parseOrigin('--origin', values['--origin'] ?? _defaultOrigin);
+    final appOrigin = _parseOrigin(
+        '--app-origin', values['--app-origin'] ?? _defaultAppOrigin);
 
     // Defaults to the whole corpus. The old default was `an-1`, which built a
     // one-book fragment whose අට්ඨකථා links mostly pointed outside it — fine to
@@ -256,6 +266,7 @@ class _Options {
         assetsPath: values['--assets'],
         outputDir: values['--out'],
         origin: origin,
+        appOrigin: appOrigin,
         showHelp: showHelp,
       );
     }
@@ -273,14 +284,15 @@ class _Options {
       assetsPath: values['--assets'],
       outputDir: values['--out'],
       origin: origin,
+      appOrigin: appOrigin,
       showHelp: showHelp,
     );
   }
 
-  /// Validates `--origin` and returns it as bare scheme-and-authority.
+  /// Validates `--origin` (or `--app-origin`, named by [flag]) and returns it as bare scheme-and-authority.
   ///
-  /// Strict, because this is the one value in the build that the corpus cannot
-  /// check. Every other input is a nodeKey or a path, and a wrong one fails
+  /// Strict, because the two origins are the only values in the build that the
+  /// corpus cannot check. Every other input is a nodeKey or a path, and a wrong one fails
   /// loudly on the next line; a wrong origin builds a complete, correct-looking
   /// site whose every canonical, `og:url` and sitemap entry names a host that
   /// does not serve it — and the way that is discovered is a search engine
@@ -291,26 +303,26 @@ class _Options {
   /// that cannot exist, and honouring it would put the wrong prefix on
   /// `FIGURES.realPages` URLs. Userinfo is refused for the same reason it never
   /// belongs in a published URL.
-  static String _parseOrigin(String raw) {
+  static String _parseOrigin(String flag, String raw) {
     final uri = Uri.tryParse(raw);
     if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
-      throw FormatException('--origin must be an absolute URL like '
+      throw FormatException('$flag must be an absolute URL like '
           '"https://example.org", not "$raw".');
     }
     if (uri.scheme != 'http' && uri.scheme != 'https') {
       throw FormatException(
-          '--origin must be http or https, not "${uri.scheme}".');
+          '$flag must be http or https, not "${uri.scheme}".');
     }
     if (uri.userInfo.isNotEmpty) {
-      throw FormatException('--origin must carry no credentials: "$raw".');
+      throw FormatException('$flag must carry no credentials: "$raw".');
     }
     if (uri.hasQuery || uri.hasFragment) {
       throw FormatException(
-          '--origin is a scheme and a host, with no query or fragment: '
+          '$flag is a scheme and a host, with no query or fragment: '
           '"$raw".');
     }
     if (uri.path.isNotEmpty && uri.path != '/') {
-      throw FormatException('--origin must name a host root — the site is '
+      throw FormatException('$flag must name a host root — the site is '
           'served from "/" — so "${uri.path}" cannot be part of it.');
     }
     return '${uri.scheme}://${uri.authority}';
@@ -335,6 +347,10 @@ class _Options {
 /// It tracks `serve.dart`. If that default moves, this moves with it.
 const String _defaultOrigin = 'http://localhost:8083';
 
+/// Where a build with no `--app-origin` sends "read in the app": Flutter web's
+/// slot in the dev port map (`scripts/static_site/run.sh`).
+const String _defaultAppOrigin = 'http://localhost:8080';
+
 /// `--root` value meaning "every root in the tree".
 ///
 /// Safe as a keyword: no node is named `all` — the seven roots are `vp`, `sp`,
@@ -353,6 +369,9 @@ Options
   --out <path>       Output directory              (default: <package>/build)
   --origin <url>     Scheme and host the build     (default: http://localhost:8083)
                      will be served from
+  --app-origin <url> Scheme and host of the app    (default: http://localhost:8080)
+                     on the web; reading pages
+                     link to it
   -h, --help         Show this help
 
 Roots are walked in the order given, and prev/next chains across them.
@@ -362,8 +381,8 @@ different root — so build both, or those links 404:
   --root all                 whole corpus, ~30s
   --root an-1,atta-an-1      one nikaya section and its commentary
 
---origin is the only input that is not derived from the corpus, and it is
-baked into every canonical URL. scripts/static_site/deploy.sh passes the one
-belonging to the target it is uploading to; pass it by hand only to preview
-what a given host would produce.
+--origin and --app-origin are the only inputs not derived from the corpus.
+--origin is baked into every canonical URL, --app-origin into every "read in
+the app" link. scripts/static_site/deploy.sh passes both for the target it is
+uploading to; pass them by hand only to preview what a given host would produce.
 ''';

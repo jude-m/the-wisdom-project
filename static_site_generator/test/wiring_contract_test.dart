@@ -302,6 +302,7 @@ void main() {
         tree: _tree,
         build: SiteBuild(
           origin: _origin,
+          appOrigin: _appOrigin,
           generatorVersion: 'test',
           assets: _assets,
           urlFor: _foldedPlan.urlFor,
@@ -902,6 +903,7 @@ NodeSlice _bothLanguages([String nodeKey = 'sp-toc-1']) => _slice(nodeKey, [
 /// The per-build values, as one fixture — see [SiteBuild].
 final SiteBuild _build = SiteBuild(
   origin: _origin,
+  appOrigin: _appOrigin,
   generatorVersion: 'test',
   assets: _assets,
   // Nothing folds in [_tree], so every key owns its page and both of these
@@ -943,6 +945,7 @@ final PageTemplate _template = PageTemplate(tree: _tree, build: _build);
 /// whose default is private to that file. These tests assert markup shape, not
 /// which host a build names.
 const String _origin = 'https://example.test';
+const String _appOrigin = 'https://app.example.test';
 
 /// Literal URLs, not `SiteAssets.forContent(...)`: these tests assert what
 /// reaches the page, and hashing real bytes here would make every expected

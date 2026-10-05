@@ -510,4 +510,10 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get databaseInstallRetry => 'නැවත උත්සාහ කරන්න';
+
+  @override
+  String get readInApp => 'යෙදුමෙන් කියවන්න';
+
+  @override
+  String get moreOptions => 'තවත් විකල්ප';
 }

@@ -245,12 +245,18 @@ String tocList(Iterable<TipitakaNode> nodes, {required UrlResolver urlFor}) {
 /// page without it is a page a reader can only leave by climbing. It sits
 /// between [upLink] and the layout group because the two before it navigate and
 /// the group after it does not.
+///
+/// [appUrl] is this page in the app: a labelled link at the end of a wide bar,
+/// a ⋮ menu holding the same link on a narrow one — and, on a phone, the layout
+/// group too. Null on pages the app does not read; never null with [withLayouts],
+/// or a phone would lose the layout buttons.
 String toolbar({
   required bool withLayouts,
   required SiteBuild build,
   List<TipitakaNode> trail = const <TipitakaNode>[],
   TipitakaNode? current,
   TipitakaNode? parent,
+  String? appUrl,
 }) {
   final buffer = StringBuffer('<div class="toolbar">');
   // Defaults render `/`'s bar: the emblem alone in a trail with nowhere to
@@ -259,19 +265,58 @@ String toolbar({
   buffer.write(breadcrumb(build: build, trail: trail, current: current));
   if (parent != null) buffer.write(upLink(parent));
   buffer.write(searchTrigger(build));
-  if (withLayouts) {
-    buffer.write('<div class="layouts">');
-    for (final layout in readingLayouts) {
-      // `title` is a hover tooltip for sighted mouse users, who otherwise get
-      // only "P" or an icon. It is not a duplicate announcement: the input's
-      // accessible name comes from its own `aria-label`, and a `<label>` is not
-      // focusable, so this string never reaches the a11y tree twice.
-      final label = build.strings.html(layout.labelKey);
-      buffer.write('<label for="${layout.id}" title="$label">'
-          '${layout.glyph}</label>');
-    }
-    buffer.write('</div>');
+  if (withLayouts) buffer.write(_layoutGroup(build));
+  if (appUrl != null) {
+    // Both carry the link; the stylesheet shows one by width. `<details>` opens
+    // with JS off; site.js only closes it and copies the page's `#` onto both.
+    final more = build.strings.html('moreOptions');
+    buffer.write('<span class="app-sep" aria-hidden="true"></span>');
+    buffer.write(_appLink(appUrl, build, pill: true));
+    buffer.write('<details class="more"><summary class="more-trigger" '
+        'aria-label="$more" title="$more">$_moreGlyph</summary>'
+        '<div class="more-menu">${withLayouts ? _layoutGroup(build) : ''}'
+        '${_appLink(appUrl, build)}</div></details>');
   }
   buffer.write('</div>');
   return buffer.toString();
 }
+
+/// The layout buttons. Labels for radios outside the bar, so a second copy (the
+/// ⋮ menu's) needs no JS and is lit by the same `:checked ~ .toolbar` rules.
+String _layoutGroup(SiteBuild build) {
+  final buffer = StringBuffer('<div class="layouts">');
+  for (final layout in readingLayouts) {
+    // `title` is a hover tooltip for sighted mouse users, who otherwise get
+    // only "P" or an icon. It is not a duplicate announcement: the input's
+    // accessible name comes from its own `aria-label`, and a `<label>` is not
+    // focusable, so this string never reaches the a11y tree twice.
+    final label = build.strings.html(layout.labelKey);
+    buffer.write('<label for="${layout.id}" title="$label">'
+        '${layout.glyph}</label>');
+  }
+  buffer.write('</div>');
+  return buffer.toString();
+}
+
+/// "Read in the app": [url] in a new tab.
+String _appLink(String url, SiteBuild build, {bool pill = false}) =>
+    '<a class="app-link${pill ? ' app-pill' : ''}" href="$url" '
+    'target="_blank" rel="noopener">'
+    '$_bookGlyph<span>${build.strings.html('readInApp')}</span>$_newTabGlyph</a>';
+
+const String _bookGlyph = '<svg class="app-icon" viewBox="0 0 24 24" '
+    'fill="none" stroke="currentColor" stroke-width="1.6" '
+    'stroke-linejoin="round" aria-hidden="true">'
+    '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/>'
+    '<path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/>'
+    '</svg>';
+
+/// The ↗ that says the link opens a new tab.
+const String _newTabGlyph = '<svg class="new-tab-icon" viewBox="0 0 24 24" '
+    'fill="none" stroke="currentColor" stroke-width="2" '
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    '<path d="M7 17L17 7"/><path d="M9 7h8v8"/></svg>';
+
+const String _moreGlyph = '<svg class="more-icon" viewBox="0 0 24 24" '
+    'fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/>'
+    '<circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>';

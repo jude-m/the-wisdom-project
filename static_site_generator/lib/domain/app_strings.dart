@@ -16,6 +16,8 @@ const List<String> appStringKeys = [
   'statusSelectSuttaToRead',
   'statusNoTreeContent',
   'navHome',
+  'readInApp',
+  'moreOptions',
 ];
 
 /// The app's Sinhala UI strings, looked up by ARB key.

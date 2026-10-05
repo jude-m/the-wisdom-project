@@ -1,8 +1,9 @@
 /* The only JavaScript on the site.
  *
- * Two jobs, one file, because two files would be two requests for ~4 KB:
+ * Three jobs, one file, because more files would be more requests for ~4 KB:
  *   1. the reading layout carried in `?layout=` and remembered afterwards;
- *   2. the search dialog.
+ *   2. "read in the app" following the page's `#`;
+ *   3. the search dialog.
  *
  * A committed source the build copies, like the fonts and the emblem — there is
  * no bundler and no transpiler in this pipeline (D9). So: no modules, no
@@ -107,7 +108,51 @@
   }
 
   /* ===================================================================== *
-   * 2 · Search                                                            *
+   * 2 · Read in the app                                                   *
+   * ===================================================================== */
+
+  /* The generator writes each link to this page on the app's host; only the
+   * `#` is left to add. On a chapter it names the sutta being read, or the
+   * `#via_` door that led here, and the app opens that one. With JS off the
+   * link opens the whole page.
+   */
+  var appLinks = document.querySelectorAll('a.app-link');
+
+  function followHash() {
+    for (var a = 0; a < appLinks.length; a++) {
+      appLinks[a].hash = window.location.hash;
+    }
+  }
+
+  if (appLinks.length) {
+    followHash();
+    window.addEventListener('hashchange', followHash);
+  }
+
+  /* The narrow bar's ⋮ menu is a `<details>`, so it opens without JS. This
+   * only closes it: on a click outside, on Escape, and once an item is used.
+   */
+  var more = document.querySelector('details.more');
+  if (more) {
+    document.addEventListener('click', function (event) {
+      if (more.open && !more.contains(event.target)) more.open = false;
+    });
+    more.addEventListener('click', function (event) {
+      if (event.target.closest &&
+          event.target.closest('.more-menu a, .more-menu label')) {
+        more.open = false;
+      }
+    });
+    more.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && more.open) {
+        more.open = false;
+        more.querySelector('summary').focus();
+      }
+    });
+  }
+
+  /* ===================================================================== *
+   * 3 · Search                                                            *
    * ===================================================================== */
 
   var trigger = document.getElementById('search-open');

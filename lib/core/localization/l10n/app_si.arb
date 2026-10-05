@@ -297,5 +297,8 @@
 
   "databaseInstallFailedDescription": "ඔබගේ සම්බන්ධතාවය පරීක්ෂා කර නැවත උත්සාහ කරන්න. යළි පිහිටුවීමට, Chrome හි site settings → Delete data විවෘත කරන්න.",
 
-  "databaseInstallRetry": "නැවත උත්සාහ කරන්න"
+  "databaseInstallRetry": "නැවත උත්සාහ කරන්න",
+
+  "readInApp": "යෙදුමෙන් කියවන්න",
+  "moreOptions": "තවත් විකල්ප"
 }

@@ -782,5 +782,14 @@
   "databaseInstallRetry": "Try again",
   "@databaseInstallRetry": {
     "description": "Button on the first-visit screen that starts the failed download again"
+  },
+
+  "readInApp": "Read in the app",
+  "@readInApp": {
+    "description": "Static web site only: link in a sutta or chapter page's toolbar that opens the same page in the app (Flutter web), in a new tab"
+  },
+  "moreOptions": "More options",
+  "@moreOptions": {
+    "description": "Static web site only: accessible name of the toolbar's ⋮ menu on narrow screens"
   }
 }

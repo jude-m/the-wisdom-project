@@ -104,6 +104,9 @@ class PageTemplate {
       trail: trail,
       current: page.node,
       parent: tree.parentOf(page.nodeKey),
+      // Reading pages only, the same test as the layout radios: so wherever the
+      // layout group is, the ⋮ it folds into on a phone is too.
+      appUrl: page.isReadable ? build.inApp(page.url) : null,
     ));
 
     // `<main>`, not a div: a landmark is what lets a screen reader skip the bar

@@ -509,4 +509,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get databaseInstallRetry => 'Try again';
+
+  @override
+  String get readInApp => 'Read in the app';
+
+  @override
+  String get moreOptions => 'More options';
 }

@@ -66,8 +66,13 @@ class SiteBuild {
   /// The app's Sinhala UI strings — every label on the site the app also shows.
   final AppStrings strings;
 
+  /// Scheme and host of the app on the web (Flutter web), normalised like
+  /// [origin]. A reading page links to its own path on this host.
+  final String appOrigin;
+
   const SiteBuild({
     required this.origin,
+    required this.appOrigin,
     required this.generatorVersion,
     required this.assets,
     required this.urlFor,
@@ -83,6 +88,10 @@ class SiteBuild {
   /// must agree about the join, and the day the origin gains a trailing slash
   /// or loses one there is a single place that decides what that means.
   String absolute(String path) => '$origin$path';
+
+  /// The same root-relative [path] on the app's host. The path grammar is
+  /// shared, so the app opens the page the reader is on.
+  String inApp(String path) => '$appOrigin$path';
 }
 
 /// App strings ready to write into HTML, as `nodeLabelHtml` is for node names.

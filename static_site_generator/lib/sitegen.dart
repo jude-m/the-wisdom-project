@@ -79,6 +79,10 @@ class SiteGenerator {
   /// validation upstream and none here.
   final String origin;
 
+  /// Scheme and host of the app on the web, which every reading page links to.
+  /// Validated by `bin/generate.dart`, like [origin].
+  final String appOrigin;
+
   /// `static_site_generator/assets/` — the generator's *own* build inputs, as
   /// opposed to [CorpusReader.assetsPath], which is the app's.
   ///
@@ -93,6 +97,7 @@ class SiteGenerator {
     required this.strings,
     required this.outputDir,
     required this.origin,
+    required this.appOrigin,
     required this.packageAssetsPath,
   });
 
@@ -157,6 +162,7 @@ class SiteGenerator {
     // record, built once, handed down. See [SiteBuild].
     final build = SiteBuild(
       origin: origin,
+      appOrigin: appOrigin,
       generatorVersion: generatorVersion,
       assets: assets,
       urlFor: plan.urlFor,
