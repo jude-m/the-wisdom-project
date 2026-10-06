@@ -1,3 +1,5 @@
+import 'package:wisdom_shared/wisdom_shared.dart';
+
 import 'singlish_transliterator.dart';
 import 'text_utils.dart';
 
@@ -15,7 +17,26 @@ import 'text_utils.dart';
 /// won't match the indexed ප්රහා (without ZWJ).
 ///
 /// Returns empty string if query is invalid.
-String computeEffectiveQuery(String rawQuery) {
+String computeEffectiveQuery(String rawQuery) =>
+    normalizeText(_convertQuery(rawQuery));
+
+/// The Sinhala to show for a Singlish [rawQuery], or null when there is none:
+/// Sinhala input, a sutta reference like "SN 15.3", or nothing left after
+/// cleaning.
+///
+/// Checks for Latin letters rather than comparing raw and converted text:
+/// trimming or ZWJ removal also changes Sinhala input, which is no conversion.
+/// Unlike [computeEffectiveQuery] it keeps ZWJ, so ්‍ර and ‍ය render joined
+/// instead of with a visible hal. Display only — search never uses it.
+String? singlishPreviewText(String rawQuery) {
+  if (!SinglishTransliterator.instance.isSinglishQuery(rawQuery)) return null;
+  if (SuttaCentralRefResolver.parseRef(rawQuery) != null) return null;
+  final display = _convertQuery(rawQuery);
+  return display.isEmpty ? null : display;
+}
+
+/// Steps 1–3 of [computeEffectiveQuery].
+String _convertQuery(String rawQuery) {
   final sanitized = sanitizeSearchQuery(rawQuery);
   if (sanitized == null || sanitized.isEmpty) return '';
 
@@ -25,20 +46,5 @@ String computeEffectiveQuery(String rawQuery) {
       : sanitized;
 
   // Remove leftover ~ that didn't match special patterns (e.g., "aaka~")
-  var result = converted.replaceAll('~', '');
-
-  // Normalize ZWJ/ZWNJ that the transliterator adds for rakaransha/yansaya.
-  // Both FTS index and SearchMatchFinder match text without these characters.
-  result = normalizeText(result);
-
-  return result;
+  return converted.replaceAll('~', '');
 }
-
-/// Whether the effective query differs from raw input due to Singlish conversion.
-///
-/// Used by both FTS and in-page search state classes to expose a
-/// consistent `isSinglishConverted` getter.
-bool querySinglishConverted(String rawQuery, String effectiveQuery) =>
-    rawQuery.isNotEmpty &&
-    effectiveQuery.isNotEmpty &&
-    rawQuery != effectiveQuery;

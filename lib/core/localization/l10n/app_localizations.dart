@@ -374,6 +374,12 @@ abstract class AppLocalizations {
   /// **'Recent searches'**
   String get recentSearches;
 
+  /// Tooltip on the ✕ that deletes one entry from the recent searches list
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from recent searches'**
+  String get removeRecentSearch;
+
   /// Expand link revealing additional secondary matches from the same text
   ///
   /// In en, this message translates to:

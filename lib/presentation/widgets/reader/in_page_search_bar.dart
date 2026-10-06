@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/localization/l10n/app_localizations.dart';
+import '../../../core/utils/search_query_utils.dart';
 import '../../providers/in_page_search_focus_provider.dart';
 import '../../providers/in_page_search_provider.dart';
+import '../search/singlish_preview.dart';
 
 /// Chrome-style floating search bar for in-page search.
 ///
@@ -85,6 +87,7 @@ class _InPageSearchBarState extends ConsumerState<InPageSearchBar> {
   @override
   Widget build(BuildContext context) {
     final searchState = ref.watch(activeInPageSearchStateProvider);
+    final singlishPreview = singlishPreviewText(searchState.rawQuery);
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
 
@@ -104,78 +107,87 @@ class _InPageSearchBarState extends ConsumerState<InPageSearchBar> {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Row(
           children: [
-            // Search text field
+            // Search text field + Singlish preview share one area; the
+            // preview takes at most [SinglishPreview.maxWidthFraction] of it.
             Expanded(
-              child: TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: colorScheme.onSurface,
-                ),
-                decoration: InputDecoration(
-                  hintText: l10n.findInPage,
-                  hintStyle: TextStyle(
-                    fontSize: 14,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
-                  border: InputBorder.none,
-                  // Clear button inside text field
-                  suffixIcon: _controller.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 18),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
+              child: LayoutBuilder(
+                builder: (context, constraints) => Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: colorScheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: l10n.findInPage,
+                          hintStyle: TextStyle(
+                            fontSize: 14,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 8,
+                          ),
+                          border: InputBorder.none,
+                          // Clear button inside text field
+                          suffixIcon: _controller.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 18),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 28,
+                                    minHeight: 28,
+                                  ),
+                                  onPressed: () {
+                                    _controller.clear();
+                                    ref
+                                        .read(
+                                            inPageSearchStatesProvider.notifier)
+                                        .clearQuery();
+                                  },
+                                  tooltip: l10n.clear,
+                                )
+                              : null,
+                          suffixIconConstraints: const BoxConstraints(
                             minWidth: 28,
                             minHeight: 28,
                           ),
-                          onPressed: () {
-                            _controller.clear();
-                            ref
-                                .read(inPageSearchStatesProvider.notifier)
-                                .clearQuery();
-                          },
-                          tooltip: l10n.clear,
-                        )
-                      : null,
-                  suffixIconConstraints: const BoxConstraints(
-                    minWidth: 28,
-                    minHeight: 28,
-                  ),
+                        ),
+                        onChanged: (value) {
+                          ref
+                              .read(inPageSearchStatesProvider.notifier)
+                              .updateQuery(value);
+                          // Trigger rebuild so the clear button shows/hides
+                          setState(() {});
+                        },
+                        onSubmitted: (_) {
+                          // Enter key -> go to next match
+                          ref
+                              .read(inPageSearchStatesProvider.notifier)
+                              .nextMatch();
+                          _focusNode.requestFocus();
+                        },
+                      ),
+                    ),
+                    if (singlishPreview != null)
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: constraints.maxWidth *
+                              SinglishPreview.maxWidthFraction,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 4, right: 4),
+                          child: SinglishPreview(singlishPreview),
+                        ),
+                      ),
+                  ],
                 ),
-                onChanged: (value) {
-                  ref
-                      .read(inPageSearchStatesProvider.notifier)
-                      .updateQuery(value);
-                  // Trigger rebuild so the clear button shows/hides
-                  setState(() {});
-                },
-                onSubmitted: (_) {
-                  // Enter key -> go to next match
-                  ref.read(inPageSearchStatesProvider.notifier).nextMatch();
-                  _focusNode.requestFocus();
-                },
               ),
             ),
-
-            // Singlish conversion preview (shows converted text when Singlish detected)
-            if (searchState.isSinglishConverted)
-              Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Text(
-                  searchState.effectiveQuery,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.onSurfaceVariant,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
 
             // Match count display: "3 of 25"
             if (searchState.rawQuery.isNotEmpty)

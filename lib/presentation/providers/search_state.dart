@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/utils/search_query_utils.dart'
-    show computeEffectiveQuery, querySinglishConverted;
+import '../../core/utils/search_query_utils.dart' show computeEffectiveQuery;
 import '../../domain/entities/search/grouped_search_result.dart';
 import '../../domain/entities/search/recent_search.dart';
 import '../../domain/entities/search/search_result_type.dart';
@@ -118,10 +117,6 @@ class SearchState with _$SearchState {
   /// and panel hasn't been dismissed
   bool get isResultsPanelVisible =>
       rawQueryText.trim().isNotEmpty && !isPanelDismissed;
-
-  /// Whether a Singlish conversion was applied
-  bool get isSinglishConverted =>
-      querySinglishConverted(rawQueryText, effectiveQueryText);
 
   /// True if "All" is effectively selected (no specific scope chosen)
   bool get isAllSelected => scope.isEmpty;

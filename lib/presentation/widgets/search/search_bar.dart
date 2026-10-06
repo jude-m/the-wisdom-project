@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/search_query_utils.dart';
 import '../../providers/main_search_focus_provider.dart';
 import '../../providers/overlay_stack_provider.dart';
 import '../../providers/reader_scroll_provider.dart';
+import '../../providers/reference_search_provider.dart';
 import '../../providers/search_provider.dart';
 import '../common/circular_toggle_button.dart';
 import 'proximity_dialog.dart';
 import 'recent_search_overlay.dart';
+import 'singlish_preview.dart';
 
 /// Simple search bar for AppBar with dropdown overlay for recent searches
 /// Results panel is shown separately when query has 2+ characters
@@ -28,7 +31,6 @@ class _SearchBarState extends ConsumerState<SearchBar> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final OverlayPortalController _overlayController = OverlayPortalController();
-  final LayerLink _layerLink = LayerLink();
 
   // Provider handles captured once in initState. dispose() detaches through
   // these instead of `ref`: using `ref` after the ConsumerStatefulElement is
@@ -195,6 +197,13 @@ class _SearchBarState extends ConsumerState<SearchBar> {
         ref.watch(searchStateProvider.select((s) => s.rawQueryText));
     final showProximityButton = RegExp(r'\s\S').hasMatch(rawQueryText);
 
+    // Sinhala preview for Singlish input. Hidden for a sutta reference like
+    // "SN 15.3": the reference result already shows what was found.
+    final isReference =
+        ref.watch(referenceSearchResultProvider.select((r) => r != null));
+    final singlishPreview =
+        isReference ? null : singlishPreviewText(rawQueryText);
+
     // Listen to queryText changes and sync controller
     ref.listen(searchStateProvider.select((s) => s.rawQueryText), (prev, next) {
       if (_controller.text != next) {
@@ -216,13 +225,22 @@ class _SearchBarState extends ConsumerState<SearchBar> {
       }
     });
 
-    return OverlayPortal(
+    // Positioned from layout info, not a CompositedTransformFollower: a
+    // follower breaks tooltips inside the dropdown (they need the paint
+    // transform during layout).
+    return OverlayPortal.overlayChildLayoutBuilder(
       controller: _overlayController,
-      overlayChildBuilder: (context) {
+      overlayChildBuilder: (context, info) {
         // Don't render overlay when results panel is visible
         if (isResultsPanelVisible) {
           return const SizedBox.shrink();
         }
+
+        // The search box's bottom-right corner, in overlay coordinates.
+        final anchor = MatrixUtils.transformPoint(
+          info.childPaintTransform,
+          info.childSize.bottomRight(Offset.zero),
+        );
 
         return Stack(
           children: [
@@ -234,12 +252,10 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                 child: const ColoredBox(color: Colors.transparent),
               ),
             ),
-            // Dropdown content
-            CompositedTransformFollower(
-              link: _layerLink,
-              targetAnchor: Alignment.bottomRight,
-              followerAnchor: Alignment.topRight,
-              offset: const Offset(0, 8),
+            // Dropdown content: right edges aligned, 8px below the box
+            Positioned(
+              top: anchor.dy + 8,
+              right: info.overlaySize.width - anchor.dx,
               child: RecentSearchOverlay(
                 onDismiss: _hideOverlay,
               ),
@@ -247,105 +263,107 @@ class _SearchBarState extends ConsumerState<SearchBar> {
           ],
         );
       },
-      child: CompositedTransformTarget(
-        link: _layerLink,
-        child: SizedBox(
-          width: widget.width,
-          height: 40,
-          child: Container(
-            decoration: BoxDecoration(
-              // Tri-state fill: idle / scrolled (merges with AppBar) / focused.
+      child: SizedBox(
+        width: widget.width,
+        height: 40,
+        child: Container(
+          decoration: BoxDecoration(
+            // Tri-state fill: idle / scrolled (merges with AppBar) / focused.
+            color: _focusNode.hasFocus
+                ? theme.colorScheme.surfaceContainerHighest
+                : (scrolledUnder
+                    ? theme.colorScheme.surfaceContainer
+                    : theme.colorScheme.surfaceContainerHigh),
+            borderRadius: BorderRadius.circular(20),
+            // Always 1px (transparent when unfocused) so focus change
+            // doesn't reflow inner content by the stroke width.
+            border: Border.all(
               color: _focusNode.hasFocus
-                  ? theme.colorScheme.surfaceContainerHighest
-                  : (scrolledUnder
-                      ? theme.colorScheme.surfaceContainer
-                      : theme.colorScheme.surfaceContainerHigh),
-              borderRadius: BorderRadius.circular(20),
-              // Always 1px (transparent when unfocused) so focus change
-              // doesn't reflow inner content by the stroke width.
-              border: Border.all(
-                color: _focusNode.hasFocus
-                    ? theme.colorScheme.primary
-                    : Colors.transparent,
-                width: 1,
-              ),
+                  ? theme.colorScheme.primary
+                  : Colors.transparent,
+              width: 1,
             ),
-            child: TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              style: inputStyle,
-              decoration: InputDecoration(
-                hintText: l10n.searchHint,
-                hintStyle: hintStyle,
-                prefixIcon: Icon(
-                  Icons.search,
-                  size: 20,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                isDense: true,
-                suffixIcon: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Exact match toggle button with clear visual state
-                    CircularToggleButton(
-                      isActive: isExactMatch,
-                      icon: Icons.abc,
-                      iconSize: 24,
-                      tooltip: l10n.isExactMatchToggle,
-                      onPressed: () {
-                        ref
-                            .read(searchStateProvider.notifier)
-                            .toggleExactMatch();
-                      },
+          ),
+          child: TextField(
+            controller: _controller,
+            focusNode: _focusNode,
+            style: inputStyle,
+            decoration: InputDecoration(
+              hintText: l10n.searchHint,
+              hintStyle: hintStyle,
+              prefixIcon: Icon(
+                Icons.search,
+                size: 20,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              isDense: true,
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (singlishPreview != null)
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth:
+                            widget.width * SinglishPreview.maxWidthFraction,
+                      ),
+                      child: SinglishPreview(singlishPreview),
                     ),
-                    // Proximity toggle button - opens proximity dialog
-                    // Only visible when user starts typing a second word
-                    if (showProximityButton)
-                      CircularToggleButton(
-                        isActive: isProximityActive,
-                        icon: Icons.space_bar,
-                        iconSize: 24,
-                        tooltip: l10n.wordProximity,
-                        onPressed: () => ProximityDialog.show(context),
-                      ),
-                    // Clear button (only shown when text is present)
-                    if (_controller.text.isNotEmpty)
-                      Container(
-                        height: 30,
-                        width: 30,
-                        margin: const EdgeInsets.only(left: 4, right: 4),
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: Icon(
-                            Icons.clear,
-                            size: 20,
-                            color: theme.colorScheme.primary,
-                          ),
-                          onPressed: () {
-                            _controller.clear();
-                            ref
-                                .read(searchStateProvider.notifier)
-                                .clearSearch();
-                            _focusNode.requestFocus();
-                          },
+                  // Exact match toggle button with clear visual state
+                  CircularToggleButton(
+                    isActive: isExactMatch,
+                    icon: Icons.abc,
+                    iconSize: 24,
+                    tooltip: l10n.isExactMatchToggle,
+                    onPressed: () {
+                      ref.read(searchStateProvider.notifier).toggleExactMatch();
+                    },
+                  ),
+                  // Proximity toggle button - opens proximity dialog
+                  // Only visible when user starts typing a second word
+                  if (showProximityButton)
+                    CircularToggleButton(
+                      isActive: isProximityActive,
+                      icon: Icons.space_bar,
+                      iconSize: 24,
+                      tooltip: l10n.wordProximity,
+                      onPressed: () => ProximityDialog.show(context),
+                    ),
+                  // Clear button (only shown when text is present)
+                  if (_controller.text.isNotEmpty)
+                    Container(
+                      height: 30,
+                      width: 30,
+                      margin: const EdgeInsets.only(left: 4, right: 4),
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: Icon(
+                          Icons.clear,
+                          size: 20,
+                          color: theme.colorScheme.primary,
                         ),
+                        tooltip: l10n.clear,
+                        onPressed: () {
+                          _controller.clear();
+                          ref.read(searchStateProvider.notifier).clearSearch();
+                          _focusNode.requestFocus();
+                        },
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
-              onChanged: (value) {
-                ref.read(searchStateProvider.notifier).updateQuery(value);
-              },
-              onSubmitted: (value) {
-                // Dismiss keyboard on mobile when user presses Enter
-                // Note: Search happens automatically via debounced updateQuery
-                // Recent searches are saved when user clicks a result
-                _focusNode.unfocus();
-              },
             ),
+            onChanged: (value) {
+              ref.read(searchStateProvider.notifier).updateQuery(value);
+            },
+            onSubmitted: (value) {
+              // Dismiss keyboard on mobile when user presses Enter
+              // Note: Search happens automatically via debounced updateQuery
+              // Recent searches are saved when user clicks a result
+              _focusNode.unfocus();
+            },
           ),
         ),
       ),

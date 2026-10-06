@@ -231,6 +231,11 @@
     "description": "Header above the list of the user's recent search queries"
   },
 
+  "removeRecentSearch": "Remove from recent searches",
+  "@removeRecentSearch": {
+    "description": "Tooltip on the ✕ that deletes one entry from the recent searches list"
+  },
+
   "viewMore": "View {count} more",
   "@viewMore": {
     "description": "Expand link revealing additional secondary matches from the same text",

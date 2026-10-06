@@ -1,0 +1,334 @@
+# Search pane redesign — task plan
+
+Started 2026-10-05.
+
+## How to use this plan
+
+Ten tasks in four chunks of related work. Build a chunk, review it, commit it; the next agent then picks up the next chunk. All work is on branch `feat/search-pane-redesign`.
+
+Examples show this converter's real output: t → ට, th → ත, d → ඩ. So "satipatthana" becomes සටිපට්තන, not සතිපට්ඨාන.
+
+The design is on the [Search pane review canvas](https://claude.ai/code/artifact/1b1d95dc-754a-46b3-bf95-d7f006a49e60). Follow the "Proposed" artboards. Blue numbers there match the "Canvas" column.
+
+Chunks, in order:
+
+| Chunk | Tasks | Theme | Status |
+| --- | --- | --- | --- |
+| A | 1, 2, 3 + Task 10: clear ✕ tooltip | Singlish preview everywhere | In review |
+| B | 5, 6, 7 + Task 10: footer text, "View N more" button | Results list | Not started |
+| C | 4, 8 + Task 10: Treatises naming (product decision first) | Filter row and match menu | Not started |
+| D | 9 | Phone search | Not started |
+| E | 11 | Sutta abbreviations | Not started |
+
+B and C both edit `search_results_panel.dart`, so never run them side by side. D needs A and C. E can run any time after A. When a chunk is done, set its status and add a handover note at the end of this doc.
+
+Tasks:
+
+| Task | What | Canvas | Size | Needs |
+| --- | --- | --- | --- | --- |
+| 1 | Shared Singlish preview; fix "converted" check; use in find bar | 9 | S | — |
+| 2 | Singlish preview inside the main search box | 1 | S | 1 |
+| 3 | Recent searches show Sinhala first | 8 | S | 1 |
+| 4 | Filter row: close-panel icon, one shared chip | 10, 4 | M | — |
+| 5 | Tabs: sized to text, no counts, empty tabs dimmed | 3 | S | — |
+| 6 | Counts and "See all" in Top results section headers | 5 | S | 5 |
+| 7 | Edition badge only when it helps | 6 | S | — |
+| 8 | "Starts with ▾" match menu | 2 | L | 4 |
+| 9 | Phone: search icon that expands | 7 | L | 2, 8 |
+| 10 | Small fixes | — | S | — |
+| 11 | No Singlish preview while typing a sutta reference | — | S | 1 |
+
+Rules for every task:
+
+- One chunk per commit. Run the app after each chunk. Check a desktop width and a phone width.
+- New text goes in both `app_en.arb` and `app_si.arb`.
+- No new tests (per CLAUDE.md). A separate agent writes them. Say so in the PR.
+- Reuse what exists: `computeEffectiveQuery`, `SinglishTransliterator.isSinglishQuery`, `referenceSearchResultProvider`.
+- **Performance: be extra careful in every task.** Search reacts to every keystroke, and lists can be long. Watch state with `select`, so widgets do not rebuild on every keystroke. Do no costly work in `build` or once per row (Singlish conversion, regexes, parsing, sorting): compute it once per change, in a provider or the notifier. The Singlish converter takes about 0.06–0.3 ms per call (measured 2026-10-06), so read its output through `singlishPreviewProvider`, never by calling it in `build`. Check a phone and the web too, not only the desktop.
+
+What does NOT change:
+
+- Panel order stays as today: filter row, then tabs, then results.
+- The clear ✕ stays inside the search box.
+- Refine stays at the end of the chips and scrolls with them. It is not pinned.
+
+## Task 1 — Shared Singlish preview (canvas 9)
+
+**Goal:** one widget shows the Sinhala for typed Singlish. Fix the check that decides when to show it. Use it in the find bar first.
+
+**Files:** new `lib/presentation/widgets/search/singlish_preview.dart`, `lib/core/utils/search_query_utils.dart`, `lib/presentation/widgets/reader/in_page_search_bar.dart`.
+
+**Steps:**
+
+1. Create `SinglishPreview(text, fieldWidth:)`: the Sinhala in a light rounded tag. No arrow; the tag is enough. Upright text, no italic.
+2. It must shrink: at most 45% of `fieldWidth`, `maxLines: 1`, ellipsis at the end.
+3. Fix the "converted" check. It was true when raw and effective text differed, but trimming spaces or removing ZWJ also makes them differ, so Sinhala input like "සති " showed a preview of itself. New rule, all in `singlishPreviewText`: a preview only when the raw text has Latin letters (`isSinglishQuery`), is not a sutta reference (`SuttaCentralRefResolver.parseRef`), and converts to something non-empty.
+4. In `InPageSearchBar`, replace the italic `Text` with `SinglishPreview`. It sits after the clear ✕, on purpose.
+5. The preview keeps the joiners (ZWJ), so ්‍ර and ‍ය show joined, with no visible hal. Search keeps using the text without them.
+
+**Done when:**
+
+- [ ] "dukkha" in the find bar shows ඩුක්ඛ in a tag, upright.
+- [ ] "tatra" shows ටට්‍ර, joined, with no visible hal.
+- [ ] "සති " (with a trailing space) shows no preview.
+- [ ] A long query does not overflow the bar at 320px width.
+
+## Task 2 — Preview inside the main search box (canvas 1)
+
+**Goal:** the main search box shows `satipatthana [සටිපට්තන] ✕`, like the find bar. No extra row in the panel.
+
+**Files:** `lib/presentation/widgets/search/search_bar.dart`.
+
+**Steps:**
+
+1. Inside the box, place `SinglishPreview` after the typed text and before the clear ✕.
+2. Cap the preview at about 45% of the box width. The typed text always stays visible.
+3. Show it only when `singlishPreviewProvider` returns text (Task 1 rule, which also hides it for "SN 15.3").
+4. The clear ✕ stays where it is.
+
+**Done when:**
+
+- [ ] "satipatthana" shows සටිපට්තන inside the box.
+- [ ] Sinhala input and "SN 15.3" show no preview.
+- [ ] A long Singlish query keeps the caret and typed text visible; the preview ends in "…".
+
+## Task 3 — Recent searches show Sinhala first (canvas 8)
+
+**Goal:** the recent list shows සටිපට්තන on top and "satipatthana" small underneath.
+
+**Files:** `lib/presentation/widgets/search/recent_search_overlay.dart`.
+
+**Steps:**
+
+1. For each row, read `singlishPreviewProvider(queryText)`.
+2. If it returns text: Sinhala as the title, typed text as a small subtitle.
+3. Otherwise (Sinhala, or a reference like "SN 15.3"), show the text as typed, one line.
+4. Storage does not change. Keep saving the raw typed text.
+5. Make the ✕ a real `IconButton` with a tooltip and a 40px+ tap area.
+
+**Done when:**
+
+- [ ] Existing saved searches still load.
+- [ ] Singlish entries show two lines. Sinhala and reference entries show one.
+- [ ] The ✕ has a tooltip and is reachable by keyboard.
+
+## Task 4 — Filter row: close-panel icon and one shared chip (canvas 10, 4)
+
+**Goal:** the panel's top row keeps today's place and order. The ✕ becomes a "slide away to the right" icon. Chips become bigger, real buttons.
+
+**Files:** `lib/presentation/widgets/search/search_results_panel.dart` (`_PanelHeader`), new `lib/presentation/widgets/common/pill_chip.dart`, `search/scope_filter_chips.dart`, `dictionary/dictionary_filter_chips.dart`.
+
+**Steps:**
+
+1. Replace the close ✕ with `Icons.arrow_forward`, same position (left end of the row). Tooltip: "Close panel" (new l10n key). Same action as today.
+2. Phones: no close icon in the panel. The app bar back arrow closes search (Task 9). Until Task 9 lands, keep today's ✕ on phones.
+3. Create `PillChip(label, selected, onPressed, {icon})` on `InkWell` or `FilterChip`, so it has hover, focus, ripple and semantics. 32px tall, 13px text, tap area 40px or more.
+4. Replace `_ScopeChip` and `_FilterChip` with it. Delete both.
+5. Refine stays the last chip and scrolls with the others, as today.
+6. Add a soft fade on the right edge of the scrolling chips.
+7. Use a lighter row background than today's (`surfaceContainerLow`), 56px tall.
+
+**Done when:**
+
+- [ ] The → arrow closes the panel; Esc, tap outside and phone back still work.
+- [ ] Tab reaches every chip; Enter or Space toggles it.
+- [ ] Scope and dictionary rows use the same chip.
+
+## Task 5 — Tabs: sized to text, no counts, empty dimmed (canvas 3)
+
+**Goal:** no cut-off labels. No counts on tabs. An empty tab looks empty.
+
+**Files:** `search_results_panel.dart` (`_SearchResultsTabBar`, `_CountBadge`).
+
+**Steps:**
+
+1. Replace the four equal `Expanded` tabs with left-aligned tabs sized to their label. Scroll sideways if needed (`TabBar(isScrollable: true, tabAlignment: TabAlignment.start)` fits).
+2. Remove the count from every tab. Delete `_CountBadge`.
+3. Keep loading counts with `countByResultType`. Use them only to decide "empty".
+4. A tab with count 0: label in a lighter tone, about `onSurfaceVariant` at 70% opacity. It must still reach 3:1 contrast in light and dark themes.
+5. Empty tabs stay tappable. Do not disable them. Tapping shows the existing "no results" message.
+6. While counts are loading, show every tab at normal strength.
+7. If the selected tab becomes empty, it stays selected (underline stays, label dims). Do not jump to another tab.
+
+**Done when:**
+
+- [ ] No label is cut at 300px, in English and Sinhala.
+- [ ] Empty tabs are dimmed; tabs do not flicker while typing.
+
+## Task 6 — Counts and "See all" in Top results headers (canvas 5)
+
+**Goal:** the counts that left the tabs now show in the Top results section headers.
+
+**Files:** `search_results_panel.dart` (`_buildTopResultsTabContent`, `_sectionHeader`).
+
+**Steps:**
+
+1. Header shows label and count: "TITLES · 12". Use `countByResultType`; above 100 show "100+".
+2. Add a "See all →" text button on the right. It calls `selectResultType(type)`. New l10n key `seeAll`.
+3. Hide "See all" when the section already shows every result.
+4. Sections with no results stay hidden, as today.
+
+**Done when:**
+
+- [ ] Each visible section header has a count and a working "See all".
+
+## Task 7 — Edition badge only when it helps (canvas 6)
+
+**Goal:** no "BJT" box on every row. More room for the text.
+
+**Files:** `search/grouped_fts_tile.dart`, `search_results_panel.dart` (`_SearchResultTile`).
+
+**Steps:**
+
+1. Decide once per list: show badges only when results come from two or more editions.
+2. Pass that flag to the tiles. When off: no leading badge, text starts at 16px.
+3. Change the divider indent from 72 to 16 to match.
+4. Dictionary tiles keep their badges (BUS, MS, DPD).
+
+**Done when:**
+
+- [ ] BJT-only results show no badge; mixed editions still do.
+
+## Task 8 — "Starts with ▾" match menu (canvas 2, detail artboard)
+
+**Goal:** one labelled menu replaces the "abc" toggle and the proximity dialog. The search box keeps only the search icon, text, preview and clear ✕.
+
+**Files:** new `lib/presentation/widgets/search/match_options_menu.dart`, `search/search_bar.dart`, `search_results_panel.dart` (`_PanelHeader`), `search/proximity_dialog.dart`, `providers/search_state.dart`, both ARB files.
+
+**Steps:**
+
+1. Put the button in the filter row: after the → close arrow, before the chips, then a thin divider, then the chips. It scrolls with the chips.
+2. Show it on every tab, Definitions too. Dictionary search also uses `isExactMatch`.
+3. Label shows the current choice: "Starts with" or "Whole word". With two or more words, add " · Phrase", " · Anywhere" or " · Near 10".
+4. Tap opens a menu anchored under the button (`MenuAnchor`). Changes apply at once. No Apply button.
+5. Section "Match each word": Starts with / Whole word. Sets `isExactMatch`. Add `setExactMatch(bool)` to the notifier.
+6. Section "How words sit together", only for two or more words, in this order: As a phrase / Anywhere in the same text / Near each other. Near each other has a − N + stepper (1–100, default 10). Uses `setPhraseSearch`, `setAnywhereInText`, `setProximityDistance`.
+7. Under each option: one grey line, then one plain-text example built from the user's own words. No highlight. See the table below.
+8. Add "Reset to default" at the bottom.
+9. Remove both toggle buttons from the search box. Delete `ProximityDialog` if nothing else uses it.
+
+| Option | Line | Example (query "කායෙ කායානුපස්සී") |
+| --- | --- | --- |
+| Starts with | Finds the word and its longer forms | කායෙ… · කායානුපස්සී… |
+| Whole word | Finds only the exact word | Only කායෙ · කායානුපස්සී |
+| As a phrase | Finds the words together, as typed | "කායෙ කායානුපස්සී" (the only example with quotes) |
+| Anywhere in the same text | Finds the words in any order | කායානුපස්සී · · · · · · කායෙ |
+| Near each other | Finds the words close together | කායෙ · · කායානුපස්සී |
+
+**Done when:**
+
+- [ ] The menu works with mouse, touch and keyboard.
+- [ ] Results refresh after each change.
+- [ ] Defaults unchanged: starts with, phrase, distance 10.
+
+## Task 9 — Phone: search icon that expands (canvas 7)
+
+**Goal:** on phones, search is an icon. Tap it, and search fills the whole app bar.
+
+**First, confirm the problem.** Run on a phone about 390px wide, panel closed. The 360px box plus menu and settings buttons (about 464px) should overflow. If it does not, skip this task.
+
+**Files:** `lib/presentation/screens/reader_screen.dart` (AppBar), `search/search_bar.dart`, `search_results_panel.dart`.
+
+**Steps:**
+
+1. On `isMobile`, show a search `IconButton` in the app bar instead of the 360px box.
+2. Tap switches the app bar to search mode: back arrow, full-width field (with the Task 2 preview), clear ✕. Pass the field's real width as `fieldWidth` (from a `LayoutBuilder`), not `widget.width`: the 45% preview cap is a share of it, and an unbounded width removes the cap.
+3. The back arrow and system back leave search mode and close the panel.
+4. Remove the panel's close icon on phones (Task 4, step 2).
+5. Keep the same focus node, so Ctrl/Cmd+Shift+F still works (`mainSearchFocusNodeProvider`).
+6. Recent searches go full width under the bar on phones.
+7. Tablet and desktop do not change.
+
+**Done when:**
+
+- [ ] No overflow at 360px width; breadcrumb shows when search is closed.
+- [ ] Open, type, pick a result, go back: all work on Android and iOS.
+
+## Task 10 — Small fixes
+
+Quick, independent items. Each one ships with the chunk that edits the same file (see the chunk table).
+
+- [ ] Translate the footer "Viewing X out of Y results". It is hard-coded English (`search_results_panel.dart`, `_footer`).
+- [ ] Add a tooltip to the clear ✕ in the search box. The find bar's clear button has one.
+- [ ] Make "View N more" a real button with a 40px+ tap area (`grouped_fts_tile.dart`).
+- [ ] "Treatises" in English is "වෙනත්" ("Other") in Sinhala. Pick one meaning. Needs a product decision first.
+
+## Task 11 — No Singlish preview while typing a sutta reference
+
+**Goal:** typing "SN", "Dhp" or "SN 1" shows no Singlish preview. Today `singlishPreviewText` hides it only for what `parseRef` reads as a reference: a listed book plus a number, any case. So "SN" and "Dhp" alone still show a preview, and "an 3" is hidden although it should show.
+
+**The rule:** hide the preview only when the typed text can never be the start of a real search: no word in the corpus, the dictionaries or the titles. That includes what the text grows into: "an" is අන් now, but අන… once a vowel follows.
+
+**Measured 2026-10-06** (`bjt.db` fts5vocab, `dict.db` headwords, `tree.json` names). Each abbreviation was tried alone, with every possible next letter, and followed by a number.
+
+| Typed | Can it start a real search? | Preview |
+| --- | --- | --- |
+| KN alone | Yes. "KN" is how this scheme types ඤ, as in ඤාණ: 1,970 corpus words, 1,078 dictionary words, 33 titles | Shown |
+| AN alone | Yes. AN + a vowel → ඇණ…: 62 corpus words | Shown |
+| Nd, Thig alone | Yes, barely: one corpus word each (ණ්ඩං; "Thigh…" → ථිඝාතකා) | Shown |
+| The other 23 alone, in their listed case (SN, DN, MN, Dhp, Thag, Snp, …) | No | Hidden |
+| Any abbreviation alone in lowercase ("an", "sn", "ud") | Lowercase is how Singlish is typed; "an" alone starts 3,501 words | Shown |
+| Listed abbreviation + number, any case ("SN 1", "sn15.3", "AN 3", "KN 2") | No | Hidden |
+| "an" + number ("an 3") | Yes: අන් followed by a number is in 2 texts | Shown |
+| Single letters (A, D, M, S), with or without a number | Not checked; they start thousands of words | Shown |
+
+**Keep it true:** zero today is not zero forever, because the corpus and the dictionaries can change. A test should re-run this check against the bundled databases and fail when a hidden form starts matching a word. The test agent writes it.
+
+**Steps:**
+
+1. One `const` table of abbreviations in `wisdom_shared`, next to the resolver: abbreviation, title, and whether it hides the preview when it stands alone. It replaces `SuttaCentralRefResolver.knownBooks` and `_displayBook`. Source: [Access to Insight](https://accesstoinsight.org/abbrev.html).
+2. Keep every Access to Insight entry, with a comment on the ones the resolver cannot open yet: Vinaya (Cv, Mv), Khp, Miln, Nd, Nm, Nc, the commentaries (DhpA, KhpA, ThagA, ThigA) and the single letters. Later they can point at BJT sections, and the help docs list them all.
+3. Sutta Nipāta is "Snp". In the table, "Sn" is noted as meaning SN here, because the resolver ignores case.
+4. Replace the `parseRef` check in `singlishPreviewText` with this rule. The find bar, the main box and the recent list all read it from there.
+
+**Optional, static site:** "SN 15.3" in the site's search dialog could open the BJT page. Cost: the concordance as extra rows in `search-index.json` (all of `sc-to-bjt.json` is 1,144 bytes on 2026-10-06; it grows as the concordance is authored), plus a small reference parser in `site.js`. The parser holds only Latin letters and digits, so the "no Sinhala, no URLs in site.js" rule still holds. Do it only while it stays this small.
+
+**Files:** `packages/wisdom_shared/lib/src/refs/`, `lib/core/utils/search_query_utils.dart`.
+
+**Decided 2026-10-06:**
+
+- The table is a `const` in `wisdom_shared`, not a JSON asset: no new static files on the app side.
+- Sutta Nipāta is "Snp". Checked: SuttaCentral's ID is `snp1.8`, shown as "Snp 1.8". Access to Insight, dhammatalks.org and Wikipedia use "Sn", but only case-sensitively, and phones auto-capitalise "sn 1.8" to "Sn 1.8".
+- Every Access to Insight entry stays in the table; the ones that cannot open anything yet carry a comment.
+
+**Done when:**
+
+- [ ] "SN", "SN 1", "sn15.3", "AN 3" and "Dhp" show no preview in the find bar, the main box or the recent list.
+- [ ] "AN", "KN", "an", "an 3", "a", "s" and "m" still show their previews.
+
+## Handover notes
+
+### Chunk A: in review, not committed
+
+Done: Tasks 1, 2 and 3, plus the clear ✕ tooltip in the search box (Task 10).
+
+- `singlishPreviewText(raw)` in `search_query_utils.dart` returns the Sinhala to show, or null when there is none. It keeps the joiners: tatra → ටට්‍ර renders joined in the bundled font (HarfBuzz check, 2026-10-06). The Pali word තත්‍ර is typed thathra. Widgets read it through `singlishPreviewProvider(raw)` (`providers/singlish_preview_provider.dart`), which runs the conversion once per query. Calling it in `build` re-ran the converter on every rebuild: each find-bar match step, and every recent row each time the search bar rebuilt.
+- `SinglishPreview` applies the 45% width cap itself; callers pass `fieldWidth`. No arrow: the tag alone marks the preview.
+- The main box puts the preview at the right end of the field, before the toggles, not right after the typed text. Task 8 removes the toggles, which frees room. Until then, two Singlish words leave the typed text only a few pixels on a phone and about 30px on desktop (estimated from Flutter's layout rules, not measured).
+- The find bar, the main box and the recent list all hide the preview for a reference like "SN 15.3": `singlishPreviewText` checks `parseRef`. Task 11 refines that rule.
+- The `isSinglishConverted` getters on both search states and `querySinglishConverted` were removed: nothing used them once the preview had its own rule.
+- New l10n key: `removeRecentSearch`.
+- Tests, all passing on macOS on 2026-10-06: new `test/core/utils/search_query_utils_test.dart` (the preview rule); `integration_test/in_page_search_test.dart` test 2 checks the find-bar preview; `integration_test/search_flow_integration_test.dart` 10.1 checks the main-box preview and that a Singlish recent entry shows the Sinhala first.
+- Run on macOS on 2026-10-06. Two fixes found, listed below. The "…" fix was checked in the app the same day; the tooltip fix is not confirmed yet.
+
+**Fixes after the first run (chunk A), both done:**
+
+- [x] Recent searches: a long entry ends in "…". The title (Sinhala) and the subtitle (typed text) have `maxLines: 1` and `overflow: TextOverflow.ellipsis` (`recent_search_overlay.dart`).
+- [x] Crash when the ✕ tooltip in recent searches shows: "The paint transform cannot be reliably computed because of RenderFollowerLayer(s)". `SearchBar` now places the dropdown with `OverlayPortal.overlayChildLayoutBuilder`, not a `CompositedTransformFollower`. A Flutter upgrade would not have fixed it: Flutter's docs say a follower between an `OverlayPortal` and its overlay is not supported. To check in the app: hover the ✕ in recent searches.
+
+Next: Chunk B.
+
+## Pending (not tied to a chunk)
+
+- [ ] **Recent searches save Helakuru's invisible space.** Helakuru puts a zero-width space (U+200B) before the syllable being typed, so අරුණව can be saved as අරුණ + U+200B + ව. Search still works, because the query is cleaned before searching. But the same word can show twice in the recent list. Found 2026-10-06 in the saved list. Fix in `addRecentSearch` (`recent_searches_repository_impl.dart`): remove U+200B before saving and comparing. Remove only U+200B: the joiner U+200D must stay, or ්‍ර loses its join. No migration for old entries (the app is not released); clear the list by hand.
+
+How to test it:
+
+1. Type අරුණව with Helakuru and open a result.
+2. Copy අරුණව from the reader text, paste it into the search box, and open a result.
+3. Empty the search box. Before the fix, the list shows අරුණව twice. After it, once.
+4. Quit the app, then list what was saved. No `\u200b` should appear:
+
+```bash
+python3 -c "import plistlib,json,os; p=os.path.expanduser('~/Library/Containers/lk.tipitaka.theWisdomProject/Data/Library/Preferences/lk.tipitaka.theWisdomProject.plist'); [print(repr(e['queryText'])) for e in json.loads(plistlib.load(open(p,'rb'))['flutter.recent_searches'])]"
+```

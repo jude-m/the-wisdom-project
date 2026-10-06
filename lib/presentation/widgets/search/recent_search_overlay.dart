@@ -4,6 +4,7 @@ import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../providers/search_provider.dart';
+import '../../providers/singlish_preview_provider.dart';
 import '../../../domain/entities/search/recent_search.dart';
 
 /// Simplified overlay that only shows recent searches
@@ -43,12 +44,12 @@ class RecentSearchOverlay extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final searchState = ref.watch(searchStateProvider);
+    // Only the list, so unrelated search-state changes don't rebuild the rows.
+    final recentSearches =
+        ref.watch(searchStateProvider.select((s) => s.recentSearches));
     final theme = Theme.of(context);
 
-    final hasRecentSearches = searchState.recentSearches.isNotEmpty;
-
-    if (!hasRecentSearches) {
+    if (recentSearches.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -65,11 +66,7 @@ class RecentSearchOverlay extends ConsumerWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: SingleChildScrollView(
-              child: _buildRecentSearches(
-                context,
-                ref,
-                searchState.recentSearches,
-              ),
+              child: _buildRecentSearches(context, ref, recentSearches),
             ),
           ),
         ),
@@ -83,45 +80,60 @@ class RecentSearchOverlay extends ConsumerWidget {
     List<RecentSearch> recentSearches,
   ) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(context, ref,
-            AppLocalizations.of(context).recentSearches.toUpperCase()),
-        ...recentSearches.map((search) => ListTile(
-              dense: true,
-              leading: Icon(
-                Icons.history,
-                size: 20,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              title: Text(search.queryText,
-                  style: context.typography.listRowTitle),
-              trailing: GestureDetector(
-                onTap: () {
-                  ref
-                      .read(searchStateProvider.notifier)
-                      .removeRecentSearch(search.queryText);
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Icon(
-                    Icons.close,
-                    size: 18,
-                    color: theme.colorScheme.onSurfaceVariant,
+        _sectionHeader(context, ref, l10n.recentSearches.toUpperCase()),
+        ...recentSearches.map((search) {
+          final queryText = search.queryText;
+          // Singlish rows show the Sinhala first, the typed text underneath.
+          // Sinhala and references ("SN 15.3") stay as typed.
+          final sinhala = ref.watch(singlishPreviewProvider(queryText));
+
+          return ListTile(
+            dense: true,
+            leading: Icon(
+              Icons.history,
+              size: 20,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            title: Text(
+              sinhala ?? queryText,
+              style: context.typography.listRowTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: sinhala == null
+                ? null
+                : Text(
+                    queryText,
+                    style: context.typography.resultSubtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ),
-              onTap: () {
-                // Dismiss overlay first
-                onDismiss();
-                // Then trigger search with this query
+            trailing: IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              color: theme.colorScheme.onSurfaceVariant,
+              visualDensity: VisualDensity.compact,
+              tooltip: l10n.removeRecentSearch,
+              onPressed: () {
                 ref
                     .read(searchStateProvider.notifier)
-                    .selectRecentSearch(search.queryText);
+                    .removeRecentSearch(queryText);
               },
-            )),
+            ),
+            onTap: () {
+              // Dismiss overlay first
+              onDismiss();
+              // Then trigger search with this query
+              ref
+                  .read(searchStateProvider.notifier)
+                  .selectRecentSearch(queryText);
+            },
+          );
+        }),
       ],
     );
   }
