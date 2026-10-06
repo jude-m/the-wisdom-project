@@ -22,8 +22,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import 'package:the_wisdom_project/domain/entities/navigation/tipitaka_tree_node.dart';
+import 'package:the_wisdom_project/presentation/providers/deep_link_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/parallel_text_provider.dart';
+import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/reader/reader_action_buttons.dart';
+import 'package:wisdom_shared/wisdom_shared.dart';
 
 void main() {
   /// Pumps the button group with the providers it watches overridden to
@@ -40,6 +43,7 @@ void main() {
     bool isCommentary = false,
     String? previousTooltip,
     String? nextTooltip,
+    List<Override> extraOverrides = const [],
   }) async {
     var searchTaps = 0;
     var previousTaps = 0;
@@ -51,6 +55,7 @@ void main() {
           // surface tight to the buttons under test.
           parallelTextNodeProvider.overrideWith((ref) => parallelTextNode),
           isCommentaryProvider.overrideWith((ref) => isCommentary),
+          ...extraOverrides,
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -169,6 +174,35 @@ void main() {
 
       expect(find.byIcon(Icons.skip_previous), findsOneWidget);
       expect(find.byIcon(Icons.skip_next), findsNothing);
+    });
+
+    testWidgets('Share → Copy link copies the active tab and says so',
+        (tester) async {
+      // Records the link instead of writing the clipboard. Turning the link
+      // into a URL is tested in deep_link_provider_test; the clipboard write
+      // itself is not.
+      TipitakaLink? copied;
+      await pumpGroup(
+        tester,
+        extraOverrides: [
+          activeNodeKeyProvider.overrideWith((ref) => 'sn-2-3-1-3'),
+          copyTipitakaLinkProvider.overrideWith(
+            (ref) => (link) async {
+              copied = link;
+            },
+          ),
+        ],
+      );
+
+      // Act — open the Share menu, then pick its item.
+      await tester.tap(find.byTooltip('Share'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Copy link'));
+      await tester.pumpAndSettle();
+
+      // Assert — the tab being read was copied, and the reader is told.
+      expect(copied?.nodeKey, 'sn-2-3-1-3');
+      expect(find.text('Link copied'), findsOneWidget);
     });
   });
 }
