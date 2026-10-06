@@ -1,7 +1,7 @@
 # Windows Sinhala IME Bug — Investigation & Findings
 
-**Date:** 2026-03-18 (updated 2026-07-24)
-**Status:** Open — Root cause identified (engine typo), fix PR #189968 pending merge
+**Date:** 2026-03-18 (updated 2026-10-06)
+**Status:** Fix merged to Flutter master 2026-10-02 (PR #189968) — not in stable or beta yet; Windows retest pending
 **Affects:** Windows desktop only, Sinhala phonetic keyboard (and other IME-based scripts)
 
 ---
@@ -109,7 +109,7 @@ A minimal Flutter app with just a `TextField` (no state management, no callbacks
 |--------|--------|--------|
 | Singlish input (already available) | None | ✅ Works on all platforms |
 | Use Wijesekara fixed-layout keyboard | None | ✅ Works — fixed-layout keys emit codepoints directly, no IME composing involved |
-| Flutter master channel | Low | ❌ Still broken as of 2026-06-05 (pre-fix PR); retest after PR #189968 merges |
+| Flutter master channel | Low | 🔲 Fix on master since 2026-10-02 — retest with Helakuru pending |
 | Web build (`flutter build web`) | Low | ✅ Browser handles IME correctly |
 | Native Win32 text field via platform channel | High | 🔲 Would fully fix it — not implemented |
 
@@ -132,15 +132,21 @@ This has been present since IME support was first added for Windows in engine PR
 
 ### The Fix
 
-**Flutter PR #189968** — "[Windows] Preserve composing extent in setEditingState"
-- Author: tjcGoogle
-- Opened: 2026-07-24
-- Status: **Open, pending Windows team review**
-- Fix: one-line correction in `text_input_plugin.cc`, with regression test
-- Will enter master → then stable at next Flutter release
-- Tested: still present on Flutter master as of 2026-06-05 (before this PR)
+**Flutter PR [#189968](https://github.com/flutter/flutter/pull/189968)** — "[Windows] Preserve composing extent in setEditingState" (tjcGoogle)
+- **Merged to master 2026-10-02** (commit `e5077f5`), approved by loic-sharma and Renzo-Olivares.
+- Two changes in `text_input_plugin.cc`: the typo (`extent->value`), and passing text, selection and composing range in one `SetText(text, selection, composing)` call. The typo fix alone failed CI — the single-argument `SetText` reset the model's composing state, so the later composing-range update was silently dropped.
+- Regression test `SetEditingStatePreservesComposingRange`.
+- No issue linked ("trivial field-read typo"), so no Flutter issue mentions Sinhala.
 
-**Monitor this PR for merge: [flutter/flutter#189968](https://github.com/flutter/flutter/pull/189968)**
+### Release status (checked 2026-10-06)
+
+| Channel | Version | Has the fix |
+|---------|---------|-------------|
+| stable | 3.47.6 (2026-10-01) | ❌ |
+| beta | 3.49.0-0.2.pre (2026-10-01) | ❌ not on `flutter-3.49-candidate.0`, no cherry-pick PR |
+| master | — | ✅ |
+
+Ships with the next beta branch cut (likely 3.50), then the stable after that.
 
 ### Other IME fixes that landed (but do NOT fix character dropping)
 
@@ -148,6 +154,7 @@ This has been present since IME support was first added for Windows in engine PR
 - **Engine PR #29620** (2022): Fixed Sogou IME (`GCS_COMPSTR` + `GCS_RESULTSTR` in same message).
 - **Engine PR #24713** (2021): Added Korean input support (handling `GCS_RESULTSTR` without ending composition).
 - Web-only IME fixes in Flutter 3.35 and 3.44 — Windows unaffected.
+- **PR #192624** (open): duplicated text when a composition leaks into the next TextField after a focus change (Chinese Bopomofo, issue #191196). A different bug — relevant only if the retest shows duplicated text.
 
 ### Architecture note
 
@@ -158,8 +165,9 @@ Flutter's Windows embedder uses **IMM32** (Win95-era legacy API), not **TSF** (T
 ## Action Items
 
 - [x] Test on Flutter master channel — still broken as of 2026-06-05 (pre-fix PR)
-- [ ] **Monitor [flutter/flutter#189968](https://github.com/flutter/flutter/pull/189968)** — merge expected within days/weeks; once merged, switch to master channel and retest Helakuru phonetic input
-- [ ] File Sinhala-specific bug on the Flutter repo (once PR merges, reference it as fixed)
+- [x] [flutter/flutter#189968](https://github.com/flutter/flutter/pull/189968) merged to master 2026-10-02
+- [ ] **Retest Helakuru phonetic input on Windows with `flutter channel master`** — confirms the typo is the whole cause
+- [ ] File Sinhala-specific bug on the Flutter repo, referencing #189968 as the fix
 - [ ] Consider adding a hint/tooltip for Windows users pointing them to Singlish input until fix ships in stable
 
 
@@ -229,6 +237,7 @@ This is the same class of bug affecting other complex-script IMEs on Windows:
 - #78827 — Discourage committing the current composing region when there's an open input connection
 - #101953 — Windows + Microsoft Japanese IME, last char committed when deleting composing text
 - #81257 — Unable to delete text from TextFormField using Chinese pinyin keyboard on Windows
+- #189968 — engine fix for the collapsed composing range (merged to master 2026-10-02)
 
 Adding this issue to highlight that Sinhala (and likely other South/Southeast Asian Brahmic scripts — Tamil, Hindi, Thai, Khmer, Myanmar) are also affected, not just CJK and Korean.
 
