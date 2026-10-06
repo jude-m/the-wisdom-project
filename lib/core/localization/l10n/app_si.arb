@@ -235,9 +235,9 @@
 
   "researchCitationNotLinked": "මෙම මූලාශ්‍රය තවම මෙම සංස්කරණයට සම්බන්ධ කර නොමැත.",
 
-  "researchCopyLink": "සබැඳිය පිටපත් කරන්න",
+  "copyLink": "සබැඳිය පිටපත් කරන්න",
 
-  "researchLinkCopied": "සබැඳිය පිටපත් විය",
+  "linkCopied": "සබැඳිය පිටපත් විය",
 
   "researchRetry": "නැවත උත්සාහ කරන්න",
 
@@ -300,5 +300,8 @@
   "databaseInstallRetry": "නැවත උත්සාහ කරන්න",
 
   "readInApp": "යෙදුමෙන් කියවන්න",
-  "moreOptions": "තවත් විකල්ප"
+  "moreOptions": "තවත් විකල්ප",
+
+  "share": "බෙදාගන්න",
+  "openAsWebPage": "වෙබ් පිටුවක් ලෙස විවෘත කරන්න"
 }

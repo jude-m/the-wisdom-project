@@ -25,10 +25,10 @@
 # tools/'s job (npm run generate-bjt / generate-dict).
 #
 # The build is `flutter build web --release` with RESEARCH_BASE_URL and
-# DATABASE_BASE_URL from scripts/config/targets.env, minus the two .db files
-# (manifest.json stays: the app reads each version from it). `_headers` comes
-# from web/_headers: cross-origin isolation for the databases, noindex on
-# every host.
+# DATABASE_BASE_URL from scripts/config/targets.env and LINK_BASE_URL set to
+# dev's static site, minus the two .db files (manifest.json stays: the app
+# reads each version from it). `_headers` comes from web/_headers: cross-origin
+# isolation for the databases, noindex on every host.
 #
 # A dry run uploads nothing and needs no credentials, so
 # scripts/release_all_dryrun.sh can run it anywhere.
@@ -73,6 +73,9 @@ BUCKET=$(target DATABASE_BUCKET)
 DATABASE_BASE_URL=$(target DATABASE_BASE_URL)
 RESEARCH_BASE_URL=$(target RESEARCH_BASE_URL)
 ORIGIN="https://$PROJECT.pages.dev"
+# Where the reader's copied links and "Open as web page" point: dev's static
+# site, as scripts/static_site/deploy.sh derives it. The app's default is prod.
+LINK_BASE_URL="https://$(target STATIC_SITE_DEV_PROJECT).pages.dev"
 
 # The build, and the databases taken out of it, in folders of this run's own
 # outside build/: nothing else (a local flutter run, run_mac.sh --clean, a
@@ -155,7 +158,8 @@ BUILD_STARTED=true
 env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID flutter build web --release \
   --output "$OUT" \
   --dart-define=RESEARCH_BASE_URL="$RESEARCH_BASE_URL" \
-  --dart-define=DATABASE_BASE_URL="$DATABASE_BASE_URL"
+  --dart-define=DATABASE_BASE_URL="$DATABASE_BASE_URL" \
+  --dart-define=LINK_BASE_URL="$LINK_BASE_URL"
 cleanup_cache
 BUILD_STARTED=false
 echo ""

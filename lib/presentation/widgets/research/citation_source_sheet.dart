@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wisdom_shared/wisdom_shared.dart';
 
@@ -76,9 +75,7 @@ class _CitationSourceSheetState extends ConsumerState<CitationSourceSheet> {
   }
 
   Future<void> _copyLink(String nodeKey) async {
-    final url = await ref
-        .read(tipitakaLinkUrlBuilderProvider)(TipitakaLink(nodeKey: nodeKey));
-    await Clipboard.setData(ClipboardData(text: url.toString()));
+    await ref.read(copyTipitakaLinkProvider)(TipitakaLink(nodeKey: nodeKey));
     if (!mounted) return;
     setState(() => _copied = true);
   }
@@ -202,8 +199,7 @@ class _CitationSourceSheetState extends ConsumerState<CitationSourceSheet> {
             TextButton.icon(
               onPressed: _copied ? null : () => _copyLink(nodeKey),
               icon: Icon(_copied ? Icons.check : Icons.link, size: 18),
-              label: Text(
-                  _copied ? l10n.researchLinkCopied : l10n.researchCopyLink),
+              label: Text(_copied ? l10n.linkCopied : l10n.copyLink),
             ),
           ] else
             Text(

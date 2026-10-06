@@ -606,14 +606,14 @@
     "description": "Shown in the citation sheet when the cited source has no concordance entry to open in the reader"
   },
 
-  "researchCopyLink": "Copy link",
-  "@researchCopyLink": {
-    "description": "Button in the citation sheet that copies the shareable URL for the cited text"
+  "copyLink": "Copy link",
+  "@copyLink": {
+    "description": "Action that copies the shareable URL of a text (citation sheet, the reader's Share menu)"
   },
 
-  "researchLinkCopied": "Link copied",
-  "@researchLinkCopied": {
-    "description": "Copy-link button label swapped in after copying succeeds (shown in place of 'Copy link'; not a snackbar — one would be hidden under the modal sheet)"
+  "linkCopied": "Link copied",
+  "@linkCopied": {
+    "description": "Confirmation after a link was copied (the citation sheet's button label, or a snackbar in the reader)"
   },
 
   "researchRetry": "Retry",
@@ -791,5 +791,14 @@
   "moreOptions": "More options",
   "@moreOptions": {
     "description": "Static web site only: accessible name of the toolbar's ⋮ menu on narrow screens"
+  },
+
+  "share": "Share",
+  "@share": {
+    "description": "Reader button (and FAB item) that opens the share menu"
+  },
+  "openAsWebPage": "Open as web page",
+  "@openAsWebPage": {
+    "description": "App on the web only: reader button that opens the text being read on the static web site, in a new tab"
   }
 }

@@ -371,10 +371,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'This source isn\'t linked to this edition yet.';
 
   @override
-  String get researchCopyLink => 'Copy link';
+  String get copyLink => 'Copy link';
 
   @override
-  String get researchLinkCopied => 'Link copied';
+  String get linkCopied => 'Link copied';
 
   @override
   String get researchRetry => 'Retry';
@@ -515,4 +515,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get moreOptions => 'More options';
+
+  @override
+  String get share => 'Share';
+
+  @override
+  String get openAsWebPage => 'Open as web page';
 }

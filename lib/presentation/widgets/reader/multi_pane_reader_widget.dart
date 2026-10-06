@@ -597,12 +597,12 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
             // search-bar key note above).
             key: const ValueKey('reader-actions-top'),
             top: 12,
-            // Bounded on both sides, and a Wrap rather than a Row: at four
-            // action buttons the two pills want 376px, which is more than a
-            // 375pt phone has to give. They drop to a second line there and
-            // stay on one anywhere wider, so no control is hidden and nothing
-            // overflows. `alignment: end` keeps both lines against the right
-            // edge, where the Row left them.
+            // Bounded on both sides, and a Wrap rather than a Row: with every
+            // action button the two pills want 429px (473px on the web), which
+            // is more than a phone has to give. They drop to a second
+            // line there and stay on one anywhere wider, so no control is
+            // hidden and nothing overflows. `alignment: end` keeps both lines
+            // against the right edge, where the Row left them.
             left: 16,
             right: 16,
             child: IgnorePointer(

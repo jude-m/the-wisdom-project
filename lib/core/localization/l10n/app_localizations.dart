@@ -800,17 +800,17 @@ abstract class AppLocalizations {
   /// **'This source isn\'t linked to this edition yet.'**
   String get researchCitationNotLinked;
 
-  /// Button in the citation sheet that copies the shareable URL for the cited text
+  /// Action that copies the shareable URL of a text (citation sheet, the reader's Share menu)
   ///
   /// In en, this message translates to:
   /// **'Copy link'**
-  String get researchCopyLink;
+  String get copyLink;
 
-  /// Copy-link button label swapped in after copying succeeds (shown in place of 'Copy link'; not a snackbar — one would be hidden under the modal sheet)
+  /// Confirmation after a link was copied (the citation sheet's button label, or a snackbar in the reader)
   ///
   /// In en, this message translates to:
   /// **'Link copied'**
-  String get researchLinkCopied;
+  String get linkCopied;
 
   /// Button to re-send the last question after a retriable Q&A error
   ///
@@ -1009,6 +1009,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'More options'**
   String get moreOptions;
+
+  /// Reader button (and FAB item) that opens the share menu
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get share;
+
+  /// App on the web only: reader button that opens the text being read on the static web site, in a new tab
+  ///
+  /// In en, this message translates to:
+  /// **'Open as web page'**
+  String get openAsWebPage;
 }
 
 class _AppLocalizationsDelegate

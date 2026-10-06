@@ -3,7 +3,7 @@
 > Status: **ACTIVE PLAN — decisions locked 2026-07-06; reading-layout-in-URL added 2026-07-20** (was Proposal since
 > 2026-05-13). **Build phases 1–4 are shipped** (codec, app wiring, research
 > citations, SN 15 concordance seed) and so are three of the four test layers;
-> what remains is **`?layout=`, the reader-tab share button, `?edition=`,
+> what remains is **`?layout=`, Share… on reader tabs, `?edition=`,
 > Universal/App Links, and layer B's tests** — see Build phases.
 > Split out of the former `web-deep-linking-seo-and-shareable-urls.md`
 > on 2026-06-11; the SEO / static HTML half lives in
@@ -24,18 +24,18 @@
 
 ---
 
-## ▶ First task — static ⇄ app cross-links (UI locked 2026-10-05)
+## Static ⇄ app cross-links — BUILT 2026-10-05 (Share… later)
 
-> **Next thing to build.** Both web surfaces are live on dev; this joins them.
+> Both web surfaces are live on dev; this joins them.
 > It is the UI for two lines this doc already decided: **"Static → app link"**
-> (Sharing & resolution, below) and build phase **2, "Share / copy-link on
-> reader tabs"**, pulled forward. `?layout=` and `?edition=` stay where they
+> (Sharing & resolution, below) and build phase **2, "Share… on reader
+> tabs"**, pulled forward. `?layout=` and `?edition=` stay where they
 > are in the phase list. The emitted link just gains them once they exist.
 >
 > **Designs:** [Static ↔ App Links canvas](https://claude.ai/code/artifact/88246e2a-1385-4a73-9c0f-5a426a6fc3c3)
 > (private; share it from the canvas before linking anyone else). Frames used:
 > - Row 1: *Static sutta page, desktop* — the toolbar pill. The phone frame's under-title CTA was replaced by a ⋮ menu in the toolbar (see A)
-> - Row 3: *App reader · desktop — link menu from the action pill*, *App reader · phone — link sheet*
+> - Row 3: *App reader · desktop — link menu from the action pill*. The *phone — link sheet* frame was not built (see B)
 >
 > Row 2 (first-open boot/loading: the blank seconds while fonts and the
 > databases download) is **out of scope here** and gets its own item.
@@ -53,22 +53,28 @@
 | **Placement: the toolbar** | After the layout group. From 65rem (1040px): a hairline, then a filled pill (`--c-primary`, 34px tall). Below that: a ⋮ (`<details>`, opens with JS off) whose menu holds the same link; `site.js` closes it on an outside click, Escape, or use. At 36rem (576px) and below, the P / S / stacked buttons fold into the ⋮ menu too (labels for the same radios, so still zero-JS), which leaves the trail more room on a phone than it had before the ⋮. Trail collapse steps are now 54/42/28rem. Derivations on the constants in `stylesheet.dart`. |
 | **Known limits** | 1. On a chapter that anchors on its first sutta (page key = that sutta's key), the chapter link `P` and the first sutta's `P#P` both resolve to `P` in the app, which can't tell "the whole run" from "sutta one" there. This is an app-side reader-unit question, not a link problem. 2. The app's address bar still loses the `#` at start-up, so reloading or bookmarking that tab opens the whole chapter. If that ever matters: a custom URL strategy in `main()` that leaves the `#` alone (`setUrlStrategy(null)` also works, but then Back leaves the app instead of closing an open sheet). |
 
-### B. App → static (discreet)
+### B. App → static — BUILT 2026-10-05
 
 | | |
 |---|---|
-| **Entry point** | One **link icon** appended to the end of `ReaderActionButtonGroup` (Mode 1 pill), after a hairline divider: last, and visually quieter than reading actions. Mode 2 (`ReaderExpandableFab`) gets the same entry as its last labelled item. Nothing new in the `AppBar`. |
-| **Desktop / tablet** | The icon opens an anchored menu (`MenuAnchor`): **Copy link**, **Open as web page**, then a divider and a footer line showing the exact URL that will be copied or opened. |
-| **Phone** | A modal bottom sheet: sutta title + URL at the top, then **Share…** (OS share sheet), **Copy link**, **Open as web page** (quietest of the three). |
-| **URL** | From `tipitakaLinkUrlBuilderProvider`, already routed through `SitePlan.servingLink`, so a folded leaf comes out as `…/<pageKey>#<leafKey>`. BJT → apex (static). Non-BJT, once `?edition=` exists → `app.` + `?edition=…`. |
-| **"Open as web page"** | `url_launcher` (already a dependency): a new tab on web, the external browser on native. **Hidden** when the tab is not BJT, because static is BJT-only. |
-| **Strings** | Reuse `researchCopyLink` / `researchLinkCopied`; they are no longer research-only, so consider promoting them to neutral keys. New keys: the menu's accessible name, "Open as web page", "Share…". |
-| **Share…** | Needs a share plugin (none in `pubspec.yaml` today). Ship it on native and phone-web where the platform has a share sheet; on desktop web the menu is Copy + Open only. |
+| **Entry point** | Last in `ReaderActionButtonGroup` (Mode 1 pill), after a hairline divider: **Share** (`Icons.adaptive.share`) and, on web only, **Open as web page** (`Icons.open_in_new`). `ReaderExpandableFab` (Mode 2) ends with the same entries. Nothing new in the `AppBar`. Code: `widgets/reader/reader_link_actions.dart`. |
+| **Share** | Opens a menu under the button holding **Copy link**, which copies and shows a `linkCopied` SnackBar. The same menu at every width, on every platform. It holds one item for now, an extra tap accepted 2026-10-05 because the menu is where sharing grows (see below). |
+| **Open as web page** | Its own button, because it is not sharing. Web only: inside a native app it has no use (decided 2026-10-05). `UrlLauncherUtils.launchInAppBrowser`, which opens a new tab on web. Static is BJT-only, so it must hide for a non-BJT tab; every tab is BJT today, so there is no check yet. |
+| **`showMenu`, not `MenuAnchor`** | The FAB's item is gone once the FAB closes, and a `MenuAnchor` menu closes with its anchor. `showMenu` needs only a position, so one menu serves both entry points. |
+| **Not built, on purpose** | The design's phone sheet and the menu's URL footer line. The URL added nothing, and "Link copied" confirms the copy (decided 2026-10-05). |
+| **URL** | `tipitakaLinkUrlBuilderProvider` with the tab's `nodeKey`, through `SitePlan.servingLink`, so a folded leaf comes out as `…/<pageKey>#<leafKey>`. No `?e=`: a tab drops its landing spot once it lands, so the link opens the text at its start (decided 2026-10-05). Non-BJT, once `?edition=` exists → `app.` + `?edition=…`. |
+| **Origins** | `LINK_BASE_URL`, default the apex. `scripts/app/web/deploy.sh` passes dev's static site, `https://<STATIC_SITE_DEV_PROJECT>.pages.dev`. |
+| **Strings** | `researchCopyLink` / `researchLinkCopied` became `copyLink` / `linkCopied`. New: `share` (`බෙදාගන්න`) and `openAsWebPage` (`වෙබ් පිටුවක් ලෙස විවෘත කරන්න`). |
+
+**Later: the Share menu grows.** Next is the OS share sheet, on web and
+native. It needs a share plugin (none in `pubspec.yaml`). Before showing it in a
+browser with no share sheet, check what the plugin falls back to there.
 
 **Done when:** every reading page has the link in its toolbar at every
 width, one visible at a time (**A: done**); reader tabs on all platforms produce a link that
-round-trips through `TipitakaLink.parse` back to the same tab; dev and prod
-builds each point at their own other-surface origin.
+round-trips through `TipitakaLink.parse` back to the same tab (**B: done**); dev and prod
+builds each point at their own other-surface origin (dev done both ways; the prod
+app web build is not set up yet, and the link's default is already the apex).
 
 ---
 
@@ -158,12 +164,13 @@ https://app.sammaditthi.net/tipitaka/sn-2-3-1-3?e=12.4&layout=sideBySide&edition
   so deep URLs serve the shell instead of 404. The `TipitakaLink` codec is
   host-agnostic, so app-host URLs parse as-is; its `/app/`-prefix stripping is
   now legacy tolerance for old dev links.
-- **Sharing out (planned).** Flutter web is a SPA, so the **address bar does not
+- **Sharing out.** Flutter web is a SPA, so the **address bar does not
   auto-track** in-app navigation (no `go_router` — deferred). Sharing is therefore
-  an explicit reader-tab **"copy link / share"** button that *builds* the canonical
-  URL from the tab's state (node + `e` + layout + edition), in the form the
-  **Sharing & resolution** rule picks below — identical on native and web. This is
-  why go_router isn't needed for correctness.
+  the reader's **Share** button (built, Static ⇄ app cross-links B), which *builds*
+  the canonical URL from the tab's state (the node today; layout and edition once
+  they exist; no `e`, see B), in the form the **Sharing & resolution** rule
+  picks below — identical on native and web. This is why go_router isn't needed
+  for correctness.
 - **go_router (optional, later).** Adds live address-bar sync + browser
   back/forward + copy-straight-from-the-bar. Additive; the share button already
   covers sharing.
@@ -323,11 +330,10 @@ resolver plan §B.4 / findings doc).
    `openTipitakaLinkProvider` (null/unknown → `resolveSeedLayout`), a `layout`
    argument through `openTabFromNodeKeyProvider`, and the ~8-line static-site
    enhancement in the static plan §7.
-2. **Share / copy-link on reader tabs.** `tipitakaLinkUrlBuilderProvider` exists
-   and already goes through `SitePlan.servingLink`, but its only caller is
-   `citation_source_sheet.dart` — no reader tab emits a link. This is the whole
-   "Sharing out" half of the emit table above, and it is what *produces*
-   `?layout=`, so the two are one piece of work rather than two.
+2. **Share… on reader tabs.** The Share button is built (Static ⇄ app
+   cross-links, B), with Copy link in its menu; Open as web page sits beside it
+   on the web. Left: the OS share sheet, and `?layout=` on the link once 1
+   lands. The button is what *produces* `?layout=`, so that half is small.
 3. **`?edition=` param** — a modifier on the URL the share button builds, so it
    follows 2.
 4. **Universal / App Links**: `/.well-known` files on **both** origins +

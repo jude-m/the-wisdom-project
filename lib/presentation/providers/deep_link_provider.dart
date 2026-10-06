@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wisdom_shared/wisdom_shared.dart';
 
@@ -55,6 +56,16 @@ final tipitakaLinkUrlBuilderProvider =
     } catch (_) {
       return link.toUri(baseUrl);
     }
+  };
+});
+
+/// Copies a [TipitakaLink]'s shareable URL to the clipboard: the one "Copy
+/// link" path. Each caller shows its own confirmation.
+final copyTipitakaLinkProvider =
+    Provider<Future<void> Function(TipitakaLink)>((ref) {
+  return (link) async {
+    final url = await ref.read(tipitakaLinkUrlBuilderProvider)(link);
+    await Clipboard.setData(ClipboardData(text: url.toString()));
   };
 });
 

@@ -372,10 +372,10 @@ class AppLocalizationsSi extends AppLocalizations {
       'මෙම මූලාශ්‍රය තවම මෙම සංස්කරණයට සම්බන්ධ කර නොමැත.';
 
   @override
-  String get researchCopyLink => 'සබැඳිය පිටපත් කරන්න';
+  String get copyLink => 'සබැඳිය පිටපත් කරන්න';
 
   @override
-  String get researchLinkCopied => 'සබැඳිය පිටපත් විය';
+  String get linkCopied => 'සබැඳිය පිටපත් විය';
 
   @override
   String get researchRetry => 'නැවත උත්සාහ කරන්න';
@@ -516,4 +516,10 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get moreOptions => 'තවත් විකල්ප';
+
+  @override
+  String get share => 'බෙදාගන්න';
+
+  @override
+  String get openAsWebPage => 'වෙබ් පිටුවක් ලෙස විවෘත කරන්න';
 }

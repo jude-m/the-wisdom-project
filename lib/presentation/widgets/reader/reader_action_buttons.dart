@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
@@ -8,6 +9,7 @@ import '../../providers/parallel_text_provider.dart';
 import '../../utils/content_icons.dart';
 import '../../providers/tab_provider.dart'
     show activeReaderLayoutProvider, updateActiveTabLayoutProvider;
+import 'reader_link_actions.dart';
 
 /// Where one of the group's step buttons goes, and what to call it.
 ///
@@ -19,7 +21,8 @@ typedef ReaderStepTarget = ({String tooltip, VoidCallback onTap});
 /// Mode 1: Horizontal pill of icon buttons shown at top-right when the user
 /// hasn't scrolled past the first viewport.
 ///
-/// Contains up to 4 buttons (commentary toggle, search, previous, next).
+/// Contains up to 4 reading buttons (commentary toggle, search, previous,
+/// next), then after a hairline Share and, on the web, Open as web page.
 /// Buttons are conditionally included based on context; a step button is
 /// omitted when there is no leaf that way.
 class ReaderActionButtonGroup extends ConsumerWidget {
@@ -81,6 +84,27 @@ class ReaderActionButtonGroup extends ConsumerWidget {
                 icon: Icons.skip_next,
                 tooltip: target.tooltip,
                 onTap: target.onTap,
+              ),
+            // Outward actions: last, and set apart from the reading actions
+            Container(
+              width: 1,
+              height: 24,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              color: colorScheme.outlineVariant,
+            ),
+            Builder(
+              builder: (buttonContext) => _ActionIconButton(
+                icon: Icons.adaptive.share,
+                tooltip: l10n.share,
+                onTap: () =>
+                    showShareMenu(context, ref, globalRectOf(buttonContext)),
+              ),
+            ),
+            if (kIsWeb)
+              _ActionIconButton(
+                icon: Icons.open_in_new,
+                tooltip: l10n.openAsWebPage,
+                onTap: () => openAsWebPage(context, ref),
               ),
           ],
         ),
@@ -245,6 +269,30 @@ class _ReaderExpandableFabState extends ConsumerState<ReaderExpandableFab> {
                           widget.onScrollTap();
                         },
                       ),
+                      const SizedBox(height: 8),
+                      Builder(
+                        builder: (itemContext) => _FabActionItem(
+                          icon: Icons.adaptive.share,
+                          label: l10n.share,
+                          onTap: () {
+                            // Measured first: collapsing removes the item.
+                            final anchor = globalRectOf(itemContext);
+                            _collapse();
+                            showShareMenu(context, ref, anchor);
+                          },
+                        ),
+                      ),
+                      if (kIsWeb) ...[
+                        const SizedBox(height: 8),
+                        _FabActionItem(
+                          icon: Icons.open_in_new,
+                          label: l10n.openAsWebPage,
+                          onTap: () {
+                            _collapse();
+                            openAsWebPage(context, ref);
+                          },
+                        ),
+                      ],
                       const SizedBox(height: 12),
                     ],
                   )
