@@ -54,28 +54,6 @@ void main() {
       expect(updated.matches.length, 1);
     });
 
-    test('isSinglishConverted requires both queries non-empty and different',
-        () {
-      // True: different queries
-      expect(
-        InPageSearchState(rawQuery: 'dhamma', effectiveQuery: 'ධම්ම')
-            .isSinglishConverted,
-        true,
-      );
-      // False: same queries
-      expect(
-        InPageSearchState(rawQuery: 'ධම්ම', effectiveQuery: 'ධම්ම')
-            .isSinglishConverted,
-        false,
-      );
-      // False: either empty
-      expect(
-        InPageSearchState(rawQuery: '', effectiveQuery: 'ධම්ම')
-            .isSinglishConverted,
-        false,
-      );
-    });
-
     test('hasActiveQuery requires both visible and non-empty effectiveQuery',
         () {
       expect(

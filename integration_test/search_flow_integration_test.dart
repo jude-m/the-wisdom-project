@@ -27,6 +27,7 @@ import 'package:the_wisdom_project/presentation/widgets/search/dictionary_search
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/highlighted_fts_search_text.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/recent_search_overlay.dart';
+import 'package:the_wisdom_project/presentation/widgets/search/singlish_preview.dart';
 
 import 'search_test_helper.dart';
 import 'test_overrides.dart';
@@ -436,12 +437,19 @@ void main() {
     });
 
     testWidgets(
-      '10.1 search is saved and appears in recent searches',
+      '10.1 search is saved and appears in recent searches, Sinhala first',
       (tester) async {
         await tester.pumpSearchApp(prefs);
 
-        // Perform a search.
-        await tester.searchFor('මහාසති');
+        // Perform a Singlish search. The box previews the Sinhala.
+        await tester.searchFor('aanandha');
+        expect(
+          find.descendant(
+            of: find.byType(SinglishPreview),
+            matching: find.text('ආනන්ද'),
+          ),
+          findsOneWidget,
+        );
 
         // Selecting a result is what saves the search. That call lives in
         // ReaderScreen, which this harness does not build, so drive the same
@@ -463,14 +471,16 @@ void main() {
 
         // Scoped to the overlay: an unscoped finder also matches the query
         // still sitting in the search field, so it passes even when no recent
-        // search was ever saved.
-        expect(
+        // search was ever saved. The row shows the Sinhala as its title and
+        // the typed text as its subtitle.
+        final row = tester.widget<ListTile>(
           find.descendant(
             of: find.byType(RecentSearchOverlay),
-            matching: find.textContaining('මහාසති'),
+            matching: find.byType(ListTile),
           ),
-          findsWidgets,
         );
+        expect((row.title! as Text).data, 'ආනන්ද');
+        expect((row.subtitle! as Text).data, 'aanandha');
       },
     );
   });

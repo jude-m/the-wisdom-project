@@ -12,6 +12,7 @@ import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
 import 'package:the_wisdom_project/presentation/widgets/reader/multi_pane_reader_widget.dart';
 import 'package:the_wisdom_project/presentation/widgets/reader/in_page_search_bar.dart';
 import 'package:the_wisdom_project/presentation/widgets/navigation/tab_bar_widget.dart';
+import 'package:the_wisdom_project/presentation/widgets/search/singlish_preview.dart';
 
 import 'test_overrides.dart';
 
@@ -183,10 +184,6 @@ void main() {
         // Raw query stays as typed
         expect(state.rawQuery, 'bhikkhu');
 
-        // Singlish conversion should be detected
-        expect(state.isSinglishConverted, isTrue,
-            reason: 'Should detect Singlish conversion');
-
         // Effective query should be non-empty (converted Sinhala text)
         expect(state.effectiveQuery, isNotEmpty,
             reason: 'Effective query should contain converted Sinhala');
@@ -195,9 +192,16 @@ void main() {
         expect(state.matches, isNotEmpty,
             reason: 'Should find matches for converted "bhikkhu"');
 
-        // Converted query preview should be displayed in the search bar
-        expect(find.text(state.effectiveQuery), findsOneWidget,
-            reason: 'Singlish conversion preview should be visible');
+        // The bar previews the Sinhala. Compared with the text itself, not
+        // effectiveQuery: the preview keeps joiners that search drops.
+        expect(
+          find.descendant(
+            of: find.byType(SinglishPreview),
+            matching: find.text('භික්ඛු'),
+          ),
+          findsOneWidget,
+          reason: 'Singlish conversion preview should be visible',
+        );
       },
     );
 

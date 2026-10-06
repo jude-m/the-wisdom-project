@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/localization/l10n/app_localizations.dart';
-import '../../../core/utils/search_query_utils.dart';
 import '../../providers/in_page_search_focus_provider.dart';
 import '../../providers/in_page_search_provider.dart';
+import '../../providers/singlish_preview_provider.dart';
 import '../search/singlish_preview.dart';
 
 /// Chrome-style floating search bar for in-page search.
@@ -87,7 +87,8 @@ class _InPageSearchBarState extends ConsumerState<InPageSearchBar> {
   @override
   Widget build(BuildContext context) {
     final searchState = ref.watch(activeInPageSearchStateProvider);
-    final singlishPreview = singlishPreviewText(searchState.rawQuery);
+    final singlishPreview =
+        ref.watch(singlishPreviewProvider(searchState.rawQuery));
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
 
@@ -108,7 +109,8 @@ class _InPageSearchBarState extends ConsumerState<InPageSearchBar> {
         child: Row(
           children: [
             // Search text field + Singlish preview share one area; the
-            // preview takes at most [SinglishPreview.maxWidthFraction] of it.
+            // preview's width cap is a share of it. The preview sits after
+            // the clear ✕ on purpose.
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) => Row(
@@ -174,14 +176,11 @@ class _InPageSearchBarState extends ConsumerState<InPageSearchBar> {
                       ),
                     ),
                     if (singlishPreview != null)
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: constraints.maxWidth *
-                              SinglishPreview.maxWidthFraction,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 4, right: 4),
-                          child: SinglishPreview(singlishPreview),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, right: 4),
+                        child: SinglishPreview(
+                          singlishPreview,
+                          fieldWidth: constraints.maxWidth,
                         ),
                       ),
                   ],

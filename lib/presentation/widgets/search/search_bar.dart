@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/utils/search_query_utils.dart';
 import '../../providers/main_search_focus_provider.dart';
 import '../../providers/overlay_stack_provider.dart';
 import '../../providers/reader_scroll_provider.dart';
-import '../../providers/reference_search_provider.dart';
 import '../../providers/search_provider.dart';
+import '../../providers/singlish_preview_provider.dart';
 import '../common/circular_toggle_button.dart';
 import 'proximity_dialog.dart';
 import 'recent_search_overlay.dart';
@@ -197,12 +196,8 @@ class _SearchBarState extends ConsumerState<SearchBar> {
         ref.watch(searchStateProvider.select((s) => s.rawQueryText));
     final showProximityButton = RegExp(r'\s\S').hasMatch(rawQueryText);
 
-    // Sinhala preview for Singlish input. Hidden for a sutta reference like
-    // "SN 15.3": the reference result already shows what was found.
-    final isReference =
-        ref.watch(referenceSearchResultProvider.select((r) => r != null));
-    final singlishPreview =
-        isReference ? null : singlishPreviewText(rawQueryText);
+    // Sinhala preview for Singlish input (none for a reference like "SN 15.3").
+    final singlishPreview = ref.watch(singlishPreviewProvider(rawQueryText));
 
     // Listen to queryText changes and sync controller
     ref.listen(searchStateProvider.select((s) => s.rawQueryText), (prev, next) {
@@ -303,13 +298,7 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (singlishPreview != null)
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth:
-                            widget.width * SinglishPreview.maxWidthFraction,
-                      ),
-                      child: SinglishPreview(singlishPreview),
-                    ),
+                    SinglishPreview(singlishPreview, fieldWidth: widget.width),
                   // Exact match toggle button with clear visual state
                   CircularToggleButton(
                     isActive: isExactMatch,
