@@ -233,12 +233,9 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     if (_searchRequestId != requestId) return;
 
     result.fold(
-      (failure) {
-        // Keep existing counts on failure
-      },
-      (counts) {
-        state = state.copyWith(countByResultType: counts);
-      },
+      // Old counts would sit beside the new results; show none instead.
+      (failure) => state = state.copyWith(countByResultType: {}),
+      (counts) => state = state.copyWith(countByResultType: counts),
     );
   }
 

@@ -159,6 +159,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get showLess => 'Show Less';
 
   @override
+  String get seeAll => 'See all';
+
+  @override
+  String viewingResults(int shown, int total) {
+    return 'Viewing $shown out of $total results';
+  }
+
+  @override
   String get wordProximity => 'Word Proximity';
 
   @override

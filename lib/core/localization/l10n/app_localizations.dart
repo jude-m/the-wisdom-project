@@ -392,6 +392,18 @@ abstract class AppLocalizations {
   /// **'Show Less'**
   String get showLess;
 
+  /// Button in a Top results section header that opens that section's own tab
+  ///
+  /// In en, this message translates to:
+  /// **'See all'**
+  String get seeAll;
+
+  /// Footer under a results list that shows only the first part of the matches
+  ///
+  /// In en, this message translates to:
+  /// **'Viewing {shown} out of {total} results'**
+  String viewingResults(int shown, int total);
+
   /// Label for the word proximity section in refine dialog
   ///
   /// In en, this message translates to:

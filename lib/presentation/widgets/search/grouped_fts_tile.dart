@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/localization/l10n/app_localizations.dart';
-import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/search_result.dart';
-import '../../../domain/entities/search/search_result_type.dart';
 import '../../providers/search_provider.dart';
-import '../../utils/search_result_labels.dart';
-import 'highlighted_fts_search_text.dart';
+import 'result_badge.dart';
+import 'search_link_button.dart';
+import 'search_result_tile.dart';
 import 'secondary_match_tile.dart';
 
 /// A search result tile that groups multiple FTS matches from the same text.
@@ -31,6 +30,9 @@ class GroupedFTSTile extends ConsumerWidget {
   /// Whether exact match mode is active
   final bool isExactMatch;
 
+  /// Off when every row in the list is from one edition.
+  final bool showEditionBadge;
+
   /// Callback when the primary result is tapped (navigates to first match)
   final void Function(SearchResult result)? onPrimaryTap;
 
@@ -43,6 +45,7 @@ class GroupedFTSTile extends ConsumerWidget {
     required this.effectiveQuery,
     required this.isPhraseSearch,
     required this.isExactMatch,
+    required this.showEditionBadge,
     this.onPrimaryTap,
     this.onSecondaryTap,
   });
@@ -50,18 +53,26 @@ class GroupedFTSTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final searchState = ref.watch(searchStateProvider);
-    final isExpanded = searchState.expandedFTSGroups.contains(group.nodeKey);
+    // Only this group's flag. The panel still rebuilds every tile: see item 5
+    // in docs/todo/perf-top10-killers.md.
+    final isExpanded = ref.watch(searchStateProvider
+        .select((s) => s.expandedFTSGroups.contains(group.nodeKey)));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Primary result tile (looks like standard _SearchResultTile)
-        _buildPrimaryTile(context, ref, theme),
+        SearchResultTile(
+          searchResult: group.primaryMatch,
+          effectiveQuery: effectiveQuery,
+          isPhraseSearch: isPhraseSearch,
+          isExactMatch: isExactMatch,
+          showEditionBadge: showEditionBadge,
+          onTap: () => onPrimaryTap?.call(group.primaryMatch),
+        ),
 
         // "See X more" / "Collapse" link (only if there are secondary matches)
         if (group.hasSecondaryMatches)
-          _buildExpandCollapseLink(context, ref, theme, isExpanded),
+          _buildExpandCollapseLink(context, ref, isExpanded),
 
         // Secondary matches (shown when expanded)
         if (isExpanded && group.hasSecondaryMatches)
@@ -70,99 +81,28 @@ class GroupedFTSTile extends ConsumerWidget {
     );
   }
 
-  /// Builds the primary result tile (identical to _SearchResultTile appearance)
-  Widget _buildPrimaryTile(
-      BuildContext context, WidgetRef ref, ThemeData theme) {
-    final result = group.primaryMatch;
-    final typography = context.typography;
-
-    // Title + navigation path in the active Content Language (same pipeline as
-    // the breadcrumbs and tree), instead of the query-matched language.
-    final labels = searchResultLabels(ref, result);
-
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.tertiary.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Center(
-          child: Text(
-            result.editionId.toUpperCase(),
-            style: typography.badgeLabel,
-          ),
-        ),
-      ),
-      title: Text(
-        labels.title,
-        style: typography.resultTitle,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          Text(
-            labels.path,
-            style: typography.resultSubtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          // Show highlighted text for fullText results
-          if (result.resultType == SearchResultType.fullText &&
-              result.matchedText.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            HighlightedFtsSearchText(
-              matchedText: result.matchedText,
-              effectiveQuery: effectiveQuery,
-              isPhraseSearch: isPhraseSearch,
-              isExactMatch: isExactMatch,
-              language: result.language,
-            ),
-          ],
-        ],
-      ),
-      onTap: () => onPrimaryTap?.call(result),
-    );
-  }
-
-  /// Builds the subtle "See X more" / "Collapse" link
+  /// Builds the "View X more" / "Show less" button
   Widget _buildExpandCollapseLink(
     BuildContext context,
     WidgetRef ref,
-    ThemeData theme,
     bool isExpanded,
   ) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
-      padding: const EdgeInsets.only(left: 72, bottom: 8),
-      child: GestureDetector(
-        onTap: () {
-          ref
-              .read(searchStateProvider.notifier)
-              .toggleFTSGroupExpansion(group.nodeKey);
-        },
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              isExpanded
-                  ? AppLocalizations.of(context).showLess
-                  : AppLocalizations.of(context)
-                      .viewMore(group.secondaryMatchCount),
-              style: context.typography.linkLabel,
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              isExpanded ? Icons.expand_less : Icons.expand_more,
-              size: 16,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ],
-        ),
+      // Lines the button's label up with the tile text.
+      padding: EdgeInsets.only(
+        left:
+            ResultBadge.textStart(showEditionBadge) - SearchLinkButton.padding,
+        bottom: 4,
+      ),
+      child: SearchLinkButton(
+        onPressed: () => ref
+            .read(searchStateProvider.notifier)
+            .toggleFTSGroupExpansion(group.nodeKey),
+        icon: isExpanded ? Icons.expand_less : Icons.expand_more,
+        label: isExpanded
+            ? l10n.showLess
+            : l10n.viewMore(group.secondaryMatchCount),
       ),
     );
   }
@@ -170,7 +110,12 @@ class GroupedFTSTile extends ConsumerWidget {
   /// Builds the container with secondary matches
   Widget _buildSecondaryMatches(BuildContext context, ThemeData theme) {
     return Container(
-      margin: const EdgeInsets.only(left: 56, right: 16, bottom: 8),
+      // Starts where the badge ends, or at the text when there is no badge.
+      margin: EdgeInsets.only(
+        left: showEditionBadge ? ResultBadge.end : ResultBadge.rowPadding,
+        right: 16,
+        bottom: 8,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(8),

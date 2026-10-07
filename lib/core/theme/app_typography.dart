@@ -26,9 +26,6 @@ class AppTypography extends ThemeExtension<AppTypography> {
   /// Example: "RECENT SEARCHES"
   final TextStyle sectionHeader;
 
-  /// Style for count badges in tabs
-  final TextStyle countBadge;
-
   // ============================================
   // Chips
   // ============================================
@@ -135,7 +132,6 @@ class AppTypography extends ThemeExtension<AppTypography> {
   const AppTypography({
     required this.badgeLabel,
     required this.sectionHeader,
-    required this.countBadge,
     required this.chipLabel,
     required this.chipLabelSelected,
     required this.resultTitle,
@@ -186,14 +182,6 @@ class AppTypography extends ThemeExtension<AppTypography> {
         fontWeight: FontWeight.w600,
         color: colorScheme.onSurface,
         letterSpacing: 1.2,
-        height: AppFonts.uiLineHeight,
-      ),
-      countBadge: TextStyle(
-        fontFamily: AppFonts.ui,
-        fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: scaledFonts.badge,
-        fontWeight: FontWeight.w500,
-        color: colorScheme.onSurfaceVariant,
         height: AppFonts.uiLineHeight,
       ),
 
@@ -407,7 +395,6 @@ class AppTypography extends ThemeExtension<AppTypography> {
   ThemeExtension<AppTypography> copyWith({
     TextStyle? badgeLabel,
     TextStyle? sectionHeader,
-    TextStyle? countBadge,
     TextStyle? chipLabel,
     TextStyle? chipLabelSelected,
     TextStyle? resultTitle,
@@ -433,7 +420,6 @@ class AppTypography extends ThemeExtension<AppTypography> {
     return AppTypography(
       badgeLabel: badgeLabel ?? this.badgeLabel,
       sectionHeader: sectionHeader ?? this.sectionHeader,
-      countBadge: countBadge ?? this.countBadge,
       chipLabel: chipLabel ?? this.chipLabel,
       chipLabelSelected: chipLabelSelected ?? this.chipLabelSelected,
       resultTitle: resultTitle ?? this.resultTitle,
@@ -469,7 +455,6 @@ class AppTypography extends ThemeExtension<AppTypography> {
     return AppTypography(
       badgeLabel: TextStyle.lerp(badgeLabel, other.badgeLabel, t)!,
       sectionHeader: TextStyle.lerp(sectionHeader, other.sectionHeader, t)!,
-      countBadge: TextStyle.lerp(countBadge, other.countBadge, t)!,
       chipLabel: TextStyle.lerp(chipLabel, other.chipLabel, t)!,
       chipLabelSelected:
           TextStyle.lerp(chipLabelSelected, other.chipLabelSelected, t)!,

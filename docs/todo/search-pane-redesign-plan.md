@@ -14,8 +14,8 @@ Chunks, in order:
 
 | Chunk | Tasks | Theme | Status |
 | --- | --- | --- | --- |
-| A | 1, 2, 3 + Task 10: clear ✕ tooltip | Singlish preview everywhere | In review |
-| B | 5, 6, 7 + Task 10: footer text, "View N more" button | Results list | Not started |
+| A | 1, 2, 3 + Task 10: clear ✕ tooltip | Singlish preview everywhere | Done |
+| B | 5, 6, 7 + Task 10: footer text, "View N more" button | Results list | In review |
 | C | 4, 8 + Task 10: Treatises naming (product decision first) | Filter row and match menu | Not started |
 | D | 9 | Phone search | Not started |
 | E | 11 | Sutta abbreviations | Not started |
@@ -298,7 +298,7 @@ Quick, independent items. Each one ships with the chunk that edits the same file
 
 ## Handover notes
 
-### Chunk A: in review, not committed
+### Chunk A: done (f4ccc14, tests 4b01bd0)
 
 Done: Tasks 1, 2 and 3, plus the clear ✕ tooltip in the search box (Task 10).
 
@@ -316,10 +316,26 @@ Done: Tasks 1, 2 and 3, plus the clear ✕ tooltip in the search box (Task 10).
 - [x] Recent searches: a long entry ends in "…". The title (Sinhala) and the subtitle (typed text) have `maxLines: 1` and `overflow: TextOverflow.ellipsis` (`recent_search_overlay.dart`).
 - [x] Crash when the ✕ tooltip in recent searches shows: "The paint transform cannot be reliably computed because of RenderFollowerLayer(s)". `SearchBar` now places the dropdown with `OverlayPortal.overlayChildLayoutBuilder`, not a `CompositedTransformFollower`. A Flutter upgrade would not have fixed it: Flutter's docs say a follower between an `OverlayPortal` and its overlay is not supported. To check in the app: hover the ✕ in recent searches.
 
-Next: Chunk B.
+### Chunk B: in review, not committed
+
+Done: Tasks 5, 6 and 7, plus the footer text and the "View N more" button (Task 10).
+
+- Tabs are a real `TabBar` (scrollable, start-aligned). Its `TabController` follows `selectedResultType`, so "See all" moves it from outside. `_CountBadge` and the now-unused `countBadge` text style are deleted.
+- A tab dims only when its count is 0. Counts are not cleared while typing, so a tab keeps its last look until the new counts arrive: no flicker. "While counts are loading" (Task 5, step 6) therefore means the first search, before any counts exist. If the count query fails, the counts are cleared: headers show just the label and tabs show at full strength. The dimming does not show in the dark and warm themes yet: see `docs/todo/dark-theme.md`.
+- Top results headers read "TITLES · 12" ("100+" above 100). "See all →" shows only when the count is larger than the rows in the section, and stays hidden until counts load. Full text compares match rows, not groups.
+- Edition badge: `_hasMixedEditions` decides once per list; in Top results, titles and full text decide together. With no badge: text at 16px, divider indent 16, and "View N more" and the expanded box line up with the text. Definitions keep their badges and the 72 indent. Every result is BJT today, so no badge shows.
+- `GroupedFTSTile` watches only its own expanded flag (`select`). The panel still watches the whole search state and rebuilds every tile: item 5 in `docs/todo/perf-top10-killers.md`.
+- Shared widgets: `SearchResultTile` (also the primary row of `GroupedFTSTile`, which had a copy), `ResultBadge` (edition and dictionary badges, plus the spacing numbers that line rows up) and `SearchLinkButton` ("See all" and "View N more").
+- "View N more" is a `TextButton` with a 40px tap area, in the primary colour as on the canvas (it was grey).
+- New l10n keys: `seeAll`, `viewingResults`. The English footer text is unchanged. Stray U+200B removed from four Sinhala strings: `viewMore`, `themeLight`, `expand` and `updateBannerRefreshAction`. The ZWJ in ප්‍රතිඵල stays.
+- Tests not written. These will fail: `search_results_panel_test.dart` "zero count badges show "0"…" and "badge at exactly 100…" (counts left the tabs; test the headers instead).
+- Built and launched on macOS on 2026-10-06; the UI was not checked by eye yet. To check: desktop and phone width, English and Sinhala, light and dark. Also check that tabs don't shift when you switch: the active tab is bold, so it is wider. If they jump, use one weight and mark the active tab by colour and underline only.
+
+Next: Chunk C.
 
 ## Pending (not tied to a chunk)
 
+- [ ] **Comments still say counts are "for tab badges".** Counts left the tabs in Chunk B; they now drive the Top results header counts, "See all" and the dimmed empty tabs. Reword to "for the result counts" in: `search_state.dart` (the `countByResultType` field and `_loadCounts`), `text_search_repository.dart`, `caching_text_search_repository.dart`, `text_search_repository_impl.dart` (`countByResultType`), `fts_datasource.dart` (`countFullTextMatches`), `dictionary_datasource.dart`, `dictionary_repository.dart` and `dictionary_provider.dart`. `grep -rn "tab badge" lib` finds them. Comments only; can ride with Chunk C.
 - [ ] **Recent searches save Helakuru's invisible space.** Helakuru puts a zero-width space (U+200B) before the syllable being typed, so අරුණව can be saved as අරුණ + U+200B + ව. Search still works, because the query is cleaned before searching. But the same word can show twice in the recent list. Found 2026-10-06 in the saved list. Fix in `addRecentSearch` (`recent_searches_repository_impl.dart`): remove U+200B before saving and comparing. Remove only U+200B: the joiner U+200D must stay, or ්‍ර loses its join. No migration for old entries (the app is not released); clear the list by hand.
 
 How to test it:

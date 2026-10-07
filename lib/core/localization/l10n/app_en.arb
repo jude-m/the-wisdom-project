@@ -251,6 +251,24 @@
     "description": "Collapse link that hides the expanded secondary matches again"
   },
 
+  "seeAll": "See all",
+  "@seeAll": {
+    "description": "Button in a Top results section header that opens that section's own tab"
+  },
+
+  "viewingResults": "Viewing {shown} out of {total} results",
+  "@viewingResults": {
+    "description": "Footer under a results list that shows only the first part of the matches",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+
   "wordProximity": "Word Proximity",
   "@wordProximity": {
     "description": "Label for the word proximity section in refine dialog"

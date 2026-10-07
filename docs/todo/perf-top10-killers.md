@@ -91,21 +91,20 @@ instead of rebuilding `_buildNodeMap`. Tracked there to avoid two sources of tru
 
 ### 5. Search panel & in-page search widgets watch the entire `searchStateProvider`
 
-**Where:** `SearchResultsPanel` (`lib/presentation/widgets/search/search_results_panel.dart:38`),
-`GroupedFTSTile` (line 52), `RecentSearchOverlay` (line 45), `ScopeFilterChips` (line 42)
-all do `ref.watch(searchStateProvider)`.
+**Where:** `SearchResultsPanel` (`lib/presentation/widgets/search/search_results_panel.dart`)
+and `ScopeFilterChips` (`scope_filter_chips.dart`) do `ref.watch(searchStateProvider)`.
+`GroupedFTSTile` already watches only its own expanded flag (`select`), but gains little:
+the panel rebuilds it anyway.
 
-- **How it affects performance:** `SearchState` is a huge Freezed object that mutates on
-  every keystroke (`rawQueryText`, `effectiveQueryText`, `isLoading`, `fullResults`, …).
-  Every keystroke rebuilds the entire results panel, every `GroupedFTSTile`, every chip —
-  even when only `rawQueryText` changed.
-- **How to prevent:** Replace each call with
-  `ref.watch(searchStateProvider.select((s) => <specific field>))`. The panel only needs
-  `isLoading`, `selectedResultType`, `groupedResults`, `fullResults`, `effectiveQueryText`,
-  `isPhraseSearch`, `isExactMatch`, `countByResultType`. Each watcher should pick exactly
-  what it renders.
-- **Gain:** 2–5× fewer rebuilds per keystroke; typing in the search bar stops jank-locking
-  the results panel.
+- **How it affects performance:** `SearchState` changes on every keystroke, and also when
+  counts arrive, a group expands, or recent searches load on focus. Each change rebuilds
+  the tab bar and every visible tile, and each tile redoes its snippet highlight (see B2).
+  While typing, a spinner replaces the tiles, so typing itself costs less than it looks.
+  The list is at most 50 rows and builds only the rows on screen: small today.
+- **How to prevent:** Turn `_buildTopResultsTabContent` and `_buildResultTypeTabContent`
+  into small widgets that each `select` only what they render. That also replaces their
+  ~10 parameters copied out of `searchState`. Same for `ScopeFilterChips`.
+- **Gain:** Fewer rebuilds of the tiles and their highlight work.
 - **Effort:** Low–Medium
 - **Impact to existing flows:** None — same data, finer-grained subscriptions.
 

@@ -18,8 +18,10 @@ import '../dictionary/dictionary_filter_chips.dart';
 import '../dictionary/refine_dictionary_dialog.dart';
 import 'dictionary_search_result_tile.dart';
 import 'grouped_fts_tile.dart';
-import 'highlighted_fts_search_text.dart';
+import 'result_badge.dart';
 import 'scope_filter_chips.dart';
+import 'search_link_button.dart';
+import 'search_result_tile.dart';
 
 /// Slide-out panel for displaying full search results
 /// Used as a side panel on desktop and full-screen overlay on mobile
@@ -56,11 +58,8 @@ class SearchResultsPanel extends ConsumerWidget {
           _SearchResultsTabBar(
             selectedResultType: searchState.selectedResultType,
             countByResultType: searchState.countByResultType,
-            onResultTypeSelected: (renameType) {
-              ref
-                  .read(searchStateProvider.notifier)
-                  .selectResultType(renameType);
-            },
+            onResultTypeSelected: (type) =>
+                ref.read(searchStateProvider.notifier).selectResultType(type),
           ),
           // Pinned canonical-reference jump (e.g. "SN 15.3" → open that sutta).
           // In-memory lookup, so it appears instantly above the FTS results,
@@ -72,9 +71,9 @@ class SearchResultsPanel extends ConsumerWidget {
                 ? _buildTopResultsTabContent(
                     context,
                     ref,
-                    theme,
                     searchState.isLoading,
                     searchState.groupedResults,
+                    searchState.countByResultType,
                     searchState.effectiveQueryText,
                     searchState.isPhraseSearch,
                     searchState.isExactMatch,
@@ -103,9 +102,9 @@ class SearchResultsPanel extends ConsumerWidget {
   Widget _buildTopResultsTabContent(
     BuildContext context,
     WidgetRef ref,
-    ThemeData theme,
     bool isLoading,
     GroupedSearchResult? categorizedResults,
+    Map<SearchResultType, int> countByResultType,
     String effectiveQuery,
     bool isPhraseSearch,
     bool isExactMatch,
@@ -132,6 +131,12 @@ class SearchResultsPanel extends ConsumerWidget {
       );
     }
 
+    // One badge decision for the whole tab. Dictionary tiles always keep theirs.
+    final showEditionBadge = _hasMixedEditions(categorizedResults
+        .resultsByType.entries
+        .where((entry) => entry.key != SearchResultType.definition)
+        .expand((entry) => entry.value));
+
     // Build categorized results - use grouped tiles for fullText, dictionary tiles for definitions
     return SingleChildScrollView(
       child: Column(
@@ -139,44 +144,50 @@ class SearchResultsPanel extends ConsumerWidget {
         children: [
           ...categorizedResults.categoriesWithResults
               .where((resultType) => resultType != SearchResultType.topResults)
-              .map((resultType) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Section header
-                      _sectionHeader(
-                          context,
-                          searchResultTypeLabel(
-                                  resultType, AppLocalizations.of(context))
-                              .toUpperCase()),
-                      // Use appropriate tile type for each result type
-                      if (resultType == SearchResultType.fullText)
-                        ..._buildGroupedFTSResults(
-                          categorizedResults.getResultsByType(resultType),
-                          effectiveQuery,
-                          isPhraseSearch,
-                          isExactMatch,
-                          resolver,
-                        )
-                      else if (resultType == SearchResultType.definition)
-                        ...categorizedResults
-                            .getResultsByType(resultType)
-                            .map((result) => DictionarySearchResultTile(
-                                  result: result,
-                                  onTap: () =>
-                                      _showDictionaryBottomSheet(ref, result),
-                                ))
-                      else
-                        ...categorizedResults
-                            .getResultsByType(resultType)
-                            .map((result) => _SearchResultTile(
-                                  searchResult: result,
-                                  effectiveQuery: effectiveQuery,
-                                  isPhraseSearch: isPhraseSearch,
-                                  isExactMatch: isExactMatch,
-                                  onTap: () => onResultTap?.call(result),
-                                )),
-                    ],
-                  )),
+              .map((resultType) {
+            final results = categorizedResults.getResultsByType(resultType);
+            final count = countByResultType[resultType];
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SectionHeader(
+                  label: searchResultTypeLabel(
+                      resultType, AppLocalizations.of(context)),
+                  count: count,
+                  // Hidden until counts load, and when the section shows them all.
+                  onSeeAll: count != null && count > results.length
+                      ? () => ref
+                          .read(searchStateProvider.notifier)
+                          .selectResultType(resultType)
+                      : null,
+                ),
+                // Use appropriate tile type for each result type
+                if (resultType == SearchResultType.fullText)
+                  ..._buildGroupedFTSResults(
+                    results,
+                    effectiveQuery,
+                    isPhraseSearch,
+                    isExactMatch,
+                    resolver,
+                    showEditionBadge,
+                  )
+                else if (resultType == SearchResultType.definition)
+                  ...results.map((result) => DictionarySearchResultTile(
+                        result: result,
+                        onTap: () => _showDictionaryBottomSheet(ref, result),
+                      ))
+                else
+                  ...results.map((result) => SearchResultTile(
+                        searchResult: result,
+                        effectiveQuery: effectiveQuery,
+                        isPhraseSearch: isPhraseSearch,
+                        isExactMatch: isExactMatch,
+                        showEditionBadge: showEditionBadge,
+                        onTap: () => onResultTap?.call(result),
+                      )),
+              ],
+            );
+          }),
           const SizedBox(height: 16),
         ],
       ),
@@ -195,6 +206,7 @@ class SearchResultsPanel extends ConsumerWidget {
     bool isPhraseSearch,
     bool isExactMatch,
     ReaderUnitResolver? resolver,
+    bool showEditionBadge,
   ) {
     final groupedResults =
         GroupedFTSMatch.fromSearchResults(results, resolver: resolver);
@@ -204,6 +216,7 @@ class SearchResultsPanel extends ConsumerWidget {
               effectiveQuery: effectiveQuery,
               isPhraseSearch: isPhraseSearch,
               isExactMatch: isExactMatch,
+              showEditionBadge: showEditionBadge,
               onPrimaryTap: (result) => onResultTap?.call(result),
               onSecondaryTap: (result) => onResultTap?.call(result),
             ))
@@ -266,6 +279,14 @@ class SearchResultsPanel extends ConsumerWidget {
         final hasMoreResults =
             totalCount != null && totalCount > results.length;
 
+        // Titles and full text drop the edition badge when it tells no rows
+        // apart; the divider then starts where the text does. Definitions
+        // always keep their dictionary badge.
+        final showEditionBadge =
+            selectedResultType != SearchResultType.definition &&
+                _hasMixedEditions(results);
+        final dividerIndent = ResultBadge.textStart(showEditionBadge);
+
         // Use grouped tiles for fullText tab
         if (selectedResultType == SearchResultType.fullText) {
           final groupedResults =
@@ -277,7 +298,7 @@ class SearchResultsPanel extends ConsumerWidget {
                 : groupedResults.length,
             separatorBuilder: (context, index) => Divider(
               height: 1,
-              indent: 72,
+              indent: dividerIndent,
               color: theme.colorScheme.outlineVariant,
             ),
             itemBuilder: (context, index) {
@@ -291,6 +312,7 @@ class SearchResultsPanel extends ConsumerWidget {
                 effectiveQuery: effectiveQuery,
                 isPhraseSearch: isPhraseSearch,
                 isExactMatch: isExactMatch,
+                showEditionBadge: showEditionBadge,
                 onPrimaryTap: (result) => onResultTap?.call(result),
                 onSecondaryTap: (result) => onResultTap?.call(result),
               );
@@ -305,7 +327,7 @@ class SearchResultsPanel extends ConsumerWidget {
             itemCount: hasMoreResults ? results.length + 1 : results.length,
             separatorBuilder: (context, index) => Divider(
               height: 1,
-              indent: 72,
+              indent: ResultBadge.textStart(true),
               color: theme.colorScheme.outlineVariant,
             ),
             itemBuilder: (context, index) {
@@ -328,7 +350,7 @@ class SearchResultsPanel extends ConsumerWidget {
           itemCount: hasMoreResults ? results.length + 1 : results.length,
           separatorBuilder: (context, index) => Divider(
             height: 1,
-            indent: 72,
+            indent: dividerIndent,
             color: theme.colorScheme.outlineVariant,
           ),
           itemBuilder: (context, index) {
@@ -337,11 +359,12 @@ class SearchResultsPanel extends ConsumerWidget {
               return _footer(context, results.length, totalCount);
             }
 
-            return _SearchResultTile(
+            return SearchResultTile(
               searchResult: results[index],
               effectiveQuery: effectiveQuery,
               isPhraseSearch: isPhraseSearch,
               isExactMatch: isExactMatch,
+              showEditionBadge: showEditionBadge,
               onTap: () => onResultTap?.call(results[index]),
             );
           },
@@ -369,7 +392,8 @@ class SearchResultsPanel extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'Viewing $displayedCount out of $totalCount results',
+              AppLocalizations.of(context)
+                  .viewingResults(displayedCount, totalCount),
               style: context.typography.resultSubtitle,
             ),
           ),
@@ -383,14 +407,61 @@ class SearchResultsPanel extends ConsumerWidget {
       ),
     );
   }
+}
 
-  /// Section header widget
-  Widget _sectionHeader(BuildContext context, String title) {
+/// True when [results] come from two or more editions, so the edition badge
+/// tells rows apart. Stops at the first difference.
+bool _hasMixedEditions(Iterable<SearchResult> results) {
+  String? first;
+  for (final result in results) {
+    first ??= result.editionId;
+    if (result.editionId != first) return true;
+  }
+  return false;
+}
+
+/// Top results section header: "TITLES · 12", plus "See all →" when
+/// [onSeeAll] is set.
+class _SectionHeader extends StatelessWidget {
+  final String label;
+
+  /// Null while counts load: the header then shows the label alone.
+  final int? count;
+  final VoidCallback? onSeeAll;
+
+  const _SectionHeader({required this.label, this.count, this.onSeeAll});
+
+  @override
+  Widget build(BuildContext context) {
+    final count = this.count;
+    final onSeeAll = this.onSeeAll;
+    final title = label.toUpperCase();
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Text(
-        title,
-        style: context.typography.sectionHeader,
+      padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+      // Same height with or without "See all"; grows with large text.
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 40),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                count == null
+                    ? title
+                    : '$title · ${count > 100 ? '100+' : count}',
+                style: context.typography.sectionHeader,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (onSeeAll != null)
+              SearchLinkButton(
+                onPressed: onSeeAll,
+                icon: Icons.arrow_forward,
+                label: AppLocalizations.of(context).seeAll,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -464,8 +535,17 @@ class _PanelHeader extends ConsumerWidget {
   }
 }
 
-/// Category tab bar for switching between All, Title, Content, and Definition
-class _SearchResultsTabBar extends StatelessWidget {
+/// The result tabs, in order. [SearchResultType.reference] is never a tab.
+const _tabTypes = [
+  SearchResultType.topResults,
+  SearchResultType.title,
+  SearchResultType.fullText,
+  SearchResultType.definition,
+];
+
+/// Category tabs, sized to their labels. A tab with no results is dimmed but
+/// stays tappable; the counts themselves show in the Top results headers.
+class _SearchResultsTabBar extends StatefulWidget {
   final SearchResultType selectedResultType;
   final Map<SearchResultType, int> countByResultType;
   final void Function(SearchResultType) onResultTypeSelected;
@@ -477,9 +557,45 @@ class _SearchResultsTabBar extends StatelessWidget {
   });
 
   @override
+  State<_SearchResultsTabBar> createState() => _SearchResultsTabBarState();
+}
+
+class _SearchResultsTabBarState extends State<_SearchResultsTabBar>
+    with SingleTickerProviderStateMixin {
+  late final TabController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TabController(
+      length: _tabTypes.length,
+      vsync: this,
+      initialIndex: _tabTypes.indexOf(widget.selectedResultType),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _SearchResultsTabBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // "See all" changes the tab from outside the bar.
+    final index = _tabTypes.indexOf(widget.selectedResultType);
+    if (index != _controller.index) _controller.animateTo(index);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final typography = context.typography;
     final l10n = AppLocalizations.of(context);
+    // Does not dim in the dark and warm themes yet: docs/todo/dark-theme.md.
+    final emptyColor =
+        theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7);
 
     return Container(
       decoration: BoxDecoration(
@@ -491,184 +607,39 @@ class _SearchResultsTabBar extends StatelessWidget {
           ),
         ),
       ),
-      // IntrinsicHeight measures the tallest tab first and locks the Row to
-      // that height. Combined with CrossAxisAlignment.stretch below, every
-      // tab cell fills the full height so the 2px selected-indicator butts
-      // flush against the outer 1px divider — no gap on the badge-less
-      // "Top Results" tab.
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: SearchResultType.values
-              .where((type) => type != SearchResultType.reference)
-              .map((resultType) {
-            final isSelected = resultType == selectedResultType;
-            final count = countByResultType[resultType];
-
-            return Expanded(
-              child: InkWell(
-                onTap: () => onResultTypeSelected(resultType),
-                child: Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: isSelected
-                            ? theme.colorScheme.primary
-                            : Colors.transparent,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          searchResultTypeLabel(resultType, l10n),
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                          style: (isSelected
-                                  ? context.typography.tabLabelActive
-                                  : context.typography.tabLabelInactive)
-                              .copyWith(
-                            color: isSelected
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                      // Show badge for non-"Top Results" tabs when count is available
-                      if (resultType != SearchResultType.topResults &&
-                          count != null)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 6),
-                          child: _CountBadge(count: count),
-                        ),
-                    ],
-                  ),
+      child: TabBar(
+        controller: _controller,
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
+        padding: const EdgeInsets.only(left: 8),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicator: UnderlineTabIndicator(
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+        ),
+        // The Container draws the full-width line instead.
+        dividerHeight: 0,
+        onTap: (index) => widget.onResultTypeSelected(_tabTypes[index]),
+        tabs: [
+          for (final resultType in _tabTypes)
+            Tab(
+              child: Text(
+                searchResultTypeLabel(resultType, l10n),
+                style: (resultType == widget.selectedResultType
+                        ? typography.tabLabelActive
+                        : typography.tabLabelInactive)
+                    .copyWith(
+                  // Unknown count (still loading) shows at normal strength.
+                  color: widget.countByResultType[resultType] == 0
+                      ? emptyColor
+                      : resultType == widget.selectedResultType
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-}
-
-/// Pill-shaped badge showing result count for tab headers
-class _CountBadge extends StatelessWidget {
-  final int count;
-
-  const _CountBadge({required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    // Format: 0, 56, or 100+
-    final displayText = count > 100 ? '100+' : count.toString();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        displayText,
-        style: context.typography.countBadge,
-      ),
-    );
-  }
-}
-
-/// Individual search result tile with highlighting support
-class _SearchResultTile extends ConsumerWidget {
-  final SearchResult searchResult;
-
-  /// Pre-computed effective query (sanitized + Singlish→Sinhala converted)
-  /// from SearchState. No per-row conversion needed.
-  final String effectiveQuery;
-
-  /// Whether phrase search mode is active.
-  /// Affects how multi-word queries are highlighted.
-  final bool isPhraseSearch;
-
-  /// Whether exact match mode is active.
-  /// When false (default), uses prefix matching for highlighting.
-  final bool isExactMatch;
-
-  final VoidCallback? onTap;
-
-  const _SearchResultTile({
-    required this.searchResult,
-    required this.effectiveQuery,
-    required this.isPhraseSearch,
-    required this.isExactMatch,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final typography = context.typography;
-
-    // Title + navigation path in the active Content Language (same pipeline as
-    // the breadcrumbs and tree), instead of the query-matched language.
-    final labels = searchResultLabels(ref, searchResult);
-
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.tertiary.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Center(
-          child: Text(
-            searchResult.editionId.toUpperCase(),
-            style: typography.badgeLabel,
-          ),
-        ),
-      ),
-      // Title is never highlighted - just plain text
-      title: Text(
-        labels.title,
-        style: typography.resultTitle,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          Text(
-            labels.path,
-            style: typography.resultSubtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          // Only show and highlight matchedText for CONTENT results
-          if (searchResult.resultType == SearchResultType.fullText &&
-              searchResult.matchedText.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            HighlightedFtsSearchText(
-              matchedText: searchResult.matchedText,
-              effectiveQuery: effectiveQuery,
-              isPhraseSearch: isPhraseSearch,
-              isExactMatch: isExactMatch,
-              language: searchResult.language,
             ),
-          ],
         ],
       ),
-      onTap: onTap,
     );
   }
 }

@@ -9,6 +9,7 @@ import '../../../domain/entities/dictionary/dictionary_info.dart';
 import '../../../domain/entities/search/search_result.dart';
 import '../../providers/pali_letter_options_provider.dart';
 import '../dictionary/dpd_read_more_link.dart';
+import 'result_badge.dart';
 
 /// A search result tile for dictionary definition results.
 ///
@@ -39,20 +40,12 @@ class DictionarySearchResultTile extends ConsumerWidget {
         .colorFor(result.editionId, theme.colorScheme.primary);
 
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: dictColor.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Center(
-          child: Text(
-            dictInfo?.abbreviation ?? result.editionId,
-            style: typography.badgeLabel.copyWith(color: dictColor),
-          ),
-        ),
+      contentPadding: const EdgeInsets.symmetric(
+          horizontal: ResultBadge.rowPadding, vertical: 8),
+      leading: ResultBadge(
+        label: dictInfo?.abbreviation ?? result.editionId,
+        backgroundColor: dictColor.withValues(alpha: 0.15),
+        labelColor: dictColor,
       ),
       title: Text(
         result.title.withPaliLetters(options),
