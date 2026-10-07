@@ -30,8 +30,8 @@ Tasks:
 | 2 | Singlish preview inside the main search box | 1 | S | 1 |
 | 3 | Recent searches show Sinhala first | 8 | S | 1 |
 | 4 | Filter row: close-panel icon, one shared chip | 10, 4 | M | — |
-| 5 | Tabs: sized to text, no counts, empty tabs dimmed | 3 | S | — |
-| 6 | Counts and "See all" in Top results section headers | 5 | S | 5 |
+| 5 | Tabs: sized to text | 3 | S | — |
+| 6 | "See all" in Top results section headers | 5 | S | 5 |
 | 7 | Edition badge only when it helps | 6 | S | — |
 | 8 | "Starts with ▾" match menu | 2 | L | 4 |
 | 9 | Phone: search icon that expands | 7 | L | 2, 8 |
@@ -134,43 +134,38 @@ What does NOT change:
 - [ ] Tab reaches every chip; Enter or Space toggles it.
 - [ ] Scope and dictionary rows use the same chip.
 
-## Task 5 — Tabs: sized to text, no counts, empty dimmed (canvas 3)
+## Task 5 — Tabs: sized to text (canvas 3)
 
-**Goal:** no cut-off labels. No counts on tabs. An empty tab looks empty.
+**Goal:** no cut-off labels. Counts stay on the tabs (`_CountBadge`); the canvas moves them to the headers, but the user chose tabs on 2026-10-07 after trying both. An empty tab is not dimmed: its "0" badge already says it is empty (decided 2026-10-07).
 
-**Files:** `search_results_panel.dart` (`_SearchResultsTabBar`, `_CountBadge`).
+**Files:** `search_results_panel.dart` (`_SearchResultsTabBar`).
 
 **Steps:**
 
-1. Replace the four equal `Expanded` tabs with left-aligned tabs sized to their label. Scroll sideways if needed (`TabBar(isScrollable: true, tabAlignment: TabAlignment.start)` fits).
-2. Remove the count from every tab. Delete `_CountBadge`.
-3. Keep loading counts with `countByResultType`. Use them only to decide "empty".
-4. A tab with count 0: label in a lighter tone, about `onSurfaceVariant` at 70% opacity. It must still reach 3:1 contrast in light and dark themes.
-5. Empty tabs stay tappable. Do not disable them. Tapping shows the existing "no results" message.
-6. While counts are loading, show every tab at normal strength.
-7. If the selected tab becomes empty, it stays selected (underline stays, label dims). Do not jump to another tab.
+1. Replace the four equal `Expanded` tabs with left-aligned tabs sized to their label. Scroll sideways if needed (`TabBar(isScrollable: true, tabAlignment: TabAlignment.start)` fits). Every count badge is as wide as "100+", so a tab keeps its width while its count changes.
+2. Empty tabs stay tappable. Do not disable them. Tapping shows the existing "no results" message.
+3. If the selected tab becomes empty, it stays selected. Do not jump to another tab.
 
 **Done when:**
 
 - [ ] No label is cut at 300px, in English and Sinhala.
-- [ ] Empty tabs are dimmed; tabs do not flicker while typing.
+- [ ] Tabs do not flicker or shift while typing.
 
-## Task 6 — Counts and "See all" in Top results headers (canvas 5)
+## Task 6 — "See all" in Top results headers (canvas 5)
 
-**Goal:** the counts that left the tabs now show in the Top results section headers.
+**Goal:** a quick way from a Top results section to its own tab. The header shows the label only; the count is on the tab (see Task 5).
 
 **Files:** `search_results_panel.dart` (`_buildTopResultsTabContent`, `_sectionHeader`).
 
 **Steps:**
 
-1. Header shows label and count: "TITLES · 12". Use `countByResultType`; above 100 show "100+".
-2. Add a "See all →" text button on the right. It calls `selectResultType(type)`. New l10n key `seeAll`.
-3. Hide "See all" when the section already shows every result.
-4. Sections with no results stay hidden, as today.
+1. Add a "See all →" text button on the right. It calls `selectResultType(type)`. New l10n key `seeAll`.
+2. Hide "See all" when the section already shows every result.
+3. Sections with no results stay hidden, as today.
 
 **Done when:**
 
-- [ ] Each visible section header has a count and a working "See all".
+- [ ] Each visible section header that shows only part of its results has a working "See all".
 
 ## Task 7 — Edition badge only when it helps (canvas 6)
 
@@ -316,26 +311,26 @@ Done: Tasks 1, 2 and 3, plus the clear ✕ tooltip in the search box (Task 10).
 - [x] Recent searches: a long entry ends in "…". The title (Sinhala) and the subtitle (typed text) have `maxLines: 1` and `overflow: TextOverflow.ellipsis` (`recent_search_overlay.dart`).
 - [x] Crash when the ✕ tooltip in recent searches shows: "The paint transform cannot be reliably computed because of RenderFollowerLayer(s)". `SearchBar` now places the dropdown with `OverlayPortal.overlayChildLayoutBuilder`, not a `CompositedTransformFollower`. A Flutter upgrade would not have fixed it: Flutter's docs say a follower between an `OverlayPortal` and its overlay is not supported. To check in the app: hover the ✕ in recent searches.
 
-### Chunk B: in review, not committed
+### Chunk B: in review
 
 Done: Tasks 5, 6 and 7, plus the footer text and the "View N more" button (Task 10).
 
-- Tabs are a real `TabBar` (scrollable, start-aligned). Its `TabController` follows `selectedResultType`, so "See all" moves it from outside. `_CountBadge` and the now-unused `countBadge` text style are deleted.
-- A tab dims only when its count is 0. Counts are not cleared while typing, so a tab keeps its last look until the new counts arrive: no flicker. "While counts are loading" (Task 5, step 6) therefore means the first search, before any counts exist. If the count query fails, the counts are cleared: headers show just the label and tabs show at full strength. The dimming does not show in the dark and warm themes yet: see `docs/todo/dark-theme.md`.
-- Top results headers read "TITLES · 12" ("100+" above 100). "See all →" shows only when the count is larger than the rows in the section, and stays hidden until counts load. Full text compares match rows, not groups.
+- Tabs are a real `TabBar` (scrollable, start-aligned). Its `TabController` follows `selectedResultType`, so "See all" moves it from outside. Every tab but Top results keeps its count badge (`_CountBadge`, "100+" above 100). An invisible "100+" inside each badge keeps it at that width, so tabs don't slide while typing; a "3" sits in a wider pill.
+- The `TabBar` draws its own full-width divider. Never set `dividerHeight: 0`: a scrollable `TabBar` then shrinks to its tabs and, on a wide panel, sits in the middle with a short line (seen 2026-10-07).
+- No tab dims: an empty tab shows a "0" badge and looks like the others. Counts are not cleared while typing, so a badge keeps its last number until the new counts arrive: no flicker. If the count query fails, the counts are cleared and the tabs show no badges.
+- Top results headers show the label and "See all →". "See all" shows only when the count is larger than the rows in the section, and stays hidden until counts load. Full text compares match rows, not groups.
 - Edition badge: `_hasMixedEditions` decides once per list; in Top results, titles and full text decide together. With no badge: text at 16px, divider indent 16, and "View N more" and the expanded box line up with the text. Definitions keep their badges and the 72 indent. Every result is BJT today, so no badge shows.
 - `GroupedFTSTile` watches only its own expanded flag (`select`). The panel still watches the whole search state and rebuilds every tile: item 5 in `docs/todo/perf-top10-killers.md`.
 - Shared widgets: `SearchResultTile` (also the primary row of `GroupedFTSTile`, which had a copy), `ResultBadge` (edition and dictionary badges, plus the spacing numbers that line rows up) and `SearchLinkButton` ("See all" and "View N more").
 - "View N more" is a `TextButton` with a 40px tap area, in the primary colour as on the canvas (it was grey).
 - New l10n keys: `seeAll`, `viewingResults`. The English footer text is unchanged. Stray U+200B removed from four Sinhala strings: `viewMore`, `themeLight`, `expand` and `updateBannerRefreshAction`. The ZWJ in ප්‍රතිඵල stays.
-- Tests not written. These will fail: `search_results_panel_test.dart` "zero count badges show "0"…" and "badge at exactly 100…" (counts left the tabs; test the headers instead).
+- Tests, all passing on 2026-10-07: `search_results_panel_test.dart` adds "See all" (hidden before counts load and when every row shows; tapping opens the tab and moves the tab bar to it) and "View 2 more" (shows the hidden matches and "Show Less"); `search_state_notifier_test.dart` adds "a failed count clears the old counts". The tab count tests pass again. No edition badge test: every result is BJT today.
 - Built and launched on macOS on 2026-10-06; the UI was not checked by eye yet. To check: desktop and phone width, English and Sinhala, light and dark. Also check that tabs don't shift when you switch: the active tab is bold, so it is wider. If they jump, use one weight and mark the active tab by colour and underline only.
 
 Next: Chunk C.
 
 ## Pending (not tied to a chunk)
 
-- [ ] **Comments still say counts are "for tab badges".** Counts left the tabs in Chunk B; they now drive the Top results header counts, "See all" and the dimmed empty tabs. Reword to "for the result counts" in: `search_state.dart` (the `countByResultType` field and `_loadCounts`), `text_search_repository.dart`, `caching_text_search_repository.dart`, `text_search_repository_impl.dart` (`countByResultType`), `fts_datasource.dart` (`countFullTextMatches`), `dictionary_datasource.dart`, `dictionary_repository.dart` and `dictionary_provider.dart`. `grep -rn "tab badge" lib` finds them. Comments only; can ride with Chunk C.
 - [ ] **Recent searches save Helakuru's invisible space.** Helakuru puts a zero-width space (U+200B) before the syllable being typed, so අරුණව can be saved as අරුණ + U+200B + ව. Search still works, because the query is cleaned before searching. But the same word can show twice in the recent list. Found 2026-10-06 in the saved list. Fix in `addRecentSearch` (`recent_searches_repository_impl.dart`): remove U+200B before saving and comparing. Remove only U+200B: the joiner U+200D must stay, or ්‍ර loses its join. No migration for old entries (the app is not released); clear the list by hand.
 
 How to test it:

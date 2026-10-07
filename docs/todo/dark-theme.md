@@ -18,14 +18,6 @@ variant.withValues(alpha: variant.a * 0.7); // alpha 0.49: dimmed
 
 Where it shows:
 
-- **Empty search tabs** (`_SearchResultsTabBar`, `search_results_panel.dart`). A tab with 0 results should dim, but looks like the others. Contrast on `surface`, from the Chunk B review (2026-10-07):
-
-  | Theme | Normal tab | Empty tab, as coded | Empty tab, intended |
-  |---|---|---|---|
-  | Light | 6.22 | 3.19 | 3.19 |
-  | Dark | 6.83 | 6.83 | 4.05 |
-  | Warm | 5.42 | 5.42 | 3.48 |
-
 - **Model name in the research chat** (`research_chat_view.dart`, the `· model` label). Alpha 0.6 replaces 0.7, so it is barely dimmer.
 
 Search for `onSurfaceVariant.withValues` to find any others.

@@ -699,6 +699,29 @@ void main() {
         });
       });
 
+      test('a failed count clears the old counts', () {
+        fakeAsync((async) {
+          // ARRANGE - a first search whose counts load
+          when(mockSearchRepository.searchTopResults(any)).thenAnswer(
+              (_) async => const Right(GroupedSearchResult(resultsByType: {})));
+          when(mockSearchRepository.countByResultType(any)).thenAnswer(
+              (_) async => const Right({SearchResultType.title: 3}));
+          notifier.updateQuery('test');
+          async.elapse(const Duration(milliseconds: 350));
+          expect(notifier.state.countByResultType,
+              equals({SearchResultType.title: 3}));
+
+          // ACT - the next query's count fails
+          when(mockSearchRepository.countByResultType(any)).thenAnswer(
+              (_) async => const Left(Failure.dataLoadFailure(message: 'x')));
+          notifier.updateQuery('dhamma');
+          async.elapse(const Duration(milliseconds: 350));
+
+          // ASSERT - no old numbers beside the new results
+          expect(notifier.state.countByResultType, isEmpty);
+        });
+      });
+
       test('should set error state when category search fails', () async {
         // ARRANGE
         const failure = Failure.dataLoadFailure(

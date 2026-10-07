@@ -153,7 +153,6 @@ class SearchResultsPanel extends ConsumerWidget {
                 _SectionHeader(
                   label: searchResultTypeLabel(
                       resultType, AppLocalizations.of(context)),
-                  count: count,
                   // Hidden until counts load, and when the section shows them all.
                   onSeeAll: count != null && count > results.length
                       ? () => ref
@@ -420,22 +419,17 @@ bool _hasMixedEditions(Iterable<SearchResult> results) {
   return false;
 }
 
-/// Top results section header: "TITLES · 12", plus "See all →" when
-/// [onSeeAll] is set.
+/// Top results section header: "TITLES", plus "See all →" when [onSeeAll]
+/// is set.
 class _SectionHeader extends StatelessWidget {
   final String label;
-
-  /// Null while counts load: the header then shows the label alone.
-  final int? count;
   final VoidCallback? onSeeAll;
 
-  const _SectionHeader({required this.label, this.count, this.onSeeAll});
+  const _SectionHeader({required this.label, this.onSeeAll});
 
   @override
   Widget build(BuildContext context) {
-    final count = this.count;
     final onSeeAll = this.onSeeAll;
-    final title = label.toUpperCase();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
@@ -446,9 +440,7 @@ class _SectionHeader extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                count == null
-                    ? title
-                    : '$title · ${count > 100 ? '100+' : count}',
+                label.toUpperCase(),
                 style: context.typography.sectionHeader,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -543,8 +535,8 @@ const _tabTypes = [
   SearchResultType.definition,
 ];
 
-/// Category tabs, sized to their labels. A tab with no results is dimmed but
-/// stays tappable; the counts themselves show in the Top results headers.
+/// Category tabs, sized to their labels, each with a count but Top results.
+/// A tab with no results looks like the others: its "0" badge says so.
 class _SearchResultsTabBar extends StatefulWidget {
   final SearchResultType selectedResultType;
   final Map<SearchResultType, int> countByResultType;
@@ -591,53 +583,88 @@ class _SearchResultsTabBarState extends State<_SearchResultsTabBar>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    return TabBar(
+      controller: _controller,
+      isScrollable: true,
+      tabAlignment: TabAlignment.start,
+      padding: const EdgeInsets.only(left: 8),
+      labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+      indicatorSize: TabBarIndicatorSize.tab,
+      indicator: UnderlineTabIndicator(
+        borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+      ),
+      // Keep the divider: with dividerHeight 0, a scrollable TabBar shrinks
+      // to its tabs and sits in the middle of a wide panel.
+      dividerColor: theme.colorScheme.outlineVariant,
+      dividerHeight: 1,
+      onTap: (index) => widget.onResultTypeSelected(_tabTypes[index]),
+      tabs: [
+        for (final resultType in _tabTypes) _buildTab(context, resultType),
+      ],
+    );
+  }
+
+  Tab _buildTab(BuildContext context, SearchResultType resultType) {
+    final theme = Theme.of(context);
     final typography = context.typography;
-    final l10n = AppLocalizations.of(context);
-    // Does not dim in the dark and warm themes yet: docs/todo/dark-theme.md.
-    final emptyColor =
-        theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7);
+    final isSelected = resultType == widget.selectedResultType;
+    // Null while counts load: no badge.
+    final count = widget.countByResultType[resultType];
+
+    return Tab(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            searchResultTypeLabel(resultType, AppLocalizations.of(context)),
+            style: (isSelected
+                    ? typography.tabLabelActive
+                    : typography.tabLabelInactive)
+                .copyWith(
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          if (resultType != SearchResultType.topResults && count != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: _CountBadge(count: count),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pill-shaped badge showing result count for tab headers
+class _CountBadge extends StatelessWidget {
+  final int count;
+
+  const _CountBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    // Format: 0, 56, or 100+
+    final displayText = count > 100 ? '100+' : count.toString();
+    final style = context.typography.countBadge;
 
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant,
-            width: 1,
-          ),
-        ),
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: TabBar(
-        controller: _controller,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        padding: const EdgeInsets.only(left: 8),
-        labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-        indicatorSize: TabBarIndicatorSize.tab,
-        indicator: UnderlineTabIndicator(
-          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
-        ),
-        // The Container draws the full-width line instead.
-        dividerHeight: 0,
-        onTap: (index) => widget.onResultTypeSelected(_tabTypes[index]),
-        tabs: [
-          for (final resultType in _tabTypes)
-            Tab(
-              child: Text(
-                searchResultTypeLabel(resultType, l10n),
-                style: (resultType == widget.selectedResultType
-                        ? typography.tabLabelActive
-                        : typography.tabLabelInactive)
-                    .copyWith(
-                  // Unknown count (still loading) shows at normal strength.
-                  color: widget.countByResultType[resultType] == 0
-                      ? emptyColor
-                      : resultType == widget.selectedResultType
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
+      // An invisible "100+" keeps every badge at the widest width, so the
+      // tabs don't slide sideways as counts change while typing.
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Opacity(opacity: 0, child: Text('100+', style: style)),
+          Text(displayText, style: style),
         ],
       ),
     );

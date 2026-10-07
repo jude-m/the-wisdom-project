@@ -1,8 +1,9 @@
 /// Widget tests for SearchResultsPanel — edge cases that need mocked state.
 ///
 /// These complement the E2E integration tests in `integration_test/search/`.
-/// Only scenarios that are impossible to reproduce with real data are kept here:
-/// loading states, error states, boundary badge values, and callback wiring.
+/// Only scenarios that need exact state are kept here: loading states, error
+/// states, boundary badge values, "See all", group expansion and callback
+/// wiring.
 library;
 
 import 'dart:io' show SocketException;
@@ -14,6 +15,7 @@ import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart
 import 'package:the_wisdom_project/domain/entities/content/content_language.dart';
 import 'package:the_wisdom_project/domain/entities/failure.dart';
 import 'package:the_wisdom_project/domain/entities/navigation/tipitaka_tree_node.dart';
+import 'package:the_wisdom_project/domain/entities/search/grouped_search_result.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/presentation/providers/content_language_provider.dart';
@@ -21,6 +23,7 @@ import 'package:the_wisdom_project/presentation/providers/navigation_tree_provid
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
+import 'package:the_wisdom_project/presentation/widgets/search/secondary_match_tile.dart';
 
 import '../../helpers/pump_app.dart';
 
@@ -46,6 +49,17 @@ class FakeSearchStateNotifier extends StateNotifier<SearchState>
     state = state.copyWith(
       searchInPali: pali ?? state.searchInPali,
       searchInSinhala: sinhala ?? state.searchInSinhala,
+    );
+  }
+
+  // Lets the "View N more" test expand a full-text group.
+  @override
+  void toggleFTSGroupExpansion(String nodeKey) {
+    final groups = state.expandedFTSGroups;
+    state = state.copyWith(
+      expandedFTSGroups: groups.contains(nodeKey)
+          ? ({...groups}..remove(nodeKey))
+          : {...groups, nodeKey},
     );
   }
 
@@ -224,7 +238,112 @@ void main() {
       );
 
       expect(find.text('100'), findsOneWidget);
-      expect(find.text('100+'), findsNothing);
+      // Only the invisible "100+" that holds the badge's width.
+      expect(find.text('100+'), findsOneWidget);
+    });
+
+    // ── "See all" in the Top results headers ────────────────────────────
+
+    // One title row in Top results; only the counts change per test.
+    SearchState topResultsWith(Map<SearchResultType, int> counts) =>
+        SearchState(
+          rawQueryText: 'metta',
+          effectiveQueryText: 'metta',
+          groupedResults: const GroupedSearchResult(
+            resultsByType: {
+              SearchResultType.title: [
+                SearchResult(
+                  id: 'title_sn-1',
+                  editionId: 'bjt',
+                  resultType: SearchResultType.title,
+                  title: 'මෙත්තසුත්තං',
+                  subtitle: 'සුත්තනිපාතො',
+                  matchedText: '',
+                  contentFileId: 'sn-1',
+                  pageIndex: 0,
+                  entryIndex: 0,
+                  nodeKey: 'sn-1',
+                  language: 'pali',
+                ),
+              ],
+            },
+          ),
+          countByResultType: counts,
+        );
+
+    testWidgets('no "See all" before the counts load', (tester) async {
+      await _pumpPanel(tester, state: topResultsWith({}));
+      await tester.pumpAndSettle();
+
+      expect(find.text('TITLES'), findsOneWidget);
+      expect(find.text('See all'), findsNothing);
+    });
+
+    testWidgets('no "See all" when the section shows every result',
+        (tester) async {
+      await _pumpPanel(
+        tester,
+        state: topResultsWith({SearchResultType.title: 1}),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('TITLES'), findsOneWidget);
+      expect(find.text('See all'), findsNothing);
+    });
+
+    testWidgets('"See all" opens the Titles tab when there are more results',
+        (tester) async {
+      final notifier = await _pumpPanel(
+        tester,
+        state: topResultsWith({SearchResultType.title: 5}),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('See all'));
+      await tester.pumpAndSettle();
+
+      expect(notifier.state.selectedResultType, SearchResultType.title);
+      // The tab bar follows the state: Titles is the second tab.
+      expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 1);
+    });
+
+    // ── "View N more" in a full-text group ──────────────────────────────
+
+    testWidgets('"View 2 more" shows the hidden matches and "Show Less"',
+        (tester) async {
+      // Three matches in one sutta: one primary row and two hidden ones.
+      SearchResult match(int entryIndex) => SearchResult(
+            id: 'fts_dn-1_$entryIndex',
+            editionId: 'bjt',
+            resultType: SearchResultType.fullText,
+            title: 'බ්‍රහ්මජාලසුත්තං',
+            subtitle: 'දීඝනිකායො',
+            matchedText: 'එවං මෙ සුතං',
+            contentFileId: 'dn-1',
+            pageIndex: 0,
+            entryIndex: entryIndex,
+            nodeKey: 'dn-1',
+            language: 'pali',
+          );
+
+      await _pumpPanel(
+        tester,
+        state: SearchState(
+          rawQueryText: 'සුතං',
+          effectiveQueryText: 'සුතං',
+          selectedResultType: SearchResultType.fullText,
+          fullResults: AsyncValue.data([match(0), match(1), match(2)]),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SecondaryMatchTile), findsNothing);
+
+      await tester.tap(find.text('View 2 more'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Show Less'), findsOneWidget);
+      expect(find.byType(SecondaryMatchTile), findsNWidgets(2));
     });
 
     // ── Callback wiring ─────────────────────────────────────────────────
