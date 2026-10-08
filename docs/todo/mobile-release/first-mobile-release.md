@@ -12,6 +12,10 @@ Section 2 was its step 10.
 
 - The first Android and iOS builds since Drift. They are also the first to
   fetch `package:sqlite3`'s native binaries.
+- **Android build tools.** Gradle, the Android Gradle Plugin, Kotlin and Java
+  are older than Flutter accepts, so the first Android build fails until they
+  are raised: "Already broken: Android" in
+  [`flutter-3-47-upgrade-plan.md`](../flutter-3-47-upgrade-plan.md).
 - **Signing.** Android release builds still use the debug key
   (`android/app/build.gradle`). iOS needs a signed export.
 - **Store upload** isn't scripted: the mobile `deploy.sh` scripts are
