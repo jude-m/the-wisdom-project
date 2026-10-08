@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/utils/search_query_utils.dart' show computeEffectiveQuery;
+import '../../core/utils/search_query_utils.dart'
+    show computeEffectiveQuery, singlishPreviewText;
 import '../../domain/entities/search/grouped_search_result.dart';
 import '../../domain/entities/search/recent_search.dart';
 import '../../domain/entities/search/search_result_type.dart';
@@ -300,8 +301,12 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   Future<void> saveRecentSearchAndDismiss() async {
     if (state.rawQueryText.trim().isEmpty) return;
 
-    // Save to recent searches (user found what they wanted)
-    await _recentSearchesRepository.addRecentSearch(state.rawQueryText);
+    // Save to recent searches (user found what they wanted). Singlish is
+    // saved as its Sinhala: "vedana" and "wedana" are one search, so one row.
+    // Sinhala and references like "SN 15.3" stay as typed.
+    final raw = state.rawQueryText;
+    await _recentSearchesRepository
+        .addRecentSearch(singlishPreviewText(raw) ?? raw);
 
     // Update recent searches list for next time
     final recentSearches = await _recentSearchesRepository.getRecentSearches();

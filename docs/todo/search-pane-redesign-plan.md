@@ -96,20 +96,20 @@ What does NOT change:
 
 **Goal:** the recent list shows සටිපට්තන, not "satipatthana".
 
-**Files:** `lib/presentation/widgets/search/recent_search_overlay.dart`.
+**Files:** `lib/presentation/providers/search_state.dart`, `lib/presentation/widgets/search/recent_search_overlay.dart`.
 
 **Steps:**
 
-1. For each row, read `singlishPreviewProvider(queryText)`.
-2. If it returns text: show only the Sinhala. (A small subtitle with the typed text was tried and dropped on 2026-10-08: it looked odd.)
-3. Otherwise (Sinhala, or a reference like "SN 15.3"), show the text as typed, one line.
-4. Storage does not change. Keep saving the raw typed text.
-5. Make the ✕ a real `IconButton` with a tooltip and a 40px+ tap area.
+1. Save what the search used: `saveRecentSearchAndDismiss` stores `singlishPreviewText(raw) ?? raw`. Singlish becomes its Sinhala; Sinhala and references like "SN 15.3" stay as typed. Singlish is only a way to type, so "vedana" and "wedana" (both වෙදන) are one entry, not two rows that look the same. Decided 2026-10-08; a small subtitle with the typed text was tried first and dropped: it looked odd.
+2. Each row shows the saved text, one line. Tapping it puts that text in the search box.
+3. Make the ✕ a real `IconButton` with a tooltip and a 40px+ tap area.
+4. Entries saved before 2026-10-08 stay as typed: clear the list by hand.
 
 **Done when:**
 
 - [ ] Existing saved searches still load.
-- [ ] Singlish entries show the Sinhala only. Sinhala and reference entries show the text as typed.
+- [ ] A Singlish search shows in the list as Sinhala. Sinhala and reference entries show as typed.
+- [ ] Two Singlish spellings of one word ("vedana", "wedana") give one entry.
 - [ ] The ✕ has a tooltip and is reachable by keyboard.
 
 ## Task 4 — Filter row: close-panel icon and one shared chip (canvas 10, 4)

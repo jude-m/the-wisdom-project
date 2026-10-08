@@ -27,7 +27,8 @@ String computeEffectiveQuery(String rawQuery) =>
 /// Checks for Latin letters rather than comparing raw and converted text:
 /// trimming or ZWJ removal also changes Sinhala input, which is no conversion.
 /// Unlike [computeEffectiveQuery] it keeps ZWJ, so ්‍ර and ‍ය render joined
-/// instead of with a visible hal. Display only — search never uses it.
+/// instead of with a visible hal. Shown in the search boxes, and saved as the
+/// recent-search text, so a change here changes both.
 String? singlishPreviewText(String rawQuery) {
   if (!SinglishTransliterator.instance.isSinglishQuery(rawQuery)) return null;
   if (SuttaCentralRefResolver.parseRef(rawQuery) != null) return null;

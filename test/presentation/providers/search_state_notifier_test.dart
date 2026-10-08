@@ -656,19 +656,34 @@ void main() {
                       queryText: 'test query', timestamp: DateTime.now()),
                 ]);
 
-        notifier.updateQuery('test query');
+        notifier.updateQuery('aanandha');
         expect(notifier.state.isResultsPanelVisible, isTrue);
 
         // ACT
         await notifier.saveRecentSearchAndDismiss();
 
-        // ASSERT
-        verify(mockRecentSearchesRepository.addRecentSearch('test query'))
+        // ASSERT - Singlish is saved as its Sinhala
+        verify(mockRecentSearchesRepository.addRecentSearch('ආනන්ද'))
             .called(1);
         expect(notifier.state.isPanelDismissed, isTrue);
         expect(notifier.state.isResultsPanelVisible, isFalse);
         expect(notifier.state.rawQueryText,
-            equals('test query')); // Text preserved
+            equals('aanandha')); // Text preserved
+      });
+
+      test('should save Sinhala and references as typed', () async {
+        // Only Singlish is converted: "SN 15.3" must not become Sinhala.
+        when(mockRecentSearchesRepository.addRecentSearch(any))
+            .thenAnswer((_) async {});
+        when(mockRecentSearchesRepository.getRecentSearches())
+            .thenAnswer((_) async => []);
+
+        for (final query in ['ආනන්ද', 'SN 15.3']) {
+          notifier.updateQuery(query);
+          await notifier.saveRecentSearchAndDismiss();
+          verify(mockRecentSearchesRepository.addRecentSearch(query))
+              .called(1);
+        }
       });
 
       test('should not save for empty queries', () async {

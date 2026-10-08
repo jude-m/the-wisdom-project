@@ -4,7 +4,6 @@ import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../providers/search_provider.dart';
-import '../../providers/singlish_preview_provider.dart';
 import '../../../domain/entities/search/recent_search.dart';
 
 /// Simplified overlay that only shows recent searches
@@ -87,10 +86,9 @@ class RecentSearchOverlay extends ConsumerWidget {
       children: [
         _sectionHeader(context, ref, l10n.recentSearches.toUpperCase()),
         ...recentSearches.map((search) {
+          // Singlish searches are saved as their Sinhala
+          // (saveRecentSearchAndDismiss), so the saved text is what we show.
           final queryText = search.queryText;
-          // Singlish rows show only the Sinhala. Sinhala and references
-          // ("SN 15.3") stay as typed.
-          final sinhala = ref.watch(singlishPreviewProvider(queryText));
 
           return ListTile(
             dense: true,
@@ -100,7 +98,7 @@ class RecentSearchOverlay extends ConsumerWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
             title: Text(
-              sinhala ?? queryText,
+              queryText,
               style: context.typography.listRowTitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
