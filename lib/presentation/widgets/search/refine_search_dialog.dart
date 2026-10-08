@@ -220,7 +220,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
           multiSelectionEnabled: true,
           emptySelectionAllowed: false,
           // Restyle the default M3 segmented look to match the quick-filter
-          // pills (_ScopeChip uses these same colorScheme tokens), so the
+          // pills (PillChip uses these same colorScheme tokens), so the
           // language toggle reads as part of the app's filter family — while
           // its connected shape still signals it behaves differently (the
           // locked-last-segment rule) than the always-tappable scope chips.
@@ -248,7 +248,7 @@ class _RefineSearchDialogState extends ConsumerState<RefineSearchDialog> {
             // `side` colors BOTH the outer border and the inter-segment divider
             // from one resolved BorderSide (segmented_button.dart) — they can't
             // be styled separately. We copy the quick-filter pill border
-            // (_ScopeChip: outline / 1px) so the unselected, clickable segment
+            // (PillChip: outline / 1px) so the unselected, clickable segment
             // reads as an identical surfaceContainerLow chip. Trade-off: when
             // both languages are selected the divider over the brown `secondary`
             // fill is faint, because outline ≈ secondary in luminance.

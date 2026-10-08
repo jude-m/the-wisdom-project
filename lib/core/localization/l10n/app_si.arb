@@ -103,16 +103,6 @@
 
   "viewingResults": "ප්‍රතිඵල {total}කින් {shown}ක් පෙන්වයි",
 
-  "wordProximity": "වචන අතර දුර",
-
-  "phraseSearch": "වාක්‍ය ඛණ්ඩ සෙවීම (පිළිවෙලට ඇති වචන)",
-
-  "wordsApart": "වචන {count}ක් පරතරයකින්",
-
-  "exactConsecutiveWords": "හරියටම පිළිවෙලට ඇති වචන",
-
-  "apply": "යොදන්න",
-
   "reset": "යළි සකසන්න",
 
   "clear": "ඉවත් කරන්න",
@@ -129,13 +119,51 @@
 
   "scopeCommentaries": "අට්ඨකථා",
 
-  "scopeTreatises": "වෙනත්",
-
-  "searchAsPhrase": "සම්පුර්ණ වාක්‍යක් ලෙස",
-
-  "searchAsSeparateWords": "වෙන්වූ වචන සමූහයක් ලෙස",
+  "scopeOther": "අන්‍ය",
 
   "anywhereInText": "එකම පෙළෙහි ඕනෑම තැනක",
+
+  "closePanel": "ප්‍රතිඵල වසන්න",
+
+  "matchOptions": "ගැළපීමේ විකල්ප",
+
+  "matchEachWord": "එක් එක් වචනය ගැළපෙන ආකාරය",
+
+  "matchStartsWith": "ඇරඹෙන වචන",
+
+  "matchStartsWithHint": "වචනය සහ එයින් ඇරඹෙන දිගු වචන සොයයි",
+
+  "matchWholeWord": "සම්පූර්ණ වචනය",
+
+  "matchWholeWordHint": "එම වචනයම පමණක් සොයයි",
+
+  "matchWholeWordExample": "{words} පමණක්",
+
+  "matchHowWordsSit": "වචන එකට පිහිටන ආකාරය",
+
+  "matchPhrase": "වාක්‍යයක් ලෙස",
+
+  "matchPhraseHint": "ලියූ පිළිවෙළටම, වචන එකට සොයයි",
+
+  "matchPhraseShort": "වාක්‍යය",
+
+  "matchAnywhereHint": "වචන ඕනෑම පිළිවෙළකින් සොයයි",
+
+  "matchAnywhereShort": "ඕනෑම තැනක",
+
+  "matchNear": "එකිනෙකට ළඟින්",
+
+  "matchNearHint": "එකිනෙකට ළඟින් ඇති වචන සොයයි",
+
+  "matchNearShort": "ළඟින් {count}",
+
+  "matchNearWithin": "වචන {count}ක් ඇතුළත",
+
+  "fewerWords": "වචන අඩු කරන්න",
+
+  "moreWords": "වචන වැඩි කරන්න",
+
+  "resetToDefault": "පෙරනිමියට යළි සකසන්න",
 
   "noDefinitionsFound": "අර්ථ දැක්වීම් හමු නොවීය",
 

@@ -102,7 +102,8 @@ class AppTypography extends ThemeExtension<AppTypography> {
   /// Style for modal/dialog titles
   final TextStyle dialogTitle;
 
-  /// Style for settings section headers
+  /// Small grey text in menus: settings section headers, the hint line
+  /// under a menu option
   final TextStyle menuSectionLabel;
 
   /// Style for segmented button labels (P, P+S, S)
@@ -201,7 +202,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       chipLabel: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: scaledFonts.label,
+        fontSize: scaledFonts.chip,
         fontWeight: AppFonts.bodyWeight,
         color: colorScheme.onSurfaceVariant,
         height: AppFonts.uiLineHeight,
@@ -209,7 +210,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
       chipLabelSelected: TextStyle(
         fontFamily: AppFonts.ui,
         fontFamilyFallback: AppFonts.uiFallback,
-        fontSize: scaledFonts.label,
+        fontSize: scaledFonts.chip,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSecondary,
         height: AppFonts.uiLineHeight,

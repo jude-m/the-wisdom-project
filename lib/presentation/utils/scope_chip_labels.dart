@@ -12,6 +12,6 @@ String scopeChipLabel(SearchScopeChip chip, AppLocalizations l10n) =>
       'vinaya' => l10n.scopeVinaya,
       'abhidhamma' => l10n.scopeAbhidhamma,
       'commentaries' => l10n.scopeCommentaries,
-      'treatises' => l10n.scopeTreatises,
+      'other' => l10n.scopeOther,
       _ => chip.id,
     };

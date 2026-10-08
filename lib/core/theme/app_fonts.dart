@@ -112,8 +112,11 @@ abstract class AppFonts {
   /// Font size for small badges and edition IDs (BJT, SC)
   static const double badgeFontSize = 11.0;
 
-  /// Font size for small labels and chip text
+  /// Font size for small labels
   static const double labelFontSize = 12.0;
+
+  /// Font size for filter chip text
+  static const double chipFontSize = 13.0;
 
   /// Font size for tabs and secondary UI elements
   static const double tabFontSize = 14.0;
@@ -201,6 +204,7 @@ class ScaledFontSizes {
   double get base => AppFonts.baseFontSize * scale;
   double get badge => AppFonts.badgeFontSize * scale;
   double get label => AppFonts.labelFontSize * scale;
+  double get chip => AppFonts.chipFontSize * scale;
   double get tab => AppFonts.tabFontSize * scale;
   double get tree => AppFonts.treeFontSize * scale;
   double get pageNumber => AppFonts.pageNumberFontSize * scale;

@@ -167,23 +167,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get wordProximity => 'Word Proximity';
-
-  @override
-  String get phraseSearch => 'Phrase search (exact consecutive words)';
-
-  @override
-  String wordsApart(int count) {
-    return '$count words apart';
-  }
-
-  @override
-  String get exactConsecutiveWords => 'Exact consecutive words';
-
-  @override
-  String get apply => 'Apply';
-
-  @override
   String get reset => 'Reset';
 
   @override
@@ -208,16 +191,79 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scopeCommentaries => 'Commentaries';
 
   @override
-  String get scopeTreatises => 'Treatises';
-
-  @override
-  String get searchAsPhrase => 'Search as complete phrase';
-
-  @override
-  String get searchAsSeparateWords => 'Search as separate words';
+  String get scopeOther => 'Other';
 
   @override
   String get anywhereInText => 'Anywhere in the same text';
+
+  @override
+  String get closePanel => 'Close panel';
+
+  @override
+  String get matchOptions => 'Match options';
+
+  @override
+  String get matchEachWord => 'Match each word';
+
+  @override
+  String get matchStartsWith => 'Starts with';
+
+  @override
+  String get matchStartsWithHint => 'Finds the word and its longer forms';
+
+  @override
+  String get matchWholeWord => 'Whole word';
+
+  @override
+  String get matchWholeWordHint => 'Finds only the exact word';
+
+  @override
+  String matchWholeWordExample(String words) {
+    return 'Only $words';
+  }
+
+  @override
+  String get matchHowWordsSit => 'How words sit together';
+
+  @override
+  String get matchPhrase => 'As a phrase';
+
+  @override
+  String get matchPhraseHint => 'Finds the words together, as typed';
+
+  @override
+  String get matchPhraseShort => 'Phrase';
+
+  @override
+  String get matchAnywhereHint => 'Finds the words in any order';
+
+  @override
+  String get matchAnywhereShort => 'Anywhere';
+
+  @override
+  String get matchNear => 'Near each other';
+
+  @override
+  String get matchNearHint => 'Finds the words close together';
+
+  @override
+  String matchNearShort(int count) {
+    return 'Near $count';
+  }
+
+  @override
+  String matchNearWithin(int count) {
+    return 'Within $count words';
+  }
+
+  @override
+  String get fewerWords => 'Fewer words';
+
+  @override
+  String get moreWords => 'More words';
+
+  @override
+  String get resetToDefault => 'Reset to default';
 
   @override
   String get noDefinitionsFound => 'No definitions found';

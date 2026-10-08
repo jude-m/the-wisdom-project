@@ -15,8 +15,8 @@ Chunks, in order:
 | Chunk | Tasks | Theme | Status |
 | --- | --- | --- | --- |
 | A | 1, 2, 3 + Task 10: clear ✕ tooltip | Singlish preview everywhere | Done |
-| B | 5, 6, 7 + Task 10: footer text, "View N more" button | Results list | In review |
-| C | 4, 8 + Task 10: Treatises naming (product decision first) | Filter row and match menu | Not started |
+| B | 5, 6, 7 + Task 10: footer text, "View N more" button | Results list | Done |
+| C | 4, 8 + Task 10: Treatises naming | Filter row and match menu | In review |
 | D | 9 | Phone search | Not started |
 | E | 11 | Sutta abbreviations | Not started |
 
@@ -122,11 +122,11 @@ What does NOT change:
 
 1. Replace the close ✕ with `Icons.arrow_forward`, same position (left end of the row). Tooltip: "Close panel" (new l10n key). Same action as today.
 2. Phones: no close icon in the panel. The app bar back arrow closes search (Task 9). Until Task 9 lands, keep today's ✕ on phones.
-3. Create `PillChip(label, selected, onPressed, {icon})` on `InkWell` or `FilterChip`, so it has hover, focus, ripple and semantics. 32px tall, 13px text, tap area 40px or more.
+3. Create `PillChip(label, selected, onPressed)` (and `PillChip.refine`) as a real button, so it has hover, focus, ripple and semantics. 32px tall, 13px text, tap area 40px or more.
 4. Replace `_ScopeChip` and `_FilterChip` with it. Delete both.
 5. Refine stays the last chip and scrolls with the others, as today.
 6. Add a soft fade on the right edge of the scrolling chips.
-7. Use a lighter row background than today's (`surfaceContainerLow`), 56px tall.
+7. Keep today's colours: the row on `surfaceContainerHighest`, chips and Refine as they were (decided after review, 2026-10-07). The row is 56px tall.
 
 **Done when:**
 
@@ -196,8 +196,8 @@ What does NOT change:
 2. Show it on every tab, Definitions too. Dictionary search also uses `isExactMatch`.
 3. Label shows the current choice: "Starts with" or "Whole word". With two or more words, add " · Phrase", " · Anywhere" or " · Near 10".
 4. Tap opens a menu anchored under the button (`MenuAnchor`). Changes apply at once. No Apply button.
-5. Section "Match each word": Starts with / Whole word. Sets `isExactMatch`. Add `setExactMatch(bool)` to the notifier.
-6. Section "How words sit together", only for two or more words, in this order: As a phrase / Anywhere in the same text / Near each other. Near each other has a − N + stepper (1–100, default 10). Uses `setPhraseSearch`, `setAnywhereInText`, `setProximityDistance`.
+5. Section "Match each word": Starts with / Whole word. Sets `isExactMatch`.
+6. Section "How words sit together", only for two or more words, in this order: As a phrase / Anywhere in the same text / Near each other. Near each other has a − N + stepper (1–100, default 10). Every change goes through `setMatchOptions`, one search per change.
 7. Under each option: one grey line, then one plain-text example built from the user's own words. No highlight. See the table below.
 8. Add "Reset to default" at the bottom.
 9. Remove both toggle buttons from the search box. Delete `ProximityDialog` if nothing else uses it.
@@ -246,7 +246,7 @@ Quick, independent items. Each one ships with the chunk that edits the same file
 - [ ] Translate the footer "Viewing X out of Y results". It is hard-coded English (`search_results_panel.dart`, `_footer`).
 - [ ] Add a tooltip to the clear ✕ in the search box. The find bar's clear button has one.
 - [ ] Make "View N more" a real button with a 40px+ tap area (`grouped_fts_tile.dart`).
-- [ ] "Treatises" in English is "වෙනත්" ("Other") in Sinhala. Pick one meaning. Needs a product decision first.
+- [x] "Treatises" vs "වෙනත්": both now mean "Other": English "Other", Sinhala අන්‍ය, the name tree.json gives the `anya` section (decided 2026-10-07). Key `scopeOther`, chip id `other`.
 
 ## Task 11 — No Singlish preview while typing a sutta reference
 
@@ -299,7 +299,7 @@ Done: Tasks 1, 2 and 3, plus the clear ✕ tooltip in the search box (Task 10).
 
 - `singlishPreviewText(raw)` in `search_query_utils.dart` returns the Sinhala to show, or null when there is none. It keeps the joiners: tatra → ටට්‍ර renders joined in the bundled font (HarfBuzz check, 2026-10-06). The Pali word තත්‍ර is typed thathra. Widgets read it through `singlishPreviewProvider(raw)` (`providers/singlish_preview_provider.dart`), which runs the conversion once per query. Calling it in `build` re-ran the converter on every rebuild: each find-bar match step, and every recent row each time the search bar rebuilt.
 - `SinglishPreview` applies the 45% width cap itself; callers pass `fieldWidth`. No arrow: the tag alone marks the preview.
-- The main box puts the preview at the right end of the field, before the toggles, not right after the typed text. Task 8 removes the toggles, which frees room. Until then, two Singlish words leave the typed text only a few pixels on a phone and about 30px on desktop (estimated from Flutter's layout rules, not measured).
+- The main box puts the preview at the right end of the field, before the clear ✕, not right after the typed text. Task 8 removed the two toggles that also sat there.
 - The find bar, the main box and the recent list all hide the preview for a reference like "SN 15.3": `singlishPreviewText` checks `parseRef`. Task 11 refines that rule.
 - The `isSinglishConverted` getters on both search states and `querySinglishConverted` were removed: nothing used them once the preview had its own rule.
 - New l10n key: `removeRecentSearch`.
@@ -311,7 +311,7 @@ Done: Tasks 1, 2 and 3, plus the clear ✕ tooltip in the search box (Task 10).
 - [x] Recent searches: a long entry ends in "…". The title (Sinhala) and the subtitle (typed text) have `maxLines: 1` and `overflow: TextOverflow.ellipsis` (`recent_search_overlay.dart`).
 - [x] Crash when the ✕ tooltip in recent searches shows: "The paint transform cannot be reliably computed because of RenderFollowerLayer(s)". `SearchBar` now places the dropdown with `OverlayPortal.overlayChildLayoutBuilder`, not a `CompositedTransformFollower`. A Flutter upgrade would not have fixed it: Flutter's docs say a follower between an `OverlayPortal` and its overlay is not supported. To check in the app: hover the ✕ in recent searches.
 
-### Chunk B: in review
+### Chunk B: done (64ff654, 4a98260)
 
 Done: Tasks 5, 6 and 7, plus the footer text and the "View N more" button (Task 10).
 
@@ -325,9 +325,51 @@ Done: Tasks 5, 6 and 7, plus the footer text and the "View N more" button (Task 
 - "View N more" is a `TextButton` with a 40px tap area, in the primary colour as on the canvas (it was grey).
 - New l10n keys: `seeAll`, `viewingResults`. The English footer text is unchanged. Stray U+200B removed from four Sinhala strings: `viewMore`, `themeLight`, `expand` and `updateBannerRefreshAction`. The ZWJ in ප්‍රතිඵල stays.
 - Tests, all passing on 2026-10-07: `search_results_panel_test.dart` adds "See all" (hidden before counts load and when every row shows; tapping opens the tab and moves the tab bar to it) and "View 2 more" (shows the hidden matches and "Show Less"); `search_state_notifier_test.dart` adds "a failed count clears the old counts". The tab count tests pass again. No edition badge test: every result is BJT today.
-- Built and launched on macOS on 2026-10-06; the UI was not checked by eye yet. To check: desktop and phone width, English and Sinhala, light and dark. Also check that tabs don't shift when you switch: the active tab is bold, so it is wider. If they jump, use one weight and mark the active tab by colour and underline only.
+- Built and launched on macOS on 2026-10-06; the UI was not checked by eye yet. It is checked together with chunk C (list there). Also check that tabs don't shift when you switch: the active tab is bold, so it is wider. If they jump, use one weight and mark the active tab by colour and underline only.
 
-Next: Chunk C.
+### Chunk C: in review
+
+Done: Tasks 4 and 8, plus the Treatises naming (Task 10). Not staged or committed yet.
+
+- `PillChip` (`common/pill_chip.dart`) replaces `_ScopeChip`, `_FilterChip` and both `_RefineChip` copies; `PillChip.refine` is the Refine chip, with its own colours as before. It is a `TextButton`: 32px pill, 13px text (`AppFonts.chipFontSize`), 48px tap area. Colours are the ones from before this chunk. `PillChip.styleOf` gives the same look to "Starts with ▾", with 8px corners.
+- `PillChipRow` (`common/pill_chip_row.dart`) is the one scrolling row both chip widgets now use, with the right-edge fade. Its end padding equals the fade width, so the last chip is clear of the fade when scrolled to the end. Both chip widgets take `leading`: the match button and the divider, so they scroll with the chips.
+- `ScopeFilterChips` watches only scope and the two language flags (`select`). It watched the whole search state and rebuilt on every keystroke.
+- The chip font is 13px, so the research mode selector, which borrows `chipLabel`, grew from 12px to 13px too.
+- Desktop shows → with the tooltip "Close panel". Phones keep ✕ until Task 9. The row is 56px, on the same `surfaceContainerHighest` as before.
+- `MatchOptionsButton` and its menu are in `search/match_options_menu.dart`. The button watches one record (`select`), so it rebuilds only when its label changes. The "two or more words" check is the old `\s\S` test on the raw text, run inside the selector, not in `build`. The menu body is built only while the menu is open.
+- The notifier has one new method, `setMatchOptions`. "Anywhere", "Near" and "Reset" each change two to four fields, and one call per field would start one search each. A change to the distance alone waits 300 ms, as typing does, so tapping + ten times runs one search. There is no `setExactMatch`: `setMatchOptions(isExactMatch:)` covers it.
+- Changing the distance also selects "Near each other". The stepper shows "Within N words" as text beside − and +, so Sinhala can put the number where it belongs (වචන 10ක් ඇතුළත).
+- Esc: the menu registers on `overlayStackProvider` while open, and its `dispose` removes the entry too, because a menu closed by disposal never calls `onClose`.
+- Deleted: `ProximityDialog`, and the l10n keys only it or the toggles used: `wordProximity`, `wordsApart`, `apply`, `searchAsPhrase`, `searchAsSeparateWords`. `anywhereInText` is reused for the menu option. `CircularToggleButton` stays (the dictionary sheet uses it). `toggleExactMatch`, `setPhraseSearch`, `setAnywhereInText` and `setProximityDistance` now have only tests as callers (27 call sites, `search_test_helper.dart` among them, so deleting them now would stop those files compiling); delete them when the tests move to `setMatchOptions`.
+- Not renamed: `TipitakaNodeKeys.treatises` and `isTreatise` (code names, never shown).
+- New l10n keys: `closePanel`, `matchOptions`, `matchEachWord`, `matchStartsWith`, `matchStartsWithHint`, `matchWholeWord`, `matchWholeWordHint`, `matchWholeWordExample`, `matchHowWordsSit`, `matchPhrase`, `matchPhraseHint`, `matchPhraseShort`, `matchAnywhereHint`, `matchAnywhereShort`, `matchNear`, `matchNearHint`, `matchNearShort`, `matchNearWithin`, `fewerWords`, `moreWords`, `resetToDefault`; `scopeTreatises` became `scopeOther`. The Sinhala for the menu is a first draft: review it.
+- No new tests (CLAUDE.md). Analyzer clean.
+
+Review fixes (2026-10-07):
+
+- A filter change now cancels a search still waiting on the typing pause. Typing, then tapping a chip within 300 ms, ran the same search twice. `_refreshSearchAfterPause` is merged into `_refreshSearchIfNeeded({afterPause})`.
+- The menu's text uses `AppTypography`, so it follows the app's font scale (0.9 on web) like the chips. Its section labels use `sectionHeader`, like the panel's.
+- "As a phrase" also turns off "Anywhere", so the same search hits the cache.
+- `clearFilters` reads its defaults from `const SearchState()`, as the menu does.
+- `OverlayStackNotifier.remove` does nothing when the id isn't there (the match button's `dispose` calls it on every tab switch).
+- Deleted the unused l10n keys `phraseSearch` and `exactConsecutiveWords`.
+- Moved to `perf-top10-killers.md`: the header rebuilding on every keystroke (item 5) and the fade's offscreen layer (B5).
+
+Tests this breaks (not fixed):
+
+- `test/presentation/widgets/search_results_panel_test.dart:364` taps `Icons.close`; the 800px test screen is desktop, so it is now `Icons.arrow_forward`.
+- `test/presentation/widgets/scope_filter_chips_test.dart:51` expects "Treatises"; now "Other".
+- `integration_test/search_test_helper.dart`: `toggleExactMatch` (:138, `Icons.abc`) and `setProximitySettings` (:183 `Icons.space_bar`, :225 "Apply"). Every test in `search_flow_integration_test.dart` that calls them fails. They should open "Starts with ▾" and pick from the menu.
+- `search_tab_highlight_test.dart:366` and `scroll_restoration_test.dart:267/402` find `Icons.close` on the reader tabs, not the panel. They count one per tab, so the panel is closed there. Not affected.
+
+To check by eye (with chunk B): desktop and phone width, English and Sinhala, light and dark.
+
+- The chip row: arrow, "Starts with ▾", divider, chips, Refine last; the fade; Tab reaches every chip; Enter/Space toggles.
+- The menu with one word, then two: labels, examples, the stepper, Reset. Esc with the menu open closes only the menu. Also with focus left in the search box.
+- The Singlish preview in the main box at phone width, now that the toggles are gone.
+- Dark-theme items found on the way are in `docs/todo/dark-theme.md`.
+
+Next: Chunk D, once C is reviewed.
 
 ## Pending (not tied to a chunk)
 

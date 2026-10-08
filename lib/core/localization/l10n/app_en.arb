@@ -269,36 +269,6 @@
     }
   },
 
-  "wordProximity": "Word Proximity",
-  "@wordProximity": {
-    "description": "Label for the word proximity section in refine dialog"
-  },
-
-  "phraseSearch": "Phrase search (exact consecutive words)",
-  "@phraseSearch": {
-    "description": "Label for phrase search checkbox"
-  },
-
-  "wordsApart": "{count} words apart",
-  "@wordsApart": {
-    "description": "Label showing proximity distance",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-
-  "exactConsecutiveWords": "Exact consecutive words",
-  "@exactConsecutiveWords": {
-    "description": "Label shown when phrase search is enabled"
-  },
-
-  "apply": "Apply",
-  "@apply": {
-    "description": "Button label to apply changes"
-  },
-
   "reset": "Reset",
   "@reset": {
     "description": "Button label to reset to defaults"
@@ -339,24 +309,134 @@
     "description": "Label for Commentaries (Atthakatha) scope chip"
   },
 
-  "scopeTreatises": "Treatises",
-  "@scopeTreatises": {
-    "description": "Label for Treatises scope chip"
-  },
-
-  "searchAsPhrase": "Search as complete phrase",
-  "@searchAsPhrase": {
-    "description": "Radio button label for phrase search mode (words must be adjacent)"
-  },
-
-  "searchAsSeparateWords": "Search as separate words",
-  "@searchAsSeparateWords": {
-    "description": "Radio button label for separate-word search mode (words within proximity)"
+  "scopeOther": "Other",
+  "@scopeOther": {
+    "description": "Scope chip for the books outside the Tipitaka and commentaries (tree node 'anya', e.g. Visuddhimagga)"
   },
 
   "anywhereInText": "Anywhere in the same text",
   "@anywhereInText": {
-    "description": "Checkbox label to search words anywhere in the text without proximity constraint"
+    "description": "Match menu option: the words may be anywhere in the same text, in any order"
+  },
+
+  "closePanel": "Close panel",
+  "@closePanel": {
+    "description": "Tooltip for the arrow that slides the search results panel away"
+  },
+
+  "matchOptions": "Match options",
+  "@matchOptions": {
+    "description": "Tooltip for the filter-row button that opens the match options menu"
+  },
+
+  "matchEachWord": "Match each word",
+  "@matchEachWord": {
+    "description": "Match menu section header: how each typed word is matched"
+  },
+
+  "matchStartsWith": "Starts with",
+  "@matchStartsWith": {
+    "description": "Match menu option and button label: a word matches anything that starts with it"
+  },
+
+  "matchStartsWithHint": "Finds the word and its longer forms",
+  "@matchStartsWithHint": {
+    "description": "Grey line under the Starts with option"
+  },
+
+  "matchWholeWord": "Whole word",
+  "@matchWholeWord": {
+    "description": "Match menu option and button label: only the exact word matches"
+  },
+
+  "matchWholeWordHint": "Finds only the exact word",
+  "@matchWholeWordHint": {
+    "description": "Grey line under the Whole word option"
+  },
+
+  "matchWholeWordExample": "Only {words}",
+  "@matchWholeWordExample": {
+    "description": "Example under the Whole word option, built from the typed words",
+    "placeholders": {
+      "words": {
+        "type": "String"
+      }
+    }
+  },
+
+  "matchHowWordsSit": "How words sit together",
+  "@matchHowWordsSit": {
+    "description": "Match menu section header, shown for two or more words"
+  },
+
+  "matchPhrase": "As a phrase",
+  "@matchPhrase": {
+    "description": "Match menu option: the words must be together, as typed"
+  },
+
+  "matchPhraseHint": "Finds the words together, as typed",
+  "@matchPhraseHint": {
+    "description": "Grey line under the As a phrase option"
+  },
+
+  "matchPhraseShort": "Phrase",
+  "@matchPhraseShort": {
+    "description": "Short form of As a phrase, added to the match button label"
+  },
+
+  "matchAnywhereHint": "Finds the words in any order",
+  "@matchAnywhereHint": {
+    "description": "Grey line under the Anywhere in the same text option"
+  },
+
+  "matchAnywhereShort": "Anywhere",
+  "@matchAnywhereShort": {
+    "description": "Short form of Anywhere in the same text, added to the match button label"
+  },
+
+  "matchNear": "Near each other",
+  "@matchNear": {
+    "description": "Match menu option: the words must be within a few words of each other"
+  },
+
+  "matchNearHint": "Finds the words close together",
+  "@matchNearHint": {
+    "description": "Grey line under the Near each other option"
+  },
+
+  "matchNearShort": "Near {count}",
+  "@matchNearShort": {
+    "description": "Short form of Near each other, added to the match button label",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "matchNearWithin": "Within {count} words",
+  "@matchNearWithin": {
+    "description": "Distance shown beside the - / + stepper under Near each other",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "fewerWords": "Fewer words",
+  "@fewerWords": {
+    "description": "Tooltip for the - button of the distance stepper"
+  },
+
+  "moreWords": "More words",
+  "@moreWords": {
+    "description": "Tooltip for the + button of the distance stepper"
+  },
+
+  "resetToDefault": "Reset to default",
+  "@resetToDefault": {
+    "description": "Match menu action: back to Starts with, As a phrase, distance 10"
   },
 
   "noDefinitionsFound": "No definitions found",

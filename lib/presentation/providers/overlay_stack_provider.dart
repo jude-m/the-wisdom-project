@@ -45,6 +45,8 @@ class OverlayStackNotifier extends StateNotifier<List<DismissibleOverlay>> {
   /// Removes the overlay with the given [id], wherever it is in the stack.
   /// Called when an overlay closes by any means (X button, tap-outside, ESC).
   void remove(String id) {
+    // No new list, so no listener fires, when the id isn't there.
+    if (!state.any((o) => o.id == id)) return;
     state = state.where((o) => o.id != id).toList();
   }
 

@@ -7,8 +7,6 @@ import '../../providers/overlay_stack_provider.dart';
 import '../../providers/reader_scroll_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../providers/singlish_preview_provider.dart';
-import '../common/circular_toggle_button.dart';
-import 'proximity_dialog.dart';
 import 'recent_search_overlay.dart';
 import 'singlish_preview.dart';
 
@@ -172,29 +170,8 @@ class _SearchBarState extends ConsumerState<SearchBar> {
     // Same scroll signal the AppBar uses, so the pill's fill stays aligned.
     final scrolledUnder = ref.watch(readerScrolledUnderProvider);
 
-    // Watch exact match state for toggle button
-    final isExactMatch =
-        ref.watch(searchStateProvider.select((s) => s.isExactMatch));
-
-    // Watch proximity state for toggle button
-    // Active when: not using default settings (phrase search with proximity 10)
-    final isPhraseSearch =
-        ref.watch(searchStateProvider.select((s) => s.isPhraseSearch));
-    final isAnywhereInText =
-        ref.watch(searchStateProvider.select((s) => s.isAnywhereInText));
-    final proximityDistance =
-        ref.watch(searchStateProvider.select((s) => s.proximityDistance));
-
-    // Proximity button is active when NOT using default phrase search
-    // OR when using non-default proximity settings
-    final isProximityActive =
-        !isPhraseSearch || isAnywhereInText || proximityDistance != 10;
-
-    // Show proximity button only when user has started typing a second word
-    // (i.e., there's a space followed by at least one non-space character)
     final rawQueryText =
         ref.watch(searchStateProvider.select((s) => s.rawQueryText));
-    final showProximityButton = RegExp(r'\s\S').hasMatch(rawQueryText);
 
     // Sinhala preview for Singlish input (none for a reference like "SN 15.3").
     final singlishPreview = ref.watch(singlishPreviewProvider(rawQueryText));
@@ -299,26 +276,6 @@ class _SearchBarState extends ConsumerState<SearchBar> {
                 children: [
                   if (singlishPreview != null)
                     SinglishPreview(singlishPreview, fieldWidth: widget.width),
-                  // Exact match toggle button with clear visual state
-                  CircularToggleButton(
-                    isActive: isExactMatch,
-                    icon: Icons.abc,
-                    iconSize: 24,
-                    tooltip: l10n.isExactMatchToggle,
-                    onPressed: () {
-                      ref.read(searchStateProvider.notifier).toggleExactMatch();
-                    },
-                  ),
-                  // Proximity toggle button - opens proximity dialog
-                  // Only visible when user starts typing a second word
-                  if (showProximityButton)
-                    CircularToggleButton(
-                      isActive: isProximityActive,
-                      icon: Icons.space_bar,
-                      iconSize: 24,
-                      tooltip: l10n.wordProximity,
-                      onPressed: () => ProximityDialog.show(context),
-                    ),
                   // Clear button (only shown when text is present)
                   if (_controller.text.isNotEmpty)
                     Container(

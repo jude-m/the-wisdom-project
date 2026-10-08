@@ -404,36 +404,6 @@ abstract class AppLocalizations {
   /// **'Viewing {shown} out of {total} results'**
   String viewingResults(int shown, int total);
 
-  /// Label for the word proximity section in refine dialog
-  ///
-  /// In en, this message translates to:
-  /// **'Word Proximity'**
-  String get wordProximity;
-
-  /// Label for phrase search checkbox
-  ///
-  /// In en, this message translates to:
-  /// **'Phrase search (exact consecutive words)'**
-  String get phraseSearch;
-
-  /// Label showing proximity distance
-  ///
-  /// In en, this message translates to:
-  /// **'{count} words apart'**
-  String wordsApart(int count);
-
-  /// Label shown when phrase search is enabled
-  ///
-  /// In en, this message translates to:
-  /// **'Exact consecutive words'**
-  String get exactConsecutiveWords;
-
-  /// Button label to apply changes
-  ///
-  /// In en, this message translates to:
-  /// **'Apply'**
-  String get apply;
-
   /// Button label to reset to defaults
   ///
   /// In en, this message translates to:
@@ -482,29 +452,143 @@ abstract class AppLocalizations {
   /// **'Commentaries'**
   String get scopeCommentaries;
 
-  /// Label for Treatises scope chip
+  /// Scope chip for the books outside the Tipitaka and commentaries (tree node 'anya', e.g. Visuddhimagga)
   ///
   /// In en, this message translates to:
-  /// **'Treatises'**
-  String get scopeTreatises;
+  /// **'Other'**
+  String get scopeOther;
 
-  /// Radio button label for phrase search mode (words must be adjacent)
-  ///
-  /// In en, this message translates to:
-  /// **'Search as complete phrase'**
-  String get searchAsPhrase;
-
-  /// Radio button label for separate-word search mode (words within proximity)
-  ///
-  /// In en, this message translates to:
-  /// **'Search as separate words'**
-  String get searchAsSeparateWords;
-
-  /// Checkbox label to search words anywhere in the text without proximity constraint
+  /// Match menu option: the words may be anywhere in the same text, in any order
   ///
   /// In en, this message translates to:
   /// **'Anywhere in the same text'**
   String get anywhereInText;
+
+  /// Tooltip for the arrow that slides the search results panel away
+  ///
+  /// In en, this message translates to:
+  /// **'Close panel'**
+  String get closePanel;
+
+  /// Tooltip for the filter-row button that opens the match options menu
+  ///
+  /// In en, this message translates to:
+  /// **'Match options'**
+  String get matchOptions;
+
+  /// Match menu section header: how each typed word is matched
+  ///
+  /// In en, this message translates to:
+  /// **'Match each word'**
+  String get matchEachWord;
+
+  /// Match menu option and button label: a word matches anything that starts with it
+  ///
+  /// In en, this message translates to:
+  /// **'Starts with'**
+  String get matchStartsWith;
+
+  /// Grey line under the Starts with option
+  ///
+  /// In en, this message translates to:
+  /// **'Finds the word and its longer forms'**
+  String get matchStartsWithHint;
+
+  /// Match menu option and button label: only the exact word matches
+  ///
+  /// In en, this message translates to:
+  /// **'Whole word'**
+  String get matchWholeWord;
+
+  /// Grey line under the Whole word option
+  ///
+  /// In en, this message translates to:
+  /// **'Finds only the exact word'**
+  String get matchWholeWordHint;
+
+  /// Example under the Whole word option, built from the typed words
+  ///
+  /// In en, this message translates to:
+  /// **'Only {words}'**
+  String matchWholeWordExample(String words);
+
+  /// Match menu section header, shown for two or more words
+  ///
+  /// In en, this message translates to:
+  /// **'How words sit together'**
+  String get matchHowWordsSit;
+
+  /// Match menu option: the words must be together, as typed
+  ///
+  /// In en, this message translates to:
+  /// **'As a phrase'**
+  String get matchPhrase;
+
+  /// Grey line under the As a phrase option
+  ///
+  /// In en, this message translates to:
+  /// **'Finds the words together, as typed'**
+  String get matchPhraseHint;
+
+  /// Short form of As a phrase, added to the match button label
+  ///
+  /// In en, this message translates to:
+  /// **'Phrase'**
+  String get matchPhraseShort;
+
+  /// Grey line under the Anywhere in the same text option
+  ///
+  /// In en, this message translates to:
+  /// **'Finds the words in any order'**
+  String get matchAnywhereHint;
+
+  /// Short form of Anywhere in the same text, added to the match button label
+  ///
+  /// In en, this message translates to:
+  /// **'Anywhere'**
+  String get matchAnywhereShort;
+
+  /// Match menu option: the words must be within a few words of each other
+  ///
+  /// In en, this message translates to:
+  /// **'Near each other'**
+  String get matchNear;
+
+  /// Grey line under the Near each other option
+  ///
+  /// In en, this message translates to:
+  /// **'Finds the words close together'**
+  String get matchNearHint;
+
+  /// Short form of Near each other, added to the match button label
+  ///
+  /// In en, this message translates to:
+  /// **'Near {count}'**
+  String matchNearShort(int count);
+
+  /// Distance shown beside the - / + stepper under Near each other
+  ///
+  /// In en, this message translates to:
+  /// **'Within {count} words'**
+  String matchNearWithin(int count);
+
+  /// Tooltip for the - button of the distance stepper
+  ///
+  /// In en, this message translates to:
+  /// **'Fewer words'**
+  String get fewerWords;
+
+  /// Tooltip for the + button of the distance stepper
+  ///
+  /// In en, this message translates to:
+  /// **'More words'**
+  String get moreWords;
+
+  /// Match menu action: back to Starts with, As a phrase, distance 10
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to default'**
+  String get resetToDefault;
 
   /// Message shown when dictionary lookup returns no results
   ///

@@ -1,13 +1,13 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
-import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/search/scope_operations.dart';
 import '../../../domain/entities/search/search_scope_chip.dart';
 import '../../providers/content_language_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../utils/scope_chip_labels.dart';
+import '../common/pill_chip.dart';
+import '../common/pill_chip_row.dart';
 import 'refine_search_dialog.dart';
 
 /// Horizontally scrollable scope filter chips for search results.
@@ -21,216 +21,62 @@ import 'refine_search_dialog.dart';
 /// - Tap selected scope: deselects it
 /// - Tap "All": clears all specific selections
 /// - All 5 scopes selected: auto-collapses to "All"
-class ScopeFilterChips extends ConsumerStatefulWidget {
-  const ScopeFilterChips({super.key});
+class ScopeFilterChips extends ConsumerWidget {
+  /// Widgets before the chips, scrolling with them.
+  final List<Widget> leading;
+
+  const ScopeFilterChips({super.key, this.leading = const []});
 
   @override
-  ConsumerState<ScopeFilterChips> createState() => _ScopeFilterChipsState();
-}
-
-class _ScopeFilterChipsState extends ConsumerState<ScopeFilterChips> {
-  // Create controller once in state, not in build
-  final _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    // Clean up the controller when the widget is removed
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final searchState = ref.watch(searchStateProvider);
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
+    final scope = ref.watch(searchStateProvider.select((s) => s.scope));
+    final searchInPali =
+        ref.watch(searchStateProvider.select((s) => s.searchInPali));
+    final searchInSinhala =
+        ref.watch(searchStateProvider.select((s) => s.searchInSinhala));
 
     // Check if scope contains custom selections (not covered by predefined chips)
     // This is true only when the refine dialog was used to select sub-nodes
-    final hasCustomScope =
-        ScopeOperations.hasCustomSelections(searchState.scope);
-    final isAllSelected = searchState.isAllSelected;
+    final hasCustomScope = ScopeOperations.hasCustomSelections(scope);
 
     // A single-language narrowing is a saved user preference (the default is
     // both languages on), so surface it on the Refine chip alongside custom
     // scope. Guarded on availableContentLanguages: an edition that ships only
     // one language never shows the toggle, so it must never look "narrowed".
     final availableLanguages = ref.watch(availableContentLanguagesProvider);
-    final languageNarrowed = availableLanguages.length >= 2 &&
-        !(searchState.searchInPali && searchState.searchInSinhala);
+    final languageNarrowed =
+        availableLanguages.length >= 2 && !(searchInPali && searchInSinhala);
     final hasActiveFilters = hasCustomScope || languageNarrowed;
 
-    return SizedBox(
-      height: 48,
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(
-          dragDevices: {
-            PointerDeviceKind.touch,
-            PointerDeviceKind.mouse,
-            PointerDeviceKind.trackpad,
-            PointerDeviceKind.stylus,
-          },
-          scrollbars: false,
+    return PillChipRow(
+      children: [
+        ...leading,
+
+        // "All" chip - always first
+        PillChip(
+          label: l10n.scopeAll,
+          selected: scope.isEmpty,
+          onPressed: () => ref.read(searchStateProvider.notifier).selectAll(),
         ),
-        child: ListView(
-          controller: _scrollController,
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
+
+        // Scope chips from predefined list
+        for (final chip in searchScopeChips)
+          PillChip(
+            label: scopeChipLabel(chip, l10n),
+            selected: ScopeOperations.containsAllKeys(scope, chip.nodeKeys),
+            onPressed: () => ref
+                .read(searchStateProvider.notifier)
+                .toggleScopeKeys(chip.nodeKeys),
           ),
-          children: [
-            // "All" chip - always first
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: _ScopeChip(
-                label: l10n.scopeAll,
-                isSelected: isAllSelected,
-                theme: theme,
-                onTap: () => ref.read(searchStateProvider.notifier).selectAll(),
-              ),
-            ),
 
-            // Scope chips from predefined list
-            ...searchScopeChips.map((chip) {
-              // Use ScopeOperations to check if chip is selected
-              final isSelected = ScopeOperations.containsAllKeys(
-                searchState.scope,
-                chip.nodeKeys,
-              );
-              return Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: _ScopeChip(
-                  label: scopeChipLabel(chip, l10n),
-                  isSelected: isSelected,
-                  theme: theme,
-                  // Use toggleScopeKeys with extracted nodeKeys
-                  onTap: () => ref
-                      .read(searchStateProvider.notifier)
-                      .toggleScopeKeys(chip.nodeKeys),
-                ),
-              );
-            }),
-
-            // Refine chip - opens advanced search dialog
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: _RefineChip(
-                hasActiveFilters: hasActiveFilters,
-                theme: theme,
-                onTap: () => RefineSearchDialog.show(context),
-              ),
-            ),
-          ],
+        // Refine chip - opens advanced search dialog
+        PillChip.refine(
+          label: l10n.refine,
+          selected: hasActiveFilters,
+          onPressed: () => RefineSearchDialog.show(context),
         ),
-      ),
-    );
-  }
-}
-
-/// Custom pill-shaped chip with uniform sizing for scope filters.
-class _ScopeChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final ThemeData theme;
-  final VoidCallback onTap;
-
-  const _ScopeChip({
-    required this.label,
-    required this.isSelected,
-    required this.theme,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final typography = context.typography;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 56),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(100),
-          color: isSelected
-              ? theme.colorScheme.secondary
-              : theme.colorScheme.surfaceContainerLow,
-          border: Border.all(
-            color: isSelected
-                ? theme.colorScheme.secondary
-                : theme.colorScheme.outline,
-            width: 1,
-          ),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: isSelected
-                ? typography.chipLabelSelected
-                : typography.chipLabel,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Refine chip with tune icon - opens advanced search dialog.
-/// Shows an active indicator dot when advanced filters are applied.
-class _RefineChip extends StatelessWidget {
-  final bool hasActiveFilters;
-  final ThemeData theme;
-  final VoidCallback onTap;
-
-  const _RefineChip({
-    required this.hasActiveFilters,
-    required this.theme,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final typography = context.typography;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 56),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(100),
-          // Outline style to distinguish from scope chips
-          color: hasActiveFilters
-              ? theme.colorScheme.primaryContainer
-              : theme.colorScheme.surfaceContainerLowest,
-          border: Border.all(
-            color: hasActiveFilters
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.tune,
-              size: 16,
-              color: hasActiveFilters
-                  ? theme.colorScheme.onPrimaryContainer
-                  : theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              AppLocalizations.of(context).refine,
-              style: hasActiveFilters
-                  ? typography.chipLabelSelected.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
-                    )
-                  : typography.chipLabel,
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }

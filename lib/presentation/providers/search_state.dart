@@ -131,6 +131,9 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   final RecentSearchesRepository _recentSearchesRepository;
   Timer? _debounceTimer;
 
+  /// Pause after the last keystroke (or − / + tap) before searching.
+  static const _debounceDelay = Duration(milliseconds: 300);
+
   /// Request ID for tracking in-flight searches.
   /// Incremented on each new search to invalidate stale async results.
   int _searchRequestId = 0;
@@ -193,10 +196,7 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
       fullResults: const AsyncValue.loading(),
     );
 
-    _debounceTimer = Timer(
-      const Duration(milliseconds: 300),
-      _performSearch,
-    );
+    _debounceTimer = Timer(_debounceDelay, _performSearch);
   }
 
   /// Execute search based on selected category.
@@ -461,16 +461,17 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
   /// Clear all filters (reset to defaults)
   void clearFilters() {
+    const defaults = SearchState();
     state = state.copyWith(
-      selectedEditions: {},
-      searchInPali: true,
-      searchInSinhala: true,
-      scope: {},
-      isPhraseSearch: true,
-      isAnywhereInText: false,
-      proximityDistance: 10,
-      isExactMatch: false,
-      selectedDictionaryIds: {},
+      selectedEditions: defaults.selectedEditions,
+      searchInPali: defaults.searchInPali,
+      searchInSinhala: defaults.searchInSinhala,
+      scope: defaults.scope,
+      isPhraseSearch: defaults.isPhraseSearch,
+      isAnywhereInText: defaults.isAnywhereInText,
+      proximityDistance: defaults.proximityDistance,
+      isExactMatch: defaults.isExactMatch,
+      selectedDictionaryIds: defaults.selectedDictionaryIds,
     );
     _refreshSearchIfNeeded();
   }
@@ -535,6 +536,31 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     _refreshSearchIfNeeded();
   }
 
+  /// Sets any of the match options at once, with one search. Used by the
+  /// match options menu. A change to the distance alone waits for a pause,
+  /// as typing does: the − / + stepper can send several in a row.
+  void setMatchOptions({
+    bool? isExactMatch,
+    bool? isPhraseSearch,
+    bool? isAnywhereInText,
+    int? proximityDistance,
+  }) {
+    final next = state.copyWith(
+      isExactMatch: isExactMatch ?? state.isExactMatch,
+      isPhraseSearch: isPhraseSearch ?? state.isPhraseSearch,
+      isAnywhereInText: isAnywhereInText ?? state.isAnywhereInText,
+      proximityDistance: proximityDistance ?? state.proximityDistance,
+    );
+    final distanceOnly = next.isExactMatch == state.isExactMatch &&
+        next.isPhraseSearch == state.isPhraseSearch &&
+        next.isAnywhereInText == state.isAnywhereInText;
+    if (distanceOnly && next.proximityDistance == state.proximityDistance) {
+      return;
+    }
+    state = next;
+    _refreshSearchIfNeeded(afterPause: distanceOnly);
+  }
+
   // ============================================================================
   // FTS GROUP EXPANSION
   // ============================================================================
@@ -556,16 +582,24 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
   /// Refresh search if query is active
   /// Used when filters change (scope, language, etc.)
-  void _refreshSearchIfNeeded() {
+  /// [afterPause] waits like typing does, so quick repeated changes run one
+  /// search.
+  void _refreshSearchIfNeeded({bool afterPause = false}) {
     if (state.rawQueryText.trim().isEmpty) return;
 
+    // Drop a search still waiting on the typing pause: this one replaces it.
+    _debounceTimer?.cancel();
     _searchRequestId++; // Invalidate any in-flight searches
     // Reset fullResults to loading to prevent stale data rendering
     state = state.copyWith(
       isLoading: true,
       fullResults: const AsyncValue.loading(),
     );
-    _performSearch();
+    if (afterPause) {
+      _debounceTimer = Timer(_debounceDelay, _performSearch);
+    } else {
+      _performSearch();
+    }
   }
 
   /// Clear search and reset state

@@ -1,9 +1,9 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/localization/l10n/app_localizations.dart';
-import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/dictionary/dictionary_filter_operations.dart';
+import '../common/pill_chip.dart';
+import '../common/pill_chip_row.dart';
 
 /// Horizontally scrollable dictionary filter chips.
 ///
@@ -13,13 +13,15 @@ import '../../../domain/entities/dictionary/dictionary_filter_operations.dart';
 /// [selectedDictionaryIds], following the same single-source-of-truth
 /// pattern as [ScopeFilterChips].
 ///
-/// Reusable across search results panel and dictionary bottom sheet.
 /// Uses callbacks so it is not coupled to any specific provider.
-class DictionaryFilterChips extends StatefulWidget {
+class DictionaryFilterChips extends StatelessWidget {
   final Set<String> selectedDictionaryIds;
   final ValueChanged<Set<String>> onToggleKeys;
   final VoidCallback onSelectAll;
   final VoidCallback onRefineTap;
+
+  /// Widgets before the chips, scrolling with them.
+  final List<Widget> leading;
 
   const DictionaryFilterChips({
     super.key,
@@ -27,214 +29,45 @@ class DictionaryFilterChips extends StatefulWidget {
     required this.onToggleKeys,
     required this.onSelectAll,
     required this.onRefineTap,
+    this.leading = const [],
   });
-
-  @override
-  State<DictionaryFilterChips> createState() => _DictionaryFilterChipsState();
-}
-
-class _DictionaryFilterChipsState extends State<DictionaryFilterChips> {
-  final _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final ids = widget.selectedDictionaryIds;
+    final ids = selectedDictionaryIds;
 
-    // Derive chip states from the single source of truth
-    final isAllSelected = DictionaryFilterOperations.isAllSelected(ids);
-    final isSinhalaSelected = DictionaryFilterOperations.containsAllKeys(
-      ids,
-      DictionaryFilterOperations.sinhalaIds,
-    );
-    final isEnglishSelected = DictionaryFilterOperations.containsAllKeys(
-      ids,
-      DictionaryFilterOperations.englishIds,
-    );
-    final hasCustomScope = DictionaryFilterOperations.hasCustomSelections(ids);
-
-    return SizedBox(
-      height: 48,
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(
-          dragDevices: {
-            PointerDeviceKind.touch,
-            PointerDeviceKind.mouse,
-            PointerDeviceKind.trackpad,
-            PointerDeviceKind.stylus,
-          },
-          scrollbars: false,
+    return PillChipRow(
+      children: [
+        ...leading,
+        PillChip(
+          label: l10n.dictFilterAll,
+          selected: DictionaryFilterOperations.isAllSelected(ids),
+          onPressed: onSelectAll,
         ),
-        child: ListView(
-          controller: _scrollController,
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
+        PillChip(
+          label: l10n.dictFilterSinhala,
+          selected: DictionaryFilterOperations.containsAllKeys(
+            ids,
+            DictionaryFilterOperations.sinhalaIds,
           ),
-          children: [
-            // "All" chip
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: _FilterChip(
-                label: l10n.dictFilterAll,
-                isSelected: isAllSelected,
-                theme: theme,
-                onTap: widget.onSelectAll,
-              ),
-            ),
-
-            // "Sinhala" chip
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: _FilterChip(
-                label: l10n.dictFilterSinhala,
-                isSelected: isSinhalaSelected,
-                theme: theme,
-                onTap: () => widget.onToggleKeys(
-                  DictionaryFilterOperations.sinhalaIds,
-                ),
-              ),
-            ),
-
-            // "English" chip
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: _FilterChip(
-                label: l10n.dictFilterEnglish,
-                isSelected: isEnglishSelected,
-                theme: theme,
-                onTap: () => widget.onToggleKeys(
-                  DictionaryFilterOperations.englishIds,
-                ),
-              ),
-            ),
-
-            // "Refine" chip - opens dictionary selection dialog
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: _RefineChip(
-                hasActiveFilters: hasCustomScope,
-                theme: theme,
-                onTap: widget.onRefineTap,
-              ),
-            ),
-          ],
+          onPressed: () => onToggleKeys(DictionaryFilterOperations.sinhalaIds),
         ),
-      ),
-    );
-  }
-}
-
-/// Pill-shaped filter chip matching scope_filter_chips.dart styling.
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final ThemeData theme;
-  final VoidCallback onTap;
-
-  const _FilterChip({
-    required this.label,
-    required this.isSelected,
-    required this.theme,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final typography = context.typography;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 56),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(100),
-          color: isSelected
-              ? theme.colorScheme.secondary
-              : theme.colorScheme.surfaceContainerLow,
-          border: Border.all(
-            color: isSelected
-                ? theme.colorScheme.secondary
-                : theme.colorScheme.outline,
-            width: 1,
+        PillChip(
+          label: l10n.dictFilterEnglish,
+          selected: DictionaryFilterOperations.containsAllKeys(
+            ids,
+            DictionaryFilterOperations.englishIds,
           ),
+          onPressed: () => onToggleKeys(DictionaryFilterOperations.englishIds),
         ),
-        child: Center(
-          child: Text(
-            label,
-            style: isSelected
-                ? typography.chipLabelSelected
-                : typography.chipLabel,
-          ),
+        // Opens the dictionary selection dialog
+        PillChip.refine(
+          label: l10n.refine,
+          selected: DictionaryFilterOperations.hasCustomSelections(ids),
+          onPressed: onRefineTap,
         ),
-      ),
-    );
-  }
-}
-
-/// Refine chip with tune icon - opens dictionary selection dialog.
-/// Shows an active indicator when custom dictionary selections are applied.
-class _RefineChip extends StatelessWidget {
-  final bool hasActiveFilters;
-  final ThemeData theme;
-  final VoidCallback onTap;
-
-  const _RefineChip({
-    required this.hasActiveFilters,
-    required this.theme,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final typography = context.typography;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 56),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(100),
-          color: hasActiveFilters
-              ? theme.colorScheme.primaryContainer
-              : theme.colorScheme.surfaceContainerLowest,
-          border: Border.all(
-            color: hasActiveFilters
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.tune,
-              size: 16,
-              color: hasActiveFilters
-                  ? theme.colorScheme.onPrimaryContainer
-                  : theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              AppLocalizations.of(context).refine,
-              style: hasActiveFilters
-                  ? typography.chipLabelSelected.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
-                    )
-                  : typography.chipLabel,
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }

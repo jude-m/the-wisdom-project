@@ -92,9 +92,11 @@ instead of rebuilding `_buildNodeMap`. Tracked there to avoid two sources of tru
 ### 5. Search panel & in-page search widgets watch the entire `searchStateProvider`
 
 **Where:** `SearchResultsPanel` (`lib/presentation/widgets/search/search_results_panel.dart`)
-and `ScopeFilterChips` (`scope_filter_chips.dart`) do `ref.watch(searchStateProvider)`.
-`GroupedFTSTile` already watches only its own expanded flag (`select`), but gains little:
-the panel rebuilds it anyway.
+does `ref.watch(searchStateProvider)`. `GroupedFTSTile` and the panel header (`_PanelHeader`)
+already watch only what they show (`select`), but gain little: the panel rebuilds them anyway.
+The header can't be `const` (it takes `onClose`), so on the Definitions tab its
+`DictionaryFilterChips` rebuild on every keystroke too (four buttons: cheap). `ScopeFilterChips`
+is `const` and selects its own fields, so it escapes.
 
 - **How it affects performance:** `SearchState` changes on every keystroke, and also when
   counts arrive, a group expands, or recent searches load on focus. Each change rebuilds
@@ -103,7 +105,7 @@ the panel rebuilds it anyway.
   The list is at most 50 rows and builds only the rows on screen: small today.
 - **How to prevent:** Turn `_buildTopResultsTabContent` and `_buildResultTypeTabContent`
   into small widgets that each `select` only what they render. That also replaces their
-  ~10 parameters copied out of `searchState`. Same for `ScopeFilterChips`.
+  ~10 parameters copied out of `searchState`. The header then stops rebuilding too.
 - **Gain:** Fewer rebuilds of the tiles and their highlight work.
 - **Effort:** Low–Medium
 - **Impact to existing flows:** None — same data, finer-grained subscriptions.
@@ -240,6 +242,17 @@ group inside a `SingleChildScrollView`. Reader `SingleColumnPane` and `StackedPa
   Visible as small frame stalls on fast scrolls.
 - **Fix:** Use a `ValueListenableBuilder<bool>` inside a thin AppBar-tint widget so only the
   colored container rebuilds.
+
+### B5. The search chip row's fade draws an offscreen layer every frame
+
+`lib/presentation/widgets/common/pill_chip_row.dart` (`ShaderMask`).
+
+- **Why it matters:** `ShaderMask` draws the row into an offscreen layer, then fades it. The
+  screen is redrawn on every frame anything moves, the cursor blink included, so the row pays
+  for that layer on each frame while the panel is open. Small: one 56px strip.
+- **Fix:** paint a gradient from transparent to the row colour over the row's end
+  (`PositionedDirectional` + `IgnorePointer`) instead. The row colour then has to be passed
+  in (`surfaceContainerHighest`, from `_PanelHeader`). Measure on a low-end phone first.
 
 ---
 

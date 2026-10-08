@@ -167,23 +167,6 @@ class AppLocalizationsSi extends AppLocalizations {
   }
 
   @override
-  String get wordProximity => 'වචන අතර දුර';
-
-  @override
-  String get phraseSearch => 'වාක්‍ය ඛණ්ඩ සෙවීම (පිළිවෙලට ඇති වචන)';
-
-  @override
-  String wordsApart(int count) {
-    return 'වචන $countක් පරතරයකින්';
-  }
-
-  @override
-  String get exactConsecutiveWords => 'හරියටම පිළිවෙලට ඇති වචන';
-
-  @override
-  String get apply => 'යොදන්න';
-
-  @override
   String get reset => 'යළි සකසන්න';
 
   @override
@@ -208,16 +191,79 @@ class AppLocalizationsSi extends AppLocalizations {
   String get scopeCommentaries => 'අට්ඨකථා';
 
   @override
-  String get scopeTreatises => 'වෙනත්';
-
-  @override
-  String get searchAsPhrase => 'සම්පුර්ණ වාක්‍යක් ලෙස';
-
-  @override
-  String get searchAsSeparateWords => 'වෙන්වූ වචන සමූහයක් ලෙස';
+  String get scopeOther => 'අන්‍ය';
 
   @override
   String get anywhereInText => 'එකම පෙළෙහි ඕනෑම තැනක';
+
+  @override
+  String get closePanel => 'ප්‍රතිඵල වසන්න';
+
+  @override
+  String get matchOptions => 'ගැළපීමේ විකල්ප';
+
+  @override
+  String get matchEachWord => 'එක් එක් වචනය ගැළපෙන ආකාරය';
+
+  @override
+  String get matchStartsWith => 'ඇරඹෙන වචන';
+
+  @override
+  String get matchStartsWithHint => 'වචනය සහ එයින් ඇරඹෙන දිගු වචන සොයයි';
+
+  @override
+  String get matchWholeWord => 'සම්පූර්ණ වචනය';
+
+  @override
+  String get matchWholeWordHint => 'එම වචනයම පමණක් සොයයි';
+
+  @override
+  String matchWholeWordExample(String words) {
+    return '$words පමණක්';
+  }
+
+  @override
+  String get matchHowWordsSit => 'වචන එකට පිහිටන ආකාරය';
+
+  @override
+  String get matchPhrase => 'වාක්‍යයක් ලෙස';
+
+  @override
+  String get matchPhraseHint => 'ලියූ පිළිවෙළටම, වචන එකට සොයයි';
+
+  @override
+  String get matchPhraseShort => 'වාක්‍යය';
+
+  @override
+  String get matchAnywhereHint => 'වචන ඕනෑම පිළිවෙළකින් සොයයි';
+
+  @override
+  String get matchAnywhereShort => 'ඕනෑම තැනක';
+
+  @override
+  String get matchNear => 'එකිනෙකට ළඟින්';
+
+  @override
+  String get matchNearHint => 'එකිනෙකට ළඟින් ඇති වචන සොයයි';
+
+  @override
+  String matchNearShort(int count) {
+    return 'ළඟින් $count';
+  }
+
+  @override
+  String matchNearWithin(int count) {
+    return 'වචන $countක් ඇතුළත';
+  }
+
+  @override
+  String get fewerWords => 'වචන අඩු කරන්න';
+
+  @override
+  String get moreWords => 'වචන වැඩි කරන්න';
+
+  @override
+  String get resetToDefault => 'පෙරනිමියට යළි සකසන්න';
 
   @override
   String get noDefinitionsFound => 'අර්ථ දැක්වීම් හමු නොවීය';

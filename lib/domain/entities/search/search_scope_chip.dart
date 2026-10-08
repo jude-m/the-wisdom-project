@@ -28,7 +28,7 @@ class SearchScopeChip {
 /// These chips provide shortcuts to common scope selections:
 /// - Individual pitakas (Sutta, Vinaya, Abhidhamma)
 /// - All commentaries combined
-/// - Treatises and other texts
+/// - Other books (`anya`, e.g. Visuddhimagga)
 ///
 /// Selecting a chip sets the search scope to the chip's nodeKeys.
 /// The "All" state is represented by an empty scope set.
@@ -40,5 +40,5 @@ const List<SearchScopeChip> searchScopeChips = [
     id: 'commentaries',
     nodeKeys: {'atta-vp', 'atta-sp', 'atta-ap'},
   ),
-  SearchScopeChip(id: 'treatises', nodeKeys: {'anya'}),
+  SearchScopeChip(id: 'other', nodeKeys: {'anya'}),
 ];
