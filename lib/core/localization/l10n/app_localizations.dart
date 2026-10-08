@@ -488,7 +488,7 @@ abstract class AppLocalizations {
   /// **'Starts with'**
   String get matchStartsWith;
 
-  /// Grey line under the Starts with option
+  /// Tooltip on the Starts with option
   ///
   /// In en, this message translates to:
   /// **'Finds the word and its longer forms'**
@@ -500,17 +500,11 @@ abstract class AppLocalizations {
   /// **'Whole word'**
   String get matchWholeWord;
 
-  /// Grey line under the Whole word option
+  /// Tooltip on the Whole word option
   ///
   /// In en, this message translates to:
   /// **'Finds only the exact word'**
   String get matchWholeWordHint;
-
-  /// Example under the Whole word option, built from the typed words
-  ///
-  /// In en, this message translates to:
-  /// **'Only {words}'**
-  String matchWholeWordExample(String words);
 
   /// Match menu section header, shown for two or more words
   ///
@@ -524,7 +518,7 @@ abstract class AppLocalizations {
   /// **'As a phrase'**
   String get matchPhrase;
 
-  /// Grey line under the As a phrase option
+  /// Tooltip on the As a phrase option
   ///
   /// In en, this message translates to:
   /// **'Finds the words together, as typed'**
@@ -536,7 +530,7 @@ abstract class AppLocalizations {
   /// **'Phrase'**
   String get matchPhraseShort;
 
-  /// Grey line under the Anywhere in the same text option
+  /// Tooltip on the Anywhere in the same text option
   ///
   /// In en, this message translates to:
   /// **'Finds the words in any order'**
@@ -554,7 +548,7 @@ abstract class AppLocalizations {
   /// **'Near each other'**
   String get matchNear;
 
-  /// Grey line under the Near each other option
+  /// Tooltip on the Near each other option
   ///
   /// In en, this message translates to:
   /// **'Finds the words close together'**

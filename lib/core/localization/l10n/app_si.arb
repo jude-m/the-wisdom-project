@@ -137,8 +137,6 @@
 
   "matchWholeWordHint": "එම වචනයම පමණක් සොයයි",
 
-  "matchWholeWordExample": "{words} පමණක්",
-
   "matchHowWordsSit": "වචන එකට පිහිටන ආකාරය",
 
   "matchPhrase": "වාක්‍යයක් ලෙස",

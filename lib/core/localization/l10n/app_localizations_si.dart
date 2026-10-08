@@ -218,11 +218,6 @@ class AppLocalizationsSi extends AppLocalizations {
   String get matchWholeWordHint => 'එම වචනයම පමණක් සොයයි';
 
   @override
-  String matchWholeWordExample(String words) {
-    return '$words පමණක්';
-  }
-
-  @override
   String get matchHowWordsSit => 'වචන එකට පිහිටන ආකාරය';
 
   @override

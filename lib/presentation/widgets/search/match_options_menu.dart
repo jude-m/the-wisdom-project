@@ -5,11 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/utils/text_utils.dart';
 import '../../providers/overlay_stack_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../providers/search_state.dart';
-import '../../providers/singlish_preview_provider.dart';
 import '../common/pill_chip.dart';
 
 /// How the words of a multi-word query sit together.
@@ -147,7 +145,7 @@ class _MatchOptionsButtonState extends ConsumerState<MatchOptionsButton> {
 class _MatchMenu extends ConsumerWidget {
   const _MatchMenu();
 
-  /// Width of each option's text; long lines wrap inside it.
+  /// Width of each option's title, so the menu keeps one width.
   static const double textWidth = 236;
 
   @override
@@ -159,20 +157,7 @@ class _MatchMenu extends ConsumerWidget {
           distance: s.proximityDistance,
           severalWords: _severalWords.hasMatch(s.effectiveQueryText),
         )));
-    final rawQuery =
-        ref.watch(searchStateProvider.select((s) => s.rawQueryText));
     final notifier = ref.read(searchStateProvider.notifier);
-
-    // The examples use the words as shown in the search box: the Singlish
-    // preview when there is one, which keeps ZWJ, so ්‍ර shows joined.
-    // Words the search drops whole, like "%&", are left out.
-    final shown = ref.watch(singlishPreviewProvider(rawQuery)) ?? rawQuery;
-    final words = shown
-        .replaceAll('\u200B', '')
-        .split(RegExp(r'\s+'))
-        .where((w) => sanitizeSearchQuery(w) != null)
-        .toList();
-    final hasWords = words.isNotEmpty;
 
     // Only the options on show count: with one word, the hidden "how words
     // sit" choice can't be seen to reset.
@@ -198,21 +183,14 @@ class _MatchMenu extends ConsumerWidget {
           groupValue: options.exact,
           onSelected: (exact) => notifier.setMatchOptions(isExactMatch: exact),
           title: l10n.matchStartsWith,
-          hint: l10n.matchStartsWithHint,
-          example: !hasWords
-              ? null
-              : words.length == 1
-                  ? '${words.first} · ${words.first}…'
-                  : words.map((w) => '$w…').join(' · '),
+          tooltip: l10n.matchStartsWithHint,
         ),
         _MatchOption<bool>(
           value: true,
           groupValue: options.exact,
           onSelected: (exact) => notifier.setMatchOptions(isExactMatch: exact),
           title: l10n.matchWholeWord,
-          hint: l10n.matchWholeWordHint,
-          example:
-              hasWords ? l10n.matchWholeWordExample(words.join(' · ')) : null,
+          tooltip: l10n.matchWholeWordHint,
         ),
         if (options.severalWords) ...[
           const Divider(height: 13),
@@ -225,8 +203,7 @@ class _MatchMenu extends ConsumerWidget {
               isAnywhereInText: false,
             ),
             title: l10n.matchPhrase,
-            hint: l10n.matchPhraseHint,
-            example: hasWords ? '“${words.join(' ')}”' : null,
+            tooltip: l10n.matchPhraseHint,
           ),
           _MatchOption<_Placement>(
             value: _Placement.anywhere,
@@ -236,16 +213,14 @@ class _MatchMenu extends ConsumerWidget {
               isAnywhereInText: true,
             ),
             title: l10n.anywhereInText,
-            hint: l10n.matchAnywhereHint,
-            example: hasWords ? words.reversed.join(' · · · · · · ') : null,
+            tooltip: l10n.matchAnywhereHint,
           ),
           _MatchOption<_Placement>(
             value: _Placement.near,
             groupValue: options.placement,
             onSelected: (_) => setNear(),
             title: l10n.matchNear,
-            hint: l10n.matchNearHint,
-            example: hasWords ? words.join(' · · ') : null,
+            tooltip: l10n.matchNearHint,
           ),
           // Changing the distance also picks "Near each other".
           _DistanceStepper(
@@ -293,16 +268,14 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-/// One radio row: title, a grey line saying what it finds, and an example
-/// built from the user's own words. Selecting it applies at once and keeps
-/// the menu open.
+/// One radio row: its title, with what it finds as a tooltip. Selecting it
+/// applies at once and keeps the menu open.
 class _MatchOption<T> extends StatelessWidget {
   final T value;
   final T groupValue;
   final ValueChanged<T> onSelected;
   final String title;
-  final String hint;
-  final String? example;
+  final String tooltip;
 
   const _MatchOption({
     super.key,
@@ -310,8 +283,7 @@ class _MatchOption<T> extends StatelessWidget {
     required this.groupValue,
     required this.onSelected,
     required this.title,
-    required this.hint,
-    required this.example,
+    required this.tooltip,
   });
 
   @override
@@ -319,42 +291,26 @@ class _MatchOption<T> extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final typography = context.typography;
     final selected = value == groupValue;
-    final example = this.example;
 
-    return RadioMenuButton<T>(
-      value: value,
-      groupValue: groupValue,
-      onChanged: (_) => onSelected(value),
-      closeOnActivate: false,
-      style: MenuItemButton.styleFrom(
-        backgroundColor: selected ? colors.surfaceContainerLow : null,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      ),
-      child: SizedBox(
-        width: _MatchMenu.textWidth,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: selected
-                  ? typography.listRowTitle
-                      .copyWith(fontWeight: FontWeight.w600)
-                  : typography.listRowTitle,
-            ),
-            Text(hint, style: typography.menuSectionLabel),
-            if (example != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: Text(
-                  example,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: typography.listRowTitle,
-                ),
-              ),
-          ],
+    return Tooltip(
+      message: tooltip,
+      child: RadioMenuButton<T>(
+        value: value,
+        groupValue: groupValue,
+        onChanged: (_) => onSelected(value),
+        closeOnActivate: false,
+        style: MenuItemButton.styleFrom(
+          backgroundColor: selected ? colors.surfaceContainerLow : null,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
+        child: SizedBox(
+          width: _MatchMenu.textWidth,
+          child: Text(
+            title,
+            style: selected
+                ? typography.listRowTitle.copyWith(fontWeight: FontWeight.w600)
+                : typography.listRowTitle,
+          ),
         ),
       ),
     );

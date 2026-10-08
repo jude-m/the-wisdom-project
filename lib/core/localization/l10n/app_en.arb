@@ -341,7 +341,7 @@
 
   "matchStartsWithHint": "Finds the word and its longer forms",
   "@matchStartsWithHint": {
-    "description": "Grey line under the Starts with option"
+    "description": "Tooltip on the Starts with option"
   },
 
   "matchWholeWord": "Whole word",
@@ -351,17 +351,7 @@
 
   "matchWholeWordHint": "Finds only the exact word",
   "@matchWholeWordHint": {
-    "description": "Grey line under the Whole word option"
-  },
-
-  "matchWholeWordExample": "Only {words}",
-  "@matchWholeWordExample": {
-    "description": "Example under the Whole word option, built from the typed words",
-    "placeholders": {
-      "words": {
-        "type": "String"
-      }
-    }
+    "description": "Tooltip on the Whole word option"
   },
 
   "matchHowWordsSit": "How words sit together",
@@ -376,7 +366,7 @@
 
   "matchPhraseHint": "Finds the words together, as typed",
   "@matchPhraseHint": {
-    "description": "Grey line under the As a phrase option"
+    "description": "Tooltip on the As a phrase option"
   },
 
   "matchPhraseShort": "Phrase",
@@ -386,7 +376,7 @@
 
   "matchAnywhereHint": "Finds the words in any order",
   "@matchAnywhereHint": {
-    "description": "Grey line under the Anywhere in the same text option"
+    "description": "Tooltip on the Anywhere in the same text option"
   },
 
   "matchAnywhereShort": "Anywhere",
@@ -401,7 +391,7 @@
 
   "matchNearHint": "Finds the words close together",
   "@matchNearHint": {
-    "description": "Grey line under the Near each other option"
+    "description": "Tooltip on the Near each other option"
   },
 
   "matchNearShort": "Near {count}",

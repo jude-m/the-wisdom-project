@@ -105,39 +105,21 @@ void main() {
       expect(find.text('Within 10 words'), findsOneWidget);
     });
 
-    testWidgets('the examples use the typed words', (tester) async {
+    testWidgets('each option says what it finds in a tooltip, not a line',
+        (tester) async {
       await _pumpButton(tester, _query(_twoWords));
       await _openMenu(tester);
 
-      expect(find.text('එවං… · මෙ…'), findsOneWidget); // Starts with
-      expect(find.text('Only එවං · මෙ'), findsOneWidget); // Whole word
-      expect(find.text('“එවං මෙ”'), findsOneWidget); // As a phrase
-      expect(find.text('මෙ · · · · · · එවං'), findsOneWidget); // Anywhere
-      expect(find.text('එවං · · මෙ'), findsOneWidget); // Near each other
-    });
-
-    testWidgets('a Singlish query shows its examples in Sinhala',
-        (tester) async {
-      await _pumpButton(
-        tester,
-        const SearchState(
-            rawQueryText: 'evan me', effectiveQueryText: 'එවන් මෙ'),
-      );
-      await _openMenu(tester);
-
-      expect(find.text('එවන්… · මෙ…'), findsOneWidget);
-      expect(find.text('“එවන් මෙ”'), findsOneWidget);
-    });
-
-    testWidgets('a word the search drops is left out of the examples',
-        (tester) async {
-      await _pumpButton(
-        tester,
-        const SearchState(rawQueryText: 'එවං %&', effectiveQueryText: 'එවං'),
-      );
-      await _openMenu(tester);
-
-      expect(find.text('Only එවං'), findsOneWidget);
+      for (final hint in const [
+        'Finds the word and its longer forms',
+        'Finds only the exact word',
+        'Finds the words together, as typed',
+        'Finds the words in any order',
+        'Finds the words close together',
+      ]) {
+        expect(find.byTooltip(hint), findsOneWidget, reason: hint);
+        expect(find.text(hint), findsNothing, reason: hint);
+      }
     });
 
     testWidgets('picking an option applies it and keeps the menu open',

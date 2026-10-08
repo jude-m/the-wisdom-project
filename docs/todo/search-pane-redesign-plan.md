@@ -68,10 +68,10 @@ What does NOT change:
 
 **Done when:**
 
-- [ ] "dukkha" in the find bar shows ඩුක්ඛ in a tag, upright.
-- [ ] "tatra" shows ටට්‍ර, joined, with no visible hal.
-- [ ] "සති " (with a trailing space) shows no preview.
-- [ ] A long query does not overflow the bar at 320px width.
+- [x] "dukkha" in the find bar shows ඩුක්ඛ in a tag, upright.
+- [x] "tatra" shows ටට්‍ර, joined, with no visible hal.
+- [x] "සති " (with a trailing space) shows no preview.
+- [x] A long query does not overflow the bar at 320px width.
 
 ## Task 2 — Preview inside the main search box (canvas 1)
 
@@ -88,9 +88,9 @@ What does NOT change:
 
 **Done when:**
 
-- [ ] "satipatthana" shows සටිපට්තන inside the box.
-- [ ] Sinhala input and "SN 15.3" show no preview.
-- [ ] A long Singlish query keeps the caret and typed text visible; the preview ends in "…".
+- [x] "satipatthana" shows සටිපට්තන inside the box.
+- [x] Sinhala input and "SN 15.3" show no preview.
+- [ ] A long Singlish query keeps the caret and typed text visible; the preview ends in "…". Fine on desktop; at phone width the box overflows the app bar (Task 9).
 
 ## Task 3 — Recent searches show Sinhala (canvas 8)
 
@@ -130,9 +130,9 @@ What does NOT change:
 
 **Done when:**
 
-- [ ] The → arrow closes the panel; Esc, tap outside and phone back still work.
-- [ ] Tab reaches every chip; Enter or Space toggles it.
-- [ ] Scope and dictionary rows use the same chip.
+- [ ] The → arrow closes the panel; Esc, tap outside and phone back still work. All but phone back checked; check that one on Android with Task 9.
+- [x] Tab reaches every chip; Enter or Space toggles it.
+- [x] Scope and dictionary rows use the same chip.
 
 ## Task 5 — Tabs: sized to text (canvas 3)
 
@@ -148,8 +148,8 @@ What does NOT change:
 
 **Done when:**
 
-- [ ] No label is cut at 300px, in English and Sinhala.
-- [ ] Tabs do not flicker or shift while typing.
+- [x] No label is cut at 300px, in English and Sinhala.
+- [x] Tabs do not flicker or shift while typing.
 
 ## Task 6 — "See all" in Top results headers (canvas 5)
 
@@ -165,7 +165,7 @@ What does NOT change:
 
 **Done when:**
 
-- [ ] Each visible section header that shows only part of its results has a working "See all".
+- [x] Each visible section header that shows only part of its results has a working "See all".
 
 ## Task 7 — Edition badge only when it helps (canvas 6)
 
@@ -182,7 +182,7 @@ What does NOT change:
 
 **Done when:**
 
-- [ ] BJT-only results show no badge; mixed editions still do.
+- [ ] BJT-only results show no badge; mixed editions still do. BJT-only checked; mixed can't be checked until a second edition exists.
 
 ## Task 8 — "Starts with ▾" match menu (canvas 2, detail artboard)
 
@@ -198,29 +198,29 @@ What does NOT change:
 4. Tap opens a menu anchored under the button (`MenuAnchor`). Changes apply at once. No Apply button.
 5. Section "Match each word": Starts with / Whole word. Sets `isExactMatch`.
 6. Section "How words sit together", only for two or more words, in this order: As a phrase / Anywhere in the same text / Near each other. Near each other has a − N + stepper (1–100, default 10). Every change goes through `setMatchOptions`, one search per change.
-7. Under each option: one grey line, then one plain-text example built from the user's own words. No highlight. See the table below.
+7. Each option's one line from the table below is its tooltip. No line or example under the option: an example built from the user's own words was tried and dropped on 2026-10-08 as too much.
 8. Add "Reset to default" at the bottom.
 9. Remove both toggle buttons from the search box. Delete `ProximityDialog` if nothing else uses it.
 
-| Option | Line | Example (query "කායෙ කායානුපස්සී") |
-| --- | --- | --- |
-| Starts with | Finds the word and its longer forms | කායෙ… · කායානුපස්සී… |
-| Whole word | Finds only the exact word | Only කායෙ · කායානුපස්සී |
-| As a phrase | Finds the words together, as typed | "කායෙ කායානුපස්සී" (the only example with quotes) |
-| Anywhere in the same text | Finds the words in any order | කායානුපස්සී · · · · · · කායෙ |
-| Near each other | Finds the words close together | කායෙ · · කායානුපස්සී |
+| Option | Tooltip |
+| --- | --- |
+| Starts with | Finds the word and its longer forms |
+| Whole word | Finds only the exact word |
+| As a phrase | Finds the words together, as typed |
+| Anywhere in the same text | Finds the words in any order |
+| Near each other | Finds the words close together |
 
 **Done when:**
 
-- [ ] The menu works with mouse, touch and keyboard.
-- [ ] Results refresh after each change.
-- [ ] Defaults unchanged: starts with, phrase, distance 10.
+- [x] The menu works with mouse, touch and keyboard.
+- [x] Results refresh after each change.
+- [x] Defaults unchanged: starts with, phrase, distance 10.
 
 ## Task 9 — Phone: search icon that expands (canvas 7)
 
 **Goal:** on phones, search is an icon. Tap it, and search fills the whole app bar.
 
-**First, confirm the problem.** Run on a phone about 390px wide, panel closed. The 360px box plus menu and settings buttons (about 464px) should overflow. If it does not, skip this task.
+**The problem is confirmed** (2026-10-08, macOS window at phone width): the menu button, the 360px box and the settings button need about 464px, so the box runs off the app bar's right edge and Flutter's overflow stripe covers the clear ✕. It happens with or without a Singlish preview: at about 350px the box alone (fixed `width: 360` in `search_bar.dart`) is wider than the window. Not patched in the meantime; this task fixes it.
 
 **Files:** `lib/presentation/screens/reader_screen.dart` (AppBar), `search/search_bar.dart`, `search_results_panel.dart`.
 
@@ -275,7 +275,7 @@ Quick, independent items. Each one ships with the chunk that edits the same file
 1. One `const` table of abbreviations in `wisdom_shared`, next to the resolver: abbreviation, title, and whether it hides the preview when it stands alone. It replaces `SuttaCentralRefResolver.knownBooks` and `_displayBook`. Source: [Access to Insight](https://accesstoinsight.org/abbrev.html).
 2. Keep every Access to Insight entry, with a comment on the ones the resolver cannot open yet: Vinaya (Cv, Mv), Khp, Miln, Nd, Nm, Nc, the commentaries (DhpA, KhpA, ThagA, ThigA) and the single letters. Later they can point at BJT sections, and the help docs list them all.
 3. Sutta Nipāta is "Snp". In the table, "Sn" is noted as meaning SN here, because the resolver ignores case.
-4. Replace the `parseRef` check in `singlishPreviewText` with this rule. The find bar, the main box and the recent list all read it from there.
+4. Replace the `parseRef` check in `singlishPreviewText` with this rule. The find bar and the main box read it from there, and recent searches save its result (Task 3). So the rule also changes what is saved: once "Dhp" alone shows no preview, it is saved as typed, not as Sinhala.
 
 **Optional, static site:** "SN 15.3" in the site's search dialog could open the BJT page. Cost: the concordance as extra rows in `search-index.json` (all of `sc-to-bjt.json` is 1,144 bytes on 2026-10-06; it grows as the concordance is authored), plus a small reference parser in `site.js`. The parser holds only Latin letters and digits, so the "no Sinhala, no URLs in site.js" rule still holds. Do it only while it stays this small.
 
@@ -289,7 +289,7 @@ Quick, independent items. Each one ships with the chunk that edits the same file
 
 **Done when:**
 
-- [ ] "SN", "SN 1", "sn15.3", "AN 3" and "Dhp" show no preview in the find bar, the main box or the recent list.
+- [ ] "SN", "SN 1", "sn15.3", "AN 3" and "Dhp" show no preview in the find bar or the main box, and are saved to recent searches as typed.
 - [ ] "AN", "KN", "an", "an 3", "a", "s" and "m" still show their previews.
 
 ## Handover notes
@@ -301,11 +301,11 @@ Done: Tasks 1, 2 and 3, plus the clear ✕ tooltip in the search box (Task 10).
 - `singlishPreviewText(raw)` in `search_query_utils.dart` returns the Sinhala to show, or null when there is none. It keeps the joiners: tatra → ටට්‍ර renders joined in the bundled font (HarfBuzz check, 2026-10-06). The Pali word තත්‍ර is typed thathra. Widgets read it through `singlishPreviewProvider(raw)` (`providers/singlish_preview_provider.dart`), which runs the conversion once per query. Calling it in `build` re-ran the converter on every rebuild: each find-bar match step, and every recent row each time the search bar rebuilt.
 - `SinglishPreview` applies the 45% width cap itself; callers pass `fieldWidth`. No arrow: the tag alone marks the preview.
 - The main box puts the preview at the right end of the field, before the clear ✕, not right after the typed text. Task 8 removed the two toggles that also sat there.
-- The find bar, the main box and the recent list all hide the preview for a reference like "SN 15.3": `singlishPreviewText` checks `parseRef`. Task 11 refines that rule.
+- The find bar and the main box hide the preview for a reference like "SN 15.3": `singlishPreviewText` checks `parseRef`. Recent searches save such a reference as typed. Task 11 refines that rule.
 - The `isSinglishConverted` getters on both search states and `querySinglishConverted` were removed: nothing used them once the preview had its own rule.
 - New l10n key: `removeRecentSearch`.
 - Tests, all passing on macOS on 2026-10-06: new `test/core/utils/search_query_utils_test.dart` (the preview rule); `integration_test/in_page_search_test.dart` test 2 checks the find-bar preview; `integration_test/search_flow_integration_test.dart` 10.1 checks the main-box preview and that a Singlish recent entry shows only the Sinhala.
-- Run on macOS on 2026-10-06. Two fixes found, listed below. The "…" fix was checked in the app the same day; the tooltip fix is not confirmed yet.
+- Run on macOS on 2026-10-06. Two fixes found, listed below. The "…" fix was checked in the app the same day; the tooltip fix on 2026-10-08.
 
 **Fixes after the first run (chunk A), both done:**
 
@@ -326,7 +326,7 @@ Done: Tasks 5, 6 and 7, plus the footer text and the "View N more" button (Task 
 - "View N more" is a `TextButton` with a 40px tap area, in the primary colour as on the canvas (it was grey).
 - New l10n keys: `seeAll`, `viewingResults`. The English footer text is unchanged. Stray U+200B removed from four Sinhala strings: `viewMore`, `themeLight`, `expand` and `updateBannerRefreshAction`. The ZWJ in ප්‍රතිඵල stays.
 - Tests, all passing on 2026-10-07: `search_results_panel_test.dart` adds "See all" (hidden before counts load and when every row shows; tapping opens the tab and moves the tab bar to it) and "View 2 more" (shows the hidden matches and "Show Less"); `search_state_notifier_test.dart` adds "a failed count clears the old counts". The tab count tests pass again. No edition badge test: every result is BJT today.
-- Built and launched on macOS on 2026-10-06; the UI was not checked by eye yet. It is checked together with chunk C (list there). Also check that tabs don't shift when you switch: the active tab is bold, so it is wider. If they jump, use one weight and mark the active tab by colour and underline only.
+- Checked by eye on 2026-10-08, with chunk C: tabs don't shift when you switch, although the active tab is bold.
 
 ### Chunk C: done (ec85971)
 
@@ -343,7 +343,7 @@ Done: Tasks 4 and 8, plus the Treatises naming (Task 10).
 - Esc: the menu registers on `overlayStackProvider` while open, and its `dispose` removes the entry too, because a menu closed by disposal never calls `onClose`. It does so after the frame: Riverpod forbids changing a provider while widgets are torn down.
 - Deleted: `ProximityDialog`, and the l10n keys only it or the toggles used: `wordProximity`, `wordsApart`, `apply`, `searchAsPhrase`, `searchAsSeparateWords`. `anywhereInText` is reused for the menu option. `CircularToggleButton` stays (the dictionary sheet uses it). Also `toggleExactMatch`, `setPhraseSearch`, `setAnywhereInText` and `setProximityDistance` on the notifier; their tests moved to `setMatchOptions`.
 - Not renamed: `TipitakaNodeKeys.treatises` and `isTreatise` (code names, never shown).
-- New l10n keys: `closePanel`, `matchOptions`, `matchEachWord`, `matchStartsWith`, `matchStartsWithHint`, `matchWholeWord`, `matchWholeWordHint`, `matchWholeWordExample`, `matchHowWordsSit`, `matchPhrase`, `matchPhraseHint`, `matchPhraseShort`, `matchAnywhereHint`, `matchAnywhereShort`, `matchNear`, `matchNearHint`, `matchNearShort`, `matchNearWithin`, `fewerWords`, `moreWords`, `resetToDefault`; `scopeTreatises` became `scopeOther`. The Sinhala for the menu is a first draft: review it.
+- New l10n keys: `closePanel`, `matchOptions`, `matchEachWord`, `matchStartsWith`, `matchStartsWithHint`, `matchWholeWord`, `matchWholeWordHint`, `matchHowWordsSit`, `matchPhrase`, `matchPhraseHint`, `matchPhraseShort`, `matchAnywhereHint`, `matchAnywhereShort`, `matchNear`, `matchNearHint`, `matchNearShort`, `matchNearWithin`, `fewerWords`, `moreWords`, `resetToDefault`; `scopeTreatises` became `scopeOther`. The Sinhala for the menu is a first draft: review it (user, later). Phones show no tooltips, so each title must make sense alone; ඇරඹෙන වචන ("Starts with") is the least clear.
 
 Review fixes (2026-10-07):
 
@@ -361,7 +361,6 @@ Review fixes (2026-10-08):
 - Closing the panel within 300 ms of typing or − / + left the spinner up for good: `dismissResultsPanel` cancelled the waiting search, and reopening doesn't search. It no longer cancels.
 - A tab tap within 300 ms of typing ran the search twice. `selectResultType` now cancels the wait.
 - " dhamma" or "%& x" showed the phrase options, but search sees one word. "Two or more words" now reads `effectiveQueryText`.
-- The menu examples leave out words the search drops whole ("එවං %&" showed `%&…`). Symbols stuck to a word still show; a full clean would need a cleaner that keeps ZWJ.
 - "Reset to default" counts only the options on show. It lit up for one word when the hidden "how words sit" choice wasn't the default.
 - Deleted `onBlur` from the notifier: nothing called it, and it cancelled the waiting search (the stuck spinner again, had anyone wired it to focus loss).
 
@@ -369,14 +368,14 @@ Tests, all passing on 2026-10-08 (unit suite, and on macOS `search_flow_integrat
 
 - Fixed: the panel test taps → (the 800px test screen is desktop), the scope chips test expects "Other", and `search_test_helper.dart` drives the menu (`toggleExactMatch`, `matchWordsAnywhere`, `matchWordsNear(n)` with − / +).
 - Test 3.4 expects 17, not 14. The old slider was tapped by pixel and landed near 13, not 20 (checked against `bjt.db`); − / + sets 20 exactly.
-- New: `match_options_menu_test.dart` (labels, options per word count, examples incl. Singlish, Esc stack, Reset, stepper limits), the `setMatchOptions` group in `search_state_notifier_test.dart` (incl. the 300 ms wait), the two notifier fixes above, and `overlay_stack_provider_test.dart` (removing an id that isn't there). One shared `test/helpers/fake_search_state_notifier.dart` replaces five copies.
+- New: `match_options_menu_test.dart` (labels, options per word count, hint tooltips, Esc stack, Reset, stepper limits), the `setMatchOptions` group in `search_state_notifier_test.dart` (incl. the 300 ms wait), the two notifier fixes above, and `overlay_stack_provider_test.dart` (removing an id that isn't there). One shared `test/helpers/fake_search_state_notifier.dart` replaces five copies.
 
-To check by eye (with chunk B): desktop and phone width, English and Sinhala, light and dark.
+Checked by eye on 2026-10-08 (with chunk B), desktop and phone width, English and Sinhala, light and dark. All fine but two:
 
-- The chip row: arrow, "Starts with ▾", divider, chips, Refine last; the fade; Tab reaches every chip; Enter/Space toggles.
-- The menu with one word, then two: labels, examples, the stepper, Reset. Esc with the menu open closes only the menu. Also with focus left in the search box.
-- The Singlish preview in the main box at phone width, now that the toggles are gone.
-- Dark-theme items found on the way are in `docs/todo/dark-theme.md`.
+- The main box at phone width overflows the app bar. That is Task 9's problem.
+- The menu showed too much. Each option's grey line became its tooltip, and the examples were removed (`matchWholeWordExample` deleted). That also removed the one known flaw: symbols stuck to a word showed in the examples. The new menu was checked by eye the same day.
+
+Dark-theme items found on the way are in `docs/todo/dark-theme.md`.
 
 Next: Chunk D.
 
@@ -386,16 +385,5 @@ Found while working on the chunks. Also see the recent-search change in Task 3.
 
 - [x] **`in_page_search_test` 3b failure: did not come back.** It passed alone, in its own file, and in `all_tests.dart` (78/78) on macOS. Nothing changed. If it fails again, keep the failure output.
 - [x] **"As a phrase" is now an ordered phrase.** `buildFtsQuery` sends `w1* + w2*` (FTS5's phrase with prefix words), not `NEAR(w1* w2*, 1)`. For කර්ම ඵල that is 140 texts, down from 176. Test counts did not change: 3.1 is still 100+, 4.1 still 7. The highlighter already matched words in order.
-- [x] **Recent searches drop Helakuru's invisible space.** `addRecentSearch` removes U+200B before saving and comparing; the joiner U+200D stays. Old entries are not cleaned: clear the list by hand.
+- [x] **Recent searches drop Helakuru's invisible space.** `addRecentSearch` removes U+200B before saving and comparing; the joiner U+200D stays. Checked by hand with Helakuru on 2026-10-08: typed and pasted අරුණව now give one entry.
 - [x] **Recent searches keep letter case.** Adding and removing compare the text exactly, not lowercased. In Singlish "kana" (කන) and "kaNa" (කණ) are different words; "kaNa" used to drop "kana" from the list.
-
-To check the space fix by hand:
-
-1. Type අරුණව with Helakuru and open a result.
-2. Copy අරුණව from the reader text, paste it into the search box, and open a result.
-3. Empty the search box. Before the fix, the list shows අරුණව twice. After it, once.
-4. Quit the app, then list what was saved. No `\u200b` should appear:
-
-```bash
-python3 -c "import plistlib,json,os; p=os.path.expanduser('~/Library/Containers/lk.tipitaka.theWisdomProject/Data/Library/Preferences/lk.tipitaka.theWisdomProject.plist'); [print(repr(e['queryText'])) for e in json.loads(plistlib.load(open(p,'rb'))['flutter.recent_searches'])]"
-```
