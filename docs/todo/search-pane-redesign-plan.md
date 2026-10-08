@@ -28,7 +28,7 @@ Tasks:
 | --- | --- | --- | --- | --- |
 | 1 | Shared Singlish preview; fix "converted" check; use in find bar | 9 | S | — |
 | 2 | Singlish preview inside the main search box | 1 | S | 1 |
-| 3 | Recent searches show Sinhala first | 8 | S | 1 |
+| 3 | Recent searches show Sinhala | 8 | S | 1 |
 | 4 | Filter row: close-panel icon, one shared chip | 10, 4 | M | — |
 | 5 | Tabs: sized to text | 3 | S | — |
 | 6 | "See all" in Top results section headers | 5 | S | 5 |
@@ -92,16 +92,16 @@ What does NOT change:
 - [ ] Sinhala input and "SN 15.3" show no preview.
 - [ ] A long Singlish query keeps the caret and typed text visible; the preview ends in "…".
 
-## Task 3 — Recent searches show Sinhala first (canvas 8)
+## Task 3 — Recent searches show Sinhala (canvas 8)
 
-**Goal:** the recent list shows සටිපට්තන on top and "satipatthana" small underneath.
+**Goal:** the recent list shows සටිපට්තන, not "satipatthana".
 
 **Files:** `lib/presentation/widgets/search/recent_search_overlay.dart`.
 
 **Steps:**
 
 1. For each row, read `singlishPreviewProvider(queryText)`.
-2. If it returns text: Sinhala as the title, typed text as a small subtitle.
+2. If it returns text: show only the Sinhala. (A small subtitle with the typed text was tried and dropped on 2026-10-08: it looked odd.)
 3. Otherwise (Sinhala, or a reference like "SN 15.3"), show the text as typed, one line.
 4. Storage does not change. Keep saving the raw typed text.
 5. Make the ✕ a real `IconButton` with a tooltip and a 40px+ tap area.
@@ -109,7 +109,7 @@ What does NOT change:
 **Done when:**
 
 - [ ] Existing saved searches still load.
-- [ ] Singlish entries show two lines. Sinhala and reference entries show one.
+- [ ] Singlish entries show the Sinhala only. Sinhala and reference entries show the text as typed.
 - [ ] The ✕ has a tooltip and is reachable by keyboard.
 
 ## Task 4 — Filter row: close-panel icon and one shared chip (canvas 10, 4)
@@ -304,12 +304,12 @@ Done: Tasks 1, 2 and 3, plus the clear ✕ tooltip in the search box (Task 10).
 - The find bar, the main box and the recent list all hide the preview for a reference like "SN 15.3": `singlishPreviewText` checks `parseRef`. Task 11 refines that rule.
 - The `isSinglishConverted` getters on both search states and `querySinglishConverted` were removed: nothing used them once the preview had its own rule.
 - New l10n key: `removeRecentSearch`.
-- Tests, all passing on macOS on 2026-10-06: new `test/core/utils/search_query_utils_test.dart` (the preview rule); `integration_test/in_page_search_test.dart` test 2 checks the find-bar preview; `integration_test/search_flow_integration_test.dart` 10.1 checks the main-box preview and that a Singlish recent entry shows the Sinhala first.
+- Tests, all passing on macOS on 2026-10-06: new `test/core/utils/search_query_utils_test.dart` (the preview rule); `integration_test/in_page_search_test.dart` test 2 checks the find-bar preview; `integration_test/search_flow_integration_test.dart` 10.1 checks the main-box preview and that a Singlish recent entry shows only the Sinhala.
 - Run on macOS on 2026-10-06. Two fixes found, listed below. The "…" fix was checked in the app the same day; the tooltip fix is not confirmed yet.
 
 **Fixes after the first run (chunk A), both done:**
 
-- [x] Recent searches: a long entry ends in "…". The title (Sinhala) and the subtitle (typed text) have `maxLines: 1` and `overflow: TextOverflow.ellipsis` (`recent_search_overlay.dart`).
+- [x] Recent searches: a long entry ends in "…". The title has `maxLines: 1` and `overflow: TextOverflow.ellipsis` (`recent_search_overlay.dart`).
 - [x] Crash when the ✕ tooltip in recent searches shows: "The paint transform cannot be reliably computed because of RenderFollowerLayer(s)". `SearchBar` now places the dropdown with `OverlayPortal.overlayChildLayoutBuilder`, not a `CompositedTransformFollower`. A Flutter upgrade would not have fixed it: Flutter's docs say a follower between an `OverlayPortal` and its overlay is not supported. To check in the app: hover the ✕ in recent searches.
 
 ### Chunk B: done (64ff654, 4a98260)
@@ -380,14 +380,16 @@ To check by eye (with chunk B): desktop and phone width, English and Sinhala, li
 
 Next: Chunk D.
 
-## Pending (not tied to a chunk)
+## Done outside the chunks (2026-10-08)
 
-- [ ] **`in_page_search_test` 3b fails** (find-bar scrolling) on macOS. Seen 2026-10-08; it fails the same way on ec85971 without the chunk C test fixes. Older commits not checked. Chunk C did not touch the find bar.
-- [ ] **"As a phrase" is not an ordered phrase.** It builds `NEAR(w1* w2*, 1)`: any order, one word between allowed. The menu says "Finds the words together, as typed". For කර්ම ඵල that is 176 texts; 140 have the words side by side in order (review, 2026-10-08). The review suggests FTS5's `w1* + w2*`. Lives in `wisdom_shared` and changes counts and golden snippets: its own task.
+Found while working on the chunks. Also see the recent-search change in Task 3.
 
-- [ ] **Recent searches save Helakuru's invisible space.** Helakuru puts a zero-width space (U+200B) before the syllable being typed, so අරුණව can be saved as අරුණ + U+200B + ව. Search still works, because the query is cleaned before searching. But the same word can show twice in the recent list. Found 2026-10-06 in the saved list. Fix in `addRecentSearch` (`recent_searches_repository_impl.dart`): remove U+200B before saving and comparing. Remove only U+200B: the joiner U+200D must stay, or ්‍ර loses its join. No migration for old entries (the app is not released); clear the list by hand.
+- [x] **`in_page_search_test` 3b failure: did not come back.** It passed alone, in its own file, and in `all_tests.dart` (78/78) on macOS. Nothing changed. If it fails again, keep the failure output.
+- [x] **"As a phrase" is now an ordered phrase.** `buildFtsQuery` sends `w1* + w2*` (FTS5's phrase with prefix words), not `NEAR(w1* w2*, 1)`. For කර්ම ඵල that is 140 texts, down from 176. Test counts did not change: 3.1 is still 100+, 4.1 still 7. The highlighter already matched words in order.
+- [x] **Recent searches drop Helakuru's invisible space.** `addRecentSearch` removes U+200B before saving and comparing; the joiner U+200D stays. Old entries are not cleaned: clear the list by hand.
+- [x] **Recent searches keep letter case.** Adding and removing compare the text exactly, not lowercased. In Singlish "kana" (කන) and "kaNa" (කණ) are different words; "kaNa" used to drop "kana" from the list.
 
-How to test it:
+To check the space fix by hand:
 
 1. Type අරුණව with Helakuru and open a result.
 2. Copy අරුණව from the reader text, paste it into the search box, and open a result.

@@ -84,18 +84,27 @@ void main() {
         expect(result[0].queryText, equals('dhamma'));
       });
 
-      test('should move duplicate to top (case-insensitive)', () async {
+      test('should move duplicate to top', () async {
         await repository.addRecentSearch('dhamma');
         await repository.addRecentSearch('buddha');
         await repository.addRecentSearch('sangha');
 
-        await repository.addRecentSearch('DHAMMA');
+        await repository.addRecentSearch('dhamma');
         final result = await repository.getRecentSearches();
 
         expect(result.length, equals(3));
-        expect(result[0].queryText, equals('DHAMMA'));
+        expect(result[0].queryText, equals('dhamma'));
         expect(result[1].queryText, equals('sangha'));
         expect(result[2].queryText, equals('buddha'));
+      });
+
+      // Singlish: "kana" is කන, "kaNa" is කණ.
+      test('should keep searches that differ only in case', () async {
+        await repository.addRecentSearch('kana');
+        await repository.addRecentSearch('kaNa');
+        final result = await repository.getRecentSearches();
+
+        expect(result.map((s) => s.queryText), equals(['kaNa', 'kana']));
       });
 
       test('should trim list to max items (10)', () async {
@@ -137,13 +146,14 @@ void main() {
         expect(result.map((s) => s.queryText), isNot(contains('buddha')));
       });
 
-      test('should be case-insensitive when removing', () async {
-        await repository.addRecentSearch('Dhamma');
+      test('should remove only the exact case', () async {
+        await repository.addRecentSearch('kana');
+        await repository.addRecentSearch('kaNa');
 
-        await repository.removeRecentSearch('dhamma');
+        await repository.removeRecentSearch('kana');
         final result = await repository.getRecentSearches();
 
-        expect(result, isEmpty);
+        expect(result.map((s) => s.queryText), equals(['kaNa']));
       });
 
       test('should handle removing non-existent search gracefully', () async {

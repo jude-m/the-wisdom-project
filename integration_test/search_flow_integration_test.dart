@@ -459,8 +459,7 @@ void main() {
 
         // Scoped to the overlay: an unscoped finder also matches the query
         // still sitting in the search field, so it passes even when no recent
-        // search was ever saved. The row shows the Sinhala as its title and
-        // the typed text as its subtitle.
+        // search was ever saved. The row shows only the Sinhala.
         final row = tester.widget<ListTile>(
           find.descendant(
             of: find.byType(RecentSearchOverlay),
@@ -468,7 +467,7 @@ void main() {
           ),
         );
         expect((row.title! as Text).data, 'ආනන්ද');
-        expect((row.subtitle! as Text).data, 'aanandha');
+        expect(row.subtitle, isNull);
       },
     );
   });

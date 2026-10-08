@@ -88,8 +88,8 @@ class RecentSearchOverlay extends ConsumerWidget {
         _sectionHeader(context, ref, l10n.recentSearches.toUpperCase()),
         ...recentSearches.map((search) {
           final queryText = search.queryText;
-          // Singlish rows show the Sinhala first, the typed text underneath.
-          // Sinhala and references ("SN 15.3") stay as typed.
+          // Singlish rows show only the Sinhala. Sinhala and references
+          // ("SN 15.3") stay as typed.
           final sinhala = ref.watch(singlishPreviewProvider(queryText));
 
           return ListTile(
@@ -105,14 +105,6 @@ class RecentSearchOverlay extends ConsumerWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            subtitle: sinhala == null
-                ? null
-                : Text(
-                    queryText,
-                    style: context.typography.resultSubtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
             trailing: IconButton(
               icon: const Icon(Icons.close, size: 18),
               color: theme.colorScheme.onSurfaceVariant,

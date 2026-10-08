@@ -62,11 +62,11 @@ void main() {
       );
     });
 
-    test('phrase + prefix → NEAR(term1* term2*, 1)', () {
-      // FTS5 forbids wildcards inside phrase quotes; NEAR/1 approximates it.
+    test('phrase + prefix → term1* + term2*', () {
+      // FTS5 forbids wildcards inside phrase quotes; `+` keeps the order.
       expect(
         buildFtsQuery(twoWords, isPhraseSearch: true, isExactMatch: false),
-        'NEAR(term1* term2*, 1)',
+        'term1* + term2*',
       );
     });
 
@@ -136,11 +136,11 @@ void main() {
   });
 
   group('buildFtsQuery — three-word phrase with prefix', () {
-    test('wildcards every token inside NEAR/1', () {
+    test('wildcards every token of the phrase', () {
       expect(
         buildFtsQuery('word1 word2 word3',
             isPhraseSearch: true, isExactMatch: false),
-        'NEAR(word1* word2* word3*, 1)',
+        'word1* + word2* + word3*',
       );
     });
   });

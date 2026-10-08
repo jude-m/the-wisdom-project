@@ -6,9 +6,9 @@
 ///
 /// ## Multi-word with [isPhraseSearch] = true (phrase search):
 /// - [isExactMatch] = true: `"word1 word2"` (exact phrase, consecutive)
-/// - [isExactMatch] = false: `NEAR(word1* word2*, 1)` (adjacent with prefix)
-///   Note: FTS5 doesn't support wildcards inside phrase quotes, so we use
-///   NEAR with distance 1 as a workaround for phrase+prefix matching.
+/// - [isExactMatch] = false: `word1* + word2*` (consecutive, in order, prefix)
+///   FTS5 allows no wildcards inside quotes; `+` joins prefix tokens into one
+///   phrase instead.
 ///
 /// ## Multi-word with [isPhraseSearch] = false (separate-word search):
 /// - [isAnywhereInText] = true: Implicit AND (space-separated words)
@@ -19,7 +19,7 @@
 /// | isPhraseSearch | isAnywhereInText | isExactMatch | FTS5 Query |
 /// |---------------|------------------|--------------|------------|
 /// | true | - | true | `"word1 word2"` (exact phrase) |
-/// | true | - | false | `NEAR(word1* word2*, 1)` (phrase with/adjacent prefix) |
+/// | true | - | false | `word1* + word2*` (phrase, prefix) |
 /// | false | true | true | `word1 word2` (AND, exact tokens) |
 /// | false | true | false | `word1* word2*` (AND, prefix match) |
 /// | false | false | true | `NEAR(word1 word2, n)` (proximity, exact) |
@@ -50,9 +50,8 @@ String buildFtsQuery(
       // Exact phrase: use double quotes for FTS phrase query
       return '"${words.join(' ')}"';
     } else {
-      // FTS5 workaround: wildcards not supported inside phrase quotes
-      // Use NEAR with distance 1 to approximate phrase+prefix behavior
-      return 'NEAR(${words.map((w) => '$w*').join(' ')}, 1)';
+      // Not NEAR(…, 1): that allows any order and one word in between.
+      return words.map((w) => '$w*').join(' + ');
     }
   } else {
     // Separate-word search

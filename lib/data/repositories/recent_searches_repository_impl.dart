@@ -39,14 +39,16 @@ class RecentSearchesRepositoryImpl implements RecentSearchesRepository {
 
   @override
   Future<void> addRecentSearch(String query) async {
-    final trimmed = query.trim();
+    // Helakuru leaves a zero-width space (U+200B) inside words, so the same
+    // word could be saved twice. Only U+200B: the joiner U+200D must stay.
+    final trimmed = query.replaceAll('\u200B', '').trim();
     if (trimmed.isEmpty) return;
 
     final existing = await _getAllSearches();
 
-    // Remove duplicate if exists (will be re-added at top)
-    existing
-        .removeWhere((s) => s.queryText.toLowerCase() == trimmed.toLowerCase());
+    // Remove duplicate if exists (will be re-added at top). Case matters:
+    // in Singlish "kana" (කන) and "kaNa" (කණ) are different words.
+    existing.removeWhere((s) => s.queryText == trimmed);
 
     // Add new search at the beginning (LIFO)
     existing.insert(
@@ -66,8 +68,7 @@ class RecentSearchesRepositoryImpl implements RecentSearchesRepository {
   @override
   Future<void> removeRecentSearch(String query) async {
     final existing = await _getAllSearches();
-    existing
-        .removeWhere((s) => s.queryText.toLowerCase() == query.toLowerCase());
+    existing.removeWhere((s) => s.queryText == query);
     await _saveSearches(existing);
   }
 
