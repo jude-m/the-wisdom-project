@@ -233,6 +233,20 @@ void main() {
         verifyNever(mockSearchRepository.searchTopResults(any));
         verifyNever(mockSearchRepository.searchByResultType(any, any));
       });
+
+      test('a tab tap drops the search still waiting on the typing pause', () {
+        fakeAsync((async) {
+          when(mockSearchRepository.searchByResultType(any, any))
+              .thenAnswer((_) async => const Right([]));
+
+          notifier.updateQuery('එවං');
+          notifier.selectResultType(SearchResultType.fullText);
+          async.elapse(const Duration(milliseconds: 350));
+
+          // The tab's search only, not a second one when the pause ends.
+          verify(mockSearchRepository.searchByResultType(any, any)).called(1);
+        });
+      });
     });
 
     group('removeRecentSearch', () {
@@ -288,88 +302,112 @@ void main() {
       });
     });
 
-    group('toggleExactMatch', () {
-      test('should toggle isExactMatch flag on and off', () {
-        // ARRANGE - Initial state has isExactMatch=false
+    group('setMatchOptions', () {
+      void stubTopResults() {
+        when(mockSearchRepository.searchTopResults(any)).thenAnswer(
+          (_) async => const Right(GroupedSearchResult(resultsByType: {})),
+        );
+      }
+
+      /// Types a query, lets its search finish, then forgets that search.
+      void searchSettled(FakeAsync async) {
+        stubTopResults();
+        notifier.updateQuery('එවං මෙ');
+        async.elapse(const Duration(milliseconds: 350));
+        clearInteractions(mockSearchRepository);
+      }
+
+      test('changes only the options it is given', () {
+        notifier.setMatchOptions(isPhraseSearch: false, proximityDistance: 25);
+
+        expect(notifier.state.isPhraseSearch, isFalse);
+        expect(notifier.state.proximityDistance, 25);
         expect(notifier.state.isExactMatch, isFalse);
-
-        // ACT - Toggle to true
-        notifier.toggleExactMatch();
-
-        // ASSERT
-        expect(notifier.state.isExactMatch, isTrue);
-
-        // ACT - Toggle back to false
-        notifier.toggleExactMatch();
-
-        // ASSERT
-        expect(notifier.state.isExactMatch, isFalse);
+        expect(notifier.state.isAnywhereInText, isFalse);
+        // No query, so nothing to search.
+        verifyNever(mockSearchRepository.searchTopResults(any));
       });
 
-      test('should refresh search when toggling with active query', () {
+      test('runs no search when nothing changes', () {
         fakeAsync((async) {
-          // ARRANGE
-          const categorizedResult = GroupedSearchResult(
-            resultsByType: {
-              SearchResultType.title: [],
-              SearchResultType.fullText: [],
-              SearchResultType.definition: [],
-            },
+          searchSettled(async);
+
+          notifier.setMatchOptions(isExactMatch: false, proximityDistance: 10);
+          async.elapse(const Duration(milliseconds: 350));
+
+          verifyNever(mockSearchRepository.searchTopResults(any));
+          expect(notifier.state.isLoading, isFalse);
+        });
+      });
+
+      test('searches at once, with the new options, when a placement changes',
+          () {
+        fakeAsync((async) {
+          searchSettled(async);
+
+          notifier.setMatchOptions(
+            isPhraseSearch: false,
+            isAnywhereInText: true,
           );
-          when(mockSearchRepository.searchTopResults(any))
-              .thenAnswer((_) async => const Right(categorizedResult));
 
-          notifier.updateQuery('dhamma');
-          async.elapse(const Duration(milliseconds: 350)); // Wait for debounce
-          clearInteractions(mockSearchRepository);
+          // No time has passed: the search did not wait.
+          final query = verify(
+            mockSearchRepository.searchTopResults(captureAny),
+          ).captured.single;
+          expect(query.isPhraseSearch, isFalse);
+          expect(query.isAnywhereInText, isTrue);
+        });
+      });
 
-          // ACT - Toggle exact match
-          notifier.toggleExactMatch();
+      test('a distance-only change waits for the typing pause', () {
+        fakeAsync((async) {
+          searchSettled(async);
 
-          // ASSERT - Should trigger new search
+          notifier.setMatchOptions(proximityDistance: 11);
+          expect(notifier.state.isLoading, isTrue);
+
+          async.elapse(const Duration(milliseconds: 200));
+          verifyNever(mockSearchRepository.searchTopResults(any));
+
+          async.elapse(const Duration(milliseconds: 150));
           verify(mockSearchRepository.searchTopResults(any)).called(1);
         });
       });
 
-      test('should not refresh search when toggling with empty query', () {
-        // ARRANGE - Empty query
-        expect(notifier.state.rawQueryText, isEmpty);
+      test('quick − / + steps run one search, with the last distance', () {
+        fakeAsync((async) {
+          searchSettled(async);
 
-        // ACT - Toggle exact match
-        notifier.toggleExactMatch();
+          for (final distance in [11, 12, 13]) {
+            notifier.setMatchOptions(proximityDistance: distance);
+            async.elapse(const Duration(milliseconds: 100));
+          }
+          async.elapse(const Duration(milliseconds: 350));
 
-        // ASSERT - No search triggered
-        verifyNever(mockSearchRepository.searchTopResults(any));
+          final query = verify(
+            mockSearchRepository.searchTopResults(captureAny),
+          ).captured.single;
+          expect(query.proximityDistance, 13);
+        });
       });
 
-      test('should include isExactMatch in built SearchQuery', () {
+      test('another change drops a distance search still waiting', () {
         fakeAsync((async) {
-          // ARRANGE
-          const categorizedResult = GroupedSearchResult(
-            resultsByType: {
-              SearchResultType.title: [],
-              SearchResultType.fullText: [],
-              SearchResultType.definition: [],
-            },
-          );
-          when(mockSearchRepository.searchTopResults(any))
-              .thenAnswer((_) async => const Right(categorizedResult));
+          searchSettled(async);
 
-          // Use Sinhala input directly to avoid transliteration dependency
-          notifier.updateQuery('ධම්ම');
-          notifier.toggleExactMatch(); // Set isExactMatch to true
+          notifier.setMatchOptions(proximityDistance: 11);
+          notifier.setMatchOptions(isExactMatch: true);
 
-          async.elapse(const Duration(milliseconds: 350)); // Wait for debounce
-
-          // ASSERT - Verify the SearchQuery passed has isExactMatch=true
-          final captured = verify(
+          // One search now, carrying both changes...
+          final query = verify(
             mockSearchRepository.searchTopResults(captureAny),
-          ).captured;
-
-          expect(captured.length, greaterThan(0));
-          final query = captured.last;
+          ).captured.single;
           expect(query.isExactMatch, isTrue);
-          expect(query.queryText, equals('ධම්ම'));
+          expect(query.proximityDistance, 11);
+
+          // ...and none later from the dropped wait.
+          async.elapse(const Duration(milliseconds: 350));
+          verifyNever(mockSearchRepository.searchTopResults(any));
         });
       });
     });
@@ -587,6 +625,23 @@ void main() {
         expect(notifier.state.rawQueryText, equals('test'));
         expect(notifier.state.isPanelDismissed, isTrue);
         expect(notifier.state.isResultsPanelVisible, isFalse);
+      });
+
+      test('a search still waiting on the typing pause still runs', () {
+        fakeAsync((async) {
+          when(mockSearchRepository.searchTopResults(any)).thenAnswer(
+            (_) async => const Right(GroupedSearchResult(resultsByType: {})),
+          );
+
+          notifier.updateQuery('එවං');
+          notifier.dismissResultsPanel();
+          async.elapse(const Duration(milliseconds: 350));
+
+          // Reopening doesn't search, so a dropped search would leave the
+          // spinner up for good.
+          verify(mockSearchRepository.searchTopResults(any)).called(1);
+          expect(notifier.state.isLoading, isFalse);
+        });
       });
     });
 
@@ -837,7 +892,7 @@ void main() {
           clearInteractions(mockSearchRepository);
 
           // ACT - Rapidly toggle filters
-          notifier.toggleExactMatch();
+          notifier.setMatchOptions(isExactMatch: true);
           notifier.setLanguageFilter(pali: false);
           notifier.setScope({TipitakaNodeKeys.suttaPitaka});
 
@@ -852,207 +907,6 @@ void main() {
           // Should have triggered searches (one per filter change)
           verify(mockSearchRepository.searchTopResults(any))
               .called(greaterThan(0));
-        });
-      });
-    });
-
-    group('setPhraseSearch', () {
-      test('should have isPhraseSearch=true by default', () {
-        expect(notifier.state.isPhraseSearch, isTrue);
-      });
-
-      test('should update isPhraseSearch state', () {
-        // ACT
-        notifier.setPhraseSearch(false);
-
-        // ASSERT
-        expect(notifier.state.isPhraseSearch, isFalse);
-      });
-
-      test('should trigger search refresh when query is active', () {
-        fakeAsync((async) {
-          // ARRANGE
-          const categorizedResult = GroupedSearchResult(
-            resultsByType: {
-              SearchResultType.title: [],
-              SearchResultType.fullText: [],
-              SearchResultType.definition: [],
-            },
-          );
-          when(mockSearchRepository.searchTopResults(any))
-              .thenAnswer((_) async => const Right(categorizedResult));
-
-          notifier.updateQuery('dhamma');
-          async.elapse(const Duration(milliseconds: 350));
-          clearInteractions(mockSearchRepository);
-
-          // ACT
-          notifier.setPhraseSearch(false);
-
-          // ASSERT
-          verify(mockSearchRepository.searchTopResults(any)).called(1);
-        });
-      });
-
-      test('should include isPhraseSearch in built SearchQuery', () {
-        fakeAsync((async) {
-          // ARRANGE
-          const categorizedResult = GroupedSearchResult(
-            resultsByType: {
-              SearchResultType.title: [],
-              SearchResultType.fullText: [],
-              SearchResultType.definition: [],
-            },
-          );
-          when(mockSearchRepository.searchTopResults(any))
-              .thenAnswer((_) async => const Right(categorizedResult));
-
-          notifier.setPhraseSearch(false);
-          notifier.updateQuery('ධම්ම');
-          async.elapse(const Duration(milliseconds: 350));
-
-          // ASSERT
-          final captured = verify(
-            mockSearchRepository.searchTopResults(captureAny),
-          ).captured;
-
-          expect(captured.length, greaterThan(0));
-          final query = captured.last;
-          expect(query.isPhraseSearch, isFalse);
-        });
-      });
-    });
-
-    group('setAnywhereInText', () {
-      test('should have isAnywhereInText=false by default', () {
-        expect(notifier.state.isAnywhereInText, isFalse);
-      });
-
-      test('should update isAnywhereInText state', () {
-        // ACT
-        notifier.setAnywhereInText(true);
-
-        // ASSERT
-        expect(notifier.state.isAnywhereInText, isTrue);
-      });
-
-      test('should trigger search refresh when query is active', () {
-        fakeAsync((async) {
-          // ARRANGE
-          const categorizedResult = GroupedSearchResult(
-            resultsByType: {
-              SearchResultType.title: [],
-              SearchResultType.fullText: [],
-              SearchResultType.definition: [],
-            },
-          );
-          when(mockSearchRepository.searchTopResults(any))
-              .thenAnswer((_) async => const Right(categorizedResult));
-
-          notifier.updateQuery('dhamma');
-          async.elapse(const Duration(milliseconds: 350));
-          clearInteractions(mockSearchRepository);
-
-          // ACT
-          notifier.setAnywhereInText(true);
-
-          // ASSERT
-          verify(mockSearchRepository.searchTopResults(any)).called(1);
-        });
-      });
-
-      test('should include isAnywhereInText in built SearchQuery', () {
-        fakeAsync((async) {
-          // ARRANGE
-          const categorizedResult = GroupedSearchResult(
-            resultsByType: {
-              SearchResultType.title: [],
-              SearchResultType.fullText: [],
-              SearchResultType.definition: [],
-            },
-          );
-          when(mockSearchRepository.searchTopResults(any))
-              .thenAnswer((_) async => const Right(categorizedResult));
-
-          notifier.setAnywhereInText(true);
-          notifier.updateQuery('ධම්ම');
-          async.elapse(const Duration(milliseconds: 350));
-
-          // ASSERT
-          final captured = verify(
-            mockSearchRepository.searchTopResults(captureAny),
-          ).captured;
-
-          expect(captured.length, greaterThan(0));
-          final query = captured.last;
-          expect(query.isAnywhereInText, isTrue);
-        });
-      });
-    });
-
-    group('setProximityDistance', () {
-      test('should have proximityDistance=10 by default', () {
-        expect(notifier.state.proximityDistance, equals(10));
-      });
-
-      test('should update proximityDistance state', () {
-        // ACT
-        notifier.setProximityDistance(5);
-
-        // ASSERT
-        expect(notifier.state.proximityDistance, equals(5));
-      });
-
-      test('should trigger search refresh when query is active', () {
-        fakeAsync((async) {
-          // ARRANGE
-          const categorizedResult = GroupedSearchResult(
-            resultsByType: {
-              SearchResultType.title: [],
-              SearchResultType.fullText: [],
-              SearchResultType.definition: [],
-            },
-          );
-          when(mockSearchRepository.searchTopResults(any))
-              .thenAnswer((_) async => const Right(categorizedResult));
-
-          notifier.updateQuery('dhamma');
-          async.elapse(const Duration(milliseconds: 350));
-          clearInteractions(mockSearchRepository);
-
-          // ACT
-          notifier.setProximityDistance(5);
-
-          // ASSERT
-          verify(mockSearchRepository.searchTopResults(any)).called(1);
-        });
-      });
-
-      test('should include proximityDistance in built SearchQuery', () {
-        fakeAsync((async) {
-          // ARRANGE
-          const categorizedResult = GroupedSearchResult(
-            resultsByType: {
-              SearchResultType.title: [],
-              SearchResultType.fullText: [],
-              SearchResultType.definition: [],
-            },
-          );
-          when(mockSearchRepository.searchTopResults(any))
-              .thenAnswer((_) async => const Right(categorizedResult));
-
-          notifier.setProximityDistance(25);
-          notifier.updateQuery('ධම්ම');
-          async.elapse(const Duration(milliseconds: 350));
-
-          // ASSERT
-          final captured = verify(
-            mockSearchRepository.searchTopResults(captureAny),
-          ).captured;
-
-          expect(captured.length, greaterThan(0));
-          final query = captured.last;
-          expect(query.proximityDistance, equals(25));
         });
       });
     });

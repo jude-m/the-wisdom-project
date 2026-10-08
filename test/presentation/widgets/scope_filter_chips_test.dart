@@ -48,7 +48,7 @@ void main() {
         expect(find.text('Vinaya'), findsOneWidget);
         expect(find.text('Abhidhamma'), findsOneWidget);
         expect(find.text('Commentaries'), findsOneWidget);
-        expect(find.text('Treatises'), findsOneWidget);
+        expect(find.text('Other'), findsOneWidget);
 
         // Verify all 5 scope chips are present
         expect(searchScopeChips.length, equals(5));

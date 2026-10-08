@@ -6,18 +6,7 @@ import 'package:the_wisdom_project/presentation/providers/search_display_languag
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 
-/// A no-op [SearchStateNotifier] stand-in that just holds a fixed [SearchState].
-/// The provider under test only reads `searchInPali` / `searchInSinhala`, so we
-/// don't need the real notifier (which requires repositories).
-class _FakeSearchStateNotifier extends StateNotifier<SearchState>
-    implements SearchStateNotifier {
-  _FakeSearchStateNotifier(super.state);
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError(
-        'Not needed for this test: ${invocation.memberName}',
-      );
-}
+import '../../helpers/fake_search_state_notifier.dart';
 
 void main() {
   /// Builds a container where the two language toggles and the global reading
@@ -30,7 +19,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         searchStateProvider.overrideWith(
-          (ref) => _FakeSearchStateNotifier(
+          (ref) => FakeSearchStateNotifier(
             SearchState(
               rawQueryText: 'metta',
               searchInPali: pali,

@@ -9,6 +9,7 @@ import 'package:the_wisdom_project/domain/entities/search/search_result_type.dar
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 import 'package:the_wisdom_project/presentation/widgets/dictionary/dictionary_filter_chips.dart';
+import 'package:the_wisdom_project/presentation/widgets/search/match_options_menu.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_bar.dart'
     as app;
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
@@ -133,15 +134,6 @@ extension SearchTestHelpers on WidgetTester {
 
   // ---- UI interactions ----
 
-  /// Toggle the exact match button (ABC icon in the search bar).
-  Future<void> toggleExactMatch() async {
-    await tap(find.byIcon(Icons.abc));
-    await pump();
-    // Wait for debounce + search.
-    await pump(const Duration(milliseconds: 400));
-    await waitForSearchResults();
-  }
-
   /// Switch to a result tab by its display name (e.g., "Titles", "Full text").
   Future<void> switchToTab(String tabName) async {
     await tap(find.text(tabName));
@@ -164,68 +156,58 @@ extension SearchTestHelpers on WidgetTester {
     await waitForSearchResults();
   }
 
-  // ---- Proximity dialog ----
+  // ---- Match options menu ("Starts with ▾") ----
 
-  /// Open the proximity dialog, apply settings, and wait for the new search.
-  ///
-  /// Pass [isPhraseSearch] to choose the radio button:
-  ///   - `true`  → "Search as complete phrase"
-  ///   - `false` → "Search as separate words"
-  ///
-  /// [isAnywhereInText]: check/uncheck the "Anywhere in the same text" checkbox.
-  /// [proximityDistance]: drag the slider to the given value (1–100).
-  Future<void> setProximitySettings({
-    bool? isPhraseSearch,
-    bool? isAnywhereInText,
-    int? proximityDistance,
-  }) async {
-    // Open the dialog via the space_bar icon.
-    await tap(find.byIcon(Icons.space_bar));
-    await pumpAndSettle();
-
-    // Select phrase / separate-words radio.
-    if (isPhraseSearch != null) {
-      if (isPhraseSearch) {
-        await tap(find.text('Search as complete phrase'));
-      } else {
-        await tap(find.text('Search as separate words'));
-      }
+  /// Flip "Starts with" ↔ "Whole word" in the match options menu.
+  Future<void> toggleExactMatch() async {
+    final exact = getSearchState().isExactMatch;
+    await _inMatchMenu(() async {
+      await tap(_matchOption(exact ? 'Starts with' : 'Whole word'));
       await pump();
-    }
-
-    // Adjust the slider if a proximity distance is requested.
-    if (proximityDistance != null) {
-      final slider = find.byType(Slider);
-      if (slider.evaluate().isNotEmpty) {
-        // Slider range: 1–100, 99 divisions.
-        // Calculate the relative position (0.0–1.0).
-        // NOTE: This pixel-based approach may be slightly imprecise at
-        // extreme values (1 or 100) due to slider thumb padding.
-        // Mid-range values (used in current tests) work reliably.
-        final fraction = (proximityDistance - 1) / 99;
-        final sliderBox = getRect(slider);
-        // Tap at the corresponding horizontal position on the slider.
-        final tapX = sliderBox.left + sliderBox.width * fraction;
-        final tapY = sliderBox.center.dy;
-        await tapAt(Offset(tapX, tapY));
-        await pump();
-      }
-    }
-
-    // Toggle the "Anywhere in the same text" checkbox.
-    if (isAnywhereInText != null) {
-      final anywhereText = find.text('Anywhere in the same text');
-      if (anywhereText.evaluate().isNotEmpty) {
-        await tap(anywhereText);
-        await pump();
-      }
-    }
-
-    // Tap "Apply" to close the dialog and trigger a new search.
-    await tap(find.text('Apply'));
-    await pumpAndSettle();
-    await waitForSearchResults();
+    });
   }
+
+  /// Pick "Anywhere in the same text" in the match options menu.
+  Future<void> matchWordsAnywhere() => _inMatchMenu(() async {
+        await tap(_matchOption('Anywhere in the same text'));
+        await pump();
+      });
+
+  /// Pick "Near each other", then step the distance to [distance] with − / +.
+  Future<void> matchWordsNear(int distance) => _inMatchMenu(() async {
+        await tap(_matchOption('Near each other'));
+        await pump();
+        // Bounded, so a missed tap fails below rather than looping forever.
+        for (var step = 0; step < 100; step++) {
+          final now = getSearchState().proximityDistance;
+          if (now == distance) break;
+          await tap(
+              find.byTooltip(now < distance ? 'More words' : 'Fewer words'));
+          await pump();
+        }
+        expect(getSearchState().proximityDistance, distance);
+      });
+
+  /// Open the menu, run [choose], wait for the new search, close the menu.
+  Future<void> _inMatchMenu(Future<void> Function() choose) async {
+    final button = find.byType(MatchOptionsButton);
+    await tap(button);
+    await pumpAndSettle();
+    await choose();
+    // A distance change waits for the 300 ms typing pause before searching.
+    await pump(const Duration(milliseconds: 400));
+    await waitForSearchResults();
+    // Tapping the button again closes the menu.
+    await tap(button);
+    await pumpAndSettle();
+  }
+
+  /// A menu option by its title. Scoped to the radio rows, as the button's
+  /// own label can read the same ("Starts with").
+  Finder _matchOption(String title) => find.ancestor(
+        of: find.text(title),
+        matching: find.byWidgetPredicate((w) => w is RadioMenuButton),
+      );
 
   // ---- Refine dialog ----
 

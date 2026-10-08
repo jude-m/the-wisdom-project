@@ -153,12 +153,6 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     );
   }
 
-  /// Called when search bar loses focus
-  /// Does nothing special - panel visibility is computed from queryText
-  void onBlur() {
-    _debounceTimer?.cancel();
-  }
-
   /// Update search query text (debounced search)
   /// Computes effectiveQueryText once here, avoiding per-row conversion later.
   ///
@@ -321,6 +315,8 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   Future<void> selectResultType(SearchResultType resultType) async {
     if (state.selectedResultType == resultType) return;
 
+    // Drop a search still waiting on the typing pause: this one replaces it.
+    _debounceTimer?.cancel();
     _searchRequestId++; // Invalidate any in-flight searches
 
     // Reset fullResults to loading to prevent stale data rendering
@@ -392,13 +388,6 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
       proximityDistance: state.proximityDistance,
       selectedDictionaryIds: state.selectedDictionaryIds,
     );
-  }
-
-  /// Toggle exact match mode
-  /// When enabled, searches for exact word matches only (no prefix matching)
-  void toggleExactMatch() {
-    state = state.copyWith(isExactMatch: !state.isExactMatch);
-    _refreshSearchIfNeeded();
   }
 
   /// Toggle an edition in the search
@@ -509,32 +498,8 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   }
 
   // ============================================================================
-  // PHRASE/PROXIMITY SETTINGS
+  // MATCH OPTIONS
   // ============================================================================
-
-  /// Toggle phrase search mode.
-  /// When enabled (default), searches for consecutive words.
-  /// When disabled, searches for words within proximity distance.
-  void setPhraseSearch(bool isPhraseSearch) {
-    state = state.copyWith(isPhraseSearch: isPhraseSearch);
-    _refreshSearchIfNeeded();
-  }
-
-  /// Toggle "anywhere in text" mode.
-  /// Only applies when [isPhraseSearch] is false.
-  /// When enabled, ignores proximity distance and searches anywhere in the text.
-  void setAnywhereInText(bool isAnywhereInText) {
-    state = state.copyWith(isAnywhereInText: isAnywhereInText);
-    _refreshSearchIfNeeded();
-  }
-
-  /// Set proximity distance for multi-word separate-word searches.
-  /// [distance] = 1-100 for NEAR/n proximity.
-  /// Only applies when [isPhraseSearch] is false and [isAnywhereInText] is false.
-  void setProximityDistance(int distance) {
-    state = state.copyWith(proximityDistance: distance);
-    _refreshSearchIfNeeded();
-  }
 
   /// Sets any of the match options at once, with one search. Used by the
   /// match options menu. A change to the distance alone waits for a pause,
@@ -613,7 +578,8 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
   /// Used when user clicks a result, clicks outside, or presses Escape
   /// Panel will reopen when user focuses the search bar again
   void dismissResultsPanel() {
-    _debounceTimer?.cancel();
+    // A search still waiting on the typing pause runs anyway: reopening
+    // doesn't search, so cancelling it would leave the spinner up.
     state = state.copyWith(isPanelDismissed: true);
   }
 

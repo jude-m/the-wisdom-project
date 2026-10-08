@@ -16,7 +16,7 @@ Chunks, in order:
 | --- | --- | --- | --- |
 | A | 1, 2, 3 + Task 10: clear ✕ tooltip | Singlish preview everywhere | Done |
 | B | 5, 6, 7 + Task 10: footer text, "View N more" button | Results list | Done |
-| C | 4, 8 + Task 10: Treatises naming | Filter row and match menu | In review |
+| C | 4, 8 + Task 10: Treatises naming | Filter row and match menu | Done |
 | D | 9 | Phone search | Not started |
 | E | 11 | Sutta abbreviations | Not started |
 
@@ -233,6 +233,7 @@ What does NOT change:
 5. Keep the same focus node, so Ctrl/Cmd+Shift+F still works (`mainSearchFocusNodeProvider`).
 6. Recent searches go full width under the bar on phones.
 7. Tablet and desktop do not change.
+8. If `SearchBar` can now be removed while the app runs, its `dispose` changes two providers (`_searchFocusController.state = null` and `_overlayStack.remove('recent-searches')`) and throws in debug. Move both into a post-frame callback, as `MatchOptionsButton.dispose` does.
 
 **Done when:**
 
@@ -243,9 +244,9 @@ What does NOT change:
 
 Quick, independent items. Each one ships with the chunk that edits the same file (see the chunk table).
 
-- [ ] Translate the footer "Viewing X out of Y results". It is hard-coded English (`search_results_panel.dart`, `_footer`).
-- [ ] Add a tooltip to the clear ✕ in the search box. The find bar's clear button has one.
-- [ ] Make "View N more" a real button with a 40px+ tap area (`grouped_fts_tile.dart`).
+- [x] Translate the footer "Viewing X out of Y results". It is hard-coded English (`search_results_panel.dart`, `_footer`).
+- [x] Add a tooltip to the clear ✕ in the search box. The find bar's clear button has one.
+- [x] Make "View N more" a real button with a 40px+ tap area (`grouped_fts_tile.dart`).
 - [x] "Treatises" vs "වෙනත්": both now mean "Other": English "Other", Sinhala අන්‍ය, the name tree.json gives the `anya` section (decided 2026-10-07). Key `scopeOther`, chip id `other`.
 
 ## Task 11 — No Singlish preview while typing a sutta reference
@@ -327,23 +328,22 @@ Done: Tasks 5, 6 and 7, plus the footer text and the "View N more" button (Task 
 - Tests, all passing on 2026-10-07: `search_results_panel_test.dart` adds "See all" (hidden before counts load and when every row shows; tapping opens the tab and moves the tab bar to it) and "View 2 more" (shows the hidden matches and "Show Less"); `search_state_notifier_test.dart` adds "a failed count clears the old counts". The tab count tests pass again. No edition badge test: every result is BJT today.
 - Built and launched on macOS on 2026-10-06; the UI was not checked by eye yet. It is checked together with chunk C (list there). Also check that tabs don't shift when you switch: the active tab is bold, so it is wider. If they jump, use one weight and mark the active tab by colour and underline only.
 
-### Chunk C: in review
+### Chunk C: done (ec85971)
 
-Done: Tasks 4 and 8, plus the Treatises naming (Task 10). Not staged or committed yet.
+Done: Tasks 4 and 8, plus the Treatises naming (Task 10).
 
 - `PillChip` (`common/pill_chip.dart`) replaces `_ScopeChip`, `_FilterChip` and both `_RefineChip` copies; `PillChip.refine` is the Refine chip, with its own colours as before. It is a `TextButton`: 32px pill, 13px text (`AppFonts.chipFontSize`), 48px tap area. Colours are the ones from before this chunk. `PillChip.styleOf` gives the same look to "Starts with ▾", with 8px corners.
 - `PillChipRow` (`common/pill_chip_row.dart`) is the one scrolling row both chip widgets now use, with the right-edge fade. Its end padding equals the fade width, so the last chip is clear of the fade when scrolled to the end. Both chip widgets take `leading`: the match button and the divider, so they scroll with the chips.
 - `ScopeFilterChips` watches only scope and the two language flags (`select`). It watched the whole search state and rebuilt on every keystroke.
 - The chip font is 13px, so the research mode selector, which borrows `chipLabel`, grew from 12px to 13px too.
 - Desktop shows → with the tooltip "Close panel". Phones keep ✕ until Task 9. The row is 56px, on the same `surfaceContainerHighest` as before.
-- `MatchOptionsButton` and its menu are in `search/match_options_menu.dart`. The button watches one record (`select`), so it rebuilds only when its label changes. The "two or more words" check is the old `\s\S` test on the raw text, run inside the selector, not in `build`. The menu body is built only while the menu is open.
+- `MatchOptionsButton` and its menu are in `search/match_options_menu.dart`. The button watches one record (`select`), so it rebuilds only when its label changes. The "two or more words" check is a `\s\S` test on `effectiveQueryText`, the text that is searched (so " dhamma" is one word), run inside the selector, not in `build`. The menu body is built only while the menu is open.
 - The notifier has one new method, `setMatchOptions`. "Anywhere", "Near" and "Reset" each change two to four fields, and one call per field would start one search each. A change to the distance alone waits 300 ms, as typing does, so tapping + ten times runs one search. There is no `setExactMatch`: `setMatchOptions(isExactMatch:)` covers it.
 - Changing the distance also selects "Near each other". The stepper shows "Within N words" as text beside − and +, so Sinhala can put the number where it belongs (වචන 10ක් ඇතුළත).
-- Esc: the menu registers on `overlayStackProvider` while open, and its `dispose` removes the entry too, because a menu closed by disposal never calls `onClose`.
-- Deleted: `ProximityDialog`, and the l10n keys only it or the toggles used: `wordProximity`, `wordsApart`, `apply`, `searchAsPhrase`, `searchAsSeparateWords`. `anywhereInText` is reused for the menu option. `CircularToggleButton` stays (the dictionary sheet uses it). `toggleExactMatch`, `setPhraseSearch`, `setAnywhereInText` and `setProximityDistance` now have only tests as callers (27 call sites, `search_test_helper.dart` among them, so deleting them now would stop those files compiling); delete them when the tests move to `setMatchOptions`.
+- Esc: the menu registers on `overlayStackProvider` while open, and its `dispose` removes the entry too, because a menu closed by disposal never calls `onClose`. It does so after the frame: Riverpod forbids changing a provider while widgets are torn down.
+- Deleted: `ProximityDialog`, and the l10n keys only it or the toggles used: `wordProximity`, `wordsApart`, `apply`, `searchAsPhrase`, `searchAsSeparateWords`. `anywhereInText` is reused for the menu option. `CircularToggleButton` stays (the dictionary sheet uses it). Also `toggleExactMatch`, `setPhraseSearch`, `setAnywhereInText` and `setProximityDistance` on the notifier; their tests moved to `setMatchOptions`.
 - Not renamed: `TipitakaNodeKeys.treatises` and `isTreatise` (code names, never shown).
 - New l10n keys: `closePanel`, `matchOptions`, `matchEachWord`, `matchStartsWith`, `matchStartsWithHint`, `matchWholeWord`, `matchWholeWordHint`, `matchWholeWordExample`, `matchHowWordsSit`, `matchPhrase`, `matchPhraseHint`, `matchPhraseShort`, `matchAnywhereHint`, `matchAnywhereShort`, `matchNear`, `matchNearHint`, `matchNearShort`, `matchNearWithin`, `fewerWords`, `moreWords`, `resetToDefault`; `scopeTreatises` became `scopeOther`. The Sinhala for the menu is a first draft: review it.
-- No new tests (CLAUDE.md). Analyzer clean.
 
 Review fixes (2026-10-07):
 
@@ -355,12 +355,21 @@ Review fixes (2026-10-07):
 - Deleted the unused l10n keys `phraseSearch` and `exactConsecutiveWords`.
 - Moved to `perf-top10-killers.md`: the header rebuilding on every keystroke (item 5) and the fade's offscreen layer (B5).
 
-Tests this breaks (not fixed):
+Review fixes (2026-10-08):
 
-- `test/presentation/widgets/search_results_panel_test.dart:364` taps `Icons.close`; the 800px test screen is desktop, so it is now `Icons.arrow_forward`.
-- `test/presentation/widgets/scope_filter_chips_test.dart:51` expects "Treatises"; now "Other".
-- `integration_test/search_test_helper.dart`: `toggleExactMatch` (:138, `Icons.abc`) and `setProximitySettings` (:183 `Icons.space_bar`, :225 "Apply"). Every test in `search_flow_integration_test.dart` that calls them fails. They should open "Starts with ▾" and pick from the menu.
-- `search_tab_highlight_test.dart:366` and `scroll_restoration_test.dart:267/402` find `Icons.close` on the reader tabs, not the panel. They count one per tab, so the panel is closed there. Not affected.
+- Removing the match button while its menu was open threw in debug ("Tried to modify a provider while the widget tree was building"). On a phone: backspace empties the query with the menu open. Fixed by the after-the-frame removal above. `SearchBar.dispose` has the same pattern but can't hit it: the bar is a fixed app-bar action, gone only when the app closes.
+- Closing the panel within 300 ms of typing or − / + left the spinner up for good: `dismissResultsPanel` cancelled the waiting search, and reopening doesn't search. It no longer cancels.
+- A tab tap within 300 ms of typing ran the search twice. `selectResultType` now cancels the wait.
+- " dhamma" or "%& x" showed the phrase options, but search sees one word. "Two or more words" now reads `effectiveQueryText`.
+- The menu examples leave out words the search drops whole ("එවං %&" showed `%&…`). Symbols stuck to a word still show; a full clean would need a cleaner that keeps ZWJ.
+- "Reset to default" counts only the options on show. It lit up for one word when the hidden "how words sit" choice wasn't the default.
+- Deleted `onBlur` from the notifier: nothing called it, and it cancelled the waiting search (the stuck spinner again, had anyone wired it to focus loss).
+
+Tests, all passing on 2026-10-08 (unit suite, and on macOS `search_flow_integration_test`):
+
+- Fixed: the panel test taps → (the 800px test screen is desktop), the scope chips test expects "Other", and `search_test_helper.dart` drives the menu (`toggleExactMatch`, `matchWordsAnywhere`, `matchWordsNear(n)` with − / +).
+- Test 3.4 expects 17, not 14. The old slider was tapped by pixel and landed near 13, not 20 (checked against `bjt.db`); − / + sets 20 exactly.
+- New: `match_options_menu_test.dart` (labels, options per word count, examples incl. Singlish, Esc stack, Reset, stepper limits), the `setMatchOptions` group in `search_state_notifier_test.dart` (incl. the 300 ms wait), the two notifier fixes above, and `overlay_stack_provider_test.dart` (removing an id that isn't there). One shared `test/helpers/fake_search_state_notifier.dart` replaces five copies.
 
 To check by eye (with chunk B): desktop and phone width, English and Sinhala, light and dark.
 
@@ -369,9 +378,12 @@ To check by eye (with chunk B): desktop and phone width, English and Sinhala, li
 - The Singlish preview in the main box at phone width, now that the toggles are gone.
 - Dark-theme items found on the way are in `docs/todo/dark-theme.md`.
 
-Next: Chunk D, once C is reviewed.
+Next: Chunk D.
 
 ## Pending (not tied to a chunk)
+
+- [ ] **`in_page_search_test` 3b fails** (find-bar scrolling) on macOS. Seen 2026-10-08; it fails the same way on ec85971 without the chunk C test fixes. Older commits not checked. Chunk C did not touch the find bar.
+- [ ] **"As a phrase" is not an ordered phrase.** It builds `NEAR(w1* w2*, 1)`: any order, one word between allowed. The menu says "Finds the words together, as typed". For කර්ම ඵල that is 176 texts; 140 have the words side by side in order (review, 2026-10-08). The review suggests FTS5's `w1* + w2*`. Lives in `wisdom_shared` and changes counts and golden snippets: its own task.
 
 - [ ] **Recent searches save Helakuru's invisible space.** Helakuru puts a zero-width space (U+200B) before the syllable being typed, so අරුණව can be saved as අරුණ + U+200B + ව. Search still works, because the query is cleaned before searching. But the same word can show twice in the recent list. Found 2026-10-06 in the saved list. Fix in `addRecentSearch` (`recent_searches_repository_impl.dart`): remove U+200B before saving and comparing. Remove only U+200B: the joiner U+200D must stay, or ්‍ර loses its join. No migration for old entries (the app is not released); clear the list by hand.
 

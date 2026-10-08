@@ -18,12 +18,11 @@ import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/refine_search_dialog.dart';
 
+import '../../helpers/fake_search_state_notifier.dart';
 import '../../helpers/pump_app.dart';
 
-/// A [SearchStateNotifier] stand-in that records `setLanguageFilter` calls and
-/// applies them to its state, so the dialog's SegmentedButton reflects changes.
-class _RecordingSearchNotifier extends StateNotifier<SearchState>
-    implements SearchStateNotifier {
+/// Also records `setLanguageFilter` calls.
+class _RecordingSearchNotifier extends FakeSearchStateNotifier {
   _RecordingSearchNotifier(super.state);
 
   final List<({bool? pali, bool? sinhala})> languageCalls = [];
@@ -31,21 +30,8 @@ class _RecordingSearchNotifier extends StateNotifier<SearchState>
   @override
   void setLanguageFilter({bool? pali, bool? sinhala}) {
     languageCalls.add((pali: pali, sinhala: sinhala));
-    state = state.copyWith(
-      searchInPali: pali ?? state.searchInPali,
-      searchInSinhala: sinhala ?? state.searchInSinhala,
-    );
+    super.setLanguageFilter(pali: pali, sinhala: sinhala);
   }
-
-  // The tree checkboxes / Reset button call this; harmless no-op for these tests.
-  @override
-  void setScope(Set<String> nodeKeys) =>
-      state = state.copyWith(scope: nodeKeys);
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError(
-        'Not needed for this test: ${invocation.memberName}',
-      );
 }
 
 void main() {

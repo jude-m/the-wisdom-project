@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/text_utils.dart';
 import '../../providers/overlay_stack_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../providers/search_state.dart';
@@ -18,14 +19,15 @@ _Placement _placementOf(SearchState s) => s.isPhraseSearch
     ? _Placement.phrase
     : (s.isAnywhereInText ? _Placement.anywhere : _Placement.near);
 
-/// A second word has started: whitespace, then a non-space.
+/// A second word has started: whitespace, then a non-space. Run on the
+/// searched text, so " dhamma" or "%& x" count as one word, as they search.
 final _severalWords = RegExp(r'\s\S');
 
 /// What the button label shows. A record, so `select` rebuilds the button
 /// only when one of these changes, not on every keystroke.
 ({bool exact, _Placement? placement, int? distance}) _labelOf(SearchState s) {
   final placement =
-      _severalWords.hasMatch(s.rawQueryText) ? _placementOf(s) : null;
+      _severalWords.hasMatch(s.effectiveQueryText) ? _placementOf(s) : null;
   return (
     exact: s.isExactMatch,
     placement: placement,
@@ -61,7 +63,12 @@ class _MatchOptionsButtonState extends ConsumerState<MatchOptionsButton> {
   @override
   void dispose() {
     // A menu closed because its button went away doesn't call onClose.
-    _overlayStack.remove(_overlayId);
+    // Riverpod forbids changing a provider while the tree is torn down, so
+    // drop the entry once this frame ends.
+    final stack = _overlayStack;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (stack.mounted) stack.remove(_overlayId);
+    });
     _buttonFocusNode.dispose();
     super.dispose();
   }
@@ -150,7 +157,7 @@ class _MatchMenu extends ConsumerWidget {
           exact: s.isExactMatch,
           placement: _placementOf(s),
           distance: s.proximityDistance,
-          severalWords: _severalWords.hasMatch(s.rawQueryText),
+          severalWords: _severalWords.hasMatch(s.effectiveQueryText),
         )));
     final rawQuery =
         ref.watch(searchStateProvider.select((s) => s.rawQueryText));
@@ -158,18 +165,22 @@ class _MatchMenu extends ConsumerWidget {
 
     // The examples use the words as shown in the search box: the Singlish
     // preview when there is one, which keeps ZWJ, so ්‍ර shows joined.
+    // Words the search drops whole, like "%&", are left out.
     final shown = ref.watch(singlishPreviewProvider(rawQuery)) ?? rawQuery;
     final words = shown
         .replaceAll('\u200B', '')
         .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
+        .where((w) => sanitizeSearchQuery(w) != null)
         .toList();
     final hasWords = words.isNotEmpty;
 
+    // Only the options on show count: with one word, the hidden "how words
+    // sit" choice can't be seen to reset.
     const defaults = SearchState();
     final isDefault = options.exact == defaults.isExactMatch &&
-        options.placement == _placementOf(defaults) &&
-        options.distance == defaults.proximityDistance;
+        (!options.severalWords ||
+            (options.placement == _placementOf(defaults) &&
+                options.distance == defaults.proximityDistance));
 
     void setNear({int? distance}) => notifier.setMatchOptions(
           isPhraseSearch: false,

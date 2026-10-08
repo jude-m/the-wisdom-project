@@ -42,6 +42,7 @@ import 'package:the_wisdom_project/presentation/widgets/reader/multi_pane_reader
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
 import 'package:the_wisdom_project/presentation/widgets/navigation/tree_navigator_widget.dart';
 
+import '../../../helpers/fake_search_state_notifier.dart';
 import '../../../helpers/pump_app.dart';
 import '../../../helpers/test_data.dart';
 
@@ -77,27 +78,6 @@ Future<void> _pumpHosted(
       ),
     ),
   );
-}
-
-/// A [SearchStateNotifier] stand-in that lets each test pin the panel to an
-/// arbitrary [SearchState]. Implements only what the panel actually calls;
-/// every other method throws a clear [UnimplementedError] naming the call.
-class _FakeSearchStateNotifier extends StateNotifier<SearchState>
-    implements SearchStateNotifier {
-  _FakeSearchStateNotifier(super.state);
-
-  @override
-  Future<void> selectResultType(SearchResultType type) async {
-    state = state.copyWith(selectedResultType: type);
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) {
-    throw UnimplementedError(
-      '_FakeSearchStateNotifier does not implement '
-      '${invocation.memberName} — add it to the fake if your test needs it.',
-    );
-  }
 }
 
 /// A minimal [BJTDocument] stub used only as a non-null value for
@@ -197,7 +177,7 @@ void main() {
 
     testWidgets('null results (invalid query) → invalid variant',
         (tester) async {
-      final notifier = _FakeSearchStateNotifier(
+      final notifier = FakeSearchStateNotifier(
         const SearchState(
           rawQueryText: '',
           effectiveQueryText: '',
@@ -219,7 +199,7 @@ void main() {
     });
 
     testWidgets('empty results → "No <category> found"', (tester) async {
-      final notifier = _FakeSearchStateNotifier(
+      final notifier = FakeSearchStateNotifier(
         const SearchState(
           rawQueryText: 'xqzmwk',
           effectiveQueryText: 'xqzmwk',
@@ -246,7 +226,7 @@ void main() {
         message: 'bad json',
         error: FormatException('boom'),
       );
-      final notifier = _FakeSearchStateNotifier(
+      final notifier = FakeSearchStateNotifier(
         SearchState(
           rawQueryText: 'metta',
           effectiveQueryText: 'metta',
@@ -277,7 +257,7 @@ void main() {
         message: 'fts',
         error: SocketException('failed host lookup'),
       );
-      final notifier = _FakeSearchStateNotifier(
+      final notifier = FakeSearchStateNotifier(
         SearchState(
           rawQueryText: 'metta',
           effectiveQueryText: 'metta',
@@ -314,7 +294,7 @@ void main() {
 
     testWidgets('null grouped results → invalid variant on All tab',
         (tester) async {
-      final notifier = _FakeSearchStateNotifier(
+      final notifier = FakeSearchStateNotifier(
         const SearchState(
           rawQueryText: '',
           effectiveQueryText: '',

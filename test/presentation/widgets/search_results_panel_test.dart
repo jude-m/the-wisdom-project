@@ -25,52 +25,8 @@ import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/secondary_match_tile.dart';
 
+import '../../helpers/fake_search_state_notifier.dart';
 import '../../helpers/pump_app.dart';
-
-/// Fake implementation for testing — allows injecting arbitrary SearchState.
-///
-/// Implements only the methods the panel actually calls. Anything else
-/// throws an [UnimplementedError] that names the missing member, so a
-/// future panel change that calls a new method fails loudly with a useful
-/// message (instead of the cryptic NoSuchMethodError you'd get from
-/// super.noSuchMethod).
-class FakeSearchStateNotifier extends StateNotifier<SearchState>
-    implements SearchStateNotifier {
-  FakeSearchStateNotifier(super.state);
-
-  @override
-  Future<void> selectResultType(SearchResultType category) async {
-    state = state.copyWith(selectedResultType: category);
-  }
-
-  // Lets the §4b live-update test flip the search language at runtime.
-  @override
-  void setLanguageFilter({bool? pali, bool? sinhala}) {
-    state = state.copyWith(
-      searchInPali: pali ?? state.searchInPali,
-      searchInSinhala: sinhala ?? state.searchInSinhala,
-    );
-  }
-
-  // Lets the "View N more" test expand a full-text group.
-  @override
-  void toggleFTSGroupExpansion(String nodeKey) {
-    final groups = state.expandedFTSGroups;
-    state = state.copyWith(
-      expandedFTSGroups: groups.contains(nodeKey)
-          ? ({...groups}..remove(nodeKey))
-          : {...groups, nodeKey},
-    );
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) {
-    throw UnimplementedError(
-      'FakeSearchStateNotifier does not implement '
-      '${invocation.memberName} — add it to the fake if your test needs it.',
-    );
-  }
-}
 
 /// Helper to pump SearchResultsPanel with a given [SearchState].
 ///
@@ -361,7 +317,9 @@ void main() {
         onClose: () => closeCalled = true,
       );
 
-      await tester.tap(find.byIcon(Icons.close));
+      // The default 800px test surface is wider than a phone, so the button
+      // is the → arrow (phones get the ✕).
+      await tester.tap(find.byIcon(Icons.arrow_forward));
       await tester.pump();
 
       expect(closeCalled, isTrue);

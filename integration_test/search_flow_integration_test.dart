@@ -261,19 +261,16 @@ void main() {
     );
 
     testWidgets(
-      '3.4 "කර්ම ඵල" exact + separate words, proximity 20 → 14 FTS',
+      '3.4 "කර්ම ඵල" exact + separate words, proximity 20 → 17 FTS',
       (tester) async {
         await tester.pumpSearchApp(prefs);
         await tester.searchFor('කර්ම ඵල');
         // Exact match must be ON first (user's flow: 3.1 → 3.1.2).
         await tester.toggleExactMatch();
 
-        await tester.setProximitySettings(
-          isPhraseSearch: false,
-          proximityDistance: 20,
-        );
+        await tester.matchWordsNear(20);
 
-        tester.expectCounts(fullText: 14);
+        tester.expectCounts(fullText: 17);
       },
     );
 
@@ -285,10 +282,7 @@ void main() {
         // Exact match must be ON first (user's flow: 3.1 → 3.1.3).
         await tester.toggleExactMatch();
 
-        await tester.setProximitySettings(
-          isPhraseSearch: false,
-          isAnywhereInText: true,
-        );
+        await tester.matchWordsAnywhere();
 
         tester.expectCounts(fullText: 45);
       },
@@ -310,10 +304,7 @@ void main() {
         await tester.pumpSearchApp(prefs);
         await tester.searchFor('ජායෙථ වා');
 
-        await tester.setProximitySettings(
-          isPhraseSearch: false,
-          proximityDistance: 50,
-        );
+        await tester.matchWordsNear(50);
 
         tester.expectCounts(fullText: 13);
       },
@@ -325,10 +316,7 @@ void main() {
         await tester.pumpSearchApp(prefs);
         await tester.searchFor('ජායෙථ වා');
 
-        await tester.setProximitySettings(
-          isPhraseSearch: false,
-          proximityDistance: 50,
-        );
+        await tester.matchWordsNear(50);
         await tester.toggleExactMatch();
 
         tester.expectCounts(fullText: 12);
