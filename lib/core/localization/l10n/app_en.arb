@@ -16,6 +16,16 @@
     "description": "Title for the reading screen"
   },
 
+  "showNavigator": "Show Navigator",
+  "@showNavigator": {
+    "description": "Tooltip for the app bar menu button while the navigator is hidden"
+  },
+
+  "hideNavigator": "Hide Navigator",
+  "@hideNavigator": {
+    "description": "Tooltip for the app bar menu button while the navigator shows"
+  },
+
   "layoutPaliOnly": "Pali Only",
   "@layoutPaliOnly": {
     "description": "Label for Pali-only reader layout"
@@ -319,9 +329,9 @@
     "description": "Match menu option: the words may be anywhere in the same text, in any order"
   },
 
-  "closePanel": "Close panel",
-  "@closePanel": {
-    "description": "Tooltip for the arrow that slides the search results panel away"
+  "openSearch": "Search",
+  "@openSearch": {
+    "description": "Tooltip for the app bar search icon below desktop width; tapping it opens the search field"
   },
 
   "matchOptions": "Match options",

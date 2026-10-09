@@ -14,7 +14,8 @@ import '../../providers/tab_provider.dart';
 /// - Shows nothing (SizedBox.shrink) when no tab is active.
 /// - Parent segments are tappable — opens a new tab for that node.
 /// - Leaf segment (last) is non-tappable.
-/// - Uses RichText so overflow truncates gracefully with ellipsis.
+/// - Too long for the bar: one line that scrolls sideways, opened at its end
+///   so the page's own name shows. No scrollbar.
 /// - Reacts to tab switches, tab closes, and navigation language changes.
 class BreadcrumbWidget extends ConsumerStatefulWidget {
   const BreadcrumbWidget({super.key});
@@ -93,10 +94,33 @@ class _BreadcrumbWidgetState extends ConsumerState<BreadcrumbWidget> {
       }
     }
 
-    return RichText(
-      text: TextSpan(children: spans),
-      overflow: TextOverflow.ellipsis,
-      maxLines: 1,
+    final behavior = ScrollConfiguration.of(context);
+
+    // Material's 16px before the app bar's actions (titleSpacing is 4), so
+    // a long trail doesn't run into the search icon.
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: 12),
+      child: Align(
+        // A short trail sits at the start, not at the reversed end.
+        alignment: AlignmentDirectional.centerStart,
+        widthFactor: 1,
+        child: ScrollConfiguration(
+          // Discreet: no scrollbar or overscroll effect. A mouse can drag it.
+          behavior: behavior.copyWith(
+            scrollbars: false,
+            overscroll: false,
+            dragDevices: {...behavior.dragDevices, PointerDeviceKind.mouse},
+          ),
+          child: SingleChildScrollView(
+            // A new path opens at its end again.
+            key: ObjectKey(segments),
+            scrollDirection: Axis.horizontal,
+            // Scroll offset 0 is the end of the trail.
+            reverse: true,
+            child: RichText(text: TextSpan(children: spans), softWrap: false),
+          ),
+        ),
+      ),
     );
   }
 }

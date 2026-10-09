@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/utils/responsive_utils.dart';
 import '../../../domain/entities/reader/reader_unit.dart';
 import '../../../domain/entities/search/grouped_fts_match.dart';
 import '../../../domain/entities/search/grouped_search_result.dart';
@@ -28,15 +27,11 @@ import 'search_result_tile.dart';
 /// Slide-out panel for displaying full search results
 /// Used as a side panel on desktop and full-screen overlay on mobile
 class SearchResultsPanel extends ConsumerWidget {
-  /// Callback when the panel should be closed
-  final VoidCallback onClose;
-
   /// Callback when a search result is tapped
   final void Function(SearchResult result)? onResultTap;
 
   const SearchResultsPanel({
     super.key,
-    required this.onClose,
     this.onResultTap,
   });
 
@@ -52,10 +47,8 @@ class SearchResultsPanel extends ConsumerWidget {
       color: theme.colorScheme.surface,
       child: Column(
         children: [
-          // Header with scope filters and close button
-          _PanelHeader(
-            onClose: onClose,
-          ),
+          // Header with the match options and filter chips
+          const _PanelHeader(),
           // Category tabs
           _SearchResultsTabBar(
             selectedResultType: searchState.selectedResultType,
@@ -461,15 +454,11 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// The panel's top row: close, the match options button, then the filter
-/// chips (dictionary chips on the Definitions tab, scope chips elsewhere).
-/// The match button and chips scroll together.
+/// The panel's top row: the match options button, then the filter chips
+/// (dictionary chips on the Definitions tab, scope chips elsewhere). They
+/// scroll together. The search field's back arrow closes the panel.
 class _PanelHeader extends ConsumerWidget {
-  final VoidCallback onClose;
-
-  const _PanelHeader({
-    required this.onClose,
-  });
+  const _PanelHeader();
 
   /// Scrolls with the chips, ahead of them.
   static const _leading = [MatchOptionsButton(), _ChipDivider()];
@@ -477,9 +466,6 @@ class _PanelHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context);
-    // Phones keep the ✕ until the app bar's back arrow closes search there.
-    final isMobile = ResponsiveUtils.isMobile(context);
     final isDefinitionTab = ref.watch(
       searchStateProvider.select(
         (s) => s.selectedResultType == SearchResultType.definition,
@@ -502,12 +488,7 @@ class _PanelHeader extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          IconButton(
-            // → slides the panel away to the right, where it came from.
-            icon: Icon(isMobile ? Icons.close : Icons.arrow_forward),
-            onPressed: onClose,
-            tooltip: isMobile ? l10n.close : l10n.closePanel,
-          ),
+          const SizedBox(width: 8),
           Expanded(
             child: isDefinitionTab
                 ? DictionaryFilterChips(

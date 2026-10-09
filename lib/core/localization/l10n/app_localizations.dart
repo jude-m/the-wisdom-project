@@ -116,6 +116,18 @@ abstract class AppLocalizations {
   /// **'Reader'**
   String get readerTitle;
 
+  /// Tooltip for the app bar menu button while the navigator is hidden
+  ///
+  /// In en, this message translates to:
+  /// **'Show Navigator'**
+  String get showNavigator;
+
+  /// Tooltip for the app bar menu button while the navigator shows
+  ///
+  /// In en, this message translates to:
+  /// **'Hide Navigator'**
+  String get hideNavigator;
+
   /// Label for Pali-only reader layout
   ///
   /// In en, this message translates to:
@@ -464,11 +476,11 @@ abstract class AppLocalizations {
   /// **'Anywhere in the same text'**
   String get anywhereInText;
 
-  /// Tooltip for the arrow that slides the search results panel away
+  /// Tooltip for the app bar search icon below desktop width; tapping it opens the search field
   ///
   /// In en, this message translates to:
-  /// **'Close panel'**
-  String get closePanel;
+  /// **'Search'**
+  String get openSearch;
 
   /// Tooltip for the filter-row button that opens the match options menu
   ///

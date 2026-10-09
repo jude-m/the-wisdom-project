@@ -18,6 +18,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readerTitle => 'Reader';
 
   @override
+  String get showNavigator => 'Show Navigator';
+
+  @override
+  String get hideNavigator => 'Hide Navigator';
+
+  @override
   String get layoutPaliOnly => 'Pali Only';
 
   @override
@@ -197,7 +203,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get anywhereInText => 'Anywhere in the same text';
 
   @override
-  String get closePanel => 'Close panel';
+  String get openSearch => 'Search';
 
   @override
   String get matchOptions => 'Match options';

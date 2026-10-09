@@ -542,6 +542,41 @@ void main() {
         tester.expectCounts(titles: 27);
       },
     );
+
+    testWidgets(
+      'A4 "මහාසති" + Sutta → back arrow closes, ✕ clears; Sutta stays',
+      (tester) async {
+        await tester.pumpSearchApp(prefs);
+        // The box's back arrow shows only while the panel is open.
+        expect(find.byType(BackButton), findsNothing);
+
+        await tester.searchFor('මහාසති');
+        await tester.tapScopeChip('Sutta');
+        final sutta = tester.getSearchState().scope;
+        expect(sutta, isNotEmpty);
+        final counts = tester.getResultCounts();
+
+        // The back arrow is the panel's one close button. It keeps the query.
+        await tester.tap(find.byType(BackButton));
+        await pumpForSettle(tester);
+        expect(find.byType(SearchResultsPanel), findsNothing);
+        expect(find.byType(BackButton), findsNothing);
+        expect(tester.getSearchState().rawQueryText, 'මහාසති');
+
+        // Focusing the box again brings the same results back.
+        await tester.tap(find.byType(TextField));
+        await tester.waitForSearchResults();
+        expect(find.byType(SearchResultsPanel), findsOneWidget);
+        expect(tester.getResultCounts(), counts);
+
+        // ✕ empties the query only: filters stay until the user changes them.
+        await tester.tap(find.byTooltip('Clear'));
+        await pumpForSettle(tester);
+        final state = tester.getSearchState();
+        expect(state.rawQueryText, isEmpty);
+        expect(state.scope, sutta);
+      },
+    );
   });
 
   // ==========================================================================

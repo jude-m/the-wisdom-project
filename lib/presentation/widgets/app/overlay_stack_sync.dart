@@ -6,8 +6,8 @@ import '../../providers/dictionary_provider.dart'
 import '../../providers/in_page_search_provider.dart'
     show activeInPageSearchStateProvider, inPageSearchStatesProvider;
 import '../../providers/last_selected_text_provider.dart';
-import '../../providers/main_search_focus_provider.dart';
 import '../../providers/overlay_stack_provider.dart';
+import '../../providers/search_mode_provider.dart';
 import '../../providers/search_provider.dart' show searchStateProvider;
 import '../../providers/tab_provider.dart' show activeTabIndexProvider;
 
@@ -53,17 +53,9 @@ class OverlayStackSync extends ConsumerWidget {
         if (isOpen) {
           stack.push(DismissibleOverlay(
             id: 'fts-panel',
-            // Release the search bar before flipping isPanelDismissed: true.
-            // Without this, focus stays on the TextField, so onFocus() never
-            // re-fires when the user types again — leaving isPanelDismissed
-            // permanently true and the panel hidden despite a non-empty query.
-            // Unfocusing returns focus to the autofocused Focus in
-            // AppShortcuts; the next click on the search bar re-runs
-            // onFocus() which resets isPanelDismissed: false.
-            dismiss: () {
-              ref.read(mainSearchFocusNodeProvider)?.unfocus();
-              ref.read(searchStateProvider.notifier).dismissResultsPanel();
-            },
+            // Same path as the field's back arrow: releases the search
+            // bar, closes the panel, and leaves search mode.
+            dismiss: () => ref.read(closeSearchProvider)(),
           ));
         } else {
           stack.remove('fts-panel');

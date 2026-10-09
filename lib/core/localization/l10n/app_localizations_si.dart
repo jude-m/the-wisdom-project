@@ -18,6 +18,12 @@ class AppLocalizationsSi extends AppLocalizations {
   String get readerTitle => 'පාඨකය';
 
   @override
+  String get showNavigator => 'සංචාලකය පෙන්වන්න';
+
+  @override
+  String get hideNavigator => 'සංචාලකය සඟවන්න';
+
+  @override
   String get layoutPaliOnly => 'පාළි පමණයි';
 
   @override
@@ -197,7 +203,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get anywhereInText => 'එකම පෙළෙහි ඕනෑම තැනක';
 
   @override
-  String get closePanel => 'ප්‍රතිඵල වසන්න';
+  String get openSearch => 'සොයන්න';
 
   @override
   String get matchOptions => 'ගැළපීමේ විකල්ප';

@@ -17,7 +17,7 @@ Chunks, in order:
 | A | 1, 2, 3 + Task 10: clear ✕ tooltip | Singlish preview everywhere | Done |
 | B | 5, 6, 7 + Task 10: footer text, "View N more" button | Results list | Done |
 | C | 4, 8 + Task 10: Treatises naming | Filter row and match menu | Done |
-| D | 9 | Phone search | Not started |
+| D | 9 | Search icon below desktop width, one back arrow, one-line breadcrumb | Done, not committed; check by eye |
 | E | 11 | Sutta abbreviations | Not started |
 
 B and C both edit `search_results_panel.dart`, so never run them side by side. D needs A and C. E can run any time after A. When a chunk is done, set its status and add a handover note at the end of this doc.
@@ -34,7 +34,7 @@ Tasks:
 | 6 | "See all" in Top results section headers | 5 | S | 5 |
 | 7 | Edition badge only when it helps | 6 | S | — |
 | 8 | "Starts with ▾" match menu | 2 | L | 4 |
-| 9 | Phone: search icon that expands | 7 | L | 2, 8 |
+| 9 | Search icon that expands, below desktop width | 7 | L | 2, 8 |
 | 10 | Small fixes | — | S | — |
 | 11 | No Singlish preview while typing a sutta reference | — | S | 1 |
 
@@ -90,7 +90,7 @@ What does NOT change:
 
 - [x] "satipatthana" shows සටිපට්තන inside the box.
 - [x] Sinhala input and "SN 15.3" show no preview.
-- [ ] A long Singlish query keeps the caret and typed text visible; the preview ends in "…". Fine on desktop; at phone width the box overflows the app bar (Task 9).
+- [x] A long Singlish query keeps the caret and typed text visible; the preview ends in "…". Checked on desktop and at phone width (2026-10-08).
 
 ## Task 3 — Recent searches show Sinhala (canvas 8)
 
@@ -114,14 +114,14 @@ What does NOT change:
 
 ## Task 4 — Filter row: close-panel icon and one shared chip (canvas 10, 4)
 
-**Goal:** the panel's top row keeps today's place and order. The ✕ becomes a "slide away to the right" icon. Chips become bigger, real buttons.
+**Goal:** the panel's top row keeps today's place and order, without the close ✕. Chips become bigger, real buttons.
 
 **Files:** `lib/presentation/widgets/search/search_results_panel.dart` (`_PanelHeader`), new `lib/presentation/widgets/common/pill_chip.dart`, `search/scope_filter_chips.dart`, `dictionary/dictionary_filter_chips.dart`.
 
 **Steps:**
 
-1. Replace the close ✕ with `Icons.arrow_forward`, same position (left end of the row). Tooltip: "Close panel" (new l10n key). Same action as today.
-2. Phones: no close icon in the panel. The app bar back arrow closes search (Task 9). Until Task 9 lands, keep today's ✕ on phones.
+1. No close icon in the panel, at any width. The back arrow at the start of the search field closes search (Task 9). Decided 2026-10-08: one close button, not a → in the panel on desktop and a back arrow in the app bar on phones.
+2. The row starts with an 8px gap, then the match button.
 3. Create `PillChip(label, selected, onPressed)` (and `PillChip.refine`) as a real button, so it has hover, focus, ripple and semantics. 32px tall, 13px text, tap area 40px or more.
 4. Replace `_ScopeChip` and `_FilterChip` with it. Delete both.
 5. Refine stays the last chip and scrolls with the others, as today.
@@ -130,7 +130,7 @@ What does NOT change:
 
 **Done when:**
 
-- [ ] The → arrow closes the panel; Esc, tap outside and phone back still work. All but phone back checked; check that one on Android with Task 9.
+- [ ] The search field's back arrow closes the panel; Esc, tap outside and phone back still work. Back at phone width worked on macOS (2026-10-08), when it was still in the app bar. Check the arrow in the field at every width, and system back on Android.
 - [x] Tab reaches every chip; Enter or Space toggles it.
 - [x] Scope and dictionary rows use the same chip.
 
@@ -192,7 +192,7 @@ What does NOT change:
 
 **Steps:**
 
-1. Put the button in the filter row: after the → close arrow, before the chips, then a thin divider, then the chips. It scrolls with the chips.
+1. Put the button at the start of the filter row, then a thin divider, then the chips. It scrolls with the chips.
 2. Show it on every tab, Definitions too. Dictionary search also uses `isExactMatch`.
 3. Label shows the current choice: "Starts with" or "Whole word". With two or more words, add " · Phrase", " · Anywhere" or " · Near 10".
 4. Tap opens a menu anchored under the button (`MenuAnchor`). Changes apply at once. No Apply button.
@@ -216,29 +216,34 @@ What does NOT change:
 - [x] Results refresh after each change.
 - [x] Defaults unchanged: starts with, phrase, distance 10.
 
-## Task 9 — Phone: search icon that expands (canvas 7)
+## Task 9 — Search icon that expands, below desktop width (canvas 7)
 
-**Goal:** on phones, search is an icon. Tap it, and search fills the whole app bar.
+**Goal:** below desktop width (1024px), search is an icon. Tap it, and search fills the whole app bar. Desktop keeps the box.
 
 **The problem is confirmed** (2026-10-08, macOS window at phone width): the menu button, the 360px box and the settings button need about 464px, so the box runs off the app bar's right edge and Flutter's overflow stripe covers the clear ✕. It happens with or without a Singlish preview: at about 350px the box alone (fixed `width: 360` in `search_bar.dart`) is wider than the window. Not patched in the meantime; this task fixes it.
 
-**Files:** `lib/presentation/screens/reader_screen.dart` (AppBar), `search/search_bar.dart`, `search_results_panel.dart`.
+**Files:** `lib/presentation/screens/reader_screen.dart` (AppBar), `search/search_bar.dart`, `search_results_panel.dart`, `navigation/breadcrumb_widget.dart`, `keyboard/keyboard_bindings.dart`.
+
+**Why not an icon at every width** (asked and researched 2026-10-08): Material 3, Apple and Fluent all use a box on wide screens and an icon on narrow ones. Material 3 keeps the box always visible when search is central to the app. NN/g found that on desktop people look for a box, and that an icon alone hides search ([magnifying-glass icon](https://www.nngroup.com/articles/magnifying-glass-icon/), [search visible and simple](https://www.nngroup.com/articles/search-visible-and-simple/)). The click count is the same either way, but the box is easier to see and to hit, and it keeps the query in view while results are open. Wikipedia and GitHub also switch from a box to an icon when narrow.
 
 **Steps:**
 
-1. On `isMobile`, show a search `IconButton` in the app bar instead of the 360px box.
-2. Tap switches the app bar to search mode: back arrow, full-width field (with the Task 2 preview), clear ✕. Pass the field's real width as `fieldWidth` (from a `LayoutBuilder`), not `widget.width`: the 45% preview cap is a share of it, and an unbounded width removes the cap.
-3. The back arrow and system back leave search mode and close the panel.
-4. Remove the panel's close icon on phones (Task 4, step 2).
+1. Below `desktopBreakpoint` (1024px), not only on phones: show a search `IconButton` in the app bar instead of the 360px box. At tablet widths the box left the breadcrumb about 300px.
+2. Tap switches the app bar to search mode: a full-width field (with the Task 2 preview) and its clear ✕. Pass the field's real width as `fieldWidth` (from a `LayoutBuilder`), not `widget.width`: the 45% preview cap is a share of it, and an unbounded width removes the cap.
+3. One close button at every width: a back arrow at the start of the search field, in place of the 🔍. In search mode it always shows; on desktop it shows while the panel is open. The app bar has no back arrow, and the panel no close icon (Task 4).
+4. The back arrow and system back leave search mode and close the panel.
 5. Keep the same focus node, so Ctrl/Cmd+Shift+F still works (`mainSearchFocusNodeProvider`).
-6. Recent searches go full width under the bar on phones.
-7. Tablet and desktop do not change.
+6. Recent searches go full width under the bar in search mode.
+7. Desktop keeps the 360px box. It shows no shortcut: shortcuts will get their own sheet (decided 2026-10-09).
 8. If `SearchBar` can now be removed while the app runs, its `dispose` changes two providers (`_searchFocusController.state = null` and `_overlayStack.remove('recent-searches')`) and throws in debug. Move both into a post-frame callback, as `MatchOptionsButton.dispose` does.
+9. Breadcrumb: a trail too long for the bar stays on one line and scrolls sideways, with no scrollbar, as on SuttaCentral. It opens at its end, so the page's own name shows, and every parent stays reachable. 16px before the actions, not 4. Decided 2026-10-08, after two lines (the name on a line of its own) and dropping parents behind "… ›" were both tried. The static site follows: `static-site-backlog.md` C12.
 
 **Done when:**
 
-- [ ] No overflow at 360px width; breadcrumb shows when search is closed.
-- [ ] Open, type, pick a result, go back: all work on Android and iOS.
+- [ ] No overflow at 360px width; the breadcrumb shows when search is closed, on one line, ending in the sutta name, with room before the search icon.
+- [ ] Open, type, pick a result, go back: all work on Android and iOS. At phone width on macOS these worked (2026-10-08), before the back arrow moved into the field.
+- [ ] Tablet width (768–1023px): icon, search mode, side panel; back closes it. At about 900px, judge whether a full-width field over a side panel looks split.
+- [ ] Desktop: the back arrow in the box closes the panel.
 
 ## Task 10 — Small fixes
 
@@ -336,14 +341,14 @@ Done: Tasks 4 and 8, plus the Treatises naming (Task 10).
 - `PillChipRow` (`common/pill_chip_row.dart`) is the one scrolling row both chip widgets now use, with the right-edge fade. Its end padding equals the fade width, so the last chip is clear of the fade when scrolled to the end. Both chip widgets take `leading`: the match button and the divider, so they scroll with the chips.
 - `ScopeFilterChips` watches only scope and the two language flags (`select`). It watched the whole search state and rebuilt on every keystroke.
 - The chip font is 13px, so the research mode selector, which borrows `chipLabel`, grew from 12px to 13px too.
-- Desktop shows → with the tooltip "Close panel". Phones keep ✕ until Task 9. The row is 56px, on the same `surfaceContainerHighest` as before.
+- The row is 56px, on the same `surfaceContainerHighest` as before.
 - `MatchOptionsButton` and its menu are in `search/match_options_menu.dart`. The button watches one record (`select`), so it rebuilds only when its label changes. The "two or more words" check is a `\s\S` test on `effectiveQueryText`, the text that is searched (so " dhamma" is one word), run inside the selector, not in `build`. The menu body is built only while the menu is open.
 - The notifier has one new method, `setMatchOptions`. "Anywhere", "Near" and "Reset" each change two to four fields, and one call per field would start one search each. A change to the distance alone waits 300 ms, as typing does, so tapping + ten times runs one search. There is no `setExactMatch`: `setMatchOptions(isExactMatch:)` covers it.
 - Changing the distance also selects "Near each other". The stepper shows "Within N words" as text beside − and +, so Sinhala can put the number where it belongs (වචන 10ක් ඇතුළත).
 - Esc: the menu registers on `overlayStackProvider` while open, and its `dispose` removes the entry too, because a menu closed by disposal never calls `onClose`. It does so after the frame: Riverpod forbids changing a provider while widgets are torn down.
 - Deleted: `ProximityDialog`, and the l10n keys only it or the toggles used: `wordProximity`, `wordsApart`, `apply`, `searchAsPhrase`, `searchAsSeparateWords`. `anywhereInText` is reused for the menu option. `CircularToggleButton` stays (the dictionary sheet uses it). Also `toggleExactMatch`, `setPhraseSearch`, `setAnywhereInText` and `setProximityDistance` on the notifier; their tests moved to `setMatchOptions`.
 - Not renamed: `TipitakaNodeKeys.treatises` and `isTreatise` (code names, never shown).
-- New l10n keys: `closePanel`, `matchOptions`, `matchEachWord`, `matchStartsWith`, `matchStartsWithHint`, `matchWholeWord`, `matchWholeWordHint`, `matchHowWordsSit`, `matchPhrase`, `matchPhraseHint`, `matchPhraseShort`, `matchAnywhereHint`, `matchAnywhereShort`, `matchNear`, `matchNearHint`, `matchNearShort`, `matchNearWithin`, `fewerWords`, `moreWords`, `resetToDefault`; `scopeTreatises` became `scopeOther`. The Sinhala for the menu is a first draft: review it (user, later). Phones show no tooltips, so each title must make sense alone; ඇරඹෙන වචන ("Starts with") is the least clear.
+- New l10n keys: `matchOptions`, `matchEachWord`, `matchStartsWith`, `matchStartsWithHint`, `matchWholeWord`, `matchWholeWordHint`, `matchHowWordsSit`, `matchPhrase`, `matchPhraseHint`, `matchPhraseShort`, `matchAnywhereHint`, `matchAnywhereShort`, `matchNear`, `matchNearHint`, `matchNearShort`, `matchNearWithin`, `fewerWords`, `moreWords`, `resetToDefault`; `scopeTreatises` became `scopeOther`. The Sinhala for the menu is a first draft: review it (user, later). Phones show no tooltips, so each title must make sense alone; ඇරඹෙන වචන ("Starts with") is the least clear.
 
 Review fixes (2026-10-07):
 
@@ -357,7 +362,7 @@ Review fixes (2026-10-07):
 
 Review fixes (2026-10-08):
 
-- Removing the match button while its menu was open threw in debug ("Tried to modify a provider while the widget tree was building"). On a phone: backspace empties the query with the menu open. Fixed by the after-the-frame removal above. `SearchBar.dispose` has the same pattern but can't hit it: the bar is a fixed app-bar action, gone only when the app closes.
+- Removing the match button while its menu was open threw in debug ("Tried to modify a provider while the widget tree was building"). On a phone: backspace empties the query with the menu open. Fixed by the after-the-frame removal above. Chunk D does the same in `SearchBar.dispose`, now that the bar goes away with search mode.
 - Closing the panel within 300 ms of typing or − / + left the spinner up for good: `dismissResultsPanel` cancelled the waiting search, and reopening doesn't search. It no longer cancels.
 - A tab tap within 300 ms of typing ran the search twice. `selectResultType` now cancels the wait.
 - " dhamma" or "%& x" showed the phrase options, but search sees one word. "Two or more words" now reads `effectiveQueryText`.
@@ -377,13 +382,54 @@ Checked by eye on 2026-10-08 (with chunk B), desktop and phone width, English an
 
 Dark-theme items found on the way are in `docs/todo/dark-theme.md`.
 
-Next: Chunk D.
+### Chunk D: done, not committed (2026-10-08)
+
+Done: Task 9, then two review rounds the same day. Round 1: search icon up to 1024px, one back arrow. Round 2: a breadcrumb that scrolls sideways, focus, the clear ✕, the keyboard. Kept as uncommitted changes, at the user's request.
+
+- Below 1024px the app bar shows a search icon (tooltip `openSearch`), not the 360px box. Tapping it sets `searchModeProvider` (`providers/search_mode_provider.dart`). The bar then shows only `SearchBar.fullWidth()`: no menu button, no settings. An open results panel also counts as search mode, so the panel always has a way out (say, a desktop window narrowed with the panel open). On tablets the panel stays a side panel.
+- One close button: the field's own back arrow (`BackButton` as `prefixIcon`, in place of the 🔍). In search mode it always shows; on the desktop box, while the panel is open. The panel's → and the `closePanel` l10n key are gone. `prefixIconConstraints` and `suffixIconConstraints` are 40px on every platform, desktop's compact size, so the back arrow and the clear ✕ fit the 40px box on phones too.
+- One close path, `closeSearchProvider`: release focus, close the panel, leave search mode. The back arrow, system back and Esc on the panel all use it. It replaces the copies in `reader_screen.dart` and `overlay_stack_sync.dart`.
+- System back: a `PopScope` wraps the field, so it is active exactly while search mode shows, and only while the reader shows: on another section back is that section's, and search stays open for the return. The one around the phone panel is gone.
+- Picking a result runs `closeSearchProvider` too: it leaves search mode, so the breadcrumb shows what opened, and releases the field. On Android/iOS a touch outside a field doesn't release it, so on a tablet's desktop box the keyboard stayed up and typing again didn't reopen the panel (review, 2026-10-08). Opening search again shows the last query, selected, with its results.
+- `SearchBar.fullWidth()`: `width` is null. The box fills the title slot and gives the preview its real width (`LayoutBuilder`). It takes focus as it appears, with `requestFocus()` after its first frame: `autofocus` is skipped when something else already has focus, such as reader text after a long press. Recent searches sit full width under the app bar, with square corners. Their tap-outside barrier starts under the bar, so the field and its back arrow still work. Esc or a tap outside the list leaves search mode.
+- `SearchBar.dispose` unpublishes the focus node and drops `recent-searches` after the frame (step 8). The focus-node check runs inside that callback: a new bar (desktop ↔ narrower width) may have published its node first. `_onFocusChange` stops if the bar went away during `await onFocus()`.
+- Ctrl/Cmd+Shift+F with no field (search closed, below 1024px) opens search mode. Like Ctrl/Cmd+F, it does nothing while another section shows (`OpenMainSearchAction.isEnabled`); it used to open search mode in the hidden reader.
+- Search mode ends when the desktop box appears (a window widened past 1024px, a tablet turned), so narrowing again shows the breadcrumb.
+- The clear ✕ is a 40×40 tap target (was 30). It empties only the query (`updateQuery('')`): filters and recent searches stay, so the recent list comes back.
+- The recent list leaves room for the keyboard (`MediaQuery.viewInsetsOf`), on tablets too.
+- A tap outside the desktop recent list now does what Esc does: closes it and keeps the filters and match options. The tap outside and the ✕ used to reset everything (decided 2026-10-08: filters stay until the user changes them, as `persist_quick_search_filters_plan.md` wants). `clearSearch()`, which did the reset, is deleted with its unit test.
+- No shortcut hint in the box (removed 2026-10-09): it also showed on touch tablets with no keyboard, and shortcuts will get their own sheet.
+- Breadcrumb (Task 9 step 9): the `RichText` sits in a `SingleChildScrollView` with `reverse: true`, so offset 0 is the trail's end. No scrollbar or overscroll effect; a mouse can drag it. Keyed by the path, so a new page opens at its end again. 12px end padding gives Material's 16px before the actions. A trail that fits looks as before.
+- New l10n keys: `openSearch` (Search / සොයන්න); `showNavigator` and `hideNavigator` for the menu button, whose tooltips were hard-coded English.
+
+Tests (2026-10-08, 09):
+
+- The four files that passed `onClose` compile again. The panel's "onClose fires" test is gone: the panel has no close button.
+- New `integration_test/search_mode_test.dart`: the real `ReaderScreen` at 400px. The icon opens search mode; a tap below the bar (empty query), widening past 1024px, the back arrow, system back, Esc and picking a result close it; Ctrl+Shift+F with no field opens it. On another section the shortcut does nothing and back leaves search open. Breaking a scratch copy proved it fails when search mode doesn't close, and when `SearchBar.dispose` writes providers during teardown.
+- New `search_flow_integration_test` A4: the desktop box's back arrow closes the panel and keeps the query and the Sutta filter; focusing the box again brings back the same counts; the ✕ clears only the query.
+- `search_test_helper` scrolls the chip row to Refine before tapping it. The row is lazy (chunk C), so on a narrow window Refine wasn't built: A2, A3 and `search_language_toggle_test` failed.
+- `search_tab_highlight_test` pumps the real `ReaderScreen`, not a copy of its layout and result tap, so the FTS highlight it checks comes from the screen's own code.
+- The test window laid out 502px wide (cause not found), so `breadcrumb_navigation_test`, `language_independence_test` and `search_tab_highlight_test` failed: the reader beside their 250px navigator overflowed, and the third tab was off-screen. They now set `tester.view.physicalSize` to 1280×800, as `search_mode_test` sets 400×800.
+- Pass: unit suite, and on macOS `search_mode`, `search_flow_integration`, `search_language_toggle`, `search_tab_highlight`, `breadcrumb_navigation`, `language_independence`, `dictionary_filter_flow`, `layout_switch`, `scroll_restoration`, `sutta_step_navigation` and `dictionary_editable_word`.
+- Fails, not from this chunk: `in_page_search_test` 3b, a real bug at narrow widths. See "Done outside the chunks".
+
+Not checked yet:
+
+- By eye, after round 2: phone width, tablet width (768–1023px) and desktop, on macOS and in Chrome. See Task 9's boxes and Task 4's back box.
+- Android and iOS: Android builds are broken on Flutter 3.44.1, and iOS was never built.
+
+Known edges, not fixed:
+
+- Esc does nothing when search mode shows only an empty, unfocused field (after Enter on an empty query). Back works.
+- The static site's breadcrumb still shrinks and drops segments, and its comments (`site_chrome.dart`, `stylesheet.dart`) say the app's does the same. Both change with `static-site-backlog.md` C12.
+
+Next: Chunk E.
 
 ## Done outside the chunks (2026-10-08)
 
 Found while working on the chunks. Also see the recent-search change in Task 3.
 
-- [x] **`in_page_search_test` 3b failure: did not come back.** It passed alone, in its own file, and in `all_tests.dart` (78/78) on macOS. Nothing changed. If it fails again, keep the failure output.
+- [ ] **`in_page_search_test` 3b: wrapping to the last match fails at narrow widths.** "Wrapping to the last match must scroll the viewport past everything stepping forward reached" (line 363). Run alone on macOS, 2026-10-09: fails at 400px (offset 13302.4 at match 4 → 7561.6 at match 69) and in the default 502px test window; passes at 1280px. So it is a bug on phones, not a test-window problem: don't pin this test's size. Earlier passing runs had a wider window. The scroll comes from `_scrollToCurrentMatch`'s bounded retry. Chunk D doesn't touch the find bar or the reader.
 - [x] **"As a phrase" is now an ordered phrase.** `buildFtsQuery` sends `w1* + w2*` (FTS5's phrase with prefix words), not `NEAR(w1* w2*, 1)`. For කර්ම ඵල that is 140 texts, down from 176. Test counts did not change: 3.1 is still 100+, 4.1 still 7. The highlighter already matched words in order.
 - [x] **Recent searches drop Helakuru's invisible space.** `addRecentSearch` removes U+200B before saving and comparing; the joiner U+200D stays. Checked by hand with Helakuru on 2026-10-08: typed and pasted අරුණව now give one entry.
 - [x] **Recent searches keep letter case.** Adding and removing compare the text exactly, not lowercased. In Singlish "kana" (කන) and "kaNa" (කණ) are different words; "kaNa" used to drop "kana" from the list.

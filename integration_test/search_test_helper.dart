@@ -10,6 +10,7 @@ import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
 import 'package:the_wisdom_project/presentation/widgets/dictionary/dictionary_filter_chips.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/match_options_menu.dart';
+import 'package:the_wisdom_project/presentation/widgets/search/scope_filter_chips.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_bar.dart'
     as app;
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
@@ -34,13 +35,7 @@ class _SearchTestWidget extends ConsumerWidget {
     return Column(
       children: [
         const app.SearchBar(width: 400),
-        if (isVisible)
-          Expanded(
-            child: SearchResultsPanel(
-              onClose: () =>
-                  ref.read(searchStateProvider.notifier).dismissResultsPanel(),
-            ),
-          ),
+        if (isVisible) const Expanded(child: SearchResultsPanel()),
         if (!isVisible) const Expanded(child: SizedBox()),
       ],
     );
@@ -211,6 +206,27 @@ extension SearchTestHelpers on WidgetTester {
 
   // ---- Refine dialog ----
 
+  /// Open the scope row's Refine dialog. Refine is the last chip of a lazy,
+  /// scrolling row, so on a narrow window it isn't built until the row
+  /// scrolls to it.
+  Future<void> _openScopeRefine() async {
+    final refine = find.text('Refine');
+    await scrollUntilVisible(
+      refine,
+      100,
+      scrollable: find
+          .descendant(
+            of: find.byType(ScopeFilterChips),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    // Lay out the scrolled row, or the tap lands where Refine was.
+    await pump();
+    await tap(refine);
+    await pumpAndSettle();
+  }
+
   /// Open the Refine dialog, select tree nodes by their Sinhala names,
   /// then close the dialog with "Done".
   ///
@@ -220,9 +236,7 @@ extension SearchTestHelpers on WidgetTester {
     List<String> nodeNames, {
     bool clearFirst = false,
   }) async {
-    // Open the Refine dialog.
-    await tap(find.text('Refine'));
-    await pumpAndSettle();
+    await _openScopeRefine();
 
     // Optionally clear existing scope.
     if (clearFirst) {
@@ -296,8 +310,7 @@ extension SearchTestHelpers on WidgetTester {
     required bool pali,
     required bool sinhala,
   }) async {
-    await tap(find.text('Refine'));
-    await pumpAndSettle();
+    await _openScopeRefine();
 
     // Turn requested-ON languages on first (re-reading state each time, since a
     // tap updates the flags synchronously).

@@ -594,24 +594,6 @@ void main() {
       });
     });
 
-    group('clearSearch', () {
-      test('should reset to initial state', () async {
-        // ARRANGE
-        when(mockRecentSearchesRepository.getRecentSearches())
-            .thenAnswer((_) async => []);
-        await notifier.onFocus();
-        notifier.updateQuery('test');
-
-        // ACT
-        notifier.clearSearch();
-
-        // ASSERT
-        expect(notifier.state.rawQueryText, isEmpty);
-        expect(notifier.state.groupedResults, isNull);
-        expect(notifier.state.isResultsPanelVisible, isFalse);
-      });
-    });
-
     group('dismissResultsPanel', () {
       test('should hide panel but keep query text', () async {
         // ARRANGE
@@ -663,12 +645,11 @@ void main() {
         await notifier.saveRecentSearchAndDismiss();
 
         // ASSERT - Singlish is saved as its Sinhala
-        verify(mockRecentSearchesRepository.addRecentSearch('ආනන්ද'))
-            .called(1);
+        verify(mockRecentSearchesRepository.addRecentSearch('ආනන්ද')).called(1);
         expect(notifier.state.isPanelDismissed, isTrue);
         expect(notifier.state.isResultsPanelVisible, isFalse);
-        expect(notifier.state.rawQueryText,
-            equals('aanandha')); // Text preserved
+        expect(
+            notifier.state.rawQueryText, equals('aanandha')); // Text preserved
       });
 
       test('should save Sinhala and references as typed', () async {
@@ -681,8 +662,7 @@ void main() {
         for (final query in ['ආනන්ද', 'SN 15.3']) {
           notifier.updateQuery(query);
           await notifier.saveRecentSearchAndDismiss();
-          verify(mockRecentSearchesRepository.addRecentSearch(query))
-              .called(1);
+          verify(mockRecentSearchesRepository.addRecentSearch(query)).called(1);
         }
       });
 

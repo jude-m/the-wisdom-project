@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/localization/l10n/app_localizations.dart';
 import '../../core/utils/responsive_utils.dart';
 import '../widgets/navigation/tree_navigator_widget.dart';
 import '../widgets/reader/multi_pane_reader_widget.dart';
@@ -9,8 +10,9 @@ import '../widgets/search/search_bar.dart' as app;
 import '../widgets/search/search_results_panel.dart';
 import '../widgets/common/resizable_divider.dart';
 import '../widgets/navigation/breadcrumb_widget.dart';
-import '../providers/main_search_focus_provider.dart';
+import '../providers/app_section_provider.dart';
 import '../providers/navigator_visibility_provider.dart';
+import '../providers/search_mode_provider.dart';
 import '../providers/tab_provider.dart';
 import '../providers/search_provider.dart';
 import '../providers/pane_width_provider.dart';
@@ -67,18 +69,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (isMobile) {
       ref.read(navigatorVisibleProvider.notifier).state = false;
     }
+    // Release the field too: on Android/iOS a touch outside it doesn't, so on
+    // a tablet's desktop box the keyboard would stay up and typing again
+    // wouldn't reopen the panel. Leaves search mode, so the breadcrumb shows
+    // what was opened.
+    ref.read(closeSearchProvider)();
   }
 
-  void _closeSearchPanel() {
-    // Drop search-bar focus first. Without this, the TextField keeps focus
-    // while isPanelDismissed flips true, so onFocus() never re-fires when the
-    // user types again and the panel stays hidden against a non-empty query.
-    // Same fix as the ESC path in overlay_stack_sync.dart — applied here so
-    // tap-outside, the mobile back button, and the panel's X button all
-    // recover cleanly.
-    ref.read(mainSearchFocusNodeProvider)?.unfocus();
-    ref.read(searchStateProvider.notifier).dismissResultsPanel();
-  }
+  void _closeSearchPanel() => ref.read(closeSearchProvider)();
 
   @override
   Widget build(BuildContext context) {
@@ -95,6 +93,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     // only needs the flag to decide whether to render the overlay/divider.
     final isSearchPanelVisible = ref.watch(
       searchStateProvider.select((s) => s.isResultsPanelVisible),
+    );
+
+    // Below desktop width search is an icon, and tapping it puts the app bar
+    // in search mode. An open panel counts too, so it always has a way out.
+    final isCompactBar = !ResponsiveUtils.isDesktop(context);
+    final isSearchMode =
+        isCompactBar && (ref.watch(searchModeProvider) || isSearchPanelVisible);
+    // The shell keeps this screen alive behind other sections.
+    final isReaderShowing = ref.watch(
+      selectedAppSectionProvider.select((s) => s == AppSection.reader),
     );
 
     // Watch pane widths from providers
@@ -130,22 +138,46 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         backgroundColor: scrolledUnder
             ? colorScheme.surfaceContainer
             : colorScheme.surfaceContainerLow,
-        title: const BreadcrumbWidget(),
-        titleSpacing: 4.0,
-        leading: IconButton(
-          icon: Icon(navigatorVisible ? Icons.menu_open : Icons.menu),
-          tooltip: navigatorVisible ? 'Hide Navigator' : 'Show Navigator',
-          onPressed: () {
-            ref.read(navigatorVisibleProvider.notifier).state =
-                !navigatorVisible;
-          },
-        ),
-        actions: const [
-          // Search bar (fixed width with overlay dropdown)
-          app.SearchBar(),
+        title: isSearchMode
+            ? PopScope(
+                // System back leaves search mode and closes the panel. Not
+                // while another section shows: back is that section's.
+                canPop: !isReaderShowing,
+                onPopInvokedWithResult: (didPop, result) {
+                  if (!didPop) _closeSearchPanel();
+                },
+                child: const app.SearchBar.fullWidth(),
+              )
+            : const BreadcrumbWidget(),
+        // Search mode has no leading or actions (the field has its own back
+        // arrow), so the field gets the same gap at both ends.
+        titleSpacing: isSearchMode ? 8.0 : 4.0,
+        leading: isSearchMode
+            ? null
+            : IconButton(
+                icon: Icon(navigatorVisible ? Icons.menu_open : Icons.menu),
+                tooltip: navigatorVisible
+                    ? AppLocalizations.of(context).hideNavigator
+                    : AppLocalizations.of(context).showNavigator,
+                onPressed: () {
+                  ref.read(navigatorVisibleProvider.notifier).state =
+                      !navigatorVisible;
+                },
+              ),
+        actions: [
+          if (!isCompactBar)
+            // Search bar (fixed width with overlay dropdown)
+            const app.SearchBar()
+          else if (!isSearchMode)
+            IconButton(
+              icon: const Icon(Icons.search),
+              tooltip: AppLocalizations.of(context).openSearch,
+              onPressed: () =>
+                  ref.read(searchModeProvider.notifier).state = true,
+            ),
 
           // Settings menu
-          SettingsMenuButton(),
+          if (!isSearchMode) const SettingsMenuButton(),
         ],
       ),
       body: Stack(
@@ -231,19 +263,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
             // Search results panel
             if (isMobile)
-              // Mobile: Full-screen overlay with back button handling
+              // Mobile: full-screen overlay. Back is handled by the app
+              // bar's search mode, which is always on while this shows.
               Positioned.fill(
-                child: PopScope(
-                  canPop: false,
-                  onPopInvokedWithResult: (didPop, result) {
-                    if (!didPop) {
-                      _closeSearchPanel();
-                    }
-                  },
-                  child: SearchResultsPanel(
-                    onClose: _closeSearchPanel,
-                    onResultTap: _handleSearchResultTap,
-                  ),
+                child: SearchResultsPanel(
+                  onResultTap: _handleSearchResultTap,
                 ),
               )
             else
@@ -271,7 +295,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                     ),
                     Expanded(
                       child: SearchResultsPanel(
-                        onClose: _closeSearchPanel,
                         onResultTap: _handleSearchResultTap,
                       ),
                     ),

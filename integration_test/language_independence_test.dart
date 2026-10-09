@@ -40,6 +40,12 @@ void main() {
     // The app, with MaterialApp.locale wired to appLanguageProvider exactly
     // like main.dart. A localized chrome label sits above the data surfaces.
     Future<ProviderContainer> pumpApp(WidgetTester tester) async {
+      // A fixed desktop size. The test window's own size varies, and a narrow
+      // one overflows the reader beside the 250px navigator.
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [

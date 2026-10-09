@@ -36,7 +36,6 @@ import '../../helpers/pump_app.dart';
 Future<FakeSearchStateNotifier> _pumpPanel(
   WidgetTester tester, {
   required SearchState state,
-  VoidCallback? onClose,
   void Function(SearchResult)? onResultTap,
   List<Override> overrides = const [],
 }) async {
@@ -55,10 +54,7 @@ Future<FakeSearchStateNotifier> _pumpPanel(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: SearchResultsPanel(
-            onClose: onClose ?? () {},
-            onResultTap: onResultTap,
-          ),
+          body: SearchResultsPanel(onResultTap: onResultTap),
         ),
       ),
     ),
@@ -303,27 +299,8 @@ void main() {
     });
 
     // ── Callback wiring ─────────────────────────────────────────────────
-
-    testWidgets('onClose callback fires when close button tapped',
-        (tester) async {
-      bool closeCalled = false;
-
-      await _pumpPanel(
-        tester,
-        state: const SearchState(
-          rawQueryText: 'test',
-          effectiveQueryText: 'test',
-        ),
-        onClose: () => closeCalled = true,
-      );
-
-      // The default 800px test surface is wider than a phone, so the button
-      // is the → arrow (phones get the ✕).
-      await tester.tap(find.byIcon(Icons.arrow_forward));
-      await tester.pump();
-
-      expect(closeCalled, isTrue);
-    });
+    // The panel has no close button: the search field's back arrow closes
+    // it (integration_test/search_mode_test.dart).
 
     testWidgets('onResultTap callback fires when result is tapped',
         (tester) async {

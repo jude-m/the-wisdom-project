@@ -7,6 +7,10 @@
 
   "readerTitle": "පාඨකය",
 
+  "showNavigator": "සංචාලකය පෙන්වන්න",
+
+  "hideNavigator": "සංචාලකය සඟවන්න",
+
   "layoutPaliOnly": "පාළි පමණයි",
 
   "layoutSinhalaOnly": "සිංහල පමණයි",
@@ -123,7 +127,7 @@
 
   "anywhereInText": "එකම පෙළෙහි ඕනෑම තැනක",
 
-  "closePanel": "ප්‍රතිඵල වසන්න",
+  "openSearch": "සොයන්න",
 
   "matchOptions": "ගැළපීමේ විකල්ප",
 

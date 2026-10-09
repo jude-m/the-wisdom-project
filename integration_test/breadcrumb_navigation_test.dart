@@ -41,6 +41,12 @@ void main() {
     // tree navigator on the left, tab bar + reader on the right).
     // -----------------------------------------------------------------
     Future<ProviderContainer> pumpBreadcrumbApp(WidgetTester tester) async {
+      // A fixed desktop size. The test window's own size varies, and a narrow
+      // one overflows the reader beside the 250px navigator.
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [

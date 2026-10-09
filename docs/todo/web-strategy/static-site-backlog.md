@@ -849,6 +849,42 @@ the Flutter app. `text_utils.dart` builds both of its copies from it, and the
 wiring test checks `ZERO_WIDTH` against it instead of its own list. The two
 copies inside `text_utils.dart` can be merged on their own, ahead of that.
 
+## C12. Breadcrumb: scroll sideways, like the app
+
+**Opened 2026-10-08.** The app's breadcrumb now scrolls sideways when it
+doesn't fit: one line, no scrollbar, opened at its end so the page's own name
+shows, every parent reachable, and 16px before the bar's controls
+(`breadcrumb_widget.dart`). The site still shrinks each segment to its own
+ellipsis and drops ancestors at three widths. The site should match.
+
+**CSS alone does it**, so it works with JavaScript off:
+
+- `.breadcrumb`: `overflow-x: auto`, `scrollbar-width: none`, and
+  `::-webkit-scrollbar { display: none }` for Safari before 18.2.
+- Opened at its end: `direction: rtl` on `.breadcrumb`, and `direction: ltr` on
+  an inner wrapper that holds the segments in their order. A right-to-left
+  scroller starts at its right edge. `margin-right: auto` on the wrapper keeps a
+  short trail at the left. Not `scrollLeft` from `site.js`: with JavaScript off
+  the page's name would start hidden.
+- A gap before the controls on the right, as in the app.
+- Decide: the emblem (`.home`) moves out of the scroller and stays pinned at
+  the left, like the app's menu button, or it scrolls away with the root end.
+
+**What goes:** the per-segment shrink (`flex: 0 200 auto`) and ellipsis, and
+the `title` that named a cut segment; `_trailKeepThree`, `_trailKeepOne`,
+`_trailKeepNone` and their media queries; the `:focus-visible` rule that brings
+back a collapsed segment (a browser scrolls a focused link into view).
+`_layoutsFoldWidth` and `_appPillMinWidth` were set from the trail's old
+widths: re-check them. Rewrite the comments that argue for the ellipsis:
+`.breadcrumb` in `stylesheet.dart` ("Ellipsis and not a scroll box") and
+`breadcrumb()` in `site_chrome.dart` ("Every segment is its own box", "same
+ellipsis"). The up button stays.
+
+**Still true from the old comment:** a mouse can't drag a browser scroller and
+sees no sign that it scrolls; Shift+wheel and a trackpad work. The cut-off text
+at the left edge is the hint, as on SuttaCentral. The app lets a mouse drag; the
+site would need pointer code in `site.js` for that, and it is not proposed.
+
 ---
 
 # Part D — Deferred decisions, no owner
@@ -989,6 +1025,9 @@ No action: **B3** (keep the provenance), **B4** (no fix exists), **B5**
 hygiene — do them when touching the code they cover, not as a campaign. C8 in particular
 should ride along with the next change to `SitePage`, since its whole diff is one
 clause on `hasPreamble`.
+
+**C12 the breadcrumb scroll** is parity with the app, not a fix: one change,
+whenever it is wanted.
 
 The build stays ~417 MB after all of it (425 less B2's ~8 MB; B1 is ~40 KB and
 does not show), because **the corpus is the corpus** — **365 MB of the 394 MB

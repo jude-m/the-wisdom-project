@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/l10n/app_localizations.dart';
@@ -7,7 +9,7 @@ import '../../providers/search_provider.dart';
 import '../../../domain/entities/search/recent_search.dart';
 
 /// Simplified overlay that only shows recent searches
-/// Displayed when search bar is focused with empty or short query
+/// Displayed when search bar is focused with an empty query
 class RecentSearchOverlay extends ConsumerWidget {
   /// Callback when the overlay should be dismissed
   final VoidCallback onDismiss;
@@ -23,22 +25,23 @@ class RecentSearchOverlay extends ConsumerWidget {
 
   /// Calculate max height based on screen size.
   ///
-  /// Mobile: fill the available height (minus safe-area insets and a small
-  /// gap for the search bar above). Tablet/desktop: cap at 66% so the
-  /// overlay doesn't dominate the viewport.
+  /// Mobile: fill the available height (minus safe-area insets, the keyboard
+  /// and a small gap for the search bar above). Tablet/desktop: also cap at
+  /// 66% so the overlay doesn't dominate the viewport.
   double _calculateMaxHeight(BuildContext context) {
-    // Safe-area insets (status bar, home indicator) — not a responsive
-    // decision, so MediaQuery is still the right source here.
-    final mediaQuery = MediaQuery.of(context);
-    final topPadding = mediaQuery.padding.top;
-    final bottomPadding = mediaQuery.padding.bottom;
+    // Safe-area insets (status bar, home indicator) and the keyboard — not a
+    // responsive decision, so MediaQuery is still the right source here.
+    final padding = MediaQuery.paddingOf(context);
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
     final screenHeight = ResponsiveUtils.screenHeight(context);
 
-    if (ResponsiveUtils.isMobile(context)) {
-      return screenHeight - topPadding - bottomPadding - 100;
-    } else {
-      return screenHeight * 0.66;
-    }
+    final available =
+        screenHeight - padding.top - padding.bottom - keyboard - 100;
+    final maxHeight = ResponsiveUtils.isMobile(context)
+        ? available
+        : math.min(available, screenHeight * 0.66);
+    // A negative max height would fail BoxConstraints' assert.
+    return math.max(0, maxHeight);
   }
 
   @override
@@ -53,17 +56,20 @@ class RecentSearchOverlay extends ConsumerWidget {
     }
 
     final maxHeight = _calculateMaxHeight(context);
+    // Below desktop width: edge to edge under the app bar, so square corners.
+    final borderRadius =
+        BorderRadius.circular(ResponsiveUtils.isDesktop(context) ? 12 : 0);
 
     return SizedBox(
       width: width,
       child: Material(
         elevation: 8,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: borderRadius,
         color: theme.colorScheme.surfaceContainer,
         child: ConstrainedBox(
           constraints: BoxConstraints(maxHeight: maxHeight),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: borderRadius,
             child: SingleChildScrollView(
               child: _buildRecentSearches(context, ref, recentSearches),
             ),

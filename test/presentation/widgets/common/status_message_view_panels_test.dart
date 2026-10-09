@@ -173,7 +173,7 @@ void main() {
   // =========================================================================
 
   group('SearchResultsPanel — fullResults states (specific tab)', () {
-    Widget panel() => SearchResultsPanel(onClose: () {});
+    Widget panel() => const SearchResultsPanel();
 
     testWidgets('null results (invalid query) → invalid variant',
         (tester) async {
@@ -290,7 +290,7 @@ void main() {
   // =========================================================================
 
   group('SearchResultsPanel — Top Results tab states', () {
-    Widget panel() => SearchResultsPanel(onClose: () {});
+    Widget panel() => const SearchResultsPanel();
 
     testWidgets('null grouped results → invalid variant on All tab',
         (tester) async {

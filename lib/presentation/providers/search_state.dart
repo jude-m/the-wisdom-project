@@ -125,7 +125,7 @@ class SearchState with _$SearchState {
 
 /// Manages search state with simplified UX flow
 ///
-/// The panel visibility is computed from queryText.length >= 2,
+/// The panel visibility is computed from whether the query has text,
 /// eliminating the need for explicit mode tracking.
 class SearchStateNotifier extends StateNotifier<SearchState> {
   final TextSearchRepository _searchRepository;
@@ -570,13 +570,6 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
     } else {
       _performSearch();
     }
-  }
-
-  /// Clear search and reset state
-  void clearSearch() {
-    _debounceTimer?.cancel();
-    _searchRequestId++; // Invalidate any in-flight searches
-    state = const SearchState();
   }
 
   /// Dismiss the results panel but keep the query text

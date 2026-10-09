@@ -3,6 +3,8 @@
 /// Verifies the full lifecycle of FTS highlights across tab operations:
 /// searching, opening FTS/Title results, navigator-based opening,
 /// switching tabs, clearing highlights via tap, and closing tabs.
+/// Runs the real [ReaderScreen] at desktop width, so the highlight comes from
+/// its own result tap.
 ///
 /// Run with:
 ///   flutter test integration_test/search_tab_highlight_test.dart -d macos
@@ -17,116 +19,16 @@ import 'package:integration_test/integration_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:the_wisdom_project/core/localization/l10n/app_localizations.dart';
-import 'package:the_wisdom_project/core/utils/responsive_utils.dart';
 import 'package:the_wisdom_project/data/datasources/bjt_document_local_datasource.dart';
-import 'package:the_wisdom_project/domain/entities/search/search_result.dart';
 import 'package:the_wisdom_project/domain/entities/search/search_result_type.dart';
 import 'package:the_wisdom_project/presentation/providers/document_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/fts_highlight_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/tab_provider.dart';
-import 'package:the_wisdom_project/presentation/widgets/reader/multi_pane_reader_widget.dart';
-import 'package:the_wisdom_project/presentation/widgets/search/search_bar.dart'
-    as app;
-import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
-import 'package:the_wisdom_project/presentation/widgets/navigation/tab_bar_widget.dart';
-import 'package:the_wisdom_project/presentation/widgets/navigation/tree_navigator_widget.dart';
+import 'package:the_wisdom_project/presentation/screens/reader_screen.dart';
 
 import 'test_overrides.dart';
-
-// ---------------------------------------------------------------------------
-// Test widget: Combines Search + Reader + TabBar with highlight logic
-// ---------------------------------------------------------------------------
-
-/// Mirrors ReaderScreen's layout and highlight logic for testing the
-/// search → tab → FTS highlight lifecycle.
-class _SearchTabTestWidget extends ConsumerStatefulWidget {
-  const _SearchTabTestWidget();
-
-  @override
-  ConsumerState<_SearchTabTestWidget> createState() =>
-      _SearchTabTestWidgetState();
-}
-
-class _SearchTabTestWidgetState extends ConsumerState<_SearchTabTestWidget> {
-  /// Replicates ReaderScreen._handleSearchResultTap():
-  /// Opens a tab from search result, sets FTS highlight for fullText results,
-  /// then saves recent search and dismisses the panel.
-  ///
-  /// The tab index is **awaited**, not read off [activeTabIndexProvider]: the
-  /// opener resolves the hit's unit first, so a synchronous read here still
-  /// names the tab the user came from (-1 with none open).
-  Future<void> _handleSearchResultTap(SearchResult result) async {
-    // Reads BuildContext, so it is answered before the await below.
-    final isPortraitMode = ResponsiveUtils.shouldDefaultToSingleColumn(context);
-
-    // Open tab from search result
-    final tabIndex = await ref.read(openTabFromSearchResultProvider)(result,
-        isPortraitMode: isPortraitMode);
-    if (!mounted) return;
-
-    // Set FTS highlight only for full text results
-    if (tabIndex >= 0 && result.resultType == SearchResultType.fullText) {
-      final searchState = ref.read(searchStateProvider);
-      ref.read(ftsHighlightProvider.notifier).setForTab(
-            tabIndex,
-            FtsHighlightState(
-              queryText: searchState.effectiveQueryText,
-              isPhraseSearch: searchState.isPhraseSearch,
-              isExactMatch: searchState.isExactMatch,
-            ),
-          );
-    }
-
-    // Save to recent searches and dismiss panel
-    ref.read(searchStateProvider.notifier).saveRecentSearchAndDismiss();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final searchState = ref.watch(searchStateProvider);
-
-    return Scaffold(
-      appBar: AppBar(
-        actions: const [app.SearchBar(width: 400)],
-      ),
-      body: Stack(
-        children: [
-          // Base layer: tree navigator + tabs + reader
-          const Row(
-            children: [
-              SizedBox(width: 250, child: TreeNavigatorWidget()),
-              Expanded(
-                child: Column(
-                  children: [
-                    TabBarWidget(),
-                    Expanded(child: MultiPaneReaderWidget()),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          // Search results overlay
-          if (searchState.isResultsPanelVisible)
-            Positioned(
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: 400,
-              child: SearchResultsPanel(
-                onClose: () => ref
-                    .read(searchStateProvider.notifier)
-                    .dismissResultsPanel(),
-                onResultTap: _handleSearchResultTap,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Helper: wait for search results to finish loading
@@ -166,6 +68,12 @@ void main() {
       'FTS highlight lifecycle across search, tabs, and close',
       (tester) async {
         // ---- SETUP ----
+        // Desktop width: the box sits in the app bar, the panel at the side,
+        // and all three tabs fit.
+        tester.view.physicalSize = const Size(1280, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
@@ -177,7 +85,7 @@ void main() {
             child: const MaterialApp(
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
-              home: _SearchTabTestWidget(),
+              home: ReaderScreen(),
             ),
           ),
         );
