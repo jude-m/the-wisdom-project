@@ -7,6 +7,7 @@ import '../../../core/utils/responsive_utils.dart';
 import '../../providers/breadcrumb_provider.dart';
 import '../../providers/navigator_sync_provider.dart';
 import '../../providers/tab_provider.dart';
+import '../common/mouse_drag_scroll.dart';
 
 /// Displays the active tab's position in the Tipitaka hierarchy as a
 /// breadcrumb trail in the AppBar (e.g., "සුත්ත පිටකය › දීඝ නිකාය › බ්‍රහ්මජාලසුත්තං").
@@ -94,23 +95,15 @@ class _BreadcrumbWidgetState extends ConsumerState<BreadcrumbWidget> {
       }
     }
 
-    final behavior = ScrollConfiguration.of(context);
-
     // Material's 16px before the app bar's actions (titleSpacing is 4), so
-    // a long trail doesn't run into the search icon.
+    // a long trail doesn't run into the search icon or box.
     return Padding(
       padding: const EdgeInsetsDirectional.only(end: 12),
       child: Align(
         // A short trail sits at the start, not at the reversed end.
         alignment: AlignmentDirectional.centerStart,
         widthFactor: 1,
-        child: ScrollConfiguration(
-          // Discreet: no scrollbar or overscroll effect. A mouse can drag it.
-          behavior: behavior.copyWith(
-            scrollbars: false,
-            overscroll: false,
-            dragDevices: {...behavior.dragDevices, PointerDeviceKind.mouse},
-          ),
+        child: MouseDragScroll(
           child: SingleChildScrollView(
             // A new path opens at its end again.
             key: ObjectKey(segments),

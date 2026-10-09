@@ -331,7 +331,7 @@
 
   "openSearch": "Search",
   "@openSearch": {
-    "description": "Tooltip for the app bar search icon below desktop width; tapping it opens the search field"
+    "description": "Tooltip for the app bar search icon on phones; tapping it opens the search field"
   },
 
   "matchOptions": "Match options",

@@ -22,8 +22,8 @@ class SearchBar extends ConsumerStatefulWidget {
     this.width = 360,
   });
 
-  /// Search mode below desktop width: fills the app bar, takes focus as it
-  /// appears, and shows recent searches full width under the bar.
+  /// Search mode on phones: fills the app bar, takes focus as it appears, and
+  /// shows recent searches as a card under the bar, as wide as the field.
   const SearchBar.fullWidth({super.key}) : width = null;
 
   @override
@@ -78,7 +78,7 @@ class _SearchBarState extends ConsumerState<SearchBar> {
 
   @override
   void dispose() {
-    // Below desktop width this bar goes away with search mode. Riverpod
+    // On phones this bar goes away with search mode. Riverpod
     // forbids changing a provider while the tree is torn down, so detach
     // after the frame.
     final focusController = _searchFocusController;
@@ -334,6 +334,9 @@ class _SearchBarState extends ConsumerState<SearchBar> {
           info.childPaintTransform,
           info.childSize.bottomRight(Offset.zero),
         );
+        final boxLeft =
+            MatrixUtils.transformPoint(info.childPaintTransform, Offset.zero)
+                .dx;
         // 8px below the box; in search mode that is the app bar's bottom.
         final top = anchor.dy + 8;
 
@@ -350,14 +353,14 @@ class _SearchBarState extends ConsumerState<SearchBar> {
               ),
             ),
             if (_isFullWidth)
+              // A floating card, not edge to edge: below the bar it read as
+              // part of it. As wide as the field, lined up with it; no gap
+              // under the bar, as on desktop.
               Positioned(
                 top: top,
-                left: 0,
-                right: 0,
-                child: RecentSearchOverlay(
-                  onDismiss: _hideOverlay,
-                  width: info.overlaySize.width,
-                ),
+                left: boxLeft,
+                right: info.overlaySize.width - anchor.dx,
+                child: RecentSearchOverlay(onDismiss: _hideOverlay),
               )
             else
               // Right edges aligned with the box

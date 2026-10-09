@@ -79,8 +79,8 @@ class OpenInPageSearchAction extends ContextAction<OpenInPageSearchIntent> {
 /// Moves keyboard focus into the main FTS search bar.
 ///
 /// Works from inside any other widget (including another text field), but
-/// only while the Reader shows: below desktop width it would otherwise open
-/// search mode in the hidden Reader.
+/// only while the Reader shows: on phones it would otherwise open search mode
+/// in the hidden Reader.
 class OpenMainSearchAction extends ContextAction<OpenMainSearchIntent> {
   final WidgetRef ref;
   OpenMainSearchAction(this.ref);
@@ -95,8 +95,8 @@ class OpenMainSearchAction extends ContextAction<OpenMainSearchIntent> {
     if (node != null) {
       node.requestFocus();
     } else {
-      // Below desktop width the field shows only in search mode; it takes
-      // focus as it opens.
+      // On phones the field shows only in search mode; it takes focus as it
+      // opens.
       ref.read(searchModeProvider.notifier).state = true;
     }
     return null;

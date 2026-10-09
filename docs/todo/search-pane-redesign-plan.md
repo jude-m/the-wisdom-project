@@ -4,7 +4,7 @@ Started 2026-10-05.
 
 ## How to use this plan
 
-Ten tasks in four chunks of related work. Build a chunk, review it, commit it; the next agent then picks up the next chunk. All work is on branch `feat/search-pane-redesign`.
+Tasks come in chunks of related work. Build a chunk, review it, commit it; the next agent then picks up the next chunk. All work is on branch `feat/search-pane-redesign`.
 
 Examples show this converter's real output: t → ට, th → ත, d → ඩ. So "satipatthana" becomes සටිපට්තන, not සතිපට්ඨාන.
 
@@ -17,10 +17,11 @@ Chunks, in order:
 | A | 1, 2, 3 + Task 10: clear ✕ tooltip | Singlish preview everywhere | Done |
 | B | 5, 6, 7 + Task 10: footer text, "View N more" button | Results list | Done |
 | C | 4, 8 + Task 10: Treatises naming | Filter row and match menu | Done |
-| D | 9 | Search icon below desktop width, one back arrow, one-line breadcrumb | Done, not committed; check by eye |
+| D | 9 | Search icon on phones, one back arrow, one-line breadcrumb | Done; checked by eye 2026-10-09 |
+| D2 | 12 | Tablets use the desktop bar; result tabs drag with a mouse | Done, not committed; check by eye |
 | E | 11 | Sutta abbreviations | Not started |
 
-B and C both edit `search_results_panel.dart`, so never run them side by side. D needs A and C. E can run any time after A. When a chunk is done, set its status and add a handover note at the end of this doc.
+B and C both edit `search_results_panel.dart`, so never run them side by side. D needs A and C; D2 needs D. E can run any time after A. When a chunk is done, set its status and add a handover note at the end of this doc.
 
 Tasks:
 
@@ -34,9 +35,10 @@ Tasks:
 | 6 | "See all" in Top results section headers | 5 | S | 5 |
 | 7 | Edition badge only when it helps | 6 | S | — |
 | 8 | "Starts with ▾" match menu | 2 | L | 4 |
-| 9 | Search icon that expands, below desktop width | 7 | L | 2, 8 |
+| 9 | Search icon that expands, on phones | 7 | L | 2, 8 |
 | 10 | Small fixes | — | S | — |
 | 11 | No Singlish preview while typing a sutta reference | — | S | 1 |
+| 12 | Tablets use the desktop bar; result tabs drag with a mouse | — | S | 9 |
 
 Rules for every task:
 
@@ -130,7 +132,7 @@ What does NOT change:
 
 **Done when:**
 
-- [ ] The search field's back arrow closes the panel; Esc, tap outside and phone back still work. Back at phone width worked on macOS (2026-10-08), when it was still in the app bar. Check the arrow in the field at every width, and system back on Android.
+- [ ] The search field's back arrow closes the panel; Esc, tap outside and phone back still work. Checked by eye at every width on macOS, 2026-10-09. Left: system back on Android.
 - [x] Tab reaches every chip; Enter or Space toggles it.
 - [x] Scope and dictionary rows use the same chip.
 
@@ -216,9 +218,9 @@ What does NOT change:
 - [x] Results refresh after each change.
 - [x] Defaults unchanged: starts with, phrase, distance 10.
 
-## Task 9 — Search icon that expands, below desktop width (canvas 7)
+## Task 9 — Search icon that expands, on phones (canvas 7)
 
-**Goal:** below desktop width (1024px), search is an icon. Tap it, and search fills the whole app bar. Desktop keeps the box.
+**Goal:** on phones (below 768px), search is an icon. Tap it, and search fills the whole app bar. Tablets and desktop keep the box.
 
 **The problem is confirmed** (2026-10-08, macOS window at phone width): the menu button, the 360px box and the settings button need about 464px, so the box runs off the app bar's right edge and Flutter's overflow stripe covers the clear ✕. It happens with or without a Singlish preview: at about 350px the box alone (fixed `width: 360` in `search_bar.dart`) is wider than the window. Not patched in the meantime; this task fixes it.
 
@@ -228,22 +230,22 @@ What does NOT change:
 
 **Steps:**
 
-1. Below `desktopBreakpoint` (1024px), not only on phones: show a search `IconButton` in the app bar instead of the 360px box. At tablet widths the box left the breadcrumb about 300px.
+1. Below `mobileBreakpoint` (768px): show a search `IconButton` in the app bar instead of the 360px box. Built below 1024px first; Task 12 gave tablets the box back, because a full-width field over their side panel looked split.
 2. Tap switches the app bar to search mode: a full-width field (with the Task 2 preview) and its clear ✕. Pass the field's real width as `fieldWidth` (from a `LayoutBuilder`), not `widget.width`: the 45% preview cap is a share of it, and an unbounded width removes the cap.
 3. One close button at every width: a back arrow at the start of the search field, in place of the 🔍. In search mode it always shows; on desktop it shows while the panel is open. The app bar has no back arrow, and the panel no close icon (Task 4).
 4. The back arrow and system back leave search mode and close the panel.
 5. Keep the same focus node, so Ctrl/Cmd+Shift+F still works (`mainSearchFocusNodeProvider`).
-6. Recent searches go full width under the bar in search mode.
-7. Desktop keeps the 360px box. It shows no shortcut: shortcuts will get their own sheet (decided 2026-10-09).
+6. In search mode, recent searches show under the bar, as wide as the field.
+7. Tablets and desktop keep the 360px box. It shows no shortcut: shortcuts will get their own sheet (decided 2026-10-09).
 8. If `SearchBar` can now be removed while the app runs, its `dispose` changes two providers (`_searchFocusController.state = null` and `_overlayStack.remove('recent-searches')`) and throws in debug. Move both into a post-frame callback, as `MatchOptionsButton.dispose` does.
 9. Breadcrumb: a trail too long for the bar stays on one line and scrolls sideways, with no scrollbar, as on SuttaCentral. It opens at its end, so the page's own name shows, and every parent stays reachable. 16px before the actions, not 4. Decided 2026-10-08, after two lines (the name on a line of its own) and dropping parents behind "… ›" were both tried. The static site follows: `static-site-backlog.md` C12.
 
 **Done when:**
 
-- [ ] No overflow at 360px width; the breadcrumb shows when search is closed, on one line, ending in the sutta name, with room before the search icon.
-- [ ] Open, type, pick a result, go back: all work on Android and iOS. At phone width on macOS these worked (2026-10-08), before the back arrow moved into the field.
-- [ ] Tablet width (768–1023px): icon, search mode, side panel; back closes it. At about 900px, judge whether a full-width field over a side panel looks split.
-- [ ] Desktop: the back arrow in the box closes the panel.
+- [x] No overflow at 360px width; the breadcrumb shows when search is closed, on one line, ending in the sutta name, with room before the search icon.
+- [ ] Open, type, pick a result, go back: all work on Android and iOS. At phone width they worked, checked by eye on 2026-10-09.
+- [x] Tablet width (768–1023px): side panel; back closes it. Checked with the icon on 2026-10-09; it looked split, so Task 12 gave tablets the desktop box.
+- [x] Desktop: the back arrow in the box closes the panel.
 
 ## Task 10 — Small fixes
 
@@ -296,6 +298,31 @@ Quick, independent items. Each one ships with the chunk that edits the same file
 
 - [ ] "SN", "SN 1", "sn15.3", "AN 3" and "Dhp" show no preview in the find bar or the main box, and are saved to recent searches as typed.
 - [ ] "AN", "KN", "an", "an 3", "a", "s" and "m" still show their previews.
+
+## Task 12 — Tablets use the desktop bar; result tabs drag with a mouse
+
+Found in the by-eye check on 2026-10-09; both parts decided by the user the same day.
+
+**Problem 1: field and panel looked split at tablet width.** At 768–1023px search mode filled the whole app bar, but the results panel is a side panel, often at its 300px minimum: at 900px with the navigator open, the 400px kept for the reader leaves the panel less than its minimum. The same happened when a desktop window with the panel open was narrowed below 1024px.
+
+**Problem 2: result tabs didn't scroll with a mouse.** In a 300px panel the four tabs don't fit. Tapping a tab scrolled it into view, but a mouse drag did nothing: the `TabBar` kept Flutter's default drag devices, which leave out the mouse on desktop and web. Nothing showed that more tabs were past the edge, either.
+
+**Steps:**
+
+1. The search icon only below 768px (`mobileBreakpoint`): in `reader_screen.dart`, the icon and search mode use `isMobile`, the same check that makes the panel full screen. Tablets get the 360px box, its dropdown and the side panel under it, as on desktop. Phones don't change: their panel is full screen, so a full-width field matches it.
+   - Cost: at 768px the breadcrumb gets about 200px (768 − 80 navigation rail − 56 menu − 8 spacing − 360 box − 48 settings − 12 end gap), with the navigator open or not: the app bar spans the screen beside the rail either way. It scrolls sideways and ends in the sutta name, so it doesn't break; it shows fewer parents.
+   - Not chosen: an icon at tablet width that turns into the box when tapped. It keeps the whole breadcrumb while reading, but the box would need search mode's focus, back arrow, tap outside and system back. Possible later if the shorter breadcrumb bothers.
+2. The result tabs drag with a mouse, and fade at the right edge like the chip row, with end padding equal to the fade.
+3. System back: one `PopScope` around the whole screen, so back closes search mode on phones and the side panel under the box on tablets. It used to wrap the full-width field, so at 768px and up (most Android phones turned sideways too) back with the panel open left the app (review, 2026-10-09).
+4. One helper each for what the sideways rows share: `MouseDragScroll` (mouse drag, no scrollbar or overscroll effect) for the breadcrumb, the reader's tab bar, the chip row and the result tabs; `RightEdgeFade` for the chip row and the result tabs.
+
+**Done when:**
+
+- [ ] 768–1023px: the desktop box with the panel under it; no full-width field.
+- [ ] Below 768px: unchanged.
+- [ ] At 768px and up, system back closes the panel (Android).
+- [ ] In a 300px panel the tabs scroll with a mouse drag and a trackpad, and the fade shows there are more.
+- [ ] The breadcrumb, the reader's tab bar and the chip row still drag with a mouse.
 
 ## Handover notes
 
@@ -382,19 +409,19 @@ Checked by eye on 2026-10-08 (with chunk B), desktop and phone width, English an
 
 Dark-theme items found on the way are in `docs/todo/dark-theme.md`.
 
-### Chunk D: done, not committed (2026-10-08)
+### Chunk D: done (1026018)
 
-Done: Task 9, then two review rounds the same day. Round 1: search icon up to 1024px, one back arrow. Round 2: a breadcrumb that scrolls sideways, focus, the clear ✕, the keyboard. Kept as uncommitted changes, at the user's request.
+Done: Task 9, then two review rounds the same day. Round 1: search icon up to 1024px, one back arrow. Round 2: a breadcrumb that scrolls sideways, focus, the clear ✕, the keyboard.
 
-- Below 1024px the app bar shows a search icon (tooltip `openSearch`), not the 360px box. Tapping it sets `searchModeProvider` (`providers/search_mode_provider.dart`). The bar then shows only `SearchBar.fullWidth()`: no menu button, no settings. An open results panel also counts as search mode, so the panel always has a way out (say, a desktop window narrowed with the panel open). On tablets the panel stays a side panel.
+- Below 1024px (768px since Task 12) the app bar shows a search icon (tooltip `openSearch`), not the 360px box. Tapping it sets `searchModeProvider` (`providers/search_mode_provider.dart`). The bar then shows only `SearchBar.fullWidth()`: no menu button, no settings. An open results panel also counts as search mode, so the panel always has a way out (say, a desktop window narrowed with the panel open). On tablets the panel stays a side panel.
 - One close button: the field's own back arrow (`BackButton` as `prefixIcon`, in place of the 🔍). In search mode it always shows; on the desktop box, while the panel is open. The panel's → and the `closePanel` l10n key are gone. `prefixIconConstraints` and `suffixIconConstraints` are 40px on every platform, desktop's compact size, so the back arrow and the clear ✕ fit the 40px box on phones too.
 - One close path, `closeSearchProvider`: release focus, close the panel, leave search mode. The back arrow, system back and Esc on the panel all use it. It replaces the copies in `reader_screen.dart` and `overlay_stack_sync.dart`.
-- System back: a `PopScope` wraps the field, so it is active exactly while search mode shows, and only while the reader shows: on another section back is that section's, and search stays open for the return. The one around the phone panel is gone.
+- System back: a `PopScope` closes search while search mode or the panel shows, and only while the reader shows: on another section back is that section's, and search stays open for the return. The one around the phone panel is gone. Since D2 it wraps the whole screen, not the field, so it covers the panel under the tablet box too.
 - Picking a result runs `closeSearchProvider` too: it leaves search mode, so the breadcrumb shows what opened, and releases the field. On Android/iOS a touch outside a field doesn't release it, so on a tablet's desktop box the keyboard stayed up and typing again didn't reopen the panel (review, 2026-10-08). Opening search again shows the last query, selected, with its results.
-- `SearchBar.fullWidth()`: `width` is null. The box fills the title slot and gives the preview its real width (`LayoutBuilder`). It takes focus as it appears, with `requestFocus()` after its first frame: `autofocus` is skipped when something else already has focus, such as reader text after a long press. Recent searches sit full width under the app bar, with square corners. Their tap-outside barrier starts under the bar, so the field and its back arrow still work. Esc or a tap outside the list leaves search mode.
+- `SearchBar.fullWidth()`: `width` is null. The box fills the title slot and gives the preview its real width (`LayoutBuilder`). It takes focus as it appears, with `requestFocus()` after its first frame: `autofocus` is skipped when something else already has focus, such as reader text after a long press. Recent searches sit under the app bar (a floating card since D2). Their tap-outside barrier starts under the bar, so the field and its back arrow still work. Esc or a tap outside the list leaves search mode.
 - `SearchBar.dispose` unpublishes the focus node and drops `recent-searches` after the frame (step 8). The focus-node check runs inside that callback: a new bar (desktop ↔ narrower width) may have published its node first. `_onFocusChange` stops if the bar went away during `await onFocus()`.
-- Ctrl/Cmd+Shift+F with no field (search closed, below 1024px) opens search mode. Like Ctrl/Cmd+F, it does nothing while another section shows (`OpenMainSearchAction.isEnabled`); it used to open search mode in the hidden reader.
-- Search mode ends when the desktop box appears (a window widened past 1024px, a tablet turned), so narrowing again shows the breadcrumb.
+- Ctrl/Cmd+Shift+F with no field (search closed, on a phone) opens search mode. Like Ctrl/Cmd+F, it does nothing while another section shows (`OpenMainSearchAction.isEnabled`); it used to open search mode in the hidden reader.
+- Search mode ends when the box appears (a window widened to tablet width or more), so narrowing again shows the breadcrumb.
 - The clear ✕ is a 40×40 tap target (was 30). It empties only the query (`updateQuery('')`): filters and recent searches stay, so the recent list comes back.
 - The recent list leaves room for the keyboard (`MediaQuery.viewInsetsOf`), on tablets too.
 - A tap outside the desktop recent list now does what Esc does: closes it and keeps the filters and match options. The tap outside and the ✕ used to reset everything (decided 2026-10-08: filters stay until the user changes them, as `persist_quick_search_filters_plan.md` wants). `clearSearch()`, which did the reset, is deleted with its unit test.
@@ -413,17 +440,42 @@ Tests (2026-10-08, 09):
 - Pass: unit suite, and on macOS `search_mode`, `search_flow_integration`, `search_language_toggle`, `search_tab_highlight`, `breadcrumb_navigation`, `language_independence`, `dictionary_filter_flow`, `layout_switch`, `scroll_restoration`, `sutta_step_navigation` and `dictionary_editable_word`.
 - Fails, not from this chunk: `in_page_search_test` 3b, a real bug at narrow widths. See "Done outside the chunks".
 
-Not checked yet:
+Checked by eye on macOS on 2026-10-09, at 360, 400, 768–1023 and 1280px, and while resizing. Chrome not needed (user). All fine but two, both moved to Task 12:
 
-- By eye, after round 2: phone width, tablet width (768–1023px) and desktop, on macOS and in Chrome. See Task 9's boxes and Task 4's back box.
-- Android and iOS: Android builds are broken on Flutter 3.44.1, and iOS was never built.
+- At tablet width the full-width field sits over a narrow side panel and looks split. The same after narrowing a desktop window with the panel open.
+- In a narrow panel the result tabs scroll only when tapped, not when dragged with a mouse.
+
+Not checked: Android and iOS. Android builds are broken on Flutter 3.44.1, and iOS was never built.
+
+Test gaps from the same check: `search-width-checks-test-plan.md`, for the test agent.
 
 Known edges, not fixed:
 
 - Esc does nothing when search mode shows only an empty, unfocused field (after Enter on an empty query). Back works.
 - The static site's breadcrumb still shrinks and drops segments, and its comments (`site_chrome.dart`, `stylesheet.dart`) say the app's does the same. Both change with `static-site-backlog.md` C12.
 
-Next: Chunk E.
+### Chunk D2: done, not committed (2026-10-09)
+
+Done: Task 12.
+
+- Tablets show the 360px box, as desktop does. Search mode and the full-width field are phone-only now.
+- On phones the recent list is a floating card, not edge to edge: with the same colour as a scrolled app bar and no gap, it read as part of the bar (user, 2026-10-09). Its left and right come from the field's real position (as the desktop dropdown's right edge does), so it lines up with the field, and it sits at the bar's bottom edge, 8px below the field, as on desktop: an extra 8px gap under the bar was tried and dropped, as it showed a strip of the reader. 12px corners at every width, as the desktop dropdown has. `RecentSearchOverlay` no longer checks the width for its corners.
+- Comments and the `openSearch` description that said "below desktop width" now say "on phones" (`search_bar.dart`, `search_mode_provider.dart`, `shortcut_actions.dart`, `app_en.arb`; l10n regenerated).
+- New `common/mouse_drag_scroll.dart` and `common/right_edge_fade.dart`. The breadcrumb, the reader's tab bar and `PillChipRow` use them in place of their own copies. The reader's tab bar and the chip row now also take the default drag devices they had left out (inverted stylus, unknown) and have no overscroll effect; their physics bounce, so nothing shows.
+- Result tabs: the `TabBar` sits in `RightEdgeFade` and `MouseDragScroll`, with 24px end padding. Its divider is now a bottom border outside the fade, so the line doesn't fade at its end. The `TabBar` keeps `dividerHeight: 1` with a transparent colour: at 0 a scrollable `TabBar` shrinks to its tabs.
+- `perf-top10-killers.md` B5 now covers both fades. The fade's shader callback is a static method, so the panel's rebuild on each keystroke doesn't repaint the mask.
+- System back: the `PopScope` moved from the field to the whole screen (Task 12 step 3). In `reader_screen.dart` search mode uses `isMobile`; the separate `isCompactBar` is gone.
+- `dart analyze` and `dart format`: clean. No tests written or run (per CLAUDE.md). The width checks are in `search-width-checks-test-plan.md`.
+
+### Next (handover, 2026-10-09)
+
+1. The user checks D2 by eye on macOS: 768, 900 and 1023px (box, dropdown corners, side panel, back arrow), the result tabs in a 300px panel with a mouse, and the breadcrumb, reader tabs and chips still dragging. Then commit.
+2. The test agent writes the width checks in `search-width-checks-test-plan.md`.
+3. Chunk E is Task 11. Start in `singlishPreviewText` (`lib/core/utils/search_query_utils.dart`), which today hides the preview when `SuttaCentralRefResolver.parseRef` reads a reference. The new table replaces `knownBooks` and `_displayBook` in `packages/wisdom_shared/lib/src/refs/suttacentral_ref_resolver.dart`. Task 11 has the rule and the measured cases. The test agent writes the corpus check ("Keep it true").
+4. Any time, outside the chunks: the `in_page_search_test` 3b bug ("Done outside the chunks"). Run 3b at 400×800 to see it, then look at `_scrollToCurrentMatch` in `multi_pane_reader_widget.dart`.
+5. Not tracked anywhere yet: the shortcuts sheet that replaces the box's hint.
+
+Running tests: one integration file per `flutter test … -d macos`. The macOS test window lays out 502px wide, so a new harness sets `tester.view.physicalSize`. Before pinning an old one, run it at 400px and 1280px: a failure only at 400px can be a real phone bug, as 3b is. The chip row is lazy: `scrollUntilVisible`, then `pump()`, before tapping a chip past the edge.
 
 ## Done outside the chunks (2026-10-08)
 

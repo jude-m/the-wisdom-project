@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'main_search_focus_provider.dart';
 import 'search_provider.dart';
 
-/// Below desktop width: true while the app bar is in search mode (a
-/// full-width search field in place of the breadcrumb).
+/// On phones: true while the app bar is in search mode (a full-width search
+/// field in place of the breadcrumb).
 final searchModeProvider = StateProvider<bool>((ref) => false);
 
 /// Closes search: releases the search field, hides the results panel and

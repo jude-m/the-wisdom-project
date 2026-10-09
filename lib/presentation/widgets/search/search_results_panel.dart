@@ -13,6 +13,8 @@ import '../../providers/reader_unit_provider.dart';
 import '../../providers/reference_search_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../utils/search_result_labels.dart';
+import '../common/mouse_drag_scroll.dart';
+import '../common/right_edge_fade.dart';
 import '../common/status_message_view.dart';
 import '../dictionary/dictionary_filter_chips.dart';
 import '../dictionary/refine_dictionary_dialog.dart';
@@ -590,24 +592,43 @@ class _SearchResultsTabBarState extends State<_SearchResultsTabBar>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return TabBar(
-      controller: _controller,
-      isScrollable: true,
-      tabAlignment: TabAlignment.start,
-      padding: const EdgeInsets.only(left: 8),
-      labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-      indicatorSize: TabBarIndicatorSize.tab,
-      indicator: UnderlineTabIndicator(
-        borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+    // In a narrow panel the tabs don't fit: faded at the right edge like the
+    // chip row, and a mouse can drag them. The divider line is this border,
+    // outside the fade, or its end would fade too.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: theme.colorScheme.outlineVariant),
+        ),
       ),
-      // Keep the divider: with dividerHeight 0, a scrollable TabBar shrinks
-      // to its tabs and sits in the middle of a wide panel.
-      dividerColor: theme.colorScheme.outlineVariant,
-      dividerHeight: 1,
-      onTap: (index) => widget.onResultTypeSelected(_tabTypes[index]),
-      tabs: [
-        for (final resultType in _tabTypes) _buildTab(context, resultType),
-      ],
+      child: RightEdgeFade(
+        child: MouseDragScroll(
+          child: TabBar(
+            controller: _controller,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            padding: const EdgeInsets.only(
+              left: 8,
+              right: RightEdgeFade.width,
+            ),
+            labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+            indicatorSize: TabBarIndicatorSize.tab,
+            indicator: UnderlineTabIndicator(
+              borderSide:
+                  BorderSide(color: theme.colorScheme.primary, width: 2),
+            ),
+            // Keep dividerHeight: at 0 a scrollable TabBar shrinks to its
+            // tabs and sits in the middle of a wide panel.
+            dividerColor: Colors.transparent,
+            dividerHeight: 1,
+            onTap: (index) => widget.onResultTypeSelected(_tabTypes[index]),
+            tabs: [
+              for (final resultType in _tabTypes)
+                _buildTab(context, resultType),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

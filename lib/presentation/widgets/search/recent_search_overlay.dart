@@ -56,9 +56,7 @@ class RecentSearchOverlay extends ConsumerWidget {
     }
 
     final maxHeight = _calculateMaxHeight(context);
-    // Below desktop width: edge to edge under the app bar, so square corners.
-    final borderRadius =
-        BorderRadius.circular(ResponsiveUtils.isDesktop(context) ? 12 : 0);
+    const borderRadius = BorderRadius.all(Radius.circular(12));
 
     return SizedBox(
       width: width,

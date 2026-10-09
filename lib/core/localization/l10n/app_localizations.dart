@@ -476,7 +476,7 @@ abstract class AppLocalizations {
   /// **'Anywhere in the same text'**
   String get anywhereInText;
 
-  /// Tooltip for the app bar search icon below desktop width; tapping it opens the search field
+  /// Tooltip for the app bar search icon on phones; tapping it opens the search field
   ///
   /// In en, this message translates to:
   /// **'Search'**

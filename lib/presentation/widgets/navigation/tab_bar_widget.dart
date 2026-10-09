@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +12,7 @@ import '../../providers/content_language_provider.dart';
 import '../../providers/pali_letter_options_provider.dart';
 import '../../providers/tab_lifecycle_provider.dart';
 import '../../providers/tab_provider.dart';
+import '../common/mouse_drag_scroll.dart';
 
 class TabBarWidget extends ConsumerStatefulWidget {
   const TabBarWidget({super.key});
@@ -327,16 +327,8 @@ class _TabBarWidgetState extends ConsumerState<TabBarWidget> {
         );
         return false;
       },
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(
-          dragDevices: {
-            PointerDeviceKind.touch,
-            PointerDeviceKind.mouse,
-            PointerDeviceKind.trackpad,
-            PointerDeviceKind.stylus,
-          },
-          scrollbars: false, // Hide scrollbar, we have chevrons
-        ),
+      // No scrollbar: the chevrons show there is more.
+      child: MouseDragScroll(
         child: ListView.builder(
           controller: _scrollController,
           scrollDirection: Axis.horizontal,
