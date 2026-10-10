@@ -145,8 +145,12 @@ extension SearchTestHelpers on WidgetTester {
   }
 
   /// Tap a scope filter chip by its label (e.g., "Sutta", "Commentaries").
+  /// Only the chip row's text: on the real screen the word can show elsewhere.
   Future<void> tapScopeChip(String chipLabel) async {
-    await tap(find.text(chipLabel));
+    await tap(find.descendant(
+      of: find.byType(ScopeFilterChips),
+      matching: find.text(chipLabel),
+    ));
     await pump();
     await waitForSearchResults();
   }

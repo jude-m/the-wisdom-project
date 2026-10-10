@@ -8,6 +8,7 @@ library;
 
 import 'dart:io' show SocketException;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,6 +23,7 @@ import 'package:the_wisdom_project/presentation/providers/content_language_provi
 import 'package:the_wisdom_project/presentation/providers/navigation_tree_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_provider.dart';
 import 'package:the_wisdom_project/presentation/providers/search_state.dart';
+import 'package:the_wisdom_project/presentation/widgets/common/right_edge_fade.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/search_results_panel.dart';
 import 'package:the_wisdom_project/presentation/widgets/search/secondary_match_tile.dart';
 
@@ -33,12 +35,15 @@ import '../../helpers/pump_app.dart';
 /// Returns the [FakeSearchStateNotifier] so a test can mutate state at runtime
 /// (e.g. flip the search language). Extra [overrides] let a test supply a real
 /// navigation tree / display language for the result-tile label tests.
+/// [width] sets the panel's width; null fills the screen.
 Future<FakeSearchStateNotifier> _pumpPanel(
   WidgetTester tester, {
   required SearchState state,
   void Function(SearchResult)? onResultTap,
   List<Override> overrides = const [],
+  double? width,
 }) async {
+  final panel = SearchResultsPanel(onResultTap: onResultTap);
   final notifier = FakeSearchStateNotifier(state);
   await tester.pumpWidget(
     ProviderScope(
@@ -54,7 +59,12 @@ Future<FakeSearchStateNotifier> _pumpPanel(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: SearchResultsPanel(onResultTap: onResultTap),
+          body: width == null
+              ? panel
+              : Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(width: width, child: panel),
+                ),
         ),
       ),
     ),
@@ -337,6 +347,53 @@ void main() {
       expect(tappedResult, isNotNull);
       expect(tappedResult?.title, equals('Metta Sutta'));
     });
+  });
+
+  // ── Result tabs in the narrowest side panel ──────────────────────────────
+  //
+  // 300px is the side panel's minimum, where the four tabs don't fit (M11 in
+  // search-width-checks-test-plan.md).
+  group('SearchResultsPanel — result tabs in a 300px panel', () {
+    const state = SearchState(
+      rawQueryText: 'metta',
+      effectiveQueryText: 'metta',
+      groupedResults: GroupedSearchResult(resultsByType: {}),
+      countByResultType: {
+        SearchResultType.title: 12,
+        SearchResultType.fullText: 140,
+        SearchResultType.definition: 30,
+      },
+    );
+
+    for (final kind in [PointerDeviceKind.mouse, PointerDeviceKind.touch]) {
+      testWidgets(
+          'a ${kind.name} drag brings the last tab on screen, clear of the fade',
+          (tester) async {
+        await _pumpPanel(tester, state: state, width: 300);
+        await tester.pumpAndSettle();
+
+        final panel = tester.getRect(find.byType(SearchResultsPanel));
+        Rect lastTab() => tester.getRect(find.ancestor(
+              of: find.text('Definitions'),
+              matching: find.byType(Tab),
+            ));
+        expect(lastTab().right, greaterThan(panel.right),
+            reason: 'the tabs must not fit, or there is nothing to drag');
+
+        await tester.dragFrom(
+          tester.getCenter(find.byType(TabBar)),
+          const Offset(-600, 0),
+          kind: kind,
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          panel.right - lastTab().right,
+          greaterThanOrEqualTo(RightEdgeFade.width),
+          reason: 'the last tab ends before the fade starts',
+        );
+      });
+    }
   });
 
   // ── Result-tile label follows the search-display language (§4b) ──────────

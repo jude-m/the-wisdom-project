@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -417,6 +418,42 @@ void main() {
 
       // ASSERT - Last tab should now be visible after scrolling
       expect(find.text('Tab Number 9'), findsOneWidget);
+    });
+
+    testWidgets('a mouse drag scrolls the tabs', (tester) async {
+      final tabs = List.generate(
+        10,
+        (i) => createTab(label: 'Tab Number $i'),
+      );
+
+      await tester.pumpApp(
+        const TabBarWidget(),
+        overrides: [
+          tabsProvider.overrideWith((ref) {
+            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
+            for (final tab in tabs) {
+              notifier.addTab(tab);
+            }
+            return notifier;
+          }),
+          activeTabIndexProvider.overrideWith((ref) => 0),
+        ],
+      );
+      await tester.pumpAndSettle();
+
+      final strip = find.byType(Scrollable);
+      double offset() => tester.state<ScrollableState>(strip).position.pixels;
+      expect(offset(), 0);
+
+      // Flutter leaves the mouse out of drag scrolling unless told otherwise.
+      await tester.dragFrom(
+        tester.getCenter(strip),
+        const Offset(-300, 0),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pumpAndSettle();
+
+      expect(offset(), greaterThan(0));
     });
   });
 }

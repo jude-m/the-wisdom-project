@@ -22,33 +22,36 @@ Since Task 12 (D2) only phones (below 768px) have the search icon and search mod
 - Each check once, at the width where it can break. All close paths go through `closeSearchProvider`, so each path is tested at one width, not at every width.
 - Push a check down to a widget test when a single widget proves it (breadcrumb, tab bar, recent list). Keep integration tests for what needs the whole screen.
 - The same files run on macOS (`flutter test <file> -d macos`) and in Chrome (`scripts/app/web/test_chrome.sh <file>`, which picks up every file in `all_tests.dart`).
+- A simulated key names its physical key (`sendKeyEvent(…, physicalKey: …)`). Without one, the key simulator looks it up by debug name, which a release web build drops, so the test fails in Chrome with a null error.
 
 ## Checks
 
-Status: **Covered**, **Partly** (what is missing is in the row), **Missing**. Covered rows need no new work; they are listed so nothing is tested twice.
+All covered (2026-10-10). Each `search_mode_test` test is named here by its opening words: "phone width" (400px), "360px phone", "400px phone" (recent searches), "tablet" and "desktop". Their steps are numbered in the code.
 
-| ID | Check | Width | Covered by | Status |
-| --- | --- | --- | --- | --- |
-| W1 | The icon opens search mode: field focused, back arrow, no menu button. | 400 | `search_mode_test` step 2 | Partly: also check the settings button is gone and the field spans the bar (8px gap each side). |
-| W2 | Close paths: tap below the bar (empty query), back arrow (keeps the query), system back, Esc, picking a result (the breadcrumb names it). | 400 | `search_mode_test` steps 3, 6, 8, 9, 13 | Covered |
-| W3 | Reopening shows the last query with its results, field focused. | 400 | `search_mode_test` step 7 | Partly: also check the whole query is selected. |
-| W4 | Ctrl/Cmd+Shift+F with no field opens search mode; on another section it does nothing; back on another section leaves search open. | 400 | `search_mode_test` steps 10–12 | Partly: only Ctrl is pressed. Add Cmd (`meta`), the macOS binding. |
-| W5 | Widening to the box ends search mode; narrowing again shows the breadcrumb. | 400 → 1200 → 400 | `search_mode_test` step 4 | Covered |
-| W6 | Desktop box: back arrow only while the panel is open; it closes the panel and keeps the query and the Sutta filter; focusing again gives the same counts. | harness | `search_flow` A4 | Covered |
-| W7 | The clear ✕ empties only the query; filters stay. | harness | `search_flow` A4 | Partly: also check the recent list comes back, in the box and in search mode. |
-| W8 | Singlish preview in the box; a Singlish recent entry shows only the Sinhala. | harness | `search_flow` 10.1 | Covered |
-| M1 | No overflow at 360, search closed and open. A long Singlish query in search mode keeps the typed text visible, and the preview is at most 45% of the field's real width. | 360 | — | Missing |
-| M2 | Breadcrumb with a long trail (a deep sutta): one line, opens at its end so the sutta name is on screen, a touch drag and a mouse drag reach the first parent, at least 16px between the trail and the search icon. Opening another sutta opens at its end again. | 360 | — | Missing. A widget test is enough. |
-| M3 | Search mode with an empty field: recent searches show as a card at the app bar's bottom edge, its left and right edges lined up with the field's (8px from the screen's sides); tapping a row searches it. | 400 | — | Missing. Seed one recent search. |
-| M4 | The recent list leaves room for the keyboard: with a 300px bottom view inset, the list ends above it. | 400, 900 | — | Missing |
-| M5 | Tablet: the 360px box and no search icon; the results panel is a side panel, not full screen (its left edge is past 0); the box's back arrow closes it, and so does system back (`tester.binding.handlePopRoute()`). | 900 | — | Missing |
-| M6 | The switch: 767 shows the search icon, 768 the box. | 767, 768 | — | Missing |
-| M7 | Desktop: the box is 360px wide, and its hint is only `searchHint` (no shortcut text). | 1280 | — | Missing. `search_mode_test` step 4 only checks a `SearchBar` exists. |
-| M8 | Desktop: the panel has no close button of its own; the box's back arrow is the only `BackButton` on screen. | 1280 | — | Missing |
-| M9 | Desktop: a click outside the recent list closes it and keeps the scope and match options. | 1280 | — | Missing |
-| M10 | Desktop with the panel open, narrowed: at 900 the box keeps its back arrow and the side panel; at 400 the panel goes full screen under the full-width field, with a back arrow. One tap closes it. | 1280 → 900 → 400 | — | Missing |
-| M11 | Result tabs in a 300px panel: a mouse drag and a touch drag scroll the row until the last tab is on screen, and the last tab then ends at least 24px (`RightEdgeFade.width`) from the panel's right edge. | 300px panel | — | Missing. A widget test in `search_results_panel_test` is enough. |
-| M12 | The chip row and the reader's tab bar still scroll with a mouse drag (they share `MouseDragScroll` since Task 12; the breadcrumb is M2). | any | — | Missing. Widget tests are enough. |
+| ID | Check | Width | Covered by |
+| --- | --- | --- | --- |
+| W1 | The icon opens search mode: field focused, back arrow, no menu or settings button, the field 8px from each side of the bar. | 400 | `search_mode_test` "phone width", step 2 |
+| W2 | Close paths: tap below the bar (empty query), back arrow (keeps the query), system back, Esc, picking a result (the breadcrumb names it). | 400 | `search_mode_test` "phone width", steps 3, 6, 8, 9, 13 |
+| W3 | Reopening shows the last query, all selected, with its results, field focused. | 400 | `search_mode_test` "phone width", step 7 |
+| W4 | Ctrl+Shift+F and Cmd+Shift+F with no field open search mode; on another section the shortcut does nothing; back on another section leaves search open. | 400 | `search_mode_test` "phone width", steps 10–12 |
+| W5 | Widening to the box ends search mode; narrowing again shows the breadcrumb. | 400 → 1200 → 400 | `search_mode_test` "phone width", step 4 |
+| W6 | Desktop box: back arrow only while the panel is open; it closes the panel and keeps the query and the Sutta filter; focusing again gives the same counts. | harness | `search_flow` A4 |
+| W7 | The clear ✕ empties only the query; filters stay; the recent list comes back. | harness, 400, 1280 | `search_flow` A4; `search_mode_test` "400px phone", and "desktop" step 3 |
+| W8 | Singlish preview in the box; a Singlish recent entry shows only the Sinhala. | harness | `search_flow` 10.1 |
+| M1 | No overflow at 360, search closed and open. A long Singlish query keeps the typed text visible, and the preview is at most 45% of the field's real width. | 360 | `search_mode_test` "360px phone" |
+| M2 | Breadcrumb with a long trail: one line, opens at its end, a touch drag and a mouse drag reach the first parent; another sutta opens at its end again. At least 16px between the trail and the search icon. | 200px bar, 360 | `breadcrumb_widget_test`; the 16px in `search_mode_test` "360px phone" |
+| M3 | Search mode with an empty field: recent searches are a card at the app bar's bottom edge, lined up with the field; tapping a row searches it. | 400 | `search_mode_test` "400px phone" |
+| M4 | The recent list ends above a 300px keyboard. The test first checks that, in full, the list would reach the keyboard. | 400×560, 900×560 | `search_mode_test` "400px phone", and "tablet" step 3 |
+| M5 | Tablet: the 360px box; the results panel is a side panel; the box's back arrow closes it, and so does system back (`handlePopRoute`). | 900 | `search_mode_test` "tablet", steps 2, 4–6 |
+| M6 | The switch: 767 shows the search icon, 768 the box. | 767, 768 | `search_mode_test` "tablet", step 1 |
+| M7 | Desktop: the box is 360px wide, and its hint is only `searchHint`. | 1280 | `search_mode_test` "desktop", step 1 |
+| M8 | Desktop: the panel has no close button of its own; the box's back arrow is the only `BackButton` on screen. | 1280 | `search_mode_test` "desktop", step 2 |
+| M9 | Desktop: a click outside the recent list closes it and keeps the scope and match options. | 1280 | `search_mode_test` "desktop", step 4 |
+| M10 | Desktop with the panel open, narrowed: at 900 the box keeps its back arrow and the side panel; at 400 the panel fills the screen under the full-width field. One tap closes it. | 1280 → 900 → 400 | `search_mode_test` "desktop", steps 5–7 |
+| M11 | Result tabs in a 300px panel: a mouse drag and a touch drag bring the last tab on screen, at least 24px (`RightEdgeFade.width`) from the panel's right edge. | 300px panel | `search_results_panel_test` |
+| M12 | The chip row and the reader's tab bar scroll with a mouse drag. | any | `pill_chip_row_test`, `tab_bar_widget_test` |
+
+Proved by breaking a scratch copy, each failing only the tests meant to catch it: no mouse in `MouseDragScroll`, the breadcrumb not reversed or not keyed by its path, no end padding on the result tabs, the recent list ignoring the keyboard, the preview capped by 360px instead of the field's width, the phone card not lined up with the field, and system back ignoring the tablet panel.
 
 ## By eye only
 
@@ -57,11 +60,3 @@ No test can judge these. The user checks them after each layout change.
 - At tablet width, the box and the side panel look right together (Task 12).
 - The fade at the end of the result tabs looks right, and the line under the tabs runs to the panel's edge without fading (Task 12).
 - Android system back, and everything on iOS: Android builds are broken on Flutter 3.44.1, and iOS was never built.
-
-## Where the tests go
-
-Suggested, not binding:
-
-- `integration_test/search_mode_test.dart`: one `testWidgets` per width (phone, tablet, desktop) for W1, W3, W4, M1, M3–M10. Its header comment still says "Below 1024px"; since Task 12 it is 768px.
-- A new `test/presentation/widgets/breadcrumb_widget_test.dart` for M2.
-- `test/presentation/widgets/search_results_panel_test.dart` for M11; `tab_bar_widget_test.dart` and a chip-row widget test for M12.

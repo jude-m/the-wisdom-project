@@ -465,14 +465,13 @@ Done: Task 12.
 - Result tabs: the `TabBar` sits in `RightEdgeFade` and `MouseDragScroll`, with 24px end padding. Its divider is now a bottom border outside the fade, so the line doesn't fade at its end. The `TabBar` keeps `dividerHeight: 1` with a transparent colour: at 0 a scrollable `TabBar` shrinks to its tabs.
 - `perf-top10-killers.md` B5 now covers both fades. The fade's shader callback is a static method, so the panel's rebuild on each keystroke doesn't repaint the mask.
 - System back: the `PopScope` moved from the field to the whole screen (Task 12 step 3). In `reader_screen.dart` search mode uses `isMobile`; the separate `isCompactBar` is gone.
-- `dart analyze` and `dart format`: clean. No tests written or run (per CLAUDE.md). The width checks are in `search-width-checks-test-plan.md`.
+- `dart analyze` and `dart format`: clean. Its tests are the width checks, written 2026-10-10: `search-width-checks-test-plan.md`.
 
 ### Next (handover, 2026-10-09)
 
 1. The user checks D2 by eye on macOS: 768, 900 and 1023px (box, dropdown corners, side panel, back arrow), the result tabs in a 300px panel with a mouse, and the breadcrumb, reader tabs and chips still dragging. Then commit.
-2. The test agent writes the width checks in `search-width-checks-test-plan.md`.
-3. Chunk E is Task 11. Start in `singlishPreviewText` (`lib/core/utils/search_query_utils.dart`), which today hides the preview when `SuttaCentralRefResolver.parseRef` reads a reference. The new table replaces `knownBooks` and `_displayBook` in `packages/wisdom_shared/lib/src/refs/suttacentral_ref_resolver.dart`. Task 11 has the rule and the measured cases. The test agent writes the corpus check ("Keep it true").
-4. Not tracked anywhere yet: the shortcuts sheet that replaces the box's hint.
+2. Chunk E is Task 11. Start in `singlishPreviewText` (`lib/core/utils/search_query_utils.dart`), which today hides the preview when `SuttaCentralRefResolver.parseRef` reads a reference. The new table replaces `knownBooks` and `_displayBook` in `packages/wisdom_shared/lib/src/refs/suttacentral_ref_resolver.dart`. Task 11 has the rule and the measured cases. The test agent writes the corpus check ("Keep it true").
+3. Not tracked anywhere yet: the shortcuts sheet that replaces the box's hint.
 
 Running tests: one integration file per `flutter test … -d macos`. The macOS test window lays out 502px wide, so a new harness sets `tester.view.physicalSize`. Before pinning an old one, run it at 400px and 1280px: a failure only at 400px can be a real phone bug, as 3b was. The chip row is lazy: `scrollUntilVisible`, then `pump()`, before tapping a chip past the edge.
 
