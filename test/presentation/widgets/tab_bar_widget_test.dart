@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:the_wisdom_project/core/storage/key_value_store_provider.dart';
@@ -31,6 +32,36 @@ void main() {
     );
   }
 
+  // The bar with [tabs], the first one active. [overrides] come on top of
+  // the two it sets.
+  Future<void> pumpTabBar(
+    WidgetTester tester,
+    List<ReaderTab> tabs, {
+    List<Override> overrides = const [],
+  }) async {
+    await tester.pumpApp(
+      const TabBarWidget(),
+      overrides: [
+        tabsProvider.overrideWith((ref) {
+          final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
+          for (final tab in tabs) {
+            notifier.addTab(tab);
+          }
+          return notifier;
+        }),
+        activeTabIndexProvider.overrideWith((ref) => 0),
+        ...overrides,
+      ],
+    );
+    await tester.pumpAndSettle();
+  }
+
+  // Ten tabs, "Tab Number 0" to "Tab Number 9": more than the bar fits, so
+  // it scrolls.
+  Future<void> pumpTenTabs(WidgetTester tester) => pumpTabBar(tester, [
+        for (var i = 0; i < 10; i++) createTab(label: 'Tab Number $i'),
+      ]);
+
   // ============================================================
   // Empty State Tests
   // ============================================================
@@ -56,19 +87,7 @@ void main() {
       final tab2 = createTab(label: 'Sutta 2');
 
       // ACT
-      await tester.pumpApp(
-        const TabBarWidget(),
-        overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
-            notifier.addTab(tab1);
-            notifier.addTab(tab2);
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0),
-        ],
-      );
-      await tester.pumpAndSettle();
+      await pumpTabBar(tester, [tab1, tab2]);
 
       // ASSERT
       expect(find.text('Sutta 1'), findsOneWidget);
@@ -83,19 +102,7 @@ void main() {
       final tab2 = createTab(label: 'Folder Tab');
 
       // ACT
-      await tester.pumpApp(
-        const TabBarWidget(),
-        overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
-            notifier.addTab(tab1);
-            notifier.addTab(tab2);
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0),
-        ],
-      );
-      await tester.pumpAndSettle();
+      await pumpTabBar(tester, [tab1, tab2]);
 
       // ASSERT - One description icon per tab (both tabs render).
       expect(find.byIcon(Symbols.description_sharp), findsNWidgets(2));
@@ -118,18 +125,7 @@ void main() {
 
     testWidgets('Sinhala (default) → shows the raw sinhalaName, no conjuncts',
         (tester) async {
-      await tester.pumpApp(
-        const TabBarWidget(),
-        overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
-            notifier.addTab(bilingualTab());
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0),
-        ],
-      );
-      await tester.pumpAndSettle();
+      await pumpTabBar(tester, [bilingualTab()]);
 
       // Default Content Language is Sinhala → the sinhalaName is shown verbatim.
       expect(find.text('දම් නම'), findsOneWidget);
@@ -137,21 +133,15 @@ void main() {
 
     testWidgets('Pali → shows paliName with conjunct ligatures applied',
         (tester) async {
-      await tester.pumpApp(
-        const TabBarWidget(),
+      await pumpTabBar(
+        tester,
+        [bilingualTab()],
         overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
-            notifier.addTab(bilingualTab());
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0),
           // Pin the reading language to Pali for this tab bar.
           effectiveContentLanguageProvider
               .overrideWithValue(ContentLanguage.pali),
         ],
       );
-      await tester.pumpAndSettle();
 
       // The label is transformed (ZWJ inserted) → matches the transformer
       // output, and NOT the raw Pali string.
@@ -173,19 +163,7 @@ void main() {
       final tab2 = createTab(label: 'Tab 2');
 
       // ACT
-      await tester.pumpApp(
-        const TabBarWidget(),
-        overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
-            notifier.addTab(tab1);
-            notifier.addTab(tab2);
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0), // First tab active
-        ],
-      );
-      await tester.pumpAndSettle();
+      await pumpTabBar(tester, [tab1, tab2]);
 
       // ASSERT - Just verify both tabs render, styling is theme-dependent
       expect(find.text('Tab 1'), findsOneWidget);
@@ -203,18 +181,7 @@ void main() {
       final tab = createTab(label: 'Tab');
 
       // ACT
-      await tester.pumpApp(
-        const TabBarWidget(),
-        overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
-            notifier.addTab(tab);
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0),
-        ],
-      );
-      await tester.pumpAndSettle();
+      await pumpTabBar(tester, [tab]);
 
       // ASSERT - Tab should have close button
       expect(find.byIcon(Icons.close), findsOneWidget);
@@ -249,19 +216,7 @@ void main() {
       final tab2 = createTab(label: 'Tab 2');
 
       // ACT
-      await tester.pumpApp(
-        const TabBarWidget(),
-        overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
-            notifier.addTab(tab1);
-            notifier.addTab(tab2);
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0),
-        ],
-      );
-      await tester.pumpAndSettle();
+      await pumpTabBar(tester, [tab1, tab2]);
 
       // ASSERT - Both chevrons exist in the tree but are faded out
       // (opacity 0) because no scrolling is possible.
@@ -271,26 +226,7 @@ void main() {
 
     testWidgets('should show right chevron when tabs overflow', (tester) async {
       // ARRANGE - Many tabs that will overflow
-      final tabs = List.generate(
-        10,
-        (i) => createTab(label: 'Tab Number $i'),
-      );
-
-      // ACT
-      await tester.pumpApp(
-        const TabBarWidget(),
-        overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
-            for (final tab in tabs) {
-              notifier.addTab(tab);
-            }
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0),
-        ],
-      );
-      await tester.pumpAndSettle();
+      await pumpTenTabs(tester);
 
       // ASSERT - Right chevron should be visible (tabs overflow to the right)
       expect(chevronOpacity(tester, Icons.chevron_right), 1.0);
@@ -301,26 +237,7 @@ void main() {
     testWidgets('should show left chevron after scrolling right',
         (tester) async {
       // ARRANGE - Many tabs that will overflow
-      final tabs = List.generate(
-        10,
-        (i) => createTab(label: 'Tab Number $i'),
-      );
-
-      // ACT
-      await tester.pumpApp(
-        const TabBarWidget(),
-        overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
-            for (final tab in tabs) {
-              notifier.addTab(tab);
-            }
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0),
-        ],
-      );
-      await tester.pumpAndSettle();
+      await pumpTenTabs(tester);
 
       // Scroll to reveal later tabs
       await tester.scrollUntilVisible(
@@ -336,26 +253,7 @@ void main() {
 
     testWidgets('should scroll when chevron is tapped', (tester) async {
       // ARRANGE - Many tabs that will overflow
-      final tabs = List.generate(
-        10,
-        (i) => createTab(label: 'Tab Number $i'),
-      );
-
-      // ACT
-      await tester.pumpApp(
-        const TabBarWidget(),
-        overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
-            for (final tab in tabs) {
-              notifier.addTab(tab);
-            }
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0),
-        ],
-      );
-      await tester.pumpAndSettle();
+      await pumpTenTabs(tester);
 
       // First tab should be visible
       expect(find.text('Tab Number 0'), findsOneWidget);
@@ -380,26 +278,7 @@ void main() {
   group('Multiple tabs', () {
     testWidgets('should use horizontal scrollable ListView', (tester) async {
       // ARRANGE - Create many tabs that won't all fit on screen
-      final tabs = List.generate(
-        10,
-        (i) => createTab(label: 'Tab Number $i'),
-      );
-
-      // ACT
-      await tester.pumpApp(
-        const TabBarWidget(),
-        overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
-            for (final tab in tabs) {
-              notifier.addTab(tab);
-            }
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0),
-        ],
-      );
-      await tester.pumpAndSettle();
+      await pumpTenTabs(tester);
 
       // ASSERT - ListView should be horizontal
       final listView = tester.widget<ListView>(find.byType(ListView));
@@ -421,25 +300,7 @@ void main() {
     });
 
     testWidgets('a mouse drag scrolls the tabs', (tester) async {
-      final tabs = List.generate(
-        10,
-        (i) => createTab(label: 'Tab Number $i'),
-      );
-
-      await tester.pumpApp(
-        const TabBarWidget(),
-        overrides: [
-          tabsProvider.overrideWith((ref) {
-            final notifier = TabsNotifier(ref.read(keyValueStoreProvider));
-            for (final tab in tabs) {
-              notifier.addTab(tab);
-            }
-            return notifier;
-          }),
-          activeTabIndexProvider.overrideWith((ref) => 0),
-        ],
-      );
-      await tester.pumpAndSettle();
+      await pumpTenTabs(tester);
 
       final strip = find.byType(Scrollable);
       double offset() => tester.state<ScrollableState>(strip).position.pixels;
