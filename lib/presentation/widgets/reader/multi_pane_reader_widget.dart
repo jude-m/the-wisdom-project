@@ -354,13 +354,17 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     // A call from outside starts a new reveal; its retries carry its number.
     final gen = generation ?? ++_revealGeneration;
     if (gen != _revealGeneration) return;
-    // A page outside the loaded unit (a stale `?e=` link) never mounts, so the
+    // A target the loaded unit doesn't draw (a stale `?e=` link: a page outside
+    // it, or an entry before its start or past its end) never mounts, so the
     // reveal ends here. While the unit is still loading, it keeps retrying.
     final slice = ref.read(activeDocumentSliceProvider);
-    if (slice != null &&
-        (pageIndex < slice.absolutePageStart ||
-            pageIndex >= slice.absolutePageStart + slice.pages.length)) {
-      return;
+    if (slice != null) {
+      final local = pageIndex - slice.absolutePageStart;
+      if (local < 0 || local >= slice.pages.length) return;
+      // The longer section: a Sinhala-only pane can draw entries Pali lacks.
+      final (first, end) =
+          slice.entriesOn(local, slice.pages[local].maxEntryCount);
+      if (entryIndex < first || entryIndex >= end) return;
     }
 
     // Publish it before looking the key up: on the first attempt the window
