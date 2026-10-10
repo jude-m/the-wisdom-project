@@ -438,7 +438,7 @@ Tests (2026-10-08, 09):
 - `search_tab_highlight_test` pumps the real `ReaderScreen`, not a copy of its layout and result tap, so the FTS highlight it checks comes from the screen's own code.
 - The test window laid out 502px wide (cause not found), so `breadcrumb_navigation_test`, `language_independence_test` and `search_tab_highlight_test` failed: the reader beside their 250px navigator overflowed, and the third tab was off-screen. They now set `tester.view.physicalSize` to 1280×800, as `search_mode_test` sets 400×800.
 - Pass: unit suite, and on macOS `search_mode`, `search_flow_integration`, `search_language_toggle`, `search_tab_highlight`, `breadcrumb_navigation`, `language_independence`, `dictionary_filter_flow`, `layout_switch`, `scroll_restoration`, `sutta_step_navigation` and `dictionary_editable_word`.
-- Fails, not from this chunk: `in_page_search_test` 3b, a real bug at narrow widths. See "Done outside the chunks".
+- Failed, not from this chunk: `in_page_search_test` 3b, a real bug at narrow widths, fixed 2026-10-10. See "Done outside the chunks".
 
 Checked by eye on macOS on 2026-10-09, at 360, 400, 768–1023 and 1280px, and while resizing. Chrome not needed (user). All fine but two, both moved to Task 12:
 
@@ -472,16 +472,15 @@ Done: Task 12.
 1. The user checks D2 by eye on macOS: 768, 900 and 1023px (box, dropdown corners, side panel, back arrow), the result tabs in a 300px panel with a mouse, and the breadcrumb, reader tabs and chips still dragging. Then commit.
 2. The test agent writes the width checks in `search-width-checks-test-plan.md`.
 3. Chunk E is Task 11. Start in `singlishPreviewText` (`lib/core/utils/search_query_utils.dart`), which today hides the preview when `SuttaCentralRefResolver.parseRef` reads a reference. The new table replaces `knownBooks` and `_displayBook` in `packages/wisdom_shared/lib/src/refs/suttacentral_ref_resolver.dart`. Task 11 has the rule and the measured cases. The test agent writes the corpus check ("Keep it true").
-4. Any time, outside the chunks: the `in_page_search_test` 3b bug ("Done outside the chunks"). Run 3b at 400×800 to see it, then look at `_scrollToCurrentMatch` in `multi_pane_reader_widget.dart`.
-5. Not tracked anywhere yet: the shortcuts sheet that replaces the box's hint.
+4. Not tracked anywhere yet: the shortcuts sheet that replaces the box's hint.
 
-Running tests: one integration file per `flutter test … -d macos`. The macOS test window lays out 502px wide, so a new harness sets `tester.view.physicalSize`. Before pinning an old one, run it at 400px and 1280px: a failure only at 400px can be a real phone bug, as 3b is. The chip row is lazy: `scrollUntilVisible`, then `pump()`, before tapping a chip past the edge.
+Running tests: one integration file per `flutter test … -d macos`. The macOS test window lays out 502px wide, so a new harness sets `tester.view.physicalSize`. Before pinning an old one, run it at 400px and 1280px: a failure only at 400px can be a real phone bug, as 3b was. The chip row is lazy: `scrollUntilVisible`, then `pump()`, before tapping a chip past the edge.
 
 ## Done outside the chunks (2026-10-08)
 
 Found while working on the chunks. Also see the recent-search change in Task 3.
 
-- [ ] **`in_page_search_test` 3b: wrapping to the last match fails at narrow widths.** "Wrapping to the last match must scroll the viewport past everything stepping forward reached" (line 363). Run alone on macOS, 2026-10-09: fails at 400px (offset 13302.4 at match 4 → 7561.6 at match 69) and in the default 502px test window; passes at 1280px. So it is a bug on phones, not a test-window problem: don't pin this test's size. Earlier passing runs had a wider window. The scroll comes from `_scrollToCurrentMatch`'s bounded retry. Chunk D doesn't touch the find bar or the reader.
+- [x] **`in_page_search_test` 3b: wrapping to the last match failed at narrow widths.** Fixed 2026-10-10. Cause: portrait widths use the lazy stacked list, and `_stepViewportToward` moved one viewport per frame with 10 retries, so a far target stopped about 10 viewports down (7561.6 at match 69, short of 13302.4 at match 4). Fix: far pages are skipped by estimate (average page height), then one viewport per frame. The search-result and `?e=` landing and the layout-switch sync use the same code, so they reach far entries on phones too. Cost: a far jump lays out every page in between in one frame, so a long sutta may pause briefly on a phone. Don't pin 3b's size: its default 502px window is what catches this.
 - [x] **"As a phrase" is now an ordered phrase.** `buildFtsQuery` sends `w1* + w2*` (FTS5's phrase with prefix words), not `NEAR(w1* w2*, 1)`. For කර්ම ඵල that is 140 texts, down from 176. Test counts did not change: 3.1 is still 100+, 4.1 still 7. The highlighter already matched words in order.
 - [x] **Recent searches drop Helakuru's invisible space.** `addRecentSearch` removes U+200B before saving and comparing; the joiner U+200D stays. Checked by hand with Helakuru on 2026-10-08: typed and pasted අරුණව now give one entry.
 - [x] **Recent searches keep letter case.** Adding and removing compare the text exactly, not lowercased. In Singlish "kana" (කන) and "kaNa" (කණ) are different words; "kaNa" used to drop "kana" from the list.

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -83,9 +84,14 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   static const _restoreMaxRetries = 30;
 
   // Bound on scroll-to-entry retries — see [_ensureEntryVisible].
-  // ~10 frames is enough for ListView.builder to lazy-build the page
-  // holding the target, without spinning forever if it is unreachable.
+  // [_stepViewportToward] skips far pages by estimate, so a few frames reach
+  // any page; this stops it spinning forever if the target is unreachable.
   static const _entryScrollMaxRetries = 10;
+
+  // Bumped by each new reveal, tab switch, layout switch and sutta step. A
+  // retry still holding an older value has been superseded and stops: two
+  // chains stepping the same list at once push each other past both targets.
+  int _revealGeneration = 0;
 
   // The entry [_ensureEntryVisible] is currently reaching for, or null.
   // Only [DualColumnPane] reads it — it builds a window of the unit rather
@@ -193,6 +199,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   /// Delegates business logic to [navigateToSuttaProvider] and
   /// handles the widget-specific concern (scroll position).
   void _navigateToSutta(TipitakaTreeNode target) {
+    // Stop any reveal aimed at the old unit.
+    _revealGeneration++;
     ref.read(navigateToSuttaProvider)(target);
 
     // Jump to top — handles the same-file case, where the document does not
@@ -326,12 +334,11 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
   /// Reveals the entry at `(pageIndex, entryIndex)`, retrying on subsequent
   /// frames while its GlobalKey is unmounted.
   ///
-  /// The page is always inside the rendered unit, so the only reason the key
-  /// is missing is that [ListView.builder] has not lazy-built it: it sits
-  /// outside the default cacheExtent (~250px). Growing anything is useless
-  /// there — the page is already in the item list — so we step the controller
-  /// by one viewport toward the target and let the next frame's cacheExtent
-  /// cover the slab. Direction comes from [EntryKeyRegistry.findTopVisibleEntry].
+  /// For a page inside the rendered unit, the only reason the key is missing
+  /// is that [ListView.builder] has not lazy-built it: it sits outside the
+  /// default cacheExtent (~250px). Growing anything is useless there — the
+  /// page is already in the item list — so we move the controller toward the
+  /// target ([_stepViewportToward]) and let the next frame build it.
   ///
   /// Bounded by [_entryScrollMaxRetries] so an unreachable target settles
   /// instead of spinning forever.
@@ -341,8 +348,20 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
     required int retriesLeft,
     double alignment = 0.3,
     bool animate = true,
+    int? generation,
   }) {
     if (!mounted) return;
+    // A call from outside starts a new reveal; its retries carry its number.
+    final gen = generation ?? ++_revealGeneration;
+    if (gen != _revealGeneration) return;
+    // A page outside the loaded unit (a stale `?e=` link) never mounts, so the
+    // reveal ends here. While the unit is still loading, it keeps retrying.
+    final slice = ref.read(activeDocumentSliceProvider);
+    if (slice != null &&
+        (pageIndex < slice.absolutePageStart ||
+            pageIndex >= slice.absolutePageStart + slice.pages.length)) {
+      return;
+    }
 
     // Publish it before looking the key up: on the first attempt the window
     // pane may not have built that page yet, and this is what makes it.
@@ -365,7 +384,7 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
 
     if (retriesLeft <= 0) return;
 
-    _stepViewportToward(pageIndex);
+    if (slice != null) _stepViewportToward(pageIndex, slice);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _ensureEntryVisible(
         pageIndex,
@@ -373,28 +392,38 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
         retriesLeft: retriesLeft - 1,
         alignment: alignment,
         animate: animate,
+        generation: gen,
       );
     });
   }
 
-  /// Steps the scroll controller by one viewport toward the page holding the
-  /// target so the next frame's [ListView.builder] cacheExtent covers the
-  /// slab containing it. Direction is inferred from the currently top-visible
-  /// entry; when the registry has nothing mounted yet (transitional frame),
-  /// defaults to forward.
+  /// Moves the scroll controller toward the page holding the target so the
+  /// next frame's [ListView.builder] builds it. Direction is inferred from the
+  /// currently top-visible entry; when the registry has nothing mounted yet
+  /// (transitional frame), defaults to forward.
+  ///
+  /// Far pages are skipped by estimate (average page height), which can land a
+  /// little past the target; the next frame then steps back toward it. Near
+  /// the target it moves one viewport per frame, which can't skip a page.
   ///
   /// Suppresses the debounced scroll-position auto-save: the intermediate
   /// clamped offsets aren't user-meaningful and shouldn't overwrite disk.
   /// Mirrors the suppression pattern in [_restoreScrollWithRetry].
-  void _stepViewportToward(int pageIndex) {
+  void _stepViewportToward(int pageIndex, DocumentSlice slice) {
     if (!_scrollController.hasClients) return;
 
     final pos = _scrollController.position;
-    final topEntry = _entryKeyRegistry.findTopVisibleEntry(_scrollController);
-    final scrollingDown = topEntry == null || pageIndex > topEntry.$1;
-    final delta =
-        scrollingDown ? pos.viewportDimension : -pos.viewportDimension;
-    final target = (pos.pixels + delta).clamp(0.0, pos.maxScrollExtent);
+    final topPage =
+        _entryKeyRegistry.findTopVisibleEntry(_scrollController)?.$1;
+    final scrollingDown = topPage == null || pageIndex > topPage;
+    // Every page between here and the target but the last; ≤ 0 when close.
+    final pagesToSkip = topPage == null ? 0 : (pageIndex - topPage).abs() - 1;
+    final averagePageHeight =
+        (pos.maxScrollExtent + pos.viewportDimension) / slice.pages.length;
+    final distance =
+        math.max(pagesToSkip * averagePageHeight, pos.viewportDimension);
+    final target = (pos.pixels + (scrollingDown ? distance : -distance))
+        .clamp(0.0, pos.maxScrollExtent);
 
     if (target == pos.pixels) return;
 
@@ -426,6 +455,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
 
         // Clear entry key registry — old tab's keys are stale
         _entryKeyRegistry.clear();
+        // Stop the old tab's reveal before it steps the new tab's list.
+        _revealGeneration++;
 
         // Layout is now per-tab and derived from activeReaderLayoutProvider
         // No need to override or reset - each tab remembers its own column mode
@@ -473,6 +504,8 @@ class _MultiPaneReaderWidgetState extends ConsumerState<MultiPaneReaderWidget>
             _entryKeyRegistry.findTopVisibleEntry(_scrollController);
         // Clear stale keys from old layout before rebuild
         _entryKeyRegistry.clear();
+        // Stop any reveal aimed at the old layout's list.
+        _revealGeneration++;
 
         // Match set is layout-scoped — refresh against the new layout.
         // Also covered by the suppression guard above: tab switches skip
